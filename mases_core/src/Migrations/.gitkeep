@@ -1,0 +1,15 @@
+# This directory contains all MASES database migrations, organized by domain.
+# The .gitkeep file ensures the directory is tracked in version control.
+# Actual migration files will be placed in subdirectories:
+# - Platform/
+# - Auth/
+# - Tenancy/
+# - Authorization/
+# - File/
+# - Shareholder/
+# - Finance/
+# - Hr/
+# - Arna/
+# - Ai/
+#
+# Migrations are loaded automatically by CoreServiceProvider.

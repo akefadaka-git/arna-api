@@ -1,0 +1,524 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    ============================================================================
+    PHPUnit Configuration — MASES Core Platform Foundation API
+    ============================================================================
+
+    Target   : PHPUnit 11.5 / Laravel 12 / PHP 8.3
+    Location : <project-root>/phpunit.xml
+
+    ============================================================================
+    REVISION HISTORY
+    ============================================================================
+
+    v1.0.0 — Initial Laravel default minimal phpunit.xml (Unit + Feature
+             suites only; narrow php env block).
+
+    v1.1.0 — CR-2 expanded. Extended MASES test harness. Rejected by the
+             XML parser: a comment contained two consecutive ASCII
+             hyphens, which XML 1.0 forbids inside comments.
+
+    v1.1.1 — Syntax-only correction. Comment dividers use equals-sign
+             runs; literal CLI flag references rephrased to prose.
+             Parsed successfully but aborted at suite bootstrap because
+             it declared a suite pointing at tests/Integration, which
+             does not exist. PHPUnit 11 hard-aborts on a missing suite
+             directory.
+
+    v1.1.2 — Removed the Integration and MASES suite declarations. All
+             other extended configuration preserved verbatim.
+
+    v1.1.3 — D-13 follow-up. Added the Domain suite pointing at
+             mases_core/src/Domains. Disabled the display-details family
+             so verbose per-item lists no longer dominate the output.
+             Rejected by the XML parser at deploy time: a reworded
+             comment still embedded the forbidden sequence.
+
+    v1.1.4 — Two corrections: (a) parse fix for comment text; (b) log
+             noise suppression via the null log driver. Rejected at
+             deploy time: one comment still contained a literal CLI flag
+             spelling with two consecutive hyphens.
+
+    v1.1.4a — Same-revision correction. The literal CLI flag invocation
+              inside the LOGGING comment is reworded to prose. This is
+              the only place in the file that still contained the
+              forbidden sequence. No functional XML attribute changes.
+
+              After this correction: the file parses cleanly, the Domain
+              suite is discovered, application logs are silenced, and
+              the display-details family remains off.
+
+    v1.2.0 — Noise-suppression revision. Goal: the console report must
+             contain only PASS blocks and FAIL blocks. Warning and
+             deprecation output of every origin was suppressed, and no
+             warning or deprecation category could escalate the exit
+             code. Specifically:
+
+               (a) failOnWarning and failOnDeprecation were turned off,
+                   so PHP-triggered warnings and deprecations could not
+                   turn a green run red.
+
+               (b) failOnPhpunitDeprecation and failOnPhpunitWarning
+                   were declared explicitly as off, so PHPUnit's own
+                   internal notices (including the metadata-in-doc-
+                   comment notice emitted at collection time) could not
+                   escalate the exit code either.
+
+               (c) displayDetailsOnPhpunitDeprecations and
+                   displayDetailsOnTestsThatTriggerWarnings remained
+                   off, so neither the per-test WARN lines nor the
+                   deprecation detail block were printed.
+
+               (d) failOnRisky, failOnEmptyTestSuite,
+                   beStrictAboutOutputDuringTests,
+                   beStrictAboutChangesToGlobalState, and
+                   beStrictAboutTestsThatDoNotTestAnything remained on.
+
+    v1.2.1 — B1 audit remediation. Narrowed v1.2.0's noise-suppression
+             posture to the part that is structurally required, and
+             restored the exit-code escalation for the categories that
+             surface real defects.
+
+             RATIONALE
+             ---------
+             v1.2.0 was applied to silence two genuinely different
+             categories of console output, and it silenced them with the
+             same lever:
+
+               1. PHPUnit's own metadata-in-doc-comment notice, emitted
+                  at collection time. This notice is cosmetic, and no
+                  XML attribute suppresses its EMISSION — only its
+                  exit-code escalation and its display. The durable fix
+                  is the Rector migration (PHP 8 attributes), which was
+                  applied alongside v1.2.0 and has already removed the
+                  notice at source. The two `failOnPhpunit*` flags exist
+                  only as a safety net for future regressions of that
+                  specific class.
+
+               2. PHP-triggered warnings and deprecations, emitted at
+                  runtime. These are NOT cosmetic. They surface real
+                  defects — including silent catch-and-log listeners
+                  whose signatures have drifted from their callee (see
+                  R-21, `AuditWalletEvent`'s call to a non-existent
+                  named parameter on `AuditService::log()`). v1.2.0's
+                  `failOnWarning="false"` removed the exit-code signal
+                  that would have kept such a defect visible after its
+                  initial discovery.
+
+             The two categories were conflated. v1.2.1 separates them.
+
+             CHANGES
+             -------
+               (a) failOnWarning and failOnDeprecation are restored to
+                   "true". A warning or deprecation of PHP origin again
+                   escalates the exit code. Real defects of the R-21
+                   class surface on the next run.
+
+               (b) failOnPhpunitWarning and failOnPhpunitDeprecation
+                   remain "false". These are the two categories the
+                   Rector migration was specifically intended to
+                   eliminate; keeping them false is the safety net
+                   v1.2.0 described, and is not a suppression of any
+                   PHP-origin signal.
+
+               (c) The display-details family remains off. This is
+                   presentation only, not exit-code behaviour — the
+                   exit code is the load-bearing signal, not the
+                   printed list.
+
+               (d) failOnNotice remains "false". Its pre-v1.2.0 value
+                   is not recoverable from the available evidence, and
+                   no incident attributable to a suppressed notice has
+                   been identified. If a future audit finds one, this
+                   flag is the next candidate for restoration.
+
+             WHAT DOES NOT CHANGE
+             --------------------
+             · All test suites, coverage sources, and env vars.
+             · The LOG_CHANNEL=null setting (application-log
+               suppression is orthogonal to PHPUnit's own exit-code
+               flags; v1.2.0's §"LOGGING" rationale still applies).
+             · beStrictAbout* and failOnRisky/failOnEmptyTestSuite.
+
+    ============================================================================
+    PURPOSE
+    ============================================================================
+
+    Defines the test suites, coverage sources, bootstrap sequence, and
+    environment variables used by PHPUnit when running:
+
+        php artisan test          (Laravel wrapper, preferred)
+        vendor/bin/phpunit        (direct)
+
+    DESIGN PRINCIPLES
+    =================
+
+    1. Hermetic tests. The suite must NOT touch the real database, mail
+       transport, cache backend, or queue. Every external dependency is
+       overridden in the php env block below with an in-memory, no-op,
+       or null driver.
+
+    2. Signal over noise, but signal is preserved. Cosmetic
+       collection-phase notices are suppressed at source (via the
+       companion Rector migration) rather than at the exit code.
+       Runtime warnings and deprecations — which can indicate real
+       defects — DO escalate the exit code (failOnWarning and
+       failOnDeprecation are "true"). Strict-mode flags that catch real
+       defects (risky tests, empty suites, stray output, global-state
+       mutation) remain enabled.
+
+    3. Quiet console. Application logging is discarded via the null log
+       driver. Only PHPUnit's own reporter appears on the console.
+
+    4. Coverage includes both application code and the MASES core.
+       Coverage thresholds are enforced via the coverage-clover option
+       in CI, not here.
+
+    5. Random execution order is NOT enabled by default. Developers may
+       opt in locally using PHPUnit's order-by option on the command
+       line.
+
+    USAGE
+    =====
+
+        composer test             clear config cache, then run full suite
+        vendor/bin/phpunit        run all suites
+
+    To run a single test suite, pass the suite name using PHPUnit's
+    testsuite option. Suite names currently defined here are:
+
+        Unit       tests/Unit              app-level unit tests
+        Feature    tests/Feature           app-level HTTP and API tests
+        Domain     mases_core/src/Domains  all domain-scoped tests,
+                                           discovered recursively under
+                                           any domain's Tests subtree
+
+    To run a single test class, pass the class name using PHPUnit's
+    filter option. Coverage output requires Xdebug or PCOV to be enabled
+    in the CLI PHP binary.
+
+    CI NOTES
+    ========
+
+    In CI, run PHPUnit with the coverage-clover and log-junit options
+    pointed at files under build/, then parse the Clover report with
+    your coverage reporter (Codecov, Coveralls, SonarQube). Do NOT rely
+    on the coverage element below for threshold enforcement. That
+    element exists only to declare which code is measured.
+    ============================================================================
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+
+         cacheDirectory=".phpunit.cache"
+
+         executionOrder="depends,defects"
+         resolveDependencies="true"
+         reverseDefectList="false"
+
+         beStrictAboutOutputDuringTests="true"
+         beStrictAboutChangesToGlobalState="true"
+         beStrictAboutCoverageMetadata="true"
+         beStrictAboutTestsThatDoNotTestAnything="true"
+
+         failOnEmptyTestSuite="true"
+         failOnRisky="true"
+
+         failOnWarning="true"
+         failOnDeprecation="true"
+         failOnNotice="false"
+
+         failOnPhpunitWarning="false"
+         failOnPhpunitDeprecation="false"
+
+         displayDetailsOnTestsThatTriggerDeprecations="false"
+         displayDetailsOnTestsThatTriggerErrors="false"
+         displayDetailsOnTestsThatTriggerNotices="false"
+         displayDetailsOnTestsThatTriggerWarnings="false"
+         displayDetailsOnPhpunitDeprecations="false"
+         displayDetailsOnIncompleteTests="false"
+         displayDetailsOnSkippedTests="false"
+
+         requireCoverageMetadata="false"
+>
+    <!--
+        ========================================================================
+        TEST SUITES
+        ========================================================================
+
+        Unit        app-level pure PHP tests under tests/Unit.
+                    Fast. Prefer these when possible.
+
+        Feature     app-level HTTP and API tests under tests/Feature.
+                    Boots the full kernel.
+
+        Domain      every domain-scoped test under mases_core/src/Domains,
+                    discovered recursively. Covers both per-domain Unit
+                    and Feature subtrees in one sweep, so a domain author
+                    can add Tests/Unit or Tests/Feature test files
+                    without touching this file.
+
+        Every PHP file under the listed directories whose name ends in
+        Test.php is collected. Nested folders are walked recursively.
+        Ordering is deterministic and matches directory listing order.
+
+        WHY A SINGLE Domain SUITE RATHER THAN PER-DOMAIN SUITES
+        =======================================================
+
+        PHPUnit 11 validates every declared suite directory at bootstrap
+        and aborts the entire run with exit code 2 if any one of them is
+        missing. A per-domain declaration (one directory entry per
+        domain) would abort the whole run if any single domain lacked a
+        Tests/Unit or Tests/Feature subdirectory.
+
+        A single directory entry pointing at mases_core/src/Domains
+        avoids that class of failure entirely. PHPUnit validates the
+        top-level directory (which exists) and walks its contents at
+        discovery time; missing intermediates simply contribute no
+        tests.
+
+        If finer-grained control is needed later (for example, to run
+        only the Wallet domain tests via a per-domain suite name),
+        additional suites can be added below the Domain suite. That is
+        an opt-in addition, not required for correctness.
+        ========================================================================
+    -->
+    <testsuites>
+        <testsuite name="Unit">
+            <directory suffix="Test.php">tests/Unit</directory>
+        </testsuite>
+
+        <testsuite name="Feature">
+            <directory suffix="Test.php">tests/Feature</directory>
+        </testsuite>
+
+        <testsuite name="Domain">
+            <directory suffix="Test.php">mases_core/src/Domains</directory>
+        </testsuite>
+    </testsuites>
+
+    <!--
+        ========================================================================
+        COVERAGE SOURCE
+        ========================================================================
+
+        Which files are considered code under test when generating
+        coverage reports. Anything outside this list is ignored:
+        vendor/, tests/, config/, database/, and so on.
+
+        Both application code (app/) and MASES core (mases_core/src/) are
+        included, because a regression in either is a regression in the
+        API.
+
+        The exclude entries remove:
+
+          · Laravel service providers (they only wire the container; not
+            meaningfully testable in isolation)
+          · Console Kernel (same reason)
+          · Exception handler (mostly framework overrides)
+          · Migration and seeder files (data, not logic)
+          · Helpers.php (function bag; covered transitively)
+
+        Adjust the excludes if the application grows a provider that
+        contains real logic.
+        ========================================================================
+    -->
+    <source>
+        <include>
+            <directory suffix=".php">app</directory>
+            <directory suffix=".php">mases_core/src</directory>
+        </include>
+        <exclude>
+            <directory>app/Providers</directory>
+            <file>app/Console/Kernel.php</file>
+            <file>app/Exceptions/Handler.php</file>
+            <directory>mases_core/src/Support/Helpers.php</directory>
+        </exclude>
+    </source>
+
+    <!--
+        ========================================================================
+        PHP ENVIRONMENT
+        ========================================================================
+
+        Every entry below is applied to $_ENV, $_SERVER, and putenv()
+        before the framework boots. Values here OVERRIDE anything set in
+        .env and .env.testing.
+
+        These settings make the test suite hermetic: it never touches
+        the real database, never sends real mail, never writes to the
+        real cache backend, and never processes real queue jobs. If a
+        test needs a specific override, use the application config or
+        putenv inside the test itself, not here.
+        ========================================================================
+    -->
+    <php>
+
+        <!--
+            ================================================================
+            CORE APPLICATION ENVIRONMENT
+            ================================================================
+        -->
+        <env name="APP_ENV"                value="testing"/>
+        <env name="APP_DEBUG"              value="true"/>
+        <env name="APP_KEY"                value="base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="APP_URL"                value="http://api.maalearna.test"/>
+
+        <!--
+            ================================================================
+            AUTHENTICATION
+            ================================================================
+
+            AUTH_MODEL binds the auth pipeline (password broker,
+            verification, password reset) to the MASES Core User model.
+            Without this, the framework resolves App\Models\User, which
+            does not satisfy the type contracts enforced by
+            AuthenticationService.
+
+            This is the change originally recorded as CR-2.
+            ================================================================
+        -->
+        <env name="AUTH_MODEL"             value="MaaleArna\MASES\Core\Auth\Models\User"/>
+
+        <!--
+            ================================================================
+            MASES CORE OVERRIDES
+            ================================================================
+
+            These feed the mases_*() helpers from
+            mases_core/src/Support/Helpers.php
+            ================================================================
+        -->
+        <env name="MASES_ENV"                    value="testing"/>
+        <env name="MASES_TENANT_ISOLATION"       value="false"/>
+        <env name="MASES_DEFAULT_TENANT_ID"      value=""/>
+        <env name="MASES_DEFAULT_LOCALE"         value="am"/>
+
+        <!--
+            ================================================================
+            DATABASE
+            ================================================================
+
+            SQLite in-memory is the fastest hermetic option. Do NOT
+            point this at MySQL: parallel test runs and CI containers
+            cannot share a database, and the in-memory driver is
+            substantially faster.
+
+            If a test genuinely needs MySQL-specific behaviour (JSON
+            columns, full-text search, window functions), override it in
+            that test's setUp via RefreshDatabase against a dedicated
+            test connection.
+            ================================================================
+        -->
+        <env name="DB_CONNECTION"          value="sqlite"/>
+        <env name="DB_DATABASE"            value=":memory:"/>
+        <env name="DB_FOREIGN_KEYS"        value="true"/>
+
+        <!--
+            ================================================================
+            CACHE / SESSION / QUEUE
+            ================================================================
+
+            Array = in-process, no persistence, wiped per test.
+            Sync  = jobs execute inline, deterministically.
+            ================================================================
+        -->
+        <env name="CACHE_STORE"            value="array"/>
+        <env name="SESSION_DRIVER"         value="array"/>
+        <env name="QUEUE_CONNECTION"       value="sync"/>
+        <env name="BROADCAST_CONNECTION"   value="log"/>
+
+        <!--
+            ================================================================
+            MAIL
+            ================================================================
+
+            Never send mail in tests. The array mailer collects messages
+            in memory and exposes them via Mail::fake() assertions.
+            ================================================================
+        -->
+        <env name="MAIL_MAILER"            value="array"/>
+        <env name="MAIL_FROM_ADDRESS"      value="testing@maalearna.test"/>
+        <env name="MAIL_FROM_NAME"         value="MASES Test"/>
+
+        <!--
+            ================================================================
+            SECURITY TUNING
+            ================================================================
+
+            Bcrypt at 4 rounds (minimum) keeps password-hashing tests
+            fast without changing behaviour. Sanctum's token TTL and
+            cookie settings are relaxed so tests do not depend on
+            wall-clock time.
+            ================================================================
+        -->
+        <env name="BCRYPT_ROUNDS"            value="4"/>
+        <env name="SANCTUM_STATEFUL_DOMAINS" value="localhost,127.0.0.1,api.maalearna.test"/>
+        <env name="SANCTUM_TOKEN_PREFIX"     value=""/>
+        <env name="SESSION_LIFETIME"         value="120"/>
+
+        <!--
+            ================================================================
+            TELEMETRY
+            ================================================================
+
+            Laravel Pulse and Telescope are disabled for tests. They
+            collect telemetry that would pollute memory and slow the
+            suite.
+            ================================================================
+        -->
+        <env name="PULSE_ENABLED"          value="false"/>
+        <env name="TELESCOPE_ENABLED"      value="false"/>
+
+        <!--
+            ================================================================
+            LOGGING
+            ================================================================
+
+            The null log driver discards every log write. During tests,
+            the application's own diagnostic logging is not needed: test
+            assertions are the source of truth for pass or fail, and the
+            failure block contains everything needed to diagnose a
+            failure.
+
+            Why this matters: many MASES tests deliberately exercise
+            error paths (tenant rejection, permission denial, invalid
+            credentials, and so on). Each such test causes the middleware
+            to call Log::error() or Log::warning(). With the stack driver
+            pointed at stderr, every one of those calls printed to the
+            console and drowned PHPUnit's own output.
+
+            To temporarily restore application logging during a debugging
+            session, override the log channel at the shell to the single
+            driver. That writes to storage/logs/laravel.log instead of
+            the console. Alternatively, restore the stack driver pointed
+            at stderr to reinstate the previous behaviour.
+            ================================================================
+        -->
+        <env name="LOG_CHANNEL"            value="null"/>
+
+    </php>
+
+    <!--
+        ========================================================================
+        EXTENSIONS
+        ========================================================================
+
+        PHPUnit extensions that hook into the test lifecycle. Laravel 12
+        registers its own bootstrap through the Composer autoloader via
+        the Tests\CreatesApplication trait, so no extension is strictly
+        required here.
+
+        If a package that needs a PHPUnit extension is added later (for
+        example Infection for mutation testing, or PHPUnit's built-in
+        TestDox reporter), register it inside this block.
+
+        Left empty for now: adding unnecessary extensions slows
+        bootstrap.
+        ========================================================================
+    -->
+    <extensions/>
+</phpunit>

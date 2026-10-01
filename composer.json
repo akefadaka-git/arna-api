@@ -1,0 +1,109 @@
+{
+    "name": "maale-arna/mases-api",
+    "description": "MASES Core Platform Foundation API — Central backend for Maale Arna Smart Enterprise System",
+    "type": "project",
+    "keywords": [
+        "mas",
+        "enterprise",
+        "laravel",
+        "api",
+        "core"
+    ],
+    "license": "proprietary",
+
+    "require": {
+        "php": "^8.3",
+        "laravel/framework": "^12.0",
+        "laravel/sanctum": "^4.0",
+        "laravel/tinker": "^2.10"
+    },
+
+    "require-dev": {
+        "fakerphp/faker": "^1.23",
+        "laravel/pint": "^1.18",
+        "mockery/mockery": "^1.6",
+        "nunomaduro/collision": "^8.6",
+        "phpunit/phpunit": "^11.5",
+        "rector/rector": "^2.0"
+    },
+
+    "autoload": {
+        "files": [
+            "mases_core/src/Support/Helpers.php"
+        ],
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/",
+            "MaaleArna\\MASES\\Core\\": "mases_core/src/"
+        }
+    },
+
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "platform-check": true,
+        "platform": {
+            "php": "8.3.0"
+        },
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "post-create-project-cmd": [
+            "@php artisan key:generate --ansi"
+        ],
+        "test": [
+            "@php artisan config:clear --ansi",
+            "@php artisan test"
+        ],
+        "pint": [
+            "vendor/bin/pint"
+        ],
+        "fresh": [
+            "@php artisan migrate:fresh --seed --ansi"
+        ],
+        "clear": [
+            "@php artisan config:clear --ansi",
+            "@php artisan cache:clear --ansi",
+            "@php artisan route:clear --ansi",
+            "@php artisan view:clear --ansi"
+        ]
+    },
+
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+
+    "scripts-descriptions": {
+        "test": "Clear config cache and run the test suite",
+        "pint": "Run Laravel Pint code style fixer",
+        "fresh": "Drop all tables, re-migrate, and seed",
+        "clear": "Clear config, cache, route, and view caches"
+    }
+}
