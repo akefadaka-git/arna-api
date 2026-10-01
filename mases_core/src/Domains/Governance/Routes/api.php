@@ -414,12 +414,10 @@ Route::name('api.governance.')->group(static function (): void {
     // =========================================================================
 
     Route::get('/bodies/{governanceBody}/positions', [GovernancePositionController::class, 'index'])
-        ->middleware('auth.permission:governance.body.view')
         ->whereNumber('governanceBody')
         ->name('positions.index');
 
     Route::post('/bodies/{governanceBody}/positions', [GovernancePositionController::class, 'store'])
-        ->middleware('auth.permission:governance.body.manage')
         ->whereNumber('governanceBody')
         ->name('positions.store');
 
