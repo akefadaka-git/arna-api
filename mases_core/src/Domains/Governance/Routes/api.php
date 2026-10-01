@@ -396,11 +396,9 @@ Route::name('api.governance.')->group(static function (): void {
     // =========================================================================
 
     Route::get('/bodies', [GovernanceBodyController::class, 'index'])
-        ->middleware('auth.permission:governance.body.view')
         ->name('bodies.index');
 
     Route::post('/bodies', [GovernanceBodyController::class, 'store'])
-        ->middleware('auth.permission:governance.body.manage')
         ->name('bodies.store');
 
     Route::get('/bodies/{governanceBody}', [GovernanceBodyController::class, 'show'])
@@ -438,12 +436,10 @@ Route::name('api.governance.')->group(static function (): void {
     // =========================================================================
 
     Route::get('/bodies/{governanceBody}/terms', [GovernanceTermController::class, 'index'])
-        ->middleware('auth.permission:governance.body.view')
         ->whereNumber('governanceBody')
         ->name('terms.index');
 
     Route::post('/bodies/{governanceBody}/terms', [GovernanceTermController::class, 'store'])
-        ->middleware('auth.permission:governance.body.manage')
         ->whereNumber('governanceBody')
         ->name('terms.store');
 

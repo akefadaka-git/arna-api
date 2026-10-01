@@ -412,11 +412,9 @@ Route::name('api.shareholders.')->group(static function (): void {
     // =========================================================================
 
     Route::get('/', [ShareholderController::class, 'index'])
-        ->middleware('auth.permission:shareholder.view')
         ->name('index');
 
     Route::post('/', [ShareholderController::class, 'store'])
-        ->middleware('auth.permission:shareholder.create')
         ->name('store');
 
     Route::get('/{shareholder}', [ShareholderController::class, 'show'])
@@ -424,7 +422,6 @@ Route::name('api.shareholders.')->group(static function (): void {
         ->name('show');
 
     Route::match(['patch', 'put'], '/{shareholder}', [ShareholderController::class, 'update'])
-        ->middleware('auth.permission:shareholder.update')
         ->whereNumber('shareholder')
         ->name('update');
 });
