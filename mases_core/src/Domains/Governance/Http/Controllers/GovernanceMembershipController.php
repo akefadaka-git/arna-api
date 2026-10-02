@@ -279,6 +279,8 @@ final class GovernanceMembershipController extends Controller
             (int) $governanceBody->id,
         );
 
+        Gate::authorize('viewAny', $governanceBody);
+
         $filters = array_filter(
             $request->only(['status', 'is_ex_officio', 'is_current', 'has_user', 'search']),
             static fn ($value): bool => $value !== null && $value !== '',
@@ -340,6 +342,8 @@ final class GovernanceMembershipController extends Controller
             GovernanceBody::class,
             (int) $governanceBody->id,
         );
+
+        Gate::authorize('create', $governanceBody);
 
         $payload = $request->validated();
 

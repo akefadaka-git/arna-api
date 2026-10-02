@@ -474,12 +474,10 @@ Route::name('api.governance.')->group(static function (): void {
     // =========================================================================
 
     Route::get('/bodies/{governanceBody}/appointments', [GovernanceAppointmentController::class, 'index'])
-        ->middleware('auth.permission:governance.body.view')
         ->whereNumber('governanceBody')
         ->name('appointments.index');
 
     Route::post('/bodies/{governanceBody}/appointments', [GovernanceAppointmentController::class, 'store'])
-        ->middleware('auth.permission:governance.body.manage')
         ->whereNumber('governanceBody')
         ->name('appointments.store');
 
@@ -515,12 +513,10 @@ Route::name('api.governance.')->group(static function (): void {
     // =========================================================================
 
     Route::get('/bodies/{governanceBody}/memberships', [GovernanceMembershipController::class, 'index'])
-        ->middleware('auth.permission:governance.body.view')
         ->whereNumber('governanceBody')
         ->name('memberships.index');
 
     Route::post('/bodies/{governanceBody}/memberships', [GovernanceMembershipController::class, 'store'])
-        ->middleware('auth.permission:governance.body.manage')
         ->whereNumber('governanceBody')
         ->name('memberships.store');
 

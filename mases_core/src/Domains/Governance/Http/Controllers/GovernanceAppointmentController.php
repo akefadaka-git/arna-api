@@ -342,6 +342,8 @@ final class GovernanceAppointmentController extends Controller
             (int) $governanceBody->id,
         );
 
+        Gate::authorize('viewAny', $governanceBody);
+
         $filters = array_filter(
             $request->only(['status', 'appointment_mode', 'instrument_type', 'search']),
             static fn ($value): bool => $value !== null && $value !== '',
@@ -406,6 +408,8 @@ final class GovernanceAppointmentController extends Controller
             GovernanceBody::class,
             (int) $governanceBody->id,
         );
+
+        Gate::authorize('create', $governanceBody);
 
         $payload = $request->validated();
 
