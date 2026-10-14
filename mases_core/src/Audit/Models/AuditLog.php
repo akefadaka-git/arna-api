@@ -56,6 +56,7 @@ final class AuditLog extends Model
         'ip_address',
         'user_agent',
         'request_id',
+        'metadata',
     ];
 
     /**
@@ -67,6 +68,7 @@ final class AuditLog extends Model
         'old_values' => 'array',
         'new_values' => 'array',
         'created_at' => 'datetime',
+        'metadata' => 'array',
     ];
 
     /**

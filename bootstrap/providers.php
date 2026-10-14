@@ -575,7 +575,6 @@ return [
      * registration wins. See the file header §"LocalizationServiceProvider"
      * for the rationale and the deferred consolidation.
      */
-    MaaleArna\MASES\Core\Providers\LocalizationServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------

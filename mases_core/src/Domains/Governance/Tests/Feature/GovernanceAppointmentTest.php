@@ -597,6 +597,255 @@ final class GovernanceAppointmentTest extends TestCase
     }
 
     // =========================================================================
+    // RP-02 â€” cross-tenant update coverage  (RP-02-A3-COVERAGE-ADDED)
+    // =========================================================================
+    //
+    // These three tests assert the RP-02 security property for the
+    // appointment update endpoint: a cross-tenant id is rejected by
+    // the FormRequest's authorize() with 404 RESOURCE_NOT_FOUND, the
+    // withValidator() cross-field check never runs for a cross-tenant
+    // id, and the externally observable envelope is indistinguishable
+    // from the nonexistent-id case.
+
+    public function test_update_404s_for_cross_tenant_appointment(): void
+    {
+        gc_collect_cycles();
+
+        $otherTenant = $this->makeTenant('other', 'other.example.test');
+        $foreignBody = GovernanceBody::create([
+            'tenant_id' => $otherTenant->id,
+            'code'      => 'FOREIGN',
+            'body_type' => 'board',
+            'name_en'   => 'Foreign Body',
+            'is_active' => true,
+        ]);
+        $foreignAppointment = GovernanceAppointment::create([
+            'tenant_id'          => $otherTenant->id,
+            'governance_body_id' => $foreignBody->id,
+            'instrument_type'    => 'resolution',
+            'effective_date'     => '2026-09-18',
+            'appointment_mode'   => 'elected',
+            'status'             => 'draft',
+        ]);
+
+        $response = $this->patchJson(
+            route('api.governance.appointments.update', [
+                'governanceAppointment' => $foreignAppointment->id,
+            ]),
+            ['title_en' => 'Attempted Cross-Tenant Update'],
+        );
+
+        $response->assertStatus(404);
+        $response->assertJsonPath('error.code', 'RESOURCE_NOT_FOUND');
+
+        gc_collect_cycles();
+    }
+
+    public function test_update_cross_tenant_with_cross_field_violation_still_404s(): void
+    {
+        gc_collect_cycles();
+
+        $otherTenant = $this->makeTenant('other', 'other.example.test');
+        $foreignBody = GovernanceBody::create([
+            'tenant_id' => $otherTenant->id,
+            'code'      => 'FOREIGN',
+            'body_type' => 'board',
+            'name_en'   => 'Foreign Body',
+            'is_active' => true,
+        ]);
+        $foreignAppointment = GovernanceAppointment::create([
+            'tenant_id'          => $otherTenant->id,
+            'governance_body_id' => $foreignBody->id,
+            'instrument_type'    => 'resolution',
+            'effective_date'     => '2026-09-18',
+            'appointment_mode'   => 'elected',
+            'status'             => 'draft',
+        ]);
+
+        // If authorize() did not run first, the payload below would be
+        // merged with the foreign row's state (effective_date
+        // 2026-09-18) and the withValidator() cross-field check
+        // (effective_date >= instrument_date) would fire, producing a
+        // 422 whose validation errors disclose the cross-tenant row's
+        // date columns. RP-02 requires authorize() to throw before
+        // withValidator() runs.
+        $response = $this->patchJson(
+            route('api.governance.appointments.update', [
+                'governanceAppointment' => $foreignAppointment->id,
+            ]),
+            [
+                'instrument_date' => '2027-01-01',
+                'title_en'        => 'Attempted Cross-Tenant Update',
+            ],
+        );
+
+        $response->assertStatus(404);
+        $response->assertJsonPath('error.code', 'RESOURCE_NOT_FOUND');
+
+        gc_collect_cycles();
+    }
+
+    public function test_update_cross_tenant_and_nonexistent_produce_equivalent_envelopes(): void
+    {
+        gc_collect_cycles();
+
+        $otherTenant = $this->makeTenant('other', 'other.example.test');
+        $foreignBody = GovernanceBody::create([
+            'tenant_id' => $otherTenant->id,
+            'code'      => 'FOREIGN',
+            'body_type' => 'board',
+            'name_en'   => 'Foreign Body',
+            'is_active' => true,
+        ]);
+        $foreignAppointment = GovernanceAppointment::create([
+            'tenant_id'          => $otherTenant->id,
+            'governance_body_id' => $foreignBody->id,
+            'instrument_type'    => 'resolution',
+            'effective_date'     => '2026-09-18',
+            'appointment_mode'   => 'elected',
+            'status'             => 'draft',
+        ]);
+
+        $payload = ['title_en' => 'Attempted Update'];
+
+        $crossTenantResponse = $this->patchJson(
+            route('api.governance.appointments.update', [
+                'governanceAppointment' => $foreignAppointment->id,
+            ]),
+            $payload,
+        );
+
+        $nonexistentResponse = $this->patchJson(
+            route('api.governance.appointments.update', [
+                'governanceAppointment' => 999999,
+            ]),
+            $payload,
+        );
+
+        $crossTenantResponse->assertStatus(404);
+        $nonexistentResponse->assertStatus(404);
+
+        // Strip only fields that are nondeterministic by design
+        // (request_id and timestamp). Every other field, at every
+        // depth, must be identical for the two cases. If this test
+        // fails, the renderer may be disclosing case-specific context
+        // (e.g. the model id) â€” a finding to surface, not a test bug.
+        $strip = function (array $payload) use (&$strip): array {
+            foreach ($payload as $key => $value) {
+                if ($key === 'request_id' || $key === 'timestamp') {
+                    unset($payload[$key]);
+                    continue;
+                }
+                if (is_array($value)) {
+                    $payload[$key] = $strip($value);
+                }
+            }
+            return $payload;
+        };
+
+        $this->assertSame(
+            $strip($crossTenantResponse->json()),
+            $strip($nonexistentResponse->json()),
+        );
+
+        gc_collect_cycles();
+    }
+    // =========================================================================
+    // RP-01 — audit before/after value assertion  (RP-01-A3-COVERAGE-ADDED)
+    // =========================================================================
+    //
+    // Asserts that the audit row for this update records the actual
+    // pre-update and post-update title_en values, and that they differ.
+    // The pre-existing audit test only asserts that a row exists.
+
+    public function test_update_records_distinct_old_and_new_title_in_audit(): void
+    {
+        gc_collect_cycles();
+
+        $body = $this->createGovernanceBody();
+        $appointment = $this->createAppointment($body, [
+            'title_en' => 'Original Title',
+        ]);
+
+        DB::table('audit_logs')->truncate();
+
+        $this->patchJson(
+            route('api.governance.appointments.update', [
+                'governanceAppointment' => $appointment->id,
+            ]),
+            ['title_en' => 'Updated Title'],
+        )->assertStatus(200);
+
+        $row = DB::table('audit_logs')
+            ->where('action',        'governance.appointment.updated')
+            ->where('resource_type', 'GovernanceAppointment')
+            ->where('resource_id',   (string) $appointment->id)
+            ->where('tenant_id',     $this->tenant->id)
+            ->orderByDesc('id')
+            ->first();
+
+        $this->assertNotNull(
+            $row,
+            'No audit row matched {action=governance.appointment.updated, resource_type=GovernanceAppointment, resource_id=' . $appointment->id . ', tenant_id=' . $this->tenant->id . '}. Either the listener did not fire, or resource_id is stored in a form that does not match a string cast of the model id.'
+        );
+
+        $old = $this->decodeAuditJson($row->old_values);
+        $new = $this->decodeAuditJson($row->new_values);
+
+        $this->assertArrayHasKey('title_en', $old, 'old_values must contain title_en.');
+        $this->assertArrayHasKey('title_en', $new, 'new_values must contain title_en.');
+
+        $this->assertSame('Original Title', $old['title_en'], 'RP-01: old_values.title_en must be the pre-update value.');
+        $this->assertSame('Updated Title',  $new['title_en'], 'RP-01: new_values.title_en must be the post-update value.');
+
+        $this->assertNotSame(
+            $old['title_en'],
+            $new['title_en'],
+            'RP-01: old_values.title_en and new_values.title_en must differ, not be identical.'
+        );
+
+        gc_collect_cycles();
+    }
+
+    /**
+     * Decode an audit JSON column value. Accepts either a JSON string
+     * or an already-cast array. Distinguishes malformed JSON from a
+     * valid JSON null via json_last_error().
+     *
+     * @param  mixed $raw
+     * @return array<string, mixed>
+     */
+    private function decodeAuditJson(mixed $raw): array
+    {
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        if (! is_string($raw)) {
+            $this->fail('Audit column value is neither string nor array. Type: ' . get_debug_type($raw));
+        }
+
+        $decoded = json_decode($raw, true);
+
+        $this->assertSame(
+            JSON_ERROR_NONE,
+            json_last_error(),
+            sprintf(
+                'Audit column is not valid JSON. json_last_error=%d (%s). Raw: %s',
+                json_last_error(),
+                json_last_error_msg(),
+                $raw
+            ),
+        );
+
+        $this->assertIsArray(
+            $decoded,
+            'Decoded audit column is not an array. Raw: ' . $raw,
+        );
+
+        return $decoded;
+    }
+    // =========================================================================
     // Audit
     // =========================================================================
 

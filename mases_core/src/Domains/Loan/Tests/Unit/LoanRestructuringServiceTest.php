@@ -828,7 +828,7 @@ final class LoanRestructuringServiceTest extends TestCase
         int $number = 1,
         InstallmentStatus $status = InstallmentStatus::Pending,
     ): LoanInstallment {
-        return LoanInstallment::create([
+        return LoanInstallment::forceCreate([
             'loan_id'            => $loan->id,
             'installment_number' => $number,
             'due_date'           => Carbon::now()->subMonths(2)->addMonths($number)->toDateString(),

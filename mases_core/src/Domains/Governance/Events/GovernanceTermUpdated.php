@@ -175,14 +175,19 @@ final class GovernanceTermUpdated
      */
     public readonly GovernanceTerm $term;
 
+    public readonly array $before;
+    public readonly array $changes;
+
     /**
      * Create a new event instance.
      *
      * @param GovernanceTerm $term  The updated, committed row.
      */
-    public function __construct(GovernanceTerm $term)
+    public function __construct(GovernanceTerm $term, array $before, array $changes)
     {
         $this->term = $term;
+        $this->before = $before;
+        $this->changes = $changes;
     }
 
     // =========================================================================

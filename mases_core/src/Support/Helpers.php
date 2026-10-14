@@ -74,6 +74,61 @@ declare(strict_types=1);
  *      `TenantContextService`, never from request input. Non-HTTP contexts
  *      use the explicit fallback chain documented on `mases_tenant_id()`.
  *
+ * =============================================================================
+ * TENANT-RESOLUTION PIPELINE (v1.1.0)
+ * =============================================================================
+ * For HTTP requests, tenant context is produced by a middleware pipeline.
+ * As observed in the current source, the pipeline runs in this order:
+ *
+ *   1. `RequestTenantResolver::resolve()` reads the `X-Tenant-ID` header
+ *      first, then the request subdomain (when the host ends with the
+ *      configured domain suffix and the subdomain is not on the reserved
+ *      list). It does not read the request body or query string.
+ *
+ *   2. `TenantContextMiddleware::handle()` calls the resolver and, on a
+ *      successful lookup, stores the hydrated Tenant in
+ *      `TenantContextService`. A failed lookup clears the context. This
+ *      middleware resolves a tenant; it does not verify the authenticated
+ *      user's membership in that tenant. Membership is enforced separately
+ *      by `TenantMembershipMiddleware` on routes whose middleware stack
+ *      includes the `tenant.membership` alias.
+ *
+ *   3. `mases_tenant_id()` — this file — reads
+ *      `TenantContextService::getTenantId()` in HTTP context. It does not
+ *      read request input, headers, the user's default tenant, or config.
+ *
+ * No step in the pipeline reads the request body, the query string, or any
+ * header other than the one the resolver itself reads. This is the
+ * single-authority arrangement introduced by C-09: before C-09, the helper
+ * read request input first, which caused it to return the client-supplied
+ * body value instead of the resolved tenant.
+ *
+ * Consumers of the helper observed to inherit this arrangement (this list
+ * is not exhaustive; new consumers are added as the platform grows and
+ * should be reviewed against the same contract):
+ *
+ *   · `AuthorizationService::hasPermission()` — the fallback path when
+ *     the caller passes `$tenantId: null`.
+ *   · `AuthServiceProvider::registerPermissionGate()` — via the service.
+ *   · `AuthenticationService::login()` — audit attribution.
+ *   · `SecurityEventService::log()` — audit attribution.
+ *   · `AuthorizationMiddleware` — the alias-bound middleware referenced
+ *     from `bootstrap/app.php`.
+ *   · Policies and controllers that carry a private `resolveTenantId()`
+ *     or `resolveTenantIdForListAbility()` helper. Not every policy or
+ *     controller has one; see the next paragraph.
+ *
+ * Consumers observed to read from other sources by design:
+ *
+ *   · `TenantMembershipMiddleware` reads
+ *     `TenantContextService::getTenant()` directly rather than through
+ *     the helper. The difference is one indirection.
+ *
+ *   · Some model-bearing policy abilities read `$model->tenant_id`
+ *     directly instead of the helper's value. The two coincide for
+ *     in-tenant rows and diverge for cross-tenant rows; the choice of
+ *     source at each call site is deliberate and documented at the site.
+ *
  * -----------------------------------------------------------------------------
  * SECURITY NOTE (v1.1.0)
  * -----------------------------------------------------------------------------

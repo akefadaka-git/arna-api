@@ -404,9 +404,11 @@ final class GovernanceBodyService
         }
 
         return DB::transaction(function () use ($body, $attributes): GovernanceBody {
+            $before = $body->getOriginal();
             $body->fill($attributes)->save();
+            $changes = $body->getChanges();
 
-            $this->dispatchAfterCommit(new GovernanceBodyUpdated($body));
+            $this->dispatchAfterCommit(new GovernanceBodyUpdated($body, $before, $changes));
 
             return $body->refresh();
         });
@@ -434,10 +436,12 @@ final class GovernanceBodyService
         }
 
         return DB::transaction(function () use ($body): GovernanceBody {
+            $before = $body->getOriginal();
             $body->is_active = false;
             $body->save();
+            $changes = $body->getChanges();
 
-            $this->dispatchAfterCommit(new GovernanceBodyUpdated($body));
+            $this->dispatchAfterCommit(new GovernanceBodyUpdated($body, $before, $changes));
 
             return $body->refresh();
         });
@@ -459,10 +463,12 @@ final class GovernanceBodyService
         }
 
         return DB::transaction(function () use ($body): GovernanceBody {
+            $before = $body->getOriginal();
             $body->is_active = true;
             $body->save();
+            $changes = $body->getChanges();
 
-            $this->dispatchAfterCommit(new GovernanceBodyUpdated($body));
+            $this->dispatchAfterCommit(new GovernanceBodyUpdated($body, $before, $changes));
 
             return $body->refresh();
         });

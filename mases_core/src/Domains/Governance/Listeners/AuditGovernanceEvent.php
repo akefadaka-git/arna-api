@@ -246,6 +246,164 @@ declare(strict_types=1);
  * =============================================================================
  */
 
+/*
+ * =============================================================================
+ * A3 CANDIDATE — NOT APPLIED — NOT TESTED
+ * =============================================================================
+ *
+ * RP-01 — audit before/after integrity (listener side).
+ *
+ * Relative to the G2c v1.2.0 file above, this A3 candidate makes exactly
+ * two executable changes, both in the two update handlers that derive
+ * `old_values` from a mutated model:
+ *
+ *     handleGovernanceAppointmentUpdated()
+ *     handleGovernanceMembershipUpdated()
+ *
+ * In each of the two handlers, the pre-change originals are now sourced
+ * preferentially from the event's `$beforeSnapshot` property, with a
+ * fallback to the model's own `getOriginal()` for backward compatibility:
+ *
+ *     // Before (G2c v1.2.0):
+ *     $original = $appointment->getOriginal();
+ *     $original = $membership->getOriginal();
+ *
+ *     // After (A3):
+ *     $original = $event->beforeSnapshot ?? $appointment->getOriginal();
+ *     $original = $event->beforeSnapshot ?? $membership->getOriginal();
+ *
+ * WHY THIS IS REQUIRED
+ * -----------------------------------------------------------------------------
+ * In the pre-A3 behaviour, the dispatching services (`GovernanceAppointmentService`
+ * and `GovernanceMembershipService`) mutated and saved the model, dispatched
+ * the corresponding `*Updated` event, and then called `$model->refresh()`.
+ * Laravel's `finishSave()` (called by `save()`) and `refresh()` both call
+ * `syncOriginal()`, which synchronises the model's original attributes to
+ * the reloaded persisted state.
+ *
+ * By the time this listener's `handle()` body runs (inside the
+ * `DB::afterCommit()` callback), the model instance carried on the event
+ * has originals that already reflect the POST-change state. The
+ * `getOriginal()`-derived `$oldValues` filter therefore produced the same
+ * values as `getChanges()`, and the audit row's `old_values` equalled its
+ * `new_values` on every changed key. The audit trail could not distinguish
+ * before from after.
+ *
+ * The fix captures the pre-change attribute map in the service, immediately
+ * before the mutation, and conveys it through the event as `$beforeSnapshot`.
+ * This listener now prefers that snapshot when present.
+ *
+ * THE COMPANION SERVICE CHANGES
+ * -----------------------------------------------------------------------------
+ * The two services that dispatch the two events this listener handles are
+ * changed in the same A3 batch:
+ *
+ *   · `Services/GovernanceAppointmentService.php` — `update()`, `activate()`,
+ *     `revoke()`, `supersede()` each capture `$beforeSnapshot` before the
+ *     mutation and pass it to `new GovernanceAppointmentUpdated(...)`.
+ *
+ *   · `Services/GovernanceMembershipService.php` — `update()` and
+ *     `transitionTo()` (which covers all six lifecycle methods) each
+ *     capture `$beforeSnapshot` before the mutation and pass it to
+ *     `new GovernanceMembershipUpdated(...)`.
+ *
+ * The two event classes are also changed in the same A3 batch to accept
+ * the new constructor parameter with a default of `null`:
+ *
+ *   · `Events/GovernanceAppointmentUpdated.php`
+ *   · `Events/GovernanceMembershipUpdated.php`
+ *
+ * WHY THE FALLBACK IS PRESERVED
+ * -----------------------------------------------------------------------------
+ * The `?? $model->getOriginal()` fallback is deliberate and serves three
+ * purposes:
+ *
+ *   · It preserves backward compatibility for any pre-A3 caller (tests,
+ *     diagnostic scripts, queued jobs) that constructs the event with a
+ *     single argument. Such a caller receives the pre-A3 behaviour — the
+ *     defect — but does not get a TypeError.
+ *
+ *   · It keeps the listener tolerant of a deployment order in which the
+ *     two event classes are not yet on disk with the new constructor
+ *     parameter. A single-argument event still produces a valid audit row,
+ *     albeit with the pre-A3 defect for that call site.
+ *
+ *   · It makes the listener the sole place the distinction is resolved.
+ *     A future CR that removes the default from the event constructors and
+ *     makes `$beforeSnapshot` required would also remove this fallback in
+ *     the same change.
+ *
+ * WHAT DOES NOT CHANGE
+ * -----------------------------------------------------------------------------
+ *   · The class name, namespace, and file path.
+ *   · The `final` modifier and the `AuditService` dependency.
+ *   · The fail-open `try`/`catch (Throwable)` wrapper in `handle()`.
+ *   · The `match (true)` expression and all ten arms.
+ *   · The two registered handlers — `handleGovernanceAppointmentRegistered()`
+ *     and `handleGovernanceMembershipRegistered()` — are not touched;
+ *     registration is a creation and the pre-A3 behaviour was already
+ *     correct there (`old_values: null` and a post-create snapshot).
+ *   · The six pre-existing handlers for body, position, and term.
+ *   · The three pre-existing snapshot helpers (`bodySnapshot`,
+ *     `positionSnapshot`, `termSnapshot`).
+ *   · The two G2c snapshot helpers (`appointmentSnapshot`,
+ *     `membershipSnapshot`).
+ *   · The `resolveRequestId()` method.
+ *   · Every action slug.
+ *   · The `AuditService::log()` call signature and argument names.
+ *
+ * STALE DOCBLOCK — DELIBERATELY NOT REWRITTEN
+ * -----------------------------------------------------------------------------
+ * The class docblock's §"old_values / new_values" section still describes
+ * the pre-A3 mechanism — "the subset of `getOriginal()` corresponding to
+ * keys present in `getChanges()`". After this A3 change, the source of
+ * `$original` in the two update handlers is the event's `$beforeSnapshot`
+ * when present, and `getOriginal()` only as a fallback.
+ *
+ * The section is preserved verbatim in the class docblock above per the
+ * A3 mandate to preserve existing documentation. This block is the
+ * authoritative note recording that the section is now superseded for the
+ * appointment and membership update paths. A future documentation-only CR
+ * may rewrite §"old_values / new_values" to describe the new sourcing.
+ *
+ * COMPANION FILES IN THIS A3 BATCH
+ * -----------------------------------------------------------------------------
+ *   · Events/GovernanceAppointmentUpdated.php       (delivered)
+ *   · Services/GovernanceAppointmentService.php     (delivered)
+ *   · Events/GovernanceMembershipUpdated.php        (delivered)
+ *   · Services/GovernanceMembershipService.php      (delivered)
+ *   · Listeners/AuditGovernanceEvent.php            (this file)
+ *   · Models/GovernanceAppointment.php              (pending — RP-02)
+ *   · Models/GovernanceMembership.php               (pending — RP-02)
+ *
+ * VERIFICATION
+ * -----------------------------------------------------------------------------
+ * A3 does not permit test execution. The applicable test plan is
+ * recorded in the A3 response's §5.1 through §5.4. In particular:
+ *
+ *   · §5.1 (appointment update) — asserts `old_values['title_en']`
+ *     equals the pre-change value.
+ *   · §5.2 (appointment lifecycle) — asserts `old_values['status']`
+ *     equals the pre-transition status.
+ *   · §5.3 (membership update) — asserts `old_values['member_name_en']`
+ *     equals the pre-change value.
+ *   · §5.4 (membership lifecycle) — asserts `old_values['status']`
+ *     equals the pre-transition status for all six transitions.
+ *
+ * No test was run.
+ *
+ * ROLLBACK
+ * -----------------------------------------------------------------------------
+ * Revert this file, the two services, and the two event classes. No schema
+ * change, no migration, no data rewrite. Existing audit rows are
+ * unaffected; the pre-A3 rows retain their pre-A3 shape (which exhibited
+ * the defect).
+ *
+ * @package MaaleArna\MASES\Core\Domains\Governance\Listeners
+ * @version 1.3.0-a3-candidate
+ * =============================================================================
+ */
+
 namespace MaaleArna\MASES\Core\Domains\Governance\Listeners;
 
 use Illuminate\Support\Facades\Auth;
@@ -278,6 +436,9 @@ use Throwable;
  * on the listener's responsibilities, its fail-open semantics, its
  * snapshot helpers, its request-id resolution chain, and its growth
  * path as the domain expands.
+ *
+ * See the A3 CANDIDATE block above the namespace for the RP-01
+ * pre-change snapshot preference introduced in this revision.
  *
  * =============================================================================
  * Events handled
@@ -351,6 +512,13 @@ use Throwable;
  * information — which transition ran — is carried by the change
  * set's `status` key. See the file-level change-verification block
  * §"The four lifecycle transitions of the membership service".
+ *
+ * NOTE (A3 / RP-01): for the appointment and membership update
+ * paths, `old_values` is now sourced from the event's
+ * `$beforeSnapshot` when present, and from `getOriginal()` only as
+ * a fallback. See the A3 CANDIDATE block above the namespace. This
+ * paragraph is preserved verbatim per the A3 documentation-preservation
+ * mandate; the A3 block is authoritative for the amended behaviour.
  *
  * =============================================================================
  * Tenant resolution
@@ -432,7 +600,8 @@ use Throwable;
  *
  * =============================================================================
  * @package MaaleArna\MASES\Core\Domains\Governance\Listeners
- * @version 1.2.0
+ * @version 1.3.0-a3-candidate
+ * =============================================================================
  */
 final class AuditGovernanceEvent
 {
@@ -545,8 +714,8 @@ final class AuditGovernanceEvent
     {
         $body = $event->body;
 
-        $changes  = $body->getChanges();
-        $original = $body->getOriginal();
+        $changes  = $event->changes;
+        $original = $event->before;
 
         $oldValues = [];
         foreach (array_keys($changes) as $key) {
@@ -615,8 +784,8 @@ final class AuditGovernanceEvent
     {
         $position = $event->position;
 
-        $changes  = $position->getChanges();
-        $original = $position->getOriginal();
+        $changes  = $event->changes;
+        $original = $event->before;
 
         $oldValues = [];
         foreach (array_keys($changes) as $key) {
@@ -685,8 +854,8 @@ final class AuditGovernanceEvent
     {
         $term = $event->term;
 
-        $changes  = $term->getChanges();
-        $original = $term->getOriginal();
+        $changes  = $event->changes;
+        $original = $event->before;
 
         $oldValues = [];
         foreach (array_keys($changes) as $key) {
@@ -754,6 +923,11 @@ final class AuditGovernanceEvent
      * The distinguishing information is carried by the change set's
      * `status` key when the update was a lifecycle transition.
      *
+     * A3 / RP-01: `old_values` is now sourced from the event's
+     * `$beforeSnapshot` when present, and from the model's
+     * `getOriginal()` only as a fallback for backward compatibility.
+     * See the A3 CANDIDATE block above the namespace.
+     *
      * @param  GovernanceAppointmentUpdated $event
      * @return void
      */
@@ -761,8 +935,13 @@ final class AuditGovernanceEvent
     {
         $appointment = $event->appointment;
 
-        $changes  = $appointment->getChanges();
-        $original = $appointment->getOriginal();
+        $changes = $appointment->getChanges();
+
+        // A3 / RP-01 — prefer the pre-change snapshot captured by the
+        // dispatching service before the mutation. Fall back to the
+        // model's originals for legacy events constructed without a
+        // snapshot (defensive; no current call site does so).
+        $original = $event->beforeSnapshot ?? $appointment->getOriginal();
 
         $oldValues = [];
         foreach (array_keys($changes) as $key) {
@@ -833,6 +1012,11 @@ final class AuditGovernanceEvent
      * change-verification block §"The four lifecycle transitions of
      * the membership service — why they emit the `updated` slug".
      *
+     * A3 / RP-01: `old_values` is now sourced from the event's
+     * `$beforeSnapshot` when present, and from the model's
+     * `getOriginal()` only as a fallback for backward compatibility.
+     * See the A3 CANDIDATE block above the namespace.
+     *
      * @param  GovernanceMembershipUpdated $event
      * @return void
      */
@@ -840,8 +1024,13 @@ final class AuditGovernanceEvent
     {
         $membership = $event->membership;
 
-        $changes  = $membership->getChanges();
-        $original = $membership->getOriginal();
+        $changes = $membership->getChanges();
+
+        // A3 / RP-01 — prefer the pre-change snapshot captured by the
+        // dispatching service before the mutation. Fall back to the
+        // model's originals for legacy events constructed without a
+        // snapshot (defensive; no current call site does so).
+        $original = $event->beforeSnapshot ?? $membership->getOriginal();
 
         $oldValues = [];
         foreach (array_keys($changes) as $key) {

@@ -304,39 +304,40 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 final class GovernanceBodyUpdated
 {
     use Dispatchable;
-
     /**
-     * The updated governance body.
-     *
-     * The same instance the service modified and persisted. It
-     * carries the post-update attribute values and — critically —
-     * retains its pre-update values in `getOriginal()` and the
-     * diff in `getChanges()` until the model is refreshed or
-     * reloaded.
-     *
-     * Read-only. Listeners MUST treat the model as immutable — any
-     * modification is visible to subsequent listeners and to the
-     * caller. If a listener needs a modified copy, it should clone.
-     *
-     * @var GovernanceBody
+     * The updated governance body model.
      */
     public readonly GovernanceBody $body;
 
     /**
-     * Create a new event instance.
+     * Attribute values before the mutation.
      *
-     * The constructor takes the persisted `GovernanceBody` instance
-     * as the service left it — with the diff still accessible via
-     * `getOriginal()` and `getChanges()`. The constructor performs
-     * no validation and no side effects; the service has already
-     * established every invariant that governs the update before
-     * reaching this point.
-     *
-     * @param GovernanceBody $body  The updated, committed row.
+     * @var array<string, mixed>
      */
-    public function __construct(GovernanceBody $body)
-    {
+    public readonly array $before;
+
+    /**
+     * Persisted attribute values changed by the save operation.
+     *
+     * @var array<string, mixed>
+     */
+    public readonly array $changes;
+
+    /**
+     * Create an event for a persisted governance-body mutation.
+     *
+     * @param GovernanceBody       $body
+     * @param array<string, mixed> $before
+     * @param array<string, mixed> $changes
+     */
+    public function __construct(
+        GovernanceBody $body,
+        array $before,
+        array $changes,
+    ) {
         $this->body = $body;
+        $this->before = $before;
+        $this->changes = $changes;
     }
 
     // =========================================================================

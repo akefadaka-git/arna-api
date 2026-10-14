@@ -80,7 +80,7 @@
              surface real defects.
 
              RATIONALE
-             ---------
+             ====================
              v1.2.0 was applied to silence two genuinely different
              categories of console output, and it silenced them with the
              same lever:
@@ -108,7 +108,7 @@
              The two categories were conflated. v1.2.1 separates them.
 
              CHANGES
-             -------
+             ====================
                (a) failOnWarning and failOnDeprecation are restored to
                    "true". A warning or deprecation of PHP origin again
                    escalates the exit code. Real defects of the R-21
@@ -133,7 +133,7 @@
                    flag is the next candidate for restoration.
 
              WHAT DOES NOT CHANGE
-             --------------------
+             ====================
              · All test suites, coverage sources, and env vars.
              · The LOG_CHANNEL=null setting (application-log
                suppression is orthogonal to PHPUnit's own exit-code
@@ -334,7 +334,7 @@
             <directory>app/Providers</directory>
             <file>app/Console/Kernel.php</file>
             <file>app/Exceptions/Handler.php</file>
-            <directory>mases_core/src/Support/Helpers.php</directory>
+            <file>mases_core/src/Support/Helpers.php</file>
         </exclude>
     </source>
 

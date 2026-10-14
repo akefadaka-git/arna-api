@@ -107,6 +107,22 @@ declare(strict_types=1);
  *       A PUT request would behave identically.
  *
  * =============================================================================
+ * A3 CANDIDATE — RP-06 audit integrity regression guard
+ * =============================================================================
+ * Two methods are added at the end of the Audit section:
+ *
+ *   test_update_audit_row_records_exact_before_and_after_values()
+ *   test_status_update_via_update_endpoint_records_exact_before_and_after_values()
+ *
+ * They assert (F1) exact count of matching audit rows via precise
+ * filters, (F2) that a PATCH that flips `is_active` is described as a
+ * status update — the API exposes no dedicated deactivate route — and
+ * (F3) the exact expected before/after values, read through the
+ * AuditLog model's `old_values` / `new_values` array casts (F4).
+ *
+ * Nothing else in the file is changed.
+ *
+ * =============================================================================
  * Test infrastructure assumptions
  * =============================================================================
  * The class assumes the platform's `phpunit.xml` (amended by G2a
@@ -157,6 +173,7 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
+use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
@@ -813,6 +830,159 @@ final class GovernanceBodyTest extends TestCase
     }
 
     // =========================================================================
+    // Audit — RP-06 / A3 before-and-after integrity guards
+    // =========================================================================
+
+    /**
+     * RP-06 / A3 — a successful update records the exact pre-change
+     * value in `old_values` and the exact post-change value in
+     * `new_values` for the attribute that changed, and does not
+     * include unchanged attributes in either map.
+     *
+     * Establishes F1 cardinality with precise filters before reading
+     * the row (never selects the "latest" row as proof of uniqueness).
+     * Reads `old_values` / `new_values` through the `AuditLog` model's
+     * declared `array` casts (F4). Asserts the exact expected values
+     * (F3) rather than "values differ".
+     */
+    public function test_update_audit_row_records_exact_before_and_after_values(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+
+        // Pre-condition — the persisted row carries the fixture's
+        // initial values. This is what the listener must record as
+        // "before".
+        $this->assertSame('A-BODY',           $this->bodyA->code);
+        $this->assertSame('board',            $this->bodyA->body_type);
+        $this->assertSame('የቴናንት ኤ ቦርድ',    $this->bodyA->name_am);
+        $this->assertSame('Tenant A Board',   $this->bodyA->name_en);
+        $this->assertTrue((bool) $this->bodyA->is_active);
+
+        $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenantA->id,
+        ])->patchJson(route('api.governance.bodies.update', [
+            'governanceBody' => $this->bodyA->id,
+        ]), [
+            'name_en' => 'Renamed For Audit',
+        ])->assertStatus(200);
+
+        // F1 — exact expected count with precise filters that
+        // distinguish the target entity, the action, and the tenant.
+        $query = AuditLog::query()
+            ->where('action',        'governance.body.updated')
+            ->where('resource_type', 'GovernanceBody')
+            ->where('resource_id',   (string) $this->bodyA->id)
+            ->where('tenant_id',     $this->tenantA->id);
+
+        $this->assertSame(
+            1,
+            $query->count(),
+            'Exactly one governance.body.updated audit row must exist for this body.',
+        );
+
+        /** @var AuditLog $row */
+        $row = $query->firstOrFail();
+
+        // F4 — the AuditLog model casts old_values / new_values to
+        // PHP arrays; no manual json_decode of raw column strings.
+        $old = $row->old_values;
+        $new = $row->new_values;
+
+        $this->assertIsArray($old);
+        $this->assertIsArray($new);
+
+        // F3 — exact expected before/after values on the changed key.
+        $this->assertArrayHasKey('name_en', $old);
+        $this->assertArrayHasKey('name_en', $new);
+        $this->assertSame('Tenant A Board',    $old['name_en']);
+        $this->assertSame('Renamed For Audit', $new['name_en']);
+
+        // Unchanged attributes must not be misrepresented as changed.
+        foreach (['code', 'name_am', 'body_type', 'is_active'] as $unchanged) {
+            $this->assertArrayNotHasKey(
+                $unchanged,
+                $old,
+                sprintf('Unchanged attribute "%s" must not appear in old_values.', $unchanged),
+            );
+            $this->assertArrayNotHasKey(
+                $unchanged,
+                $new,
+                sprintf('Unchanged attribute "%s" must not appear in new_values.', $unchanged),
+            );
+        }
+    }
+
+    /**
+     * RP-06 / A3 — a status update that flips `is_active` from true
+     * to false records `is_active` in both `old_values` and
+     * `new_values` with the exact pre/post values.
+     *
+     * F2 — the GovernanceBody HTTP surface (per the routes declared
+     * for G2a) exposes only index / show / store / update. There is
+     * no dedicated deactivate route. A PATCH that sets
+     * `is_active = false` through the generic update endpoint is a
+     * STATUS UPDATE and is described as such here — not as a
+     * deactivation operation.
+     *
+     * F3 — asserts the exact transition `true → false`, not merely
+     * that the two values differ.
+     */
+    public function test_status_update_via_update_endpoint_records_exact_before_and_after_values(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $this->assertTrue((bool) $this->bodyA->is_active);
+
+        $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenantA->id,
+        ])->patchJson(route('api.governance.bodies.update', [
+            'governanceBody' => $this->bodyA->id,
+        ]), [
+            'is_active' => false,
+        ])->assertStatus(200);
+
+        // F1 — exact expected count with precise filters.
+        $query = AuditLog::query()
+            ->where('action',        'governance.body.updated')
+            ->where('resource_type', 'GovernanceBody')
+            ->where('resource_id',   (string) $this->bodyA->id)
+            ->where('tenant_id',     $this->tenantA->id);
+
+        $this->assertSame(
+            1,
+            $query->count(),
+            'Exactly one governance.body.updated audit row must exist for this body.',
+        );
+
+        /** @var AuditLog $row */
+        $row = $query->firstOrFail();
+
+        $old = $row->old_values;
+        $new = $row->new_values;
+
+        $this->assertIsArray($old);
+        $this->assertIsArray($new);
+
+        // F3 — exact transition true → false.
+        $this->assertArrayHasKey('is_active', $old);
+        $this->assertArrayHasKey('is_active', $new);
+        $this->assertTrue(
+            (bool) $old['is_active'],
+            'old_values.is_active must be true.',
+        );
+        $this->assertFalse(
+            (bool) $new['is_active'],
+            'new_values.is_active must be false.',
+        );
+
+        // Unchanged business attributes must not appear.
+        foreach (['code', 'name_am', 'name_en', 'body_type'] as $unchanged) {
+            $this->assertArrayNotHasKey($unchanged, $old);
+            $this->assertArrayNotHasKey($unchanged, $new);
+        }
+    }
+
+    // =========================================================================
     // Helpers
     // =========================================================================
 
@@ -863,4 +1033,35 @@ final class GovernanceBodyTest extends TestCase
             'is_system'      => true,
         ]);
     }
-}
+
+    public function test_update_audit_row_carries_listener_metadata(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenantA->id,
+        ])->patchJson(route('api.governance.bodies.update', [
+            'governanceBody' => $this->bodyA->id,
+        ]), [
+            'name_en' => 'Metadata Probe',
+        ])->assertStatus(200);
+
+        $row = DB::table('audit_logs')
+            ->where('action',        'governance.body.updated')
+            ->where('resource_type', 'GovernanceBody')
+            ->where('resource_id',   (string) $this->bodyA->id)
+            ->where('tenant_id',     $this->tenantA->id)
+            ->orderByDesc('id')
+            ->first();
+
+        $this->assertNotNull($row);
+        $this->assertNotNull($row->metadata);
+
+        $meta = json_decode($row->metadata, true);
+        $this->assertIsArray($meta);
+        $this->assertSame('event-listener', $meta['source'] ?? null);
+        $this->assertSame(
+            'MaaleArna\\MASES\\Core\\Domains\\Governance\\Events\\GovernanceBodyUpdated',
+            $meta['event'] ?? null,
+        );
+    }}

@@ -324,9 +324,11 @@ final class GovernancePositionService
         }
 
         return DB::transaction(function () use ($position, $attributes): GovernancePosition {
+            $before = $position->getOriginal();
             $position->fill($attributes)->save();
+            $changes = $position->getChanges();
 
-            $this->dispatchAfterCommit(new GovernancePositionUpdated($position));
+            $this->dispatchAfterCommit(new GovernancePositionUpdated($position, $before, $changes));
 
             return $position->refresh();
         });
@@ -348,10 +350,12 @@ final class GovernancePositionService
         }
 
         return DB::transaction(function () use ($position): GovernancePosition {
+            $before = $position->getOriginal();
             $position->is_active = false;
             $position->save();
+            $changes = $position->getChanges();
 
-            $this->dispatchAfterCommit(new GovernancePositionUpdated($position));
+            $this->dispatchAfterCommit(new GovernancePositionUpdated($position, $before, $changes));
 
             return $position->refresh();
         });
@@ -373,10 +377,12 @@ final class GovernancePositionService
         }
 
         return DB::transaction(function () use ($position): GovernancePosition {
+            $before = $position->getOriginal();
             $position->is_active = true;
             $position->save();
+            $changes = $position->getChanges();
 
-            $this->dispatchAfterCommit(new GovernancePositionUpdated($position));
+            $this->dispatchAfterCommit(new GovernancePositionUpdated($position, $before, $changes));
 
             return $position->refresh();
         });

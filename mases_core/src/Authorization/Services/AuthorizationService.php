@@ -268,11 +268,28 @@ final class AuthorizationService
      * Both paths are considered. The method returns true if either path matches.
      *
      * Tenant scoping:
-     *   When $tenantId is provided (or resolved from request context), the check
-     *   matches permissions whose `tenant_id` equals $tenantId OR whose
-     *   `tenant_id` is NULL. A NULL tenant on a permission means "global" —
-     *   it applies in every tenant. A non-NULL tenant means "scoped to that
-     *   tenant only".
+     *   When `$tenantId` is supplied and non-null, the check matches
+     *   permissions whose `tenant_id` equals that value OR whose
+     *   `tenant_id` is NULL. A NULL tenant on a permission means "global"
+     *   — it applies in every tenant. A non-NULL tenant means "scoped to
+     *   that tenant only".
+     *
+     *   When `$tenantId` is null (the default for callers that do not
+     *   supply one), the value is resolved through `mases_tenant_id()`.
+     *   In HTTP context, that helper returns the tenant resolved by the
+     *   middleware pipeline (via `TenantContextService`); it does not
+     *   read the request body, query string, or header. In non-HTTP
+     *   context it falls back to the user default, then the config
+     *   default, then null. See `mases_tenant_id()`'s own docblock for
+     *   the full contract.
+     *
+     *   Resolving the tenant through this fallback does NOT verify the
+     *   caller's membership in that tenant. Membership enforcement is a
+     *   separate concern handled by `TenantMembershipMiddleware` on
+     *   routes whose middleware stack includes the `tenant.membership`
+     *   alias. This service evaluates the caller's permission set within
+     *   the resolved tenant; it does not authorize the caller's right to
+     *   that tenant.
      *
      * Application scoping:
      *   When $applicationSlug is provided, the application is resolved to an
@@ -288,7 +305,12 @@ final class AuthorizationService
      *
      * @param string          $permissionSlug    Permission slug, e.g. 'finance.transaction.create'.
      * @param User|null       $user              User to check. Null = current authenticated user.
-     * @param int|string|null $tenantId          Tenant context. Null = resolve from request.
+     * @param int|string|null $tenantId          Tenant context. When null (the default), the
+     *                                          tenant is resolved through `mases_tenant_id()`.
+     *                                          When a concrete value is supplied, it is used
+     *                                          verbatim and the helper is not consulted.
+     *                                          Resolving the tenant does not verify the caller's
+     *                                          membership; see the paragraph above.
      * @param string|null     $applicationSlug   Application slug, e.g. 'finance'. Null = no scoping.
      *
      * @return bool  True if the user holds the permission (directly or via a role).

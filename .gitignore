@@ -25,3 +25,13 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+*.bak
+*.bak-*
+*.bak.*
+*.bom-broken-*
+.rp01-a3-backups/
+.rp02-a3-backups/
+_evidence-backups/
+.env.bak*
+*.backup-*
+/storage/*

@@ -15,7 +15,11 @@ use MaaleArna\MASES\Core\Domains\Loan\Models\Loan;
 use MaaleArna\MASES\Core\Domains\Loan\Models\LoanCollateral;
 use MaaleArna\MASES\Core\Domains\Loan\Models\LoanProduct;
 use MaaleArna\MASES\Core\Domains\Loan\Models\LoanStatusHistory;
+use MaaleArna\MASES\Core\Domains\Shareholder\Enums\HoldingDirection;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareClass;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareHolding;
 use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
+use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareHoldingService;
 use MaaleArna\MASES\Core\Policy\Models\VersionedPolicy;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
@@ -92,12 +96,39 @@ use Tests\TestCase;
  * method-name collision with the protected helper on `Tests\TestCase`.
  *
  * =============================================================================
+ * Shareholding fixture
+ * =============================================================================
+ * The shareholding-typed payload references a `ShareHolding` by primary
+ * key. The earlier fixture hard-coded `pledged_shareholding_id => 42`, a
+ * value that did not resolve to any row; the strict existence check in
+ * `LoanCollateralService::assertPledgeIsCoverable()` therefore produced
+ * HTTP 422 for the two tests that exercise a shareholding-typed
+ * registration.
+ *
+ * `ensureBorrowerHolding()` constructs the fixture the correct way:
+ *
+ *   1. Resolves (or creates) a STANDARD `ShareClass`.
+ *   2. Credits `$this->borrower` with 1000 shares through
+ *      `ShareHoldingService::recordEntryFor()` — the domain's sole
+ *      sanctioned writer of `ShareHolding.current_quantity`, which
+ *      records the matching ledger entry and updates the projection
+ *      inside one transaction.
+ *   3. Re-queries and returns the persisted holding.
+ *
+ * The holding therefore exists, belongs to the loan's borrower, and
+ * carries a balance that covers the pledged quantity — satisfying the
+ * service's three pledge checks without weakening any of them. The
+ * fixture is cached on the instance so both shareholding tests reuse a
+ * single holding, and it depends on no auto-increment value, seed, or
+ * test execution order.
+ *
+ * =============================================================================
  * Memory hygiene
  * =============================================================================
  * `gc_collect_cycles()` runs at both ends of the test lifecycle.
  *
  * @package MaaleArna\MASES\Core\Domains\Loan\Tests\Feature
- * @version 1.0.0
+ * @version 1.1.0
  */
 final class LoanCollateralTest extends TestCase
 {
@@ -114,6 +145,7 @@ final class LoanCollateralTest extends TestCase
     private LoanProduct $product;
     private LoanProduct $otherProduct;
     private VersionedPolicy $policy;
+    private ?ShareHolding $borrowerHolding = null;
 
     // =========================================================================
     // Lifecycle
@@ -423,7 +455,8 @@ final class LoanCollateralTest extends TestCase
 
     public function test_store_creates_shareholding_collateral(): void
     {
-        $loan = $this->makeActiveLoan();
+        $loan    = $this->makeActiveLoan();
+        $holding = $this->ensureBorrowerHolding();
 
         Sanctum::actingAs($this->admin, ['*']);
 
@@ -436,7 +469,7 @@ final class LoanCollateralTest extends TestCase
 
         $response->assertStatus(201);
         $response->assertJsonPath('data.collateral_type', CollateralType::Shareholding->value);
-        $response->assertJsonPath('data.pledged_shareholding_id', 42);
+        $response->assertJsonPath('data.pledged_shareholding_id', $holding->id);
         $response->assertJsonPath('data.pledged_quantity', '100.0000');
     }
 
@@ -999,16 +1032,77 @@ final class LoanCollateralTest extends TestCase
     /**
      * The canonical valid payload for a shareholding-typed collateral.
      *
+     * The pledged shareholding id is resolved from the persisted
+     * borrower-owned holding returned by ensureBorrowerHolding(), so the
+     * payload references a row that exists, belongs to the loan's
+     * borrower, and carries enough quantity to cover the pledge.
+     *
      * @return array<string, mixed>
      */
     private function shareholdingPayload(): array
     {
+        $holding = $this->ensureBorrowerHolding();
+
         return [
-            'collateral_type'        => CollateralType::Shareholding->value,
-            'description'            => 'Pledge of 100 shares.',
-            'pledged_shareholding_id' => 42,
-            'pledged_quantity'       => '100.0000',
+            'collateral_type'         => CollateralType::Shareholding->value,
+            'description'             => 'Pledge of 100 shares.',
+            'pledged_shareholding_id' => $holding->id,
+            'pledged_quantity'        => '100.0000',
         ];
+    }
+
+    /**
+     * Ensure a borrower-owned ShareHolding exists with a
+     * current_quantity sufficient to cover the shareholdingPayload()
+     * pledge of 100.0000 shares, and return the persisted row.
+     *
+     * The holding is created through ShareHoldingService::recordEntryFor(),
+     * the domain's sole sanctioned writer of ShareHolding.current_quantity.
+     * This preserves the D16-CORE ledger invariant: the projection row
+     * and its matching ShareHoldingEntry are written inside one
+     * transaction, and the projection is updated from the ledger
+     * arithmetic. No direct balance insert is performed.
+     *
+     * The STANDARD share class is reused when present and created only
+     * when missing, following the Shareholder domain's established
+     * fixture convention. The fixture is cached on the instance so both
+     * tests that exercise a shareholding-typed payload share a single
+     * holding. It does not depend on auto-increment values, seeds, or
+     * execution order.
+     *
+     * @return ShareHolding
+     */
+    private function ensureBorrowerHolding(): ShareHolding
+    {
+        if ($this->borrowerHolding !== null) {
+            return $this->borrowerHolding;
+        }
+
+        $shareClass = ShareClass::findByCode('STANDARD')
+            ?? ShareClass::create([
+                'code'      => 'STANDARD',
+                'name_am'   => 'መደበኛ',
+                'name_en'   => 'Standard',
+                'par_value' => '10000.0000',
+                'currency'  => 'ETB',
+                'is_active' => true,
+            ]);
+
+        app(ShareHoldingService::class)->recordEntryFor(
+            shareholder: $this->borrower,
+            shareClass:  $shareClass,
+            direction:   HoldingDirection::In,
+            magnitude:   1000,
+            entryType:   'subscription',
+            description: 'LoanCollateralTest fixture: borrower shareholding.',
+        );
+
+        $this->borrowerHolding = ShareHolding::query()
+            ->where('shareholder_id', $this->borrower->id)
+            ->where('share_class_id', $shareClass->id)
+            ->firstOrFail();
+
+        return $this->borrowerHolding;
     }
 
     /**

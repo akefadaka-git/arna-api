@@ -279,9 +279,11 @@ final class GovernanceTermService
         }
 
         return DB::transaction(function () use ($term, $attributes): GovernanceTerm {
+            $before = $term->getOriginal();
             $term->fill($attributes)->save();
+            $changes = $term->getChanges();
 
-            $this->dispatchAfterCommit(new GovernanceTermUpdated($term));
+            $this->dispatchAfterCommit(new GovernanceTermUpdated($term, $before, $changes));
 
             return $term->refresh();
         });
@@ -303,10 +305,12 @@ final class GovernanceTermService
         }
 
         return DB::transaction(function () use ($term): GovernanceTerm {
+            $before = $term->getOriginal();
             $term->is_active = false;
             $term->save();
+            $changes = $term->getChanges();
 
-            $this->dispatchAfterCommit(new GovernanceTermUpdated($term));
+            $this->dispatchAfterCommit(new GovernanceTermUpdated($term, $before, $changes));
 
             return $term->refresh();
         });
@@ -328,10 +332,12 @@ final class GovernanceTermService
         }
 
         return DB::transaction(function () use ($term): GovernanceTerm {
+            $before = $term->getOriginal();
             $term->is_active = true;
             $term->save();
+            $changes = $term->getChanges();
 
-            $this->dispatchAfterCommit(new GovernanceTermUpdated($term));
+            $this->dispatchAfterCommit(new GovernanceTermUpdated($term, $before, $changes));
 
             return $term->refresh();
         });

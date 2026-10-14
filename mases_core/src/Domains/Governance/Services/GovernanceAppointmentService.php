@@ -290,6 +290,99 @@ declare(strict_types=1);
  * @package MaaleArna\MASES\Core\Domains\Governance\Services
  * @version 1.0.0
  */
+
+/*
+ * =============================================================================
+ * A3 CANDIDATE — NOT APPLIED — NOT TESTED
+ * =============================================================================
+ *
+ * RP-01 — audit before/after integrity.
+ *
+ * Relative to the G2c v1.0.0 file above, this A3 candidate makes exactly
+ * four executable changes, all in service methods that mutate an existing
+ * appointment and dispatch `GovernanceAppointmentUpdated`:
+ *
+ *     update()
+ *     activate()
+ *     revoke()
+ *     supersede()
+ *
+ * In each of the four methods, the service now captures the persisted
+ * pre-change attribute map with `$appointment->getOriginal()` BEFORE the
+ * mutation, and passes it to the event constructor as the new
+ * `$beforeSnapshot` argument:
+ *
+ *     $beforeSnapshot = $appointment->getOriginal();
+ *     ...
+ *     $this->dispatchAfterCommit(
+ *         new GovernanceAppointmentUpdated($appointment, $beforeSnapshot)
+ *     );
+ *
+ * WHY THIS IS REQUIRED
+ * -----------------------------------------------------------------------------
+ * In the pre-A3 behaviour, Laravel's `save()` calls `finishSave()`, which
+ * synchronises the model's original attributes to the post-save persisted
+ * state. The subsequent `refresh()` reloads the row and calls
+ * `syncOriginal()` a second time. By the time the after-commit listener
+ * reads `$appointment->getOriginal()`, the originals already reflect the
+ * POST-change state, and the listener's `old_values` therefore equalled
+ * its `new_values` on every changed key.
+ *
+ * The fix captures the pre-change map at the last moment it is still
+ * available — immediately before the mutation — and conveys it explicitly
+ * through the event. The listener (companion file in this A3 batch)
+ * prefers the event's snapshot over the model's originals.
+ *
+ * WHAT DOES NOT CHANGE
+ * -----------------------------------------------------------------------------
+ * · `register()` — unchanged. The registered handler uses a post-create
+ *   snapshot with `old_values: null`, which is correct.
+ * · The event name and namespace — unchanged.
+ * · The action slugs (`governance.appointment.registered`,
+ *   `governance.appointment.updated`) — unchanged. Lifecycle-slug
+ *   redesign is out of scope for A3 (RP-05).
+ * · Transaction boundaries and `dispatchAfterCommit()` semantics —
+ *   unchanged.
+ * · The state-transition matrix — unchanged.
+ * · The invariant set (INV-1 … INV-10) — unchanged.
+ * · All imports — unchanged. `GovernanceAppointmentUpdated` is already
+ *   imported.
+ * · All private helpers (`whitelist`, `toCarbon`, `bodyExistsInTenant`,
+ *   `assertInstrumentDateOrdering`, `dispatchAfterCommit`) — unchanged.
+ * · Every docblock, comment, and annotation from the G2c file above —
+ *   preserved verbatim.
+ *
+ * DEPENDENCY
+ * -----------------------------------------------------------------------------
+ * This candidate requires `Events/GovernanceAppointmentUpdated.php` to
+ * accept a second constructor argument:
+ *
+ *     public function __construct(
+ *         public readonly GovernanceAppointment $appointment,
+ *         public readonly ?array $beforeSnapshot = null,
+ *     ) {}
+ *
+ * The event file is a companion file in this A3 batch. If it is not
+ * deployed, the four modified methods fail to construct the event and
+ * the transaction rolls back on every update / activate / revoke /
+ * supersede call.
+ *
+ * VERIFICATION
+ * -----------------------------------------------------------------------------
+ * A3 does not permit test execution. The applicable test plan is
+ * recorded in the A3 response's §5.1 and §5.2. No test was run.
+ *
+ * ROLLBACK
+ * -----------------------------------------------------------------------------
+ * Revert this file, the two event files, and the listener. No schema
+ * change, no migration, no data rewrite. Existing audit rows are
+ * unaffected.
+ *
+ * @package MaaleArna\MASES\Core\Domains\Governance\Services
+ * @version 1.1.0-a3-candidate
+ * =============================================================================
+ */
+
 namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
 use DateTimeInterface;
@@ -319,8 +412,11 @@ use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceAppointmentRe
  * responsibilities, its invariants, its state-transition rules, its
  * event-dispatch pattern, and its deliberate omissions.
  *
+ * See the A3 CANDIDATE block above the namespace for the RP-01
+ * pre-change snapshot change introduced in this revision.
+ *
  * @package MaaleArna\MASES\Core\Domains\Governance\Services
- * @version 1.0.0
+ * @version 1.1.0-a3-candidate
  */
 final class GovernanceAppointmentService
 {
@@ -433,6 +529,12 @@ final class GovernanceAppointmentService
      * deliberate: it keeps the transition graph enforced in one
      * place.
      *
+     * A3 / RP-01: the persisted pre-change attribute map is captured
+     * with `getOriginal()` BEFORE `fill()` / `save()`, and passed to
+     * the event so the audit listener can derive true `old_values`.
+     * See the A3 CANDIDATE block above the namespace for the full
+     * rationale.
+     *
      * @param  GovernanceAppointment $appointment
      * @param  array<string, mixed>  $data
      * @return GovernanceAppointment
@@ -448,9 +550,17 @@ final class GovernanceAppointmentService
         }
 
         return DB::transaction(function () use ($appointment, $attributes): GovernanceAppointment {
+            // A3 / RP-01 — capture the persisted pre-change state BEFORE the
+            // mutation. Laravel's finishSave() (called by save()) and refresh()
+            // both call syncOriginal(), so this is the last point at which
+            // getOriginal() reflects the pre-change state.
+            $beforeSnapshot = $appointment->getOriginal();
+
             $appointment->fill($attributes)->save();
 
-            $this->dispatchAfterCommit(new GovernanceAppointmentUpdated($appointment));
+            $this->dispatchAfterCommit(
+                new GovernanceAppointmentUpdated($appointment, $beforeSnapshot)
+            );
 
             return $appointment->refresh();
         });
@@ -466,6 +576,9 @@ final class GovernanceAppointmentService
      * or superseded) — an appointment that has been withdrawn or
      * replaced cannot be reactivated. A corrective appointment is a
      * NEW row, not a resurrection of the old one.
+     *
+     * A3 / RP-01: pre-change attribute map captured before mutation
+     * and passed to the event.
      *
      * @param  GovernanceAppointment $appointment
      * @return GovernanceAppointment
@@ -495,10 +608,15 @@ final class GovernanceAppointmentService
         }
 
         return DB::transaction(function () use ($appointment): GovernanceAppointment {
+            // A3 / RP-01 — pre-change snapshot.
+            $beforeSnapshot = $appointment->getOriginal();
+
             $appointment->status = GovernanceAppointmentStatus::Active->value;
             $appointment->save();
 
-            $this->dispatchAfterCommit(new GovernanceAppointmentUpdated($appointment));
+            $this->dispatchAfterCommit(
+                new GovernanceAppointmentUpdated($appointment, $beforeSnapshot)
+            );
 
             return $appointment->refresh();
         });
@@ -520,6 +638,9 @@ final class GovernanceAppointmentService
      * reasons for the same appointment. A caller that needs to
      * correct a superseded appointment supersedes the LATER
      * instrument, not the earlier one.
+     *
+     * A3 / RP-01: pre-change attribute map captured before mutation
+     * and passed to the event.
      *
      * @param  GovernanceAppointment $appointment
      * @return GovernanceAppointment
@@ -546,10 +667,15 @@ final class GovernanceAppointmentService
         }
 
         return DB::transaction(function () use ($appointment): GovernanceAppointment {
+            // A3 / RP-01 — pre-change snapshot.
+            $beforeSnapshot = $appointment->getOriginal();
+
             $appointment->status = GovernanceAppointmentStatus::Revoked->value;
             $appointment->save();
 
-            $this->dispatchAfterCommit(new GovernanceAppointmentUpdated($appointment));
+            $this->dispatchAfterCommit(
+                new GovernanceAppointmentUpdated($appointment, $beforeSnapshot)
+            );
 
             return $appointment->refresh();
         });
@@ -567,6 +693,9 @@ final class GovernanceAppointmentService
      * Refuses from `draft` (nothing to supersede) and from `revoked`
      * (a revoked appointment has already ended for a different
      * reason; a later instrument does not restore it).
+     *
+     * A3 / RP-01: pre-change attribute map captured before mutation
+     * and passed to the event.
      *
      * @param  GovernanceAppointment $appointment
      * @return GovernanceAppointment
@@ -595,10 +724,15 @@ final class GovernanceAppointmentService
         }
 
         return DB::transaction(function () use ($appointment): GovernanceAppointment {
+            // A3 / RP-01 — pre-change snapshot.
+            $beforeSnapshot = $appointment->getOriginal();
+
             $appointment->status = GovernanceAppointmentStatus::Superseded->value;
             $appointment->save();
 
-            $this->dispatchAfterCommit(new GovernanceAppointmentUpdated($appointment));
+            $this->dispatchAfterCommit(
+                new GovernanceAppointmentUpdated($appointment, $beforeSnapshot)
+            );
 
             return $appointment->refresh();
         });

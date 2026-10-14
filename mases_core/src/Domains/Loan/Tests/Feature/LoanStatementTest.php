@@ -594,6 +594,20 @@ final class LoanStatementTest extends TestCase
     // Pre-disbursement loan
     // =========================================================================
 
+    /**
+     * A loan that has been approved but not yet disbursed carries no
+     * monetary activity, but it does carry a status history. Under the
+     * statement contract restored by the B4 revert (see
+     * `LoanStatementController` §"Revision history" v1.2.0), the
+     * statement emits one `status_change` line per history row with
+     * zero monetary deltas; the running balance is therefore unchanged
+     * from opening to closing.
+     *
+     * Historical note: the method name retains "empty_period" from the
+     * v1.1.0 controller contract, which the B4 revert removed. The
+     * filter reference is preserved; the assertions reflect the current
+     * contract.
+     */
     public function test_statement_of_approved_loan_returns_empty_period(): void
     {
         $loan = $this->makeApprovedLoan();
@@ -605,7 +619,23 @@ final class LoanStatementTest extends TestCase
         ])->getJson(route('api.loans.statement.show', ['loan' => $loan->id]));
 
         $response->assertStatus(200);
-        $response->assertJsonPath('data.lines', []);
+
+        // Four transitions: initialize->Draft, Draft->Submitted,
+        // Submitted->UnderReview, UnderReview->Approved.
+        $response->assertJsonCount(4, 'data.lines');
+
+        $lines = $response->json('data.lines');
+        $this->assertIsArray($lines);
+
+        foreach ($lines as $line) {
+            $this->assertSame('status_change', $line['type']);
+            $this->assertSame('0.0000', $line['principal_delta']);
+            $this->assertSame('0.0000', $line['interest_delta']);
+            $this->assertSame('0.0000', $line['penalty_delta']);
+            $this->assertSame('0.0000', $line['total_delta']);
+        }
+
+        // Zero-delta lines leave the running balance unchanged.
         $response->assertJsonPath('data.opening_balance.total', '0.0000');
         $response->assertJsonPath('data.closing_balance.total', '0.0000');
     }

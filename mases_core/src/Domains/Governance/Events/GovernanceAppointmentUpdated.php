@@ -260,6 +260,13 @@ final class GovernanceAppointmentUpdated
      * @var GovernanceAppointment
      */
     public readonly GovernanceAppointment $appointment;
+    /**
+     * Persisted attributes captured before the appointment mutation.
+     * Null for legacy callers that do not supply a snapshot.
+     *
+     * @var array<string, mixed>|null
+     */
+    public readonly ?array $beforeSnapshot;
 
     /**
      * Create a new event instance.
@@ -267,9 +274,12 @@ final class GovernanceAppointmentUpdated
      * @param GovernanceAppointment $appointment  The updated,
      *                                            committed row.
      */
-    public function __construct(GovernanceAppointment $appointment)
-    {
+    public function __construct(
+        GovernanceAppointment $appointment,
+        ?array $beforeSnapshot = null,
+    ) {
         $this->appointment = $appointment;
+        $this->beforeSnapshot = $beforeSnapshot;
     }
 
     // =========================================================================

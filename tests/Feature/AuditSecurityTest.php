@@ -309,17 +309,51 @@ final class AuditSecurityTest extends TestCase
         ]);
     }
 
+    /**
+     * A request that IS authenticated but LACKS the required permission
+     * must receive HTTP 403, not HTTP 401.
+     *
+     * The temporary route carries BOTH `auth:sanctum` and
+     * `auth.permission:test.permission`. The `auth:sanctum` guard is
+     * necessary here, and its absence was the source of the previous 401:
+     * the middleware bound to the `auth.permission` alias resolves the
+     * caller via `auth()->user()` and does not itself parse the
+     * `Authorization: Bearer` header. Without a guard middleware on the
+     * route, the token issued by `login()` is never turned into an
+     * authenticated user, so the authorization middleware correctly
+     * rejects the request as unauthenticated.
+     *
+     * `RbacAuthorizationTest` exercises the same denial path without
+     * needing a guard on the route, because it pre-populates the guard
+     * via `actingAs($user, 'sanctum')`. This test exercises the token
+     * flow end-to-end, so it needs the guard middleware in the route
+     * stack.
+     *
+     * The response envelope is asserted to match the shape used by
+     * `RbacAuthorizationTest::a_user_without_permission_is_rejected_with_403`
+     * — `{ success: false, error: { code: 'AUTH_PERMISSION_DENIED' } }` —
+     * so the test verifies not only the status code but also the error
+     * contract.
+     */
     #[Test]
     public function authorization_failure_returns_forbidden(): void
     {
+        $this->app['router']->get('/test-permission', function () {
+            return response()->json(['success' => true]);
+        })->middleware(['auth:sanctum', 'auth.permission:test.permission']);
+
         $token = $this->login();
 
         $response = $this->withToken($token)
-            ->getJson('/api/test-permission', $this->tenantHeaders());
+            ->getJson('/test-permission', $this->tenantHeaders());
 
         $response->assertForbidden();
-
-        $this->assertTrue(true);
+        $response->assertJson([
+            'success' => false,
+            'error' => [
+                'code' => 'AUTH_PERMISSION_DENIED',
+            ],
+        ]);
     }
 
     #[Test]
@@ -553,5 +587,137 @@ final class AuditSecurityTest extends TestCase
             'event_type' => 'login.successful',
             'user_id' => $this->user->id,
         ]);
+    }
+
+    // =========================================================================
+    // G1-AUDIT-02 — AuditService request-ID resolution
+    // =========================================================================
+
+    #[Test]
+    public function audit_service_returns_null_request_id_when_no_headers_supplied(): void
+    {
+        $service = app(\MaaleArna\MASES\Core\Audit\Services\AuditService::class);
+
+        $row = $service->log(
+            action:       'audit.requestid.none',
+            resourceType: 'RequestIdProbe',
+            resourceId:   'probe-none',
+            // requestId intentionally omitted
+        );
+
+        $this->assertNotNull($row, 'log() must not throw and must persist a row when no requestId and no headers are supplied.');
+        $this->assertNull($row->fresh()->request_id);
+    }
+
+    #[Test]
+    public function audit_service_reads_x_request_id_header(): void
+    {
+        \Illuminate\Support\Facades\Route::get('/_test/audit/requestid/xreq', function () {
+            $service = app(\MaaleArna\MASES\Core\Audit\Services\AuditService::class);
+            $service->log(
+                action:       'audit.requestid.header.xreq',
+                resourceType: 'RequestIdProbe',
+                resourceId:   'probe-xreq',
+            );
+            return response()->json(['ok' => true]);
+        });
+
+        $response = $this->withHeader('X-Request-ID', 'hdr-x-req-abc')
+            ->getJson('/_test/audit/requestid/xreq');
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('audit_logs', [
+            'action'     => 'audit.requestid.header.xreq',
+            'request_id' => 'hdr-x-req-abc',
+        ]);
+    }
+
+    #[Test]
+    public function audit_service_reads_x_correlation_id_header(): void
+    {
+        \Illuminate\Support\Facades\Route::get('/_test/audit/requestid/xcorr', function () {
+            $service = app(\MaaleArna\MASES\Core\Audit\Services\AuditService::class);
+            $service->log(
+                action:       'audit.requestid.header.xcorr',
+                resourceType: 'RequestIdProbe',
+                resourceId:   'probe-xcorr',
+            );
+            return response()->json(['ok' => true]);
+        });
+
+        $response = $this->withHeader('X-Correlation-ID', 'hdr-corr-xyz')
+            ->getJson('/_test/audit/requestid/xcorr');
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('audit_logs', [
+            'action'     => 'audit.requestid.header.xcorr',
+            'request_id' => 'hdr-corr-xyz',
+        ]);
+    }
+
+    #[Test]
+    public function audit_service_explicit_request_id_wins_over_headers(): void
+    {
+        \Illuminate\Support\Facades\Route::get('/_test/audit/requestid/explicit', function () {
+            $service = app(\MaaleArna\MASES\Core\Audit\Services\AuditService::class);
+            $service->log(
+                action:       'audit.requestid.explicit',
+                resourceType: 'RequestIdProbe',
+                resourceId:   'probe-explicit',
+                requestId:    'explicit-wins',
+            );
+            return response()->json(['ok' => true]);
+        });
+
+        $response = $this->withHeaders([
+                'X-Request-ID'     => 'hdr-should-lose',
+                'X-Correlation-ID' => 'corr-should-lose',
+            ])
+            ->getJson('/_test/audit/requestid/explicit');
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('audit_logs', [
+            'action'     => 'audit.requestid.explicit',
+            'request_id' => 'explicit-wins',
+        ]);
+        $this->assertDatabaseMissing('audit_logs', [
+            'action'     => 'audit.requestid.explicit',
+            'request_id' => 'hdr-should-lose',
+        ]);
+    }
+
+    #[Test]
+    public function audit_service_persists_supplied_metadata(): void
+    {
+        $service = app(\MaaleArna\MASES\Core\Audit\Services\AuditService::class);
+
+        $payload = [
+            'source'   => 'test-suite',
+            'event'    => 'RegressionProbe',
+            'trace_id' => 'trace-' . uniqid(),
+            'nested'   => ['k' => 'v'],
+        ];
+
+        $row = $service->log(
+            action:       'audit.metadata.regression',
+            data:         $payload,
+            oldValues:    null,
+            newValues:    ['after' => true],
+            tenantId:     null,
+            resourceType: 'RegressionProbe',
+            resourceId:   'probe-1',
+            requestId:    'test-metadata-' . uniqid(),
+        );
+
+        $this->assertNotNull($row);
+
+        $fresh = \MaaleArna\MASES\Core\Audit\Models\AuditLog::find($row->id);
+        $this->assertNotNull($fresh);
+
+        $this->assertIsArray($fresh->metadata);
+        $this->assertSame('test-suite',         $fresh->metadata['source']   ?? null);
+        $this->assertSame('RegressionProbe',    $fresh->metadata['event']    ?? null);
+        $this->assertSame($payload['trace_id'], $fresh->metadata['trace_id'] ?? null);
+        $this->assertSame(['k' => 'v'],         $fresh->metadata['nested']   ?? null);
     }
 }

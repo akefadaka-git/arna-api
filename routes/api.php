@@ -512,48 +512,6 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::get('/{id}/latest', [FileController::class, 'latestVersion'])
             ->name('latest');
     });
-
-    // -------------------------------------------------------------------------
-    // Authorization Guards – Demonstration Routes
-    // -------------------------------------------------------------------------
-    //
-    // These routes demonstrate the three flavours of authorisation checks
-    // the platform supports. They exist purely for integration testing and
-    // can be removed in production without affecting any other route.
-    // -------------------------------------------------------------------------
-
-    /** Requires the `test.permission` permission. */
-    Route::get('/test-permission', static function (): JsonResponse {
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'message' => 'You have the required permission!',
-            ],
-        ]);
-    })->middleware('auth.permission:test.permission')
-      ->name('api.test.permission');
-
-    /** Requires the `admin` role. */
-    Route::get('/test-role', static function (): JsonResponse {
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'message' => 'You have the required role!',
-            ],
-        ]);
-    })->middleware('auth.role:admin')
-      ->name('api.test.role');
-
-    /** Requires access to the `finance` application. */
-    Route::get('/test-application', static function (): JsonResponse {
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'message' => 'You have access to this application!',
-            ],
-        ]);
-    })->middleware('auth.application:finance')
-      ->name('api.test.application');
 });
 
 // =============================================================================

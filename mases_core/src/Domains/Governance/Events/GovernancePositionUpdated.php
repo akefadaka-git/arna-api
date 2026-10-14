@@ -230,14 +230,19 @@ final class GovernancePositionUpdated
      */
     public readonly GovernancePosition $position;
 
+    public readonly array $before;
+    public readonly array $changes;
+
     /**
      * Create a new event instance.
      *
      * @param GovernancePosition $position  The updated, committed row.
      */
-    public function __construct(GovernancePosition $position)
+    public function __construct(GovernancePosition $position, array $before, array $changes)
     {
         $this->position = $position;
+        $this->before = $before;
+        $this->changes = $changes;
     }
 
     // =========================================================================

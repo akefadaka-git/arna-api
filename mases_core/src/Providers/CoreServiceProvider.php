@@ -265,7 +265,9 @@ final class CoreServiceProvider extends ServiceProvider
 
         $this->app->singleton(
             LocalizationService::class,
-            static fn($app): LocalizationService => new LocalizationService()
+            static fn ($app): LocalizationService => new LocalizationService(
+                $app->make(EthiopianCalendar::class)
+            )
         );
     }
 

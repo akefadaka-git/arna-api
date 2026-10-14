@@ -89,8 +89,17 @@ final class AuditService
         }
 
         // Resolve request ID if not provided.
+        //
+        // G1-AUDIT-02: prefer the X-Request-ID header, then X-Correlation-ID,
+        // matching the resolution order used by the audit listeners
+        // (LogSuccessfulLogin::resolveRequestId(), LogFailedLogin,
+        // LogLogout). The previous body called request()->id(), which is
+        // not a method on Illuminate\Http\Request or its parent, and threw
+        // BadMethodCallException whenever $requestId was null.
         if ($requestId === null) {
-            $requestId = request()->id() ?? null;
+            $requestId = request()->header('X-Request-ID')
+                ?? request()->header('X-Correlation-ID')
+                ?? null;
         }
 
         // Build the audit log entry.
@@ -106,6 +115,7 @@ final class AuditService
                 'ip_address' => $ipAddress,
                 'user_agent' => $userAgent,
                 'request_id' => $requestId,
+                'metadata' => $data === [] ? null : $data,
             ]);
 
             // Also log to the application log for real-time monitoring.

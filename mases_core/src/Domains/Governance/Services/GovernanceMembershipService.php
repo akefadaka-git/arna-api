@@ -383,6 +383,110 @@ declare(strict_types=1);
  * @package MaaleArna\MASES\Core\Domains\Governance\Services
  * @version 1.0.1
  */
+
+/*
+ * =============================================================================
+ * A3 CANDIDATE — NOT APPLIED — NOT TESTED
+ * =============================================================================
+ *
+ * RP-01 — audit before/after integrity.
+ *
+ * Relative to the G2c REDELIVERY 1 file above, this A3 candidate makes
+ * exactly two executable changes, both in methods that mutate an existing
+ * membership and dispatch `GovernanceMembershipUpdated`:
+ *
+ *     update()
+ *     transitionTo()   ← covers end, suspend, resume, resign, remove, expire
+ *
+ * In each of the two methods, the service now captures the persisted
+ * pre-change attribute map with `$membership->getOriginal()` BEFORE the
+ * mutation, and passes it to the event constructor as the new
+ * `$beforeSnapshot` argument:
+ *
+ *     $beforeSnapshot = $membership->getOriginal();
+ *     ...
+ *     $this->dispatchAfterCommit(
+ *         new GovernanceMembershipUpdated($membership, $beforeSnapshot)
+ *     );
+ *
+ * WHY THIS IS REQUIRED
+ * -----------------------------------------------------------------------------
+ * In the pre-A3 behaviour, Laravel's `save()` calls `finishSave()`, which
+ * synchronises the model's original attributes to the post-save persisted
+ * state. The subsequent `refresh()` reloads the row and calls
+ * `syncOriginal()` a second time. By the time the after-commit listener
+ * reads `$membership->getOriginal()`, the originals already reflect the
+ * POST-change state, and the listener's `old_values` therefore equalled
+ * its `new_values` on every changed key.
+ *
+ * The fix captures the pre-change map at the last moment it is still
+ * available — immediately before the mutation — and conveys it explicitly
+ * through the event. The listener (companion file in this A3 batch)
+ * prefers the event's snapshot over the model's originals.
+ *
+ * WHY `transitionTo()` COVERS SIX METHODS
+ * -----------------------------------------------------------------------------
+ * The six lifecycle methods — `end()`, `suspend()`, `resume()`,
+ * `resign()`, `remove()`, `expire()` — all delegate to `transitionTo()`.
+ * Capturing the snapshot inside that shared engine gives every one of the
+ * six the correct pre-change state with a single insertion. The alternative
+ * — capturing in each of the six public methods — would duplicate the same
+ * line six times and risk a future CR that adds a seventh transition
+ * forgetting to include it.
+ *
+ * WHAT DOES NOT CHANGE
+ * -----------------------------------------------------------------------------
+ * · `register()` — unchanged. The registered handler uses a post-create
+ *   snapshot with `old_values: null`, which is correct.
+ * · The event name and namespace — unchanged.
+ * · The action slug (`governance.membership.updated`) — unchanged.
+ *   Lifecycle-slug redesign is out of scope for A3 (RP-05).
+ * · Transaction boundaries and `dispatchAfterCommit()` semantics —
+ *   unchanged.
+ * · The state-transition matrix — unchanged.
+ * · The invariant set (INV-1 … INV-14) — unchanged.
+ * · The overlap check ordering — unchanged. The pre-change snapshot is
+ *   captured after `normaliseForUpdate()` has validated and after the
+ *   overlap re-check has passed; both are read-only against the model,
+ *   so placing the snapshot after them is safe. If either throws, the
+ *   transaction aborts and no event fires.
+ * · All imports — unchanged. `GovernanceMembershipUpdated` is already
+ *   imported.
+ * · All private helpers — unchanged.
+ * · Every docblock, comment, and annotation from the G2c REDELIVERY 1
+ *   file above — preserved verbatim.
+ *
+ * DEPENDENCY
+ * -----------------------------------------------------------------------------
+ * This candidate requires `Events/GovernanceMembershipUpdated.php` to
+ * accept a second constructor argument:
+ *
+ *     public function __construct(
+ *         GovernanceMembership $membership,
+ *         ?array $beforeSnapshot = null,
+ *     ) { ... }
+ *
+ * That event file is a companion file in this A3 batch. If it is not
+ * deployed, the two modified methods fail to construct the event and
+ * the transaction rolls back on every update / lifecycle-transition
+ * call.
+ *
+ * VERIFICATION
+ * -----------------------------------------------------------------------------
+ * A3 does not permit test execution. The applicable test plan is
+ * recorded in the A3 response's §5.3 and §5.4. No test was run.
+ *
+ * ROLLBACK
+ * -----------------------------------------------------------------------------
+ * Revert this file, the two event files, and the listener. No schema
+ * change, no migration, no data rewrite. Existing audit rows are
+ * unaffected.
+ *
+ * @package MaaleArna\MASES\Core\Domains\Governance\Services
+ * @version 1.1.0-a3-candidate
+ * =============================================================================
+ */
+
 namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
 use DateTimeInterface;
@@ -413,8 +517,11 @@ use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceMembershipRep
  * matrix, its overlap-invariant enforcement, its decision on
  * `user_id` mutability, and its event-dispatch pattern.
  *
+ * See the A3 CANDIDATE block above the namespace for the RP-01
+ * pre-change snapshot change introduced in this revision.
+ *
  * @package MaaleArna\MASES\Core\Domains\Governance\Services
- * @version 1.0.1
+ * @version 1.1.0-a3-candidate
  */
 final class GovernanceMembershipService
 {
@@ -573,6 +680,12 @@ final class GovernanceMembershipService
      * range, the overlap check re-runs. See the file-level
      * change-verification block §"The overlap invariant".
      *
+     * A3 / RP-01: the persisted pre-change attribute map is captured
+     * with `getOriginal()` BEFORE `fill()` / `save()`, and passed to
+     * the event so the audit listener can derive true `old_values`.
+     * See the A3 CANDIDATE block above the namespace for the full
+     * rationale.
+     *
      * @param  GovernanceMembership $membership
      * @param  array<string, mixed> $data
      * @return GovernanceMembership
@@ -606,9 +719,17 @@ final class GovernanceMembershipService
                 );
             }
 
+            // A3 / RP-01 — capture the persisted pre-change state BEFORE the
+            // mutation. Laravel's finishSave() (called by save()) and refresh()
+            // both call syncOriginal(), so this is the last point at which
+            // getOriginal() reflects the pre-change state.
+            $beforeSnapshot = $membership->getOriginal();
+
             $membership->fill($attributes)->save();
 
-            $this->dispatchAfterCommit(new GovernanceMembershipUpdated($membership));
+            $this->dispatchAfterCommit(
+                new GovernanceMembershipUpdated($membership, $beforeSnapshot)
+            );
 
             return $membership->refresh();
         });
@@ -778,6 +899,13 @@ final class GovernanceMembershipService
      * A non-null `$reason` populates the `ended_reason` column.
      * A null `$reason` leaves the column unchanged.
      *
+     * A3 / RP-01: the persisted pre-change attribute map is captured
+     * with `getOriginal()` BEFORE the status assignment, and passed
+     * to the event. Capturing inside this shared engine covers all
+     * six lifecycle methods (`end`, `suspend`, `resume`, `resign`,
+     * `remove`, `expire`) with a single insertion. See the A3
+     * CANDIDATE block above the namespace.
+     *
      * @param  GovernanceMembership       $membership
      * @param  GovernanceMembershipStatus $target
      * @param  array<int, GovernanceMembershipStatus> $legalFrom
@@ -829,6 +957,9 @@ final class GovernanceMembershipService
 
         // Step 4 — apply.
         return DB::transaction(function () use ($membership, $target, $reason): GovernanceMembership {
+            // A3 / RP-01 — pre-change snapshot.
+            $beforeSnapshot = $membership->getOriginal();
+
             $membership->status = $target->value;
 
             if ($reason !== null) {
@@ -837,7 +968,9 @@ final class GovernanceMembershipService
 
             $membership->save();
 
-            $this->dispatchAfterCommit(new GovernanceMembershipUpdated($membership));
+            $this->dispatchAfterCommit(
+                new GovernanceMembershipUpdated($membership, $beforeSnapshot)
+            );
 
             return $membership->refresh();
         });

@@ -761,7 +761,7 @@ final class LoanInterestAccrualServiceTest extends TestCase
         string $expectedInterest = '100.0000',
         InstallmentStatus $status = InstallmentStatus::Pending,
     ): LoanInstallment {
-        return LoanInstallment::create([
+        return LoanInstallment::forceCreate([
             'loan_id'            => $loan->id,
             'installment_number' => $number,
             'due_date'           => Carbon::now()->addMonths($number)->toDateString(),

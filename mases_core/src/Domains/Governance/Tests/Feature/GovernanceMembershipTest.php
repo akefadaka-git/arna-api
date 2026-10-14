@@ -638,6 +638,281 @@ final class GovernanceMembershipTest extends TestCase
     }
 
     // =========================================================================
+    // RP-02 â€” cross-tenant update coverage  (RP-02-A3-COVERAGE-ADDED)
+    // =========================================================================
+    //
+    // Sibling of the appointment additions. Same three properties,
+    // membership endpoint. The membership cross-field rule exercised
+    // here is the date-ordering invariant (end_date >= start_date).
+
+    public function test_update_404s_for_cross_tenant_membership(): void
+    {
+        gc_collect_cycles();
+
+        $otherTenant = $this->makeTenant('other', 'other.example.test');
+        $foreignBody = GovernanceBody::create([
+            'tenant_id' => $otherTenant->id,
+            'code'      => 'FOREIGN',
+            'body_type' => 'board',
+            'name_en'   => 'Foreign Body',
+            'is_active' => true,
+        ]);
+        $foreignPosition = GovernancePosition::create([
+            'tenant_id'          => $otherTenant->id,
+            'governance_body_id' => $foreignBody->id,
+            'code'               => 'CHAIR',
+            'name_en'            => 'Chairperson',
+            'is_voting'          => true,
+            'is_officer'         => true,
+            'sort_order'         => 0,
+            'is_active'          => true,
+        ]);
+        $foreignMembership = GovernanceMembership::create([
+            'tenant_id'              => $otherTenant->id,
+            'governance_body_id'     => $foreignBody->id,
+            'governance_position_id' => $foreignPosition->id,
+            'member_name_en'         => 'Foreign Member',
+            'start_date'             => '2026-09-18',
+            'status'                 => 'active',
+            'is_ex_officio'          => false,
+        ]);
+
+        $response = $this->patchJson(
+            route('api.governance.memberships.update', [
+                'governanceMembership' => $foreignMembership->id,
+            ]),
+            ['member_name_en' => 'Attempted Cross-Tenant Update'],
+        );
+
+        $response->assertStatus(404);
+        $response->assertJsonPath('error.code', 'RESOURCE_NOT_FOUND');
+
+        gc_collect_cycles();
+    }
+
+    public function test_update_cross_tenant_with_cross_field_violation_still_404s(): void
+    {
+        gc_collect_cycles();
+
+        $otherTenant = $this->makeTenant('other', 'other.example.test');
+        $foreignBody = GovernanceBody::create([
+            'tenant_id' => $otherTenant->id,
+            'code'      => 'FOREIGN',
+            'body_type' => 'board',
+            'name_en'   => 'Foreign Body',
+            'is_active' => true,
+        ]);
+        $foreignPosition = GovernancePosition::create([
+            'tenant_id'          => $otherTenant->id,
+            'governance_body_id' => $foreignBody->id,
+            'code'               => 'CHAIR',
+            'name_en'            => 'Chairperson',
+            'is_voting'          => true,
+            'is_officer'         => true,
+            'sort_order'         => 0,
+            'is_active'          => true,
+        ]);
+        $foreignMembership = GovernanceMembership::create([
+            'tenant_id'              => $otherTenant->id,
+            'governance_body_id'     => $foreignBody->id,
+            'governance_position_id' => $foreignPosition->id,
+            'member_name_en'         => 'Foreign Member',
+            'start_date'             => '2026-09-18',
+            'status'                 => 'active',
+            'is_ex_officio'          => false,
+        ]);
+
+        // If authorize() did not run first, the payload below would
+        // merge with the foreign row (start_date 2026-09-18) and the
+        // withValidator() date-ordering check (end_date >= start_date)
+        // would fire, producing a 422 that discloses the cross-tenant
+        // row's start_date. RP-02 requires authorize() to throw before
+        // withValidator() runs.
+        $response = $this->patchJson(
+            route('api.governance.memberships.update', [
+                'governanceMembership' => $foreignMembership->id,
+            ]),
+            [
+                'end_date' => '2025-01-01',
+            ],
+        );
+
+        $response->assertStatus(404);
+        $response->assertJsonPath('error.code', 'RESOURCE_NOT_FOUND');
+
+        gc_collect_cycles();
+    }
+
+    public function test_update_cross_tenant_and_nonexistent_produce_equivalent_envelopes(): void
+    {
+        gc_collect_cycles();
+
+        $otherTenant = $this->makeTenant('other', 'other.example.test');
+        $foreignBody = GovernanceBody::create([
+            'tenant_id' => $otherTenant->id,
+            'code'      => 'FOREIGN',
+            'body_type' => 'board',
+            'name_en'   => 'Foreign Body',
+            'is_active' => true,
+        ]);
+        $foreignPosition = GovernancePosition::create([
+            'tenant_id'          => $otherTenant->id,
+            'governance_body_id' => $foreignBody->id,
+            'code'               => 'CHAIR',
+            'name_en'            => 'Chairperson',
+            'is_voting'          => true,
+            'is_officer'         => true,
+            'sort_order'         => 0,
+            'is_active'          => true,
+        ]);
+        $foreignMembership = GovernanceMembership::create([
+            'tenant_id'              => $otherTenant->id,
+            'governance_body_id'     => $foreignBody->id,
+            'governance_position_id' => $foreignPosition->id,
+            'member_name_en'         => 'Foreign Member',
+            'start_date'             => '2026-09-18',
+            'status'                 => 'active',
+            'is_ex_officio'          => false,
+        ]);
+
+        $payload = ['member_name_en' => 'Attempted Update'];
+
+        $crossTenantResponse = $this->patchJson(
+            route('api.governance.memberships.update', [
+                'governanceMembership' => $foreignMembership->id,
+            ]),
+            $payload,
+        );
+
+        $nonexistentResponse = $this->patchJson(
+            route('api.governance.memberships.update', [
+                'governanceMembership' => 999999,
+            ]),
+            $payload,
+        );
+
+        $crossTenantResponse->assertStatus(404);
+        $nonexistentResponse->assertStatus(404);
+
+        $strip = function (array $payload) use (&$strip): array {
+            foreach ($payload as $key => $value) {
+                if ($key === 'request_id' || $key === 'timestamp') {
+                    unset($payload[$key]);
+                    continue;
+                }
+                if (is_array($value)) {
+                    $payload[$key] = $strip($value);
+                }
+            }
+            return $payload;
+        };
+
+        $this->assertSame(
+            $strip($crossTenantResponse->json()),
+            $strip($nonexistentResponse->json()),
+        );
+
+        gc_collect_cycles();
+    }
+    // =========================================================================
+    // RP-01 — audit before/after value assertion  (RP-01-A3-COVERAGE-ADDED)
+    // =========================================================================
+    //
+    // Asserts that the audit row for this update records the actual
+    // pre-update and post-update member_name_en values, and that they
+    // differ. The pre-existing audit test only asserts that a row exists.
+
+    public function test_update_records_distinct_old_and_new_member_name_in_audit(): void
+    {
+        gc_collect_cycles();
+
+        $body = $this->createGovernanceBody();
+        $position = $this->createGovernancePosition($body);
+
+        $membership = $this->createMembership($body, $position, [
+            'user_id'        => $this->user->id,
+            'member_name_en' => 'Original Name',
+        ]);
+
+        DB::table('audit_logs')->truncate();
+
+        $this->patchJson(
+            route('api.governance.memberships.update', [
+                'governanceMembership' => $membership->id,
+            ]),
+            ['member_name_en' => 'Updated Name'],
+        )->assertStatus(200);
+
+        $row = DB::table('audit_logs')
+            ->where('action',        'governance.membership.updated')
+            ->where('resource_type', 'GovernanceMembership')
+            ->where('resource_id',   (string) $membership->id)
+            ->where('tenant_id',     $this->tenant->id)
+            ->orderByDesc('id')
+            ->first();
+
+        $this->assertNotNull(
+            $row,
+            'No audit row matched {action=governance.membership.updated, resource_type=GovernanceMembership, resource_id=' . $membership->id . ', tenant_id=' . $this->tenant->id . '}. Either the listener did not fire, or resource_id is stored in a form that does not match a string cast of the model id.'
+        );
+
+        $old = $this->decodeAuditJson($row->old_values);
+        $new = $this->decodeAuditJson($row->new_values);
+
+        $this->assertArrayHasKey('member_name_en', $old, 'old_values must contain member_name_en.');
+        $this->assertArrayHasKey('member_name_en', $new, 'new_values must contain member_name_en.');
+
+        $this->assertSame('Original Name', $old['member_name_en'], 'RP-01: old_values.member_name_en must be the pre-update value.');
+        $this->assertSame('Updated Name',  $new['member_name_en'], 'RP-01: new_values.member_name_en must be the post-update value.');
+
+        $this->assertNotSame(
+            $old['member_name_en'],
+            $new['member_name_en'],
+            'RP-01: old_values.member_name_en and new_values.member_name_en must differ, not be identical.'
+        );
+
+        gc_collect_cycles();
+    }
+
+    /**
+     * Decode an audit JSON column value. Accepts either a JSON string
+     * or an already-cast array. Distinguishes malformed JSON from a
+     * valid JSON null via json_last_error().
+     *
+     * @param  mixed $raw
+     * @return array<string, mixed>
+     */
+    private function decodeAuditJson(mixed $raw): array
+    {
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        if (! is_string($raw)) {
+            $this->fail('Audit column value is neither string nor array. Type: ' . get_debug_type($raw));
+        }
+
+        $decoded = json_decode($raw, true);
+
+        $this->assertSame(
+            JSON_ERROR_NONE,
+            json_last_error(),
+            sprintf(
+                'Audit column is not valid JSON. json_last_error=%d (%s). Raw: %s',
+                json_last_error(),
+                json_last_error_msg(),
+                $raw
+            ),
+        );
+
+        $this->assertIsArray(
+            $decoded,
+            'Decoded audit column is not an array. Raw: ' . $raw,
+        );
+
+        return $decoded;
+    }
+    // =========================================================================
     // Audit
     // =========================================================================
 
