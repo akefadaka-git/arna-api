@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Shareholder\Tests\Unit;
 
-use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -60,12 +59,12 @@ use Tests\TestCase;
  * deserve an explicit error.
  *
  * =============================================================================
- * DatabaseMigrations, not RefreshDatabase
+ * A fresh in-memory database per test, not RefreshDatabase
  * =============================================================================
  * The service dispatches its events via `DB::afterCommit(...)`. Under
  * `RefreshDatabase`, the framework's per-test transaction never commits,
  * so the after-commit callbacks never fire and `Event::fake()` cannot
- * observe the dispatch. `DatabaseMigrations` avoids the wrapping
+ * observe the dispatch. A fresh database per test avoids the wrapping
  * transaction, allowing the service's own `DB::transaction()` to be the
  * outermost one. The trade-off is per-test migration time; the suite is
  * small (25 tests), so this is acceptable.
@@ -85,7 +84,6 @@ use Tests\TestCase;
  */
 final class ShareholderServiceTest extends TestCase
 {
-    use DatabaseMigrations;
 
     private ShareholderService $service;
     private Tenant $tenant;
@@ -95,6 +93,10 @@ final class ShareholderServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Rebuild the isolated test database without rolling back identifier history.
+        $this->artisan('migrate:fresh');
+        $this->app[\Illuminate\Contracts\Console\Kernel::class]->setArtisan(null);
 
         $this->service = new ShareholderService(new ShareholderRepository());
 

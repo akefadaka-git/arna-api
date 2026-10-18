@@ -184,12 +184,77 @@ final class ShareholderService
         $attributes = $this->normaliseForRegister($data, $tenantId);
 
         return DB::transaction(function () use ($attributes, $tenantId): Shareholder {
+            $now = now();
+
+            DB::table('shareholder_number_sequences')->insertOrIgnore([
+                'tenant_id' => $tenantId,
+                'next_number' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            $sequence = DB::table('shareholder_number_sequences')
+                ->where('tenant_id', $tenantId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($sequence === null) {
+                throw new \LogicException(
+                    'Unable to initialize the shareholder number sequence.'
+                );
+            }
+
+            $numberSequence = (int) $sequence->next_number;
+
+            if ($numberSequence < 1 || $numberSequence >= PHP_INT_MAX) {
+                throw new \OverflowException(
+                    'The shareholder number sequence is invalid or exhausted.'
+                );
+            }
+
+            $shareholderNumber = 'SH-' . str_pad(
+                (string) $numberSequence,
+                6,
+                '0',
+                STR_PAD_LEFT,
+            );
+
+            $updated = DB::table('shareholder_number_sequences')
+                ->where('tenant_id', $tenantId)
+                ->update([
+                    'next_number' => $numberSequence + 1,
+                    'updated_at' => $now,
+                ]);
+
+            if ($updated !== 1) {
+                throw new \LogicException(
+                    'Unable to advance the shareholder number sequence.'
+                );
+            }
+
             $shareholder = Shareholder::create([
                 'tenant_id' => $tenantId,
                 ...$attributes,
             ]);
 
-            $this->dispatchAfterCommit(new ShareholderRegistered($shareholder));
+            $shareholder->forceFill([
+                'shareholder_number' => $shareholderNumber,
+            ]);
+            $shareholder->saveOrFail();
+
+            DB::table('shareholder_number_reservations')->insert([
+                'tenant_id' => $tenantId,
+                'number_sequence' => $numberSequence,
+                'shareholder_number' => $shareholderNumber,
+                'shareholder_id' => $shareholder->getKey(),
+                'reserved_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            $this->dispatchAfterCommit(
+                new ShareholderRegistered($shareholder)
+            );
 
             return $shareholder;
         });
