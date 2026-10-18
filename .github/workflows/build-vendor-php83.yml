@@ -1,0 +1,52 @@
+name: Build ARNA vendor for PHP 8.3
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-vendor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked production dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts --optimize-autoloader
+
+      - name: Verify production platform requirements
+        run: composer check-platform-reqs --no-dev
+
+      - name: Verify generated autoloader
+        run: |
+          php -r "require 'vendor/autoload.php'; echo 'Composer autoloader loaded successfully', PHP_EOL;"
+          test -f vendor/autoload.php
+          test -f vendor/composer/installed.php
+
+      - name: Prepare ZIP layout with vendor directory at archive root
+        run: |
+          mkdir -p artifact
+          cp -a vendor artifact/vendor
+
+      - name: Publish vendor directory as ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arna-vendor-php83-${{ github.sha }}
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 3
