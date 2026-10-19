@@ -70,3 +70,6 @@ jobs:
 
       - name: Run tenant-scoped permission regression
         run: vendor/bin/phpunit tests/Unit/UserPermissionScopeTest.php
+
+      - name: Run tenant resolver unit regression
+        run: vendor/bin/phpunit tests/Unit/TenantResolverTest.php
