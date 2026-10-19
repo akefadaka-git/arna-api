@@ -1,0 +1,72 @@
+name: ARNA PR #5 tenant membership and permission regression
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Commit SHA or branch to test (default is the reviewed PR #5 commit)"
+        required: true
+        type: string
+        default: "9d27cce14fd1d996a9e8746ade15daad0bad3fdc"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-pr5-regression-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    name: PHP 8.3 tenant membership and permission regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out requested revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_ref }}
+          persist-credentials: false
+
+      - name: Verify checked-out revision
+        shell: bash
+        env:
+          REQUESTED_REF: ${{ inputs.target_ref }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          echo "Requested ref: ${REQUESTED_REF}"
+          echo "Checked-out commit: ${actual_sha}"
+          if [[ "${REQUESTED_REF}" =~ ^[0-9a-fA-F]{40}$ ]] && [[ "${actual_sha}" != "${REQUESTED_REF}" ]]; then
+            echo "::error::Checked-out commit does not match requested SHA."
+            exit 1
+          fi
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run authentication lifecycle regression
+        run: vendor/bin/phpunit tests/Feature/AuthenticationLifecycleTest.php
+
+      - name: Run tenant resolution regression
+        run: vendor/bin/phpunit tests/Feature/C09/TenantResolutionTest.php
+
+      - name: Run tenant membership lifecycle regression
+        run: vendor/bin/phpunit tests/Feature/TenantMembershipLifecycleTest.php
+
+      - name: Run tenant membership regression
+        run: vendor/bin/phpunit tests/Feature/TenantMembershipTest.php
+
+      - name: Run tenant-scoped permission regression
+        run: vendor/bin/phpunit tests/Unit/UserPermissionScopeTest.php
