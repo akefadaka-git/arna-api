@@ -56,3 +56,28 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+
+## ARNA system-principal evidence storage (I2)
+
+This repository includes candidate storage primitives for versioned system-principal policies, append-only action audits, and tenant/action-scoped idempotency records. These primitives do **not** authorize or execute Loan actions, provision a system principal, activate tenant grants, or enable automated approval, rejection, or disbursement. Automation remains disabled by default.
+
+### Restricted MySQL application-role contract
+
+The application database identity must receive only these table-level privileges for the evidence tables:
+
+| Table | Required privileges |
+| --- | --- |
+| `system_principal_policy_versions` | `SELECT, INSERT` |
+| `system_principal_action_audits` | `SELECT, INSERT` |
+| `system_principal_idempotency_records` | `SELECT, INSERT, UPDATE` |
+
+The application identity must have no `DELETE` privilege on these tables and no `UPDATE` privilege on policy-version or action-audit records. Idempotency updates are needed for the controlled `reserved → completed` or `reserved → failed` transition; database triggers enforce transition invariants and reject deletion. MySQL table-level grants cannot restrict `UPDATE` to particular columns, so the trigger remains a required complementary control.
+
+Schema and trigger changes must use a separately controlled migration/administrative identity. The application identity must not be able to create or drop users, grant privileges, alter evidence tables, or modify immutability triggers. Production provisioning must use reviewed grants and an appropriately restricted account host; the wildcard host used by isolated CI setup is not a production-hosting recommendation.
+
+### Verification status
+
+The MySQL acceptance test currently provisions a restricted CI account and checks selected read and mutation behavior. Before the restricted-role gate can be considered complete, the test must explicitly verify permitted app-role inserts, idempotency reads/inserts and a valid terminal transition, idempotency delete denial, effective grants, and distinguish privilege-denial errors from trigger rejections. Production-role provisioning and actual production grants remain unverified until independently inspected.
+
+See `docs/architecture/ARNA-SYSTEM-PRINCIPAL-PROVENANCE-001.md` and `tests/Feature/SystemPrincipalMySqlConcurrencyAndImmutabilityTest.php` for the implementation boundary and acceptance coverage. This documentation update does not indicate that the remaining checks have passed or authorize deployment.
