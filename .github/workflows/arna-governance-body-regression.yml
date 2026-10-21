@@ -1,14 +1,12 @@
 name: ARNA Governance body authorization regression
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/arna-governance-store-authorize-before-validation-20261022
+      - main
     paths:
       - ".github/workflows/arna-governance-body-regression.yml"
-      - "mases_core/src/Domains/Governance/Http/Requests/StoreGovernanceBodyRequest.php"
-      - "mases_core/src/Domains/Governance/Http/Requests/UpdateGovernanceBodyRequest.php"
-      - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceBodyTest.php"
+      - "mases_core/src/Domains/Governance/**"
       - "composer.json"
       - "composer.lock"
       - "phpunit.xml"
@@ -17,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: arna-governance-body-regression-${{ github.ref }}
+  group: arna-governance-body-regression-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -26,20 +24,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Check out candidate commit
+      - name: Check out PR head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
 
-      - name: Verify exact commit
+      - name: Verify exact PR head
         shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           actual_sha="$(git rev-parse HEAD)"
-          echo "Workflow event SHA: ${GITHUB_SHA}"
+          echo "Expected PR head: ${EXPECTED_SHA}"
           echo "Checked-out commit: ${actual_sha}"
-          test "${actual_sha}" = "${GITHUB_SHA}"
+          test "${actual_sha}" = "${EXPECTED_SHA}"
 
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
