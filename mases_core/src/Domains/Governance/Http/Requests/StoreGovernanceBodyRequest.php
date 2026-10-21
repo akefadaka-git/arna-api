@@ -322,18 +322,21 @@ final class StoreGovernanceBodyRequest extends FormRequest
     private const MAX_MEETING_FREQUENCY_LENGTH = 100;
 
     /**
-     * Determine if the user is authorized to make this request.
+     * Authorize the caller before validating request data.
      *
-     * Always true — see the file-level change-verification block
-     * §"What the request deliberately does NOT do" for the
-     * reasoning. The controller (G2a file 14 of 17) invokes
-     * `Gate::authorize()` before the request is validated.
+     * FormRequest authorization runs before the controller action.
+     * Enforcing the policy here prevents callers without permission
+     * from using validation responses as an oracle for database-backed
+     * fields such as parent_body_id and reporting_body_id.
+     *
+     * The controller retains its authorization check as defence in
+     * depth for any future non-HTTP entry point or refactor.
      *
      * @return bool
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('create', \\MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceBody::class) ?? false;
     }
 
     // =========================================================================
