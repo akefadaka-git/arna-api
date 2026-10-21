@@ -363,7 +363,7 @@ final class TenantResolutionTest extends TestCase
         $tenantA = $scenario['tenantA'];
         $tenantB = $scenario['tenantB'];
 
-        $context = app(\\MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService::class);
+        $context = app(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class);
         $context->setTenantById($tenantA->id);
 
         try {
