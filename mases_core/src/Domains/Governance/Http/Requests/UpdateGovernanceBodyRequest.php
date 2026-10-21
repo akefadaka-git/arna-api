@@ -253,18 +253,23 @@ final class UpdateGovernanceBodyRequest extends FormRequest
     private const MAX_MEETING_FREQUENCY_LENGTH = 100;
 
     /**
-     * Determine if the user is authorized to make this request.
+     * Authorize the caller before validating update data.
      *
-     * Always true — see the file-level change-verification block
-     * §"What the request deliberately does NOT do". The controller
-     * invokes `Gate::authorize('update', $body)` before the request
-     * is validated.
+     * The route model must already be resolved so the policy can
+     * enforce both the update permission and tenant boundary before
+     * validation reads or compares any model state.
+     *
+     * The controller retains its authorization check as defence in
+     * depth. Missing or unresolved route models fail closed.
      *
      * @return bool
      */
     public function authorize(): bool
     {
-        return true;
+        $body = $this->route('governanceBody');
+
+        return $body instanceof GovernanceBody
+            && ($this->user()?->can('update', $body) ?? false);
     }
 
     // =========================================================================
