@@ -6,7 +6,10 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Auth\Services\AuthenticationService;
 use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
 use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -148,5 +151,79 @@ final class LoginIdentifierResolverTest extends TestCase
     {
         $this->assertNull($this->resolver->resolve('EMP-000001', $this->tenant->id));
         $this->assertNull($this->resolver->resolve('WAL-000001', $this->tenant->id));
+    }
+
+    #[Test]
+    public function eligible_direct_identifier_after_twenty_ineligible_candidates_is_not_hidden(): void
+    {
+        for ($index = 0; $index < 20; $index++) {
+            User::factory()->create([
+                'email' => sprintf('ineligible-%02d@example.test', $index),
+                'phone' => '+251911000099',
+                'is_active' => true,
+            ]);
+        }
+
+        $eligible = User::factory()->create([
+            'email' => 'eligible-after-limit@example.test',
+            'phone' => '+251911000099',
+            'is_active' => true,
+        ]);
+        $eligible->tenants()->attach($this->tenant->id);
+
+        $resolved = $this->resolver->resolve('+251911000099', $this->tenant->id);
+
+        $this->assertNotNull($resolved);
+        $this->assertSame($eligible->id, $resolved['user']->id);
+    }
+
+    #[Test]
+    public function optional_domain_resolution_fails_closed_for_partial_schemas(): void
+    {
+        Schema::dropIfExists('employees');
+        Schema::create('employees', function ($table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('employee_number');
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->boolean('is_active')->default(true);
+        });
+
+        Schema::dropIfExists('wallets');
+        Schema::create('wallets', function ($table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('wallet_number');
+            $table->unsignedBigInteger('shareholder_id');
+        });
+
+        $this->assertNull($this->resolver->resolve('EMP-000001', $this->tenant->id));
+        $this->assertNull($this->resolver->resolve('WAL-000001', $this->tenant->id));
+    }
+
+    #[Test]
+    public function login_does_not_persist_the_selected_tenant_as_the_default(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'tenant-choice@example.test',
+            'password' => Hash::make('correct-password'),
+            'default_tenant_id' => null,
+            'is_active' => true,
+        ]);
+        $user->tenants()->attach($this->tenant->id);
+
+        $secondTenant = Tenant::factory()->create(['is_active' => true]);
+        $user->tenants()->attach($secondTenant->id);
+
+        $result = app(AuthenticationService::class)->login(
+            $user->email,
+            'correct-password',
+            false,
+            $secondTenant->id,
+        );
+
+        $this->assertNotEmpty($result['token']);
+        $this->assertSame($secondTenant->id, $result['user']->fresh()->tokens()->latest()->first()?->tokenable_id);
+        $this->assertNull($user->fresh()->default_tenant_id);
     }
 }
