@@ -406,7 +406,7 @@ final class AuthController extends Controller
             && $requestedTenantId !== null
             && filter_var($normalizedIdentifier, FILTER_VALIDATE_EMAIL) !== false
         ) {
-            $identityCandidates = \\MaaleArna\\MASES\\Core\\Auth\\Models\\User::query()
+            $identityCandidates = \MaaleArna\MASES\Core\Auth\Models\User::query()
                 ->where('is_active', true)
                 ->where(function ($query) use ($normalizedIdentifier, $validated): void {
                     $query->where('email', $normalizedIdentifier)
