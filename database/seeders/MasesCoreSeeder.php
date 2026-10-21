@@ -8,6 +8,8 @@ use Database\Seeders\Data\BootstrapUsers;
 use Database\Seeders\Data\ShareholderRegister;
 use Database\Seeders\Data\TenantProfile;
 use Database\Seeders\Support\UserPivotCleaner;
+use Illuminate\Support\Facades\Schema;
+use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareholderNumberReconciler;
 use Illuminate\Database\Seeder;
 
 /**
@@ -316,6 +318,16 @@ final class MasesCoreSeeder extends Seeder
          * signature change.
          */
         (new ShareholderSeeder())->seed($tenant, $roles, $admins['super']);
+
+        /*
+         * Migrations execute before seeders on a fresh installation.
+         * Reconcile again after the shareholder cohort is written so
+         * every seeded record has its permanent number, reservation,
+         * legacy alias, and tenant sequence state before seeding ends.
+         */
+        if (Schema::hasTable('shareholders') && Schema::hasColumn('shareholders', 'shareholder_number')) {
+            app(ShareholderNumberReconciler::class)->reconcile();
+        }
 
         /*
          * Step 9 — summary.
