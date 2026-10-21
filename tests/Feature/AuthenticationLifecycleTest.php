@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -913,5 +914,36 @@ final class AuthenticationLifecycleTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['password']);
+    }
+
+    /**
+     * A suspended membership must not authenticate even when credentials are valid.
+     */
+    #[Test]
+    public function a_suspended_membership_cannot_be_used_to_login(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create([
+            'email' => 'suspended-login@example.com',
+            'password' => bcrypt('Password123!'),
+            'is_active' => true,
+        ]);
+        $user->tenants()->attach($tenant->id, [
+            'joined_at' => now(),
+            'status' => TenantMembership::STATUS_SUSPENDED,
+        ]);
+
+        $response = $this->withHeaders(['X-Tenant-ID' => (string) $tenant->id])
+            ->postJson('/api/login', [
+                'email' => 'suspended-login@example.com',
+                'password' => 'Password123!',
+                'tenant_id' => $tenant->id,
+            ]);
+
+        $response->assertStatus(403);
+        $response->assertJsonPath('error.code', 'AUTH_TENANT_ACCESS_DENIED');
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'tokenable_id' => $user->id,
+        ]);
     }
 }
