@@ -88,16 +88,21 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
             'sequences' => DB::table('shareholder_number_sequences')->count(),
         ];
 
-        $secondExitCode = Artisan::call('db:seed', [
-            '--class' => MasesCoreSeeder::class,
-            '--no-interaction' => true,
-        ]);
-        $output = Artisan::output();
+        $caught = null;
 
-        $this->assertNotSame(0, $secondExitCode, $output);
+        try {
+            Artisan::call('db:seed', [
+                '--class' => MasesCoreSeeder::class,
+                '--no-interaction' => true,
+            ]);
+        } catch (\\RuntimeException $exception) {
+            $caught = $exception;
+        }
+
+        $this->assertInstanceOf(\\RuntimeException::class, $caught);
         $this->assertStringContainsString(
             'cannot clear and reseed shareholders after permanent numbering history exists',
-            $output,
+            $caught->getMessage(),
         );
 
         $this->assertSame($before['users'], DB::table('users')->count());
