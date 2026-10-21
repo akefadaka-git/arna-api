@@ -11,6 +11,7 @@ use Database\Seeders\Support\UserPivotCleaner;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareholderNumberReconciler;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 /**
  * MasesCoreSeeder
@@ -245,6 +246,42 @@ final class MasesCoreSeeder extends Seeder
          * permissions, roles) is NOT cleared — it is upserted by its
          * seeders below.
          */
+        /*
+         * Permanent shareholder-number reservations and legacy aliases
+         * must outlive shareholder rows. This seeder's legacy clear step
+         * deletes shareholders, so refuse that destructive reset once
+         * numbering history exists. The check runs before any clearing
+         * or seeding; the caller's existing data remains untouched.
+         *
+         * Repeated destructive reseeding is not a supported operation
+         * after identity numbers have been issued. Use a non-destructive
+         * reconciliation/update workflow instead.
+         */
+        if (Schema::hasTable('shareholder_number_reservations')
+            && DB::table('shareholder_number_reservations')->exists()) {
+            throw new RuntimeException(
+                'MasesCoreSeeder cannot clear and reseed shareholders after permanent numbering history exists. '
+                . 'No data was cleared; use a non-destructive reconciliation workflow.'
+            );
+        }
+
+        if (Schema::hasTable('shareholder_legacy_aliases')
+            && DB::table('shareholder_legacy_aliases')->exists()) {
+            throw new RuntimeException(
+                'MasesCoreSeeder cannot clear and reseed shareholders after permanent legacy aliases exist. '
+                . 'No data was cleared; use a non-destructive reconciliation workflow.'
+            );
+        }
+
+        if (Schema::hasTable('shareholders')
+            && Schema::hasColumn('shareholders', 'shareholder_number')
+            && DB::table('shareholders')->whereNotNull('shareholder_number')->exists()) {
+            throw new RuntimeException(
+                'MasesCoreSeeder cannot clear and reseed numbered shareholders. '
+                . 'No data was cleared; use a non-destructive reconciliation workflow.'
+            );
+        }
+
         (new UserPivotCleaner())->clear();
 
         /*
