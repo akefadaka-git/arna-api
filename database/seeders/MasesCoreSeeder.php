@@ -11,6 +11,7 @@ use Database\Seeders\Support\UserPivotCleaner;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareholderNumberReconciler;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
