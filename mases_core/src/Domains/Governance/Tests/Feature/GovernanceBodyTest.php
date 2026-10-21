@@ -469,6 +469,29 @@ final class GovernanceBodyTest extends TestCase
         $response->assertStatus(403);
     }
 
+    /**
+     * Authorization must run before payload validation. An unauthorized
+     * caller submitting malformed data must receive 403, not field-level
+     * validation details that can expose database-backed checks.
+     */
+    public function test_unauthorized_create_is_rejected_before_validation(): void
+    {
+        Sanctum::actingAs($this->plainUser, ['*']);
+
+        $response = $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenantA->id,
+        ])->postJson(route('api.governance.bodies.store'), [
+            'code'              => 'FORBIDDEN',
+            'body_type'         => 'not-a-real-type',
+            'parent_body_id'    => $this->bodyB->id,
+            'reporting_body_id' => 999999999,
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('success', false);
+        $this->assertArrayNotHasKey('errors', $response->json());
+    }
+
     // =========================================================================
     // Happy-path CRUD
     // =========================================================================
