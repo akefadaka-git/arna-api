@@ -179,6 +179,7 @@ Route::get('/health', static function (): JsonResponse {
  * membership is validated before the token is issued.
  */
 Route::post('/login', [AuthController::class, 'login'])
+    ->middleware('throttle:5,1')
     ->name('api.auth.login');
 
 /**
