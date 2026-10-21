@@ -1,0 +1,66 @@
+name: ARNA Governance body authorization regression
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/arna-governance-body-regression.yml"
+      - "mases_core/src/Domains/Governance/**"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-governance-body-regression-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  governance-body-regression:
+    name: PHP lint and GovernanceBodyTest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Verify exact PR head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          echo "Expected PR head: ${EXPECTED_SHA}"
+          echo "Checked-out commit: ${actual_sha}"
+          test "${actual_sha}" = "${EXPECTED_SHA}"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: PHP syntax lint
+        run: |
+          set -euo pipefail
+          php -l mases_core/src/Domains/Governance/Http/Requests/StoreGovernanceBodyRequest.php
+          php -l mases_core/src/Domains/Governance/Http/Requests/UpdateGovernanceBodyRequest.php
+          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceBodyTest.php
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run Governance body feature tests
+        run: vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceBodyTest.php
