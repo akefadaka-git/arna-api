@@ -1,10 +1,13 @@
-name: ARNA PR #5 tenant membership and permission regression
+name: ARNA authentication, tenant membership, and authorization regression
 
 on:
+  push:
+    branches:
+      - integration/arna-system-consolidation
   workflow_dispatch:
     inputs:
       target_ref:
-        description: "Commit SHA or branch to test (default is the reviewed PR #5 commit)"
+        description: "Commit SHA or branch to test (manual runs default to the reviewed PR #5 commit)"
         required: true
         type: string
         default: "9d27cce14fd1d996a9e8746ade15daad0bad3fdc"
@@ -13,25 +16,25 @@ permissions:
   contents: read
 
 concurrency:
-  group: arna-pr5-regression-${{ github.run_id }}
+  group: arna-auth-tenant-authorization-regression-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   regression:
-    name: PHP 8.3 tenant membership and permission regression
+    name: PHP 8.3 authentication, tenant, and authorization regression
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Check out requested revision
+      - name: Check out exact event revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.target_ref }}
+          ref: ${{ inputs.target_ref || github.sha }}
           persist-credentials: false
 
       - name: Verify checked-out revision
         shell: bash
         env:
-          REQUESTED_REF: ${{ inputs.target_ref }}
+          REQUESTED_REF: ${{ inputs.target_ref || github.sha }}
         run: |
           set -euo pipefail
           actual_sha="$(git rev-parse HEAD)"
@@ -59,6 +62,15 @@ jobs:
       - name: Run authentication lifecycle regression
         run: vendor/bin/phpunit tests/Feature/AuthenticationLifecycleTest.php
 
+      - name: Run login throttling regression
+        run: vendor/bin/phpunit tests/Feature/LoginThrottlingTest.php
+
+      - name: Run authorization failure event regression
+        run: vendor/bin/phpunit tests/Feature/AuthorizationFailureEventTest.php
+
+      - name: Run RBAC authorization regression
+        run: vendor/bin/phpunit tests/Feature/RbacAuthorizationTest.php
+
       - name: Run tenant resolution regression
         run: vendor/bin/phpunit tests/Feature/C09/TenantResolutionTest.php
 
@@ -67,6 +79,12 @@ jobs:
 
       - name: Run tenant membership regression
         run: vendor/bin/phpunit tests/Feature/TenantMembershipTest.php
+
+      - name: Run tenant isolation regression
+        run: vendor/bin/phpunit tests/Feature/TenantIsolationTest.php
+
+      - name: Run tenant-required route regression
+        run: vendor/bin/phpunit tests/Feature/TenantRequiredRouteTest.php
 
       - name: Run tenant-scoped permission regression
         run: vendor/bin/phpunit tests/Unit/UserPermissionScopeTest.php
