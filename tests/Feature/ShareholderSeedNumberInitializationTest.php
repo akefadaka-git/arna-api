@@ -68,4 +68,45 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
             'next_number' => 101,
         ]);
     }
+
+    #[Test]
+    public function a_second_seed_fails_before_clearing_permanent_numbering_history(): void
+    {
+        $firstExitCode = Artisan::call('db:seed', [
+            '--class' => MasesCoreSeeder::class,
+            '--no-interaction' => true,
+        ]);
+
+        $this->assertSame(0, $firstExitCode, Artisan::output());
+
+        $before = [
+            'users' => DB::table('users')->count(),
+            'shareholders' => DB::table('shareholders')->count(),
+            'reservations' => DB::table('shareholder_number_reservations')->count(),
+            'aliases' => DB::table('shareholder_legacy_aliases')->count(),
+            'sequences' => DB::table('shareholder_number_sequences')->count(),
+        ];
+
+        $secondExitCode = Artisan::call('db:seed', [
+            '--class' => MasesCoreSeeder::class,
+            '--no-interaction' => true,
+        ]);
+        $output = Artisan::output();
+
+        $this->assertNotSame(0, $secondExitCode, $output);
+        $this->assertStringContainsString(
+            'cannot clear and reseed shareholders after permanent numbering history exists',
+            $output,
+        );
+
+        $this->assertSame($before['users'], DB::table('users')->count());
+        $this->assertSame($before['shareholders'], DB::table('shareholders')->count());
+        $this->assertSame($before['reservations'], DB::table('shareholder_number_reservations')->count());
+        $this->assertSame($before['aliases'], DB::table('shareholder_legacy_aliases')->count());
+        $this->assertSame($before['sequences'], DB::table('shareholder_number_sequences')->count());
+
+        $this->assertDatabaseHas('shareholder_number_sequences', [
+            'next_number' => 101,
+        ]);
+    }
 }
