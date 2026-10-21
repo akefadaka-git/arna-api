@@ -1,0 +1,72 @@
+name: ARNA Employee ID login candidate
+
+on:
+  pull_request:
+    branches:
+      - integration/arna-system-consolidation
+    paths:
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "database/migrations/**"
+      - "mases_core/src/Auth/Services/LoginIdentifierResolver.php"
+      - "tests/Feature/LoginIdentifierResolverTest.php"
+      - ".github/workflows/arna-employee-id-login.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+  push:
+    branches:
+      - codex/arna-employee-id-login
+    paths:
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "database/migrations/**"
+      - "mases_core/src/Auth/Services/LoginIdentifierResolver.php"
+      - "tests/Feature/LoginIdentifierResolverTest.php"
+      - ".github/workflows/arna-employee-id-login.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-employee-id-login-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  employee-id-login:
+    name: Employee ID login tests (PHP 8.3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact event revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify checked-out revision
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_SHA"
+          echo "Verified exact candidate SHA: $actual_sha"
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+      - name: Validate migration and resolver syntax
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_10_22_000001_create_employees_table.php
+          php -l mases_core/src/Auth/Services/LoginIdentifierResolver.php
+          php -l tests/Feature/LoginIdentifierResolverTest.php
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Run employee identifier regression tests
+        run: vendor/bin/phpunit tests/Feature/LoginIdentifierResolverTest.php
