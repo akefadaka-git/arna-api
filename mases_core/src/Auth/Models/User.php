@@ -452,6 +452,27 @@ class User extends Authenticatable
     }
 
     /**
+     * Get tenants for which this user has an active membership.
+     *
+     * Keep tenants() unfiltered for administration and reporting; access
+     * checks must use this status-aware relation.
+     *
+     * @return BelongsToMany<Tenant>
+     */
+    public function activeTenants(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Tenant::class,
+            'tenant_memberships',
+            'user_id',
+            'tenant_id'
+        )
+            ->withPivot('status')
+            ->wherePivot('status', TenantMembership::STATUS_ACTIVE)
+            ->withTimestamps();
+    }
+
+    /**
      * Get the membership records for this user.
      *
      * @return HasMany<TenantMembership>

@@ -315,7 +315,7 @@ final class AuthenticationService
         $effectiveTenantId = $tenantId ?? $user->default_tenant_id;
 
         if ($effectiveTenantId === null) {
-            $eligibleTenantIds = $user->tenants()
+            $eligibleTenantIds = $user->activeTenants()
                 ->where('tenants.is_active', true)
                 ->pluck('tenants.id')
                 ->map(static fn ($id): int => (int) $id)
@@ -355,7 +355,7 @@ final class AuthenticationService
             ->where('is_active', true)
             ->exists();
         $isMember = $tenantIsActive
-            && $user->tenants()->where('tenants.id', $effectiveTenantId)->exists();
+            && $user->activeTenants()->where('tenants.id', $effectiveTenantId)->exists();
 
         if (!$isMember) {
             Event::dispatch(new FailedLogin(

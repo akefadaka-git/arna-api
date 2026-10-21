@@ -88,10 +88,9 @@ use Tests\TestCase;
  *        Verified only if the environment can simulate a subdomain host.
  *        Skipped by default — see the test body.
  *
- *   T6 — Explicit `$tenantId` argument to AuthorizationService is honored.
- *        A caller that passes an explicit tenant id bypasses the helper.
- *        This preserves the "concrete value overrides the default"
- *        contract that queued jobs and console commands rely on.
+ *   T6 — Explicit `$tenantId` must match trusted tenant context.
+ *        Explicit scope is accepted only when it matches the server-side
+ *        context; a concrete ID is not authority to cross tenants.
  *
  * =============================================================================
  * WHAT THESE TESTS DO NOT COVER
@@ -357,30 +356,30 @@ final class TenantResolutionTest extends TestCase
      * a caller that supplies a concrete tenant gets a check scoped to
      * that tenant, regardless of what the middleware resolved.
      */
-    public function test_explicit_tenant_argument_to_authorization_service_is_honored(): void
+    public function test_explicit_tenant_argument_must_match_trusted_context(): void
     {
         $scenario = $this->scenarioTwoTenants();
         $user = $scenario['user'];
         $tenantA = $scenario['tenantA'];
         $tenantB = $scenario['tenantB'];
 
-        $authorization = app(AuthorizationService::class);
+        $context = app(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class);
+        $context->setTenantById($tenantA->id);
 
-        // The role the test scenario grants is `shareholder.view`. The
-        // user holds it. The check must succeed against A (the user's
-        // tenant) and also against B — because the role is platform-scoped
-        // and `AuthorizationService` treats a NULL tenant on the role as
-        // globally applicable. This is the service's documented behaviour;
-        // the test's purpose is to confirm the explicit argument is not
-        // silently dropped.
-        $this->assertTrue(
-            $authorization->hasPermission('shareholder.view', $user, $tenantA->id),
-            'Explicit tenant A must be honoured.'
-        );
-        $this->assertTrue(
-            $authorization->hasPermission('shareholder.view', $user, $tenantB->id),
-            'Explicit tenant B must be honoured.'
-        );
+        try {
+            $authorization = app(AuthorizationService::class);
+
+            $this->assertTrue(
+                $authorization->hasPermission('shareholder.view', $user, $tenantA->id),
+                'The explicit tenant must be honoured when it matches trusted context.'
+            );
+            $this->assertFalse(
+                $authorization->hasPermission('shareholder.view', $user, $tenantB->id),
+                'A global role/permission grant must not permit switching to another tenant.'
+            );
+        } finally {
+            $context->clearTenant();
+        }
     }
 
     // =========================================================================

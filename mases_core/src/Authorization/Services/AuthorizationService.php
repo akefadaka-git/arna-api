@@ -326,6 +326,13 @@ final class AuthorizationService
             return false;
         }
 
+        // A caller-supplied tenant is a scope selector, not authority to
+        // switch away from the trusted request tenant. Validate it before
+        // resolving permissions or consulting the permission cache.
+        if ($tenantId !== null && !$this->explicitTenantMatchesTrustedContext($tenantId)) {
+            return false;
+        }
+
         $tenantId      = $tenantId ?? mases_tenant_id();
         $applicationId = $applicationSlug
             ? $this->resolveApplicationId($applicationSlug)
@@ -365,12 +372,17 @@ final class AuthorizationService
             // ------------------------------------------------------------
             $hasDirect = $user->permissions()
                 ->where('slug', $permissionSlug)
-                ->when($tenantId !== null, function ($query) use ($tenantId) {
-                    $query->where(function ($q) use ($tenantId) {
-                        $q->where('tenant_id', $tenantId)
-                            ->orWhereNull('tenant_id');
-                    });
-                })
+                ->where('is_active', true)
+                ->when(
+                    $tenantId !== null,
+                    function ($query) use ($tenantId) {
+                        $query->where(function ($q) use ($tenantId) {
+                            $q->where('tenant_id', $tenantId)
+                                ->orWhereNull('tenant_id');
+                        });
+                    },
+                    fn ($query) => $query->whereNull('tenant_id')
+                )
                 ->when($applicationId !== null, function ($query) use ($applicationId) {
                     $query->where(function ($q) use ($applicationId) {
                         $q->where('application_id', $applicationId)
@@ -390,15 +402,31 @@ final class AuthorizationService
             // tenant and application scoping rules as Path A.
             // ------------------------------------------------------------
             return $user->roles()
-                ->whereHas('permissions', function ($query) use ($permissionSlug) {
-                    $query->where('slug', $permissionSlug);
+                ->where('is_active', true)
+                ->whereHas('permissions', function ($query) use ($permissionSlug, $tenantId) {
+                    $query->where('slug', $permissionSlug)
+                        ->where('is_active', true)
+                        ->when(
+                            $tenantId !== null,
+                            function ($permissionQuery) use ($tenantId) {
+                                $permissionQuery->where(function ($q) use ($tenantId) {
+                                    $q->where('tenant_id', $tenantId)
+                                        ->orWhereNull('tenant_id');
+                                });
+                            },
+                            fn ($permissionQuery) => $permissionQuery->whereNull('tenant_id')
+                        );
                 })
-                ->when($tenantId !== null, function ($query) use ($tenantId) {
-                    $query->where(function ($q) use ($tenantId) {
-                        $q->where('tenant_id', $tenantId)
-                            ->orWhereNull('tenant_id');
-                    });
-                })
+                ->when(
+                    $tenantId !== null,
+                    function ($query) use ($tenantId) {
+                        $query->where(function ($q) use ($tenantId) {
+                            $q->where('tenant_id', $tenantId)
+                                ->orWhereNull('tenant_id');
+                        });
+                    },
+                    fn ($query) => $query->whereNull('tenant_id')
+                )
                 ->when($applicationId !== null, function ($query) use ($applicationId) {
                     $query->where(function ($q) use ($applicationId) {
                         $q->where('application_id', $applicationId)
@@ -438,6 +466,12 @@ final class AuthorizationService
             return false;
         }
 
+        // Keep role checks aligned with permission checks: an explicit
+        // tenant must not bypass the trusted tenant context.
+        if ($tenantId !== null && !$this->explicitTenantMatchesTrustedContext($tenantId)) {
+            return false;
+        }
+
         $tenantId      = $tenantId ?? mases_tenant_id();
         $applicationId = $applicationSlug
             ? $this->resolveApplicationId($applicationSlug)
@@ -445,12 +479,17 @@ final class AuthorizationService
 
         return $user->roles()
             ->where('slug', $roleSlug)
-            ->when($tenantId !== null, function ($query) use ($tenantId) {
-                $query->where(function ($q) use ($tenantId) {
-                    $q->where('tenant_id', $tenantId)
-                        ->orWhereNull('tenant_id');
-                });
-            })
+            ->where('is_active', true)
+            ->when(
+                $tenantId !== null,
+                function ($query) use ($tenantId) {
+                    $query->where(function ($q) use ($tenantId) {
+                        $q->where('tenant_id', $tenantId)
+                            ->orWhereNull('tenant_id');
+                    });
+                },
+                fn ($query) => $query->whereNull('tenant_id')
+            )
             ->when($applicationId !== null, function ($query) use ($applicationId) {
                 $query->where(function ($q) use ($applicationId) {
                     $q->where('application_id', $applicationId)
@@ -691,6 +730,38 @@ final class AuthorizationService
     // =========================================================================
     // PRIVATE HELPERS
     // =========================================================================
+
+    /**
+     * Validate an explicit tenant selector against trusted tenant context.
+     *
+     * In a routed HTTP request, trusted context must already have been set by
+     * the tenant middleware. Missing context or a mismatch denies the check.
+     * Non-HTTP execution retains the existing explicit-tenant behavior for
+     * commands and queued work that deliberately supplies its tenant scope.
+     */
+    private function explicitTenantMatchesTrustedContext(int|string $tenantId): bool
+    {
+        try {
+            $trustedTenantId = app(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class)
+                ->getTenantId();
+        } catch (\Throwable) {
+            return false;
+        }
+
+        if ($trustedTenantId !== null) {
+            return (string) $trustedTenantId === (string) $tenantId;
+        }
+
+        // A matched route indicates an HTTP authorization path. Do not let an
+        // explicit argument fill a missing middleware-established context.
+        if (app()->bound('request') && app('request')->route() !== null) {
+            return false;
+        }
+
+        // Preserve the existing explicit-scope contract for non-HTTP jobs and
+        // console commands, where callers are responsible for choosing scope.
+        return app()->runningInConsole();
+    }
 
     /**
      * Resolve the user instance to check against.

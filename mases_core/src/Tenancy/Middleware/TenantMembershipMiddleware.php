@@ -220,8 +220,8 @@ final class TenantMembershipMiddleware
         // 4. Membership verification.
         // ---------------------------------------------------------------------
         try {
-            $isMember = $user->tenants()
-                ->where('tenant_id', $tenant->id)
+            $isMember = $user->activeTenants()
+                ->where('tenants.id', $tenant->id)
                 ->exists();
         } catch (Throwable $e) {
             Log::error('TenantMembershipMiddleware: membership check failed', [
