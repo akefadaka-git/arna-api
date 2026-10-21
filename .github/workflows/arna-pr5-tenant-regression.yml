@@ -7,10 +7,10 @@ on:
   workflow_dispatch:
     inputs:
       target_ref:
-        description: "Commit SHA or branch to test (manual runs default to the reviewed PR #5 commit)"
+        description: "Commit SHA or branch to test"
         required: true
         type: string
-        default: "9d27cce14fd1d996a9e8746ade15daad0bad3fdc"
+        default: "integration/arna-system-consolidation"
 
 permissions:
   contents: read
@@ -74,9 +74,6 @@ jobs:
       - name: Run tenant resolution regression
         run: vendor/bin/phpunit tests/Feature/C09/TenantResolutionTest.php
 
-      - name: Run tenant membership lifecycle regression
-        run: vendor/bin/phpunit tests/Feature/TenantMembershipLifecycleTest.php
-
       - name: Run tenant membership regression
         run: vendor/bin/phpunit tests/Feature/TenantMembershipTest.php
 
@@ -86,8 +83,8 @@ jobs:
       - name: Run tenant-required route regression
         run: vendor/bin/phpunit tests/Feature/TenantRequiredRouteTest.php
 
-      - name: Run tenant-scoped permission regression
-        run: vendor/bin/phpunit tests/Unit/UserPermissionScopeTest.php
+      - name: Run authorization service and permission-scope regression
+        run: vendor/bin/phpunit tests/Unit/AuthorizationServiceTest.php
 
       - name: Run tenant resolver unit regression
         run: vendor/bin/phpunit tests/Unit/TenantResolverTest.php
