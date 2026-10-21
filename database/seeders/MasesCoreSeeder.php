@@ -8,7 +8,11 @@ use Database\Seeders\Data\BootstrapUsers;
 use Database\Seeders\Data\ShareholderRegister;
 use Database\Seeders\Data\TenantProfile;
 use Database\Seeders\Support\UserPivotCleaner;
+use Illuminate\Support\Facades\Schema;
+use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareholderNumberReconciler;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * MasesCoreSeeder
@@ -193,9 +197,14 @@ use Illuminate\Database\Seeder;
  * The clear runs inside a single transaction. A failure rolls it
  * back; the database is left in its pre-clear state.
  *
- * To preserve existing users instead, comment out the
- * UserPivotCleaner::clear() call below. The rest of the flow is
- * idempotent and upserts over existing rows.
+ * The clear-and-seed reset is permitted only before permanent
+ * shareholder-number reservations or legacy aliases exist. Once
+ * numbering history exists, run() fails before clearing any data.
+ * This protects immutable identity history and avoids reusing issued
+ * numbers. Do not bypass the guard by commenting out the clear call:
+ * the entity-row upsert is not a complete general-purpose reseed.
+ * Use a separately reviewed, non-destructive reconciliation workflow
+ * for later reference-data or account updates.
  *
  * =============================================================================
  * What this class deliberately does NOT do
@@ -243,6 +252,42 @@ final class MasesCoreSeeder extends Seeder
          * permissions, roles) is NOT cleared — it is upserted by its
          * seeders below.
          */
+        /*
+         * Permanent shareholder-number reservations and legacy aliases
+         * must outlive shareholder rows. This seeder's legacy clear step
+         * deletes shareholders, so refuse that destructive reset once
+         * numbering history exists. The check runs before any clearing
+         * or seeding; the caller's existing data remains untouched.
+         *
+         * Repeated destructive reseeding is not a supported operation
+         * after identity numbers have been issued. Use a non-destructive
+         * reconciliation/update workflow instead.
+         */
+        if (Schema::hasTable('shareholder_number_reservations')
+            && DB::table('shareholder_number_reservations')->exists()) {
+            throw new RuntimeException(
+                'MasesCoreSeeder cannot clear and reseed shareholders after permanent numbering history exists. '
+                . 'No data was cleared; use a non-destructive reconciliation workflow.'
+            );
+        }
+
+        if (Schema::hasTable('shareholder_legacy_aliases')
+            && DB::table('shareholder_legacy_aliases')->exists()) {
+            throw new RuntimeException(
+                'MasesCoreSeeder cannot clear and reseed shareholders after permanent legacy aliases exist. '
+                . 'No data was cleared; use a non-destructive reconciliation workflow.'
+            );
+        }
+
+        if (Schema::hasTable('shareholders')
+            && Schema::hasColumn('shareholders', 'shareholder_number')
+            && DB::table('shareholders')->whereNotNull('shareholder_number')->exists()) {
+            throw new RuntimeException(
+                'MasesCoreSeeder cannot clear and reseed numbered shareholders. '
+                . 'No data was cleared; use a non-destructive reconciliation workflow.'
+            );
+        }
+
         (new UserPivotCleaner())->clear();
 
         /*
@@ -316,6 +361,16 @@ final class MasesCoreSeeder extends Seeder
          * signature change.
          */
         (new ShareholderSeeder())->seed($tenant, $roles, $admins['super']);
+
+        /*
+         * Migrations execute before seeders on a fresh installation.
+         * Reconcile again after the shareholder cohort is written so
+         * every seeded record has its permanent number, reservation,
+         * legacy alias, and tenant sequence state before seeding ends.
+         */
+        if (Schema::hasTable('shareholders') && Schema::hasColumn('shareholders', 'shareholder_number')) {
+            app(ShareholderNumberReconciler::class)->reconcile();
+        }
 
         /*
          * Step 9 — summary.
