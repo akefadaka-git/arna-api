@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/arna-d01-login-throttling
+      - integration/arna-system-consolidation
   pull_request:
     branches:
       - integration/arna-system-consolidation
@@ -11,7 +12,6 @@ on:
       - 'routes/api.php'
       - 'tests/Feature/LoginThrottlingTest.php'
       - '.github/workflows/arna-d01-login-throttling.yml'
-  workflow_dispatch:
 
 permissions:
   contents: read
