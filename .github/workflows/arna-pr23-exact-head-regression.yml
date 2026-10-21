@@ -1,6 +1,7 @@
 name: ARNA PR #23 migration discovery and regression
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - codex/arna-migration-discovery-integration-test
