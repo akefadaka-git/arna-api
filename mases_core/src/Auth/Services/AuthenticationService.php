@@ -390,11 +390,6 @@ final class AuthenticationService
             );
         }
 
-        if ($user->default_tenant_id === null) {
-            $user->default_tenant_id = $effectiveTenantId;
-            $user->save();
-        }
-
         $tenantId = $effectiveTenantId;
 
         // ---------------------------------------------------------------------
