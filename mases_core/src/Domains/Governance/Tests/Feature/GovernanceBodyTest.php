@@ -492,6 +492,29 @@ final class GovernanceBodyTest extends TestCase
         $this->assertArrayNotHasKey('errors', $response->json());
     }
 
+    /**
+     * Update authorization must run before validation evaluates malformed
+     * fields or the post-update state of a governance body.
+     */
+    public function test_unauthorized_update_is_rejected_before_validation(): void
+    {
+        Sanctum::actingAs($this->plainUser, ['*']);
+
+        $response = $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenantA->id,
+        ])->patchJson(route('api.governance.bodies.update', [
+            'governanceBody' => $this->bodyA->id,
+        ]), [
+            'body_type' => 'not-a-real-type',
+            'name_am'   => null,
+            'name_en'   => null,
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('success', false);
+        $this->assertArrayNotHasKey('errors', $response->json());
+    }
+
     // =========================================================================
     // Happy-path CRUD
     // =========================================================================
