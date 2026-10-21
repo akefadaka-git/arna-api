@@ -186,6 +186,18 @@ final class ShareholderService
         return DB::transaction(function () use ($attributes, $tenantId): Shareholder {
             $now = now();
 
+            // Fail closed until every existing shareholder in this tenant has a reconciled
+            // business number. Otherwise a fresh sequence could reuse a number belonging
+            // to an unnumbered legacy record. The approved backfill must run first.
+            if (DB::table('shareholders')
+                ->where('tenant_id', $tenantId)
+                ->whereNull('shareholder_number')
+                ->exists()) {
+                throw new \\LogicException(
+                    'Shareholder numbering is not reconciled for this tenant; registration is temporarily blocked.'
+                );
+            }
+
             DB::table('shareholder_number_sequences')->insertOrIgnore([
                 'tenant_id' => $tenantId,
                 'next_number' => 1,
