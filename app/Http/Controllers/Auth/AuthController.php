@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 use MaaleArna\MASES\Core\Auth\Services\AuthenticationService;
+use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
 use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
 
 /**
@@ -322,13 +323,17 @@ final class AuthController extends Controller
      * The authentication service.
      */
     private AuthenticationService $authService;
+    private LoginIdentifierResolver $identifierResolver;
 
     /**
      * Create a new AuthController instance.
      */
-    public function __construct(AuthenticationService $authService)
-    {
+    public function __construct(
+        AuthenticationService $authService,
+        LoginIdentifierResolver $identifierResolver,
+    ) {
         $this->authService = $authService;
+        $this->identifierResolver = $identifierResolver;
     }
 
     // =========================================================================
@@ -369,13 +374,36 @@ final class AuthController extends Controller
         ]);
 
         /*
-         * Resolve the identifier to an email address the service
-         * expects. Falls back to the raw identifier when no user is
-         * found, so the service produces its standard error envelope
-         * unchanged.
+         * Prefer trusted server-side tenant context. A body tenant may be
+         * selected by the caller only when no trusted context was resolved;
+         * the authentication service independently verifies membership.
          */
-        $resolvedEmail = $this->resolveLoginEmail($validated['email'])
-            ?? $validated['email'];
+        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0
+            ? (int) $trustedTenantId
+            : null;
+        $bodyTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : null;
+        $tenantConflict = $trustedTenantId !== null
+            && $bodyTenantId !== null
+            && $trustedTenantId !== $bodyTenantId;
+        $requestedTenantId = $trustedTenantId ?? $bodyTenantId;
+
+        $resolution = $tenantConflict
+            ? null
+            : $this->identifierResolver->resolve($validated['email'], $requestedTenantId);
+
+        /*
+         * Never pass an unresolved non-email identifier to a service that
+         * authenticates by email. A valid email retains the existing
+         * explicit-tenant denial contract; other unresolved identifiers use
+         * a non-matching sentinel and cannot bypass the canonical resolver.
+         */
+        $normalizedIdentifier = strtolower(trim($validated['email']));
+        $resolvedEmail = $resolution['user']->email
+            ?? (filter_var($normalizedIdentifier, FILTER_VALIDATE_EMAIL) !== false && !$tenantConflict
+                ? $normalizedIdentifier
+                : '__invalid_login_identifier__');
+        $effectiveTenantId = $resolution['tenant_id'] ?? $requestedTenantId;
 
         /*
          * Correlation hash for the audit log. Computed from the
@@ -400,7 +428,7 @@ final class AuthController extends Controller
                 email:    $resolvedEmail,
                 password: $validated['password'],
                 remember: $validated['remember'] ?? false,
-                tenantId: $validated['tenant_id'] ?? null,
+                tenantId: $effectiveTenantId,
             );
         } catch (\Throwable $e) {
             /*
