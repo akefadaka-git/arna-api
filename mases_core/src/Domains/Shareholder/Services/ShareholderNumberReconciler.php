@@ -109,7 +109,20 @@ final class ShareholderNumberReconciler
                 }
             }
 
-            foreach (DB::table('shareholders')->select('tenant_id')->distinct()->pluck('tenant_id') as $tenantIdValue) {
+            /*
+             * Sequence state belongs to permanent numbering history,
+             * not merely to currently present shareholder rows. Include
+             * tenants represented by reservations or legacy aliases so
+             * deleted/archived register rows cannot make a sequence
+             * counter disappear from reconciliation.
+             */
+            $tenantIds = DB::table('shareholders')->select('tenant_id')->distinct()->pluck('tenant_id')
+                ->merge(DB::table('shareholder_number_reservations')->select('tenant_id')->distinct()->pluck('tenant_id'))
+                ->merge(DB::table('shareholder_legacy_aliases')->select('tenant_id')->distinct()->pluck('tenant_id'))
+                ->unique()
+                ->values();
+
+            foreach ($tenantIds as $tenantIdValue) {
                 $tenantId = (int) $tenantIdValue;
                 $maxReserved = (int) DB::table('shareholder_number_reservations')
                     ->where('tenant_id', $tenantId)->max('number_sequence');
