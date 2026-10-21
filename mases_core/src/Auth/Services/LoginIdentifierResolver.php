@@ -130,7 +130,7 @@ final class LoginIdentifierResolver
                 && Schema::hasColumn('employees', 'deleted_at')) {
                 $employees = DB::table('employees')
                     ->where('tenant_id', $tenantId)
-                    ->where('employee_number', $trimmed)
+                    ->where('employee_number', strtoupper($trimmed))
                     ->where('is_active', true)
                     ->whereNull('deleted_at')
                     ->whereNotNull('user_id')
