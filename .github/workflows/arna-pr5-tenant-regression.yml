@@ -72,6 +72,9 @@ jobs:
       - name: Run shareholder numbering fail-closed regression
         run: vendor/bin/phpunit mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php
 
+      - name: Run shareholder numbering reconciliation migration regression
+        run: vendor/bin/phpunit tests/Feature/ShareholderNumberReconciliationTest.php
+
       - name: Run authorization failure event regression
         run: vendor/bin/phpunit tests/Feature/AuthorizationFailureEventTest.php
 
