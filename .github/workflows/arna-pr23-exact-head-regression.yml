@@ -1,7 +1,10 @@
 name: ARNA PR #23 migration discovery and regression
 
 on:
-  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - codex/arna-flat-shareholder-number-migration
   push:
     branches:
       - codex/arna-migration-discovery-integration-test
@@ -19,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      TARGET_SHA: 3400e5f01f12bb1320aa62c4d7efd8a302da09ae
+      TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Check out exact PR #23 head
         uses: actions/checkout@v4
