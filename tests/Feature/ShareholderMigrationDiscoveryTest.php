@@ -24,13 +24,13 @@ final class ShareholderMigrationDiscoveryTest extends TestCase
             'mases_core/src/Domains/Shareholder/Database/Migrations'
         );
 
-        $registeredPaths = array_map(
-            static fn (string $path): string => rtrim($path, DIRECTORY_SEPARATOR),
+        $registeredPaths = array_values(array_filter(array_map(
+            static fn (string $path): string|false => realpath($path),
             $migrator->paths(),
-        );
+        )));
 
         $this->assertContains(
-            $domainPath,
+            realpath($domainPath),
             $registeredPaths,
             'ShareholderServiceProvider must register the domain migration directory.',
         );
