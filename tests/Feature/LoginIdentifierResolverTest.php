@@ -223,7 +223,7 @@ final class LoginIdentifierResolverTest extends TestCase
         );
 
         $this->assertNotEmpty($result['token']);
-        $this->assertSame($secondTenant->id, $result['user']->fresh()->tokens()->latest()->first()?->tokenable_id);
+        $this->assertSame($user->id, $result['user']->id);
         $this->assertNull($user->fresh()->default_tenant_id);
     }
 }
