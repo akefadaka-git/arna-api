@@ -193,7 +193,7 @@ final class ShareholderService
                 ->where('tenant_id', $tenantId)
                 ->whereNull('shareholder_number')
                 ->exists()) {
-                throw new \\LogicException(
+                throw new \LogicException(
                     'Shareholder numbering is not reconciled for this tenant; registration is temporarily blocked.'
                 );
             }
