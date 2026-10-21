@@ -1,7 +1,7 @@
 # የARNA ኮሚቴዎች የሥልጣንና የማጽደቅ ማትሪክስ
 
 **የሰነድ መለያ:** ARNA-GOV-MAT-PSC-001-AM  
-**ስሪት:** 0.1.0 — የቁጥጥር ረቂቅ  
+**ስሪት:** 0.2.0 — የምንጭ ሰነድ መለያ የተጨመረበት የቁጥጥር ረቂቅ  
 **ሁኔታ:** ለማረጋገጥና ለድርጅታዊ ማጽደቅ የቀረበ፤ ገና አልጸደቀም  
 **የማከማቻ ቅርንጫፍ:** `integration/arna-system-consolidation`  
 **ተያያዥ መመሪያ:** `docs/governance/ARNA-GOV-POL-PSC-001-AM.md`  
@@ -61,14 +61,23 @@
 
 | የሚያስፈልግ ምንጭ | አሁን ያለው ሁኔታ | የማስረጃ መስፈርት |
 |---|---|---|
-| የማሌ አርና አ.ማ. መመሥረቻ ሰነድ/Articles of Association/Memorandum | NOT VERIFIED በዚህ የማከማቻ ግምገማ | የተሟላ፣ የተፈረመ/የተመዘገበ ትክክለኛ ቅጂ |
-| የውስጥ ደንቦች/Bylaws | NOT VERIFIED በዚህ የማከማቻ ግምገማ | የጸደቀ ቅጂ፣ የማጽደቅ ቀንና የውሳኔ ማጣቀሻ |
-| የባለአክሲዮኖች/የቦርድ ውሳኔዎች | NOT VERIFIED | የውሳኔ ቁጥር፣ ቀን፣ የተፈቀደው ጽሑፍ፣ የፊርማ ማስረጃ |
-| የፋይናንስ ሥልጣንና የፊርማ ውክልና | NOT VERIFIED | የሚፈቀዱ ሰዎች፣ የገንዘብ ገደቦች፣ የሁለት ፊርማ መስፈርት ካለ፣ የማብቂያ ቀን |
-| የግዥ/የሽያጭ/የንብረት ፖሊሲዎች | NOT VERIFIED | የተፈቀዱ ስሪቶችና የማጽደቅ ውሳኔ |
-| የሰው ኃይል፣ የቅሬታና የስነ-ሥርዓት ደንቦች | NOT VERIFIED | የሥልጣን ወሰን፣ የምላሽ/ይግባኝ መብት፣ የማጽደቅ ሂደት |
+| የውስጥ ደንብ — `የማሌ_ዓርና_አክሲዮን_ማኅበር_መተዳደሪያ_ደንብ.pdf` | **SOURCE LOCATED; CLAUSE-LEVEL VERIFICATION IN PROGRESS** — 17-page scanned PDF, uploaded 2026-09-08 in prior conversation and recovered from the user's Library | Page-by-page transcription of the relevant Amharic provisions, exact clause numbers, and confirmation of approval/registration status |
+| የመመሥረቻ ሰነድ/Articles of Association/Memorandum | **PARTIALLY IDENTIFIED / NOT YET MATCHED TO A SEPARATE SOURCE FILE** | Match the governing articles/memorandum to the source register and verify clauses on committee appointment, powers, quorum, financial authority, and signatures |
+| የባለአክሲዮኖች/የቦርድ ውሳኔዎች | NOT VERIFIED in the currently retrieved sources | Decision number, date, adopted text, signed minutes/resolution and effective date |
+| የፋይናንስ ሥልጣንና የፊርማ ውክልና | NOT VERIFIED in the currently retrieved sources | Authorized persons, amount limits, joint-signature rules if any, effective/expiry dates |
+| የግዥ/የሽያጭ/የንብረት ፖሊሲዎች | NOT VERIFIED as approved policy instruments | Approved versions and adoption resolutions |
+| የሰው ኃይል፣ የቅሬታና የስነ-ሥርዓት ደንቦች | NOT VERIFIED in the currently retrieved sources | Scope of authority, employee response/appeal rights, and adoption evidence |
 
-**የተገኘ ነገር:** `docs/PHASE_2_SHAREHOLDER_CHARTER.md` ራሱን “SCAFFOLD” እና “DRAFT — NOT APPROVED” ብሎ ይገልጻል፤ ስለዚህ የድርጅት ሥልጣን ወይም የገንዘብ ገደብ ማረጋገጫ አይደለም። የሥልጠና ማኑዋል ሂደታዊ መመሪያ ሊሰጥ ይችላል፣ ግን በራሱ የድርጅት ሥልጣን ማስረጃ አይደለም።
+### 4.1 Recovered prior-conversation materials — classification
+
+1. **Corporate bylaws PDF:** `የማሌ_ዓርና_አክሲዮን_ማኅበር_መተዳደሪያ_ደንብ.pdf` — source located in the Library; 17-page scan with signatures/stamps. Clause-level interpretation must be conservative; page references are PDF page positions, not necessarily printed clause numbering.
+2. **MASES Governance Framework — Revision 2:** prior-conversation file `Pasted markdown(9).md`, dated 2026-09-08. It identifies itself as a “Reconciliation Draft” for internal review and uses [A]–[F] classifications. Proposed thresholds (ETB 100,000 / 500,000 / 2,000,000 and a proposed CEO limit of ETB 5,000,000) are **not independently verified corporate approvals** merely because they appear in that draft.
+3. **Earlier committee framework:** prior-conversation file `Pasted markdown(7).md`, dated 2026-09-08. It contains proposed committee compositions, procurement/sales/inventory thresholds and policy suggestions. It is a working framework, not proof those values were adopted.
+4. **Shareholder charter scaffold:** `docs/PHASE_2_SHAREHOLDER_CHARTER.md` identifies itself as “SCAFFOLD” and “DRAFT — NOT APPROVED”; it is not an approved authority instrument.
+
+**Method:** Separate (a) what the signed/stamped bylaw scan actually states, (b) facts reported in prior conversation, (c) proposals in earlier governance frameworks, and (d) decisions requiring documentary proof. Do not upgrade a proposal to VERIFIED unless an exact bylaw clause, applicable legal provision, or adopted resolution supports it.
+
+**Next audit action:** Complete page-by-page extraction from the recovered bylaws PDF, then map every matrix row to exact page/clause evidence. Where text is unreadable or ambiguous, mark **UNREADABLE / LEGAL REVIEW REQUIRED**, not inferred.
 
 ## 5. ጊዜያዊ የማስፈጸሚያ መርሆዎች
 
@@ -106,5 +115,6 @@
 | ስሪት | ለውጥ | ሁኔታ |
 |---|---|---|
 | 0.1.0 | የመጀመሪያ የሥልጣን ማትሪክስ፤ የማስረጃ ክፍተቶችንና የጊዜያዊ ቁጥጥር ሀሳቦችን ይለያል | ረቂቅ፤ አልጸደቀም |
+| 0.2.0 | በቀደመው ውይይት የተሰጠውን 17 ገጽ የውስጥ ደንብ ፒዲኤፍ እና የቀድሞ የአስተዳደር ረቂቆችን በምንጭ መዝገብ ውስጥ ለይቶ አካተተ፤ የማጽደቅ ገደቦች ግን አልተቀየሩም | ረቂቅ፤ አልጸደቀም |
 
 **የሚቀጥለው የሥራ ደረጃ:** የመመሥረቻ ሰነድ/ደንቦችና የባለአክሲዮኖች/የቦርድ ውሳኔዎች በአንድ አንድ ተረጋግጠው፣ እያንዳንዱ የማትሪክስ መስመር ከትክክለኛ አንቀጽ/ውሳኔ ጋር ይያያዝ። ያልተረጋገጠ ሥልጣን ወደ ተፈቀደ ሁኔታ አይቀየርም።
