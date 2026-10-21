@@ -336,7 +336,7 @@ final class StoreGovernanceBodyRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('create', \\MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceBody::class) ?? false;
+        return $this->user()?->can('create', \MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody::class) ?? false;
     }
 
     // =========================================================================
