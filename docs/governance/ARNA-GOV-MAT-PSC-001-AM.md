@@ -150,3 +150,45 @@
 5. ቀጣይ የሰነድ ሥራ፦ የተያያዙትን የPDF ገጾች በሰው በትክክል ማንበብ፣ ከArticles/Memorandum ጋር ማዛመድ፣ ከባለአክሲዮኖች/ቦርድ ውሳኔዎች ጋር ማረጋገጥ፣ ከዚያም የማትሪክስ ረድፎችን በተገቢው የማስረጃ ሁኔታ ማስቀመጥ ነው።
 
 **የስሪት ማስታወሻ:** ይህ የማስረጃ ካርታ ለረቂቅ ምንጭ መዝገብ ተጨማሪ ነው፤ ማትሪክሱን አያጸድቅም፣ የሥልጣን ሁኔታዎችን ወደ VERIFIED አይቀይርም፣ እና በARNA ውስጥ ማንኛውንም ሥልጣን አያስፈጽምም።
+
+
+## 4.4 የ24ቱ ረድፎች የማስረጃ ሁኔታ (2026-10-22)
+
+**የማረጋገጫ ወሰን:** Library ፍለጋ፣ 17 ገጽ የውስጥ ደንብ ስካን፣ እና ቀደም ያሉ የአስተዳደር ረቂቆች ተመርምረዋል። Articles of Association, Memorandum of Association ወይም የተፈረመ የቦርድ/ባለአክሲዮን ውሳኔ በተመለሱት ውጤቶች ውስጥ በተለየ መልኩ አልተገኘም። “በተመለሱት ማስረጃዎች አልተገኘም” ማለት ሰነዱ ፈጽሞ የለም ማለት አይደለም። በPDF ገጽ 3 እና 5 ያሉ ንባቦች የOCR/ቅድመ ንባብ ናቸው፤ ቃል በቃል የሕግ ጥቅስ አይደሉም።
+
+| # | የሥልጣን ጉዳይ | የማስረጃ ሁኔታ | የሚቀጥለው የማረጋገጫ መስፈርት |
+|---:|---|---|---|
+| 1 | ኮሚቴ መፍጠር/መሰረዝ | NOT VERIFIED / BLOCKED | ትክክለኛ የመመሥረቻ አንቀጽ ወይም የቦርድ/ባለአክሲዮን ውሳኔ |
+| 2 | የኮሚቴ አባል ሹመት/መተካት/ማስወገድ | NOT VERIFIED / BLOCKED | የሹመት ውሳኔ፣ የሥራ ጊዜ፣ የሥልጣን ወሰን |
+| 3 | ሰብሳቢ/ጸሐፊ መምረጥ | NOT VERIFIED | የኮሚቴ ደንብ ወይም የሹመት ውሳኔ |
+| 4 | ስብሰባ/ኮረም/ድምጽ | NOT VERIFIED / BLOCKED | ለእያንዳንዱ አካል የሚመለከት ትክክለኛ አንቀጽ፤ 55% የጠቅላላ ጉባኤ ኮረም ወደ ኮሚቴ አይተላለፍም |
+| 5 | የግዥ ጥያቄ መነሻ | CONTROL APPROVED; BUSINESS AUTHORITY NOT VERIFIED | የበጀት ማጽደቅ/የግዥ ውክልና |
+| 6 | አቅራቢ ፍለጋ/ጥቅስ/ግምገማ | CONTROL APPROVED; METHOD/THRESHOLD NOT VERIFIED | የጸደቀ የግዥ ፖሊሲ |
+| 7 | አቅራቢ ምርጫ/PO/ውል | NOT VERIFIED / BLOCKED | የውል/ፊርማ ውክልናና የገንዘብ ገደቦች |
+| 8 | ዕቃ/አገልግሎት መቀበል | CONTROL APPROVED; ROLE NOT VERIFIED | የመቀበያ ፖሊሲና የሚና ውሳኔ |
+| 9 | የአቅራቢ ክፍያ | NOT VERIFIED / BLOCKED | የባንክ ማንዴት፣ የፊርማ ሥልጣን፣ የገንዘብ ገደብ |
+| 10 | የሽያጭ ዋጋ/የዋጋ ዝርዝር | NOT VERIFIED / BLOCKED | የዋጋ ፖሊሲና የማጽደቅ ውሳኔ |
+| 11 | ቅናሽ/ብድር/የክፍያ ማራዘሚያ | NOT VERIFIED / BLOCKED | የቅናሽ/ብድር ፖሊሲና የጸደቀ ገደብ |
+| 12 | ሽያጭ ርክክብ/ገንዘብ/ደረሰኝ | CONTROL APPROVED; ROLE NOT VERIFIED | የሽያጭ፣ የደረሰኝና የገንዘብ ማስታረቅ ፖሊሲ |
+| 13 | ተመላሽ/የዋጋ ማስተካከያ/credit note | NOT VERIFIED / BLOCKED | የተመላሽ ፖሊሲና የጸደቀ ውክልና |
+| 14 | የንብረት/ክምችት ማስተካከያ | NOT VERIFIED / BLOCKED | የንብረት ፖሊሲና የwrite-off ውሳኔ |
+| 15 | የቁጥጥር ምርመራ/ማስረጃ | CONTROL APPROVED; MANDATE NOT VERIFIED | የሹመት ውሳኔ፣ የምርመራ ወሰን፣ የሪፖርት መስመር |
+| 16 | የቁጥጥር ሪፖርት ማጽደቅ | NOT VERIFIED | የኮሚቴ ቻርተር ወይም የቦርድ ውሳኔ |
+| 17 | ማስተካከያ/እገዳ/ቅጣት | NOT VERIFIED / BLOCKED | የሰው ኃይል/የስነ-ሥርዓት ፖሊሲ፣ የይግባኝ መብት፣ የውሳኔ ሥልጣን |
+| 18 | የጥቅም ግጭት/መታቀብ | CONTROL APPROVED; POLICY ADOPTION NOT VERIFIED | የጥቅም ግጭት ፖሊሲና የማጽደቅ ውሳኔ |
+| 19 | ውክልና መስጠት/መሻር | NOT VERIFIED / BLOCKED | የቦርድ ውሳኔ፣ የተወካይ፣ ወሰን፣ ገደብና የሚፈጸምበት ጊዜ ማስረጃ |
+| 20 | የበጀት ማሻሻያ/ከበጀት በላይ ወጪ | NOT VERIFIED / BLOCKED | የበጀት ማጽደቅና ማሻሻያ ውሳኔ |
+| 21 | መዝገብ/ማህደር/መዳረሻ | PARTIAL SOURCE INDICATION; RETENTION/ACCESS NOT VERIFIED | PDF pp.1–2 ላይ ያለው ክፍል በሰው ቃል በቃል ማረጋገጥ፤ የመዝገብ ፖሊሲ |
+| 22 | በARNA የሚና/ፈቃድ ማዋቀር | CONTROL APPROVED; PRODUCTION ENFORCEMENT NOT AUTHORIZED BY THIS UPDATE | የተረጋገጠ የድርጅት ውሳኔ ከፈቃድ ካርታና ከፈተና ማስረጃ ጋር |
+| 23 | ልዩ ፈቃድ/override/አስቸኳይ ግዥ | NOT VERIFIED / BLOCKED | የአስቸኳይ ሂደትና የውሳኔ ሥልጣን |
+| 24 | ማትሪክስ/ፖሊሲ ማጽደቅና ማሻሻል | OWNER INTERIM APPROVAL RECORDED; FORMAL CORPORATE ADOPTION NOT VERIFIED | የመመሥረቻ ሰነድ ማጣቀሻና አስፈላጊ ከሆነ የቦርድ/ጠቅላላ ጉባኤ ውሳኔ |
+
+### 4.5 የተገኙ ሰነዶች እና የማስረጃ ክብደት
+
+- **የውስጥ ደንብ PDF:** 17 ገጽ ስካን፣ 2026-09-08 በLibrary የተጫነ። የገጽ 3 እና 5 ይዘት ቅድመ OCR ንባብ ነው፤ እንደ ትክክለኛ የሕግ ጥቅስ ከመጠቀም በፊት በሰው መረጋገጥ አለበት።
+- **MASES Governance Framework — Revision 2 (Pasted markdown(9).md):** ራሱን “Reconciliation Draft / internal review” ብሎ ይገልጻል፤ የETB 100,000 / 500,000 / 2,000,000 እና CEO ETB 5,000,000 ገደቦች ሀሳቦች ናቸው፣ የተፈቀዱ ውሳኔዎች አይደሉም።
+- **Earlier committee framework (Pasted markdown(7).md):** የሥራ ረቂቅ ብቻ፤ የሹመት፣ የገደብ ወይም የሥልጣን ማስረጃ አይደለም።
+- **Articles of Association / Memorandum:** በዚህ ዙር የLibrary ፍለጋ ውስጥ ተለይተው አልተገኙም፤ ከእነሱ ምንም የሥልጣን ጥያቄ አልተደገፈም።
+- **Board/shareholder resolutions / financial-signature delegation / approved procurement-sales policies:** በተመለሱት ውጤቶች ውስጥ አልተለዩም።
+
+**የማጠቃለያ ውሳኔ:** የቁጥጥር ንድፍ መርሆዎች በባለቤት ጊዜያዊ ማጽደቅ ይተገበራሉ፤ የተወሰነ የሰው/ኮሚቴ ሥልጣን፣ የገንዘብ ገደብ፣ ኮረም፣ የፊርማ መብት ወይም ቅጣት ሥልጣን ግን እንደ VERIFIED አልተመዘገበም። አስገዳጅ ሹመት/ክፍያ/ውል ማጽደቅ ሂደቶች ተገቢው የሥልጣን ምንጭ እስኪገኝ ድረስ BLOCKED ይቆያሉ።
