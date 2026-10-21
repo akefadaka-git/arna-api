@@ -8,6 +8,7 @@ use Database\Seeders\MasesCoreSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareholderNumberReconciler;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -108,5 +109,38 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
         $this->assertDatabaseHas('shareholder_number_sequences', [
             'next_number' => 101,
         ]);
+    }
+
+    #[Test]
+    public function sequence_is_repaired_from_reservations_when_current_shareholder_rows_are_absent(): void
+    {
+        $exitCode = Artisan::call('db:seed', [
+            '--class' => MasesCoreSeeder::class,
+            '--no-interaction' => true,
+        ]);
+        $this->assertSame(0, $exitCode, Artisan::output());
+
+        $tenantId = (int) DB::table('shareholder_number_reservations')->value('tenant_id');
+
+        /*
+         * Construct a historical-state fixture: permanent reservations
+         * remain, while current register rows and aliases are absent.
+         * Alias rows are removed first because their FK intentionally
+         * restricts shareholder deletion.
+         */
+        DB::table('shareholder_legacy_aliases')->delete();
+        DB::table('shareholders')->delete();
+        DB::table('shareholder_number_sequences')
+            ->where('tenant_id', $tenantId)
+            ->update(['next_number' => 1]);
+
+        app(ShareholderNumberReconciler::class)->reconcile();
+
+        $this->assertDatabaseHas('shareholder_number_sequences', [
+            'tenant_id' => $tenantId,
+            'next_number' => 101,
+        ]);
+        $this->assertDatabaseCount('shareholder_number_reservations', 100);
+        $this->assertDatabaseCount('shareholders', 0);
     }
 }
