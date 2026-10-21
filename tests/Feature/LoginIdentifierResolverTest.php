@@ -199,6 +199,20 @@ final class LoginIdentifierResolverTest extends TestCase
 
         $this->assertNull($this->resolver->resolve('EMP-000001', $this->tenant->id));
         $this->assertNull($this->resolver->resolve('WAL-000001', $this->tenant->id));
+
+        // Restore the migrated employee schema so later tests exercise the
+        // production-shaped table, not this deliberately incomplete fixture.
+        Schema::dropIfExists('employees');
+        Schema::create('employees', function ($table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('employee_number', 64);
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+            $table->softDeletes();
+            $table->unique(['tenant_id', 'employee_number'], 'employees_tenant_number_unique');
+        });
     }
 
     #[Test]
