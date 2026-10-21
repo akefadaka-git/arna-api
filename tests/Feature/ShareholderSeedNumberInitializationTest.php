@@ -95,11 +95,11 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
                 '--class' => MasesCoreSeeder::class,
                 '--no-interaction' => true,
             ]);
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $caught = $exception;
         }
 
-        $this->assertInstanceOf(\\RuntimeException::class, $caught);
+        $this->assertInstanceOf(\RuntimeException::class, $caught);
         $this->assertStringContainsString(
             'cannot clear and reseed shareholders after permanent numbering history exists',
             $caught->getMessage(),
