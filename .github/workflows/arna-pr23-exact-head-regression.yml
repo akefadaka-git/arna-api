@@ -91,3 +91,5 @@ jobs:
 
       - name: Run tenant resolver unit regression
         run: vendor/bin/phpunit tests/Unit/TenantResolverTest.php
+
+# Push-triggered execution is intentionally pinned to the PR #23 test commit above.
