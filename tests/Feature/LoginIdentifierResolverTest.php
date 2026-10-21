@@ -226,4 +226,85 @@ final class LoginIdentifierResolverTest extends TestCase
         $this->assertSame($user->id, $result['user']->id);
         $this->assertNull($user->fresh()->default_tenant_id);
     }
+    #[Test]
+    public function active_employee_number_resolves_to_its_linked_user_within_the_requested_tenant(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'employee-login@example.test',
+            'password' => Hash::make('correct-password'),
+            'is_active' => true,
+        ]);
+        $user->tenants()->attach($this->tenant->id);
+
+        DB::table('employees')->insert([
+            'tenant_id' => $this->tenant->id,
+            'employee_number' => 'EMP-000001',
+            'user_id' => $user->id,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach (['EMP-000001', 'emp-000001'] as $identifier) {
+            $resolved = $this->resolver->resolve($identifier, $this->tenant->id);
+
+            $this->assertNotNull($resolved, $identifier);
+            $this->assertSame($user->id, $resolved['user']->id);
+            $this->assertSame($this->tenant->id, $resolved['tenant_id']);
+        }
+
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $this->assertNull($this->resolver->resolve('EMP-000001', $otherTenant->id));
+    }
+
+    #[Test]
+    public function inactive_deleted_or_unlinked_employee_cannot_resolve_for_login(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $user->tenants()->attach($this->tenant->id);
+
+        $rows = [
+            ['employee_number' => 'EMP-INACTIVE', 'user_id' => $user->id, 'is_active' => false, 'deleted_at' => null],
+            ['employee_number' => 'EMP-DELETED', 'user_id' => $user->id, 'is_active' => true, 'deleted_at' => now()],
+            ['employee_number' => 'EMP-UNLINKED', 'user_id' => null, 'is_active' => true, 'deleted_at' => null],
+        ];
+
+        foreach ($rows as $row) {
+            DB::table('employees')->insert([
+                'tenant_id' => $this->tenant->id,
+                'employee_number' => $row['employee_number'],
+                'user_id' => $row['user_id'],
+                'is_active' => $row['is_active'],
+                'deleted_at' => $row['deleted_at'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $this->assertNull($this->resolver->resolve($row['employee_number'], $this->tenant->id));
+        }
+    }
+
+    #[Test]
+    public function employee_number_does_not_resolve_for_an_inactive_user_or_non_member(): void
+    {
+        $inactiveUser = User::factory()->create(['is_active' => false]);
+        $nonMember = User::factory()->create(['is_active' => true]);
+
+        foreach ([
+            ['number' => 'EMP-INACTIVE-USER', 'user_id' => $inactiveUser->id],
+            ['number' => 'EMP-NON-MEMBER', 'user_id' => $nonMember->id],
+        ] as $row) {
+            DB::table('employees')->insert([
+                'tenant_id' => $this->tenant->id,
+                'employee_number' => $row['number'],
+                'user_id' => $row['user_id'],
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $this->assertNull($this->resolver->resolve($row['number'], $this->tenant->id));
+        }
+    }
+
 }
