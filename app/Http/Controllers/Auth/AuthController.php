@@ -374,9 +374,9 @@ final class AuthController extends Controller
         ]);
 
         /*
-         * Prefer trusted server-side tenant context. A body tenant may be
-         * selected by the caller only when no trusted context was resolved;
-         * the authentication service independently verifies membership.
+         * The body tenant selects the requested login target when supplied;
+         * otherwise use the middleware-verified tenant context. Membership
+         * is checked independently before a token can be issued.
          */
         $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
         $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0
