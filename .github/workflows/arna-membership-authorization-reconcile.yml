@@ -11,6 +11,7 @@ on:
       - "mases_core/src/Auth/Services/AuthenticationService.php"
       - "mases_core/src/Authorization/Services/AuthorizationService.php"
       - "mases_core/src/Events/AuthorizationFailureEvent.php"
+      - "mases_core/src/Exceptions/AuthorizationFailureEvent.php"
       - "mases_core/src/Tenancy/**"
       - "tests/Feature/AuthenticationLifecycleTest.php"
       - "tests/Feature/C09/TenantResolutionTest.php"
