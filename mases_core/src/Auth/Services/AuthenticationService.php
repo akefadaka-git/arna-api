@@ -312,28 +312,70 @@ final class AuthenticationService
         // ---------------------------------------------------------------------
         // 2. Tenant membership validation.
         // ---------------------------------------------------------------------
-        if ($tenantId !== null) {
-            $isMember = $user->tenants()->where('tenant_id', $tenantId)->exists();
+        $effectiveTenantId = $tenantId ?? $user->default_tenant_id;
 
-            if (!$isMember) {
-                // Dispatch the FailedLogin event before the throw, so the
-                // audit-trail copy records the tenant-mismatch case with the
-                // resolved user ID.
+        if ($effectiveTenantId === null) {
+            $eligibleTenantIds = $user->tenants()
+                ->where('tenants.is_active', true)
+                ->pluck('tenants.id')
+                ->map(static fn ($id): int => (int) $id)
+                ->unique()
+                ->values();
+
+            // Never issue a token when the account has no single, safe tenant
+            // context. A user with multiple memberships must select a tenant.
+            if ($eligibleTenantIds->count() !== 1) {
                 Event::dispatch(new FailedLogin(
-                    email:    $email,
-                    reason:   'tenant_mismatch',
-                    guard:    'api',
-                    userId:   $user->id,
-                    tenantId: is_int($tenantId) ? $tenantId : null,
+                    email: $email,
+                    reason: 'tenant_context_missing_or_ambiguous',
+                    guard: 'api',
+                    userId: $user->id,
+                    tenantId: null,
                 ));
 
                 $this->logSecurityEvent('login.failed', [
-                    'email'     => $email,
-                    'tenant_id' => $tenantId,
-                    'reason'    => 'User is not a member of the specified tenant',
-                    'ip'        => request()->ip(),
+                    'email' => $email,
+                    'reason' => 'Tenant context missing or ambiguous',
+                    'ip' => request()->ip(),
                 ]);
 
+                throw new AuthenticationException(
+                    'Invalid email or password.',
+                    'AUTH_INVALID_CREDENTIALS',
+                    401
+                );
+            }
+
+            $effectiveTenantId = $eligibleTenantIds->first();
+        }
+
+        $effectiveTenantId = (int) $effectiveTenantId;
+        $tenantIsActive = Tenant::query()
+            ->whereKey($effectiveTenantId)
+            ->where('is_active', true)
+            ->exists();
+        $isMember = $tenantIsActive
+            && $user->tenants()->where('tenants.id', $effectiveTenantId)->exists();
+
+        if (!$isMember) {
+            Event::dispatch(new FailedLogin(
+                email: $email,
+                reason: 'tenant_mismatch',
+                guard: 'api',
+                userId: $user->id,
+                tenantId: $effectiveTenantId,
+            ));
+
+            $this->logSecurityEvent('login.failed', [
+                'email' => $email,
+                'tenant_id' => $effectiveTenantId,
+                'reason' => 'User is not a member of an active specified tenant',
+                'ip' => request()->ip(),
+            ]);
+
+            // Preserve the explicit tenant-selection denial contract. If the
+            // tenant was implicit, use the neutral credential failure instead.
+            if ($tenantId !== null) {
                 throw new AuthenticationException(
                     'User does not have access to the specified tenant.',
                     'AUTH_TENANT_ACCESS_DENIED',
@@ -341,11 +383,19 @@ final class AuthenticationService
                 );
             }
 
-            if ($user->default_tenant_id === null) {
-                $user->default_tenant_id = (int) $tenantId;
-                $user->save();
-            }
+            throw new AuthenticationException(
+                'Invalid email or password.',
+                'AUTH_INVALID_CREDENTIALS',
+                401
+            );
         }
+
+        if ($user->default_tenant_id === null) {
+            $user->default_tenant_id = $effectiveTenantId;
+            $user->save();
+        }
+
+        $tenantId = $effectiveTenantId;
 
         // ---------------------------------------------------------------------
         // 3. Issue a Sanctum bearer token.
