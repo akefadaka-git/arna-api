@@ -50,7 +50,6 @@ final class LoginIdentifierResolver
                     ->orWhere('phone', $trimmed);
             })
             ->where('is_active', true)
-            ->limit(20)
             ->get();
 
         foreach ($directUsers as $user) {
@@ -67,7 +66,9 @@ final class LoginIdentifierResolver
         if ($tenantId !== null) {
             $shareholders = collect();
 
-            if (Schema::hasColumn('shareholders', 'shareholder_number')) {
+            if (Schema::hasTable('shareholders') && Schema::hasColumns('shareholders', [
+                'tenant_id', 'is_active', 'shareholder_number', 'user_id', 'representative_user_id',
+            ])) {
                 $shareholders = $shareholders->merge(
                     Shareholder::query()
                         ->where('tenant_id', $tenantId)
@@ -78,7 +79,11 @@ final class LoginIdentifierResolver
                 );
             }
 
-            if (Schema::hasTable('shareholder_legacy_aliases')) {
+            if (Schema::hasTable('shareholder_legacy_aliases') && Schema::hasColumns('shareholder_legacy_aliases', [
+                'tenant_id', 'legacy_number_key', 'shareholder_id',
+            ]) && Schema::hasTable('shareholders') && Schema::hasColumns('shareholders', [
+                'tenant_id', 'is_active', 'user_id', 'representative_user_id',
+            ])) {
                 $aliasRows = DB::table('shareholder_legacy_aliases')
                     ->where('tenant_id', $tenantId)
                     ->where('legacy_number_key', strtoupper($trimmed))
@@ -120,7 +125,9 @@ final class LoginIdentifierResolver
             if (Schema::hasTable('employees')
                 && Schema::hasColumn('employees', 'employee_number')
                 && Schema::hasColumn('employees', 'user_id')
-                && Schema::hasColumn('employees', 'is_active')) {
+                && Schema::hasColumn('employees', 'is_active')
+                && Schema::hasColumn('employees', 'tenant_id')
+                && Schema::hasColumn('employees', 'deleted_at')) {
                 $employees = DB::table('employees')
                     ->where('tenant_id', $tenantId)
                     ->where('employee_number', $trimmed)
@@ -149,7 +156,13 @@ final class LoginIdentifierResolver
             // an approved wallet_number column; this never invents a number.
             if (Schema::hasTable('wallets')
                 && Schema::hasColumn('wallets', 'wallet_number')
-                && Schema::hasColumn('wallets', 'shareholder_id')) {
+                && Schema::hasColumn('wallets', 'shareholder_id')
+                && Schema::hasColumn('wallets', 'tenant_id')
+                && Schema::hasColumn('wallets', 'is_active')
+                && Schema::hasTable('shareholders')
+                && Schema::hasColumns('shareholders', [
+                    'tenant_id', 'is_active', 'user_id', 'representative_user_id',
+                ])) {
                 $wallets = DB::table('wallets')
                     ->where('tenant_id', $tenantId)
                     ->where('wallet_number', $trimmed)
