@@ -197,9 +197,14 @@ use RuntimeException;
  * The clear runs inside a single transaction. A failure rolls it
  * back; the database is left in its pre-clear state.
  *
- * To preserve existing users instead, comment out the
- * UserPivotCleaner::clear() call below. The rest of the flow is
- * idempotent and upserts over existing rows.
+ * The clear-and-seed reset is permitted only before permanent
+ * shareholder-number reservations or legacy aliases exist. Once
+ * numbering history exists, run() fails before clearing any data.
+ * This protects immutable identity history and avoids reusing issued
+ * numbers. Do not bypass the guard by commenting out the clear call:
+ * the entity-row upsert is not a complete general-purpose reseed.
+ * Use a separately reviewed, non-destructive reconciliation workflow
+ * for later reference-data or account updates.
  *
  * =============================================================================
  * What this class deliberately does NOT do
