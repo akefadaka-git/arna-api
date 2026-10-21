@@ -383,14 +383,12 @@ final class AuthController extends Controller
             ? (int) $trustedTenantId
             : null;
         $bodyTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : null;
-        $tenantConflict = $trustedTenantId !== null
-            && $bodyTenantId !== null
-            && $trustedTenantId !== $bodyTenantId;
-        $requestedTenantId = $trustedTenantId ?? $bodyTenantId;
+        // The body tenant selects the login target when supplied. The
+        // independently verified header remains authoritative for security-event
+        // attribution inside AuthenticationService (C-09).
+        $requestedTenantId = $bodyTenantId ?? $trustedTenantId;
 
-        $resolution = $tenantConflict
-            ? null
-            : $this->identifierResolver->resolve($validated['email'], $requestedTenantId);
+        $resolution = $this->identifierResolver->resolve($validated['email'], $requestedTenantId);
 
         /*
          * Never pass an unresolved non-email identifier to a service that
@@ -402,8 +400,7 @@ final class AuthController extends Controller
         $uniqueEmailFallback = false;
 
         if (
-            !$tenantConflict
-            && $requestedTenantId !== null
+            $requestedTenantId !== null
             && filter_var($normalizedIdentifier, FILTER_VALIDATE_EMAIL) !== false
         ) {
             $identityCandidates = \MaaleArna\MASES\Core\Auth\Models\User::query()
