@@ -126,7 +126,7 @@ final class ShareholderServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->expectException(\\LogicException::class);
+        $this->expectException(\LogicException::class);
 
         $this->service->register([
             'shareholder_type' => 'individual',
