@@ -135,6 +135,7 @@ use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
  *
  * @property int                  $id
  * @property int                  $tenant_id
+ * @property string|null          $shareholder_number Immutable tenant-scoped business identifier
  * @property string               $shareholder_type
  * @property string|null          $first_name_am
  * @property string|null          $first_name_en
@@ -228,6 +229,7 @@ final class Shareholder extends Model
      */
     protected $casts = [
         'tenant_id'              => 'integer',
+        'shareholder_number'     => 'string',
         'user_id'                => 'integer',
         'representative_user_id' => 'integer',
         'is_active'              => 'boolean',

@@ -1,0 +1,98 @@
+name: ARNA PR #23 migration discovery and regression
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - codex/arna-flat-shareholder-number-migration
+  push:
+    branches:
+      - codex/arna-migration-discovery-integration-test
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-pr23-migration-discovery-regression
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    name: Exact-head migration discovery and authentication/tenant regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check out exact PR #23 head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          persist-credentials: false
+
+      - name: Verify exact tested revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          echo "Required PR #23 SHA: ${TARGET_SHA}"
+          echo "Checked-out SHA: ${actual_sha}"
+          test "${actual_sha}" = "${TARGET_SHA}"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run new Laravel migration discovery integration test
+        run: vendor/bin/phpunit tests/Feature/ShareholderMigrationDiscoveryTest.php
+
+      - name: Run authentication lifecycle regression
+        run: vendor/bin/phpunit tests/Feature/AuthenticationLifecycleTest.php
+
+      - name: Run login throttling regression
+        run: vendor/bin/phpunit tests/Feature/LoginThrottlingTest.php
+
+      - name: Run canonical login identifier regression
+        run: vendor/bin/phpunit tests/Feature/LoginIdentifierResolverTest.php
+
+      - name: Run shareholder numbering fail-closed regression
+        run: vendor/bin/phpunit mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php
+
+      - name: Run shareholder numbering reconciliation migration regression
+        run: vendor/bin/phpunit tests/Feature/ShareholderNumberReconciliationTest.php
+
+      - name: Run authorization failure event regression
+        run: vendor/bin/phpunit tests/Feature/AuthorizationFailureEventTest.php
+
+      - name: Run RBAC authorization regression
+        run: vendor/bin/phpunit tests/Feature/RbacAuthorizationTest.php
+
+      - name: Run tenant resolution regression
+        run: vendor/bin/phpunit tests/Feature/C09/TenantResolutionTest.php
+
+      - name: Run tenant membership regression
+        run: vendor/bin/phpunit tests/Feature/TenantMembershipTest.php
+
+      - name: Run tenant isolation regression
+        run: vendor/bin/phpunit tests/Feature/TenantIsolationTest.php
+
+      - name: Run tenant-required route regression
+        run: vendor/bin/phpunit tests/Feature/TenantRequiredRouteTest.php
+
+      - name: Run authorization service and permission-scope regression
+        run: vendor/bin/phpunit tests/Unit/AuthorizationServiceTest.php
+
+      - name: Run tenant resolver unit regression
+        run: vendor/bin/phpunit tests/Unit/TenantResolverTest.php
+
+# Push-triggered execution is intentionally pinned to the PR #23 test commit above.

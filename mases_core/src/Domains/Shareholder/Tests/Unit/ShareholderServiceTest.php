@@ -117,6 +117,23 @@ final class ShareholderServiceTest extends TestCase
         ]);
     }
 
+    public function test_register_fails_closed_when_legacy_shareholder_number_is_unreconciled(): void
+    {
+        Shareholder::create([
+            'tenant_id' => $this->tenant->id,
+            'shareholder_type' => 'individual',
+            'first_name_en' => 'Legacy holder',
+            'is_active' => true,
+        ]);
+
+        $this->expectException(\LogicException::class);
+
+        $this->service->register([
+            'shareholder_type' => 'individual',
+            'first_name_en' => 'New holder',
+        ], $this->tenant->id);
+    }
+
     // =========================================================================
     // register() — individual, positive paths
     // =========================================================================

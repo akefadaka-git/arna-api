@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 use MaaleArna\MASES\Core\Auth\Services\AuthenticationService;
+use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
 use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
 
 /**
@@ -322,13 +323,17 @@ final class AuthController extends Controller
      * The authentication service.
      */
     private AuthenticationService $authService;
+    private LoginIdentifierResolver $identifierResolver;
 
     /**
      * Create a new AuthController instance.
      */
-    public function __construct(AuthenticationService $authService)
-    {
+    public function __construct(
+        AuthenticationService $authService,
+        LoginIdentifierResolver $identifierResolver,
+    ) {
         $this->authService = $authService;
+        $this->identifierResolver = $identifierResolver;
     }
 
     // =========================================================================
@@ -369,13 +374,52 @@ final class AuthController extends Controller
         ]);
 
         /*
-         * Resolve the identifier to an email address the service
-         * expects. Falls back to the raw identifier when no user is
-         * found, so the service produces its standard error envelope
-         * unchanged.
+         * The body tenant selects the requested login target when supplied;
+         * otherwise use the middleware-verified tenant context. Membership
+         * is checked independently before a token can be issued.
          */
-        $resolvedEmail = $this->resolveLoginEmail($validated['email'])
-            ?? $validated['email'];
+        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0
+            ? (int) $trustedTenantId
+            : null;
+        $bodyTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : null;
+        // The body tenant selects the login target when supplied. The
+        // independently verified header remains authoritative for security-event
+        // attribution inside AuthenticationService (C-09).
+        $requestedTenantId = $bodyTenantId ?? $trustedTenantId;
+
+        $resolution = $this->identifierResolver->resolve($validated['email'], $requestedTenantId);
+
+        /*
+         * Never pass an unresolved non-email identifier to a service that
+         * authenticates by email. A valid email retains the existing
+         * explicit-tenant denial contract; other unresolved identifiers use
+         * a non-matching sentinel and cannot bypass the canonical resolver.
+         */
+        $normalizedIdentifier = strtolower(trim($validated['email']));
+        $uniqueEmailFallback = false;
+
+        if (
+            $requestedTenantId !== null
+            && filter_var($normalizedIdentifier, FILTER_VALIDATE_EMAIL) !== false
+        ) {
+            $identityCandidates = \MaaleArna\MASES\Core\Auth\Models\User::query()
+                ->where('is_active', true)
+                ->where(function ($query) use ($normalizedIdentifier, $validated): void {
+                    $query->where('email', $normalizedIdentifier)
+                        ->orWhere('username', $normalizedIdentifier)
+                        ->orWhere('phone', trim($validated['email']));
+                })
+                ->limit(2)
+                ->get(['id', 'email']);
+
+            $uniqueEmailFallback = $identityCandidates->count() === 1
+                && strtolower((string) $identityCandidates->first()->email) === $normalizedIdentifier;
+        }
+
+        $resolvedEmail = $resolution['user']->email
+            ?? ($uniqueEmailFallback ? $normalizedIdentifier : '__invalid_login_identifier__');
+        $effectiveTenantId = $resolution['tenant_id'] ?? $requestedTenantId;
 
         /*
          * Correlation hash for the audit log. Computed from the
@@ -400,7 +444,7 @@ final class AuthController extends Controller
                 email:    $resolvedEmail,
                 password: $validated['password'],
                 remember: $validated['remember'] ?? false,
-                tenantId: $validated['tenant_id'] ?? null,
+                tenantId: $effectiveTenantId,
             );
         } catch (\Throwable $e) {
             /*

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - integration/arna-system-consolidation
+      - codex/arna-a3-login-identity-reconcile
   workflow_dispatch:
     inputs:
       target_ref:
@@ -64,6 +65,15 @@ jobs:
 
       - name: Run login throttling regression
         run: vendor/bin/phpunit tests/Feature/LoginThrottlingTest.php
+
+      - name: Run canonical login identifier regression
+        run: vendor/bin/phpunit tests/Feature/LoginIdentifierResolverTest.php
+
+      - name: Run shareholder numbering fail-closed regression
+        run: vendor/bin/phpunit mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php
+
+      - name: Run shareholder numbering reconciliation migration regression
+        run: vendor/bin/phpunit tests/Feature/ShareholderNumberReconciliationTest.php
 
       - name: Run authorization failure event regression
         run: vendor/bin/phpunit tests/Feature/AuthorizationFailureEventTest.php
