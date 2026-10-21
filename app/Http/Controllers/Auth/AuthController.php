@@ -399,10 +399,29 @@ final class AuthController extends Controller
          * a non-matching sentinel and cannot bypass the canonical resolver.
          */
         $normalizedIdentifier = strtolower(trim($validated['email']));
+        $uniqueEmailFallback = false;
+
+        if (
+            !$tenantConflict
+            && $requestedTenantId !== null
+            && filter_var($normalizedIdentifier, FILTER_VALIDATE_EMAIL) !== false
+        ) {
+            $identityCandidates = \\MaaleArna\\MASES\\Core\\Auth\\Models\\User::query()
+                ->where('is_active', true)
+                ->where(function ($query) use ($normalizedIdentifier, $validated): void {
+                    $query->where('email', $normalizedIdentifier)
+                        ->orWhere('username', $normalizedIdentifier)
+                        ->orWhere('phone', trim($validated['email']));
+                })
+                ->limit(2)
+                ->get(['id', 'email']);
+
+            $uniqueEmailFallback = $identityCandidates->count() === 1
+                && strtolower((string) $identityCandidates->first()->email) === $normalizedIdentifier;
+        }
+
         $resolvedEmail = $resolution['user']->email
-            ?? (filter_var($normalizedIdentifier, FILTER_VALIDATE_EMAIL) !== false && !$tenantConflict
-                ? $normalizedIdentifier
-                : '__invalid_login_identifier__');
+            ?? ($uniqueEmailFallback ? $normalizedIdentifier : '__invalid_login_identifier__');
         $effectiveTenantId = $resolution['tenant_id'] ?? $requestedTenantId;
 
         /*
