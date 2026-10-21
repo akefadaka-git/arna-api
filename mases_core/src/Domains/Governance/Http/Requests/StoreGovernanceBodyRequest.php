@@ -71,14 +71,16 @@ declare(strict_types=1);
  *
  *   What the request deliberately does NOT do:
  *
- *     · It does NOT call `Gate::authorize()`. The request's
- *       `authorize()` method returns `true` unconditionally. The
- *       controller (G2a file 14) invokes `Gate::authorize('create',
- *       GovernanceBody::class)` before resolving the request,
- *       which delegates to the `GovernanceBodyPolicy` (G2a file 6).
- *       Splitting authorization out of the request keeps the
- *       policy in one place, rather than distributed across every
- *       request class.
+ *     · It does NOT duplicate authorization rules or call
+ *       `Gate::authorize()` directly. Its `authorize()` method
+ *       delegates to the existing `GovernanceBodyPolicy` through
+ *       `$this->user()?->can('create', GovernanceBody::class)`,
+ *       so authorization is enforced before this request's
+ *       validation rules run. Missing authentication fails closed.
+ *       The controller retains its own `Gate::authorize('create',
+ *       GovernanceBody::class)` check as defense in depth. Keeping
+ *       the grant rules in `GovernanceBodyPolicy` avoids duplicating
+ *       policy logic across request classes.
  *
  *     · It does NOT enforce domain invariants that require database
  *       reads. Uniqueness of `code` within the tenant, existence
