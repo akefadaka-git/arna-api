@@ -72,6 +72,41 @@ final class LoginIdentifierResolverTest extends TestCase
     }
 
     #[Test]
+    public function identifier_collision_across_email_and_username_fails_closed(): void
+    {
+        $emailUser = User::factory()->create([
+            'email' => 'collision@example.test',
+            'is_active' => true,
+        ]);
+        $usernameUser = User::factory()->create([
+            'email' => 'different@example.test',
+            'username' => 'collision@example.test',
+            'is_active' => true,
+        ]);
+
+        $emailUser->tenants()->attach($this->tenant->id);
+        $usernameUser->tenants()->attach($this->tenant->id);
+
+        $this->assertNull($this->resolver->resolve('collision@example.test', $this->tenant->id));
+    }
+
+    #[Test]
+    public function omitted_tenant_fails_closed_when_user_has_multiple_memberships_and_no_default(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'multi-tenant@example.test',
+            'default_tenant_id' => null,
+            'is_active' => true,
+        ]);
+        $user->tenants()->attach($this->tenant->id);
+
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $user->tenants()->attach($otherTenant->id);
+
+        $this->assertNull($this->resolver->resolve('multi-tenant@example.test'));
+    }
+
+    #[Test]
     public function shareholder_number_and_legacy_alias_resolve_through_linked_user(): void
     {
         $user = User::factory()->create([
