@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - codex/arna-migration-discovery-integration-test
+      - main
 
 permissions:
   contents: read
