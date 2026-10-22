@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - integration/arna-system-consolidation
+      - main
     paths:
       - "app/Http/Controllers/Auth/AuthController.php"
       - "database/migrations/**"
