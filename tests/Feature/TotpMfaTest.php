@@ -158,6 +158,18 @@ final class TotpMfaTest extends TestCase
     }
 
     #[Test]
+    public function user_serialization_hides_phone_verification_digest(): void
+    {
+        $user = User::factory()->create([
+            'is_active' => true,
+            'phone_verified_phone_hash' => hash('sha256', '+251911000001'),
+        ]);
+
+        $this->assertArrayNotHasKey('phone_verified_phone_hash', $user->toArray());
+        $this->assertArrayNotHasKey('phone_verified_phone_hash', $user->fresh()->toJson() ? json_decode($user->fresh()->toJson(), true) : []);
+    }
+
+    #[Test]
     public function replacing_an_enabled_authenticator_requires_current_mfa_proof(): void
     {
         [$user, $secret, $recoveryCodes] = $this->enrolledUser();
