@@ -344,6 +344,9 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'phone_verified_phone_hash',
+        'totp_secret',
+        'totp_pending_secret',
     ];
 
     /**
@@ -353,6 +356,9 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at'   => 'datetime',
+        'phone_verified_at'   => 'datetime',
+        'totp_enabled_at'     => 'datetime',
+        'totp_last_used_step' => 'integer',
         'last_login_at'       => 'datetime',
         'password_changed_at' => 'datetime',
         'created_at'          => 'datetime',
@@ -449,6 +455,27 @@ class User extends Authenticatable
             'user_id',
             'tenant_id'
         )->withTimestamps();
+    }
+
+    /**
+     * Get tenants for which this user has an active membership.
+     *
+     * Keep tenants() unfiltered for administration and reporting; access
+     * checks must use this status-aware relation.
+     *
+     * @return BelongsToMany<Tenant>
+     */
+    public function activeTenants(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Tenant::class,
+            'tenant_memberships',
+            'user_id',
+            'tenant_id'
+        )
+            ->withPivot('status')
+            ->wherePivot('status', TenantMembership::STATUS_ACTIVE)
+            ->withTimestamps();
     }
 
     /**
@@ -626,6 +653,23 @@ class User extends Authenticatable
     public function hasVerifiedEmail(): bool
     {
         return $this->email_verified_at !== null;
+    }
+
+    /**
+     * Determine whether the currently stored phone value is the one verified.
+     *
+     * Keeping a digest of the verified value prevents a phone edit from
+     * silently inheriting verification for a different number.
+     */
+    public function hasVerifiedPhone(): bool
+    {
+        $phone = trim((string) $this->phone);
+        $verifiedHash = $this->phone_verified_phone_hash;
+
+        return $phone !== ''
+            && $this->phone_verified_at !== null
+            && is_string($verifiedHash)
+            && hash_equals($verifiedHash, hash('sha256', $phone));
     }
 
     /**

@@ -1,0 +1,121 @@
+name: ARNA TOTP MFA database compatibility
+
+on:
+  pull_request:
+    branches:
+      - integration/arna-system-consolidation
+      - main
+    paths:
+      - "database/migrations/**"
+      - "mases_core/src/Auth/Services/TotpMfaService.php"
+      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "tests/Feature/TotpMfaTest.php"
+      - ".github/workflows/arna-totp-mfa-database-compatibility.yml"
+  push:
+    branches:
+      - codex/arna-totp-mfa
+    paths:
+      - "database/migrations/**"
+      - "mases_core/src/Auth/Services/TotpMfaService.php"
+      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "tests/Feature/TotpMfaTest.php"
+      - ".github/workflows/arna-totp-mfa-database-compatibility.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-totp-db-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  database-compatibility:
+    name: TOTP MFA migration (${{ matrix.database }}, PHP 8.3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: mysql
+            image: mysql:8.4
+          - database: mariadb
+            image: mariadb:11.4
+    env:
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: arna_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+    steps:
+      - name: Check out exact event revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify checked-out revision
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_SHA"
+          echo "Verified exact candidate SHA: $actual_sha"
+      - name: Start database container and wait for readiness
+        shell: bash
+        env:
+          DATABASE_IMAGE: ${{ matrix.image }}
+          DATABASE_KIND: ${{ matrix.database }}
+        run: |
+          set -euo pipefail
+          container_name="arna-totp-db-${DATABASE_KIND}"
+          docker run --detach --name "$container_name" --publish 3306:3306 \
+            --env MYSQL_ROOT_PASSWORD="$DB_PASSWORD" \
+            --env MYSQL_DATABASE="$DB_DATABASE" \
+            "$DATABASE_IMAGE"
+          for attempt in $(seq 1 60); do
+            if [ "$DATABASE_KIND" = "mariadb" ]; then
+              if docker exec "$container_name" healthcheck.sh --connect --innodb_initialized; then
+                echo "$DATABASE_KIND is ready"
+                exit 0
+              fi
+            else
+              if docker exec "$container_name" mysqladmin ping -h 127.0.0.1 -p"$DB_PASSWORD" --silent; then
+                echo "$DATABASE_KIND is ready"
+                exit 0
+              fi
+            fi
+            sleep 2
+          done
+          docker logs "$container_name"
+          echo "$DATABASE_KIND did not become ready within 120 seconds" >&2
+          exit 1
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Validate TOTP migration and service syntax
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_10_22_000005_add_totp_mfa_state.php
+          php -l mases_core/src/Auth/Services/TotpMfaService.php
+          php -l tests/Feature/TotpMfaTest.php
+      - name: Run TOTP MFA tests on the target database
+        run: vendor/bin/phpunit tests/Feature/TotpMfaTest.php
+      - name: Verify TOTP migration rollback
+        run: |
+          set -euo pipefail
+          php artisan migrate:rollback --path=database/migrations/2026_10_22_000005_add_totp_mfa_state.php --force
+      - name: Stop database container
+        if: always()
+        shell: bash
+        env:
+          DATABASE_KIND: ${{ matrix.database }}
+        run: docker rm --force "arna-totp-db-${DATABASE_KIND}" || true

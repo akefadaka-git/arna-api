@@ -263,8 +263,10 @@ final class AuthenticationService
      * @param string          $password
      * @param bool            $remember
      * @param int|string|null $tenantId
+     * @param string|null $mfaChallengeToken
+     * @param string|null $mfaCode TOTP code or one-time recovery code
      *
-     * @return array{user: User, token: string}
+     * @return array{user: User, token?: string, mfa_required?: bool, challenge_token?: string}
      *
      * @throws AuthenticationException
      */
@@ -272,7 +274,9 @@ final class AuthenticationService
         string $email,
         string $password,
         bool $remember = false,
-        int|string|null $tenantId = null
+        int|string|null $tenantId = null,
+        ?string $mfaChallengeToken = null,
+        ?string $mfaCode = null
     ): array {
         // ---------------------------------------------------------------------
         // 1. Stateless credential verification.
@@ -312,28 +316,70 @@ final class AuthenticationService
         // ---------------------------------------------------------------------
         // 2. Tenant membership validation.
         // ---------------------------------------------------------------------
-        if ($tenantId !== null) {
-            $isMember = $user->tenants()->where('tenant_id', $tenantId)->exists();
+        $effectiveTenantId = $tenantId ?? $user->default_tenant_id;
 
-            if (!$isMember) {
-                // Dispatch the FailedLogin event before the throw, so the
-                // audit-trail copy records the tenant-mismatch case with the
-                // resolved user ID.
+        if ($effectiveTenantId === null) {
+            $eligibleTenantIds = $user->activeTenants()
+                ->where('tenants.is_active', true)
+                ->pluck('tenants.id')
+                ->map(static fn ($id): int => (int) $id)
+                ->unique()
+                ->values();
+
+            // Never issue a token when the account has no single, safe tenant
+            // context. A user with multiple memberships must select a tenant.
+            if ($eligibleTenantIds->count() !== 1) {
                 Event::dispatch(new FailedLogin(
-                    email:    $email,
-                    reason:   'tenant_mismatch',
-                    guard:    'api',
-                    userId:   $user->id,
-                    tenantId: is_int($tenantId) ? $tenantId : null,
+                    email: $email,
+                    reason: 'tenant_context_missing_or_ambiguous',
+                    guard: 'api',
+                    userId: $user->id,
+                    tenantId: null,
                 ));
 
                 $this->logSecurityEvent('login.failed', [
-                    'email'     => $email,
-                    'tenant_id' => $tenantId,
-                    'reason'    => 'User is not a member of the specified tenant',
-                    'ip'        => request()->ip(),
+                    'email' => $email,
+                    'reason' => 'Tenant context missing or ambiguous',
+                    'ip' => request()->ip(),
                 ]);
 
+                throw new AuthenticationException(
+                    'Invalid email or password.',
+                    'AUTH_INVALID_CREDENTIALS',
+                    401
+                );
+            }
+
+            $effectiveTenantId = $eligibleTenantIds->first();
+        }
+
+        $effectiveTenantId = (int) $effectiveTenantId;
+        $tenantIsActive = Tenant::query()
+            ->whereKey($effectiveTenantId)
+            ->where('is_active', true)
+            ->exists();
+        $isMember = $tenantIsActive
+            && $user->activeTenants()->where('tenants.id', $effectiveTenantId)->exists();
+
+        if (!$isMember) {
+            Event::dispatch(new FailedLogin(
+                email: $email,
+                reason: 'tenant_mismatch',
+                guard: 'api',
+                userId: $user->id,
+                tenantId: $effectiveTenantId,
+            ));
+
+            $this->logSecurityEvent('login.failed', [
+                'email' => $email,
+                'tenant_id' => $effectiveTenantId,
+                'reason' => 'User is not a member of an active specified tenant',
+                'ip' => request()->ip(),
+            ]);
+
+            // Preserve the explicit tenant-selection denial contract. If the
+            // tenant was implicit, use the neutral credential failure instead.
+            if ($tenantId !== null) {
                 throw new AuthenticationException(
                     'User does not have access to the specified tenant.',
                     'AUTH_TENANT_ACCESS_DENIED',
@@ -341,14 +387,68 @@ final class AuthenticationService
                 );
             }
 
-            if ($user->default_tenant_id === null) {
-                $user->default_tenant_id = (int) $tenantId;
-                $user->save();
+            throw new AuthenticationException(
+                'Invalid email or password.',
+                'AUTH_INVALID_CREDENTIALS',
+                401
+            );
+        }
+
+        $tenantId = $effectiveTenantId;
+
+        // ---------------------------------------------------------------------
+        // 3. Enforce TOTP MFA before issuing any bearer token.
+        // ---------------------------------------------------------------------
+        $mfa = app(TotpMfaService::class);
+        if ($mfa->isEnabled($user)) {
+            if ($mfaChallengeToken === null && $mfaCode === null) {
+                $challengeToken = $mfa->createLoginChallenge($user, (int) $tenantId, $remember);
+                $this->logSecurityEvent('login.mfa_challenge_issued', [
+                    'user_id' => $user->id,
+                    'tenant_id' => $tenantId,
+                    'ip' => request()->ip(),
+                ]);
+
+                return [
+                    'user' => $user,
+                    'mfa_required' => true,
+                    'challenge_token' => $challengeToken,
+                ];
             }
+
+            if (
+                $mfaChallengeToken === null
+                || $mfaCode === null
+                || ! $mfa->completeLoginChallenge($user, (int) $tenantId, $mfaChallengeToken, $mfaCode)
+            ) {
+                $this->logSecurityEvent('login.mfa_failed', [
+                    'user_id' => $user->id,
+                    'tenant_id' => $tenantId,
+                    'ip' => request()->ip(),
+                ]);
+
+                throw new AuthenticationException(
+                    'Invalid authentication code or expired challenge.',
+                    'AUTH_MFA_INVALID',
+                    401
+                );
+            }
+
+            $this->logSecurityEvent('login.mfa_succeeded', [
+                'user_id' => $user->id,
+                'tenant_id' => $tenantId,
+                'ip' => request()->ip(),
+            ]);
+        } elseif ($mfaChallengeToken !== null || $mfaCode !== null) {
+            throw new AuthenticationException(
+                'Invalid authentication challenge.',
+                'AUTH_MFA_INVALID',
+                401
+            );
         }
 
         // ---------------------------------------------------------------------
-        // 3. Issue a Sanctum bearer token.
+        // 4. Issue a Sanctum bearer token only after required MFA succeeds.
         // ---------------------------------------------------------------------
         $token = $user->createToken('auth_token', ['*'])->plainTextToken;
 

@@ -1,0 +1,141 @@
+name: ARNA tenant-membership and authorization reconciliation
+
+on:
+  push:
+    branches:
+      - codex/arna-membership-authorization-reconcile
+    paths:
+      - "app/Http/Controllers/TenantContextController.php"
+      - "database/migrations/**"
+      - "mases_core/src/Auth/Models/User.php"
+      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "mases_core/src/Authorization/Services/AuthorizationService.php"
+      - "mases_core/src/Events/AuthorizationFailureEvent.php"
+      - "mases_core/src/Exceptions/AuthorizationFailureEvent.php"
+      - "mases_core/src/Tenancy/**"
+      - "tests/Feature/AuthenticationLifecycleTest.php"
+      - "tests/Feature/C09/TenantResolutionTest.php"
+      - "tests/Feature/TenantMembershipLifecycleTest.php"
+      - "tests/Feature/TenantMembershipTest.php"
+      - "tests/Unit/ExplicitTenantContextAuthorizationTest.php"
+      - "tests/Unit/UserPermissionScopeTest.php"
+      - ".github/workflows/arna-membership-authorization-reconcile.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+  pull_request:
+    branches:
+      - integration/arna-system-consolidation
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "app/Http/Controllers/TenantContextController.php"
+      - "database/migrations/**"
+      - "mases_core/src/Auth/Models/User.php"
+      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "mases_core/src/Authorization/Services/AuthorizationService.php"
+      - "mases_core/src/Events/AuthorizationFailureEvent.php"
+      - "mases_core/src/Tenancy/**"
+      - "tests/Feature/AuthenticationLifecycleTest.php"
+      - "tests/Feature/C09/TenantResolutionTest.php"
+      - "tests/Feature/TenantMembershipLifecycleTest.php"
+      - "tests/Feature/TenantMembershipTest.php"
+      - "tests/Unit/ExplicitTenantContextAuthorizationTest.php"
+      - "tests/Unit/UserPermissionScopeTest.php"
+      - ".github/workflows/arna-membership-authorization-reconcile.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-membership-authorization-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  membership-authorization:
+    name: PHP 8.3 membership and authorization regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact event revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify checked-out revision
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          echo "Expected revision: ${EXPECTED_SHA}"
+          echo "Checked out revision: ${actual_sha}"
+          test "${actual_sha}" = "${EXPECTED_SHA}"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: PHP syntax lint
+        run: |
+          set -euo pipefail
+          php -l mases_core/src/Auth/Models/User.php
+          php -l mases_core/src/Auth/Services/AuthenticationService.php
+          php -l mases_core/src/Authorization/Services/AuthorizationService.php
+          php -l mases_core/src/Tenancy/Middleware/TenantMembershipMiddleware.php
+          php -l mases_core/src/Tenancy/Models/TenantMembership.php
+          php -l mases_core/src/Tenancy/Services/TenantMembershipService.php
+          php -l database/migrations/2026_10_19_000001_add_status_to_tenant_memberships_table.php
+          php -l tests/Feature/AuthenticationLifecycleTest.php
+          php -l tests/Feature/C09/TenantResolutionTest.php
+          php -l tests/Feature/TenantMembershipLifecycleTest.php
+          php -l tests/Feature/TenantMembershipTest.php
+          php -l tests/Unit/ExplicitTenantContextAuthorizationTest.php
+          php -l tests/Unit/UserPermissionScopeTest.php
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Verify optimized Composer autoload
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer dump-autoload --optimize --no-interaction 2>&1 | tee /tmp/composer-autoload.log
+          if grep -F "AuthorizationFailureEvent" /tmp/composer-autoload.log | grep -F "does not comply with psr-4"; then
+            echo "::error::AuthorizationFailureEvent violates PSR-4 autoloading."
+            exit 1
+          fi
+          php -r 'require "vendor/autoload.php"; exit(class_exists(\MaaleArna\MASES\Core\Events\AuthorizationFailureEvent::class) ? 0 : 1);'
+
+      - name: Run tenant resolver regression
+        run: vendor/bin/phpunit tests/Unit/TenantResolverTest.php
+
+      - name: Run trusted tenant authorization regression
+        run: vendor/bin/phpunit tests/Unit/ExplicitTenantContextAuthorizationTest.php
+
+      - name: Run permission-scope regression
+        run: vendor/bin/phpunit tests/Unit/UserPermissionScopeTest.php
+
+      - name: Run authentication lifecycle regression
+        run: vendor/bin/phpunit tests/Feature/AuthenticationLifecycleTest.php
+
+      - name: Run C-09 tenant-resolution regression
+        run: vendor/bin/phpunit tests/Feature/C09/TenantResolutionTest.php
+
+      - name: Run membership lifecycle regression
+        run: vendor/bin/phpunit tests/Feature/TenantMembershipLifecycleTest.php
+
+      - name: Run tenant membership access regression
+        run: vendor/bin/phpunit tests/Feature/TenantMembershipTest.php

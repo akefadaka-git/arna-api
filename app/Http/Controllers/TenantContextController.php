@@ -227,8 +227,8 @@ final class TenantContextController extends Controller
         $isMember = false;
         if ($user instanceof User) {
             try {
-                $isMember = $user->tenants()
-                    ->where('tenant_id', $tenant->id)
+                $isMember = $user->activeTenants()
+                    ->where('tenants.id', $tenant->id)
                     ->exists();
             } catch (\Throwable $e) {
                 Log::warning('TenantContextController: membership check failed', [

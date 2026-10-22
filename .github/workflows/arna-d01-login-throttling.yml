@@ -1,0 +1,58 @@
+name: ARNA D-01 login throttling
+
+on:
+  push:
+    branches:
+      - fix/arna-d01-login-throttling
+      - integration/arna-system-consolidation
+  pull_request:
+    branches:
+      - integration/arna-system-consolidation
+      - main
+    paths:
+      - 'routes/api.php'
+      - 'tests/Feature/LoginThrottlingTest.php'
+      - '.github/workflows/arna-d01-login-throttling.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-d01-login-throttling-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  login-throttling:
+    name: PHP 8.3 focused login-throttling test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact event revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Report tested commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Tested commit: $(git rev-parse HEAD)"
+          echo "Event: ${GITHUB_EVENT_NAME}"
+          echo "Ref: ${GITHUB_REF}"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run focused D-01 regression test
+        run: vendor/bin/phpunit tests/Feature/LoginThrottlingTest.php

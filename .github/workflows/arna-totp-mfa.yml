@@ -1,0 +1,63 @@
+name: ARNA TOTP MFA
+
+on:
+  pull_request:
+    branches:
+      - integration/arna-system-consolidation
+      - main
+    paths:
+      - "database/migrations/**"
+      - "config/totp-mfa.php"
+      - "mases_core/src/Auth/Services/TotpMfaService.php"
+      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "routes/api.php"
+      - "tests/Feature/TotpMfaTest.php"
+      - ".github/workflows/arna-totp-mfa.yml"
+  push:
+    branches:
+      - codex/arna-totp-mfa
+    paths:
+      - "database/migrations/**"
+      - "config/totp-mfa.php"
+      - "mases_core/src/Auth/Services/TotpMfaService.php"
+      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "routes/api.php"
+      - "tests/Feature/TotpMfaTest.php"
+      - ".github/workflows/arna-totp-mfa.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-totp-mfa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  totp-mfa:
+    name: TOTP MFA lifecycle (SQLite, PHP 8.3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref == 'main' && github.sha || github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact checkout
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.ref == 'main' && github.sha || github.event.pull_request.head.sha || github.sha }}"
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_sqlite, sqlite3
+          coverage: none
+      - name: Validate syntax
+        run: |
+          php -l database/migrations/2026_10_22_000005_add_totp_mfa_state.php
+          php -l config/totp-mfa.php
+          php -l mases_core/src/Auth/Services/TotpMfaService.php
+          php -l tests/Feature/TotpMfaTest.php
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Run TOTP MFA tests
+        run: vendor/bin/phpunit tests/Feature/TotpMfaTest.php

@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Config;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
 use Tests\TestCase;
 
 /**
@@ -140,6 +141,29 @@ final class TenantMembershipTest extends TestCase
                 'code' => 'TENANT_ACCESS_DENIED',
             ],
         ]);
+    }
+
+    /**
+     * A suspended membership must not satisfy the tenant access gate.
+     */
+    public function test_suspended_member_is_denied_access(): void
+    {
+        $tenant = Tenant::factory()->create(['slug' => 'suspended-tenant']);
+        $user = User::factory()->create(['is_active' => true]);
+        $user->tenants()->attach($tenant->id, [
+            'status' => TenantMembership::STATUS_SUSPENDED,
+        ]);
+
+        $this->app['router']->get('/test-membership-suspended', function () {
+            return response()->json(['success' => true]);
+        })->middleware(['auth:sanctum', 'tenant.membership']);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/test-membership-suspended');
+
+        $response->assertStatus(403);
+        $response->assertJsonPath('error.code', 'TENANT_ACCESS_DENIED');
     }
 
     /**

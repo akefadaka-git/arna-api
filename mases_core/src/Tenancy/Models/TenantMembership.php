@@ -21,6 +21,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
  * @property int        $tenant_id   Tenant ID (part of composite primary key)
  * @property int        $user_id     User ID (part of composite primary key)
  * @property \Carbon\Carbon $joined_at When the user joined the tenant
+ * @property string     $status      Membership lifecycle status
  * @property array|null $settings    Membership‑specific settings (JSON)
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
@@ -29,6 +30,24 @@ use MaaleArna\MASES\Core\Auth\Models\User;
  */
 final class TenantMembership extends Pivot
 {
+    /**
+     * Explicitly bind this pivot model to the migration's plural table name.
+     *
+     * @var string
+     */
+    protected $table = 'tenant_memberships';
+
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_SUSPENDED = 'suspended';
+    public const STATUS_REVOKED = 'revoked';
+
+    /** @var list<string> */
+    public const STATUSES = [
+        self::STATUS_ACTIVE,
+        self::STATUS_SUSPENDED,
+        self::STATUS_REVOKED,
+    ];
+
     /**
      * Indicates if the IDs are auto‑incrementing.
      *
@@ -53,6 +72,7 @@ final class TenantMembership extends Pivot
         'tenant_id',
         'user_id',
         'joined_at',
+        'status',
         'settings',
     ];
 
@@ -63,6 +83,7 @@ final class TenantMembership extends Pivot
      */
     protected $casts = [
         'settings'   => 'array',
+        'status'     => 'string',
         'joined_at'  => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

@@ -1,0 +1,99 @@
+name: ARNA shareholder seed-number initialization regression
+
+on:
+  push:
+    branches:
+      - codex/arna-seeder-numbering-initialization
+  pull_request:
+    branches:
+      - codex/arna-migration-discovery-integration-test
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-shareholder-seed-number-initialization
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    name: Exact-head fresh migration and seed regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check out exact tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          persist-credentials: false
+
+      - name: Verify exact commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          echo "Required SHA: ${TARGET_SHA}"
+          echo "Checked-out SHA: ${actual_sha}"
+          test "${actual_sha}" = "${TARGET_SHA}"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Test fresh database migration followed by intended seed flow
+        run: vendor/bin/phpunit tests/Feature/ShareholderSeedNumberInitializationTest.php
+
+      - name: Test migration discovery and ordering
+        run: vendor/bin/phpunit tests/Feature/ShareholderMigrationDiscoveryTest.php
+
+      - name: Test existing shareholder reconciliation
+        run: vendor/bin/phpunit tests/Feature/ShareholderNumberReconciliationTest.php
+
+      - name: Test shareholder service fail-closed behavior
+        run: vendor/bin/phpunit mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php
+
+      - name: Test authentication lifecycle
+        run: vendor/bin/phpunit tests/Feature/AuthenticationLifecycleTest.php
+
+      - name: Test login throttling
+        run: vendor/bin/phpunit tests/Feature/LoginThrottlingTest.php
+
+      - name: Test canonical login identifier resolver
+        run: vendor/bin/phpunit tests/Feature/LoginIdentifierResolverTest.php
+
+      - name: Test authorization failure event
+        run: vendor/bin/phpunit tests/Feature/AuthorizationFailureEventTest.php
+
+      - name: Test RBAC authorization
+        run: vendor/bin/phpunit tests/Feature/RbacAuthorizationTest.php
+
+      - name: Test tenant resolution
+        run: vendor/bin/phpunit tests/Feature/C09/TenantResolutionTest.php
+
+      - name: Test tenant membership
+        run: vendor/bin/phpunit tests/Feature/TenantMembershipTest.php
+
+      - name: Test tenant isolation
+        run: vendor/bin/phpunit tests/Feature/TenantIsolationTest.php
+
+      - name: Test tenant-required routes
+        run: vendor/bin/phpunit tests/Feature/TenantRequiredRouteTest.php
+
+      - name: Test authorization service and permission scope
+        run: vendor/bin/phpunit tests/Unit/AuthorizationServiceTest.php
+
+      - name: Test tenant resolver unit behavior
+        run: vendor/bin/phpunit tests/Unit/TenantResolverTest.php

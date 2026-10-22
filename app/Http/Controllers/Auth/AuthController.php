@@ -7,11 +7,15 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 use MaaleArna\MASES\Core\Auth\Services\AuthenticationService;
+use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
+use MaaleArna\MASES\Core\Auth\Models\User as CoreUser;
+use MaaleArna\MASES\Core\Auth\Services\TotpMfaService;
 use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
 
 /**
@@ -322,13 +326,20 @@ final class AuthController extends Controller
      * The authentication service.
      */
     private AuthenticationService $authService;
+    private LoginIdentifierResolver $identifierResolver;
+    private TotpMfaService $totpMfaService;
 
     /**
      * Create a new AuthController instance.
      */
-    public function __construct(AuthenticationService $authService)
-    {
+    public function __construct(
+        AuthenticationService $authService,
+        LoginIdentifierResolver $identifierResolver,
+        TotpMfaService $totpMfaService,
+    ) {
         $this->authService = $authService;
+        $this->identifierResolver = $identifierResolver;
+        $this->totpMfaService = $totpMfaService;
     }
 
     // =========================================================================
@@ -366,16 +377,57 @@ final class AuthController extends Controller
             'password'  => ['required', 'string'],
             'remember'  => ['sometimes', 'boolean'],
             'tenant_id' => ['sometimes', 'integer', 'exists:tenants,id'],
+            'mfa_challenge_token' => ['sometimes', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
+            'mfa_code' => ['sometimes', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
         ]);
 
         /*
-         * Resolve the identifier to an email address the service
-         * expects. Falls back to the raw identifier when no user is
-         * found, so the service produces its standard error envelope
-         * unchanged.
+         * The body tenant selects the requested login target when supplied;
+         * otherwise use the middleware-verified tenant context. Membership
+         * is checked independently before a token can be issued.
          */
-        $resolvedEmail = $this->resolveLoginEmail($validated['email'])
-            ?? $validated['email'];
+        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0
+            ? (int) $trustedTenantId
+            : null;
+        $bodyTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : null;
+        // The body tenant selects the login target when supplied. The
+        // independently verified header remains authoritative for security-event
+        // attribution inside AuthenticationService (C-09).
+        $requestedTenantId = $bodyTenantId ?? $trustedTenantId;
+
+        $resolution = $this->identifierResolver->resolve($validated['email'], $requestedTenantId);
+
+        /*
+         * Never pass an unresolved non-email identifier to a service that
+         * authenticates by email. A valid email retains the existing
+         * explicit-tenant denial contract; other unresolved identifiers use
+         * a non-matching sentinel and cannot bypass the canonical resolver.
+         */
+        $normalizedIdentifier = strtolower(trim($validated['email']));
+        $uniqueEmailFallback = false;
+
+        if (
+            $requestedTenantId !== null
+            && filter_var($normalizedIdentifier, FILTER_VALIDATE_EMAIL) !== false
+        ) {
+            $identityCandidates = \MaaleArna\MASES\Core\Auth\Models\User::query()
+                ->where('is_active', true)
+                ->where(function ($query) use ($normalizedIdentifier, $validated): void {
+                    $query->where('email', $normalizedIdentifier)
+                        ->orWhere('username', $normalizedIdentifier)
+                        ->orWhere('phone', trim($validated['email']));
+                })
+                ->limit(2)
+                ->get(['id', 'email']);
+
+            $uniqueEmailFallback = $identityCandidates->count() === 1
+                && strtolower((string) $identityCandidates->first()->email) === $normalizedIdentifier;
+        }
+
+        $resolvedEmail = $resolution['user']->email
+            ?? ($uniqueEmailFallback ? $normalizedIdentifier : '__invalid_login_identifier__');
+        $effectiveTenantId = $resolution['tenant_id'] ?? $requestedTenantId;
 
         /*
          * Correlation hash for the audit log. Computed from the
@@ -400,7 +452,9 @@ final class AuthController extends Controller
                 email:    $resolvedEmail,
                 password: $validated['password'],
                 remember: $validated['remember'] ?? false,
-                tenantId: $validated['tenant_id'] ?? null,
+                tenantId: $effectiveTenantId,
+                mfaChallengeToken: $validated['mfa_challenge_token'] ?? null,
+                mfaCode: $validated['mfa_code'] ?? null,
             );
         } catch (\Throwable $e) {
             /*
@@ -425,6 +479,17 @@ final class AuthController extends Controller
             ]);
 
             throw $e;
+        }
+
+        if (($result['mfa_required'] ?? false) === true) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'mfa_required' => true,
+                    'challenge_token' => $result['challenge_token'],
+                    'methods' => ['totp', 'recovery_code'],
+                ],
+            ]);
         }
 
         Log::info('Login attempt succeeded', [
@@ -564,6 +629,93 @@ final class AuthController extends Controller
                 'token_type' => 'Bearer',
             ],
         ], 201);
+    }
+
+    /**
+     * Begin TOTP enrollment for the currently authenticated account.
+     * The authenticator secret is returned only to this authenticated caller.
+     */
+    public function beginTotpEnrollment(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'max:255'],
+            'current_mfa_code' => ['sometimes', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+        ]);
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            return response()->json(['success' => false, 'error' => ['code' => 'AUTH_UNAUTHENTICATED', 'message' => 'Authentication required.']], 401);
+        }
+
+        if (! Hash::check($validated['password'], $user->password)) {
+            return response()->json(['success' => false, 'error' => ['code' => 'AUTH_INVALID_CREDENTIALS', 'message' => 'Current password is invalid.']], 401);
+        }
+
+        try {
+            $enrollment = $this->totpMfaService->beginEnrollment(
+                $user,
+                $validated['current_mfa_code'] ?? null
+            );
+        } catch (\RuntimeException) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'AUTH_MFA_INVALID',
+                    'message' => 'Current MFA proof is required to replace an enabled authenticator.',
+                ],
+            ], 401);
+        }
+
+        Log::info('TOTP MFA enrollment started', ['user_id' => $user->id]);
+
+        return response()->json(['success' => true, 'data' => $enrollment]);
+    }
+
+    /**
+     * Confirm TOTP enrollment and return one-time recovery codes.
+     */
+    public function confirmTotpEnrollment(Request $request): JsonResponse
+    {
+        $validated = $request->validate(['code' => ['required', 'string', 'regex:/^\\d{6}$/']]);
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            return response()->json(['success' => false, 'error' => ['code' => 'AUTH_UNAUTHENTICATED', 'message' => 'Authentication required.']], 401);
+        }
+
+        $codes = $this->totpMfaService->confirmEnrollment($user, $validated['code']);
+        if ($codes === null) {
+            return response()->json(['success' => false, 'error' => ['code' => 'AUTH_MFA_INVALID', 'message' => 'Invalid TOTP code or no pending enrollment.']], 422);
+        }
+
+        Log::info('TOTP MFA enabled', ['user_id' => $user->id]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'mfa_enabled' => true,
+                'recovery_codes' => $codes,
+                'recovery_codes_notice' => 'Store these codes securely. They are shown only once.',
+            ],
+        ]);
+    }
+
+    /**
+     * Disable TOTP only after validating a current authenticator code.
+     */
+    public function disableTotp(Request $request): JsonResponse
+    {
+        $validated = $request->validate(['code' => ['required', 'string', 'regex:/^\\d{6}$/']]);
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            return response()->json(['success' => false, 'error' => ['code' => 'AUTH_UNAUTHENTICATED', 'message' => 'Authentication required.']], 401);
+        }
+
+        if (! $this->totpMfaService->disable($user, $validated['code'])) {
+            return response()->json(['success' => false, 'error' => ['code' => 'AUTH_MFA_INVALID', 'message' => 'Invalid TOTP code.']], 422);
+        }
+
+        Log::warning('TOTP MFA disabled', ['user_id' => $user->id]);
+
+        return response()->json(['success' => true, 'data' => ['mfa_enabled' => false]]);
     }
 
     // =========================================================================
