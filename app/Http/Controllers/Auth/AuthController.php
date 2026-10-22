@@ -13,6 +13,7 @@ use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 use MaaleArna\MASES\Core\Auth\Services\AuthenticationService;
 use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
+use MaaleArna\MASES\Core\Auth\Models\User as CoreUser;
 use MaaleArna\MASES\Core\Auth\Services\TotpMfaService;
 use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
 
@@ -636,7 +637,7 @@ final class AuthController extends Controller
     public function beginTotpEnrollment(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user instanceof \\MaaleArna\\MASES\\Core\\Auth\\Models\\User) {
+        if (! $user instanceof CoreUser) {
             return response()->json(['success' => false, 'error' => ['code' => 'AUTH_UNAUTHENTICATED', 'message' => 'Authentication required.']], 401);
         }
 
@@ -653,7 +654,7 @@ final class AuthController extends Controller
     {
         $validated = $request->validate(['code' => ['required', 'string', 'regex:/^\\d{6}$/']]);
         $user = $request->user();
-        if (! $user instanceof \\MaaleArna\\MASES\\Core\\Auth\\Models\\User) {
+        if (! $user instanceof CoreUser) {
             return response()->json(['success' => false, 'error' => ['code' => 'AUTH_UNAUTHENTICATED', 'message' => 'Authentication required.']], 401);
         }
 
@@ -681,7 +682,7 @@ final class AuthController extends Controller
     {
         $validated = $request->validate(['code' => ['required', 'string', 'regex:/^\\d{6}$/']]);
         $user = $request->user();
-        if (! $user instanceof \\MaaleArna\\MASES\\Core\\Auth\\Models\\User) {
+        if (! $user instanceof CoreUser) {
             return response()->json(['success' => false, 'error' => ['code' => 'AUTH_UNAUTHENTICATED', 'message' => 'Authentication required.']], 401);
         }
 
