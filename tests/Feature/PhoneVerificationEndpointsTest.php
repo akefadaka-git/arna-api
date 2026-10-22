@@ -2,14 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Http\\Client\\Request as HttpRequest;
-use Illuminate\\Support\\Facades\\Http;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class PhoneVerificationEndpointsTest extends TestCase
 {
