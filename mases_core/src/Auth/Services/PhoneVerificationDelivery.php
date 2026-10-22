@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Auth\\Services;
+namespace MaaleArna\MASES\Core\Auth\Services;
 
-use Illuminate\\Support\\Facades\\Http;
+use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 final class PhoneVerificationDelivery
