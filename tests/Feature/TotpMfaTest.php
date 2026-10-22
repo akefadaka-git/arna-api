@@ -157,6 +157,47 @@ final class TotpMfaTest extends TestCase
         $this->assertFalse($this->mfa->completeLoginChallenge($user, (int) $tenant->id, $token, $this->currentTotp($secret)));
     }
 
+    #[Test]
+    public function replacing_an_enabled_authenticator_requires_current_mfa_proof(): void
+    {
+        [$user, $secret, $recoveryCodes] = $this->enrolledUser();
+        $activeCiphertext = $user->totp_secret;
+        $recoveryCount = DB::table('mfa_recovery_codes')->where('user_id', $user->id)->whereNull('used_at')->count();
+
+        try {
+            $this->mfa->beginEnrollment($user);
+            $this->fail('Replacing an enabled authenticator without MFA proof must fail.');
+        } catch (\\RuntimeException $exception) {
+            $this->assertStringContainsString('Current MFA proof', $exception->getMessage());
+        }
+
+        $this->assertSame($activeCiphertext, $user->fresh()->totp_secret);
+        $this->assertSame($recoveryCount, DB::table('mfa_recovery_codes')->where('user_id', $user->id)->whereNull('used_at')->count());
+
+        $replacement = $this->mfa->beginEnrollment($user->fresh(), $this->currentTotp($secret, 1));
+        $this->assertIsString($replacement['secret']);
+        $this->assertSame($activeCiphertext, $user->fresh()->totp_secret);
+
+        $recoveryReplacement = $this->mfa->beginEnrollment($user->fresh(), $recoveryCodes[0]);
+        $this->assertIsString($recoveryReplacement['secret']);
+        $this->assertNotNull(DB::table('mfa_recovery_codes')->where('user_id', $user->id)->where('code_hash', Hash::make('never-match'))->value('used_at'));
+    }
+
+    #[Test]
+    public function stale_enrollment_confirmation_cannot_replace_the_current_pending_secret(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $first = $this->mfa->beginEnrollment($user);
+        $staleUser = $user->fresh();
+        $second = $this->mfa->beginEnrollment($user->fresh());
+
+        $this->assertNull($this->mfa->confirmEnrollment($staleUser, $this->currentTotp($first['secret'])));
+        $fresh = $user->fresh();
+        $this->assertSame($second['secret'], Crypt::decryptString($fresh->totp_pending_secret));
+        $this->assertNull($fresh->totp_secret);
+        $this->assertSame(0, DB::table('mfa_recovery_codes')->where('user_id', $user->id)->count());
+    }
+
     private function enrolledUser(): array
     {
         $user = User::factory()->create(['is_active' => true]);
