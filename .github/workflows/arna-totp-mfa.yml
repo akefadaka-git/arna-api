@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - integration/arna-system-consolidation
+      - main
     paths:
       - "database/migrations/**"
       - "config/totp-mfa.php"
