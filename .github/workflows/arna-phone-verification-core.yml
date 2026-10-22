@@ -1,0 +1,65 @@
+name: ARNA phone verification core
+
+on:
+  pull_request:
+    branches:
+      - integration/arna-system-consolidation
+    paths:
+      - "database/migrations/**"
+      - "config/phone-verification.php"
+      - "mases_core/src/Auth/Models/User.php"
+      - "mases_core/src/Auth/Services/PhoneVerificationService.php"
+      - "tests/Feature/PhoneVerificationServiceTest.php"
+      - ".github/workflows/arna-phone-verification-core.yml"
+      - "composer.json"
+      - "composer.lock"
+  push:
+    branches:
+      - codex/arna-phone-verification-core
+    paths:
+      - "database/migrations/**"
+      - "config/phone-verification.php"
+      - "mases_core/src/Auth/Models/User.php"
+      - "mases_core/src/Auth/Services/PhoneVerificationService.php"
+      - "tests/Feature/PhoneVerificationServiceTest.php"
+      - ".github/workflows/arna-phone-verification-core.yml"
+      - "composer.json"
+      - "composer.lock"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-phone-verification-core-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  phone-verification-core:
+    name: Phone verification lifecycle (SQLite, PHP 8.3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact event revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify checkout SHA
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_sqlite, sqlite3
+          coverage: none
+      - name: Validate PHP syntax
+        run: |
+          php -l database/migrations/2026_10_22_000004_add_phone_verification_state.php
+          php -l config/phone-verification.php
+          php -l mases_core/src/Auth/Services/PhoneVerificationService.php
+          php -l tests/Feature/PhoneVerificationServiceTest.php
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Run phone verification lifecycle tests
+        run: vendor/bin/phpunit tests/Feature/PhoneVerificationServiceTest.php
