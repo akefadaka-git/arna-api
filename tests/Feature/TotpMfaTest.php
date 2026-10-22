@@ -180,7 +180,7 @@ final class TotpMfaTest extends TestCase
 
         $recoveryReplacement = $this->mfa->beginEnrollment($user->fresh(), $recoveryCodes[0]);
         $this->assertIsString($recoveryReplacement['secret']);
-        $this->assertNotNull(DB::table('mfa_recovery_codes')->where('user_id', $user->id)->where('code_hash', Hash::make('never-match'))->value('used_at'));
+        $this->assertSame(1, DB::table('mfa_recovery_codes')->where('user_id', $user->id)->whereNotNull('used_at')->count());
     }
 
     #[Test]
