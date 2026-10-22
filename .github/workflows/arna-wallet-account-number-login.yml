@@ -1,0 +1,74 @@
+name: ARNA wallet account-number login candidate
+
+on:
+  pull_request:
+    branches:
+      - integration/arna-system-consolidation
+    paths:
+      - "database/migrations/**"
+      - "mases_core/src/Auth/Services/LoginIdentifierResolver.php"
+      - "tests/Feature/WalletAccountNumberLoginTest.php"
+      - "tests/Feature/LoginIdentifierResolverTest.php"
+      - ".github/workflows/arna-wallet-account-number-login.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+  push:
+    branches:
+      - codex/arna-wallet-account-number-login
+    paths:
+      - "database/migrations/**"
+      - "mases_core/src/Auth/Services/LoginIdentifierResolver.php"
+      - "tests/Feature/WalletAccountNumberLoginTest.php"
+      - "tests/Feature/LoginIdentifierResolverTest.php"
+      - ".github/workflows/arna-wallet-account-number-login.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-wallet-account-number-login-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  wallet-account-number-login:
+    name: Wallet account-number login tests (PHP 8.3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact event revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify checked-out revision
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_SHA"
+          echo "Verified exact candidate SHA: $actual_sha"
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+      - name: Validate migration, resolver, and tests
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_10_22_000002_create_wallet_account_identifiers_table.php
+          php -l mases_core/src/Auth/Services/LoginIdentifierResolver.php
+          php -l tests/Feature/WalletAccountNumberLoginTest.php
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Run wallet and resolver regression tests
+        run: |
+          vendor/bin/phpunit tests/Feature/WalletAccountNumberLoginTest.php
+          vendor/bin/phpunit tests/Feature/LoginIdentifierResolverTest.php
