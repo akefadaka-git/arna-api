@@ -13,6 +13,7 @@ use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 use MaaleArna\MASES\Core\Auth\Services\AuthenticationService;
 use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
+use MaaleArna\MASES\Core\Auth\Services\TotpMfaService;
 use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
 
 /**
