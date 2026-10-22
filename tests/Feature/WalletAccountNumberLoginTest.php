@@ -44,7 +44,7 @@ final class WalletAccountNumberLoginTest extends TestCase
         $this->makeIdentifier($this->tenant, $walletId, 'ACC-API-000001');
 
         $response = $this->postJson(route('api.auth.login'), [
-            'email' => 'ACC-API-000001',
+            'email' => 'acc-api-000001',
             'password' => 'Password123!',
             'tenant_id' => $this->tenant->id,
         ]);
@@ -65,11 +65,14 @@ final class WalletAccountNumberLoginTest extends TestCase
         $walletId = $this->makeWallet($this->tenant, $user, 'ACC-000001');
         $this->makeIdentifier($this->tenant, $walletId, 'ACC-000001');
 
-        $resolved = $this->resolver->resolve('ACC-000001', $this->tenant->id);
+        foreach (['ACC-000001', 'acc-000001'] as $identifier) {
+            $resolved = $this->resolver->resolve($identifier, $this->tenant->id);
 
-        $this->assertNotNull($resolved);
-        $this->assertSame($user->id, $resolved['user']->id);
-        $this->assertSame($this->tenant->id, $resolved['tenant_id']);
+            $this->assertNotNull($resolved, $identifier);
+            $this->assertSame($user->id, $resolved['user']->id);
+            $this->assertSame($this->tenant->id, $resolved['tenant_id']);
+        }
+
         $this->assertNull($this->resolver->resolve('ACC-000001', Tenant::factory()->create(['is_active' => true])->id));
     }
 
