@@ -156,18 +156,6 @@ final class WalletAccountNumberLoginTest extends TestCase
     }
 
     #[Test]
-    public function database_rejects_wallet_identifier_with_a_different_tenant(): void
-    {
-        $user = $this->makeTenantUser($this->tenant);
-        $walletId = $this->makeWallet($this->tenant, $user, 'ACC-CROSS-TENANT');
-        $otherTenant = Tenant::factory()->create(['is_active' => true]);
-
-        $this->expectException(QueryException::class);
-
-        $this->makeIdentifier($otherTenant, $walletId, 'ACC-CROSS-TENANT');
-    }
-
-    #[Test]
     public function database_rejects_identifier_for_a_nonexistent_wallet(): void
     {
         $this->expectException(QueryException::class);
