@@ -198,20 +198,36 @@ jobs:
             const { owner, repo } = context.repo;
             const sha = process.env.TARGET_SHA;
             core.info(`Post-merge verification succeeded for exact main SHA: ${sha}`);
-            const prs = await github.paginate(
-              github.rest.repos.listPullRequestsAssociatedWithCommit,
-              { owner, repo, commit_sha: sha, per_page: 100 }
-            );
-            if (prs.length === 0) {
-              core.info('No pull requests are associated with this commit; no branches to clean up.');
-              return;
-            }
             const repository = await github.rest.repos.get({ owner, repo });
             const defaultBranch = repository.data.default_branch;
-            const protectedName = /^(main|master|develop|development|integration(?:\/|$)|release(?:\/|$)|hotfix(?:\/|$))$/i;
+
+            // Refuse cleanup unless the exact tested SHA is already reachable from
+            // the default branch. This permits targeted checks of old merge commits.
+            const comparison = await github.rest.repos.compareCommits({
+              owner, repo, base: sha, head: defaultBranch
+            });
+            if (comparison.data.merge_base_commit?.sha !== sha) {
+              core.setFailed(`Target SHA ${sha} is not an ancestor of ${defaultBranch}; refusing branch cleanup.`);
+              return;
+            }
+
+            // Discover merged PRs independently of the push/dispatch SHA.
+            const closedPRs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'closed', base: defaultBranch, per_page: 100
+            });
+            const prs = closedPRs.filter(pr => pr.merged_at && pr.base.ref === defaultBranch);
+            core.info(`Found ${prs.length} merged PR(s) targeting ${defaultBranch}.`);
+
+            const protectedName = /^(main|master|develop|development|integration(?:\/.*)?|release(?:\/.*)?|hotfix(?:\/.*)?)$/i;
+            const consideredBranches = new Set();
             for (const pr of prs) {
               const branch = pr.head.ref;
               const headRepo = pr.head.repo?.full_name;
+              if (consideredBranches.has(branch)) {
+                core.info(`Skip duplicate candidate ${branch}; already evaluated from an earlier merged PR.`);
+                continue;
+              }
+              consideredBranches.add(branch);
               if (!pr.merged_at || pr.state !== 'closed') {
                 core.info(`Skip PR #${pr.number}: not confirmed merged and closed.`);
                 continue;
