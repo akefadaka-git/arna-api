@@ -46,11 +46,11 @@ jobs:
       - name: Check out exact event revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.ref == 'main' && github.sha || github.event.pull_request.head.sha || github.sha }}
       - name: Verify checkout SHA
         shell: bash
         run: |
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.ref == 'main' && github.sha || github.event.pull_request.head.sha || github.sha }}"
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
