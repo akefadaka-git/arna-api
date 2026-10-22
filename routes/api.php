@@ -138,6 +138,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\TenantContextController;
@@ -250,6 +251,30 @@ Route::post('/verify-email/resend', [AuthController::class, 'resendVerificationE
 // =============================================================================
 
 Route::middleware(['auth:sanctum'])->group(static function (): void {
+
+    // -------------------------------------------------------------------------
+    // Multi-factor Authentication
+    // -------------------------------------------------------------------------
+
+    Route::post('/mfa/totp/enroll', [AuthController::class, 'beginTotpEnrollment'])
+        ->middleware('throttle:3,1')
+        ->name('api.auth.mfa.totp.enroll');
+
+    Route::post('/mfa/totp/confirm', [AuthController::class, 'confirmTotpEnrollment'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.mfa.totp.confirm');
+
+    Route::post('/mfa/totp/disable', [AuthController::class, 'disableTotp'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.mfa.totp.disable');
+
+    Route::post('/phone/verification/request', [PhoneVerificationController::class, 'requestCode'])
+        ->middleware('throttle:3,10')
+        ->name('api.auth.phone-verification.request');
+
+    Route::post('/phone/verification/confirm', [PhoneVerificationController::class, 'confirmCode'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.phone-verification.confirm');
 
     // -------------------------------------------------------------------------
     // Authentication Management
