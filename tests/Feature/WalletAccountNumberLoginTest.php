@@ -100,6 +100,7 @@ final class WalletAccountNumberLoginTest extends TestCase
     public function account_number_does_not_resolve_for_inactive_shareholder_user_or_non_member(): void
     {
         $inactiveUser = User::factory()->create(['is_active' => false]);
+        $inactiveUser->tenants()->attach($this->tenant->id);
         $nonMember = User::factory()->create(['is_active' => true]);
 
         $inactiveHolder = Shareholder::create([
@@ -123,6 +124,7 @@ final class WalletAccountNumberLoginTest extends TestCase
         $this->makeIdentifier($this->tenant, $nonMemberWallet, 'ACC-NON-MEMBER');
 
         $inactiveHolderUser = User::factory()->create(['is_active' => true]);
+        $inactiveHolderUser->tenants()->attach($this->tenant->id);
         $inactiveShareholder = Shareholder::create([
             'tenant_id' => $this->tenant->id,
             'shareholder_type' => 'individual',
@@ -130,14 +132,27 @@ final class WalletAccountNumberLoginTest extends TestCase
             'user_id' => $inactiveHolderUser->id,
             'is_active' => false,
         ]);
-        // The user is not a member; the inactive shareholder check is still
-        // fail-closed regardless of which guard rejects the lookup first.
+        // This user is an active member, so this assertion isolates the
+        // inactive-shareholder guard rather than the membership guard.
         $inactiveHolderWallet = $this->insertWallet($this->tenant, $inactiveShareholder->id);
         $this->makeIdentifier($this->tenant, $inactiveHolderWallet, 'ACC-INACTIVE-HOLDER');
 
         foreach (['ACC-INACTIVE-USER', 'ACC-NON-MEMBER', 'ACC-INACTIVE-HOLDER'] as $number) {
             $this->assertNull($this->resolver->resolve($number, $this->tenant->id), $number);
         }
+    }
+
+
+    #[Test]
+    public function database_rejects_wallet_identifier_with_a_different_tenant(): void
+    {
+        $user = $this->makeTenantUser($this->tenant);
+        $walletId = $this->makeWallet($this->tenant, $user, 'ACC-CROSS-TENANT');
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+
+        $this->expectException(\\Illuminate\\Database\\QueryException::class);
+
+        $this->makeIdentifier($otherTenant, $walletId, 'ACC-CROSS-TENANT');
     }
 
     private function makeTenantUser(Tenant $tenant): User
