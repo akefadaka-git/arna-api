@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - integration/arna-system-consolidation
+      - main
       - codex/arna-wallet-account-number-login
     paths:
       - "database/migrations/**"
