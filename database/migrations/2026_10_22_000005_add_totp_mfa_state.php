@@ -14,6 +14,7 @@ return new class extends Migration
             $table->text('totp_secret')->nullable();
             $table->text('totp_pending_secret')->nullable();
             $table->timestamp('totp_enabled_at')->nullable();
+            $table->unsignedBigInteger('totp_last_used_step')->nullable();
         });
 
         Schema::create('mfa_recovery_codes', function (Blueprint $table): void {
@@ -46,7 +47,7 @@ return new class extends Migration
         Schema::dropIfExists('mfa_recovery_codes');
 
         Schema::table('users', function (Blueprint $table): void {
-            $table->dropColumn(['totp_secret', 'totp_pending_secret', 'totp_enabled_at']);
+            $table->dropColumn(['totp_secret', 'totp_pending_secret', 'totp_enabled_at', 'totp_last_used_step']);
         });
     }
 };
