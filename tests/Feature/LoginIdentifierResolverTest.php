@@ -55,6 +55,33 @@ final class LoginIdentifierResolverTest extends TestCase
     }
 
     #[Test]
+    public function phone_login_normalizes_common_input_separators_without_guessing_country_code(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'phone-format@example.test',
+            'phone' => '+251911000001',
+            'is_active' => true,
+        ]);
+        $user->tenants()->attach($this->tenant->id);
+
+        foreach (['+251 911 000 001', '+251 (911) 000-001', '+251.911.000.001'] as $identifier) {
+            $resolved = $this->resolver->resolve($identifier, $this->tenant->id);
+
+            $this->assertNotNull($resolved, $identifier);
+            $this->assertSame($user->id, $resolved['user']->id);
+        }
+
+        $nationalFormatUser = User::factory()->create([
+            'email' => 'phone-national@example.test',
+            'phone' => '0911000001',
+            'is_active' => true,
+        ]);
+        $nationalFormatUser->tenants()->attach($this->tenant->id);
+
+        $this->assertNull($this->resolver->resolve('+251911000001', $this->tenant->id));
+    }
+
+    #[Test]
     public function ambiguous_phone_match_fails_closed(): void
     {
         $first = User::factory()->create([
