@@ -172,7 +172,7 @@ final class LoginIdentifierResolver
                             ->where('wallets.tenant_id', '=', $tenantId);
                     })
                     ->where('identifiers.tenant_id', $tenantId)
-                    ->where('identifiers.account_number', $trimmed)
+                    ->where('identifiers.account_number', strtoupper($trimmed))
                     ->where('identifiers.is_active', true)
                     ->whereNull('identifiers.deleted_at')
                     ->where('wallets.is_active', true)
