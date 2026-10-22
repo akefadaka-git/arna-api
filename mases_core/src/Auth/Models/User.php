@@ -344,6 +344,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'totp_secret',
+        'totp_pending_secret',
     ];
 
     /**
@@ -354,6 +356,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at'   => 'datetime',
         'totp_enabled_at'     => 'datetime',
+        'totp_last_used_step' => 'integer',
         'last_login_at'       => 'datetime',
         'password_changed_at' => 'datetime',
         'created_at'          => 'datetime',
