@@ -266,11 +266,6 @@ final class TotpMfaService
         return true;
     }
 
-    private function verifyCode(string $secret, string $code): bool
-    {
-        return $this->matchingCounter($secret, $code) !== null;
-    }
-
     private function matchingCounter(string $secret, string $code): ?int
     {
         if (! preg_match('/^\d{6}$/', $code)) {
@@ -284,7 +279,7 @@ final class TotpMfaService
 
         $timeStep = max(1, (int) config('totp-mfa.period_seconds', 30));
         $window = max(0, min(2, (int) config('totp-mfa.allowed_clock_drift_steps', 1)));
-        $counter = intdiv(time(), $timeStep);
+        $counter = intdiv(now()->timestamp, $timeStep);
 
         for ($offset = -$window; $offset <= $window; $offset++) {
             $step = $counter + $offset;
@@ -321,6 +316,7 @@ final class TotpMfaService
             while ($bits >= 5) {
                 $bits -= 5;
                 $output .= $alphabet[($buffer >> $bits) & 31];
+                $buffer &= (1 << $bits) - 1;
             }
         }
 
@@ -349,6 +345,7 @@ final class TotpMfaService
             if ($bits >= 8) {
                 $bits -= 8;
                 $output .= chr(($buffer >> $bits) & 0xff);
+                $buffer &= (1 << $bits) - 1;
             }
         }
 
