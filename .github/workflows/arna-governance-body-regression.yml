@@ -10,12 +10,27 @@ on:
       - "composer.json"
       - "composer.lock"
       - "phpunit.xml"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/arna-governance-body-regression.yml"
+      - "mases_core/src/Domains/Governance/**"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "Exact commit SHA to test (defaults to the workflow-triggering SHA)"
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: arna-governance-body-regression-${{ github.event.pull_request.number || github.ref }}
+  group: arna-governance-body-regression-${{ github.event.pull_request.number || inputs.target_sha || github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -24,20 +39,43 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Check out PR head
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-
-      - name: Verify exact PR head
+      - name: Resolve expected commit
+        id: target
         shell: bash
         env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          INPUT_SHA: ${{ inputs.target_sha }}
+          TRIGGER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            expected_sha="${PR_HEAD_SHA}"
+          elif [[ -n "${INPUT_SHA}" ]]; then
+            expected_sha="${INPUT_SHA}"
+          else
+            expected_sha="${TRIGGER_SHA}"
+          fi
+          if [[ ! "${expected_sha}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "Expected a full 40-character commit SHA; received: ${expected_sha}" >&2
+            exit 1
+          fi
+          echo "expected_sha=${expected_sha,,}" >> "${GITHUB_OUTPUT}"
+
+      - name: Check out exact target commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.expected_sha }}
+          persist-credentials: false
+
+      - name: Verify exact checked-out commit
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.target.outputs.expected_sha }}
         run: |
           set -euo pipefail
           actual_sha="$(git rev-parse HEAD)"
-          echo "Expected PR head: ${EXPECTED_SHA}"
+          echo "Expected commit: ${EXPECTED_SHA}"
           echo "Checked-out commit: ${actual_sha}"
           test "${actual_sha}" = "${EXPECTED_SHA}"
 
