@@ -9,7 +9,11 @@ on:
       - "config/phone-verification.php"
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Auth/Services/PhoneVerificationService.php"
+      - "mases_core/src/Auth/Services/PhoneVerificationDelivery.php"
+      - "app/Http/Controllers/Auth/PhoneVerificationController.php"
+      - "routes/api.php"
       - "tests/Feature/PhoneVerificationServiceTest.php"
+      - "tests/Feature/PhoneVerificationEndpointsTest.php"
       - ".github/workflows/arna-phone-verification-core.yml"
       - "composer.json"
       - "composer.lock"
@@ -58,8 +62,12 @@ jobs:
           php -l database/migrations/2026_10_22_000004_add_phone_verification_state.php
           php -l config/phone-verification.php
           php -l mases_core/src/Auth/Services/PhoneVerificationService.php
+          php -l mases_core/src/Auth/Services/PhoneVerificationDelivery.php
+          php -l app/Http/Controllers/Auth/PhoneVerificationController.php
+          php -l routes/api.php
           php -l tests/Feature/PhoneVerificationServiceTest.php
+          php -l tests/Feature/PhoneVerificationEndpointsTest.php
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
       - name: Run phone verification lifecycle tests
-        run: vendor/bin/phpunit tests/Feature/PhoneVerificationServiceTest.php
+        run: vendor/bin/phpunit tests/Feature/PhoneVerificationServiceTest.php tests/Feature/PhoneVerificationEndpointsTest.php
