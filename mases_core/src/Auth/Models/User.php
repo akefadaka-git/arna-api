@@ -344,6 +344,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'phone_verified_phone_hash',
         'totp_secret',
         'totp_pending_secret',
     ];
