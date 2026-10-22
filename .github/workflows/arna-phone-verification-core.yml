@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - integration/arna-system-consolidation
+      - main
     paths:
       - "database/migrations/**"
       - "config/phone-verification.php"
