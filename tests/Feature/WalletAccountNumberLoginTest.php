@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -142,7 +143,6 @@ final class WalletAccountNumberLoginTest extends TestCase
         }
     }
 
-
     #[Test]
     public function database_rejects_wallet_identifier_with_a_different_tenant(): void
     {
@@ -150,7 +150,7 @@ final class WalletAccountNumberLoginTest extends TestCase
         $walletId = $this->makeWallet($this->tenant, $user, 'ACC-CROSS-TENANT');
         $otherTenant = Tenant::factory()->create(['is_active' => true]);
 
-        $this->expectException(\\Illuminate\\Database\\QueryException::class);
+        $this->expectException(QueryException::class);
 
         $this->makeIdentifier($otherTenant, $walletId, 'ACC-CROSS-TENANT');
     }
