@@ -252,6 +252,22 @@ Route::post('/verify-email/resend', [AuthController::class, 'resendVerificationE
 Route::middleware(['auth:sanctum'])->group(static function (): void {
 
     // -------------------------------------------------------------------------
+    // Multi-factor Authentication
+    // -------------------------------------------------------------------------
+
+    Route::post('/mfa/totp/enroll', [AuthController::class, 'beginTotpEnrollment'])
+        ->middleware('throttle:3,1')
+        ->name('api.auth.mfa.totp.enroll');
+
+    Route::post('/mfa/totp/confirm', [AuthController::class, 'confirmTotpEnrollment'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.mfa.totp.confirm');
+
+    Route::post('/mfa/totp/disable', [AuthController::class, 'disableTotp'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.mfa.totp.disable');
+
+    // -------------------------------------------------------------------------
     // Authentication Management
     // -------------------------------------------------------------------------
 
