@@ -46,15 +46,16 @@ final class WalletAccountNumberLoginTest extends TestCase
     #[Test]
     public function inactive_deleted_wallet_identifier_and_inactive_wallet_fail_closed(): void
     {
-        $user = $this->makeTenantUser($this->tenant);
-
-        $activeWalletId = $this->makeWallet($this->tenant, $user, 'ACC-INACTIVE-ID');
+        $activeIdentifierUser = $this->makeTenantUser($this->tenant);
+        $activeWalletId = $this->makeWallet($this->tenant, $activeIdentifierUser, 'ACC-INACTIVE-ID');
         $this->makeIdentifier($this->tenant, $activeWalletId, 'ACC-INACTIVE-ID', false);
 
-        $deletedWalletId = $this->makeWallet($this->tenant, $user, 'ACC-DELETED-ID');
+        $deletedIdentifierUser = $this->makeTenantUser($this->tenant);
+        $deletedWalletId = $this->makeWallet($this->tenant, $deletedIdentifierUser, 'ACC-DELETED-ID');
         $this->makeIdentifier($this->tenant, $deletedWalletId, 'ACC-DELETED-ID', true, now());
 
-        $inactiveWalletId = $this->makeWallet($this->tenant, $user, 'ACC-INACTIVE-WALLET', false);
+        $inactiveWalletUser = $this->makeTenantUser($this->tenant);
+        $inactiveWalletId = $this->makeWallet($this->tenant, $inactiveWalletUser, 'ACC-INACTIVE-WALLET', false);
         $this->makeIdentifier($this->tenant, $inactiveWalletId, 'ACC-INACTIVE-WALLET');
 
         foreach (['ACC-INACTIVE-ID', 'ACC-DELETED-ID', 'ACC-INACTIVE-WALLET'] as $number) {
@@ -88,11 +89,12 @@ final class WalletAccountNumberLoginTest extends TestCase
         $nonMemberWallet = $this->insertWallet($this->tenant, $nonMemberHolder->id);
         $this->makeIdentifier($this->tenant, $nonMemberWallet, 'ACC-NON-MEMBER');
 
+        $inactiveHolderUser = User::factory()->create(['is_active' => true]);
         $inactiveShareholder = Shareholder::create([
             'tenant_id' => $this->tenant->id,
             'shareholder_type' => 'individual',
             'first_name_en' => 'Disabled Holder',
-            'user_id' => $nonMember->id,
+            'user_id' => $inactiveHolderUser->id,
             'is_active' => false,
         ]);
         // The user is not a member; the inactive shareholder check is still
