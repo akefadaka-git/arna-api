@@ -1034,6 +1034,34 @@ final class GovernancePositionTest extends TestCase
         $this->app->instance('current_tenant', $tenant);
     }
 
+    /** Unauthorized malformed create must be rejected before validation. */
+    public function test_unauthorized_create_is_rejected_before_validation(): void
+    {
+        Sanctum::actingAs($this->plainUser, ['*']);
+        $response = $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenantA->id,
+        ])->postJson(route('api.governance.positions.store', [
+            'governanceBody' => $this->bodyA1->id,
+        ]), ['code' => ['invalid-type'], 'name_am' => null, 'name_en' => null]);
+
+        $response->assertStatus(403)->assertJsonPath('success', false);
+        $this->assertArrayNotHasKey('errors', $response->json());
+    }
+
+    /** Unauthorized malformed update must be rejected before validation. */
+    public function test_unauthorized_update_is_rejected_before_validation(): void
+    {
+        Sanctum::actingAs($this->plainUser, ['*']);
+        $response = $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenantA->id,
+        ])->patchJson(route('api.governance.positions.update', [
+            'governancePosition' => $this->positionA1->id,
+        ]), ['code' => ['invalid-type'], 'name_am' => null, 'name_en' => null]);
+
+        $response->assertStatus(403)->assertJsonPath('success', false);
+        $this->assertArrayNotHasKey('errors', $response->json());
+    }
+
     /**
      * Create a governance-domain permission.
      *

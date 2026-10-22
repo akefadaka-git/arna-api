@@ -1,0 +1,86 @@
+name: ARNA focused U3 authorization verification
+
+on:
+  push:
+    branches:
+      - fix/arna-u3-focused-verification
+    paths:
+      - ".github/workflows/arna-u3-focused-verification.yml"
+      - "mases_core/src/Authorization/Services/AuthorizationService.php"
+      - "tests/Unit/ExplicitTenantContextAuthorizationTest.php"
+      - "tests/Feature/AuthenticationLifecycleTest.php"
+      - "tests/Feature/C09/TenantResolutionTest.php"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Exact commit SHA or ref to verify"
+        required: true
+        type: string
+        default: "fix/arna-u3-focused-verification"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-u3-focused-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  focused-u3-regression:
+    name: PHP lint and focused U3/auth/C09 regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out requested revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.sha }}
+          persist-credentials: false
+
+      - name: Verify checked-out revision
+        shell: bash
+        env:
+          REQUESTED_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          echo "Requested ref: ${REQUESTED_REF}"
+          echo "Checked-out commit: ${actual_sha}"
+          if [[ "${REQUESTED_REF}" =~ ^[0-9a-fA-F]{40}$ ]] && [[ "${actual_sha}" != "${REQUESTED_REF}" ]]; then
+            echo "::error::Checked-out commit does not match requested SHA."
+            exit 1
+          fi
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: PHP syntax lint
+        run: |
+          set -euo pipefail
+          php -l mases_core/src/Authorization/Services/AuthorizationService.php
+          php -l tests/Unit/ExplicitTenantContextAuthorizationTest.php
+          php -l tests/Feature/AuthenticationLifecycleTest.php
+          php -l tests/Feature/C09/TenantResolutionTest.php
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run focused U3 trusted-context tests
+        run: vendor/bin/phpunit tests/Unit/ExplicitTenantContextAuthorizationTest.php
+
+      - name: Run authentication lifecycle regression
+        run: vendor/bin/phpunit tests/Feature/AuthenticationLifecycleTest.php
+
+      - name: Run C09 tenant-resolution regression
+        run: vendor/bin/phpunit tests/Feature/C09/TenantResolutionTest.php

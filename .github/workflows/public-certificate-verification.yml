@@ -1,0 +1,52 @@
+name: Public certificate verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/Http/Controllers/PublicCertificateVerificationController.php"
+      - "routes/api.php"
+      - "tests/Feature/PublicCertificateVerificationTest.php"
+      - ".github/workflows/public-certificate-verification.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+      - "mases_core/src/Domains/Shareholder/**"
+  push:
+    branches: [main, feat/public-certificate-verification]
+    paths:
+      - "app/Http/Controllers/PublicCertificateVerificationController.php"
+      - "routes/api.php"
+      - "tests/Feature/PublicCertificateVerificationTest.php"
+      - ".github/workflows/public-certificate-verification.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+      - "mases_core/src/Domains/Shareholder/**"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+      - name: PHP syntax lint
+        run: |
+          php -l app/Http/Controllers/PublicCertificateVerificationController.php
+          php -l tests/Feature/PublicCertificateVerificationTest.php
+          php -l routes/api.php
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Run public verification feature tests
+        run: vendor/bin/phpunit tests/Feature/PublicCertificateVerificationTest.php

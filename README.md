@@ -1,58 +1,60 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ARNA API — Backend for the ARNA Smart System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**ARNA API is the Laravel-based backend and API layer for the ARNA Smart System.** Laravel is the implementation framework; ARNA is the product and system this repository serves.
 
-## About Laravel
+ARNA is the master name for the Maale Arna Smart System, including its platform and intelligence capabilities. This repository contains backend/API implementation. It is not the complete ARNA system and should not be described as a generic Laravel starter project.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Purpose and system boundary
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+The ARNA API provides the server-side foundation through which ARNA clients and approved system components can access backend capabilities. Its responsibilities include API endpoints, application rules, identity and authorization controls, tenant-aware operations, persistence, and integration boundaries as those capabilities are implemented and verified.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+The intended ARNA system spans governance, shareholder and enterprise workflows, finance, identity and tenant controls, reporting, and intelligence capabilities. Listing a domain here describes system direction; it does **not** mean every domain is implemented, enabled, or production-ready in this repository.
 
-## Learning Laravel
+The ARNA frontend/application is maintained separately. This repository is the Laravel backend/API component, not the frontend and not the entire ARNA platform.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Technology
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- **Application/framework:** PHP and Laravel
+- **API authentication:** Laravel Sanctum is used where configured by the application
+- **Persistence:** database migrations and application data access; the selected database and its operational configuration must be verified for each environment
+- **Testing:** automated application tests and isolated database acceptance tests
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+Framework documentation is available in the [Laravel documentation](https://laravel.com/docs). Laravel is a technical dependency of ARNA API, not the identity or purpose of this project.
 
-## Agentic Development
+## Security and governance principles
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Backend capabilities must be implemented with explicit authorization, tenant boundaries, least-privilege database access, auditable sensitive actions, and fail-closed behavior where authority or evidence is missing. Passing a test suite is evidence for the tested commit and environment only; it is not by itself proof of production readiness.
 
-```bash
-composer require laravel/boost --dev
+Do not infer that an API action is authorized merely because an endpoint or data model exists. High-impact financial or governance actions require separately defined authority, controls, verification, and approval.
 
-php artisan boost:install
-```
+## ARNA system-principal evidence storage (I2)
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+This repository includes candidate storage primitives for versioned system-principal policies, append-only action audits, and tenant/action-scoped idempotency records. These primitives do **not** authorize or execute Loan actions, provision a system principal, activate tenant grants, or enable automated approval, rejection, or disbursement. Automation remains disabled by default.
 
-## Contributing
+### Restricted MySQL application-role contract
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+The application database identity must receive only these table-level privileges for the evidence tables:
 
-## Code of Conduct
+| Table | Required privileges |
+| --- | --- |
+| `system_principal_policy_versions` | `SELECT, INSERT` |
+| `system_principal_action_audits` | `SELECT, INSERT` |
+| `system_principal_idempotency_records` | `SELECT, INSERT, UPDATE` |
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+The application identity must have no `DELETE` privilege on these tables and no `UPDATE` privilege on policy-version or action-audit records. Idempotency updates are needed for the controlled `reserved → completed` or `reserved → failed` transition; database triggers enforce transition invariants and reject deletion. MySQL table-level grants cannot restrict `UPDATE` to particular columns, so the trigger remains a required complementary control.
 
-## Security Vulnerabilities
+Schema and trigger changes must use a separately controlled migration/administrative identity. The application identity must not be able to create or drop users, grant privileges, alter evidence tables, or modify immutability triggers. Production provisioning must use reviewed grants and an appropriately restricted account host; the wildcard host used by isolated CI setup is not a production-hosting recommendation.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Verification status
+
+The isolated MySQL concurrency/immutability acceptance test passed on candidate commit `a48b5d792817435deab1c8ee4e1a4e2c97bdd14e` (5 tests, 56 assertions). The associated PR #13 remains open and unmerged, so these candidate changes must not be treated as already integrated into the default branch. Production-role provisioning and actual production grants remain **unverified** until independently inspected. Passing isolated CI does not close the I2 gate or authorize deployment.
+
+See `docs/architecture/ARNA-SYSTEM-PRINCIPAL-PROVENANCE-001.md` and `tests/Feature/SystemPrincipalMySqlConcurrencyAndImmutabilityTest.php` for the implementation boundary and acceptance coverage.
+
+## Development and verification
+
+Run the test commands appropriate to the checked-out branch and environment, and record the commit, database engine/version, test results, and any exceptions. Do not treat tests that were skipped, not run, or executed against a different commit as passing evidence.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Refer to the repository's license file and dependency licenses for the applicable terms.

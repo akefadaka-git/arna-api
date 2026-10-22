@@ -142,6 +142,7 @@ use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\TenantContextController;
+use App\Http\Controllers\PublicCertificateVerificationController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -168,6 +169,21 @@ Route::get('/health', static function (): JsonResponse {
         ],
     ]);
 })->name('api.health');
+
+
+// -----------------------------------------------------------------------------
+// Public document verification
+// -----------------------------------------------------------------------------
+
+/**
+ * Verify a public share-certificate reference without exposing shareholder
+ * identity or tenant-scoped data. Rate limited to reduce reference guessing.
+ */
+Route::post(
+    '/public/document-verifications/verify',
+    [PublicCertificateVerificationController::class, 'verify']
+)->middleware('throttle:10,1')
+ ->name('api.public.document-verifications.verify');
 
 // -----------------------------------------------------------------------------
 // Authentication
