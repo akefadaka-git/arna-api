@@ -62,6 +62,17 @@ final class PhoneVerificationService
     }
 
     /**
+     * Invalidate outstanding challenges when delivery fails.
+     */
+    public function invalidatePending(User $user): void
+    {
+        DB::table('phone_verification_challenges')
+            ->where('user_id', $user->getKey())
+            ->whereNull('consumed_at')
+            ->update(['consumed_at' => now(), 'updated_at' => now()]);
+    }
+
+    /**
      * Verify the code against the latest unconsumed challenge for the current
      * phone value. A code is single-use and bounded by expiry and attempt count.
      */
