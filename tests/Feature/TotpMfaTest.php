@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,23 @@ final class TotpMfaTest extends TestCase
     {
         parent::setUp();
         $this->mfa = new TotpMfaService();
+    }
+
+    #[Test]
+    public function it_accepts_the_rfc_6238_sha1_interoperability_vector(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $knownSecret = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
+        $user->forceFill(['totp_pending_secret' => Crypt::encryptString($knownSecret)])->save();
+
+        Carbon::setTestNow(Carbon::createFromTimestamp(59, 'UTC'));
+        try {
+            $codes = $this->mfa->confirmEnrollment($user->fresh(), '287082');
+            $this->assertIsArray($codes);
+            $this->assertTrue($this->mfa->isEnabled($user->fresh()));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     #[Test]
@@ -163,7 +181,7 @@ final class TotpMfaTest extends TestCase
             }
         }
 
-        $counter = intdiv(time(), 30) + $stepOffset;
+        $counter = intdiv(now()->timestamp, 30) + $stepOffset;
         $hash = hash_hmac('sha1', pack('N2', 0, $counter), $key, true);
         $offset = ord($hash[19]) & 0x0f;
         $binary = ((ord($hash[$offset]) & 0x7f) << 24)
