@@ -160,13 +160,11 @@ final class TotpMfaTest extends TestCase
     #[Test]
     public function user_serialization_hides_phone_verification_digest(): void
     {
-        $user = User::factory()->create([
-            'is_active' => true,
-            'phone_verified_phone_hash' => hash('sha256', '+251911000001'),
-        ]);
+        $user = User::factory()->create(['is_active' => true]);
+        $user->forceFill(['phone_verified_phone_hash' => hash('sha256', '+251911000001')])->save();
 
-        $this->assertArrayNotHasKey('phone_verified_phone_hash', $user->toArray());
-        $this->assertArrayNotHasKey('phone_verified_phone_hash', $user->fresh()->toJson() ? json_decode($user->fresh()->toJson(), true) : []);
+        $this->assertArrayNotHasKey('phone_verified_phone_hash', $user->fresh()->toArray());
+        $this->assertArrayNotHasKey('phone_verified_phone_hash', json_decode($user->fresh()->toJson(), true));
     }
 
     #[Test]
