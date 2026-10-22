@@ -26,6 +26,7 @@ on:
   pull_request:
     branches:
       - integration/arna-system-consolidation
+      - main
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "app/Http/Controllers/TenantContextController.php"
