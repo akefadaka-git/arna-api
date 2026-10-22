@@ -32,7 +32,7 @@ final class TotpMfaService
         }
 
         $secret = $this->base32Encode(random_bytes(20));
-        return DB::transaction(function () use ($user, $currentCode, $secret): array {
+        $enrollment = DB::transaction(function () use ($user, $currentCode, $secret): array {
             $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
             if ($locked === null || ! $locked->is_active || $locked->trashed()) {
                 throw new RuntimeException('Inactive users cannot enroll in MFA.');
@@ -65,6 +65,11 @@ final class TotpMfaService
                 'otpauth_url' => 'otpauth://totp/'.$label.'?'.$query,
             ];
         });
+
+        // Keep the caller's model instance in sync with the row changed under lock.
+        $user->refresh();
+
+        return $enrollment;
     }
 
     /**
