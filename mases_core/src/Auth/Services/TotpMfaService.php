@@ -25,31 +25,46 @@ final class TotpMfaService
      *
      * @return array{secret:string, otpauth_url:string}
      */
-    public function beginEnrollment(User $user): array
+    public function beginEnrollment(User $user, ?string $currentCode = null): array
     {
         if (! $user->is_active || $user->trashed()) {
             throw new RuntimeException('Inactive users cannot enroll in MFA.');
         }
 
         $secret = $this->base32Encode(random_bytes(20));
-        $user->forceFill([
-            'totp_pending_secret' => Crypt::encryptString($secret),
-        ])->save();
+        return DB::transaction(function () use ($user, $currentCode, $secret): array {
+            $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
+            if ($locked === null || ! $locked->is_active || $locked->trashed()) {
+                throw new RuntimeException('Inactive users cannot enroll in MFA.');
+            }
 
-        $issuer = (string) config('totp-mfa.issuer', 'ARNA');
-        $label = rawurlencode($issuer.':'.$user->email);
-        $query = http_build_query([
-            'secret' => $secret,
-            'issuer' => $issuer,
-            'algorithm' => 'SHA1',
-            'digits' => 6,
-            'period' => 30,
-        ], '', '&', PHP_QUERY_RFC3986);
+            // Replacing an enabled authenticator requires current MFA proof
+            // in addition to the password reauthentication enforced by the API.
+            if ($this->isEnabled($locked)) {
+                if ($currentCode === null || ! $this->verifyCurrentFactorLocked($locked, $currentCode)) {
+                    throw new RuntimeException('Current MFA proof is required to replace an enabled authenticator.');
+                }
+            }
 
-        return [
-            'secret' => $secret,
-            'otpauth_url' => 'otpauth://totp/'.$label.'?'.$query,
-        ];
+            $locked->forceFill([
+                'totp_pending_secret' => Crypt::encryptString($secret),
+            ])->save();
+
+            $issuer = (string) config('totp-mfa.issuer', 'ARNA');
+            $label = rawurlencode($issuer.':'.$locked->email);
+            $query = http_build_query([
+                'secret' => $secret,
+                'issuer' => $issuer,
+                'algorithm' => 'SHA1',
+                'digits' => 6,
+                'period' => 30,
+            ], '', '&', PHP_QUERY_RFC3986);
+
+            return [
+                'secret' => $secret,
+                'otpauth_url' => 'otpauth://totp/'.$label.'?'.$query,
+            ];
+        });
     }
 
     /**
@@ -64,9 +79,16 @@ final class TotpMfaService
             return null;
         }
 
+        // Capture the exact state validated outside the lock. A stale request
+        // must not activate a secret another enrollment has replaced.
+        $expectedPendingCiphertext = $user->totp_pending_secret;
+        $expectedActiveCiphertext = $user->totp_secret;
+        $expectedEnabledAt = $user->totp_enabled_at?->format('Y-m-d H:i:s');
+        $wasEnabled = $this->isEnabled($user);
+
         try {
-            $secret = Crypt::decryptString($user->totp_pending_secret);
-        } catch (\Throwable) {
+            $secret = Crypt::decryptString($expectedPendingCiphertext);
+        } catch (\\Throwable) {
             return null;
         }
 
@@ -76,10 +98,30 @@ final class TotpMfaService
         }
 
         $codes = [];
-        DB::transaction(function () use ($user, $secret, $usedStep, &$codes): void {
+        $committed = DB::transaction(function () use (
+            $user,
+            $secret,
+            $usedStep,
+            $expectedPendingCiphertext,
+            $expectedActiveCiphertext,
+            $expectedEnabledAt,
+            $wasEnabled,
+            &$codes
+        ): bool {
             $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
             if ($locked === null || ! $locked->is_active || $locked->trashed()) {
-                throw new RuntimeException('Inactive users cannot enroll in MFA.');
+                return false;
+            }
+
+            $lockedEnabledAt = $locked->totp_enabled_at?->format('Y-m-d H:i:s');
+            if (
+                ! is_string($locked->totp_pending_secret)
+                || ! hash_equals($expectedPendingCiphertext, $locked->totp_pending_secret)
+                || $locked->totp_secret !== $expectedActiveCiphertext
+                || $lockedEnabledAt !== $expectedEnabledAt
+                || $this->isEnabled($locked) !== $wasEnabled
+            ) {
+                return false;
             }
 
             $locked->forceFill([
@@ -103,9 +145,11 @@ final class TotpMfaService
                     'updated_at' => now(),
                 ]);
             }
+
+            return true;
         });
 
-        return $codes;
+        return $committed ? $codes : null;
     }
 
     /**
@@ -264,6 +308,43 @@ final class TotpMfaService
         });
 
         return true;
+    }
+
+    /**
+     * Validate an existing factor while the user row is locked inside a
+     * transaction. TOTP steps are replay-protected; recovery codes are consumed.
+     */
+    private function verifyCurrentFactorLocked(User $user, string $code): bool
+    {
+        try {
+            $secret = Crypt::decryptString((string) $user->totp_secret);
+            $usedStep = $this->matchingCounter($secret, $code);
+            $lastUsedStep = $user->totp_last_used_step;
+            if ($usedStep !== null && ($lastUsedStep === null || $usedStep > (int) $lastUsedStep)) {
+                $user->forceFill(['totp_last_used_step' => $usedStep])->save();
+
+                return true;
+            }
+        } catch (\\Throwable) {
+            // Fall through to recovery-code verification; fail closed otherwise.
+        }
+
+        $recoveryCodes = DB::table('mfa_recovery_codes')
+            ->where('user_id', $user->getKey())
+            ->whereNull('used_at')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($recoveryCodes as $recoveryCode) {
+            if (Hash::check($code, $recoveryCode->code_hash)) {
+                return DB::table('mfa_recovery_codes')
+                    ->where('id', $recoveryCode->id)
+                    ->whereNull('used_at')
+                    ->update(['used_at' => now(), 'updated_at' => now()]) === 1;
+            }
+        }
+
+        return false;
     }
 
     private function matchingCounter(string $secret, string $code): ?int
