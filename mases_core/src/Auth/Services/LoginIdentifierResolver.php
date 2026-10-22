@@ -32,6 +32,7 @@ final class LoginIdentifierResolver
         }
 
         $normalized = strtolower($trimmed);
+        $normalizedPhone = $this->normalizePhoneIdentifier($trimmed);
         $tenantId = $requestedTenantId !== null && $this->isActiveTenant($requestedTenantId)
             ? $requestedTenantId
             : null;
@@ -44,10 +45,14 @@ final class LoginIdentifierResolver
         $matches = [];
 
         $directUsers = User::query()
-            ->where(function ($query) use ($normalized, $trimmed): void {
+            ->where(function ($query) use ($normalized, $trimmed, $normalizedPhone): void {
                 $query->where('email', $normalized)
                     ->orWhere('username', $normalized)
                     ->orWhere('phone', $trimmed);
+
+                if ($normalizedPhone !== null && $normalizedPhone !== $trimmed) {
+                    $query->orWhere('phone', $normalizedPhone);
+                }
             })
             ->where('is_active', true)
             ->get();
@@ -207,6 +212,33 @@ final class LoginIdentifierResolver
 
         // Multiple eligible accounts or tenant memberships are ambiguous.
         return count($matches) === 1 ? array_values($matches)[0] : null;
+    }
+
+    /**
+     * Normalize presentation-only phone formatting without guessing a country code.
+     *
+     * Stored phone values are still compared exactly, so this supports common
+     * separators in user input when the stored value is already canonical.
+     */
+    private function normalizePhoneIdentifier(string $identifier): ?string
+    {
+        if (! preg_match('/^\\+?[0-9\\s().-]+$/', $identifier)) {
+            return null;
+        }
+
+        $normalized = preg_replace('/[\\s().-]+/', '', $identifier);
+        if (! is_string($normalized)) {
+            return null;
+        }
+
+        $digits = ltrim($normalized, '+');
+        $digitCount = strlen($digits);
+
+        if ($digitCount < 7 || $digitCount > 15) {
+            return null;
+        }
+
+        return $normalized;
     }
 
     private function resolveUserTenant(User $user, ?int $requestedTenantId): ?int
