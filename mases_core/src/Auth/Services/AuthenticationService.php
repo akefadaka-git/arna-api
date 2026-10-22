@@ -263,8 +263,10 @@ final class AuthenticationService
      * @param string          $password
      * @param bool            $remember
      * @param int|string|null $tenantId
+     * @param string|null $mfaChallengeToken
+     * @param string|null $mfaCode TOTP code or one-time recovery code
      *
-     * @return array{user: User, token: string}
+     * @return array{user: User, token?: string, mfa_required?: bool, challenge_token?: string}
      *
      * @throws AuthenticationException
      */
@@ -272,7 +274,9 @@ final class AuthenticationService
         string $email,
         string $password,
         bool $remember = false,
-        int|string|null $tenantId = null
+        int|string|null $tenantId = null,
+        ?string $mfaChallengeToken = null,
+        ?string $mfaCode = null
     ): array {
         // ---------------------------------------------------------------------
         // 1. Stateless credential verification.
@@ -393,7 +397,58 @@ final class AuthenticationService
         $tenantId = $effectiveTenantId;
 
         // ---------------------------------------------------------------------
-        // 3. Issue a Sanctum bearer token.
+        // 3. Enforce TOTP MFA before issuing any bearer token.
+        // ---------------------------------------------------------------------
+        $mfa = app(TotpMfaService::class);
+        if ($mfa->isEnabled($user)) {
+            if ($mfaChallengeToken === null && $mfaCode === null) {
+                $challengeToken = $mfa->createLoginChallenge($user, (int) $tenantId, $remember);
+                $this->logSecurityEvent('login.mfa_challenge_issued', [
+                    'user_id' => $user->id,
+                    'tenant_id' => $tenantId,
+                    'ip' => request()->ip(),
+                ]);
+
+                return [
+                    'user' => $user,
+                    'mfa_required' => true,
+                    'challenge_token' => $challengeToken,
+                ];
+            }
+
+            if (
+                $mfaChallengeToken === null
+                || $mfaCode === null
+                || ! $mfa->completeLoginChallenge($user, (int) $tenantId, $mfaChallengeToken, $mfaCode)
+            ) {
+                $this->logSecurityEvent('login.mfa_failed', [
+                    'user_id' => $user->id,
+                    'tenant_id' => $tenantId,
+                    'ip' => request()->ip(),
+                ]);
+
+                throw new AuthenticationException(
+                    'Invalid authentication code or expired challenge.',
+                    'AUTH_MFA_INVALID',
+                    401
+                );
+            }
+
+            $this->logSecurityEvent('login.mfa_succeeded', [
+                'user_id' => $user->id,
+                'tenant_id' => $tenantId,
+                'ip' => request()->ip(),
+            ]);
+        } elseif ($mfaChallengeToken !== null || $mfaCode !== null) {
+            throw new AuthenticationException(
+                'Invalid authentication challenge.',
+                'AUTH_MFA_INVALID',
+                401
+            );
+        }
+
+        // ---------------------------------------------------------------------
+        // 4. Issue a Sanctum bearer token only after required MFA succeeds.
         // ---------------------------------------------------------------------
         $token = $user->createToken('auth_token', ['*'])->plainTextToken;
 
