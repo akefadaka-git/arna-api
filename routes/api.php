@@ -267,6 +267,14 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
         ->middleware('throttle:5,1')
         ->name('api.auth.mfa.totp.disable');
 
+    Route::post('/phone/verification/request', [PhoneVerificationController::class, 'requestCode'])
+        ->middleware('throttle:3,10')
+        ->name('api.auth.phone-verification.request');
+
+    Route::post('/phone/verification/confirm', [PhoneVerificationController::class, 'confirmCode'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.phone-verification.confirm');
+
     // -------------------------------------------------------------------------
     // Authentication Management
     // -------------------------------------------------------------------------
