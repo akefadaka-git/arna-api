@@ -204,7 +204,7 @@ jobs:
             }
             const repository = await github.rest.repos.get({ owner, repo });
             const defaultBranch = repository.data.default_branch;
-            const protectedName = /^(main|master|develop|development|integration(?:\\/|$)|release(?:\\/|$)|hotfix(?:\\/|$))$/i;
+            const protectedName = /^(main|master|develop|development|integration(?:\/|$)|release(?:\/|$)|hotfix(?:\/|$))$/i;
             for (const pr of prs) {
               const branch = pr.head.ref;
               const headRepo = pr.head.repo?.full_name;
