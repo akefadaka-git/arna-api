@@ -637,7 +637,10 @@ final class AuthController extends Controller
      */
     public function beginTotpEnrollment(Request $request): JsonResponse
     {
-        $validated = $request->validate(['password' => ['required', 'string', 'max:255']]);
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'max:255'],
+            'current_mfa_code' => ['sometimes', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+        ]);
         $user = $request->user();
         if (! $user instanceof CoreUser) {
             return response()->json(['success' => false, 'error' => ['code' => 'AUTH_UNAUTHENTICATED', 'message' => 'Authentication required.']], 401);
@@ -647,7 +650,21 @@ final class AuthController extends Controller
             return response()->json(['success' => false, 'error' => ['code' => 'AUTH_INVALID_CREDENTIALS', 'message' => 'Current password is invalid.']], 401);
         }
 
-        $enrollment = $this->totpMfaService->beginEnrollment($user);
+        try {
+            $enrollment = $this->totpMfaService->beginEnrollment(
+                $user,
+                $validated['current_mfa_code'] ?? null
+            );
+        } catch (\\RuntimeException) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'AUTH_MFA_INVALID',
+                    'message' => 'Current MFA proof is required to replace an enabled authenticator.',
+                ],
+            ], 401);
+        }
+
         Log::info('TOTP MFA enrollment started', ['user_id' => $user->id]);
 
         return response()->json(['success' => true, 'data' => $enrollment]);
