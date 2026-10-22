@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Auth;
+namespace App\Http\Controllers\Auth;
 
-use App\\Http\\Controllers\\Controller;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Log;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Auth\\Services\\PhoneVerificationDelivery;
-use MaaleArna\\MASES\\Core\\Auth\\Services\\PhoneVerificationService;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Auth\Services\PhoneVerificationDelivery;
+use MaaleArna\MASES\Core\Auth\Services\PhoneVerificationService;
 
 final class PhoneVerificationController extends Controller
 {
@@ -47,7 +47,7 @@ final class PhoneVerificationController extends Controller
         $code = $this->verification->issue($user);
         try {
             $this->delivery->send(trim((string) $user->phone), $code);
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             $this->verification->invalidatePending($user);
             Log::warning('Phone verification delivery unavailable', [
                 'user_id' => $user->getKey(),
@@ -75,7 +75,7 @@ final class PhoneVerificationController extends Controller
     public function confirmCode(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'code' => ['required', 'string', 'regex:/^\\d{6}$/'],
+            'code' => ['required', 'string', 'regex:/^\d{6}$/'],
         ]);
 
         $user = $request->user();
