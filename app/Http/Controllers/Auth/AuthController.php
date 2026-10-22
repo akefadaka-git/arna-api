@@ -655,7 +655,7 @@ final class AuthController extends Controller
                 $user,
                 $validated['current_mfa_code'] ?? null
             );
-        } catch (\\RuntimeException) {
+        } catch (\RuntimeException) {
             return response()->json([
                 'success' => false,
                 'error' => [
