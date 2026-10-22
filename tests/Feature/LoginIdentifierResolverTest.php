@@ -73,12 +73,12 @@ final class LoginIdentifierResolverTest extends TestCase
 
         $nationalFormatUser = User::factory()->create([
             'email' => 'phone-national@example.test',
-            'phone' => '0911000001',
+            'phone' => '0911000002',
             'is_active' => true,
         ]);
         $nationalFormatUser->tenants()->attach($this->tenant->id);
 
-        $this->assertNull($this->resolver->resolve('+251911000001', $this->tenant->id));
+        $this->assertNull($this->resolver->resolve('+251911000002', $this->tenant->id));
     }
 
     #[Test]
