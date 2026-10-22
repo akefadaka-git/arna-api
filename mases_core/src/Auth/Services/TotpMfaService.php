@@ -88,7 +88,7 @@ final class TotpMfaService
 
         try {
             $secret = Crypt::decryptString($expectedPendingCiphertext);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return null;
         }
 
@@ -325,7 +325,7 @@ final class TotpMfaService
 
                 return true;
             }
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             // Fall through to recovery-code verification; fail closed otherwise.
         }
 
