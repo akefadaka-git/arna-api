@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - integration/arna-system-consolidation
+      - main
     paths:
       - 'routes/api.php'
       - 'tests/Feature/LoginThrottlingTest.php'
