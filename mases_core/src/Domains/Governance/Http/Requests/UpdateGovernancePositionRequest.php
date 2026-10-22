@@ -163,13 +163,15 @@ final class UpdateGovernancePositionRequest extends FormRequest
     private const MAX_SORT_ORDER = 65535;
 
     /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
+     * Authorize the resolved governance resource before validation.
+     * Missing authentication or an unexpected route value fails closed.
      */
     public function authorize(): bool
     {
-        return true;
+        $resource = $this->route('governancePosition');
+
+        return $resource instanceof \MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition
+            && ($this->user()?->can('update', $resource) ?? false);
     }
 
     // =========================================================================

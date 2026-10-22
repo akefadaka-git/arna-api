@@ -1,4 +1,4 @@
-name: ARNA Governance body authorization regression
+name: ARNA Governance authorization regression
 
 on:
   pull_request:
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   governance-body-regression:
-    name: PHP lint and GovernanceBodyTest
+    name: PHP lint and Governance authorization feature tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -54,7 +54,13 @@ jobs:
           set -euo pipefail
           php -l mases_core/src/Domains/Governance/Http/Requests/StoreGovernanceBodyRequest.php
           php -l mases_core/src/Domains/Governance/Http/Requests/UpdateGovernanceBodyRequest.php
+          php -l mases_core/src/Domains/Governance/Http/Requests/StoreGovernancePositionRequest.php
+          php -l mases_core/src/Domains/Governance/Http/Requests/UpdateGovernancePositionRequest.php
+          php -l mases_core/src/Domains/Governance/Http/Requests/StoreGovernanceTermRequest.php
+          php -l mases_core/src/Domains/Governance/Http/Requests/UpdateGovernanceTermRequest.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceBodyTest.php
+          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernancePositionTest.php
+          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceTermTest.php
 
       - name: Validate Composer manifest and lock
         run: composer validate --no-check-publish
@@ -62,5 +68,9 @@ jobs:
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Run Governance body feature tests
-        run: vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceBodyTest.php
+      - name: Run Governance authorization feature tests
+        run: |
+          set -euo pipefail
+          vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceBodyTest.php
+          vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernancePositionTest.php
+          vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceTermTest.php

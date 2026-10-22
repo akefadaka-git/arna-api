@@ -185,17 +185,15 @@ final class StoreGovernanceTermRequest extends FormRequest
     private const MAX_NOTES_LENGTH = 500;
 
     /**
-     * Determine if the user is authorized to make this request.
-     *
-     * Always true — the controller (G2b file 21 of 27) invokes
-     * `Gate::authorize('create', $body)` before the request is
-     * validated.
-     *
-     * @return bool
+     * Authorize the owning governance body before validation.
+     * Missing authentication or an unexpected route value fails closed.
      */
     public function authorize(): bool
     {
-        return true;
+        $resource = $this->route('governanceBody');
+
+        return $resource instanceof \MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody
+            && ($this->user()?->can('create', $resource) ?? false);
     }
 
     // =========================================================================
