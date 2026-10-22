@@ -70,6 +70,38 @@ final class TotpMfaTest extends TestCase
     }
 
     #[Test]
+    public function login_does_not_issue_a_token_until_totp_is_verified(): void
+    {
+        [$user, $secret] = $this->enrolledUser();
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user->tenants()->attach($tenant->id, ['joined_at' => now(), 'status' => 'active']);
+
+        $first = $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'Password123!',
+            'tenant_id' => $tenant->id,
+        ])->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.mfa_required', true);
+
+        $challenge = $first->json('data.challenge_token');
+        $this->assertIsString($challenge);
+        $this->assertSame(0, DB::table('personal_access_tokens')->where('tokenable_id', $user->id)->count());
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'Password123!',
+            'tenant_id' => $tenant->id,
+            'mfa_challenge_token' => $challenge,
+            'mfa_code' => $this->currentTotp($secret, 1),
+        ])->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.token_type', 'Bearer');
+
+        $this->assertSame(1, DB::table('personal_access_tokens')->where('tokenable_id', $user->id)->count());
+    }
+
+    #[Test]
     public function expired_login_challenges_fail_closed(): void
     {
         [$user, $secret] = $this->enrolledUser();
