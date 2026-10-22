@@ -5,6 +5,7 @@ on:
     branches:
       - codex/arna-wallet-account-number-login
       - integration/arna-system-consolidation
+      - main
     paths:
       - "database/migrations/**"
       - "tests/Feature/WalletAccountNumberLoginTest.php"
