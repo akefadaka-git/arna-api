@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Hash;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Auth\\Services\\LoginIdentifierResolver;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\Shareholder;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class WalletAccountNumberLoginTest extends TestCase
 {
