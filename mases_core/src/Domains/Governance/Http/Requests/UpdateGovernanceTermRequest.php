@@ -129,13 +129,15 @@ final class UpdateGovernanceTermRequest extends FormRequest
     private const MAX_NOTES_LENGTH = 500;
 
     /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
+     * Authorize the resolved governance resource before validation.
+     * Missing authentication or an unexpected route value fails closed.
      */
     public function authorize(): bool
     {
-        return true;
+        $resource = $this->route('governanceTerm');
+
+        return $resource instanceof \MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceTerm
+            && ($this->user()?->can('update', $resource) ?? false);
     }
 
     // =========================================================================
