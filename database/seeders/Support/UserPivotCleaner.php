@@ -225,6 +225,7 @@ final class UserPivotCleaner
      */
     public function clear(): void
     {
+        \Database\Seeders\Support\DemoSeederGuard::assertAllowed();
         DB::transaction(function (): void {
             /*
              * Step 1 — user-to-X pivot tables.

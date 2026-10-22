@@ -244,6 +244,7 @@ final class MasesCoreSeeder extends Seeder
      */
     public function run(): void
     {
+        \Database\Seeders\Support\DemoSeederGuard::assertAllowed();
         /*
          * Step 1 — clear.
          *

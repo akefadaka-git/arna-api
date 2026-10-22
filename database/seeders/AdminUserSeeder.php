@@ -261,6 +261,7 @@ final class AdminUserSeeder extends Seeder
      */
     public function seed(Tenant $tenant, array $roles): array
     {
+        \Database\Seeders\Support\DemoSeederGuard::assertAllowed();
         /*
          * Upsert both admins. The order matters: the super
          * administrator is created first so that it can be passed

@@ -28,6 +28,9 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    // Destructive demo seeders require an explicit local/testing-only opt-in.
+    'demo_seeders_enabled' => filter_var(env('MASES_ENABLE_DEMO_SEEDING', false), FILTER_VALIDATE_BOOL),
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

@@ -16,6 +16,15 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // This class deliberately exercises the demo/bootstrap seeder.
+        // Make the test-only opt-in explicit rather than weakening the guard.
+        config(['app.demo_seeders_enabled' => true]);
+    }
+
     #[Test]
     public function fresh_migration_then_seed_assigns_numbers_reservations_aliases_and_next_sequence(): void
     {

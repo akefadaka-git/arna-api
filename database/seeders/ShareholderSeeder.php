@@ -471,6 +471,7 @@ final class ShareholderSeeder extends Seeder
      */
     public function seed(Tenant $tenant, array $roles, User $superAdmin): array
     {
+        \Database\Seeders\Support\DemoSeederGuard::assertAllowed();
         /*
          * Read the register from the Data\ layer. See Unit S-1 for
          * the row shape. The register is a MAP keyed by SH-ID; the
