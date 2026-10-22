@@ -70,12 +70,13 @@ final class TotpMfaService
             return null;
         }
 
-        if (! $this->verifyCode($secret, $code)) {
+        $usedStep = $this->matchingCounter($secret, $code);
+        if ($usedStep === null) {
             return null;
         }
 
         $codes = [];
-        DB::transaction(function () use ($user, $secret, &$codes): void {
+        DB::transaction(function () use ($user, $secret, $usedStep, &$codes): void {
             $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
             if ($locked === null || ! $locked->is_active || $locked->trashed()) {
                 throw new RuntimeException('Inactive users cannot enroll in MFA.');
@@ -85,6 +86,7 @@ final class TotpMfaService
                 'totp_secret' => Crypt::encryptString($secret),
                 'totp_pending_secret' => null,
                 'totp_enabled_at' => now(),
+                'totp_last_used_step' => $usedStep,
             ])->save();
 
             DB::table('mfa_recovery_codes')->where('user_id', $locked->getKey())->delete();
@@ -170,16 +172,25 @@ final class TotpMfaService
                 return false;
             }
 
-            $valid = false;
-            $secret = null;
-            try {
-                $secret = Crypt::decryptString((string) $user->totp_secret);
-            } catch (\Throwable) {
-                // Fail closed if the encrypted TOTP secret cannot be read.
+            $lockedUser = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
+            if ($lockedUser === null || ! $lockedUser->is_active || $lockedUser->trashed() || ! $this->isEnabled($lockedUser)) {
+                DB::table('login_mfa_challenges')->where('id', $challenge->id)
+                    ->update(['consumed_at' => now(), 'updated_at' => now()]);
+                return false;
             }
 
-            if (is_string($secret) && $secret !== '') {
-                $valid = $this->verifyCode($secret, $code);
+            $valid = false;
+            $usedStep = null;
+            try {
+                $secret = Crypt::decryptString((string) $lockedUser->totp_secret);
+                $usedStep = $this->matchingCounter($secret, $code);
+                $lastUsedStep = $lockedUser->totp_last_used_step;
+                if ($usedStep !== null && $lastUsedStep !== null && $usedStep <= (int) $lastUsedStep) {
+                    $usedStep = null;
+                }
+                $valid = $usedStep !== null;
+            } catch (\Throwable) {
+                // Fail closed if the encrypted TOTP secret cannot be read.
             }
 
             if (! $valid) {
@@ -210,6 +221,10 @@ final class TotpMfaService
                 return false;
             }
 
+            if ($usedStep !== null) {
+                $lockedUser->forceFill(['totp_last_used_step' => $usedStep])->save();
+            }
+
             DB::table('login_mfa_challenges')->where('id', $challenge->id)
                 ->update(['consumed_at' => now(), 'updated_at' => now()]);
 
@@ -229,15 +244,17 @@ final class TotpMfaService
             return false;
         }
 
-        if (! $this->verifyCode($secret, $code)) {
+        $usedStep = $this->matchingCounter($secret, $code);
+        if ($usedStep === null || ($user->totp_last_used_step !== null && $usedStep <= (int) $user->totp_last_used_step)) {
             return false;
         }
 
-        DB::transaction(function () use ($user): void {
+        DB::transaction(function () use ($user, $usedStep): void {
             $user->forceFill([
                 'totp_secret' => null,
                 'totp_pending_secret' => null,
                 'totp_enabled_at' => null,
+                'totp_last_used_step' => $usedStep,
             ])->save();
 
             DB::table('mfa_recovery_codes')->where('user_id', $user->getKey())->delete();
@@ -251,13 +268,18 @@ final class TotpMfaService
 
     private function verifyCode(string $secret, string $code): bool
     {
+        return $this->matchingCounter($secret, $code) !== null;
+    }
+
+    private function matchingCounter(string $secret, string $code): ?int
+    {
         if (! preg_match('/^\d{6}$/', $code)) {
-            return false;
+            return null;
         }
 
         $key = $this->base32Decode($secret);
         if ($key === '') {
-            return false;
+            return null;
         }
 
         $timeStep = max(1, (int) config('totp-mfa.period_seconds', 30));
@@ -265,7 +287,12 @@ final class TotpMfaService
         $counter = intdiv(time(), $timeStep);
 
         for ($offset = -$window; $offset <= $window; $offset++) {
-            $counterBytes = pack('N2', 0, $counter + $offset);
+            $step = $counter + $offset;
+            if ($step < 0) {
+                continue;
+            }
+
+            $counterBytes = pack('N2', 0, $step);
             $hash = hash_hmac('sha1', $counterBytes, $key, true);
             $position = ord($hash[19]) & 0x0f;
             $binary = ((ord($hash[$position]) & 0x7f) << 24)
@@ -274,11 +301,11 @@ final class TotpMfaService
                 | (ord($hash[$position + 3]) & 0xff);
             $candidate = str_pad((string) ($binary % 1_000_000), 6, '0', STR_PAD_LEFT);
             if (hash_equals($candidate, $code)) {
-                return true;
+                return $step;
             }
         }
 
-        return false;
+        return null;
     }
 
     private function base32Encode(string $bytes): string
