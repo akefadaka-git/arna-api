@@ -2,16 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
-use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Illuminate\\Foundation\\Testing\\RefreshDatabase;
+use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Facades\\Hash;
+use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
+use MaaleArna\\MASES\\Core\\Auth\\Services\\LoginIdentifierResolver;
+use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\Shareholder;
+use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
+use PHPUnit\\Framework\\Attributes\\Test;
+use Tests\\TestCase;
 
 final class WalletAccountNumberLoginTest extends TestCase
 {
@@ -26,6 +27,35 @@ final class WalletAccountNumberLoginTest extends TestCase
 
         $this->tenant = Tenant::factory()->create(['is_active' => true]);
         $this->resolver = new LoginIdentifierResolver();
+    }
+
+    #[Test]
+    public function wallet_account_number_authenticates_through_the_api_login_endpoint(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'wallet-login@example.test',
+            'password' => Hash::make('Password123!'),
+            'default_tenant_id' => null,
+            'is_active' => true,
+        ]);
+        $user->tenants()->attach($this->tenant->id);
+
+        $walletId = $this->makeWallet($this->tenant, $user, 'ACC-API-000001');
+        $this->makeIdentifier($this->tenant, $walletId, 'ACC-API-000001');
+
+        $response = $this->postJson(route('api.auth.login'), [
+            'email' => 'ACC-API-000001',
+            'password' => 'Password123!',
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.user.id', $user->id)
+            ->assertJsonPath('data.user.email', 'wallet-login@example.test')
+            ->assertJsonPath('data.token_type', 'Bearer');
+
+        $this->assertNotEmpty($response->json('data.token'));
     }
 
     #[Test]
