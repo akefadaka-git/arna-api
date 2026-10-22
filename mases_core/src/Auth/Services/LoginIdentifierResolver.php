@@ -152,23 +152,32 @@ final class LoginIdentifierResolver
                 }
             }
 
-            // Wallet-number resolution remains dormant until the Wallet domain owns
-            // an approved wallet_number column; this never invents a number.
-            if (Schema::hasTable('wallets')
-                && Schema::hasColumn('wallets', 'wallet_number')
-                && Schema::hasColumn('wallets', 'shareholder_id')
-                && Schema::hasColumn('wallets', 'tenant_id')
-                && Schema::hasColumn('wallets', 'is_active')
+            // Wallet account identifiers are maintained outside the Wallet aggregate.
+            // The Wallet table deliberately has no human-readable account-number column.
+            if (Schema::hasTable('wallet_account_identifiers')
+                && Schema::hasColumns('wallet_account_identifiers', [
+                    'tenant_id', 'wallet_id', 'account_number', 'is_active', 'deleted_at',
+                ])
+                && Schema::hasTable('wallets')
+                && Schema::hasColumns('wallets', [
+                    'id', 'tenant_id', 'shareholder_id', 'is_active',
+                ])
                 && Schema::hasTable('shareholders')
                 && Schema::hasColumns('shareholders', [
                     'tenant_id', 'is_active', 'user_id', 'representative_user_id',
                 ])) {
-                $wallets = DB::table('wallets')
-                    ->where('tenant_id', $tenantId)
-                    ->where('wallet_number', $trimmed)
-                    ->where('is_active', true)
+                $wallets = DB::table('wallet_account_identifiers as identifiers')
+                    ->join('wallets', function ($join) use ($tenantId): void {
+                        $join->on('wallets.id', '=', 'identifiers.wallet_id')
+                            ->where('wallets.tenant_id', '=', $tenantId);
+                    })
+                    ->where('identifiers.tenant_id', $tenantId)
+                    ->where('identifiers.account_number', $trimmed)
+                    ->where('identifiers.is_active', true)
+                    ->whereNull('identifiers.deleted_at')
+                    ->where('wallets.is_active', true)
                     ->limit(2)
-                    ->get(['shareholder_id']);
+                    ->get(['wallets.shareholder_id']);
 
                 foreach ($wallets as $wallet) {
                     $holder = Shareholder::query()
