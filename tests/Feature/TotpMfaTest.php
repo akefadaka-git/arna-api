@@ -53,15 +53,14 @@ final class TotpMfaTest extends TestCase
 
         $token = $this->mfa->createLoginChallenge($user, (int) $tenant->id, false);
         $this->assertFalse($this->mfa->completeLoginChallenge($user, (int) $tenant->id, $token, '000000' === $this->currentTotp($secret) ? '000001' : '000000'));
-        $this->assertTrue($this->mfa->completeLoginChallenge($user, (int) $tenant->id, $token, $this->currentTotp($secret)));
+        $this->assertTrue($this->mfa->completeLoginChallenge($user, (int) $tenant->id, $token, $this->currentTotp($secret, 1)));
         $this->assertFalse($this->mfa->completeLoginChallenge($user, (int) $tenant->id, $token, $this->currentTotp($secret)));
     }
 
     #[Test]
     public function recovery_code_is_consumed_after_successful_use(): void
     {
-        [$user, $secret] = $this->enrolledUser();
-        $codes = $this->mfa->confirmEnrollment($user, $this->currentTotp($secret));
+        [$user, $secret, $codes] = $this->enrolledUser();
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $token = $this->mfa->createLoginChallenge($user, (int) $tenant->id, false);
 
@@ -85,12 +84,12 @@ final class TotpMfaTest extends TestCase
     {
         $user = User::factory()->create(['is_active' => true]);
         $enrollment = $this->mfa->beginEnrollment($user);
-        $this->mfa->confirmEnrollment($user, $this->currentTotp($enrollment['secret']));
+        $codes = $this->mfa->confirmEnrollment($user, $this->currentTotp($enrollment['secret']));
 
-        return [$user->fresh(), $enrollment['secret']];
+        return [$user->fresh(), $enrollment['secret'], $codes];
     }
 
-    private function currentTotp(string $secret): string
+    private function currentTotp(string $secret, int $stepOffset = 0): string
     {
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
         $buffer = 0;
@@ -105,7 +104,7 @@ final class TotpMfaTest extends TestCase
             }
         }
 
-        $counter = intdiv(time(), 30);
+        $counter = intdiv(time(), 30) + $stepOffset;
         $hash = hash_hmac('sha1', pack('N2', 0, $counter), $key, true);
         $offset = ord($hash[19]) & 0x0f;
         $binary = ((ord($hash[$offset]) & 0x7f) << 24)
