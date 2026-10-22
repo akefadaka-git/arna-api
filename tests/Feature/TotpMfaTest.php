@@ -167,7 +167,7 @@ final class TotpMfaTest extends TestCase
         try {
             $this->mfa->beginEnrollment($user);
             $this->fail('Replacing an enabled authenticator without MFA proof must fail.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertStringContainsString('Current MFA proof', $exception->getMessage());
         }
 
