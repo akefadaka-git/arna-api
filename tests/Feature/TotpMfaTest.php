@@ -78,7 +78,7 @@ final class TotpMfaTest extends TestCase
 
         $first = $this->postJson('/api/login', [
             'email' => $user->email,
-            'password' => 'Password123!',
+            'password' => 'password',
             'tenant_id' => $tenant->id,
         ])->assertOk()
             ->assertJsonPath('success', true)
@@ -90,7 +90,7 @@ final class TotpMfaTest extends TestCase
 
         $this->postJson('/api/login', [
             'email' => $user->email,
-            'password' => 'Password123!',
+            'password' => 'password',
             'tenant_id' => $tenant->id,
             'mfa_challenge_token' => $challenge,
             'mfa_code' => $this->currentTotp($secret, 1),
