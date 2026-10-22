@@ -353,6 +353,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at'   => 'datetime',
+        'totp_enabled_at'     => 'datetime',
         'last_login_at'       => 'datetime',
         'password_changed_at' => 'datetime',
         'created_at'          => 'datetime',
