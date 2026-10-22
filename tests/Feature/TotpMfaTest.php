@@ -70,6 +70,33 @@ final class TotpMfaTest extends TestCase
     }
 
     #[Test]
+    public function authenticated_enrollment_requires_current_password(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/mfa/totp/enroll', ['password' => 'wrong-password'])
+            ->assertUnauthorized()
+            ->assertJsonPath('error.code', 'AUTH_INVALID_CREDENTIALS');
+
+        $this->assertNull($user->fresh()->totp_pending_secret);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/mfa/totp/enroll', ['password' => 'password'])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $secret = $response->json('data.secret');
+        $this->assertIsString($secret);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/mfa/totp/confirm', ['code' => $this->currentTotp($secret)])
+            ->assertOk()
+            ->assertJsonPath('data.mfa_enabled', true)
+            ->assertJsonCount(10, 'data.recovery_codes');
+    }
+
+    #[Test]
     public function login_does_not_issue_a_token_until_totp_is_verified(): void
     {
         [$user, $secret] = $this->enrolledUser();
