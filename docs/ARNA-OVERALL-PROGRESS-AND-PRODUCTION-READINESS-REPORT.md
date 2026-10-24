@@ -94,4 +94,3 @@ The wallet PR #56 remains unmerged; its CI failures remain unexplained and its r
 
 ---
 *This is an evidence snapshot as of 2026-10-24. Statuses should change only when new, linkable evidence supports the transition.*
-\n\n## 8. Current implementation candidate\n\n- Branch: `fix/loan-repayment-idempotency-concurrency-2026-10-24`\n- Baseline: `1ef479898975f9cdab23d94ca7d4af739ba08797`\n- Runtime tests: NOT RUN\n- CI: NOT RUN\n- Migration execution: NOT RUN\n- Production release: NO-GO\n
