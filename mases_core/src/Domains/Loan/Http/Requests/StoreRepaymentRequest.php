@@ -284,6 +284,14 @@ final class StoreRepaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'idempotency_key' => [
+                'required',
+                'string',
+                'min:16',
+                'max:128',
+                'regex:/\\A[A-Za-z0-9._:-]+\\z/',
+            ],
+
             'amount' => [
                 'required',
                 'string',
@@ -399,6 +407,7 @@ final class StoreRepaymentRequest extends FormRequest
             'reference_type'  => __('loan::attributes.reference_type'),
             'reference_id'    => __('loan::attributes.reference_id'),
             'description'     => __('loan::attributes.description'),
+            'idempotency_key' => 'Idempotency-Key header',
         ];
     }
 
@@ -504,7 +513,9 @@ final class StoreRepaymentRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $merged = [];
+        $merged = [
+            'idempotency_key' => trim((string) $this->header('Idempotency-Key', '')),
+        ];
 
         // ---------------------------------------------------------------------
         // Top-level string fields.
