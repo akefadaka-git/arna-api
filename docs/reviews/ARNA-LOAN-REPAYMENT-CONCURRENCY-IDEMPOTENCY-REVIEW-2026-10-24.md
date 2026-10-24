@@ -123,5 +123,22 @@ Changes include a tenant+loan scoped idempotency table in the canonical flat `da
 
 **Verification:** PHP tests and migration execution were NOT RUN. GitHub automatically ran two workflows on earlier head `883b74783ae3aa49fd434c8e1c2658dd1a320f9e`; [run 40094302868](https://github.com/akeayu/arna-api/actions/runs/40094302868) and [run 40094302873](https://github.com/akeayu/arna-api/actions/runs/40094302873) both failed. Job summaries were empty and log retrieval returned `BlobNotFound`; root cause is UNKNOWN. No workflow was manually dispatched or rerun. Migration discovery regression is added but NOT RUN. Simultaneous MySQL concurrency has not been exercised; the sequential additive-total test is not proof of concurrency correctness. Do not merge or deploy until exact-head tests, migration verification, and an actual two-connection concurrency test pass.
 
+## 8. Owner-selected Option A — canonical request fingerprint and original-response replay
+
+**Source change prepared:** yes, on the same draft PR branch. **Runtime verification:** NOT RUN.
+
+The follow-up implementation now:
+- Canonicalizes valid monetary strings to four decimal places before hashing; e.g. `500.0` and `500.0000` produce the same amount fingerprint. Allocation order remains significant, while allocation amounts are canonicalized the same way.
+- Normalizes `received_at` to UTC before hashing.
+- Adds nullable `response_status` and `response_body` columns to the new idempotency table.
+- Builds the successful JSON response inside the repayment transaction and persists the status/body snapshot before commit. The financial writes, idempotency record, and response snapshot therefore commit or roll back together.
+- Returns the persisted status/body snapshot for same-key/same-payload retries, including after later repayments change the loan's current state.
+- Fails closed if the successful repayment lacks a replayable response snapshot.
+- Adds a feature regression that performs a later distinct repayment, then retries the original key with equivalent decimal formatting and compares the original/replayed response bodies.
+
+The response factory is passed from the HTTP controller into the service so the response can be serialized before the transaction commits. This is an intentional coupling point to review; the service must always be called with the response factory.
+
+**Still unverified:** PHP syntax and feature tests, database JSON-column behavior on the supported MySQL version, migration execution/discovery, two-connection concurrency, and the exact-head CI environment. No tests were run and no workflow was manually dispatched or rerun. PR #57 remains draft and unmerged; no production database or deployment action occurred.
+
 ---
 *Prepared from GitHub source at the stated baseline on 2026-10-24. This document records source-level findings, the bounded implementation candidate, and outstanding verification gates; it is not runtime test evidence or production approval.*
