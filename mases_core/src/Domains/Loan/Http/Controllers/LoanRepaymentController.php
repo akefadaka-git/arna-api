@@ -251,24 +251,25 @@ final class LoanRepaymentController
             ->where('idempotency_key', (string) $validated['idempotency_key'])
             ->first(['response_status', 'response_body']);
 
-        if ($snapshot !== null && $snapshot->response_body !== null) {
-            $body = json_decode(
-                (string) $snapshot->response_body,
-                true,
-                512,
-                JSON_THROW_ON_ERROR,
+        if (
+            $snapshot === null
+            || $snapshot->response_body === null
+            || $snapshot->response_status === null
+        ) {
+            throw new LogicException(
+                'Loan repayment committed without a replayable response snapshot. '
+                . 'Refusing to return a potentially different response for an idempotent request.'
             );
-
-            return response()->json($body, (int) ($snapshot->response_status ?? 200));
         }
 
-        // Defensive fallback for legacy/incomplete idempotency records.
-        $loan->loadMissing('installments');
+        $body = json_decode(
+            (string) $snapshot->response_body,
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
 
-        return response()->json([
-            'success' => true,
-            'data'    => (new LoanResource($loan))->toArray($request),
-        ]);
+        return response()->json($body, (int) $snapshot->response_status);
     }
 
     // =========================================================================
