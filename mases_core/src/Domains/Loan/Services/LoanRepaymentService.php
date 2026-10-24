@@ -662,7 +662,7 @@ final class LoanRepaymentService
         return hash('sha256', json_encode([
             'amount' => self::canonicalDecimalForHash($amount),
             'allocations' => $canonicalAllocations,
-            'received_at' => $receivedAt?->copy()->utc()->format('Y-m-d\\TH:i:s.u\\Z'),
+            'received_at' => $receivedAt?->copy()->utc()->format('Y-m-d\TH:i:s.u\Z'),
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
             'description' => $description,
