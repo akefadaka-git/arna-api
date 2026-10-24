@@ -399,6 +399,16 @@ final class LoanRepaymentService
                 ->whereKey($loan->id)
                 ->firstOrFail();
 
+            // The unique tenant/loan/key constraint arbitrates concurrent retries.
+            // This reservation is in the same transaction as every financial write.
+            DB::table('loan_repayment_idempotencies')->insert([
+                'tenant_id'       => (int) $current->tenant_id,
+                'loan_id'         => (int) $current->id,
+                'idempotency_key' => $idempotencyKey,
+                'request_hash'    => $requestHash,
+                'created_at'      => Carbon::now(),
+            ]);
+
             // -----------------------------------------------------------------
             // 2. Assert the loan is in a repayable state.
             // -----------------------------------------------------------------
@@ -466,16 +476,6 @@ final class LoanRepaymentService
             // -----------------------------------------------------------------
             $this->assertAmountIsWellFormed($amount);
             $this->assertAllocationsWellFormed($current, $wallet, $amount, $allocations);
-
-            // The unique tenant/loan/key constraint arbitrates concurrent retries.
-            // This reservation is in the same transaction as every financial write.
-            DB::table('loan_repayment_idempotencies')->insert([
-                'tenant_id'       => (int) $current->tenant_id,
-                'loan_id'         => (int) $current->id,
-                'idempotency_key' => $idempotencyKey,
-                'request_hash'    => $requestHash,
-                'created_at'      => Carbon::now(),
-            ]);
 
             $now = $receivedAt ?? Carbon::now();
 
