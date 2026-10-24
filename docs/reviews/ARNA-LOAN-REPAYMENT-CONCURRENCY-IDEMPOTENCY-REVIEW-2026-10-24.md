@@ -113,7 +113,7 @@ Do not silently treat `reference_type`/`reference_id` as an idempotency key. The
 | Concurrent repayment test passed | NOT RUN | Read-only review only |
 | Duplicate retry test passed | NOT RUN | Read-only review only |
 | Production data affected | NO ACTION TAKEN | No production access or operation |
-| Code modified | NO | This branch is documentation-only |
+| Code modified | YES on implementation branch | See draft PR #57; no runtime verification |
 
 ## 7. Implementation status on the dedicated branch
 
@@ -124,4 +124,4 @@ Changes include a tenant+loan scoped idempotency table, required `Idempotency-Ke
 **Not verified:** no PHP test suite or migration was run, no workflow was dispatched, and simultaneous MySQL concurrency has not been exercised. The sequential additive-total test is not proof of concurrency correctness. Do not merge or deploy until migration discovery and targeted tests pass on the exact branch head and the diff is reviewed.
 
 ---
-*Prepared from GitHub source at the stated baseline on 2026-10-24. This document records source-level findings and design requirements; it is not runtime test evidence or production approval.*
+*Prepared from GitHub source at the stated baseline on 2026-10-24. This document records source-level findings, the bounded implementation candidate, and outstanding verification gates; it is not runtime test evidence or production approval.*
