@@ -92,5 +92,12 @@ Implemented on the branch (source changes committed; not yet runtime-verified):
 
 The wallet PR #56 remains unmerged; its CI failures remain unexplained and its regression test remains unverified. Per Owner direction, do not retry log retrieval. Next step: review the diff and run the targeted migration/test suite on the exact implementation head; no merge or deployment until exact-head evidence and required approvals.
 
+
+### PR #57 follow-up — Option A response replay (source change; tests NOT RUN)
+- Canonicalized valid amount/allocation decimal strings to scale four and normalized `received_at` to UTC for request fingerprinting.
+- Added `response_status` and `response_body` to the new idempotency table; the controller builds the successful response inside the repayment transaction, and the service stores the response snapshot before commit.
+- Same-key/same-payload retries return the stored original response, even if later repayments changed the loan. Missing snapshots fail closed. A new feature regression covers canonical decimal retry and original response replay after a subsequent repayment.
+- Source change is committed to the existing draft PR branch. PHP tests, migration execution, MySQL concurrency, and CI verification remain NOT RUN / NOT VERIFIED. No merge, production DB operation, or deployment occurred.
+
 ---
 *This is an evidence snapshot as of 2026-10-24. Statuses should change only when new, linkable evidence supports the transition.*
