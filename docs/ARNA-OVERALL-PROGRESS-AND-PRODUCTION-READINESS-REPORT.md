@@ -79,7 +79,7 @@ The next implementation step requires a separately scoped change request approvi
 
 ## 7. Loan repayment implementation change — 2026-10-24
 
-A separate bounded implementation branch was created from baseline `1ef479898975f9cdab23d94ca7d4af739ba08797`: `fix/loan-repayment-idempotency-concurrency-2026-10-24`.
+A separate bounded implementation is available as [draft PR #57](https://github.com/akeayu/arna-api/pull/57), branch `fix/loan-repayment-idempotency-concurrency-2026-10-24`, based on `1ef479898975f9cdab23d94ca7d4af739ba08797`.
 
 Implemented on the branch (source changes committed; not yet runtime-verified):
 - Added tenant+loan scoped idempotency persistence with a unique `(tenant_id, loan_id, idempotency_key)` constraint and a request hash.
