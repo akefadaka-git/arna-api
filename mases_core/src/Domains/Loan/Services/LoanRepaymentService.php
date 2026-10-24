@@ -630,13 +630,13 @@ final class LoanRepaymentService
         $canonicalAllocations = array_map(
             static fn (array $instruction): array => [
                 'obligation_id' => (int) $instruction['obligation_id'],
-                'amount' => bcadd((string) $instruction['amount'], '0', self::FINAL_SCALE),
+                'amount' => trim((string) $instruction['amount']),
             ],
             array_values($allocations),
         );
 
         return hash('sha256', json_encode([
-            'amount' => bcadd($amount, '0', self::FINAL_SCALE),
+            'amount' => trim($amount),
             'allocations' => $canonicalAllocations,
             'received_at' => $receivedAt?->toIso8601String(),
             'reference_type' => $referenceType,
