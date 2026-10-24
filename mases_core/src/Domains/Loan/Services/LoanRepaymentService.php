@@ -627,17 +627,9 @@ final class LoanRepaymentService
         ?string $referenceId,
         ?string $description,
     ): string {
-        $canonicalAllocations = array_map(
-            static fn (array $instruction): array => [
-                'obligation_id' => (int) $instruction['obligation_id'],
-                'amount' => trim((string) $instruction['amount']),
-            ],
-            array_values($allocations),
-        );
-
         return hash('sha256', json_encode([
             'amount' => trim($amount),
-            'allocations' => $canonicalAllocations,
+            'allocations' => array_values($allocations),
             'received_at' => $receivedAt?->toIso8601String(),
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
