@@ -6,7 +6,7 @@ namespace MaaleArna\MASES\Core\Domains\Loan\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Tests\Concerns\LoanDatabaseMigrations;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -111,7 +111,7 @@ use Tests\TestCase;
  */
 final class LoanStateMachineTest extends TestCase
 {
-    use DatabaseMigrations;
+    use LoanDatabaseMigrations;
 
     /**
      * The system-under-test.

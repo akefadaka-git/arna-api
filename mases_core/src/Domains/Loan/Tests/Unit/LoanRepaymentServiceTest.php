@@ -7,7 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Loan\Tests\Unit;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Payment;
 use RuntimeException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Tests\Concerns\LoanDatabaseMigrations;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -127,7 +127,7 @@ use Tests\TestCase;
  */
 final class LoanRepaymentServiceTest extends TestCase
 {
-    use DatabaseMigrations;
+    use LoanDatabaseMigrations;
 
     private LoanRepaymentService $service;
     private Tenant $tenant;

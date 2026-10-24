@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Loan\Tests\Unit;
 
 use RuntimeException;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Tests\Concerns\LoanDatabaseMigrations;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -113,7 +113,7 @@ use Tests\TestCase;
  */
 final class LoanDisbursementServiceTest extends TestCase
 {
-    use DatabaseMigrations;
+    use LoanDatabaseMigrations;
 
     private LoanDisbursementService $service;
     private Tenant $tenant;

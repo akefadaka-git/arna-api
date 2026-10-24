@@ -17,6 +17,8 @@ on:
       - "config/app.php"
       - "database/seeders/**"
       - "tests/Unit/DemoSeederGuardTest.php"
+      - "tests/Concerns/LoanDatabaseMigrations.php"
+      - "mases_core/src/Domains/Loan/Tests/Unit/**"
   workflow_dispatch:
     inputs:
       target_sha:
@@ -118,6 +120,13 @@ jobs:
 
       - name: Run focused demo seeder guard tests
         run: php artisan test --compact tests/Unit/DemoSeederGuardTest.php
+
+      - name: Run Loan domain unit tests with hermetic SQLite
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Unit
 
       - name: Confirm test database is empty
         shell: bash

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Loan\Tests\Unit;
 
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Tests\Concerns\LoanDatabaseMigrations;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -121,7 +121,7 @@ use Tests\TestCase;
  */
 final class LoanScheduleServiceTest extends TestCase
 {
-    use DatabaseMigrations;
+    use LoanDatabaseMigrations;
 
     private LoanScheduleService $service;
     private Tenant $tenant;

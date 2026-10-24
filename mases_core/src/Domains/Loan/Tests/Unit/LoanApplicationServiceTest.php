@@ -7,7 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Loan\Tests\Unit;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Tests\Concerns\LoanDatabaseMigrations;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
@@ -38,7 +38,7 @@ use Tests\TestCase;
  * the namespace `MaaleArna\MASES\Core\Domains\Loan\Tests\Unit`.
  *
  * =============================================================================
- * DatabaseMigrations, not RefreshDatabase
+ * LoanLoanDatabaseMigrations, not RefreshDatabase
  * =============================================================================
  * `submit()` dispatches `LoanApplicationSubmitted` via the state
  * machine's `DB::afterCommit()` path. Under `RefreshDatabase`, the
@@ -87,7 +87,7 @@ use Tests\TestCase;
  */
 final class LoanApplicationServiceTest extends TestCase
 {
-    use DatabaseMigrations;
+    use LoanDatabaseMigrations;
 
     private LoanApplicationService $service;
     private Tenant $tenant;
