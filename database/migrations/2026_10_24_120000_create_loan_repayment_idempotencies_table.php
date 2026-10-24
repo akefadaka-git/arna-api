@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\Schema;
  *
  * The unique scope (tenant, loan, key) serializes concurrent retries. The
  * request hash prevents a caller from reusing a key for a different payload.
- * The row and its payment reference are written in the same transaction as
+ * The original successful HTTP status/body are snapshotted before commit so
+ * retries can replay the original response even after later repayments.
+ * The row and its response snapshot are written in the same transaction as
  * the wallet payment, allocations, and loan projections.
  */
 return new class extends Migration
@@ -35,6 +37,8 @@ return new class extends Migration
                 ->constrained('wallet_payments')
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
+            $table->unsignedSmallInteger('response_status')->nullable();
+            $table->json('response_body')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
             $table->unique(
