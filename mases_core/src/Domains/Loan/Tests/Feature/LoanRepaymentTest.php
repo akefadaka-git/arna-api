@@ -855,6 +855,50 @@ final class LoanRepaymentTest extends TestCase
         ]);
     }
 
+    public function test_retry_replays_original_response_and_hashes_equivalent_decimal_values_canonically(): void
+    {
+        $loan = $this->makeActiveLoanWithSchedule();
+        $obligation = $this->makePrincipalObligation($loan);
+        $originalHeaders = [
+            'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'repayment-original-response-0001',
+        ];
+
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $original = $this->withHeaders($originalHeaders)->postJson(
+            route('api.loans.repay', ['loan' => $loan->id]),
+            $this->validPayload($obligation, amount: '500.0'),
+        )->assertStatus(200);
+
+        $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'repayment-later-operation-0001',
+        ])->postJson(
+            route('api.loans.repay', ['loan' => $loan->id]),
+            $this->validPayload($obligation, amount: '250.0000'),
+        )->assertStatus(200);
+
+        // Equivalent decimal formatting is the same economic payload. The
+        // response must be the original 500.0000 snapshot, not the current
+        // loan representation after the later 250.0000 repayment.
+        $replay = $this->withHeaders($originalHeaders)->postJson(
+            route('api.loans.repay', ['loan' => $loan->id]),
+            $this->validPayload($obligation, amount: '500.0000'),
+        )->assertStatus(200);
+
+        $this->assertSame($original->getContent(), $replay->getContent());
+        $this->assertSame(2, Payment::query()->where('wallet_id', $this->wallet->id)->count());
+        $this->assertSame('750.0000', (string) $loan->fresh()->settled_amount);
+
+        $this->assertDatabaseHas('loan_repayment_idempotencies', [
+            'tenant_id' => $this->tenant->id,
+            'loan_id' => $loan->id,
+            'idempotency_key' => 'repayment-original-response-0001',
+            'response_status' => 200,
+        ]);
+    }
+
     public function test_distinct_repayments_accumulate_settled_amount(): void
     {
         $loan = $this->makeActiveLoanWithSchedule();
