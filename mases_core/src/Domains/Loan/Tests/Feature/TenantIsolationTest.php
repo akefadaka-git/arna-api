@@ -390,6 +390,7 @@ final class TenantIsolationTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenantA->id,
+            'Idempotency-Key' => 'tenant-isolation-repayment-key-0001',
         ])->postJson(route('api.loans.repay', ['loan' => $loanB->id]), [
             'amount' => '500.0000',
             'allocations' => [[

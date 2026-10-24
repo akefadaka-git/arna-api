@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Loan\Services;
 
+use Closure;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 use LogicException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use MaaleArna\MASES\Core\Domains\Loan\Enums\InstallmentStatus;
 use MaaleArna\MASES\Core\Domains\Loan\Enums\LoanStatus;
 use MaaleArna\MASES\Core\Domains\Loan\Events\LoanInstallmentSettled;
@@ -360,16 +363,31 @@ final class LoanRepaymentService
         Loan $loan,
         string $amount,
         array $allocations,
+        string $idempotencyKey,
+        Closure $responseFactory,
         ?Carbon $receivedAt = null,
         ?string $referenceType = null,
         ?string $referenceId = null,
         ?string $description = null,
         ?int $actorUserId = null,
     ): Loan {
-        return DB::transaction(function () use (
+        $requestHash = $this->hashRepaymentRequest(
+            $amount,
+            $allocations,
+            $receivedAt,
+            $referenceType,
+            $referenceId,
+            $description,
+        );
+
+        try {
+            return DB::transaction(function () use (
             $loan,
             $amount,
             $allocations,
+            $idempotencyKey,
+            $requestHash,
+            $responseFactory,
             $receivedAt,
             $referenceType,
             $referenceId,
@@ -383,6 +401,16 @@ final class LoanRepaymentService
             $current = Loan::query()
                 ->whereKey($loan->id)
                 ->firstOrFail();
+
+            // The unique tenant/loan/key constraint arbitrates concurrent retries.
+            // This reservation is in the same transaction as every financial write.
+            DB::table('loan_repayment_idempotencies')->insert([
+                'tenant_id'       => (int) $current->tenant_id,
+                'loan_id'         => (int) $current->id,
+                'idempotency_key' => $idempotencyKey,
+                'request_hash'    => $requestHash,
+                'created_at'      => Carbon::now(),
+            ]);
 
             // -----------------------------------------------------------------
             // 2. Assert the loan is in a repayable state.
@@ -489,9 +517,26 @@ final class LoanRepaymentService
                 );
             }
 
+            // Persist the payment link before commit; the idempotency row and
+            // financial writes commit or roll back as one unit.
+            DB::table('loan_repayment_idempotencies')
+                ->where('tenant_id', (int) $current->tenant_id)
+                ->where('loan_id', (int) $current->id)
+                ->where('idempotency_key', $idempotencyKey)
+                ->update(['payment_id' => (int) $payment->id]);
+
             // -----------------------------------------------------------------
-            // 8. Update the loan's `settled_amount`.
+            // 8. Acquire the loan lock only after Wallet -> Payment ->
+            //    Obligation -> PaymentAllocation locks have been acquired.
+            //    Re-read under lock so settled_amount is never derived from
+            //    a stale snapshot. Re-check status after waiting for the lock.
             // -----------------------------------------------------------------
+            $current = Loan::query()
+                ->whereKey($current->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $this->assertRepayableStatus($current);
+
             $current->settled_amount = bcadd(
                 (string) $current->settled_amount,
                 $amount,
@@ -547,8 +592,96 @@ final class LoanRepaymentService
 
             $current->refresh();
 
+            // Build and persist the exact successful JSON payload before the
+            // outer transaction commits. A retry can then replay this snapshot
+            // even if later repayments change the loan's current representation.
+            $responseBody = $responseFactory($current);
+            if (!is_array($responseBody)) {
+                throw new LogicException(
+                    'Loan repayment response factory must return an array payload.'
+                );
+            }
+
+            DB::table('loan_repayment_idempotencies')
+                ->where('tenant_id', (int) $current->tenant_id)
+                ->where('loan_id', (int) $current->id)
+                ->where('idempotency_key', $idempotencyKey)
+                ->update([
+                    'response_status' => 200,
+                    'response_body' => json_encode($responseBody, JSON_THROW_ON_ERROR),
+                ]);
+
             return $current;
-        });
+            });
+        } catch (QueryException $exception) {
+            // A duplicate unique key means another request with this key committed
+            // (the database waits for that transaction before raising the conflict).
+            $existing = DB::table('loan_repayment_idempotencies')
+                ->where('tenant_id', (int) $loan->tenant_id)
+                ->where('loan_id', (int) $loan->id)
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($existing === null) {
+                throw $exception;
+            }
+
+            if (!hash_equals((string) $existing->request_hash, $requestHash)) {
+                throw new ConflictHttpException(
+                    'This Idempotency-Key was already used with a different repayment payload.',
+                    $exception,
+                );
+            }
+
+            return Loan::query()->whereKey($loan->id)->firstOrFail();
+        }
+    }
+
+    /**
+     * Hash the normalized business payload. Allocation order is preserved because
+     * it determines the ordered allocation records and repayment event payload.
+     */
+    private function hashRepaymentRequest(
+        string $amount,
+        array $allocations,
+        ?Carbon $receivedAt,
+        ?string $referenceType,
+        ?string $referenceId,
+        ?string $description,
+    ): string {
+        $canonicalAllocations = array_map(
+            static fn (array $instruction): array => [
+                'obligation_id' => (int) ($instruction['obligation_id'] ?? 0),
+                'amount' => self::canonicalDecimalForHash(
+                    (string) ($instruction['amount'] ?? '')
+                ),
+            ],
+            array_values($allocations),
+        );
+
+        return hash('sha256', json_encode([
+            'amount' => self::canonicalDecimalForHash($amount),
+            'allocations' => $canonicalAllocations,
+            'received_at' => $receivedAt?->copy()->utc()->format('Y-m-d\TH:i:s.u\Z'),
+            'reference_type' => $referenceType,
+            'reference_id' => $referenceId,
+            'description' => $description,
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * Canonicalize valid decimal strings to scale four for idempotency hashing.
+     * Invalid input is left trimmed so normal validation can reject it later.
+     */
+    private static function canonicalDecimalForHash(string $value): string
+    {
+        $value = trim($value);
+
+        if (!preg_match('/^\\d+(?:\\.\\d{1,4})?$/D', $value)) {
+            return $value;
+        }
+
+        return bcadd($value, '0', self::FINAL_SCALE);
     }
 
     // =========================================================================

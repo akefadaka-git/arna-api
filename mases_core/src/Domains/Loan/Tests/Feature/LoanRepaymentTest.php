@@ -231,6 +231,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation),
@@ -253,6 +254,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation),
@@ -280,6 +282,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation, amount: '500.0000'),
@@ -303,6 +306,7 @@ final class LoanRepaymentTest extends TestCase
 
         $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation, amount: '500.0000'),
@@ -324,6 +328,7 @@ final class LoanRepaymentTest extends TestCase
 
         $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation, amount: '500.0000'),
@@ -342,6 +347,7 @@ final class LoanRepaymentTest extends TestCase
 
         $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation, amount: '500.0000'),
@@ -360,6 +366,7 @@ final class LoanRepaymentTest extends TestCase
 
         $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation, amount: '500.0000'),
@@ -382,6 +389,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation, amount: '2000.0000'),
@@ -402,6 +410,7 @@ final class LoanRepaymentTest extends TestCase
 
         $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation, amount: '2000.0000'),
@@ -426,6 +435,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(route('api.loans.repay', ['loan' => $loan->id]), [
             'allocations' => [[
                 'obligation_id' => (int) $obligation->id,
@@ -445,6 +455,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(route('api.loans.repay', ['loan' => $loan->id]), [
             'amount' => '500.0000',
         ]);
@@ -461,6 +472,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(route('api.loans.repay', ['loan' => $loan->id]), [
             'amount'      => '500.0000',
             'allocations' => [],
@@ -479,6 +491,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(route('api.loans.repay', ['loan' => $loan->id]), [
             'amount' => 'not-a-number',
             'allocations' => [[
@@ -504,6 +517,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(route('api.loans.repay', ['loan' => $loan->id]), [
             'amount' => '500.0000',
             'allocations' => [[
@@ -537,6 +551,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(route('api.loans.repay', ['loan' => $loan->id]), [
             'amount' => '600.0000',
             'allocations' => [
@@ -561,6 +576,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(route('api.loans.repay', ['loan' => $loan->id]), [
             'amount' => '500.0000',
             'allocations' => [[
@@ -586,6 +602,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(route('api.loans.repay', ['loan' => $loan->id]), [
             'amount' => '500.0000',
             'allocations' => [[
@@ -611,6 +628,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation),
@@ -629,6 +647,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation),
@@ -647,6 +666,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation),
@@ -665,6 +685,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation),
@@ -684,6 +705,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(route('api.loans.repay', ['loan' => 999999]), [
             'amount' => '500.0000',
             'allocations' => [[
@@ -708,6 +730,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(route('api.loans.repay', ['loan' => $foreignLoan->id]), [
             'amount' => '500.0000',
             'allocations' => [[
@@ -737,6 +760,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->otherTenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation),
@@ -759,6 +783,7 @@ final class LoanRepaymentTest extends TestCase
 
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'test-repayment-' . uniqid(),
         ])->postJson(
             route('api.loans.repay', ['loan' => $loan->id]),
             $this->validPayload($obligation, amount: '500.0000'),
@@ -799,6 +824,147 @@ final class LoanRepaymentTest extends TestCase
                 'amount'        => $amount,
             ]],
         ];
+    }
+
+    public function test_replaying_same_idempotency_key_does_not_create_a_second_payment(): void
+    {
+        $loan = $this->makeActiveLoanWithSchedule();
+        $obligation = $this->makePrincipalObligation($loan);
+        $payload = $this->validPayload($obligation, amount: '500.0000');
+        $headers = [
+            'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'repayment-retry-key-0001',
+        ];
+
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $this->withHeaders($headers)
+            ->postJson(route('api.loans.repay', ['loan' => $loan->id]), $payload)
+            ->assertStatus(200);
+
+        $this->withHeaders($headers)
+            ->postJson(route('api.loans.repay', ['loan' => $loan->id]), $payload)
+            ->assertStatus(200);
+
+        $this->assertSame(1, Payment::query()->where('wallet_id', $this->wallet->id)->count());
+        $this->assertSame('500.0000', (string) $loan->fresh()->settled_amount);
+        $this->assertDatabaseHas('loan_repayment_idempotencies', [
+            'tenant_id' => $this->tenant->id,
+            'loan_id' => $loan->id,
+            'idempotency_key' => 'repayment-retry-key-0001',
+        ]);
+    }
+
+    public function test_retry_replays_original_response_and_hashes_equivalent_decimal_values_canonically(): void
+    {
+        $loan = $this->makeActiveLoanWithSchedule();
+        $obligation = $this->makePrincipalObligation($loan);
+        $originalHeaders = [
+            'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'repayment-original-response-0001',
+        ];
+
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $original = $this->withHeaders($originalHeaders)->postJson(
+            route('api.loans.repay', ['loan' => $loan->id]),
+            $this->validPayload($obligation, amount: '500.0'),
+        )->assertStatus(200);
+
+        $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'repayment-later-operation-0001',
+        ])->postJson(
+            route('api.loans.repay', ['loan' => $loan->id]),
+            $this->validPayload($obligation, amount: '250.0000'),
+        )->assertStatus(200);
+
+        // Equivalent decimal formatting is the same economic payload. The
+        // response must be the original 500.0000 snapshot, not the current
+        // loan representation after the later 250.0000 repayment.
+        $replay = $this->withHeaders($originalHeaders)->postJson(
+            route('api.loans.repay', ['loan' => $loan->id]),
+            $this->validPayload($obligation, amount: '500.0000'),
+        )->assertStatus(200);
+
+        $this->assertSame($original->getContent(), $replay->getContent());
+        $this->assertSame(2, Payment::query()->where('wallet_id', $this->wallet->id)->count());
+        $this->assertSame('750.0000', (string) $loan->fresh()->settled_amount);
+
+        $this->assertDatabaseHas('loan_repayment_idempotencies', [
+            'tenant_id' => $this->tenant->id,
+            'loan_id' => $loan->id,
+            'idempotency_key' => 'repayment-original-response-0001',
+            'response_status' => 200,
+        ]);
+    }
+
+    public function test_distinct_repayments_accumulate_settled_amount(): void
+    {
+        $loan = $this->makeActiveLoanWithSchedule();
+        $obligation = $this->makePrincipalObligation($loan);
+
+        Sanctum::actingAs($this->admin, ['*']);
+
+        foreach ([
+            ['key' => 'repayment-distinct-key-0001', 'amount' => '500.0000'],
+            ['key' => 'repayment-distinct-key-0002', 'amount' => '600.0000'],
+        ] as $repayment) {
+            $this->withHeaders([
+                'X-Tenant-ID' => (string) $this->tenant->id,
+                'Idempotency-Key' => $repayment['key'],
+            ])->postJson(
+                route('api.loans.repay', ['loan' => $loan->id]),
+                $this->validPayload($obligation, amount: $repayment['amount']),
+            )->assertStatus(200);
+        }
+
+        $this->assertSame('1100.0000', (string) $loan->fresh()->settled_amount);
+        $this->assertSame(2, Payment::query()->where('wallet_id', $this->wallet->id)->count());
+    }
+
+    public function test_repayment_requires_idempotency_key_header(): void
+    {
+        $loan = $this->makeActiveLoanWithSchedule();
+        $obligation = $this->makePrincipalObligation($loan);
+
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenant->id,
+        ])->postJson(
+            route('api.loans.repay', ['loan' => $loan->id]),
+            $this->validPayload($obligation, amount: '500.0000'),
+        )->assertStatus(422)->assertJsonValidationErrors(['idempotency_key']);
+    }
+
+    public function test_reusing_idempotency_key_with_different_payload_returns_conflict(): void
+    {
+        $loan = $this->makeActiveLoanWithSchedule();
+        $obligation = $this->makePrincipalObligation($loan);
+        $headers = [
+            'X-Tenant-ID' => (string) $this->tenant->id,
+            'Idempotency-Key' => 'repayment-retry-key-0002',
+        ];
+
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $this->withHeaders($headers)
+            ->postJson(
+                route('api.loans.repay', ['loan' => $loan->id]),
+                $this->validPayload($obligation, amount: '500.0000'),
+            )
+            ->assertStatus(200);
+
+        $this->withHeaders($headers)
+            ->postJson(
+                route('api.loans.repay', ['loan' => $loan->id]),
+                $this->validPayload($obligation, amount: '600.0000'),
+            )
+            ->assertStatus(409);
+
+        $this->assertSame(1, Payment::query()->where('wallet_id', $this->wallet->id)->count());
+        $this->assertSame('500.0000', (string) $loan->fresh()->settled_amount);
     }
 
     private function makePolicy(): VersionedPolicy
