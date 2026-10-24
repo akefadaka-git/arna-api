@@ -855,6 +855,45 @@ final class LoanRepaymentTest extends TestCase
         ]);
     }
 
+    public function test_distinct_repayments_accumulate_settled_amount(): void
+    {
+        $loan = $this->makeActiveLoanWithSchedule();
+        $obligation = $this->makePrincipalObligation($loan);
+
+        Sanctum::actingAs($this->admin, ['*']);
+
+        foreach ([
+            ['key' => 'repayment-distinct-key-0001', 'amount' => '500.0000'],
+            ['key' => 'repayment-distinct-key-0002', 'amount' => '600.0000'],
+        ] as $repayment) {
+            $this->withHeaders([
+                'X-Tenant-ID' => (string) $this->tenant->id,
+                'Idempotency-Key' => $repayment['key'],
+            ])->postJson(
+                route('api.loans.repay', ['loan' => $loan->id]),
+                $this->validPayload($obligation, amount: $repayment['amount']),
+            )->assertStatus(200);
+        }
+
+        $this->assertSame('1100.0000', (string) $loan->fresh()->settled_amount);
+        $this->assertSame(2, Payment::query()->where('wallet_id', $this->wallet->id)->count());
+    }
+
+    public function test_repayment_requires_idempotency_key_header(): void
+    {
+        $loan = $this->makeActiveLoanWithSchedule();
+        $obligation = $this->makePrincipalObligation($loan);
+
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $this->withHeaders([
+            'X-Tenant-ID' => (string) $this->tenant->id,
+        ])->postJson(
+            route('api.loans.repay', ['loan' => $loan->id]),
+            $this->validPayload($obligation, amount: '500.0000'),
+        )->assertStatus(422)->assertJsonValidationErrors(['idempotency_key']);
+    }
+
     public function test_reusing_idempotency_key_with_different_payload_returns_conflict(): void
     {
         $loan = $this->makeActiveLoanWithSchedule();
