@@ -8,6 +8,7 @@ use Gate;
 use LogicException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\Loan\Http\Requests\StoreRepaymentRequest;
 use MaaleArna\MASES\Core\Domains\Loan\Http\Resources\LoanResource;
 use MaaleArna\MASES\Core\Domains\Loan\Models\Loan;
@@ -217,11 +218,23 @@ final class LoanRepaymentController
         /** @var list<array{obligation_id: int, amount: string}> $allocations */
         $allocations = $validated['allocations'];
 
+        $responseFactory = static function (Loan $responseLoan) use ($request): array {
+            // Build the response while the repayment transaction is still open,
+            // so the exact successful payload can be committed with the payment.
+            $responseLoan->loadMissing('installments');
+
+            return [
+                'success' => true,
+                'data' => (new LoanResource($responseLoan))->toArray($request),
+            ];
+        };
+
         $loan = $this->repaymentService->record(
             loan:           $loan,
             amount:         (string) $validated['amount'],
             allocations:    $allocations,
             idempotencyKey: (string) $validated['idempotency_key'],
+            responseFactory: $responseFactory,
             receivedAt:     $receivedAt,
             referenceType:  $validated['reference_type'] ?? null,
             referenceId:    $validated['reference_id'] ?? null,
@@ -229,11 +242,27 @@ final class LoanRepaymentController
             actorUserId:    $request->user()?->getKey(),
         );
 
-        // ---------------------------------------------------------------------
-        // Eager-load the installments for the response so the client sees
-        // the per-installment settlement effect of the repayment. See
-        // the class docblock §"The eager-load choice".
-        // ---------------------------------------------------------------------
+        // A duplicate request returns the original committed response snapshot,
+        // not a newly serialized representation of the loan's current state.
+        $tenantId = (int) $loan->tenant_id;
+        $snapshot = DB::table('loan_repayment_idempotencies')
+            ->where('tenant_id', $tenantId)
+            ->where('loan_id', (int) $loan->id)
+            ->where('idempotency_key', (string) $validated['idempotency_key'])
+            ->first(['response_status', 'response_body']);
+
+        if ($snapshot !== null && $snapshot->response_body !== null) {
+            $body = json_decode(
+                (string) $snapshot->response_body,
+                true,
+                512,
+                JSON_THROW_ON_ERROR,
+            );
+
+            return response()->json($body, (int) ($snapshot->response_status ?? 200));
+        }
+
+        // Defensive fallback for legacy/incomplete idempotency records.
         $loan->loadMissing('installments');
 
         return response()->json([
