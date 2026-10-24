@@ -221,6 +221,7 @@ final class LoanRepaymentController
             loan:           $loan,
             amount:         (string) $validated['amount'],
             allocations:    $allocations,
+            idempotencyKey: (string) $validated['idempotency_key'],
             receivedAt:     $receivedAt,
             referenceType:  $validated['reference_type'] ?? null,
             referenceId:    $validated['reference_id'] ?? null,
