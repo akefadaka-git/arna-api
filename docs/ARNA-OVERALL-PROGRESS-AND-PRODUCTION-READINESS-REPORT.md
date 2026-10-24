@@ -82,13 +82,13 @@ The next implementation step requires a separately scoped change request approvi
 A separate bounded implementation is available as [draft PR #57](https://github.com/akeayu/arna-api/pull/57), branch `fix/loan-repayment-idempotency-concurrency-2026-10-24`, based on `1ef479898975f9cdab23d94ca7d4af739ba08797`.
 
 Implemented on the branch (source changes committed; not yet runtime-verified):
-- Added tenant+loan scoped idempotency persistence with a unique `(tenant_id, loan_id, idempotency_key)` constraint and a request hash.
+- Added tenant+loan scoped idempotency persistence in the canonical flat `database/migrations/` directory, with a unique `(tenant_id, loan_id, idempotency_key)` constraint and a request hash.
 - Required the `Idempotency-Key` request header (16–128 characters, restricted to letters, digits, `.`, `_`, `:`, `-`).
 - Same-key/same-payload retries return the existing loan state without creating a second payment; same-key/different-payload requests return HTTP 409.
 - Moved the loan row lock until after Wallet → Payment → Obligation → PaymentAllocation work, re-read the loan under `lockForUpdate()`, and re-check its repayable status before updating `settled_amount`.
-- Added feature regressions for replay, key reuse conflict, required header, and additive totals across distinct keys.
+- Added feature regressions for replay, key reuse conflict, required header, additive totals across distinct keys, and canonical migration discovery.
 
-**Verification:** tests NOT RUN; no CI workflow was dispatched. True simultaneous MySQL concurrency has NOT been exercised yet; the additive-total regression is sequential and is not evidence of a concurrent run. Migration discovery/execution is NOT VERIFIED. The implementation branch is not merged and no production database or deployment action occurred.
+**Verification:** PHP tests and migration execution NOT RUN. GitHub automatically ran two workflows against earlier head `883b74783ae3aa49fd434c8e1c2658dd1a320f9e`; both failed: [run 40094302868](https://github.com/akeayu/arna-api/actions/runs/40094302868) and [run 40094302873](https://github.com/akeayu/arna-api/actions/runs/40094302873). Step summaries were empty and log retrieval returned `BlobNotFound`, so the failure cause is UNKNOWN. No workflow was manually dispatched or rerun. The migration has since been moved to the canonical flat path and a discovery regression was added, but neither change has runtime verification. True simultaneous MySQL concurrency has NOT been exercised; the additive-total regression is sequential and is not evidence of a concurrent run. The implementation branch is not merged and no production database or deployment action occurred.
 
 The wallet PR #56 remains unmerged; its CI failures remain unexplained and its regression test remains unverified. Per Owner direction, do not retry log retrieval. Next step: review the diff and run the targeted migration/test suite on the exact implementation head; no merge or deployment until exact-head evidence and required approvals.
 
