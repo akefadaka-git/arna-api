@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Loan\Services;
 
+use Closure;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -363,6 +364,7 @@ final class LoanRepaymentService
         string $amount,
         array $allocations,
         string $idempotencyKey,
+        Closure $responseFactory,
         ?Carbon $receivedAt = null,
         ?string $referenceType = null,
         ?string $referenceId = null,
@@ -385,6 +387,7 @@ final class LoanRepaymentService
             $allocations,
             $idempotencyKey,
             $requestHash,
+            $responseFactory,
             $receivedAt,
             $referenceType,
             $referenceId,
@@ -589,6 +592,25 @@ final class LoanRepaymentService
 
             $current->refresh();
 
+            // Build and persist the exact successful JSON payload before the
+            // outer transaction commits. A retry can then replay this snapshot
+            // even if later repayments change the loan's current representation.
+            $responseBody = $responseFactory($current);
+            if (!is_array($responseBody)) {
+                throw new LogicException(
+                    'Loan repayment response factory must return an array payload.'
+                );
+            }
+
+            DB::table('loan_repayment_idempotencies')
+                ->where('tenant_id', (int) $current->tenant_id)
+                ->where('loan_id', (int) $current->id)
+                ->where('idempotency_key', $idempotencyKey)
+                ->update([
+                    'response_status' => 200,
+                    'response_body' => json_encode($responseBody, JSON_THROW_ON_ERROR),
+                ]);
+
             return $current;
             });
         } catch (QueryException $exception) {
@@ -627,14 +649,39 @@ final class LoanRepaymentService
         ?string $referenceId,
         ?string $description,
     ): string {
+        $canonicalAllocations = array_map(
+            static fn (array $instruction): array => [
+                'obligation_id' => (int) ($instruction['obligation_id'] ?? 0),
+                'amount' => self::canonicalDecimalForHash(
+                    (string) ($instruction['amount'] ?? '')
+                ),
+            ],
+            array_values($allocations),
+        );
+
         return hash('sha256', json_encode([
-            'amount' => trim($amount),
-            'allocations' => array_values($allocations),
-            'received_at' => $receivedAt?->toIso8601String(),
+            'amount' => self::canonicalDecimalForHash($amount),
+            'allocations' => $canonicalAllocations,
+            'received_at' => $receivedAt?->copy()->utc()->format('Y-m-d\\TH:i:s.u\\Z'),
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
             'description' => $description,
         ], JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * Canonicalize valid decimal strings to scale four for idempotency hashing.
+     * Invalid input is left trimmed so normal validation can reject it later.
+     */
+    private static function canonicalDecimalForHash(string $value): string
+    {
+        $value = trim($value);
+
+        if (!preg_match('/^\\d+(?:\\.\\d{1,4})?$/D', $value)) {
+            return $value;
+        }
+
+        return bcadd($value, '0', self::FINAL_SCALE);
     }
 
     // =========================================================================
