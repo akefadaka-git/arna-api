@@ -197,6 +197,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => (int) $principalObligation->id,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-01',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -218,6 +220,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => (int) $principalObligation->id,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-02',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -240,6 +244,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => (int) $principalObligation->id,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-03',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -259,6 +265,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => (int) $principalObligation->id,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-04',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -278,6 +286,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => (int) $principalObligation->id,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-05',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -297,6 +307,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => (int) $principalObligation->id,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-06',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -334,6 +346,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 ['obligation_id' => (int) $principalObligation->id, 'amount' => '2000.0000'],
                 ['obligation_id' => (int) $interestObligation->id,  'amount' => '20.0000'],
             ],
+            idempotencyKey: 'loan-repayment-unit-07',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -361,6 +375,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 ['obligation_id' => (int) $principalObligation->id, 'amount' => '2000.0000'],
                 ['obligation_id' => (int) $interestObligation->id,  'amount' => '20.0000'],
             ],
+            idempotencyKey: 'loan-repayment-unit-08',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -402,6 +418,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 ['obligation_id' => (int) $interest1->id,           'amount' => '20.0000'],
                 ['obligation_id' => (int) $interest2->id,           'amount' => '10.0000'],
             ],
+            idempotencyKey: 'loan-repayment-unit-09',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -436,6 +454,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 ['obligation_id' => (int) $interest1->id,           'amount' => '20.0000'],
                 ['obligation_id' => (int) $interest2->id,           'amount' => '10.0000'],
             ],
+            idempotencyKey: 'loan-repayment-unit-10',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -462,6 +482,8 @@ final class LoanRepaymentServiceTest extends TestCase
                     'obligation_id' => (int) $principalObligation->id,
                     'amount'        => 'not-a-number',
                 ]],
+                idempotencyKey: 'loan-repayment-unit-11',
+                responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
                 actorUserId: $this->actor->id,
             );
 
@@ -484,6 +506,8 @@ final class LoanRepaymentServiceTest extends TestCase
                     'obligation_id' => (int) $principalObligation->id,
                     'amount'        => '0.0000',
                 ]],
+                idempotencyKey: 'loan-repayment-unit-12',
+                responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
                 actorUserId: $this->actor->id,
             );
 
@@ -507,6 +531,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 loan:        $loan,
                 amount:      '500.0000',
                 allocations: [],
+                idempotencyKey: 'loan-repayment-unit-13',
+                responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
                 actorUserId: $this->actor->id,
             );
 
@@ -529,6 +555,8 @@ final class LoanRepaymentServiceTest extends TestCase
                     'obligation_id' => (int) $principalObligation->id,
                     'amount'        => '400.0000',
                 ]],
+                idempotencyKey: 'loan-repayment-unit-14',
+                responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
                 actorUserId: $this->actor->id,
             );
 
@@ -557,6 +585,8 @@ final class LoanRepaymentServiceTest extends TestCase
                     'obligation_id' => (int) $otherObligation->id,
                     'amount'        => '500.0000',
                 ]],
+                idempotencyKey: 'loan-repayment-unit-15',
+                responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
                 actorUserId: $this->actor->id,
             );
 
@@ -583,6 +613,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => 999999,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-16',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
     }
@@ -603,6 +635,8 @@ final class LoanRepaymentServiceTest extends TestCase
                     'obligation_id' => 1,
                     'amount'        => '500.0000',
                 ]],
+                idempotencyKey: 'loan-repayment-unit-17',
+                responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
                 actorUserId: $this->actor->id,
             );
 
@@ -624,6 +658,8 @@ final class LoanRepaymentServiceTest extends TestCase
                     'obligation_id' => 1,
                     'amount'        => '500.0000',
                 ]],
+                idempotencyKey: 'loan-repayment-unit-18',
+                responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
                 actorUserId: $this->actor->id,
             );
 
@@ -645,6 +681,8 @@ final class LoanRepaymentServiceTest extends TestCase
                     'obligation_id' => 1,
                     'amount'        => '500.0000',
                 ]],
+                idempotencyKey: 'loan-repayment-unit-19',
+                responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
                 actorUserId: $this->actor->id,
             );
 
@@ -672,6 +710,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => 1,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-20',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
     }
@@ -698,6 +738,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => (int) $principalObligation->id,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-21',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
     }
@@ -720,6 +762,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => (int) $principalObligation->id,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-22',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -748,6 +792,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => (int) $principalObligation->id,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-23',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -781,6 +827,8 @@ final class LoanRepaymentServiceTest extends TestCase
                 'obligation_id' => (int) $principalObligation->id,
                 'amount'        => '500.0000',
             ]],
+            idempotencyKey: 'loan-repayment-unit-24',
+            responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
             actorUserId: $this->actor->id,
         );
 
@@ -807,6 +855,8 @@ final class LoanRepaymentServiceTest extends TestCase
                         'obligation_id' => (int) $principalObligation->id,
                         'amount'        => '500.0000',
                     ]],
+                    idempotencyKey: 'loan-repayment-unit-25',
+                    responseFactory: static fn (Loan $current): array => ['success' => true, 'data' => ['id' => (int) $current->id]],
                     actorUserId: $this->actor->id,
                 );
 
