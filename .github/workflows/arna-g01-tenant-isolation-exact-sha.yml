@@ -1,6 +1,8 @@
 name: ARNA G-01 tenant isolation regression gate
 
 on:
+  push:
+    branches: [audit/g01-tenant-isolation-exact-sha]
   pull_request:
     branches: [main]
 
