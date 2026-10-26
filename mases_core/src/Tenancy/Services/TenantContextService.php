@@ -79,29 +79,48 @@ final class TenantContextService
     private ?Tenant $tenant = null;
 
     /**
-     * Set the active tenant by its ID.
+     * Set the active tenant by its primary key.
      *
-     * Retrieves the tenant row directly via the query builder, bypassing
-     * Eloquent global scopes, and hydrates a Tenant model from the result.
-     * If no matching active, non-deleted row exists, returns null and
-     * leaves the context empty.
-     *
-     * @param  int|string $tenantId
-     * @return Tenant|null
+     * X-Tenant-ID and other identifier-based integrations use this method.
+     * A slug is never implicitly interpreted as a primary key.
      */
     public function setTenantById(int|string $tenantId): ?Tenant
     {
+        return $this->loadActiveTenant('id', $tenantId, 'tenant_id');
+    }
+
+    /**
+     * Set the active tenant by its canonical URL slug.
+     *
+     * This is reserved for a validated tenant subdomain. It is deliberately
+     * separate from setTenantById() so a header value cannot silently change
+     * from an ID contract into a slug contract.
+     */
+    public function setTenantBySlug(string $tenantSlug): ?Tenant
+    {
+        return $this->loadActiveTenant('slug', $tenantSlug, 'tenant_slug');
+    }
+
+    /**
+     * Load only active, non-deleted tenants using a caller-selected,
+     * internally controlled column name. Never accepts arbitrary columns
+     * from request input.
+     *
+     * @param 'id'|'slug' $column
+     */
+    private function loadActiveTenant(string $column, int|string $identifier, string $logKey): ?Tenant
+    {
         try {
             $row = DB::table('tenants')
-                ->where('id', $tenantId)
+                ->where($column, $identifier)
                 ->where('is_active', 1)
                 ->whereNull('deleted_at')
                 ->first();
-        } catch (\Throwable $e) {
+        } catch (\\Throwable $e) {
             Log::error('Tenant lookup threw an exception', [
-                'tenant_id' => $tenantId,
-                'error'     => $e->getMessage(),
-                'class'     => $e::class,
+                $logKey => $identifier,
+                'error' => $e->getMessage(),
+                'class' => $e::class,
             ]);
 
             $this->tenant = null;
@@ -110,16 +129,10 @@ final class TenantContextService
         }
 
         if ($row === null) {
-            /*
-             * The lookup found nothing. Log the requested tenant ID
-             * and database connection context for diagnosis. Do not
-             * enumerate other tenants or disclose their active-state
-             * metadata in routine application logs.
-             */
             Log::warning('Tenant not found or inactive', [
-                'tenant_id'        => $tenantId,
-                'connection'       => DB::connection()->getName(),
-                'database'   => DB::connection()->getDatabaseName(),
+                $logKey => $identifier,
+                'connection' => DB::connection()->getName(),
+                'database' => DB::connection()->getDatabaseName(),
             ]);
 
             $this->tenant = null;
@@ -127,21 +140,13 @@ final class TenantContextService
             return null;
         }
 
-        /*
-         * Hydrate a Tenant model from the raw row. `newFromBuilder` is
-         * the same entry point Eloquent uses internally when it builds
-         * a model from a query result; it marks the model as existing
-         * and applies casts on attribute access. No query is run a
-         * second time.
-         */
         $tenant = (new Tenant())->newFromBuilder($row);
-
         $this->tenant = $tenant;
 
         Log::debug('Tenant context set', [
-            'tenant_id'   => $tenant->id,
+            'tenant_id' => $tenant->id,
             'tenant_slug' => $tenant->slug,
-            'source'      => 'raw_db_query',
+            'source' => $column === 'slug' ? 'validated_subdomain_slug' : 'primary_key',
         ]);
 
         return $tenant;
