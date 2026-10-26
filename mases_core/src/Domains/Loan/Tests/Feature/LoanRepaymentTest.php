@@ -928,14 +928,22 @@ final class LoanRepaymentTest extends TestCase
         $this->assertSame('8900.0000', (string) $freshObligation->outstanding_amount);
         $this->assertSame(2, Payment::query()->where('wallet_id', $this->wallet->id)->count());
         $this->assertSame(
-            '1100.0000',
-            (string) Payment::query()->where('wallet_id', $this->wallet->id)->sum('amount'),
+            0,
+            bccomp(
+                (string) Payment::query()->where('wallet_id', $this->wallet->id)->sum('amount'),
+                '1100.0000',
+                4,
+            ),
         );
         $this->assertSame(
-            '1100.0000',
-            (string) PaymentAllocation::query()
-                ->where('wallet_id', $this->wallet->id)
-                ->sum('amount'),
+            0,
+            bccomp(
+                (string) PaymentAllocation::query()
+                    ->where('wallet_id', $this->wallet->id)
+                    ->sum('amount'),
+                '1100.0000',
+                4,
+            ),
         );
         $this->assertSame(
             2,
