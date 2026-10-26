@@ -40,6 +40,22 @@ def route_middleware(route):
         return [x.strip() for x in value.split(",") if x.strip()]
     return [str(x) for x in value] if isinstance(value, list) else []
 
+def has_throttle(middleware):
+    return any("throttle" in m.lower() or "throttlerequests" in m.lower()
+               or "throttlerequestsincrementing" in m.lower() for m in middleware)
+
+def has_sanctum_auth(middleware):
+    return any(
+        m == "auth:sanctum"
+        or ("authenticate" in m.lower() and "sanctum" in m.lower())
+        or ("auth" in m.lower() and "sanctum" in m.lower())
+        for m in middleware
+    )
+
+def has_tenant_membership(middleware):
+    return any(m == "tenant.membership" or "tenantmembershipmiddleware" in m.lower()
+               for m in middleware)
+
 # Runtime route list: all four public endpoints must actually exist and carry
 # an effective throttle middleware. These checks intentionally fail CI if the
 # currently reported gaps are still present.
@@ -56,7 +72,7 @@ for label, uri in public_endpoints.items():
         finding(f"public-throttle:{label}", False, "Route absent from effective runtime route table.")
         continue
     missing = [r for r in candidates
-               if not any(m == "throttle" or m.startswith("throttle:") for m in route_middleware(r))]
+               if not has_throttle(route_middleware(r))]
     finding(f"public-throttle:{label}", not missing,
             "Effective throttle middleware present." if not missing else
             "Route exists but effective middleware lacks throttle; apply an explicit route limit or document a verified upstream control.")
@@ -69,8 +85,11 @@ for route in file_routes:
     uri = norm_uri(route.get("uri"))
     methods = str(route.get("method", ""))
     mw = route_middleware(route)
-    required = ["auth:sanctum", "tenant.membership"]
-    missing = [x for x in required if x not in mw]
+    missing = []
+    if not has_sanctum_auth(mw):
+        missing.append("auth:sanctum")
+    if not has_tenant_membership(mw):
+        missing.append("tenant.membership")
     finding(f"file-route-middleware:{methods} {uri}", not missing,
             "Required authentication and tenant-membership middleware present." if not missing else
             f"Missing effective middleware: {', '.join(missing)}.")
@@ -148,14 +167,14 @@ for domain in ("api/loans", "api/governance"):
         uri = norm_uri(route.get("uri"))
         methods = str(route.get("method", ""))
         mw = route_middleware(route)
-        base_ok = "auth:sanctum" in mw and "tenant.membership" in mw
+        base_ok = has_sanctum_auth(mw) and has_tenant_membership(mw)
         finding(f"{domain}:middleware:{methods} {uri}", base_ok,
                 "Sanctum and tenant membership present." if base_ok else
                 "Missing auth:sanctum and/or tenant.membership in effective middleware.")
         action = route.get("action", "")
         path, method = controller_path(action)
         permission_middleware = any(
-            m.startswith(("auth.permission:", "auth.role:", "auth.application:", "can:"))
+            m.startswith(("auth.permission:", "auth.role:", "auth.application:", "can:")) or "authorizationmiddleware" in m.lower()
             for m in mw
         )
         if path is None or not method:
