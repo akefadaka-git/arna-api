@@ -359,11 +359,11 @@ final class TenantResolutionTest extends TestCase
      */
     public function test_tenant_lookup_failure_log_does_not_disclose_tenant_inventory(): void
     {
-        $context = app(\\MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService::class);
+        $context = app(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class);
 
         Log::shouldReceive('warning')
             ->once()
-            ->with('Tenant not found or inactive', \\Mockery::on(
+            ->with('Tenant not found or inactive', \Mockery::on(
                 static function (array $payload): bool {
                     foreach (['tenant_ids', 'is_active_values', 'total_tenants'] as $forbiddenKey) {
                         if (array_key_exists($forbiddenKey, $payload)) {
