@@ -40,6 +40,12 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class TenantContextMiddleware
 {
+    /** @var list<string> Platform subdomains that must never identify tenants. */
+    private const RESERVED_TENANT_SUBDOMAINS = [
+        'www', 'api', 'auth', 'app', 'portal', 'finance',
+        'hr', 'admin', 'arna', 'ai', 'file', 'launcher',
+    ];
+
     /**
      * @var TenantContextResolverInterface
      */
@@ -134,7 +140,10 @@ final class TenantContextMiddleware
         $isSubdomainSlug = ($headerTenant === null || $headerTenant === '')
             && $subdomain !== null
             && $tenantId === $subdomain
-            && preg_match('/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/D', $subdomain) === 1;
+            && preg_match('/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/D', $subdomain) === 1
+            && !in_array($subdomain, self::RESERVED_TENANT_SUBDOMAINS, true);
+
+        $tenantIdentifierKey = $isSubdomainSlug ? 'tenant_slug' : 'tenant_id';
 
         try {
             $tenant = $isSubdomainSlug
@@ -142,7 +151,7 @@ final class TenantContextMiddleware
                 : $this->tenantContext->setTenantById($tenantId);
         } catch (\Throwable $e) {
             Log::error('Failed to set tenant context', [
-                $isSubdomainSlug ? 'tenant_slug' : 'tenant_id' => $tenantId,
+                $tenantIdentifierKey => $tenantId,
                 'error' => $e->getMessage(),
                 'path' => $request->path(),
             ]);
