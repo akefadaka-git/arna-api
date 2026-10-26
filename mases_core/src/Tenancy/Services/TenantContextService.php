@@ -116,7 +116,7 @@ final class TenantContextService
                 ->where('is_active', 1)
                 ->whereNull('deleted_at')
                 ->first();
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             Log::error('Tenant lookup threw an exception', [
                 $logKey => $identifier,
                 'error' => $e->getMessage(),
