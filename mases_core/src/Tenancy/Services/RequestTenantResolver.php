@@ -75,16 +75,23 @@ final class RequestTenantResolver implements TenantContextResolverInterface
             return $headerTenant;
         }
 
-        // Strategy 2: Parse the subdomain from the request host.
-        $host = $request->getHost();
-        $reservedDomains = $this->getReservedDomains();
+        // Strategy 2: Parse exactly one tenant DNS label from the trusted
+        // platform suffix. Reject nested labels, malformed labels, and
+        // suffix lookalikes rather than treating them as tenant identifiers.
+        $host = strtolower($request->getHost());
+        $suffix = '.' . self::DOMAIN_SUFFIX;
+        $reservedDomains = array_map('strtolower', $this->getReservedDomains());
 
-        // Use a robust subdomain detection: check if the host ends with the domain suffix.
-        if (str_ends_with($host, '.' . self::DOMAIN_SUFFIX)) {
-            // Extract the part before the domain suffix.
-            $subdomain = substr($host, 0, -strlen('.' . self::DOMAIN_SUFFIX));
-            // If the subdomain is not empty and not reserved, return it.
-            if ($subdomain !== '' && !in_array($subdomain, $reservedDomains, true)) {
+        if (str_ends_with($host, $suffix)) {
+            $subdomain = substr($host, 0, -strlen($suffix));
+
+            // A tenant subdomain is exactly one DNS label. This excludes
+            // "a.b.maalearna.com.et", leading/trailing hyphens, and
+            // hostnames that could be parsed ambiguously.
+            if (
+                preg_match('/\\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\z/D', $subdomain) === 1
+                && !in_array($subdomain, $reservedDomains, true)
+            ) {
                 return $subdomain;
             }
         }
