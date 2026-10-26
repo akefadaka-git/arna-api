@@ -380,6 +380,11 @@ final class TenantResolutionTest extends TestCase
 
         $response->assertOk()->assertJsonPath('data.tenant_id', null);
         $this->assertFalse($context->hasTenant(), 'Unknown subdomains must not inherit a prior tenant context.');
+
+        $scopedResponse = $this
+            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
+            ->getJson('/api/shareholders');
+        $scopedResponse->assertStatus(400);
     }
 
     public function test_inactive_tenant_subdomain_fails_closed(): void
@@ -404,6 +409,31 @@ final class TenantResolutionTest extends TestCase
             ->getJson('/api/tenant-context');
 
         $response->assertOk()->assertJsonPath('data.tenant_id', null);
+    }
+
+    public function test_subdomain_resolution_does_not_bypass_tenant_membership(): void
+    {
+        $tenant = Tenant::create([
+            'slug' => 'restricted-tenant',
+            'name_en' => 'Restricted Tenant',
+            'is_active' => true,
+        ]);
+        $user = User::create([
+            'email' => 'subdomain-nonmember-' . uniqid() . '@example.test',
+            'password' => bcrypt('password123'),
+            'first_name_en' => 'Test',
+            'is_active' => true,
+            'locale' => 'am',
+        ]);
+        // Deliberately do not attach the user to the tenant.
+        Sanctum::actingAs($user, ['*']);
+
+        $host = 'restricted-tenant.maalearna.com.et';
+        $response = $this
+            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
+            ->getJson('/api/shareholders');
+
+        $response->assertStatus(403);
     }
 
     public function test_deleted_tenant_subdomain_fails_closed(): void
