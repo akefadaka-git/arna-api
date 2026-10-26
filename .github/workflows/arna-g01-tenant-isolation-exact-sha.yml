@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      TARGET_SHA: fe4b9b496ab4373013b8491b8b451289e726f048
+      TARGET_SHA: 0b1a86ce9d2780be65652e3f61440d3e261f3c3c
       APP_ENV: testing
       APP_DEBUG: "true"
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
