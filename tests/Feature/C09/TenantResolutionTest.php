@@ -340,9 +340,7 @@ final class TenantResolutionTest extends TestCase
         Sanctum::actingAs($user, ['*']);
 
         $host = 'tenant-a.maalearna.com.et';
-        $response = $this
-            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
-            ->getJson('/api/tenant-context');
+        $response = $this->getJson('https://' . $host . '/api/tenant-context');
 
         $response->assertOk()
             ->assertJsonPath('data.tenant_id', $tenant->id)
@@ -374,16 +372,12 @@ final class TenantResolutionTest extends TestCase
         $this->assertTrue($context->hasTenant());
 
         $host = 'does-not-exist.maalearna.com.et';
-        $response = $this
-            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
-            ->getJson('/api/tenant-context');
+        $response = $this->getJson('https://' . $host . '/api/tenant-context');
 
         $response->assertOk()->assertJsonPath('data.tenant_id', null);
         $this->assertFalse($context->hasTenant(), 'Unknown subdomains must not inherit a prior tenant context.');
 
-        $scopedResponse = $this
-            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
-            ->getJson('/api/shareholders');
+        $scopedResponse = $this->getJson('https://' . $host . '/api/shareholders');
         $scopedResponse->assertStatus(400);
     }
 
@@ -404,9 +398,7 @@ final class TenantResolutionTest extends TestCase
         Sanctum::actingAs($user, ['*']);
 
         $host = 'inactive-tenant.maalearna.com.et';
-        $response = $this
-            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
-            ->getJson('/api/tenant-context');
+        $response = $this->getJson('https://' . $host . '/api/tenant-context');
 
         $response->assertOk()->assertJsonPath('data.tenant_id', null);
     }
@@ -429,9 +421,7 @@ final class TenantResolutionTest extends TestCase
         Sanctum::actingAs($user, ['*']);
 
         $host = 'restricted-tenant.maalearna.com.et';
-        $response = $this
-            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
-            ->getJson('/api/shareholders');
+        $response = $this->getJson('https://' . $host . '/api/shareholders');
 
         $response->assertStatus(403);
     }
@@ -455,9 +445,7 @@ final class TenantResolutionTest extends TestCase
         Sanctum::actingAs($user, ['*']);
 
         $host = 'deleted-tenant.maalearna.com.et';
-        $response = $this
-            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
-            ->getJson('/api/tenant-context');
+        $response = $this->getJson('https://' . $host . '/api/tenant-context');
 
         $response->assertOk()
             ->assertJsonPath('data.tenant_id', null)
@@ -476,9 +464,7 @@ final class TenantResolutionTest extends TestCase
         Sanctum::actingAs($user, ['*']);
 
         $host = 'nested.tenant-a.maalearna.com.et';
-        $response = $this
-            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
-            ->getJson('/api/tenant-context');
+        $response = $this->getJson('https://' . $host . '/api/tenant-context');
 
         $response->assertOk()
             ->assertJsonPath('data.tenant_id', null)
@@ -511,12 +497,8 @@ final class TenantResolutionTest extends TestCase
 
         $host = 'tenant-a.maalearna.com.et';
         $response = $this
-            ->withServerVariables([
-                'HTTP_HOST' => $host,
-                'SERVER_NAME' => $host,
-                'HTTP_X_TENANT_ID' => (string) $tenantB->id,
-            ])
-            ->getJson('/api/tenant-context');
+            ->withHeaders(['X-Tenant-ID' => (string) $tenantB->id])
+            ->getJson('https://' . $host . '/api/tenant-context');
 
         $response->assertOk()->assertJsonPath('data.tenant_id', $tenantB->id);
     }
