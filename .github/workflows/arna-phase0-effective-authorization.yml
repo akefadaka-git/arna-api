@@ -1,0 +1,113 @@
+name: ARNA Phase 0 effective authorization audit
+
+on:
+  push:
+    branches: [audit/phase0-effective-authorization-main]
+    paths:
+      - ".github/workflows/arna-phase0-effective-authorization.yml"
+      - "scripts/phase0-authorization-audit.py"
+      - "routes/**"
+      - "app/Http/Controllers/**"
+      - "mases_core/src/Domains/**"
+      - "mases_core/src/Authorization/**"
+      - "mases_core/src/Tenancy/**"
+      - "bootstrap/app.php"
+      - "composer.json"
+      - "composer.lock"
+      - "tests/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/arna-phase0-effective-authorization.yml"
+      - "scripts/phase0-authorization-audit.py"
+      - "routes/**"
+      - "app/Http/Controllers/**"
+      - "mases_core/src/Domains/**"
+      - "mases_core/src/Authorization/**"
+      - "mases_core/src/Tenancy/**"
+      - "bootstrap/app.php"
+      - "composer.json"
+      - "composer.lock"
+      - "tests/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-phase0-effective-authorization-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  effective-authorization-audit:
+    name: Runtime routes and bounded authorization contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+      DB_FOREIGN_KEYS: "true"
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: null
+    steps:
+      - name: Check out proposed revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, sqlite3, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate and install locked dependencies
+        run: |
+          composer validate --no-check-publish
+          composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Create isolated CI environment and clear cached config
+        run: |
+          : > .env
+          php artisan config:clear
+          php artisan route:clear
+
+      - name: Generate effective runtime route table
+        run: |
+          mkdir -p build
+          php artisan route:list --json --except-vendor > build/phase0-route-list.json
+          php -r '$r=json_decode(file_get_contents("build/phase0-route-list.json"), true); if (!is_array($r)) { fwrite(STDERR, "Invalid route:list JSON\n"); exit(2); } echo "Effective runtime routes: ".count($r)."\n";'
+          php artisan route:list --path=api --except-vendor
+
+      - name: Audit effective middleware and bounded authorization contracts
+        id: audit
+        run: python scripts/phase0-authorization-audit.py build/phase0-route-list.json build/phase0-authorization-report.json
+
+      - name: Run Phase 0 HTTP security regression tests
+        run: |
+          php artisan test --compact \
+            tests/Feature/Phase0PublicEndpointRateLimitTest.php \
+            tests/Feature/Phase0AuthorizationDenialTest.php
+
+      - name: Upload route table and audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arna-phase0-effective-authorization-evidence
+          path: |
+            build/phase0-route-list.json
+            build/phase0-authorization-report.json
+          if-no-files-found: warn
+          retention-days: 14
