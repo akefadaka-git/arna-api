@@ -73,6 +73,11 @@ final class TenantContextMiddleware
         // Normalise the parameter – middleware aliases pass strings.
         $requireTenant = filter_var($requireTenant, FILTER_VALIDATE_BOOLEAN);
 
+        // This service is registered as a singleton. Clear any context left
+        // by an earlier request (notably under long-lived workers) before
+        // resolving this request's tenant.
+        $this->tenantContext->clearTenant();
+
         // Resolve the tenant identifier from the request.
         try {
             $tenantId = $this->resolver->resolve($request);
@@ -117,9 +122,24 @@ final class TenantContextMiddleware
             return $next($request);
         }
 
-        // Attempt to load the tenant by ID.
+        // A non-empty X-Tenant-ID is an explicit primary-key contract.
+        // Only when no such header was supplied may the validated platform
+        // subdomain be interpreted as a tenant slug.
+        $headerTenant = $request->header('X-Tenant-ID');
+        $host = strtolower($request->getHost());
+        $suffix = '.maalearna.com.et';
+        $subdomain = str_ends_with($host, $suffix)
+            ? substr($host, 0, -strlen($suffix))
+            : null;
+        $isSubdomainSlug = ($headerTenant === null || $headerTenant === '')
+            && $subdomain !== null
+            && $tenantId === $subdomain
+            && preg_match('/\\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\z/D', $subdomain) === 1;
+
         try {
-            $tenant = $this->tenantContext->setTenantById($tenantId);
+            $tenant = $isSubdomainSlug
+                ? $this->tenantContext->setTenantBySlug($subdomain)
+                : $this->tenantContext->setTenantById($tenantId);
         } catch (\Throwable $e) {
             Log::error('Failed to set tenant context', [
                 'tenant_id' => $tenantId,
