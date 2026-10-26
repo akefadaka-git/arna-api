@@ -326,7 +326,7 @@ final class TenantContextController extends Controller
             $subdomain = substr($host, 0, -strlen($suffix));
 
             if (
-                preg_match('/\\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\z/D', $subdomain) === 1
+                preg_match('/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/D', $subdomain) === 1
                 && ! in_array($subdomain, self::RESERVED_SUBDOMAINS, true)
             ) {
                 return 'subdomain';
