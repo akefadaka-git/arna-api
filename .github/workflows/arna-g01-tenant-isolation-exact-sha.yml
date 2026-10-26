@@ -89,7 +89,7 @@ jobs:
         run: |
           {
             echo "Workflow revision: ${GITHUB_SHA}"
-            echo "Checked out SHA: $(git rev-parse HEAD)
+            echo "Checked out SHA: $(git rev-parse HEAD)"
             php --version
             composer --version
           } > g01-exact-sha-evidence.txt
