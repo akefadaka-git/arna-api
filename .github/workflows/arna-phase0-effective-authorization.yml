@@ -1,6 +1,19 @@
 name: ARNA Phase 0 effective authorization audit
 
 on:
+  push:
+    branches: [audit/phase0-effective-authorization-main]
+    paths:
+      - ".github/workflows/arna-phase0-effective-authorization.yml"
+      - "scripts/phase0-authorization-audit.py"
+      - "routes/**"
+      - "app/Http/Controllers/**"
+      - "mases_core/src/Domains/**"
+      - "mases_core/src/Authorization/**"
+      - "mases_core/src/Tenancy/**"
+      - "bootstrap/app.php"
+      - "composer.json"
+      - "composer.lock"
   pull_request:
     branches: [main]
     paths:
