@@ -89,7 +89,7 @@ final class RequestTenantResolver implements TenantContextResolverInterface
             // "a.b.maalearna.com.et", leading/trailing hyphens, and
             // hostnames that could be parsed ambiguously.
             if (
-                preg_match('/\\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\z/D', $subdomain) === 1
+                preg_match('/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/D', $subdomain) === 1
                 && !in_array($subdomain, $reservedDomains, true)
             ) {
                 return $subdomain;
