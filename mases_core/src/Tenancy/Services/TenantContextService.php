@@ -62,10 +62,9 @@ use MaaleArna\MASES\Core\Exceptions\TenantException;
  *          lazy-loadable as usual. The rest of the codebase sees no
  *          difference.
  *
- *          On any failure the service now logs the connection name,
- *          the database name, the total tenant count, and the full
- *          list of tenant IDs and `is_active` values — enough to
- *          diagnose a future regression from the log alone.
+ *          On lookup failure, diagnostics include the requested tenant
+ *          ID and database connection context without enumerating other
+ *          tenants or disclosing their active-state metadata.
  *
  * =============================================================================
  * @package MaaleArna\MASES\Core\Tenancy\Services
@@ -112,20 +111,15 @@ final class TenantContextService
 
         if ($row === null) {
             /*
-             * The lookup found nothing. Log enough context to diagnose
-             * without needing to run SQL by hand: the connection name,
-             * the database name, the total tenant count, and the full
-             * set of tenant IDs and their is_active flags. If the
-             * connection is pointed at the wrong database, or a future
-             * migration renames a column, this log will show it.
+             * The lookup found nothing. Log the requested tenant ID
+             * and database connection context for diagnosis. Do not
+             * enumerate other tenants or disclose their active-state
+             * metadata in routine application logs.
              */
             Log::warning('Tenant not found or inactive', [
                 'tenant_id'        => $tenantId,
                 'connection'       => DB::connection()->getName(),
-                'database'         => DB::connection()->getDatabaseName(),
-                'total_tenants'    => DB::table('tenants')->count(),
-                'tenant_ids'       => DB::table('tenants')->pluck('id')->all(),
-                'is_active_values' => DB::table('tenants')->pluck('is_active')->all(),
+                'database'   => DB::connection()->getDatabaseName(),
             ]);
 
             $this->tenant = null;
