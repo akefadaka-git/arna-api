@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      TARGET_SHA: daee19e1e886c62d01039b1d076cdcee2240ffa6
+      TARGET_SHA: fe4b9b496ab4373013b8491b8b451289e726f048
       APP_ENV: testing
       APP_DEBUG: "true"
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -71,6 +71,9 @@ jobs:
 
       - name: Tenant resolution regression tests
         run: php artisan test --compact tests/Feature/C09/TenantResolutionTest.php
+
+      - name: Tenant resolver unit tests
+        run: php artisan test --compact tests/Unit/TenantResolverTest.php
 
       - name: Tenant membership regression tests
         run: php artisan test --compact tests/Feature/TenantMembershipTest.php
