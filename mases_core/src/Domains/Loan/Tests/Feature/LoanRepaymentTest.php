@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Loan\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
@@ -17,6 +18,7 @@ use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use MaaleArna\MASES\Core\Domains\Wallet\Enums\ObligationComponent;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Obligation;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Payment;
+use MaaleArna\MASES\Core\Domains\Wallet\Models\PaymentAllocation;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Wallet;
 use MaaleArna\MASES\Core\Policy\Models\VersionedPolicy;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -919,8 +921,37 @@ final class LoanRepaymentTest extends TestCase
             )->assertStatus(200);
         }
 
-        $this->assertSame('1100.0000', (string) $loan->fresh()->settled_amount);
+        $freshLoan = $loan->fresh();
+        $freshObligation = Obligation::query()->findOrFail($obligation->id);
+
+        $this->assertSame('1100.0000', (string) $freshLoan->settled_amount);
+        $this->assertSame('8900.0000', (string) $freshObligation->outstanding_amount);
         $this->assertSame(2, Payment::query()->where('wallet_id', $this->wallet->id)->count());
+        $this->assertSame(
+            0,
+            bccomp(
+                (string) Payment::query()->where('wallet_id', $this->wallet->id)->sum('amount'),
+                '1100.0000',
+                4,
+            ),
+        );
+        $this->assertSame(
+            0,
+            bccomp(
+                (string) PaymentAllocation::query()
+                    ->where('wallet_id', $this->wallet->id)
+                    ->sum('amount'),
+                '1100.0000',
+                4,
+            ),
+        );
+        $this->assertSame(
+            2,
+            DB::table('loan_repayment_idempotencies')
+                ->where('tenant_id', $this->tenant->id)
+                ->where('loan_id', $loan->id)
+                ->count(),
+        );
     }
 
     public function test_repayment_requires_idempotency_key_header(): void
