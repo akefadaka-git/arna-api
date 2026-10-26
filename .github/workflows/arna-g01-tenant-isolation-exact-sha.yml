@@ -1,0 +1,105 @@
+name: ARNA G-01 tenant isolation regression gate
+
+on:
+  push:
+    branches: [audit/g01-tenant-isolation-exact-sha]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-g01-exact-sha-tenant-isolation
+  cancel-in-progress: false
+
+jobs:
+  tenant-isolation:
+    name: Exact-SHA isolated tenant security suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "true"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+      DB_FOREIGN_KEYS: "true"
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: null
+    steps:
+      - name: Check out proposed pull-request merge revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify tested revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          echo "Workflow revision:    ${GITHUB_SHA}"
+          echo "Checked out revision: ${actual_sha}"
+          test "${actual_sha}" = "${GITHUB_SHA}"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, sqlite3, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Create empty CI-only environment file
+        run: |
+          # The test environment is supplied entirely by the workflow env block.
+          # An empty .env prevents dotenv warnings; it contains no secrets.
+          : > .env
+
+      - name: Clear cached Laravel configuration
+        run: php artisan config:clear
+
+      - name: Tenant resolution regression tests
+        run: php artisan test --compact tests/Feature/C09/TenantResolutionTest.php
+
+      - name: Tenant resolver unit tests
+        run: php artisan test --compact tests/Unit/TenantResolverTest.php
+
+      - name: Tenant membership regression tests
+        run: php artisan test --compact tests/Feature/TenantMembershipTest.php
+
+      - name: Loan tenant isolation regression tests
+        run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Feature/TenantIsolationTest.php
+
+      - name: Shareholder tenant isolation regression tests
+        run: php artisan test --compact mases_core/src/Domains/Shareholder/Tests/Feature/TenantIsolationTest.php
+
+      - name: Wallet tenant isolation regression tests
+        run: php artisan test --compact mases_core/src/Domains/Wallet/Tests/Feature/TenantIsolationTest.php
+
+      - name: Record exact-SHA audit evidence
+        if: always()
+        run: |
+          {
+            echo "Workflow revision: ${GITHUB_SHA}"
+            echo "Checked out SHA: $(git rev-parse HEAD)"
+            php --version
+            composer --version
+          } > g01-exact-sha-evidence.txt
+
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arna-g01-exact-sha-evidence
+          path: g01-exact-sha-evidence.txt
+          retention-days: 14

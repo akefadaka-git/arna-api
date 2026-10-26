@@ -40,6 +40,12 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class TenantContextMiddleware
 {
+    /** @var list<string> Platform subdomains that must never identify tenants. */
+    private const RESERVED_TENANT_SUBDOMAINS = [
+        'www', 'api', 'auth', 'app', 'portal', 'finance',
+        'hr', 'admin', 'arna', 'ai', 'file', 'launcher',
+    ];
+
     /**
      * @var TenantContextResolverInterface
      */
@@ -73,14 +79,18 @@ final class TenantContextMiddleware
         // Normalise the parameter – middleware aliases pass strings.
         $requireTenant = filter_var($requireTenant, FILTER_VALIDATE_BOOLEAN);
 
+        // This service is registered as a singleton. Clear any context left
+        // by an earlier request (notably under long-lived workers) before
+        // resolving this request's tenant.
+        $this->tenantContext->clearTenant();
+
         // Resolve the tenant identifier from the request.
         try {
             $tenantId = $this->resolver->resolve($request);
         } catch (\Throwable $e) {
             Log::error('Tenant resolver threw an exception', [
                 'error' => $e->getMessage(),
-                'url'   => $request->fullUrl(),
-                'ip'    => $request->ip(),
+                'path' => $request->path(),
             ]);
 
             // A resolver failure is never a valid reason to crash the request.
@@ -102,7 +112,7 @@ final class TenantContextMiddleware
             $this->tenantContext->clearTenant();
 
             Log::debug('Tenant context cleared (no tenant requested)', [
-                'url' => $request->fullUrl(),
+                'path' => $request->path(),
                 'ip'  => $request->ip(),
             ]);
 
@@ -117,14 +127,32 @@ final class TenantContextMiddleware
             return $next($request);
         }
 
-        // Attempt to load the tenant by ID.
+        // A non-empty X-Tenant-ID is an explicit primary-key contract.
+        // Only when no such header was supplied may the validated platform
+        // subdomain be interpreted as a tenant slug.
+        $headerTenant = $request->header('X-Tenant-ID');
+        $host = strtolower($request->getHost());
+        $suffix = '.maalearna.com.et';
+        $subdomain = str_ends_with($host, $suffix)
+            ? substr($host, 0, -strlen($suffix))
+            : null;
+        $isSubdomainSlug = ($headerTenant === null || $headerTenant === '')
+            && $subdomain !== null
+            && $tenantId === $subdomain
+            && preg_match('/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/D', $subdomain) === 1
+            && !in_array($subdomain, self::RESERVED_TENANT_SUBDOMAINS, true);
+
+        $tenantIdentifierKey = $isSubdomainSlug ? 'tenant_slug' : 'tenant_id';
+
         try {
-            $tenant = $this->tenantContext->setTenantById($tenantId);
+            $tenant = $isSubdomainSlug
+                ? $this->tenantContext->setTenantBySlug($subdomain)
+                : $this->tenantContext->setTenantById($tenantId);
         } catch (\Throwable $e) {
             Log::error('Failed to set tenant context', [
-                'tenant_id' => $tenantId,
-                'error'     => $e->getMessage(),
-                'url'       => $request->fullUrl(),
+                $tenantIdentifierKey => $tenantId,
+                'error' => $e->getMessage(),
+                'path' => $request->path(),
             ]);
 
             $this->tenantContext->clearTenant();
@@ -145,7 +173,7 @@ final class TenantContextMiddleware
             Log::warning('Tenant resolution failed: tenant not found or inactive', [
                 'tenant_id' => $tenantId,
                 'ip'        => $request->ip(),
-                'url'       => $request->fullUrl(),
+                'path'      => $request->path(),
             ]);
 
             $this->tenantContext->clearTenant();
