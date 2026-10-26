@@ -90,8 +90,7 @@ final class TenantContextMiddleware
         } catch (\Throwable $e) {
             Log::error('Tenant resolver threw an exception', [
                 'error' => $e->getMessage(),
-                'path'  => $request->path(),
-                'ip'    => $request->ip(),
+                'path' => $request->path(),
             ]);
 
             // A resolver failure is never a valid reason to crash the request.
