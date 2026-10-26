@@ -84,7 +84,7 @@ final class TenantContextMiddleware
         } catch (\Throwable $e) {
             Log::error('Tenant resolver threw an exception', [
                 'error' => $e->getMessage(),
-                'url'   => $request->fullUrl(),
+                'path'  => $request->path(),
                 'ip'    => $request->ip(),
             ]);
 
@@ -107,7 +107,7 @@ final class TenantContextMiddleware
             $this->tenantContext->clearTenant();
 
             Log::debug('Tenant context cleared (no tenant requested)', [
-                'url' => $request->fullUrl(),
+                'path' => $request->path(),
                 'ip'  => $request->ip(),
             ]);
 
@@ -142,9 +142,9 @@ final class TenantContextMiddleware
                 : $this->tenantContext->setTenantById($tenantId);
         } catch (\Throwable $e) {
             Log::error('Failed to set tenant context', [
-                'tenant_id' => $tenantId,
-                'error'     => $e->getMessage(),
-                'url'       => $request->fullUrl(),
+                $isSubdomainSlug ? 'tenant_slug' : 'tenant_id' => $tenantId,
+                'error' => $e->getMessage(),
+                'path' => $request->path(),
             ]);
 
             $this->tenantContext->clearTenant();
@@ -165,7 +165,7 @@ final class TenantContextMiddleware
             Log::warning('Tenant resolution failed: tenant not found or inactive', [
                 'tenant_id' => $tenantId,
                 'ip'        => $request->ip(),
-                'url'       => $request->fullUrl(),
+                'path'      => $request->path(),
             ]);
 
             $this->tenantContext->clearTenant();
