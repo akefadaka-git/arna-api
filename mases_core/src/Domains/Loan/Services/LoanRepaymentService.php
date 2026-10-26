@@ -140,35 +140,25 @@ use MaaleArna\MASES\Core\Domains\Wallet\Services\PaymentService;
  * The operation performs the following steps, in this order, inside ONE
  * transaction:
  *
- *   1. Read the loan (no lock — the Wallet is locked first, per the
- *      frozen `Wallet → Loan` lock order; see A.30 §"Lock ordering").
- *   2. Assert the loan's status is `disbursed`, `active`, `in_arrears`,
- *      or `restructured`. Any other status is a `ValidationException`.
- *   3. Resolve the borrower's Wallet.
- *   4. Assert that the Wallet's currency matches the loan's currency
- *      (Q8).
- *   5. Validate the allocation instructions (well-formed, sums match,
- *      every obligation belongs to this loan).
- *   6. Record the Wallet payment via `PaymentService::record()`. The
- *      Wallet writes a `payment_received` ledger entry with a positive
- *      signed quantity equal to the amount, and increases
- *      `current_balance`.
- *   7. For each allocation instruction, call
- *      `AllocationService::allocate()`. Each call creates a
- *      `wallet_payment_allocations` row and decrements the obligation's
- *      `outstanding_amount`.
- *   8. Update the loan's `settled_amount` by the total repayment amount.
- *   9. Recompute the loan's three outstanding projections from the
- *      current state of the loan-linked Wallet obligations.
- *  10. Settle all unsettled installments if the loan's aggregate
- *      interest and penalty obligations are both zero. Collect
- *      `LoanInstallmentSettled` events for after-commit dispatch.
- *  11. Detect and record loan settlement if the aggregate principal is
- *      also zero and every installment is settled, dispatching
- *      `LoanSettled` after commit.
- *  12. Register the `LoanRepaymentRecorded` event (A.37) for
- *      after-commit dispatch.
- *  13. Return the refreshed loan.
+ *   1. Read the loan without a row lock and reserve the
+ *      tenant/loan/idempotency-key tuple in the same transaction. The
+ *      database unique constraint arbitrates concurrent same-key requests.
+ *   2. Validate the loan state and resolve the borrower and Wallet.
+ *   3. Validate currency and the ordered allocation instructions.
+ *   4. Record the Wallet payment via `PaymentService::record()`, which
+ *      locks the Wallet and writes its ledger entry.
+ *   5. Apply each allocation via `AllocationService::allocate()`, locking
+ *      Payment, Obligation, and PaymentAllocation rows in the frozen order.
+ *   6. Link the payment to the idempotency reservation.
+ *   7. Re-read and lock the Loan only after Wallet → Payment → Obligation
+ *      → PaymentAllocation locks are acquired. Re-check its state, then
+ *      increment `settled_amount` from the current persisted value.
+ *   8. Recompute the outstanding projections from authoritative Wallet
+ *      obligations; settle eligible installments and the loan.
+ *   9. Register after-commit events and persist the exact successful
+ *      response snapshot on the idempotency row before transaction commit.
+ *  10. Return the refreshed loan. The controller replays the persisted
+ *      response snapshot for both first response and duplicate-key retries.
  *
  * If any step after step 6 fails, the entire transaction rolls back.
  *
