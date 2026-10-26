@@ -60,6 +60,12 @@ jobs:
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      - name: Create empty CI-only environment file
+        run: |
+          # The test environment is supplied entirely by the workflow env block.
+          # An empty .env prevents dotenv warnings; it contains no secrets.
+          : > .env
+
       - name: Clear cached Laravel configuration
         run: php artisan config:clear
 
