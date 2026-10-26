@@ -18,6 +18,7 @@ use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use MaaleArna\MASES\Core\Domains\Wallet\Enums\ObligationComponent;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Obligation;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Payment;
+use MaaleArna\MASES\Core\Domains\Wallet\Models\PaymentAllocation;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Wallet;
 use MaaleArna\MASES\Core\Policy\Models\VersionedPolicy;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -932,7 +933,7 @@ final class LoanRepaymentTest extends TestCase
         );
         $this->assertSame(
             '1100.0000',
-            (string) \\MaaleArna\\MASES\\Core\\Domains\\Wallet\\Models\\PaymentAllocation::query()
+            (string) PaymentAllocation::query()
                 ->where('wallet_id', $this->wallet->id)
                 ->sum('amount'),
         );
