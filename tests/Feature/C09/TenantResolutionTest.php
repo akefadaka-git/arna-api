@@ -346,7 +346,8 @@ final class TenantResolutionTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.tenant_id', $tenant->id)
-            ->assertJsonPath('data.tenant_slug', 'tenant-a');
+            ->assertJsonPath('data.tenant_slug', 'tenant-a')
+            ->assertJsonPath('data.resolution_source', 'subdomain');
     }
 
     public function test_unknown_subdomain_fails_closed_and_clears_previous_request_context(): void
@@ -368,7 +369,7 @@ final class TenantResolutionTest extends TestCase
         Sanctum::actingAs($user, ['*']);
 
         // Simulate stale state from a prior request in a long-lived worker.
-        $context = app(\MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService::class);
+        $context = app(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class);
         $context->setTenantById($tenant->id);
         $this->assertTrue($context->hasTenant());
 
