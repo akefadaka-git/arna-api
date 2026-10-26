@@ -406,6 +406,55 @@ final class TenantResolutionTest extends TestCase
         $response->assertOk()->assertJsonPath('data.tenant_id', null);
     }
 
+    public function test_deleted_tenant_subdomain_fails_closed(): void
+    {
+        $tenant = Tenant::create([
+            'slug' => 'deleted-tenant',
+            'name_en' => 'Deleted Tenant',
+            'is_active' => true,
+        ]);
+        $tenant->delete();
+
+        $user = User::create([
+            'email' => 'subdomain-deleted-' . uniqid() . '@example.test',
+            'password' => bcrypt('password123'),
+            'first_name_en' => 'Test',
+            'is_active' => true,
+            'locale' => 'am',
+        ]);
+        Sanctum::actingAs($user, ['*']);
+
+        $host = 'deleted-tenant.maalearna.com.et';
+        $response = $this
+            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
+            ->getJson('/api/tenant-context');
+
+        $response->assertOk()
+            ->assertJsonPath('data.tenant_id', null)
+            ->assertJsonPath('data.resolution_source', 'subdomain');
+    }
+
+    public function test_nested_subdomain_is_not_resolved_by_http_middleware(): void
+    {
+        $user = User::create([
+            'email' => 'subdomain-nested-' . uniqid() . '@example.test',
+            'password' => bcrypt('password123'),
+            'first_name_en' => 'Test',
+            'is_active' => true,
+            'locale' => 'am',
+        ]);
+        Sanctum::actingAs($user, ['*']);
+
+        $host = 'nested.tenant-a.maalearna.com.et';
+        $response = $this
+            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
+            ->getJson('/api/tenant-context');
+
+        $response->assertOk()
+            ->assertJsonPath('data.tenant_id', null)
+            ->assertJsonPath('data.resolution_source', 'none');
+    }
+
     public function test_explicit_tenant_id_header_keeps_primary_key_contract_over_subdomain(): void
     {
         $tenantA = Tenant::create([
