@@ -1,10 +1,8 @@
-name: ARNA G-01 exact-SHA tenant isolation audit
+name: ARNA G-01 tenant isolation regression gate
 
 on:
   pull_request:
     branches: [main]
-    paths:
-      - ".github/workflows/arna-g01-tenant-isolation-exact-sha.yml"
 
 permissions:
   contents: read
@@ -19,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      TARGET_SHA: 285ed659742bf41af3d59a37afaa610d9539af23
       APP_ENV: testing
       APP_DEBUG: "true"
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -31,20 +28,20 @@ jobs:
       QUEUE_CONNECTION: sync
       LOG_CHANNEL: null
     steps:
-      - name: Check out exact reviewed source SHA
+      - name: Check out proposed pull-request merge revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.TARGET_SHA }}
+          ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Verify source SHA
+      - name: Verify tested revision
         shell: bash
         run: |
           set -euo pipefail
           actual_sha="$(git rev-parse HEAD)"
-          echo "Expected source SHA: ${TARGET_SHA}"
-          echo "Actual source SHA:   ${actual_sha}"
-          test "${actual_sha}" = "${TARGET_SHA}"
+          echo "Workflow revision:    ${GITHUB_SHA}"
+          echo "Checked out revision: ${actual_sha}"
+          test "${actual_sha}" = "${GITHUB_SHA}"
 
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
@@ -91,8 +88,8 @@ jobs:
         if: always()
         run: |
           {
-            echo "Target SHA: ${TARGET_SHA}"
-            echo "Checked out SHA: $(git rev-parse HEAD)"
+            echo "Workflow revision: ${GITHUB_SHA}"
+            echo "Checked out SHA: $(git rev-parse HEAD)
             php --version
             composer --version
           } > g01-exact-sha-evidence.txt
