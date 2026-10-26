@@ -187,7 +187,21 @@ for domain in ("api/loans", "api/governance"):
             r"Gate::authorize|authorize\s*\(|requirePermission\s*\(|hasPermission\s*\(|AuthorizationService|->can\s*\(",
             body
         ))
-        authorized = permission_middleware or controller_guard
+        # Deliberate self-service exception: MyLoanController resolves no
+        # caller-selected resource. Require tenant + authenticated-user scoped
+        # shareholder lookup and borrower-scoped repository lookup.
+        self_service_guard = (
+            method == "index"
+            and path is not None
+            and path.name == "MyLoanController.php"
+            and "resolveTenantId()" in body
+            and "$request->user()->getKey()" in body
+            and "Shareholder::query()" in body
+            and "->where('tenant_id', $tenantId)" in body
+            and "->where('user_id', $userId)" in body
+            and "listForBorrower(" in body
+        )
+        authorized = permission_middleware or controller_guard or self_service_guard
         finding(f"{domain}:action-auth:{methods} {uri}", authorized,
                 "Explicit route authorization middleware or controller guard found." if authorized else
                 f"No recognizable route-level permission or controller policy guard found for {action or 'unknown action'}.")
