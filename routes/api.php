@@ -206,6 +206,7 @@ Route::post('/login', [AuthController::class, 'login'])
  * returns a token for automatic login. Email uniqueness is enforced.
  */
 Route::post('/register', [AuthController::class, 'register'])
+    ->middleware('throttle:5,1')
     ->name('api.auth.register');
 
 // -----------------------------------------------------------------------------
@@ -219,6 +220,7 @@ Route::post('/register', [AuthController::class, 'register'])
  * a neutral response to avoid leaking whether the email exists.
  */
 Route::post('/password/email', [AuthController::class, 'sendPasswordResetLink'])
+    ->middleware('throttle:3,1')
     ->name('api.auth.password.email');
 
 /**
@@ -227,6 +229,7 @@ Route::post('/password/email', [AuthController::class, 'sendPasswordResetLink'])
  * Validates the reset token and updates the user's password.
  */
 Route::post('/password/reset', [AuthController::class, 'resetPassword'])
+    ->middleware('throttle:5,1')
     ->name('api.auth.password.reset');
 
 // -----------------------------------------------------------------------------
@@ -248,6 +251,7 @@ Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
  * Sends a fresh verification link to an unverified user.
  */
 Route::post('/verify-email/resend', [AuthController::class, 'resendVerificationEmail'])
+    ->middleware('throttle:3,1')
     ->name('api.auth.verify-email.resend');
 
 // =============================================================================
