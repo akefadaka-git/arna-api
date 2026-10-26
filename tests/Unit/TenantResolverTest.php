@@ -102,6 +102,24 @@ final class TenantResolverTest extends TestCase
         $this->assertEquals('tenant-a', $tenantId);
     }
 
+    public function test_resolve_rejects_nested_tenant_subdomains(): void
+    {
+        $request = Request::create('/test', 'GET', [], [], [], [
+            'HTTP_HOST' => 'tenant-a.child.maalearna.com.et',
+        ]);
+
+        $this->assertNull($this->resolver->resolve($request));
+    }
+
+    public function test_resolve_rejects_platform_suffix_lookalikes(): void
+    {
+        $request = Request::create('/test', 'GET', [], [], [], [
+            'HTTP_HOST' => 'tenant-a.maalearna.com.et.attacker.example',
+        ]);
+
+        $this->assertNull($this->resolver->resolve($request));
+    }
+
     /**
      * Test that the resolver returns null for reserved subdomains.
      *
