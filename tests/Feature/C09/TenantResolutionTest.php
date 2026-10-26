@@ -318,30 +318,127 @@ final class TenantResolutionTest extends TestCase
     }
 
     // =========================================================================
-    // T5b — Subdomain resolution still works (skipped unless host supported)
+    // T5b — Real HTTP subdomain-to-slug-to-tenant integration
     // =========================================================================
 
-    /**
-     * When the host carries a non-reserved subdomain of the platform's
-     * registrable domain, `RequestTenantResolver` returns that subdomain
-     * and the middleware sets the tenant context to it.
-     *
-     * Simulating a subdomain host in phpunit requires the test HTTP
-     * client to accept an arbitrary host — which the default test harness
-     * does through `->withServerVariables(['HTTP_HOST' => ...])`.
-     *
-     * This test is marked skipped by default because the resolver's
-     * behaviour is already covered by `tests/Unit/TenantResolverTest.php`
-     * (per the Phase 1 gate report). It is retained here as a placeholder
-     * for a future harness where subdomain integration is warranted.
-     */
-    public function test_subdomain_resolution_still_works(): void
+    public function test_subdomain_http_request_resolves_tenant_slug_to_primary_key(): void
     {
-        $this->markTestSkipped(
-            'Subdomain resolution is covered at the unit level in ' .
-            'tests/Unit/TenantResolverTest.php. Re-enable if integration-level ' .
-            'coverage becomes necessary.'
-        );
+        $tenant = Tenant::create([
+            'slug' => 'tenant-a',
+            'name_en' => 'Tenant A',
+            'is_active' => true,
+        ]);
+        $user = User::create([
+            'email' => 'subdomain-ok-' . uniqid() . '@example.test',
+            'password' => bcrypt('password123'),
+            'first_name_en' => 'Test',
+            'is_active' => true,
+            'default_tenant_id' => $tenant->id,
+            'locale' => 'am',
+        ]);
+        $user->tenants()->attach($tenant->id);
+        Sanctum::actingAs($user, ['*']);
+
+        $host = 'tenant-a.maalearna.com.et';
+        $response = $this
+            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
+            ->getJson('/api/tenant-context');
+
+        $response->assertOk()
+            ->assertJsonPath('data.tenant_id', $tenant->id)
+            ->assertJsonPath('data.tenant_slug', 'tenant-a');
+    }
+
+    public function test_unknown_subdomain_fails_closed_and_clears_previous_request_context(): void
+    {
+        $tenant = Tenant::create([
+            'slug' => 'known-tenant',
+            'name_en' => 'Known Tenant',
+            'is_active' => true,
+        ]);
+        $user = User::create([
+            'email' => 'subdomain-unknown-' . uniqid() . '@example.test',
+            'password' => bcrypt('password123'),
+            'first_name_en' => 'Test',
+            'is_active' => true,
+            'default_tenant_id' => $tenant->id,
+            'locale' => 'am',
+        ]);
+        $user->tenants()->attach($tenant->id);
+        Sanctum::actingAs($user, ['*']);
+
+        // Simulate stale state from a prior request in a long-lived worker.
+        $context = app(\\MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService::class);
+        $context->setTenantById($tenant->id);
+        $this->assertTrue($context->hasTenant());
+
+        $host = 'does-not-exist.maalearna.com.et';
+        $response = $this
+            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
+            ->getJson('/api/tenant-context');
+
+        $response->assertOk()->assertJsonPath('data.tenant_id', null);
+        $this->assertFalse($context->hasTenant(), 'Unknown subdomains must not inherit a prior tenant context.');
+    }
+
+    public function test_inactive_tenant_subdomain_fails_closed(): void
+    {
+        $tenant = Tenant::create([
+            'slug' => 'inactive-tenant',
+            'name_en' => 'Inactive Tenant',
+            'is_active' => false,
+        ]);
+        $user = User::create([
+            'email' => 'subdomain-inactive-' . uniqid() . '@example.test',
+            'password' => bcrypt('password123'),
+            'first_name_en' => 'Test',
+            'is_active' => true,
+            'locale' => 'am',
+        ]);
+        Sanctum::actingAs($user, ['*']);
+
+        $host = 'inactive-tenant.maalearna.com.et';
+        $response = $this
+            ->withServerVariables(['HTTP_HOST' => $host, 'SERVER_NAME' => $host])
+            ->getJson('/api/tenant-context');
+
+        $response->assertOk()->assertJsonPath('data.tenant_id', null);
+    }
+
+    public function test_explicit_tenant_id_header_keeps_primary_key_contract_over_subdomain(): void
+    {
+        $tenantA = Tenant::create([
+            'slug' => 'tenant-a',
+            'name_en' => 'Tenant A',
+            'is_active' => true,
+        ]);
+        $tenantB = Tenant::create([
+            'slug' => 'tenant-b',
+            'name_en' => 'Tenant B',
+            'is_active' => true,
+        ]);
+        $user = User::create([
+            'email' => 'subdomain-header-' . uniqid() . '@example.test',
+            'password' => bcrypt('password123'),
+            'first_name_en' => 'Test',
+            'is_active' => true,
+            'default_tenant_id' => $tenantB->id,
+            'locale' => 'am',
+        ]);
+        $user->tenants()->attach($tenantA->id);
+        $user->tenants()->attach($tenantB->id);
+        Sanctum::actingAs($user, ['*']);
+
+        $host = 'tenant-a.maalearna.com.et';
+        $response = $this
+            ->withServerVariables([
+                'HTTP_HOST' => $host,
+                'SERVER_NAME' => $host,
+                'HTTP_X_TENANT_ID' => (string) $tenantB->id,
+            ])
+            ->getJson('/api/tenant-context');
+
+        $response->assertOk()->assertJsonPath('data.tenant_id', $tenantB->id);
     }
 
     // =========================================================================
