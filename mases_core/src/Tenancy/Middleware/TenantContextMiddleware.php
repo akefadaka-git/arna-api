@@ -134,7 +134,7 @@ final class TenantContextMiddleware
         $isSubdomainSlug = ($headerTenant === null || $headerTenant === '')
             && $subdomain !== null
             && $tenantId === $subdomain
-            && preg_match('/\\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\z/D', $subdomain) === 1;
+            && preg_match('/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/D', $subdomain) === 1;
 
         try {
             $tenant = $isSubdomainSlug
