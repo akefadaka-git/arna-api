@@ -368,7 +368,7 @@ final class TenantResolutionTest extends TestCase
         Sanctum::actingAs($user, ['*']);
 
         // Simulate stale state from a prior request in a long-lived worker.
-        $context = app(\\MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService::class);
+        $context = app(\MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService::class);
         $context->setTenantById($tenant->id);
         $this->assertTrue($context->hasTenant());
 
