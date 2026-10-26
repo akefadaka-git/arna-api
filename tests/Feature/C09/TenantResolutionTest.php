@@ -7,6 +7,7 @@ namespace Tests\Feature\C09;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
@@ -356,6 +357,30 @@ final class TenantResolutionTest extends TestCase
      * a caller that supplies a concrete tenant gets a check scoped to
      * that tenant, regardless of what the middleware resolved.
      */
+    public function test_tenant_lookup_failure_log_does_not_disclose_tenant_inventory(): void
+    {
+        $context = app(\\MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService::class);
+
+        Log::shouldReceive('warning')
+            ->once()
+            ->with('Tenant not found or inactive', \\Mockery::on(
+                static function (array $payload): bool {
+                    foreach (['tenant_ids', 'is_active_values', 'total_tenants'] as $forbiddenKey) {
+                        if (array_key_exists($forbiddenKey, $payload)) {
+                            return false;
+                        }
+                    }
+
+                    return array_key_exists('tenant_id', $payload)
+                        && array_key_exists('connection', $payload)
+                        && array_key_exists('database', $payload);
+                }
+            ));
+
+        $this->assertNull($context->setTenantById('999999999'));
+        $this->assertFalse($context->hasTenant());
+    }
+
     public function test_explicit_tenant_argument_must_match_trusted_context(): void
     {
         $scenario = $this->scenarioTwoTenants();
