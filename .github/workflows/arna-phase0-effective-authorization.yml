@@ -14,6 +14,7 @@ on:
       - "bootstrap/app.php"
       - "composer.json"
       - "composer.lock"
+      - "tests/**"
   pull_request:
     branches: [main]
     paths:
@@ -27,6 +28,7 @@ on:
       - "bootstrap/app.php"
       - "composer.json"
       - "composer.lock"
+      - "tests/**"
   workflow_dispatch:
 
 permissions:
@@ -92,6 +94,12 @@ jobs:
       - name: Audit effective middleware and bounded authorization contracts
         id: audit
         run: python scripts/phase0-authorization-audit.py build/phase0-route-list.json build/phase0-authorization-report.json
+
+      - name: Run Phase 0 HTTP security regression tests
+        run: |
+          php artisan test --compact \
+            tests/Feature/Phase0PublicEndpointRateLimitTest.php \
+            tests/Feature/Phase0AuthorizationDenialTest.php
 
       - name: Upload route table and audit report
         if: always()
