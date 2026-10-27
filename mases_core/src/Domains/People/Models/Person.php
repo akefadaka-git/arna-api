@@ -66,6 +66,11 @@ final class Person extends Model
             });
     }
 
+    public function employees(): HasMany
+    {
+        return $this->hasMany(EmployeeRecord::class, 'person_id');
+    }
+
     public function shareholders(): HasMany
     {
         return $this->hasMany(\MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder::class, 'person_id');
