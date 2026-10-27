@@ -292,8 +292,8 @@ final class GovernanceTermService
             $this->lockBodyForTermWrite((int) $term->tenant_id, $bodyId);
             $this->assertNoOverlappingActiveTerm(
                 bodyId: $bodyId,
-                startDate: $attributes['effective_from'] ?? $term->effective_from,
-                endDate: $attributes['effective_until'] ?? $term->effective_until,
+                startDate: array_key_exists('effective_from', $attributes) ? $attributes['effective_from'] : $term->effective_from,
+                endDate: array_key_exists('effective_until', $attributes) ? $attributes['effective_until'] : $term->effective_until,
                 exceptId: (int) $term->id,
             );
 
