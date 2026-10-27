@@ -134,6 +134,18 @@ final class GovernanceAuthorityGrantService
         }, 3);
     }
 
+    public function list(User $actor, int $tenantId)
+    {
+        $this->assertTenantContext($tenantId);
+        $this->assertCanAdminister($actor, $tenantId);
+
+        return GovernanceAuthorityGrant::query()
+            ->where('tenant_id', $tenantId)
+            ->with(['body:id,code,name_am,name_en', 'position:id,code,name_am,name_en', 'grantee:id,public_id,first_name_am,first_name_en,father_name_am,father_name_en'])
+            ->orderByDesc('created_at')
+            ->paginate(25);
+    }
+
     public function revoke(User $actor, int $tenantId, int $grantId, string $reason): GovernanceAuthorityGrant
     {
         $this->assertTenantContext($tenantId);
@@ -222,7 +234,7 @@ final class GovernanceAuthorityGrantService
     private function assertCanAdminister(User $actor, int $tenantId): void
     {
         if (!$this->authorization->hasPermission('governance.body.manage', $actor, $tenantId)) {
-            throw ValidationException::withMessages(['authorization' => ['The actor lacks governance.body.manage in the validated tenant.']]);
+            throw new AuthorizationException('The actor lacks governance.body.manage in the validated tenant.');
         }
     }
 
