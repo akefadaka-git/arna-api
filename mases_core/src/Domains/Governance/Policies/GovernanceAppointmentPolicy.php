@@ -225,6 +225,7 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Policies;
 
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 
