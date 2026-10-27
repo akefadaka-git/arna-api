@@ -7,7 +7,7 @@ namespace Database\Seeders\Data;
 /**
  * PermissionCatalogue
  *
- * The platform's thirty-nine permissions — the atomic capabilities
+ * The platform's forty permissions — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -136,7 +136,7 @@ namespace Database\Seeders\Data;
 final class PermissionCatalogue
 {
     /**
-     * The thirty-nine platform permissions, in source order.
+     * The forty platform permissions, in source order.
      *
      * Each row is an associative array with the six keys documented
      * in the class docblock. The order below is preserved verbatim
@@ -186,5 +186,6 @@ final class PermissionCatalogue
         ['slug' => 'test.permission', 'name_am' => 'ፈቃድ መሞከር', 'name_en' => 'Test Permission', 'category' => 'test', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'people.manage', 'name_am' => 'የሰው መገለጫዎችን ማስተዳደር', 'name_en' => 'Manage People Profiles', 'category' => 'user', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'people.account-link.manage', 'name_am' => 'የሰው መገለጫና መለያ ግንኙነትን ማስተዳደር', 'name_en' => 'Manage Global Person Account Links', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'people.tenant-access.manage', 'name_am' => 'የሰው መገለጫን በቴናንት መካከል መፍቀድ', 'name_en' => 'Manage Global Person Tenant Access', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
     ];
 }
