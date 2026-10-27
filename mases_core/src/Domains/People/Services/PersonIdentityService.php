@@ -136,6 +136,7 @@ final class PersonIdentityService
             }
             $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
             $this->assertPersonTenantAccess($tenantId, $person);
+            $this->assertDomainLinkAvailable($holder->person_id ?? null, $personId);
             $this->assertDomainUserConsistency($person, $holder->user_id ?? null);
             DB::table('shareholders')->where('id', $shareholderId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
             $this->recordEvent('person.shareholder_linked', $tenantId, $actor, $person, ['shareholder_id' => $shareholderId, 'reason' => $reason]);
@@ -154,6 +155,7 @@ final class PersonIdentityService
             }
             $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
             $this->assertPersonTenantAccess($tenantId, $person);
+            $this->assertDomainLinkAvailable($employee->person_id ?? null, $personId);
             $this->assertDomainUserConsistency($person, $employee->user_id ?? null);
             DB::table('employees')->where('id', $employeeId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
             $this->recordEvent('person.employee_linked', $tenantId, $actor, $person, ['employee_id' => $employeeId, 'reason' => $reason]);
@@ -172,6 +174,7 @@ final class PersonIdentityService
             }
             $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
             $this->assertPersonTenantAccess($tenantId, $person);
+            $this->assertDomainLinkAvailable($membership->person_id ?? null, $personId);
             $this->assertDomainUserConsistency($person, $membership->user_id ?? null);
             DB::table('governance_memberships')->where('id', $membershipId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
             $this->recordEvent('person.governance_membership_linked', $tenantId, $actor, $person, ['membership_id' => $membershipId, 'reason' => $reason]);
@@ -289,6 +292,13 @@ final class PersonIdentityService
             ->where('user_id', $user->getKey())->where('status', 'active')->exists();
         if (! $activeTenant || ! $user->is_active || ! $membership) {
             throw new DomainException('A valid active tenant membership is required.');
+        }
+    }
+
+    private function assertDomainLinkAvailable(mixed $currentPersonId, int $targetPersonId): void
+    {
+        if ($currentPersonId !== null && (int) $currentPersonId !== $targetPersonId) {
+            throw new DomainException('The domain record is already linked to another Person; unlink it through an audited lifecycle operation first.');
         }
     }
 
