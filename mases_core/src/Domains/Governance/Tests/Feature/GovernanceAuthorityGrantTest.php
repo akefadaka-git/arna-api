@@ -101,14 +101,15 @@ final class GovernanceAuthorityGrantTest extends TestCase
 
     public function test_grant_is_limited_to_the_position_action_and_can_be_revoked(): void
     {
-        $grant = $this->service->grant($this->administrator, (int) $this->tenant->id, [
+        $grantResponse = $this->postJson(route('api.governance.authority-grants.store'), [
             'governance_position_id' => (int) $this->position->id,
             'grantee_person_id' => (int) $this->granteePerson->id,
             'action' => 'governance.membership.manage',
             'effective_from' => CarbonImmutable::today()->toDateString(),
             'effective_until' => CarbonImmutable::today()->addDays(7)->toDateString(),
             'reason' => 'Temporary, position-scoped delegation',
-        ]);
+        ])->assertCreated();
+        $grantId = (int) $grantResponse->json('data.id');
 
         $this->assertTrue($this->service->allows(
             $this->grantee,
@@ -125,14 +126,11 @@ final class GovernanceAuthorityGrantTest extends TestCase
             'governance.position.manage',
         ));
 
-        $revoked = $this->service->revoke(
-            $this->administrator,
-            (int) $this->tenant->id,
-            (int) $grant->id,
-            'Delegation no longer required',
-        );
-        $this->assertNotNull($revoked->revoked_at);
-        $this->assertSame($this->administrator->id, $revoked->revoked_by_user_id);
+        $revokeResponse = $this->deleteJson(route('api.governance.authority-grants.destroy', [
+            'governanceAuthorityGrant' => $grantId,
+        ]), ['reason' => 'Delegation no longer required'])->assertOk();
+        $this->assertNotNull($revokeResponse->json('data.revoked_at'));
+        $this->assertSame($this->administrator->id, $revokeResponse->json('data.revoked_by_user_id'));
         $this->assertFalse($this->service->allows(
             $this->grantee,
             (int) $this->tenant->id,
@@ -144,13 +142,13 @@ final class GovernanceAuthorityGrantTest extends TestCase
 
     public function test_delegation_authorizes_other_membership_but_not_the_grantee_own_record(): void
     {
-        $this->service->grant($this->administrator, (int) $this->tenant->id, [
+        $this->postJson(route('api.governance.authority-grants.store'), [
             'governance_position_id' => (int) $this->position->id,
             'grantee_person_id' => (int) $this->granteePerson->id,
             'action' => 'governance.membership.manage',
             'effective_from' => CarbonImmutable::today()->toDateString(),
             'reason' => 'Manage other memberships in this position',
-        ]);
+        ])->assertCreated();
 
         $target = $this->makeUser('target@authority.example.test');
         $targetMembership = GovernanceMembership::query()->create([
@@ -183,27 +181,25 @@ final class GovernanceAuthorityGrantTest extends TestCase
     public function test_self_delegation_and_unknown_actions_are_rejected(): void
     {
         try {
-            $this->service->grant($this->administrator, (int) $this->tenant->id, [
+            $this->postJson(route('api.governance.authority-grants.store'), [
                 'governance_position_id' => (int) $this->position->id,
                 'grantee_person_id' => (int) $this->administratorPerson->id,
                 'action' => 'governance.membership.manage',
                 'effective_from' => CarbonImmutable::today()->toDateString(),
                 'reason' => 'Self delegation must fail',
-            ]);
-            $this->fail('Self-delegation must be denied.');
+            ])->assertUnprocessable()->assertJsonValidationErrors(['grantee_person_id']);
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('grantee_person_id', $exception->errors());
         }
 
         try {
-            $this->service->grant($this->administrator, (int) $this->tenant->id, [
+            $this->postJson(route('api.governance.authority-grants.store'), [
                 'governance_position_id' => (int) $this->position->id,
                 'grantee_person_id' => (int) $this->granteePerson->id,
                 'action' => 'finance.payment.approve',
                 'effective_from' => CarbonImmutable::today()->toDateString(),
                 'reason' => 'Financial authority is explicitly out of scope',
-            ]);
-            $this->fail('An unapproved financial action must be denied.');
+            ])->assertUnprocessable()->assertJsonValidationErrors(['action']);
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('action', $exception->errors());
         }
