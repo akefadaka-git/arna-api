@@ -241,7 +241,7 @@ final class GovernanceAuthorityGrantTest extends TestCase
         try {
             $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->granteePerson->id, $end, null);
             $this->fail('Inclusive same-day overlap on a primary seat must be rejected.');
-        } catch (\\Illuminate\\Validation\\ValidationException $exception) {
+        } catch (\Illuminate\Validation\ValidationException $exception) {
             $this->assertArrayHasKey('governance_seat_id', $exception->errors());
         }
 
