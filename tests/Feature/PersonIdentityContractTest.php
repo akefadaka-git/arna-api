@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService;
-use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
