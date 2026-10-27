@@ -223,7 +223,6 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Policies;
 
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
-use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 
@@ -323,7 +322,6 @@ final class GovernancePositionPolicy
      */
     public function __construct(
         private readonly AuthorizationService $authorization,
-        private readonly GovernanceAuthorityGrantService $authorityGrants,
     ) {
     }
 
