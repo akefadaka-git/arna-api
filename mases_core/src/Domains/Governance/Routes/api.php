@@ -231,6 +231,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyContr
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePositionController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceSeatController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceTermController;
 
 /*
@@ -391,6 +392,26 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.body.manage')
         ->whereNumber('governanceAuthorityGrant')
         ->name('authority-grants.destroy');
+
+    // P1.3-B1 — explicit seat occupancy and bounded acting assignments.
+    Route::get('/seats', [GovernanceSeatController::class, 'index'])
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('seats.index');
+    Route::post('/seats', [GovernanceSeatController::class, 'store'])
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('seats.store');
+    Route::post('/seats/{governanceSeat}/occupancies', [GovernanceSeatController::class, 'occupy'])
+        ->middleware('auth.permission:governance.body.manage')
+        ->whereNumber('governanceSeat')
+        ->name('seats.occupancies.store');
+    Route::post('/seats/{governanceSeat}/acting-assignments', [GovernanceSeatController::class, 'assignActing'])
+        ->middleware('auth.permission:governance.body.manage')
+        ->whereNumber('governanceSeat')
+        ->name('seats.acting-assignments.store');
+    Route::delete('/acting-assignments/{governanceActingAssignment}', [GovernanceSeatController::class, 'revokeActing'])
+        ->middleware('auth.permission:governance.body.manage')
+        ->whereNumber('governanceActingAssignment')
+        ->name('acting-assignments.destroy');
 
 
 
