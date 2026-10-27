@@ -12,7 +12,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 /**
  * PermissionSeeder
  *
- * Seeds the platform's thirty-seven permissions — the atomic
+ * Seeds the platform's thirty-nine permissions — the atomic
  * capabilities the authorization system checks. Runs after
  * ApplicationSeeder and before RoleSeeder.
  *
@@ -55,7 +55,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
  * The applications argument
  * =============================================================================
  * This is the first seeder that takes an argument. The reason is that
- * seven of the 37 permissions are application-scoped:
+ * seven of the 39 permissions are application-scoped:
  *
  *     app.portal.access    — portal
  *     app.finance.access   — finance
@@ -150,7 +150,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
  *     )
  *
  * This makes the seeder idempotent. Running it repeatedly against a
- * database that already has the 37 permissions updates the existing
+ * database that already has the 39 permissions updates the existing
  * rows in place rather than inserting duplicates.
  *
  * =============================================================================
@@ -211,11 +211,11 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 final class PermissionSeeder extends Seeder
 {
     /**
-     * Upsert the 37 permissions and return the map of persisted
+     * Upsert the 39 permissions and return the map of persisted
      * models, keyed by slug.
      *
      * Idempotent: running repeatedly against a database that already
-     * has the 37 permissions updates the existing rows in place.
+     * has the 39 permissions updates the existing rows in place.
      *
      * @param array<string, PlatformApplication> $applications
      *        the persisted application models, keyed by slug, as
