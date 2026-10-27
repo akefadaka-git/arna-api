@@ -248,12 +248,14 @@ final class GovernanceTermService
         return DB::transaction(function () use ($attributes, $tenantId): GovernanceTerm {
             $bodyId = (int) $attributes['governance_body_id'];
             $this->lockBodyForTermWrite($tenantId, $bodyId);
-            $this->assertNoOverlappingActiveTerm(
-                bodyId: $bodyId,
-                startDate: $attributes['effective_from'] ?? null,
-                endDate: $attributes['effective_until'] ?? null,
-                exceptId: null,
-            );
+            if ((bool) ($attributes['is_active'] ?? true)) {
+                $this->assertNoOverlappingActiveTerm(
+                    bodyId: $bodyId,
+                    startDate: $attributes['effective_from'] ?? null,
+                    endDate: $attributes['effective_until'] ?? null,
+                    exceptId: null,
+                );
+            }
 
             $term = GovernanceTerm::create([
                 'tenant_id' => $tenantId,
@@ -290,7 +292,8 @@ final class GovernanceTermService
         return DB::transaction(function () use ($term, $attributes): GovernanceTerm {
             $bodyId = (int) $term->governance_body_id;
             $before = $term->getOriginal();
-            if (array_key_exists('effective_from', $attributes) || array_key_exists('effective_until', $attributes)) {
+            if ((bool) ($attributes['is_active'] ?? $term->is_active)
+                && (array_key_exists('effective_from', $attributes) || array_key_exists('effective_until', $attributes))) {
                 $bodyId = (int) $term->governance_body_id;
                 $this->lockBodyForTermWrite((int) $term->tenant_id, $bodyId);
                 $this->assertNoOverlappingActiveTerm(
@@ -566,20 +569,6 @@ final class GovernanceTermService
     }
 
     /**
-     * Assert that `effective_from <= effective_until` when both are
-     * set.
-     *
-     * Accepts either a date string (`Y-m-d`), a `Carbon` instance,
-     * a `DateTimeInterface`, or null. Null on either side means the
-     * range is open-ended in that direction, which is always valid.
-     *
-     * @param  mixed $from
-     * @param  mixed $until
-     * @return void
-     *
-     * @throws ValidationException
-     */
-    /**
      * Serialize term writes by locking the owning body row. This makes the
      * overlap check safe across independent MySQL connections; a query-only
      * check without this shared lock permits two concurrent inserts to race.
@@ -624,6 +613,21 @@ final class GovernanceTermService
             ]);
         }
     }
+
+    /**
+     * Assert that `effective_from <= effective_until` when both are
+     * set.
+     *
+     * Accepts either a date string (`Y-m-d`), a `Carbon` instance,
+     * a `DateTimeInterface`, or null. Null on either side means the
+     * range is open-ended in that direction, which is always valid.
+     *
+     * @param  mixed $from
+     * @param  mixed $until
+     * @return void
+     *
+     * @throws ValidationException
+     */
 
     private function assertEffectiveDateOrdering(mixed $from, mixed $until): void
     {
