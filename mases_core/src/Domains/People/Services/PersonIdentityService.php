@@ -22,6 +22,7 @@ final class PersonIdentityService
     public function create(int $tenantId, User $actor, array $attributes): Person
     {
         $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
 
         return DB::transaction(function () use ($tenantId, $actor, $attributes): Person {
             $person = new Person();
@@ -52,6 +53,7 @@ final class PersonIdentityService
     public function linkAccount(int $tenantId, int $personId, int $userId, User $actor, string $reason): Person
     {
         $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
         if (trim($reason) === '') {
             throw ValidationException::withMessages(['reason' => 'A reason is required for account linking.']);
         }
@@ -88,6 +90,7 @@ final class PersonIdentityService
     public function unlinkAccount(int $tenantId, int $personId, User $actor, string $reason): Person
     {
         $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
         if (trim($reason) === '') {
             throw ValidationException::withMessages(['reason' => 'A reason is required for account unlinking.']);
         }
@@ -111,6 +114,7 @@ final class PersonIdentityService
     public function linkShareholder(int $tenantId, int $shareholderId, int $personId, User $actor, string $reason): void
     {
         $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
         $this->assertReason($reason);
         DB::transaction(function () use ($tenantId, $shareholderId, $personId, $actor, $reason): void {
             $holder = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)->lockForUpdate()->first();
@@ -130,6 +134,7 @@ final class PersonIdentityService
     public function linkEmployee(int $tenantId, int $employeeId, int $personId, User $actor, string $reason): void
     {
         $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
         $this->assertReason($reason);
         DB::transaction(function () use ($tenantId, $employeeId, $personId, $actor, $reason): void {
             $employee = DB::table('employees')->where('tenant_id', $tenantId)->where('id', $employeeId)->whereNull('deleted_at')->lockForUpdate()->first();
@@ -146,6 +151,7 @@ final class PersonIdentityService
     public function linkGovernanceMembership(int $tenantId, int $membershipId, int $personId, User $actor, string $reason): void
     {
         $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
         $this->assertReason($reason);
         DB::transaction(function () use ($tenantId, $membershipId, $personId, $actor, $reason): void {
             $membership = DB::table('governance_memberships')->where('tenant_id', $tenantId)->where('id', $membershipId)->lockForUpdate()->first();
@@ -157,6 +163,13 @@ final class PersonIdentityService
             DB::table('governance_memberships')->where('id', $membershipId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
             $this->recordEvent('person.governance_membership_linked', $tenantId, $actor, $person, ['membership_id' => $membershipId, 'reason' => $reason]);
         });
+    }
+
+    private function assertManagePermission(int $tenantId, User $actor): void
+    {
+        if (! $actor->hasPermission('people.manage', $tenantId)) {
+            throw new DomainException('The people.manage permission is required for identity operations.');
+        }
     }
 
     private function assertTenantAccess(int $tenantId, User $user): void
