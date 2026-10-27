@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Shareholder\Enums\ShareholderType;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
 
 /**
  * Shareholder
@@ -276,6 +277,14 @@ final class Shareholder extends Model
      *
      * @return BelongsTo
      */
+    /**
+     * Canonical natural-person profile; null for legal-entity shareholders.
+     */
+    public function person(): BelongsTo
+    {
+        return $this->belongsTo(Person::class, 'person_id');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
