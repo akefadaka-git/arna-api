@@ -58,6 +58,11 @@ final class Person extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function tenantAccesses(): HasMany
+    {
+        return $this->hasMany(PersonTenantAccess::class, 'person_id');
+    }
+
     public function employees(): HasMany
     {
         return $this->hasMany(EmployeeRecord::class, 'person_id');
