@@ -142,7 +142,8 @@ use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\TenantContextController;
-use App\Http\Controllers\PublicCertificateVerificationController;\nuse App\Http\Controllers\PersonController;
+use App\Http\Controllers\PublicCertificateVerificationController;
+use App\Http\Controllers\PersonController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
