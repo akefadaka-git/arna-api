@@ -101,6 +101,10 @@ jobs:
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceTermTest.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceAppointmentTest.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceMembershipTest.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceAuthorityGrant.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceAuthorityGrantService.php
+          php -l mases_core/src/Domains/Governance/Database/Migrations/2026_10_27_120000_create_governance_authority_grants_table.php
+          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
 
       - name: Validate Composer manifest and lock
         run: composer validate --no-check-publish
@@ -116,3 +120,4 @@ jobs:
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceTermTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceAppointmentTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMembershipTest.php
+          vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
