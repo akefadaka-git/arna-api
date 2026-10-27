@@ -421,7 +421,7 @@ final class GovernanceAuthorityGrantTest extends TestCase
             'end_date' => $start,
             'reason' => 'Substantive appointment concluded',
         ])->assertOk()
-            ->assertJsonPath('data.end_date', $start)
+            ->assertJsonPath('data.end_date', CarbonImmutable::parse($start)->toISOString())
             ->assertJsonPath('data.ended_reason', 'Substantive appointment concluded');
 
         $successor = $seats->occupy(
