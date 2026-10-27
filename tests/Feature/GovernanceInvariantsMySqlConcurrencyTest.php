@@ -90,7 +90,11 @@ final class GovernanceInvariantsMySqlConcurrencyTest extends TestCase
                     GovernanceAppointment::query()->findOrFail($appointmentIds[$index]),
                 ),
             );
-            $this->assertOneSuccessAndOneConflict($appointmentOutcomes, 'primary appointment');
+            $this->assertSame(
+                2,
+                count(array_filter($appointmentOutcomes, static fn (string $value): bool => $value === 'success')),
+                'Appointment lifecycle activation is independent of primary-seat occupancy; both instruments may be activated.',
+            );
 
             $membershipOutcomes = $this->raceIndependentConnections(
                 fn () => app(GovernanceMembershipService::class)->register([
