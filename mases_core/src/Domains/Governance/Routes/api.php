@@ -382,10 +382,13 @@ Route::name('api.governance.')->group(static function (): void {
 
     // P1.3-B3 — audited, position-scoped authority grants.
     Route::get('/authority-grants', [GovernanceAuthorityGrantController::class, 'index'])
+        ->middleware('auth.permission:governance.body.manage')
         ->name('authority-grants.index');
     Route::post('/authority-grants', [GovernanceAuthorityGrantController::class, 'store'])
+        ->middleware('auth.permission:governance.body.manage')
         ->name('authority-grants.store');
     Route::delete('/authority-grants/{governanceAuthorityGrant}', [GovernanceAuthorityGrantController::class, 'destroy'])
+        ->middleware('auth.permission:governance.body.manage')
         ->whereNumber('governanceAuthorityGrant')
         ->name('authority-grants.destroy');
 
