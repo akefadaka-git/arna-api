@@ -1412,6 +1412,16 @@ final class GovernanceMembershipService
         }
     }
 
+    /** Lock the stable position row before overlap queries. */
+    private function lockPositionForOverlapCheck(int $tenantId, int $positionId): void
+    {
+        GovernancePosition::query()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($positionId)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
     /**
      * Assert that the candidate range does not overlap any ongoing
      * membership for the same (person, position, body) tuple.
@@ -1433,15 +1443,6 @@ final class GovernanceMembershipService
      *
      * @throws ValidationException
      */
-    /** Lock the stable position row before overlap queries. */
-    private function lockPositionForOverlapCheck(int $tenantId, int $positionId): void
-    {
-        GovernancePosition::query()
-            ->where('tenant_id', $tenantId)
-            ->whereKey($positionId)
-            ->lockForUpdate()
-            ->firstOrFail();
-    }
 
     private function assertNoOverlap(
         int $tenantId,
