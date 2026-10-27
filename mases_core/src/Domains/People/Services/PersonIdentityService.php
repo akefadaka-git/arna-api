@@ -346,9 +346,7 @@ final class PersonIdentityService
             ->exists();
 
         $viaRole = $actor->roles()
-            ->where(function ($query) use ($tenantId): void {
-                $query->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
-            })
+            ->where('tenant_id', $tenantId)
             ->whereHas('permissions', function ($query) use ($tenantId): void {
                 // Permission definitions are shared catalogue rows with a
                 // null tenant_id; the assigned Role carries the tenant scope.
