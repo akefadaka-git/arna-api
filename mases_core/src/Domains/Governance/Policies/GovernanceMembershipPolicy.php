@@ -490,7 +490,9 @@ final class GovernanceMembershipPolicy
             permissionSlug: self::PERMISSION_MANAGE,
             user: $user,
             tenantId: $tenantId,
-        );
+        ) || ((int) $membership->user_id !== (int) $user->getKey() && $this->authorityGrants->allows(
+            $user, $tenantId, (int) $membership->governance_body_id, (int) $membership->governance_position_id, 'governance.membership.manage',
+        ));
     }
 
     // =========================================================================
