@@ -18,6 +18,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceSeat;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceSeatOccupancy;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
 
 final class GovernanceSeatService
 {
@@ -70,14 +71,23 @@ final class GovernanceSeatService
                 throw ValidationException::withMessages(['person_id' => ['A current canonical Person identity is required.']]);
             }
 
+            $hasTenantAccess = PersonTenantAccess::query()
+                ->where('person_id', $person->id)
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'active')
+                ->exists();
+            if (!$hasTenantAccess) {
+                throw ValidationException::withMessages(['person_id' => ['The canonical Person must have an active explicit access grant for this tenant.']]);
+            }
+
             if ($membershipId !== null) {
                 $membership = GovernanceMembership::query()
                     ->whereKey($membershipId)->where('tenant_id', $tenantId)
                     ->where('governance_body_id', $seat->governance_body_id)
                     ->where('governance_position_id', $seat->governance_position_id)
                     ->where('status', 'active')->first();
-                if (!$membership || ($person->user_id !== null && (int) $membership->user_id !== (int) $person->user_id)) {
-                    throw ValidationException::withMessages(['governance_membership_id' => ['Membership must be active and match this seat and canonical person.']]);
+                if (!$membership || $person->user_id === null || (int) $membership->user_id !== (int) $person->user_id) {
+                    throw ValidationException::withMessages(['governance_membership_id' => ['Membership must be active and match the canonical Person account linked to this seat.']]);
                 }
             }
 
