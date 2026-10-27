@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Laravel\\Sanctum\\Sanctum;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Permission;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Role;
-use MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Authorization\Models\Role;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class PersonApiIntegrationTest extends TestCase
 {
