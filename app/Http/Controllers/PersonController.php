@@ -320,6 +320,9 @@ final class PersonController extends Controller
             ->where('tenant_id', $tenantId)
             ->where('person_id', $person->getKey())
             ->count();
+        $documentCount = Schema::hasTable('person_document_links')
+            ? DB::table('person_document_links')->where('tenant_id', $tenantId)->where('person_id', $person->getKey())->count()
+            : null;
 
         return response()->json([
             'success' => true,
@@ -328,7 +331,8 @@ final class PersonController extends Controller
                 'employment_count' => $employees,
                 'shareholding_count' => $shareholders,
                 'governance_membership_count' => $governanceMemberships,
-                'document_linking_supported' => Schema::hasTable('person_document_links'),
+                'document_linking_supported' => $documentCount !== null,
+                'document_count' => $documentCount,
             ],
         ]);
     }
