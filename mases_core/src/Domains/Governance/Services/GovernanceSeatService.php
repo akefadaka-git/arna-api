@@ -18,10 +18,42 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceSeat;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceSeatOccupancy;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
 
 final class GovernanceSeatService
 {
     public function __construct(private readonly AuthorizationService $authorization) {}
+
+    /** List only seats in the validated tenant after checking governance management permission. */
+    public function list(User $actor, int $tenantId)
+    {
+        $this->authorize($actor, $tenantId);
+
+        return GovernanceSeat::query()
+            ->where('tenant_id', $tenantId)
+            ->with([
+                'body:id,tenant_id,code,name_am,name_en',
+                'position:id,tenant_id,governance_body_id,code,name_am,name_en',
+                'occupancies' => fn ($query) => $query->whereHas(
+                    'person.tenantAccesses',
+                    fn ($access) => $access->where('tenant_id', $tenantId)->where('status', 'active'),
+                ),
+                'occupancies.person:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en',
+                'occupancies.membership:id,tenant_id,governance_body_id,governance_position_id,user_id,status',
+                'actingAssignments' => fn ($query) => $query
+                    ->whereHas(
+                        'actingPerson.tenantAccesses',
+                        fn ($access) => $access->where('tenant_id', $tenantId)->where('status', 'active'),
+                    )
+                    ->whereHas(
+                        'substantiveOccupancy.person.tenantAccesses',
+                        fn ($access) => $access->where('tenant_id', $tenantId)->where('status', 'active'),
+                    ),
+                'actingAssignments.actingPerson:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en',
+            ])
+            ->orderBy('id')
+            ->paginate(25);
+    }
 
     public function createSeat(User $actor, int $tenantId, int $bodyId, int $positionId, string $seatCode, ?string $labelAm = null, ?string $labelEn = null): GovernanceSeat
     {
@@ -70,14 +102,23 @@ final class GovernanceSeatService
                 throw ValidationException::withMessages(['person_id' => ['A current canonical Person identity is required.']]);
             }
 
+            $hasTenantAccess = PersonTenantAccess::query()
+                ->where('person_id', $person->id)
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'active')
+                ->exists();
+            if (!$hasTenantAccess) {
+                throw ValidationException::withMessages(['person_id' => ['The canonical Person must have an active explicit access grant for this tenant.']]);
+            }
+
             if ($membershipId !== null) {
                 $membership = GovernanceMembership::query()
                     ->whereKey($membershipId)->where('tenant_id', $tenantId)
                     ->where('governance_body_id', $seat->governance_body_id)
                     ->where('governance_position_id', $seat->governance_position_id)
                     ->where('status', 'active')->first();
-                if (!$membership || ($person->user_id !== null && (int) $membership->user_id !== (int) $person->user_id)) {
-                    throw ValidationException::withMessages(['governance_membership_id' => ['Membership must be active and match this seat and canonical person.']]);
+                if (!$membership || $person->user_id === null || (int) $membership->user_id !== (int) $person->user_id) {
+                    throw ValidationException::withMessages(['governance_membership_id' => ['Membership must be active and match the canonical Person account linked to this seat.']]);
                 }
             }
 
@@ -99,6 +140,59 @@ final class GovernanceSeatService
                 'end_date' => $end?->toDateString(),
                 'status' => 'active',
             ]);
+        }, 3);
+    }
+
+    /** End or shorten a tenant-scoped occupancy interval without deleting its history. */
+    public function endOccupancy(User $actor, int $tenantId, int $occupancyId, string $endDate, string $reason): GovernanceSeatOccupancy
+    {
+        $this->authorize($actor, $tenantId);
+        $end = $this->date($endDate, 'end_date');
+        $reason = trim($reason);
+        if ($reason === '' || mb_strlen($reason) > 500) {
+            throw ValidationException::withMessages(['ended_reason' => ['An end reason of 1–500 characters is required.']]);
+        }
+
+        return DB::transaction(function () use ($tenantId, $occupancyId, $end, $reason): GovernanceSeatOccupancy {
+            $existing = GovernanceSeatOccupancy::query()
+                ->whereHas('seat', fn ($query) => $query->where('tenant_id', $tenantId))
+                ->whereKey($occupancyId)
+                ->first();
+            if (!$existing) {
+                throw (new ModelNotFoundException())->setModel(GovernanceSeatOccupancy::class, [$occupancyId]);
+            }
+
+            $seat = GovernanceSeat::query()
+                ->where('tenant_id', $tenantId)
+                ->whereKey($existing->governance_seat_id)
+                ->lockForUpdate()
+                ->first();
+            if (!$seat) {
+                throw (new ModelNotFoundException())->setModel(GovernanceSeat::class, [$existing->governance_seat_id]);
+            }
+
+            $occupancy = GovernanceSeatOccupancy::query()
+                ->where('governance_seat_id', $seat->id)
+                ->whereKey($occupancyId)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
+            if (!$occupancy) {
+                throw ValidationException::withMessages(['occupancy' => ['Only an active seat occupancy can be ended.']]);
+            }
+            if ($end->lt($occupancy->start_date)) {
+                throw ValidationException::withMessages(['end_date' => ['The end date cannot precede the occupancy start date.']]);
+            }
+            if ($occupancy->end_date !== null && $end->gt($occupancy->end_date)) {
+                throw ValidationException::withMessages(['end_date' => ['Ending an occupancy cannot extend its already recorded end date.']]);
+            }
+
+            $occupancy->forceFill([
+                'end_date' => $end->toDateString(),
+                'ended_reason' => $reason,
+            ])->save();
+
+            return $occupancy->refresh();
         }, 3);
     }
 

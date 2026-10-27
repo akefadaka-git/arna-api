@@ -16,6 +16,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
 
 final class GovernanceAuthorityGrantService
 {
@@ -89,10 +90,16 @@ final class GovernanceAuthorityGrantService
             if (!$grantee || !$grantee->user_id || !User::query()->whereKey($grantee->user_id)->where('is_active', true)->exists()) {
                 throw ValidationException::withMessages(['grantee_person_id' => ['The grantee must be a canonical Person linked to an active account.']]);
             }
+            if (!PersonTenantAccess::query()->where('person_id', $grantee->id)->where('tenant_id', $tenantId)->where('status', 'active')->exists()) {
+                throw ValidationException::withMessages(['grantee_person_id' => ['The grantee must have an active explicit Person access grant for this tenant.']]);
+            }
 
             $grantor = Person::query()->where('user_id', $actor->getKey())->where('status', 'active')->whereNull('deleted_at')->first();
             if (!$grantor) {
                 throw ValidationException::withMessages(['grantor' => ['The granting account must be linked to a canonical Person.']]);
+            }
+            if (!PersonTenantAccess::query()->where('person_id', $grantor->id)->where('tenant_id', $tenantId)->where('status', 'active')->exists()) {
+                throw ValidationException::withMessages(['grantor' => ['The grantor must have an active explicit Person access grant for this tenant.']]);
             }
             if ((int) $grantor->id === $granteeId) {
                 throw ValidationException::withMessages(['grantee_person_id' => ['Self-approval and self-delegation are prohibited.']]);

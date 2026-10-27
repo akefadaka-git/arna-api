@@ -15,6 +15,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceActingAssignment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceSeat;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceSeatOccupancy;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
 
 final class GovernanceActingAssignmentService
 {
@@ -59,6 +60,14 @@ final class GovernanceActingAssignmentService
             if (!$occupancy || $occupancy->start_date->gt($start) || ($occupancy->end_date && $occupancy->end_date->lt($end))) {
                 throw ValidationException::withMessages(['substantive_occupancy_id' => ['The referenced primary occupancy must cover the full acting-assignment interval.']]);
             }
+            $occupantHasTenantAccess = PersonTenantAccess::query()
+                ->where('person_id', $occupancy->person_id)
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'active')
+                ->exists();
+            if (!$occupantHasTenantAccess) {
+                throw ValidationException::withMessages(['substantive_occupancy_id' => ['The substantive incumbent must have an active explicit access grant for this tenant.']]);
+            }
             if ($occupancy->person_id === $actingPersonId) {
                 throw ValidationException::withMessages(['acting_person_id' => ['The substantive incumbent cannot be assigned as their own acting replacement.']]);
             }
@@ -66,6 +75,17 @@ final class GovernanceActingAssignmentService
             $grantor = Person::query()->where('user_id', $actor->getKey())->where('status', 'active')->whereNull('deleted_at')->first();
             if (!$actingPerson || !$grantor) {
                 throw ValidationException::withMessages(['acting_person_id' => ['Acting person and authorizing grantor must be active canonical Person identities.']]);
+            }
+
+            foreach ([$actingPerson, $grantor] as $participant) {
+                $hasTenantAccess = PersonTenantAccess::query()
+                    ->where('person_id', $participant->id)
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', 'active')
+                    ->exists();
+                if (!$hasTenantAccess) {
+                    throw ValidationException::withMessages(['acting_person_id' => ['Acting person and authorizing grantor must each have an active explicit access grant for this tenant.']]);
+                }
             }
 
             $overlap = GovernanceActingAssignment::query()

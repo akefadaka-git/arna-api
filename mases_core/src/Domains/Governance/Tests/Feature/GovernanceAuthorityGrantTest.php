@@ -17,6 +17,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantSer
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceSeatService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceActingAssignmentService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
 
@@ -249,6 +250,50 @@ final class GovernanceAuthorityGrantTest extends TestCase
         $this->assertSame(CarbonImmutable::parse($end)->addDay()->toDateString(), $adjacent->start_date->toDateString());
     }
 
+    public function test_seat_occupancy_rejects_person_without_explicit_tenant_access(): void
+    {
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'TENANT-GUARD');
+        PersonTenantAccess::query()
+            ->where('person_id', $this->granteePerson->id)
+            ->where('tenant_id', $this->tenant->id)
+            ->delete();
+
+        try {
+            $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->granteePerson->id, CarbonImmutable::today()->toDateString());
+            $this->fail('A global Person without explicit tenant access must not be assigned to a tenant seat.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('person_id', $exception->errors());
+        }
+    }
+
+    public function test_membership_cannot_be_linked_to_a_person_without_a_canonical_account(): void
+    {
+        $unlinked = new Person([
+            'first_name_en' => 'Unlinked',
+            'father_name_en' => 'Person',
+        ]);
+        $unlinked->status = 'active';
+        $unlinked->save();
+        PersonTenantAccess::query()->create([
+            'person_id' => $unlinked->id,
+            'tenant_id' => $this->tenant->id,
+            'created_by' => $this->administrator->id,
+            'status' => 'active',
+        ]);
+
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'MEMBERSHIP-GUARD');
+        $membership = GovernanceMembership::query()->where('user_id', $this->grantee->id)->firstOrFail();
+
+        try {
+            $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $unlinked->id, CarbonImmutable::today()->toDateString(), null, (int) $membership->id);
+            $this->fail('A membership cannot be attached to a Person without a canonical account link.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('governance_membership_id', $exception->errors());
+        }
+    }
+
     public function test_acting_assignment_is_bounded_scoped_and_revocable_without_replacing_primary_occupancy(): void
     {
         $seats = app(GovernanceSeatService::class);
@@ -272,13 +317,145 @@ final class GovernanceAuthorityGrantTest extends TestCase
 
         $this->assertSame((int) $primary->id, (int) $assignment->substantive_occupancy_id);
         $this->assertSame(['governance.membership.manage'], $assignment->actions);
-        $this->assertTrue($assignment->allowsAction('governance.membership.manage', $start));
-        $this->assertFalse($assignment->allowsAction('governance.appointment.manage', $start));
+        $this->assertTrue($assignment->coversAction('governance.membership.manage', $start));
+        $this->assertFalse($assignment->coversAction('governance.appointment.manage', $start));
         $this->assertSame((int) $primary->id, (int) $seat->fresh()->effectiveOccupancy($start)?->id);
 
         $revoked = $service->revoke($this->administrator, (int) $this->tenant->id, (int) $assignment->id, 'Acting period concluded early');
         $this->assertNotNull($revoked->revoked_at);
         $this->assertSame((int) $primary->id, (int) $seat->fresh()->effectiveOccupancy($start)?->id);
+    }
+
+    public function test_authority_grant_rejects_grantee_without_explicit_tenant_access(): void
+    {
+        PersonTenantAccess::query()
+            ->where('person_id', $this->granteePerson->id)
+            ->where('tenant_id', $this->tenant->id)
+            ->delete();
+
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'governance.membership.manage',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Tenant access is required',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['grantee_person_id']);
+    }
+
+    public function test_acting_assignment_rejects_person_without_explicit_tenant_access(): void
+    {
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'ACTING-TENANT-GUARD');
+        $start = CarbonImmutable::today()->toDateString();
+        $primary = $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->administratorPerson->id, $start, null);
+
+        PersonTenantAccess::query()
+            ->where('person_id', $this->granteePerson->id)
+            ->where('tenant_id', $this->tenant->id)
+            ->delete();
+
+        try {
+            app(GovernanceActingAssignmentService::class)->assign(
+                $this->administrator,
+                (int) $this->tenant->id,
+                (int) $seat->id,
+                (int) $primary->id,
+                (int) $this->granteePerson->id,
+                $start,
+                CarbonImmutable::today()->addDays(2)->toDateString(),
+                'BOARD-RESOLUTION-TENANT-GUARD',
+                ['governance.membership.manage'],
+                'Tenant access must be explicit',
+            );
+            $this->fail('An acting person without explicit tenant access must be rejected.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('acting_person_id', $exception->errors());
+        }
+    }
+
+    public function test_seat_api_lists_creates_and_occupies_only_through_authorized_tenant_routes(): void
+    {
+        $this->postJson(route('api.governance.seats.store'), [
+            'governance_body_id' => (int) $this->body->id,
+            'governance_position_id' => (int) $this->position->id,
+            'seat_code' => 'API-CHAIR',
+            'label_am' => 'ሰብሳቢ',
+            'label_en' => 'Chairperson',
+        ])->assertCreated()->assertJsonPath('data.seat_code', 'API-CHAIR');
+
+        $seatId = (int) \Illuminate\Support\Facades\DB::table('governance_seats')
+            ->where('tenant_id', $this->tenant->id)
+            ->where('seat_code', 'API-CHAIR')
+            ->value('id');
+
+        $this->getJson(route('api.governance.seats.index'))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->postJson(route('api.governance.seats.occupancies.store', ['governanceSeat' => $seatId]), [
+            'person_id' => (int) $this->administratorPerson->id,
+            'start_date' => CarbonImmutable::today()->toDateString(),
+            'end_date' => null,
+        ])->assertCreated()->assertJsonPath('data.status', 'active');
+
+        PersonTenantAccess::query()
+            ->where('person_id', $this->administratorPerson->id)
+            ->where('tenant_id', $this->tenant->id)
+            ->delete();
+
+        $this->getJson(route('api.governance.seats.index'))
+            ->assertOk()
+            ->assertJsonCount(0, 'data.data.0.occupancies');
+    }
+
+    public function test_primary_occupancy_can_be_ended_with_reason_and_succeeded_by_next_interval(): void
+    {
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'END-OCCUPANCY');
+        $start = CarbonImmutable::today()->toDateString();
+        $occupancy = $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->administratorPerson->id, $start, null);
+
+        $this->patchJson(route('api.governance.occupancies.end', [
+            'governanceSeatOccupancy' => $occupancy->id,
+        ]), [
+            'end_date' => $start,
+            'reason' => 'Substantive appointment concluded',
+        ])->assertOk()
+            ->assertJsonPath('data.end_date', CarbonImmutable::parse($start)->toISOString())
+            ->assertJsonPath('data.ended_reason', 'Substantive appointment concluded');
+
+        $successor = $seats->occupy(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $seat->id,
+            (int) $this->granteePerson->id,
+            CarbonImmutable::parse($start)->addDay()->toDateString(),
+            null,
+        );
+        $this->assertSame($this->granteePerson->id, $successor->person_id);
+    }
+
+    public function test_acting_assignment_api_creates_and_revokes_with_auditable_reason(): void
+    {
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'API-ACTING');
+        $start = CarbonImmutable::today()->toDateString();
+        $primary = $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->administratorPerson->id, $start, null);
+
+        $response = $this->postJson(route('api.governance.seats.acting-assignments.store', ['governanceSeat' => $seat->id]), [
+            'substantive_occupancy_id' => (int) $primary->id,
+            'acting_person_id' => (int) $this->granteePerson->id,
+            'start_date' => $start,
+            'end_date' => CarbonImmutable::today()->addDays(2)->toDateString(),
+            'source_decision_reference' => 'BOARD-RESOLUTION-API-001',
+            'actions' => ['governance.membership.manage'],
+            'reason' => 'Temporary acting assignment approved by the board',
+        ])->assertCreated();
+
+        $assignmentId = (int) $response->json('data.id');
+        $this->deleteJson(route('api.governance.acting-assignments.destroy', ['governanceActingAssignment' => $assignmentId]), [
+            'reason' => 'Acting assignment concluded',
+        ])->assertOk()->assertJsonPath('data.revocation_reason', 'Acting assignment concluded');
     }
 
     private function makeUser(string $email): User
@@ -305,6 +482,14 @@ final class GovernanceAuthorityGrantTest extends TestCase
         $person->user_id = $user->id;
         $person->status = 'active';
         $person->save();
+
+        PersonTenantAccess::query()->create([
+            'person_id' => $person->id,
+            'tenant_id' => $this->tenant->id,
+            'created_by' => $user->id,
+            'status' => 'active',
+        ]);
+
         return $person;
     }
 }

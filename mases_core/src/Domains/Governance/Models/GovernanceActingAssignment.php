@@ -48,7 +48,13 @@ final class GovernanceActingAssignment extends Model
             && $this->end_date->toDateString() >= $date;
     }
 
-    public function allowsAction(string $action, ?string $onDate = null): bool
+    /**
+     * Indicates whether this assignment's declared scope includes an action.
+     *
+     * This is NOT an authorization decision. Callers must still evaluate the
+     * action-bound GovernanceAuthorityGrant and the normal tenant RBAC policy.
+     */
+    public function coversAction(string $action, ?string $onDate = null): bool
     {
         return $this->isEffectiveOn($onDate) && in_array($action, $this->actions ?? [], true);
     }
