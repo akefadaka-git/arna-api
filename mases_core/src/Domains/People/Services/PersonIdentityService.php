@@ -69,7 +69,7 @@ final class PersonIdentityService
             if ($person->user_id !== null && (int) $person->user_id !== $userId) {
                 throw new DomainException('Person already has a current account association.');
             }
-            $otherPerson = Person::query()->where('user_id', $userId)->whereKeyNot($personId)->lockForUpdate()->first();
+            $otherPerson = Person::query()->where('user_id', $userId)->where('id', '<>', $personId)->lockForUpdate()->first();
             if ($otherPerson !== null) {
                 throw new DomainException('Account is already associated with another Person.');
             }
