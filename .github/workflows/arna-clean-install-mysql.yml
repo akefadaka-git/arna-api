@@ -18,6 +18,11 @@ on:
       - "database/seeders/**"
       - "tests/Unit/DemoSeederGuardTest.php"
       - "tests/Concerns/LoanDatabaseMigrations.php"
+      - "tests/Feature/PersonIdentityContractTest.php"
+      - "mases_core/src/Domains/People/**"
+      - "mases_core/src/Auth/Models/User.php"
+      - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
+      - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
       - "mases_core/src/Domains/Loan/Tests/Unit/**"
       - "mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php"
   workflow_dispatch:
