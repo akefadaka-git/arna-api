@@ -404,6 +404,10 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.body.manage')
         ->whereNumber('governanceSeat')
         ->name('seats.occupancies.store');
+    Route::patch('/occupancies/{governanceSeatOccupancy}/end', [GovernanceSeatController::class, 'endOccupancy'])
+        ->middleware('auth.permission:governance.body.manage')
+        ->whereNumber('governanceSeatOccupancy')
+        ->name('occupancies.end');
     Route::post('/seats/{governanceSeat}/acting-assignments', [GovernanceSeatController::class, 'assignActing'])
         ->middleware('auth.permission:governance.body.manage')
         ->whereNumber('governanceSeat')
