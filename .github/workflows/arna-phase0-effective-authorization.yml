@@ -99,10 +99,7 @@ jobs:
 
       - name: Run Phase 0 HTTP and canonical User model regression tests
         run: |
-          php artisan test --compact \\
-            tests/Feature/Phase0PublicEndpointRateLimitTest.php \\
-            tests/Feature/Phase0AuthorizationDenialTest.php \\
-            tests/Feature/AuthProviderModelContractTest.php
+          php artisan test --compact tests/Feature/Phase0PublicEndpointRateLimitTest.php tests/Feature/Phase0AuthorizationDenialTest.php tests/Feature/AuthProviderModelContractTest.php
 
       - name: Upload route table and audit report
         if: always()
