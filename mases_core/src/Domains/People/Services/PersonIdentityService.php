@@ -44,6 +44,14 @@ final class PersonIdentityService
                 ]);
             }
             $person->save();
+            DB::table('person_tenant_accesses')->insert([
+                'person_id' => $person->getKey(),
+                'tenant_id' => $tenantId,
+                'created_by' => $actor->getKey(),
+                'status' => 'active',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
             $this->recordEvent('person.created', $tenantId, $actor, $person, null);
             return $person;
@@ -60,6 +68,7 @@ final class PersonIdentityService
 
         return DB::transaction(function () use ($tenantId, $personId, $userId, $actor, $reason): Person {
             $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
             $user = User::query()->whereKey($userId)->where('is_active', true)->lockForUpdate()->firstOrFail();
             $this->assertTenantAccess($tenantId, $user);
 
@@ -97,6 +106,7 @@ final class PersonIdentityService
 
         return DB::transaction(function () use ($tenantId, $personId, $actor, $reason): Person {
             $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
             if ($person->user_id === null) {
                 return $person;
             }
@@ -125,6 +135,7 @@ final class PersonIdentityService
                 throw new DomainException('Legal-entity shareholders cannot link to a natural-person profile.');
             }
             $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
             $this->assertDomainUserConsistency($person, $holder->user_id ?? null);
             DB::table('shareholders')->where('id', $shareholderId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
             $this->recordEvent('person.shareholder_linked', $tenantId, $actor, $person, ['shareholder_id' => $shareholderId, 'reason' => $reason]);
@@ -142,6 +153,7 @@ final class PersonIdentityService
                 throw new DomainException('Employee was not found in the authorized tenant.');
             }
             $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
             $this->assertDomainUserConsistency($person, $employee->user_id ?? null);
             DB::table('employees')->where('id', $employeeId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
             $this->recordEvent('person.employee_linked', $tenantId, $actor, $person, ['employee_id' => $employeeId, 'reason' => $reason]);
@@ -159,10 +171,62 @@ final class PersonIdentityService
                 throw new DomainException('Governance membership was not found in the authorized tenant.');
             }
             $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
             $this->assertDomainUserConsistency($person, $membership->user_id ?? null);
             DB::table('governance_memberships')->where('id', $membershipId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
             $this->recordEvent('person.governance_membership_linked', $tenantId, $actor, $person, ['membership_id' => $membershipId, 'reason' => $reason]);
         });
+    }
+
+    public function grantTenantAccess(int $tenantId, int $personId, User $actor, string $reason): void
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertGlobalTenantAccessPermission($actor);
+        $this->assertReason($reason);
+
+        DB::transaction(function () use ($tenantId, $personId, $actor, $reason): void {
+            $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
+            DB::table('person_tenant_accesses')->updateOrInsert(
+                ['person_id' => $personId, 'tenant_id' => $tenantId],
+                ['created_by' => $actor->getKey(), 'status' => 'active', 'updated_at' => now(), 'created_at' => now()],
+            );
+            $this->recordEvent('person.tenant_access_granted', $tenantId, $actor, $person, ['reason' => $reason]);
+        });
+    }
+
+    private function assertPersonTenantAccess(int $tenantId, Person $person): void
+    {
+        $allowed = DB::table('person_tenant_accesses')
+            ->where('tenant_id', $tenantId)
+            ->where('person_id', $person->getKey())
+            ->where('status', 'active')
+            ->exists();
+
+        if (! $allowed) {
+            throw new DomainException('Person profile is not visible in the validated tenant context.');
+        }
+    }
+
+    private function assertGlobalTenantAccessPermission(User $actor): void
+    {
+        $direct = $actor->permissions()
+            ->where('slug', 'people.tenant-access.manage')
+            ->where('scope', 'global')
+            ->where('is_active', true)
+            ->exists();
+
+        $viaRole = $actor->roles()
+            ->whereNull('tenant_id')
+            ->whereHas('permissions', function ($query): void {
+                $query->where('slug', 'people.tenant-access.manage')
+                    ->where('scope', 'global')
+                    ->where('is_active', true);
+            })
+            ->exists();
+
+        if (! $direct && ! $viaRole) {
+            throw new DomainException('The global people.tenant-access.manage permission is required.');
+        }
     }
 
     private function assertManagePermission(int $tenantId, User $actor): void
