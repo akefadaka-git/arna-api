@@ -6,7 +6,6 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Tests\Feature;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
@@ -180,29 +179,21 @@ final class GovernanceAuthorityGrantTest extends TestCase
 
     public function test_self_delegation_and_unknown_actions_are_rejected(): void
     {
-        try {
-            $this->postJson(route('api.governance.authority-grants.store'), [
-                'governance_position_id' => (int) $this->position->id,
-                'grantee_person_id' => (int) $this->administratorPerson->id,
-                'action' => 'governance.membership.manage',
-                'effective_from' => CarbonImmutable::today()->toDateString(),
-                'reason' => 'Self delegation must fail',
-            ])->assertUnprocessable()->assertJsonValidationErrors(['grantee_person_id']);
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('grantee_person_id', $exception->errors());
-        }
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->administratorPerson->id,
+            'action' => 'governance.membership.manage',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Self delegation must fail',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['grantee_person_id']);
 
-        try {
-            $this->postJson(route('api.governance.authority-grants.store'), [
-                'governance_position_id' => (int) $this->position->id,
-                'grantee_person_id' => (int) $this->granteePerson->id,
-                'action' => 'finance.payment.approve',
-                'effective_from' => CarbonImmutable::today()->toDateString(),
-                'reason' => 'Financial authority is explicitly out of scope',
-            ])->assertUnprocessable()->assertJsonValidationErrors(['action']);
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('action', $exception->errors());
-        }
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'finance.payment.approve',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Financial authority is explicitly out of scope',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['action']);
     }
 
     private function makeUser(string $email): User
