@@ -1,0 +1,255 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MaaleArna\MASES\Core\Domains\Governance\Tests\Feature;
+
+use Carbon\CarbonImmutable;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use Tests\TestCase;
+
+final class GovernanceAuthorityGrantTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Tenant $tenant;
+    private User $administrator;
+    private User $grantee;
+    private Person $administratorPerson;
+    private Person $granteePerson;
+    private GovernanceBody $body;
+    private GovernancePosition $position;
+    private GovernanceAuthorityGrantService $service;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->tenant = Tenant::query()->create([
+            'name_am' => 'የሙከራ ድርጅት',
+            'name_en' => 'Test Tenant',
+            'slug' => 'authority-test',
+            'domain' => 'authority-test.example.test',
+            'is_active' => true,
+        ]);
+        $this->withHeader('X-Tenant-ID', (string) $this->tenant->id);
+
+        $this->administrator = $this->makeUser('admin@authority.example.test');
+        $this->grantee = $this->makeUser('grantee@authority.example.test');
+        $this->administratorPerson = $this->makePerson($this->administrator);
+        $this->granteePerson = $this->makePerson($this->grantee);
+
+        $permission = Permission::query()->create([
+            'slug' => 'governance.body.manage',
+            'name_am' => 'የአስተዳደር አካል ማስተዳደር',
+            'name_en' => 'Manage governance bodies',
+            'description_am' => 'የአስተዳደር አካል ማስተዳደር',
+            'description_en' => 'Manage governance bodies',
+            'category' => 'governance',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => true,
+        ]);
+        $this->administrator->permissions()->attach($permission->id, ['assigned_at' => now()]);
+
+        $this->body = GovernanceBody::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'code' => 'BOARD',
+            'body_type' => 'board',
+            'name_am' => 'ቦርድ',
+            'name_en' => 'Board',
+            'is_active' => true,
+        ]);
+        $this->position = GovernancePosition::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $this->body->id,
+            'code' => 'CHAIR',
+            'name_am' => 'ሰብሳቢ',
+            'name_en' => 'Chairperson',
+            'is_voting' => true,
+            'is_officer' => true,
+            'sort_order' => 0,
+            'is_active' => true,
+        ]);
+        GovernanceMembership::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $this->body->id,
+            'governance_position_id' => $this->position->id,
+            'user_id' => $this->grantee->id,
+            'member_name_en' => 'Delegated Member',
+            'start_date' => CarbonImmutable::today()->toDateString(),
+            'end_date' => null,
+            'status' => 'active',
+            'is_ex_officio' => false,
+        ]);
+
+        Sanctum::actingAs($this->administrator, ['*']);
+        $this->service = app(GovernanceAuthorityGrantService::class);
+    }
+
+    public function test_grant_is_limited_to_the_position_action_and_can_be_revoked(): void
+    {
+        $grantResponse = $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'governance.membership.manage',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'effective_until' => CarbonImmutable::today()->addDays(7)->toDateString(),
+            'reason' => 'Temporary, position-scoped delegation',
+        ])->assertCreated();
+        $grantId = (int) $grantResponse->json('data.id');
+
+        $this->assertTrue($this->service->allows(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'governance.membership.manage',
+        ));
+        $this->assertFalse($this->service->allows(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'governance.position.manage',
+        ));
+
+        $revokeResponse = $this->deleteJson(route('api.governance.authority-grants.destroy', [
+            'governanceAuthorityGrant' => $grantId,
+        ]), ['reason' => 'Delegation no longer required'])->assertOk();
+        $this->assertNotNull($revokeResponse->json('data.revoked_at'));
+        $this->assertSame($this->administrator->id, $revokeResponse->json('data.revoked_by_user_id'));
+        $this->assertFalse($this->service->allows(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'governance.membership.manage',
+        ));
+    }
+
+    public function test_delegation_authorizes_other_membership_but_not_the_grantee_own_record(): void
+    {
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'governance.membership.manage',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Manage other memberships in this position',
+        ])->assertCreated();
+
+        $target = $this->makeUser('target@authority.example.test');
+        $targetMembership = GovernanceMembership::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $this->body->id,
+            'governance_position_id' => $this->position->id,
+            'user_id' => $target->id,
+            'member_name_en' => 'Target Member',
+            'start_date' => CarbonImmutable::today()->toDateString(),
+            'end_date' => null,
+            'status' => 'active',
+            'is_ex_officio' => false,
+        ]);
+
+        Sanctum::actingAs($this->grantee, ['*']);
+        $this->patchJson(route('api.governance.memberships.update', [
+            'governanceMembership' => $targetMembership->id,
+        ]), ['member_name_en' => 'Updated by delegate'])->assertOk();
+
+        $ownMembership = GovernanceMembership::query()
+            ->where('user_id', $this->grantee->id)
+            ->where('governance_position_id', $this->position->id)
+            ->firstOrFail();
+
+        $this->patchJson(route('api.governance.memberships.update', [
+            'governanceMembership' => $ownMembership->id,
+        ]), ['member_name_en' => 'Attempted self-change'])->assertForbidden();
+    }
+
+    public function test_position_scoped_appointment_grant_authorizes_only_the_matching_action(): void
+    {
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'governance.appointment.manage',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Manage appointments for this position',
+        ])->assertCreated();
+
+        $appointment = GovernanceAppointment::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $this->body->id,
+            'governance_position_id' => $this->position->id,
+            'instrument_type' => 'resolution',
+            'instrument_reference' => 'RES-AUTHORITY-1',
+            'instrument_date' => CarbonImmutable::today()->toDateString(),
+            'effective_date' => CarbonImmutable::today()->toDateString(),
+            'appointment_mode' => 'elected',
+            'status' => 'draft',
+            'title_en' => 'Initial appointment',
+        ]);
+
+        Sanctum::actingAs($this->grantee, ['*']);
+        $this->patchJson(route('api.governance.appointments.update', [
+            'governanceAppointment' => $appointment->id,
+        ]), ['title_en' => 'Updated by delegated authority'])->assertOk();
+    }
+
+    public function test_self_delegation_and_unknown_actions_are_rejected(): void
+    {
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->administratorPerson->id,
+            'action' => 'governance.membership.manage',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Self delegation must fail',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['grantee_person_id']);
+
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'finance.payment.approve',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Financial authority is explicitly out of scope',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['action']);
+    }
+
+    private function makeUser(string $email): User
+    {
+        $user = User::query()->create([
+            'first_name_en' => 'Authority',
+            'father_name_en' => 'Test',
+            'email' => $email,
+            'password' => bcrypt('not-used-in-test'),
+            'locale' => 'am',
+            'is_active' => true,
+            'default_tenant_id' => $this->tenant->id,
+        ]);
+        $user->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+        return $user;
+    }
+
+    private function makePerson(User $user): Person
+    {
+        $person = new Person([
+            'first_name_en' => 'Authority',
+            'father_name_en' => 'Test',
+        ]);
+        $person->user_id = $user->id;
+        $person->status = 'active';
+        $person->save();
+        return $person;
+    }
+}

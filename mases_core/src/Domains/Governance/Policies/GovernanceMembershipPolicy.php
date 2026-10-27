@@ -258,6 +258,7 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Policies;
 
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
 
@@ -349,6 +350,7 @@ final class GovernanceMembershipPolicy
      */
     public function __construct(
         private readonly AuthorizationService $authorization,
+        private readonly GovernanceAuthorityGrantService $authorityGrants,
     ) {
     }
 
@@ -440,6 +442,8 @@ final class GovernanceMembershipPolicy
             permissionSlug: self::PERMISSION_MANAGE,
             user: $user,
             tenantId: $tenantId,
+        ) || $this->authorityGrants->allows(
+            $user, $tenantId, (int) $membership->governance_body_id, (int) $membership->governance_position_id, 'governance.membership.manage',
         );
     }
 
@@ -486,7 +490,9 @@ final class GovernanceMembershipPolicy
             permissionSlug: self::PERMISSION_MANAGE,
             user: $user,
             tenantId: $tenantId,
-        );
+        ) || ((int) $membership->user_id !== (int) $user->getKey() && $this->authorityGrants->allows(
+            $user, $tenantId, (int) $membership->governance_body_id, (int) $membership->governance_position_id, 'governance.membership.manage',
+        ));
     }
 
     // =========================================================================

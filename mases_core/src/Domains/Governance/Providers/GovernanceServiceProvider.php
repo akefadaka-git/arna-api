@@ -216,6 +216,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceMembershipRep
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernancePositionRepository;
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceTermRepository;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAppointmentService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceBodyService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceMembershipService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernancePositionService;
@@ -521,6 +522,9 @@ final class GovernanceServiceProvider extends ServiceProvider
         // G2c — membership bindings.
         $this->app->singleton(GovernanceMembershipRepository::class);
         $this->app->singleton(GovernanceMembershipService::class);
+
+        // P1.3-B3 — explicit position-scoped authority grants.
+        $this->app->singleton(GovernanceAuthorityGrantService::class);
     }
 
     // =========================================================================
