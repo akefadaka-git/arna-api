@@ -90,7 +90,7 @@ final class PersonIdentityService
     public function unlinkAccount(int $tenantId, int $personId, User $actor, string $reason): Person
     {
         $this->assertTenantAccess($tenantId, $actor);
-        $this->assertManagePermission($tenantId, $actor);
+        $this->assertGlobalAccountLinkPermission($actor);
         if (trim($reason) === '') {
             throw ValidationException::withMessages(['reason' => 'A reason is required for account unlinking.']);
         }
