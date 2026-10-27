@@ -742,7 +742,8 @@ final class GovernanceTermTest extends TestCase
         ])->postJson(route('api.governance.terms.store', [
             'governanceBody' => $this->bodyA1->id,
         ]), [
-            'label_am' => 'የኦዲት ዘመን',
+            'label_am'       => 'የኦዲት ዘመን',
+            'effective_from' => '2030-01-01',
         ])->assertStatus(201);
 
         $this->assertDatabaseHas('audit_logs', [
