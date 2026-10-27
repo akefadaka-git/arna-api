@@ -21,6 +21,7 @@ on:
       - "tests/Feature/PersonIdentityContractTest.php"
       - "tests/Feature/PersonApiIntegrationTest.php"
       - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
+      - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
       - "app/Http/Controllers/PersonController.php"
       - "routes/api.php"
       - "mases_core/src/Domains/People/**"
@@ -180,6 +181,17 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/PersonIdentityMySqlConcurrencyTest.php
+
+      - name: Run independent-connection Governance invariant concurrency regression
+        env:
+          ARNA_RUN_MYSQL_CONCURRENCY: "1"
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php
 
       - name: Verify expected core and domain tables
         shell: bash
