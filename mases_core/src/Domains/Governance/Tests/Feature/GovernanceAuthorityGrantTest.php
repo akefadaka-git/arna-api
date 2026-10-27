@@ -408,6 +408,33 @@ final class GovernanceAuthorityGrantTest extends TestCase
             ->assertJsonCount(0, 'data.data.0.occupancies');
     }
 
+    public function test_primary_occupancy_can_be_ended_with_reason_and_succeeded_by_next_interval(): void
+    {
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'END-OCCUPANCY');
+        $start = CarbonImmutable::today()->toDateString();
+        $occupancy = $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->administratorPerson->id, $start, null);
+
+        $this->patchJson(route('api.governance.occupancies.end', [
+            'governanceSeatOccupancy' => $occupancy->id,
+        ]), [
+            'end_date' => $start,
+            'reason' => 'Substantive appointment concluded',
+        ])->assertOk()
+            ->assertJsonPath('data.end_date', $start)
+            ->assertJsonPath('data.ended_reason', 'Substantive appointment concluded');
+
+        $successor = $seats->occupy(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $seat->id,
+            (int) $this->granteePerson->id,
+            CarbonImmutable::parse($start)->addDay()->toDateString(),
+            null,
+        );
+        $this->assertSame($this->granteePerson->id, $successor->person_id);
+    }
+
     public function test_acting_assignment_api_creates_and_revokes_with_auditable_reason(): void
     {
         $seats = app(GovernanceSeatService::class);
