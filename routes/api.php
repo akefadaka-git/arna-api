@@ -142,7 +142,7 @@ use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\TenantContextController;
-use App\Http\Controllers\PublicCertificateVerificationController;
+use App\Http\Controllers\PublicCertificateVerificationController;\nuse App\Http\Controllers\PersonController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -513,6 +513,20 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         ->name('api.launcher');
 
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // People Profile — explicit tenant visibility and tenant-scoped mutations
+    // -------------------------------------------------------------------------
+
+    Route::prefix('/people')->name('api.people.')->group(static function (): void {
+        Route::get('/', [PersonController::class, 'index'])->name('index');
+        Route::post('/', [PersonController::class, 'store'])
+            ->middleware('throttle:30,1')
+            ->name('store');
+        Route::get('/{publicId}', [PersonController::class, 'show'])
+            ->whereUuid('publicId')
+            ->name('show');
+    });
+
     // File Management
     // -------------------------------------------------------------------------
 
