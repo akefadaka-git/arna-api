@@ -103,7 +103,13 @@ jobs:
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceMembershipTest.php
           php -l mases_core/src/Domains/Governance/Models/GovernanceAuthorityGrant.php
           php -l mases_core/src/Domains/Governance/Services/GovernanceAuthorityGrantService.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceSeat.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceSeatOccupancy.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceActingAssignment.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceSeatService.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceActingAssignmentService.php
           php -l mases_core/src/Domains/Governance/Database/Migrations/2026_10_27_120000_create_governance_authority_grants_table.php
+          php -l mases_core/src/Domains/Governance/Database/Migrations/2026_10_27_130000_create_governance_seats_and_acting_assignments_tables.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
           php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceAuthorityGrantController.php
           php -l mases_core/src/Domains/Governance/Routes/api.php

@@ -608,8 +608,8 @@ final class GovernanceAppointmentService
         }
 
         return DB::transaction(function () use ($appointment): GovernanceAppointment {
-            // Serialize activations for this position before checking the incumbent invariant.
-            $this->assertNoOtherActiveAppointmentForPosition($appointment);
+            // Appointment lifecycle is not occupancy. Future instruments may be activated
+            // before their effective date; exclusivity is enforced by explicit dated seat occupancies.
 
             // A3 / RP-01 — pre-change snapshot.
             $beforeSnapshot = $appointment->getOriginal();

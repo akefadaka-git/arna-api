@@ -197,14 +197,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 57
+          test "${applied}" -eq 58
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -232,7 +232,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 57
+          test "${applied}" -eq 58
 
       - name: Upload migration status evidence
         if: always()

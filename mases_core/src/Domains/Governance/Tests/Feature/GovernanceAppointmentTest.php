@@ -210,28 +210,27 @@ final class GovernanceAppointmentTest extends TestCase
         gc_collect_cycles();
     }
 
-    public function test_second_active_primary_appointment_for_position_is_rejected(): void
+    public function test_future_active_appointment_does_not_displace_current_occupancy(): void
     {
         $body = $this->createGovernanceBody();
         $position = $this->createGovernancePosition($body);
-        $first = $this->createAppointment($body, ['governance_position_id' => $position->id]);
-        $second = $this->createAppointment($body, [
+        $first = $this->createAppointment($body, [
             'governance_position_id' => $position->id,
-            'instrument_reference' => 'RES-2026-001',
+            'effective_date' => '2026-01-01',
+        ]);
+        $successor = $this->createAppointment($body, [
+            'governance_position_id' => $position->id,
+            'instrument_reference' => 'RES-2027-001',
+            'effective_date' => '2027-01-01',
         ]);
 
         $service = app(GovernanceAppointmentService::class);
         $service->activate($first);
-
-        try {
-            $service->activate($second);
-            $this->fail('A second active primary appointment for one position must be rejected.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('governance_position_id', $exception->errors());
-        }
+        $service->activate($successor);
 
         $this->assertSame('active', $first->fresh()->status);
-        $this->assertSame('draft', $second->fresh()->status);
+        $this->assertSame('active', $successor->fresh()->status);
+        $this->assertSame('2027-01-01', $successor->fresh()->effective_date->toDateString());
     }
 
     // =========================================================================

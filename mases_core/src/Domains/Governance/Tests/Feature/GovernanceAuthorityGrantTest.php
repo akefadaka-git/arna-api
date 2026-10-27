@@ -14,6 +14,8 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceSeatService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceActingAssignmentService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
@@ -224,6 +226,59 @@ final class GovernanceAuthorityGrantTest extends TestCase
             'effective_from' => CarbonImmutable::today()->toDateString(),
             'reason' => 'Financial authority is explicitly out of scope',
         ])->assertUnprocessable()->assertJsonValidationErrors(['action']);
+    }
+
+    public function test_explicit_seat_rejects_overlapping_primary_occupancy_but_allows_adjacent_periods(): void
+    {
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'BOARD-CHAIR');
+        $start = CarbonImmutable::today()->toDateString();
+        $end = CarbonImmutable::today()->addDays(4)->toDateString();
+
+        $first = $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->administratorPerson->id, $start, $end);
+        $this->assertSame('active', $first->fresh()->status);
+
+        try {
+            $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->granteePerson->id, $end, null);
+            $this->fail('Inclusive same-day overlap on a primary seat must be rejected.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('governance_seat_id', $exception->errors());
+        }
+
+        $adjacent = $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->granteePerson->id, CarbonImmutable::parse($end)->addDay()->toDateString(), null);
+        $this->assertSame(CarbonImmutable::parse($end)->addDay()->toDateString(), $adjacent->start_date->toDateString());
+    }
+
+    public function test_acting_assignment_is_bounded_scoped_and_revocable_without_replacing_primary_occupancy(): void
+    {
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'BOARD-SECRETARY');
+        $start = CarbonImmutable::today()->toDateString();
+        $primary = $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->administratorPerson->id, $start, null);
+
+        $service = app(GovernanceActingAssignmentService::class);
+        $assignment = $service->assign(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $seat->id,
+            (int) $primary->id,
+            (int) $this->granteePerson->id,
+            $start,
+            CarbonImmutable::today()->addDays(2)->toDateString(),
+            'BOARD-RESOLUTION-2026-001',
+            ['governance.membership.manage'],
+            'Temporary acting assignment under approved resolution',
+        );
+
+        $this->assertSame((int) $primary->id, (int) $assignment->substantive_occupancy_id);
+        $this->assertSame(['governance.membership.manage'], $assignment->actions);
+        $this->assertTrue($assignment->allowsAction('governance.membership.manage', $start));
+        $this->assertFalse($assignment->allowsAction('governance.appointment.manage', $start));
+        $this->assertSame((int) $primary->id, (int) $seat->fresh()->effectiveOccupancy($start)?->id);
+
+        $revoked = $service->revoke($this->administrator, (int) $this->tenant->id, (int) $assignment->id, 'Acting period concluded early');
+        $this->assertNotNull($revoked->revoked_at);
+        $this->assertSame((int) $primary->id, (int) $seat->fresh()->effectiveOccupancy($start)?->id);
     }
 
     private function makeUser(string $email): User
