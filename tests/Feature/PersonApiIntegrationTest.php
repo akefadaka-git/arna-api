@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Files\Models\File;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -157,6 +159,108 @@ final class PersonApiIntegrationTest extends TestCase
             'public_id' => $publicId,
             'user_id' => null,
         ]);
+    }
+
+    #[Test]
+    public function people_manager_can_link_list_and_unlink_a_file_they_are_authorized_to_view(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $role = Role::query()->where('slug', 'tenant-people-manager-'.$tenant->getKey())->firstOrFail();
+        $filePermission = Permission::query()->create([
+            'name_en' => 'View Files',
+            'slug' => 'file.view',
+            'category' => 'file',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $role->permissions()->attach($filePermission->getKey(), ['assigned_at' => now()]);
+
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Document Profile',
+        ])->assertCreated();
+        $publicId = $created->json('data.public_id');
+        $personId = Person::query()->where('public_id', $publicId)->value('id');
+        $file = File::query()->create([
+            'tenant_id' => $tenant->getKey(),
+            'user_id' => $actor->getKey(),
+            'original_name' => 'identity-proof.pdf',
+            'display_name_am' => 'የማንነት ማረጋገጫ',
+            'display_name_en' => 'Identity proof',
+            'name' => 'test-identity-proof.pdf',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => 128,
+            'path' => 'tests/identity-proof.pdf',
+            'disk' => 'local',
+            'version' => 1,
+            'status' => 'published',
+            'is_public' => false,
+        ]);
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/documents', [
+            'file_id' => $file->getKey(),
+            'reason' => 'Attach identity proof to the profile',
+        ])->assertOk()->assertJsonPath('data.linked', true);
+
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/documents')
+            ->assertOk()
+            ->assertJsonPath('data.0.file_id', $file->getKey())
+            ->assertJsonPath('data.0.display_name_en', 'Identity proof')
+            ->assertJsonMissingPath('data.0.path')
+            ->assertJsonMissingPath('data.0.tenant_id')
+            ->assertJsonMissingPath('data.0.user_id');
+
+        $this->withHeaders($headers)->deleteJson('/api/people/'.$publicId.'/documents/'.$file->getKey(), [
+            'reason' => 'Detach the document from this profile',
+        ])->assertOk()->assertJsonPath('data.linked', false);
+
+        $this->assertDatabaseMissing('person_document_links', [
+            'tenant_id' => $tenant->getKey(),
+            'person_id' => $personId,
+            'file_id' => $file->getKey(),
+        ]);
+    }
+
+    #[Test]
+    public function person_document_listing_hides_files_without_file_view_permission(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Private Document Profile',
+        ])->assertCreated();
+        $publicId = $created->json('data.public_id');
+        $personId = Person::query()->where('public_id', $publicId)->value('id');
+        $file = File::query()->create([
+            'tenant_id' => $tenant->getKey(),
+            'user_id' => $actor->getKey(),
+            'original_name' => 'private.pdf',
+            'name' => 'private.pdf',
+            'size' => 64,
+            'path' => 'tests/private.pdf',
+            'disk' => 'local',
+            'version' => 1,
+            'status' => 'published',
+            'is_public' => false,
+        ]);
+        DB::table('person_document_links')->insert([
+            'tenant_id' => $tenant->getKey(),
+            'person_id' => $personId,
+            'file_id' => $file->getKey(),
+            'linked_by' => $actor->getKey(),
+            'link_reason' => 'Pre-existing restricted document link',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/documents')
+            ->assertOk()->assertExactJson(['success' => true, 'data' => []]);
     }
 
     /** @return array{0: Tenant, 1: User} */
