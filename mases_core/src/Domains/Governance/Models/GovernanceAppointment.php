@@ -413,7 +413,10 @@ final class GovernanceAppointment extends Model
         'instrument_reference',
         'instrument_date',
         'effective_date',
+        'effective_until',
         'appointment_mode',
+        'appointment_role',
+        'acting_for_appointment_id',
         'status',
         'title_am',
         'title_en',
@@ -444,6 +447,8 @@ final class GovernanceAppointment extends Model
         'governance_term_id'     => 'integer',
         'instrument_date'        => 'date',
         'effective_date'         => 'date',
+        'effective_until'        => 'date',
+        'acting_for_appointment_id' => 'integer',
         'created_at'             => 'datetime',
         'updated_at'             => 'datetime',
         'deleted_at'             => 'datetime',
@@ -564,6 +569,16 @@ final class GovernanceAppointment extends Model
      *
      * @return BelongsTo
      */
+    /**
+     * The substantive primary appointment this acting appointment covers.
+     * Acting powers are not inherited from this relationship; they must be
+     * independently granted through the action-bound authority system.
+     */
+    public function actingForAppointment(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'acting_for_appointment_id', 'id');
+    }
+
     public function position(): BelongsTo
     {
         return $this->belongsTo(GovernancePosition::class, 'governance_position_id', 'id');
