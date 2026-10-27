@@ -71,6 +71,43 @@ final class PersonApiIntegrationTest extends TestCase
         $this->assertNotSame($tenant->getKey(), $otherTenant->getKey());
     }
 
+    #[Test]
+    public function tenant_people_manager_can_update_profile_with_a_reason_and_cannot_erase_every_name(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_am' => 'ሀና',
+            'first_name_en' => 'Hana',
+        ])->assertCreated();
+        $publicId = $created->json('data.public_id');
+
+        $this->withHeaders($headers)->putJson('/api/people/'.$publicId, [
+            'first_name_am' => 'ሀና አዲስ',
+            'reason' => 'Corrected the registered Amharic name',
+        ])->assertOk()
+            ->assertJsonPath('data.first_name_am', 'ሀና አዲስ')
+            ->assertJsonMissingPath('data.user_id')
+            ->assertJsonMissingPath('data.tenant_id');
+
+        $this->withHeaders($headers)->putJson('/api/people/'.$publicId, [
+            'first_name_am' => null,
+            'first_name_en' => null,
+            'father_name_am' => null,
+            'father_name_en' => null,
+            'grandfather_name_am' => null,
+            'grandfather_name_en' => null,
+            'reason' => 'Attempt to remove all names',
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('people', [
+            'public_id' => $publicId,
+            'first_name_am' => 'ሀና አዲስ',
+        ]);
+    }
+
     /** @return array{0: Tenant, 1: User} */
     private function tenantPeopleManager(): array
     {
