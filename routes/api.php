@@ -526,6 +526,19 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::get('/{publicId}', [PersonController::class, 'show'])
             ->whereUuid('publicId')
             ->name('show');
+        Route::get('/{publicId}/documents', [PersonController::class, 'documents'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('documents.index');
+        Route::post('/{publicId}/documents', [PersonController::class, 'linkDocument'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('documents.link');
+        Route::delete('/{publicId}/documents/{fileId}', [PersonController::class, 'unlinkDocument'])
+            ->whereUuid('publicId')
+            ->whereNumber('fileId')
+            ->middleware('auth.permission:people.manage')
+            ->name('documents.unlink');
         Route::get('/{publicId}/relationships', [PersonController::class, 'relationships'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
