@@ -562,6 +562,18 @@ final class GovernanceAppointment extends Model
     }
 
     /**
+     * The substantive primary appointment this acting appointment covers.
+     * Acting powers are not inherited from this relationship; they must be
+     * independently granted through the action-bound authority system.
+     *
+     * @return BelongsTo
+     */
+    public function actingForAppointment(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'acting_for_appointment_id', 'id');
+    }
+
+    /**
      * The position this appointment targets, if any.
      *
      * Null when the instrument spans multiple positions or when the
@@ -569,16 +581,6 @@ final class GovernanceAppointment extends Model
      *
      * @return BelongsTo
      */
-    /**
-     * The substantive primary appointment this acting appointment covers.
-     * Acting powers are not inherited from this relationship; they must be
-     * independently granted through the action-bound authority system.
-     */
-    public function actingForAppointment(): BelongsTo
-    {
-        return $this->belongsTo(self::class, 'acting_for_appointment_id', 'id');
-    }
-
     public function position(): BelongsTo
     {
         return $this->belongsTo(GovernancePosition::class, 'governance_position_id', 'id');
