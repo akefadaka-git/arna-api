@@ -2,14 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
 use DomainException;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person;
-use MaaleArna\\MASES\\Core\\Domains\\People\\Services\\PersonIdentityService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService;
 
 final class PersonController extends Controller
 {
