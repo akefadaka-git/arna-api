@@ -263,6 +263,7 @@ use Illuminate\Support\Carbon;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Governance\Enums\GovernanceMembershipStatus;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
 
 /**
  * GovernanceMembership
@@ -521,6 +522,14 @@ final class GovernanceMembership extends Model
      *
      * @return BelongsTo
      */
+    /**
+     * Canonical natural-person profile. This relation grants no authority.
+     */
+    public function person(): BelongsTo
+    {
+        return $this->belongsTo(Person::class, 'person_id');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
