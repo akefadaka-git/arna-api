@@ -1075,20 +1075,6 @@ final class GovernanceAppointmentService
     // =========================================================================
 
     /**
-     * Assert that `effective_date >= instrument_date` when both are
-     * set.
-     *
-     * Accepts either a date string (`Y-m-d`), a `Carbon` instance, a
-     * `DateTimeInterface`, or null. Null on either side means the
-     * comparison is not applicable, which is always valid.
-     *
-     * @param  mixed $instrumentDate
-     * @param  mixed $effectiveDate
-     * @return void
-     *
-     * @throws ValidationException
-     */
-    /**
      * Enforce one active primary appointment per position. The position row
      * is the shared mutex, closing the independent-connection activation race.
      */
@@ -1118,6 +1104,21 @@ final class GovernanceAppointmentService
             ]);
         }
     }
+
+    /**
+     * Assert that `effective_date >= instrument_date` when both are
+     * set.
+     *
+     * Accepts either a date string (`Y-m-d`), a `Carbon` instance, a
+     * `DateTimeInterface`, or null. Null on either side means the
+     * comparison is not applicable, which is always valid.
+     *
+     * @param  mixed $instrumentDate
+     * @param  mixed $effectiveDate
+     * @return void
+     *
+     * @throws ValidationException
+     */
 
     private function assertInstrumentDateOrdering(mixed $instrumentDate, mixed $effectiveDate): void
     {
