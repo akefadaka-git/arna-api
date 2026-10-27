@@ -167,8 +167,34 @@ final class PersonIdentityService
 
     private function assertManagePermission(int $tenantId, User $actor): void
     {
-        if (! $actor->hasPermission('people.manage', $tenantId)) {
-            throw new DomainException('The people.manage permission is required for identity operations.');
+        $permissionAllowed = static function ($query) use ($tenantId): void {
+            $query->where(function ($scope) use ($tenantId): void {
+                $scope->where('scope', 'global')
+                    ->orWhere(function ($tenantScope) use ($tenantId): void {
+                        $tenantScope->where('scope', 'tenant')->where('tenant_id', $tenantId);
+                    });
+            });
+        };
+
+        $direct = $actor->permissions()
+            ->where('slug', 'people.manage')
+            ->where('is_active', true)
+            ->where($permissionAllowed)
+            ->exists();
+
+        $viaRole = $actor->roles()
+            ->where(function ($query) use ($tenantId): void {
+                $query->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+            })
+            ->whereHas('permissions', function ($query) use ($permissionAllowed): void {
+                $query->where('slug', 'people.manage')
+                    ->where('is_active', true)
+                    ->where($permissionAllowed);
+            })
+            ->exists();
+
+        if (! $direct && ! $viaRole) {
+            throw new DomainException('The tenant-scoped people.manage permission is required for identity operations.');
         }
     }
 
