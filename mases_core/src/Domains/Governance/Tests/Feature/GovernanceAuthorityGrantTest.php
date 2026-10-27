@@ -373,6 +373,55 @@ final class GovernanceAuthorityGrantTest extends TestCase
         }
     }
 
+    public function test_seat_api_lists_creates_and_occupies_only_through_authorized_tenant_routes(): void
+    {
+        $this->postJson(route('api.governance.seats.store'), [
+            'governance_body_id' => (int) $this->body->id,
+            'governance_position_id' => (int) $this->position->id,
+            'seat_code' => 'API-CHAIR',
+            'label_am' => 'ሰብሳቢ',
+            'label_en' => 'Chairperson',
+        ])->assertCreated()->assertJsonPath('data.seat_code', 'API-CHAIR');
+
+        $seatId = (int) \\Illuminate\\Support\\Facades\\DB::table('governance_seats')
+            ->where('tenant_id', $this->tenant->id)
+            ->where('seat_code', 'API-CHAIR')
+            ->value('id');
+
+        $this->getJson(route('api.governance.seats.index'))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->postJson(route('api.governance.seats.occupancies.store', ['governanceSeat' => $seatId]), [
+            'person_id' => (int) $this->administratorPerson->id,
+            'start_date' => CarbonImmutable::today()->toDateString(),
+            'end_date' => null,
+        ])->assertCreated()->assertJsonPath('data.status', 'active');
+    }
+
+    public function test_acting_assignment_api_creates_and_revokes_with_auditable_reason(): void
+    {
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'API-ACTING');
+        $start = CarbonImmutable::today()->toDateString();
+        $primary = $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->administratorPerson->id, $start, null);
+
+        $response = $this->postJson(route('api.governance.seats.acting-assignments.store', ['governanceSeat' => $seat->id]), [
+            'substantive_occupancy_id' => (int) $primary->id,
+            'acting_person_id' => (int) $this->granteePerson->id,
+            'start_date' => $start,
+            'end_date' => CarbonImmutable::today()->addDays(2)->toDateString(),
+            'source_decision_reference' => 'BOARD-RESOLUTION-API-001',
+            'actions' => ['governance.membership.manage'],
+            'reason' => 'Temporary acting assignment approved by the board',
+        ])->assertCreated();
+
+        $assignmentId = (int) $response->json('data.id');
+        $this->deleteJson(route('api.governance.acting-assignments.destroy', ['governanceActingAssignment' => $assignmentId]), [
+            'reason' => 'Acting assignment concluded',
+        ])->assertOk()->assertJsonPath('data.revocation_reason', 'Acting assignment concluded');
+    }
+
     private function makeUser(string $email): User
     {
         $user = User::query()->create([
