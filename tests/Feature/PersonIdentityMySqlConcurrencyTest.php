@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Support\\Facades\\DB;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class PersonIdentityMySqlConcurrencyTest extends TestCase
 {
