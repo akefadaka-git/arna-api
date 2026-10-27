@@ -80,6 +80,27 @@ final class GovernanceSeatController
         return response()->json(['success' => true, 'data' => $occupancy], 201);
     }
 
+    public function endOccupancy(Request $request, int $governanceSeatOccupancy): JsonResponse
+    {
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401, 'Authentication required.');
+
+        $data = $request->validate([
+            'end_date' => ['required', 'date_format:Y-m-d'],
+            'reason' => ['required', 'string', 'min:1', 'max:500'],
+        ]);
+
+        $occupancy = $this->seats->endOccupancy(
+            $actor,
+            $this->tenantId(),
+            $governanceSeatOccupancy,
+            $data['end_date'],
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $occupancy]);
+    }
+
     public function assignActing(Request $request, int $governanceSeat): JsonResponse
     {
         $actor = $request->user();
