@@ -526,6 +526,10 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::get('/{publicId}', [PersonController::class, 'show'])
             ->whereUuid('publicId')
             ->name('show');
+        Route::put('/{publicId}', [PersonController::class, 'update'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('update');
     });
 
     // File Management
