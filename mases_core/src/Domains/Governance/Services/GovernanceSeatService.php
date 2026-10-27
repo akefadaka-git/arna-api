@@ -24,6 +24,24 @@ final class GovernanceSeatService
 {
     public function __construct(private readonly AuthorizationService $authorization) {}
 
+    /** List only seats in the validated tenant after checking governance management permission. */
+    public function list(User $actor, int $tenantId)
+    {
+        $this->authorize($actor, $tenantId);
+
+        return GovernanceSeat::query()
+            ->where('tenant_id', $tenantId)
+            ->with([
+                'body:id,tenant_id,code,name_am,name_en',
+                'position:id,tenant_id,governance_body_id,code,name_am,name_en',
+                'occupancies.person:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en',
+                'occupancies.membership:id,tenant_id,governance_body_id,governance_position_id,user_id,status',
+                'actingAssignments.actingPerson:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en',
+            ])
+            ->orderBy('id')
+            ->paginate(25);
+    }
+
     public function createSeat(User $actor, int $tenantId, int $bodyId, int $positionId, string $seatCode, ?string $labelAm = null, ?string $labelEn = null): GovernanceSeat
     {
         $this->authorize($actor, $tenantId);
