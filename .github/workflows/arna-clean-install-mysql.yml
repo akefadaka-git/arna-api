@@ -193,7 +193,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 53
+          test "${applied}" -eq 55
 
       - name: Upload migration status evidence
         if: always()
