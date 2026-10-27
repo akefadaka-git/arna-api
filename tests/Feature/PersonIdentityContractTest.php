@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use DomainException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
@@ -40,7 +42,6 @@ final class PersonIdentityContractTest extends TestCase
         $person = Person::query()->create([
             'first_name_am' => 'ሀና',
             'first_name_en' => 'Hana',
-            'status' => 'active',
         ]);
 
         $this->assertMatchesRegularExpression(
@@ -60,6 +61,44 @@ final class PersonIdentityContractTest extends TestCase
 
         $this->assertNotContains('public_id', $person->getFillable());
         $this->assertNotContains('user_id', $person->getFillable());
+    }
+
+    #[Test]
+    public function database_prevents_one_user_from_being_currently_linked_to_two_people(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $first = Person::query()->create(['first_name_en' => 'Hana']);
+        $second = Person::query()->create(['first_name_en' => 'Mekdes']);
+
+        $first->user_id = $user->getKey();
+        $first->save();
+
+        $second->user_id = $user->getKey();
+
+        $this->expectException(QueryException::class);
+        $second->save();
+    }
+
+    #[Test]
+    public function database_prevents_duplicate_person_tenant_visibility_grants(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $person = Person::query()->create(['first_name_en' => 'Hana']);
+        $user = User::factory()->create(['is_active' => true]);
+
+        $grant = [
+            'person_id' => $person->getKey(),
+            'tenant_id' => $tenant->getKey(),
+            'created_by' => $user->getKey(),
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        DB::table('person_tenant_accesses')->insert($grant);
+
+        $this->expectException(QueryException::class);
+        DB::table('person_tenant_accesses')->insert($grant);
     }
 
     #[Test]
