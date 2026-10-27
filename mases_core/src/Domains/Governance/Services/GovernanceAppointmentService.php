@@ -609,7 +609,7 @@ final class GovernanceAppointmentService
 
         return DB::transaction(function () use ($appointment): GovernanceAppointment {
             // Appointment lifecycle is not occupancy. Future instruments may be activated
-            // before their effective date; primary occupancy is enforced on dated memberships.
+            // before their effective date; exclusivity is enforced by explicit dated seat occupancies.
 
             // A3 / RP-01 — pre-change snapshot.
             $beforeSnapshot = $appointment->getOriginal();
