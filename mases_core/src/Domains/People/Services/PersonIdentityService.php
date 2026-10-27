@@ -1,0 +1,199 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MaaleArna\MASES\Core\Domains\People\Services;
+
+use DomainException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+
+final class PersonIdentityService
+{
+    public function __construct(
+        private readonly SecurityEventService $securityEvents,
+    ) {
+    }
+
+    public function create(int $tenantId, User $actor, array $attributes): Person
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+
+        return DB::transaction(function () use ($tenantId, $actor, $attributes): Person {
+            $person = new Person();
+            $person->fill([
+                'first_name_am' => $attributes['first_name_am'] ?? null,
+                'father_name_am' => $attributes['father_name_am'] ?? null,
+                'grandfather_name_am' => $attributes['grandfather_name_am'] ?? null,
+                'first_name_en' => $attributes['first_name_en'] ?? null,
+                'father_name_en' => $attributes['father_name_en'] ?? null,
+                'grandfather_name_en' => $attributes['grandfather_name_en'] ?? null,
+                'status' => 'active',
+            ]);
+            if (collect($person->only([
+                'first_name_am', 'father_name_am', 'grandfather_name_am',
+                'first_name_en', 'father_name_en', 'grandfather_name_en',
+            ]))->filter(fn ($value) => is_string($value) && trim($value) !== '')->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'name' => 'At least one Amharic or English name component is required.',
+                ]);
+            }
+            $person->save();
+
+            $this->recordEvent('person.created', $tenantId, $actor, $person, null);
+            return $person;
+        });
+    }
+
+    public function linkAccount(int $tenantId, int $personId, int $userId, User $actor, string $reason): Person
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        if (trim($reason) === '') {
+            throw ValidationException::withMessages(['reason' => 'A reason is required for account linking.']);
+        }
+
+        return DB::transaction(function () use ($tenantId, $personId, $userId, $actor, $reason): Person {
+            $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
+            $user = User::query()->whereKey($userId)->where('is_active', true)->lockForUpdate()->firstOrFail();
+            $this->assertTenantAccess($tenantId, $user);
+
+            if ($person->status !== 'active' || $person->trashed()) {
+                throw new DomainException('Only an active Person can be linked to an account.');
+            }
+            if ($person->user_id !== null && (int) $person->user_id !== $userId) {
+                throw new DomainException('Person already has a current account association.');
+            }
+            $otherPerson = Person::query()->where('user_id', $userId)->whereKeyNot($personId)->lockForUpdate()->first();
+            if ($otherPerson !== null) {
+                throw new DomainException('Account is already associated with another Person.');
+            }
+            if ($person->user_id === $userId) {
+                return $person;
+            }
+
+            $person->user_id = $userId;
+            $person->save();
+            $this->recordEvent('person.account_linked', $tenantId, $actor, $person, [
+                'linked_user_id' => $userId,
+                'reason' => $reason,
+            ]);
+            return $person->refresh();
+        });
+    }
+
+    public function unlinkAccount(int $tenantId, int $personId, User $actor, string $reason): Person
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        if (trim($reason) === '') {
+            throw ValidationException::withMessages(['reason' => 'A reason is required for account unlinking.']);
+        }
+
+        return DB::transaction(function () use ($tenantId, $personId, $actor, $reason): Person {
+            $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
+            if ($person->user_id === null) {
+                return $person;
+            }
+            $previousUserId = (int) $person->user_id;
+            $person->user_id = null;
+            $person->save();
+            $this->recordEvent('person.account_unlinked', $tenantId, $actor, $person, [
+                'previous_user_id' => $previousUserId,
+                'reason' => $reason,
+            ]);
+            return $person->refresh();
+        });
+    }
+
+    public function linkShareholder(int $tenantId, int $shareholderId, int $personId, User $actor, string $reason): void
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertReason($reason);
+        DB::transaction(function () use ($tenantId, $shareholderId, $personId, $actor, $reason): void {
+            $holder = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)->lockForUpdate()->first();
+            if ($holder === null) {
+                throw new DomainException('Shareholder was not found in the authorized tenant.');
+            }
+            if (($holder->shareholder_type ?? null) !== 'individual') {
+                throw new DomainException('Legal-entity shareholders cannot link to a natural-person profile.');
+            }
+            $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
+            $this->assertDomainUserConsistency($person, $holder->user_id ?? null);
+            DB::table('shareholders')->where('id', $shareholderId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
+            $this->recordEvent('person.shareholder_linked', $tenantId, $actor, $person, ['shareholder_id' => $shareholderId, 'reason' => $reason]);
+        });
+    }
+
+    public function linkEmployee(int $tenantId, int $employeeId, int $personId, User $actor, string $reason): void
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertReason($reason);
+        DB::transaction(function () use ($tenantId, $employeeId, $personId, $actor, $reason): void {
+            $employee = DB::table('employees')->where('tenant_id', $tenantId)->where('id', $employeeId)->whereNull('deleted_at')->lockForUpdate()->first();
+            if ($employee === null) {
+                throw new DomainException('Employee was not found in the authorized tenant.');
+            }
+            $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
+            $this->assertDomainUserConsistency($person, $employee->user_id ?? null);
+            DB::table('employees')->where('id', $employeeId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
+            $this->recordEvent('person.employee_linked', $tenantId, $actor, $person, ['employee_id' => $employeeId, 'reason' => $reason]);
+        });
+    }
+
+    public function linkGovernanceMembership(int $tenantId, int $membershipId, int $personId, User $actor, string $reason): void
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertReason($reason);
+        DB::transaction(function () use ($tenantId, $membershipId, $personId, $actor, $reason): void {
+            $membership = DB::table('governance_memberships')->where('tenant_id', $tenantId)->where('id', $membershipId)->lockForUpdate()->first();
+            if ($membership === null) {
+                throw new DomainException('Governance membership was not found in the authorized tenant.');
+            }
+            $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
+            $this->assertDomainUserConsistency($person, $membership->user_id ?? null);
+            DB::table('governance_memberships')->where('id', $membershipId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
+            $this->recordEvent('person.governance_membership_linked', $tenantId, $actor, $person, ['membership_id' => $membershipId, 'reason' => $reason]);
+        });
+    }
+
+    private function assertTenantAccess(int $tenantId, User $user): void
+    {
+        $activeTenant = Tenant::query()->whereKey($tenantId)->where('is_active', true)->exists();
+        $membership = DB::table('tenant_memberships')->where('tenant_id', $tenantId)
+            ->where('user_id', $user->getKey())->where('status', 'active')->exists();
+        if (! $activeTenant || ! $user->is_active || ! $membership) {
+            throw new DomainException('A valid active tenant membership is required.');
+        }
+    }
+
+    private function assertDomainUserConsistency(Person $person, mixed $domainUserId): void
+    {
+        if ($domainUserId !== null && $person->user_id !== null && (int) $person->user_id !== (int) $domainUserId) {
+            throw new DomainException('Person account association conflicts with the domain record User link.');
+        }
+    }
+
+    private function assertReason(string $reason): void
+    {
+        if (trim($reason) === '') {
+            throw ValidationException::withMessages(['reason' => 'A reason is required for identity linkage.']);
+        }
+    }
+
+    private function recordEvent(string $eventType, int $tenantId, User $actor, Person $person, ?array $context): void
+    {
+        $event = $this->securityEvents->log($eventType, array_merge([
+            'tenant_id' => $tenantId,
+            'user_id' => $actor->getKey(),
+            'actor_user_id' => $actor->getKey(),
+            'person_id' => $person->getKey(),
+            'person_public_id' => $person->public_id,
+        ], $context ?? []), 'info', 'Person identity lifecycle event.');
+        if ($event === null) {
+            throw new \RuntimeException('Mandatory identity audit event could not be persisted; transaction rolled back.');
+        }
+    }
+}
