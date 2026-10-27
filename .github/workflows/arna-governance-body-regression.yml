@@ -99,6 +99,8 @@ jobs:
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceBodyTest.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernancePositionTest.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceTermTest.php
+          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceAppointmentTest.php
+          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceMembershipTest.php
 
       - name: Validate Composer manifest and lock
         run: composer validate --no-check-publish
@@ -112,3 +114,5 @@ jobs:
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceBodyTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernancePositionTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceTermTest.php
+          vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceAppointmentTest.php
+          vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMembershipTest.php
