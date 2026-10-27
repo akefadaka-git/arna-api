@@ -26,14 +26,8 @@ final class GovernanceAuthorityGrantService
      */
     public const ACTIONS = [
         'governance.position.manage',
-        'governance.term.manage',
         'governance.appointment.manage',
-        'governance.appointment.activate',
-        'governance.appointment.revoke',
         'governance.membership.manage',
-        'governance.report.view',
-        'governance.document.view',
-        'governance.document.upload',
     ];
 
     public function __construct(
@@ -56,7 +50,9 @@ final class GovernanceAuthorityGrantService
         $granteeId = (int) ($attributes['grantee_person_id'] ?? 0);
         $action = (string) ($attributes['action'] ?? '');
         $from = $this->date($attributes['effective_from'] ?? null, 'effective_from');
-        $until = $this->date($attributes['effective_until'] ?? null, 'effective_until');
+        $until = isset($attributes['effective_until']) && $attributes['effective_until'] !== ''
+            ? $this->date($attributes['effective_until'], 'effective_until')
+            : null;
         $reason = trim((string) ($attributes['reason'] ?? ''));
 
         if (!in_array($action, self::ACTIONS, true)) {
@@ -89,12 +85,12 @@ final class GovernanceAuthorityGrantService
                 throw ValidationException::withMessages(['governance_position_id' => ['The position must belong to an active governance body in the validated tenant.']]);
             }
 
-            $grantee = Person::query()->whereKey($granteeId)->whereNull('deleted_at')->first();
-            if (!$grantee || !$grantee->user_id) {
+            $grantee = Person::query()->whereKey($granteeId)->where('status', 'active')->whereNull('deleted_at')->first();
+            if (!$grantee || !$grantee->user_id || !User::query()->whereKey($grantee->user_id)->where('is_active', true)->exists()) {
                 throw ValidationException::withMessages(['grantee_person_id' => ['The grantee must be a canonical Person linked to an active account.']]);
             }
 
-            $grantor = Person::query()->where('user_id', $actor->getKey())->whereNull('deleted_at')->first();
+            $grantor = Person::query()->where('user_id', $actor->getKey())->where('status', 'active')->whereNull('deleted_at')->first();
             if (!$grantor) {
                 throw ValidationException::withMessages(['grantor' => ['The granting account must be linked to a canonical Person.']]);
             }
@@ -107,7 +103,7 @@ final class GovernanceAuthorityGrantService
                 ->where('tenant_id', $tenantId)
                 ->where('governance_body_id', $body->id)
                 ->where('governance_position_id', $position->id)
-                ->where('person_id', $granteeId)
+                ->where('user_id', $grantee->user_id)
                 ->where('status', 'active')
                 ->whereDate('start_date', '<=', $from->toDateString())
                 ->where(function ($query) use ($until): void {
@@ -186,8 +182,8 @@ final class GovernanceAuthorityGrantService
             return false;
         }
 
-        $person = Person::query()->where('user_id', $user->getKey())->whereNull('deleted_at')->first();
-        if (!$person) {
+        $person = Person::query()->where('user_id', $user->getKey())->where('status', 'active')->whereNull('deleted_at')->first();
+        if (!$person || !$user->is_active) {
             return false;
         }
 
@@ -197,7 +193,7 @@ final class GovernanceAuthorityGrantService
             ->where('tenant_id', $tenantId)
             ->where('governance_body_id', $bodyId)
             ->where('governance_position_id', $positionId)
-            ->where('person_id', $person->id)
+            ->where('user_id', $user->getKey())
             ->where('status', 'active')
             ->whereDate('start_date', '<=', $today)
             ->where(function ($query) use ($today): void {
