@@ -349,6 +349,7 @@ final class GovernanceMembershipPolicy
      */
     public function __construct(
         private readonly AuthorizationService $authorization,
+        private readonly GovernanceAuthorityGrantService $authorityGrants,
     ) {
     }
 
@@ -440,6 +441,8 @@ final class GovernanceMembershipPolicy
             permissionSlug: self::PERMISSION_MANAGE,
             user: $user,
             tenantId: $tenantId,
+        ) || $this->authorityGrants->allows(
+            $user, $tenantId, (int) $membership->governance_body_id, (int) $membership->governance_position_id, 'governance.membership.manage',
         );
     }
 
