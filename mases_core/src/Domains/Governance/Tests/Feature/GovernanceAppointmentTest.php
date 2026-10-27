@@ -323,14 +323,22 @@ final class GovernanceAppointmentTest extends TestCase
     {
         $body = $this->createGovernanceBody();
         $position = $this->createGovernancePosition($body);
-        $appointment = $this->createAppointment($body, [
-            'governance_position_id' => $position->id,
-            'effective_date' => '2026-10-10',
-            'effective_until' => '2026-10-09',
-        ]);
 
-        $this->expectException(ValidationException::class);
-        app(GovernanceAppointmentService::class)->activate($appointment);
+        try {
+            app(GovernanceAppointmentService::class)->register([
+                'governance_body_id' => $body->id,
+                'governance_position_id' => $position->id,
+                'instrument_type' => 'resolution',
+                'instrument_date' => '2026-09-10',
+                'effective_date' => '2026-10-10',
+                'effective_until' => '2026-10-09',
+                'appointment_mode' => 'elected',
+                'appointment_role' => 'primary',
+            ], (int) $this->tenant->id);
+            $this->fail('An appointment end date cannot precede its effective start date.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('effective_until', $exception->errors());
+        }
     }
 
     // =========================================================================
