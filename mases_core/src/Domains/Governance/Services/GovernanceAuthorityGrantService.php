@@ -26,7 +26,6 @@ final class GovernanceAuthorityGrantService
      * @var list<string>
      */
     public const ACTIONS = [
-        'governance.position.manage',
         'governance.appointment.manage',
         'governance.membership.manage',
     ];
