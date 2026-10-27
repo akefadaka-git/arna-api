@@ -108,6 +108,29 @@ final class PersonApiIntegrationTest extends TestCase
         ]);
     }
 
+    #[Test]
+    public function people_manager_can_read_only_the_relationship_summary_for_a_visible_person(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_am' => 'ሚካኤል',
+        ])->assertCreated();
+        $publicId = $created->json('data.public_id');
+
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.account_linked', false)
+            ->assertJsonPath('data.employment_count', 0)
+            ->assertJsonPath('data.shareholding_count', 0)
+            ->assertJsonPath('data.governance_membership_count', 0)
+            ->assertJsonMissingPath('data.user_id')
+            ->assertJsonMissingPath('data.tenant_id');
+    }
+
     /** @return array{0: Tenant, 1: User} */
     private function tenantPeopleManager(): array
     {
