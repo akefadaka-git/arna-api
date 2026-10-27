@@ -311,6 +311,7 @@ final class GovernanceAppointmentPolicy
      */
     public function __construct(
         private readonly AuthorizationService $authorization,
+        private readonly GovernanceAuthorityGrantService $authorityGrants,
     ) {
     }
 
@@ -402,7 +403,9 @@ final class GovernanceAppointmentPolicy
             permissionSlug: self::PERMISSION_MANAGE,
             user: $user,
             tenantId: $tenantId,
-        );
+        ) || ($appointment->governance_position_id !== null && $this->authorityGrants->allows(
+            $user, $tenantId, (int) $appointment->governance_body_id, (int) $appointment->governance_position_id, 'governance.appointment.manage',
+        ));
     }
 
     // =========================================================================
