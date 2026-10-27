@@ -60,14 +60,6 @@ final class Person extends Model
 
     public function employees(): HasMany
     {
-        return $this->hasMany(\Illuminate\Database\Eloquent\Model::class, 'person_id')
-            ->setModel(new class extends Model {
-                protected $table = 'employees';
-            });
-    }
-
-    public function employees(): HasMany
-    {
         return $this->hasMany(EmployeeRecord::class, 'person_id');
     }
 
