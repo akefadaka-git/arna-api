@@ -234,6 +234,105 @@ final class GovernanceAppointmentTest extends TestCase
         $this->assertSame('draft', $second->fresh()->status);
     }
 
+    public function test_future_primary_successor_is_allowed_after_incumbent_end_date(): void
+    {
+        $body = $this->createGovernanceBody();
+        $position = $this->createGovernancePosition($body);
+        $first = $this->createAppointment($body, [
+            'governance_position_id' => $position->id,
+            'effective_date' => '2026-09-18',
+        ]);
+        $second = $this->createAppointment($body, [
+            'governance_position_id' => $position->id,
+            'effective_date' => '2027-01-01',
+            'instrument_reference' => 'RES-2027-001',
+        ]);
+
+        $service = app(GovernanceAppointmentService::class);
+        $service->activate($first);
+        $service->update($first, ['effective_until' => '2026-12-31']);
+
+        $service->activate($second);
+
+        $this->assertSame('active', $first->fresh()->status);
+        $this->assertSame('2026-12-31', $first->fresh()->effective_until->toDateString());
+        $this->assertSame('active', $second->fresh()->status);
+    }
+
+    public function test_acting_appointment_is_bounded_by_active_primary_and_does_not_conflict_as_primary(): void
+    {
+        $body = $this->createGovernanceBody();
+        $position = $this->createGovernancePosition($body);
+        $primary = $this->createAppointment($body, [
+            'governance_position_id' => $position->id,
+            'effective_date' => '2026-09-18',
+            'effective_until' => '2027-12-31',
+            'appointment_role' => 'primary',
+        ]);
+        $acting = $this->createAppointment($body, [
+            'governance_position_id' => $position->id,
+            'effective_date' => '2026-10-01',
+            'effective_until' => '2026-10-31',
+            'appointment_role' => 'acting',
+            'acting_for_appointment_id' => $primary->id,
+            'instrument_reference' => 'RES-ACTING-001',
+        ]);
+
+        $service = app(GovernanceAppointmentService::class);
+        $service->activate($primary);
+        $service->activate($acting);
+
+        $this->assertSame('active', $primary->fresh()->status);
+        $this->assertSame('active', $acting->fresh()->status);
+        $this->assertSame('acting', $acting->fresh()->appointment_role);
+        $this->assertSame($primary->id, $acting->fresh()->acting_for_appointment_id);
+    }
+
+    public function test_acting_appointment_cannot_outlast_its_substantive_primary(): void
+    {
+        $body = $this->createGovernanceBody();
+        $position = $this->createGovernancePosition($body);
+        $primary = $this->createAppointment($body, [
+            'governance_position_id' => $position->id,
+            'effective_date' => '2026-09-18',
+            'effective_until' => '2026-10-15',
+            'appointment_role' => 'primary',
+        ]);
+        $acting = $this->createAppointment($body, [
+            'governance_position_id' => $position->id,
+            'effective_date' => '2026-10-01',
+            'effective_until' => '2026-10-16',
+            'appointment_role' => 'acting',
+            'acting_for_appointment_id' => $primary->id,
+        ]);
+
+        $service = app(GovernanceAppointmentService::class);
+        $service->activate($primary);
+
+        try {
+            $service->activate($acting);
+            $this->fail('An acting assignment cannot outlast its substantive primary appointment.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('effective_until', $exception->errors());
+        }
+
+        $this->assertSame('draft', $acting->fresh()->status);
+    }
+
+    public function test_primary_appointment_rejects_end_date_before_start_date(): void
+    {
+        $body = $this->createGovernanceBody();
+        $position = $this->createGovernancePosition($body);
+        $appointment = $this->createAppointment($body, [
+            'governance_position_id' => $position->id,
+            'effective_date' => '2026-10-10',
+            'effective_until' => '2026-10-09',
+        ]);
+
+        $this->expectException(ValidationException::class);
+        app(GovernanceAppointmentService::class)->activate($appointment);
+    }
+
     // =========================================================================
     // store
     // =========================================================================
