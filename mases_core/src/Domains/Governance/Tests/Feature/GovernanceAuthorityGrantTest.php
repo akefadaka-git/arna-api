@@ -383,7 +383,7 @@ final class GovernanceAuthorityGrantTest extends TestCase
             'label_en' => 'Chairperson',
         ])->assertCreated()->assertJsonPath('data.seat_code', 'API-CHAIR');
 
-        $seatId = (int) \\Illuminate\\Support\\Facades\\DB::table('governance_seats')
+        $seatId = (int) \Illuminate\Support\Facades\DB::table('governance_seats')
             ->where('tenant_id', $this->tenant->id)
             ->where('seat_code', 'API-CHAIR')
             ->value('id');
