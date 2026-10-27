@@ -143,6 +143,59 @@ final class GovernanceSeatService
         }, 3);
     }
 
+    /** End or shorten a tenant-scoped occupancy interval without deleting its history. */
+    public function endOccupancy(User $actor, int $tenantId, int $occupancyId, string $endDate, string $reason): GovernanceSeatOccupancy
+    {
+        $this->authorize($actor, $tenantId);
+        $end = $this->date($endDate, 'end_date');
+        $reason = trim($reason);
+        if ($reason === '' || mb_strlen($reason) > 500) {
+            throw ValidationException::withMessages(['ended_reason' => ['An end reason of 1–500 characters is required.']]);
+        }
+
+        return DB::transaction(function () use ($tenantId, $occupancyId, $end, $reason): GovernanceSeatOccupancy {
+            $existing = GovernanceSeatOccupancy::query()
+                ->whereHas('seat', fn ($query) => $query->where('tenant_id', $tenantId))
+                ->whereKey($occupancyId)
+                ->first();
+            if (!$existing) {
+                throw (new ModelNotFoundException())->setModel(GovernanceSeatOccupancy::class, [$occupancyId]);
+            }
+
+            $seat = GovernanceSeat::query()
+                ->where('tenant_id', $tenantId)
+                ->whereKey($existing->governance_seat_id)
+                ->lockForUpdate()
+                ->first();
+            if (!$seat) {
+                throw (new ModelNotFoundException())->setModel(GovernanceSeat::class, [$existing->governance_seat_id]);
+            }
+
+            $occupancy = GovernanceSeatOccupancy::query()
+                ->where('governance_seat_id', $seat->id)
+                ->whereKey($occupancyId)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
+            if (!$occupancy) {
+                throw ValidationException::withMessages(['occupancy' => ['Only an active seat occupancy can be ended.']]);
+            }
+            if ($end->lt($occupancy->start_date)) {
+                throw ValidationException::withMessages(['end_date' => ['The end date cannot precede the occupancy start date.']]);
+            }
+            if ($occupancy->end_date !== null && $end->gt($occupancy->end_date)) {
+                throw ValidationException::withMessages(['end_date' => ['Ending an occupancy cannot extend its already recorded end date.']]);
+            }
+
+            $occupancy->forceFill([
+                'end_date' => $end->toDateString(),
+                'ended_reason' => $reason,
+            ])->save();
+
+            return $occupancy->refresh();
+        }, 3);
+    }
+
     private function authorize(User $actor, int $tenantId): void
     {
         if ($tenantId < 1 || !$actor->is_active || !$this->authorization->hasPermission('governance.body.manage', $actor, $tenantId)) {
