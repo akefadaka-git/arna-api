@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
