@@ -228,6 +228,67 @@ final class PersonController extends Controller
             ->firstOrFail();
     }
 
+    public function documents(string $publicId, PersonIdentityService $identities): JsonResponse
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+        $person = $this->visiblePerson($publicId, (int) $tenantId);
+
+        return response()->json([
+            'success' => true,
+            'data' => $identities->listDocuments((int) $tenantId, (int) $person->getKey(), request()->user()),
+        ]);
+    }
+
+    public function linkDocument(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+        $attributes = $request->validate([
+            'file_id' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'min:8', 'max:1000'],
+        ]);
+        $person = $this->visiblePerson($publicId, (int) $tenantId);
+
+        try {
+            $identities->linkDocument(
+                (int) $tenantId,
+                (int) $person->getKey(),
+                (int) $attributes['file_id'],
+                $request->user(),
+                $attributes['reason'],
+            );
+        } catch (DomainException $exception) {
+            abort(403, 'The requested document relationship is not authorized or is inconsistent.');
+        }
+
+        return response()->json(['success' => true, 'data' => ['linked' => true]]);
+    }
+
+    public function unlinkDocument(Request $request, string $publicId, int $fileId, PersonIdentityService $identities): JsonResponse
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+        $attributes = $request->validate([
+            'reason' => ['required', 'string', 'min:8', 'max:1000'],
+        ]);
+        $person = $this->visiblePerson($publicId, (int) $tenantId);
+
+        try {
+            $identities->unlinkDocument(
+                (int) $tenantId,
+                (int) $person->getKey(),
+                $fileId,
+                $request->user(),
+                $attributes['reason'],
+            );
+        } catch (DomainException $exception) {
+            abort(403, 'The requested document relationship is not authorized or is inconsistent.');
+        }
+
+        return response()->json(['success' => true, 'data' => ['linked' => false]]);
+    }
+
     /**
      * Return tenant-scoped relationship indicators without exposing linked
      * account IDs or unrelated domain attributes. This endpoint is restricted
