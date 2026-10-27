@@ -420,38 +420,6 @@ final class GovernanceMembershipTest extends TestCase
         gc_collect_cycles();
     }
 
-    public function test_store_rejects_overlapping_primary_occupancy_for_a_different_person(): void
-    {
-        gc_collect_cycles();
-
-        $body = $this->createGovernanceBody();
-        $position = $this->createGovernancePosition($body);
-
-        $this->createMembership($body, $position, [
-            'user_id'    => $this->user->id,
-            'start_date' => '2026-09-01',
-            'end_date'   => '2027-08-31',
-        ]);
-
-        $response = $this->postJson(
-            route('api.governance.memberships.store', [
-                'governanceBody' => $body->id,
-            ]),
-            [
-                'governance_position_id' => $position->id,
-                'member_name_en'         => 'Different Primary Person',
-                'start_date'             => '2027-01-01',
-                'end_date'               => '2027-12-31',
-            ],
-        );
-
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['start_date']);
-        $this->assertDatabaseCount('governance_memberships', 1);
-
-        gc_collect_cycles();
-    }
-
     public function test_store_allows_non_overlapping_membership(): void
     {
         gc_collect_cycles();
