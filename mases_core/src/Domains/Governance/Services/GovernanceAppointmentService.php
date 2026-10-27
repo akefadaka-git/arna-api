@@ -559,6 +559,7 @@ final class GovernanceAppointmentService
             $appointment->fill($attributes);
             if ($appointment->isActive() && ($appointment->appointment_role ?? 'primary') === 'primary') {
                 $this->assertNoOtherActiveAppointmentForPosition($appointment);
+                $this->assertNoActingAppointmentOutsidePrimaryInterval($appointment);
             }
             $appointment->save();
 
@@ -1265,6 +1266,7 @@ final class GovernanceAppointmentService
         mixed $primaryStart,
         mixed $primaryEnd,
     ): void {
+        $this->assertEffectiveDateOrdering($actingStart, $actingEnd);
         $start = Carbon::parse($actingStart)->startOfDay();
         $primaryFrom = Carbon::parse($primaryStart)->startOfDay();
 
@@ -1280,6 +1282,37 @@ final class GovernanceAppointmentService
                     'effective_until' => ['An acting appointment must end on or before the substantive primary appointment.'],
                 ]);
             }
+        }
+    }
+
+    /**
+     * Prevent shortening or moving a primary interval so that a non-terminal
+     * acting appointment would fall outside its substantive appointment.
+     */
+    private function assertNoActingAppointmentOutsidePrimaryInterval(GovernanceAppointment $primary): void
+    {
+        $query = GovernanceAppointment::query()
+            ->where('tenant_id', (int) $primary->tenant_id)
+            ->where('acting_for_appointment_id', (int) $primary->id)
+            ->where('appointment_role', 'acting')
+            ->whereIn('status', [
+                GovernanceAppointmentStatus::Draft->value,
+                GovernanceAppointmentStatus::Active->value,
+            ])
+            ->where(function ($q) use ($primary): void {
+                $q->where('effective_date', '<', $primary->effective_date);
+                if ($primary->effective_until !== null) {
+                    $q->orWhereNull('effective_until')
+                        ->orWhere('effective_until', '>', $primary->effective_until);
+                }
+            });
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                'effective_until' => [
+                    'The primary appointment interval cannot be changed while a draft or active acting appointment would fall outside it.',
+                ],
+            ]);
         }
     }
 
