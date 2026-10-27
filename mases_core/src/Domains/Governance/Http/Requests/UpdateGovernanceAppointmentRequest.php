@@ -571,6 +571,27 @@ final class UpdateGovernanceAppointmentRequest extends FormRequest
                 'date',
             ],
 
+            'effective_until' => [
+                'sometimes',
+                'nullable',
+                'date',
+            ],
+
+            // These identify the appointment's role/relationship and cannot
+            // be changed after registration; the service rejects mutations.
+            'appointment_role' => [
+                'sometimes',
+                'string',
+                'in:primary,acting',
+            ],
+
+            'acting_for_appointment_id' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                'min:1',
+            ],
+
             'appointment_mode' => [
                 'sometimes',
                 'string',
