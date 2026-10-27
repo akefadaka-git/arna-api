@@ -322,6 +322,7 @@ final class GovernancePositionPolicy
      */
     public function __construct(
         private readonly AuthorizationService $authorization,
+        private readonly GovernanceAuthorityGrantService $authorityGrants,
     ) {
     }
 
@@ -436,6 +437,8 @@ final class GovernancePositionPolicy
             permissionSlug: self::PERMISSION_MANAGE,
             user: $user,
             tenantId: $tenantId,
+        ) || $this->authorityGrants->allows(
+            $user, $tenantId, (int) $position->governance_body_id, (int) $position->id, 'governance.position.manage',
         );
     }
 
