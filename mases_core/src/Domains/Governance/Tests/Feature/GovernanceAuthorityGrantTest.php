@@ -17,6 +17,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantSer
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceSeatService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceActingAssignmentService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
 
@@ -249,6 +250,50 @@ final class GovernanceAuthorityGrantTest extends TestCase
         $this->assertSame(CarbonImmutable::parse($end)->addDay()->toDateString(), $adjacent->start_date->toDateString());
     }
 
+    public function test_seat_occupancy_rejects_person_without_explicit_tenant_access(): void
+    {
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'TENANT-GUARD');
+        PersonTenantAccess::query()
+            ->where('person_id', $this->granteePerson->id)
+            ->where('tenant_id', $this->tenant->id)
+            ->delete();
+
+        try {
+            $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->granteePerson->id, CarbonImmutable::today()->toDateString());
+            $this->fail('A global Person without explicit tenant access must not be assigned to a tenant seat.');
+        } catch (\\Illuminate\\Validation\\ValidationException $exception) {
+            $this->assertArrayHasKey('person_id', $exception->errors());
+        }
+    }
+
+    public function test_membership_cannot_be_linked_to_a_person_without_a_canonical_account(): void
+    {
+        $unlinked = new Person([
+            'first_name_en' => 'Unlinked',
+            'father_name_en' => 'Person',
+        ]);
+        $unlinked->status = 'active';
+        $unlinked->save();
+        PersonTenantAccess::query()->create([
+            'person_id' => $unlinked->id,
+            'tenant_id' => $this->tenant->id,
+            'created_by' => $this->administrator->id,
+            'status' => 'active',
+        ]);
+
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'MEMBERSHIP-GUARD');
+        $membership = GovernanceMembership::query()->where('user_id', $this->grantee->id)->firstOrFail();
+
+        try {
+            $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $unlinked->id, CarbonImmutable::today()->toDateString(), null, (int) $membership->id);
+            $this->fail('A membership cannot be attached to a Person without a canonical account link.');
+        } catch (\\Illuminate\\Validation\\ValidationException $exception) {
+            $this->assertArrayHasKey('governance_membership_id', $exception->errors());
+        }
+    }
+
     public function test_acting_assignment_is_bounded_scoped_and_revocable_without_replacing_primary_occupancy(): void
     {
         $seats = app(GovernanceSeatService::class);
@@ -305,6 +350,14 @@ final class GovernanceAuthorityGrantTest extends TestCase
         $person->user_id = $user->id;
         $person->status = 'active';
         $person->save();
+
+        PersonTenantAccess::query()->create([
+            'person_id' => $person->id,
+            'tenant_id' => $this->tenant->id,
+            'created_by' => $user->id,
+            'status' => 'active',
+        ]);
+
         return $person;
     }
 }
