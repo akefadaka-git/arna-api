@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
@@ -161,9 +160,6 @@ final class GovernanceInvariantsMySqlConcurrencyTest extends TestCase
                         exit(0);
                     } catch (ValidationException $exception) {
                         file_put_contents($resultPaths[$index], 'conflict');
-                        exit(0);
-                    } catch (QueryException $exception) {
-                        file_put_contents($resultPaths[$index], 'constraint');
                         exit(0);
                     } catch (Throwable $exception) {
                         file_put_contents($resultPaths[$index], 'error:'.get_class($exception));
