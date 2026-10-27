@@ -1197,14 +1197,13 @@ final class GovernanceAppointmentService
             // Inclusive calendar-date overlap: existing.start <= candidate.end
             // and existing.end is open or existing.end >= candidate.start.
             ->where(function ($q) use ($appointment): void {
-                if ($appointment->effective_until !== null) {
-                    $q->where('effective_date', '<=', $appointment->effective_until);
-                }
-            })
-            ->where(function ($q) use ($appointment): void {
                 $q->whereNull('effective_until')
                     ->orWhere('effective_until', '>=', $appointment->effective_date);
             });
+
+        if ($appointment->effective_until !== null) {
+            $query->where('effective_date', '<=', $appointment->effective_until);
+        }
 
         if ($query->exists()) {
             throw ValidationException::withMessages([
