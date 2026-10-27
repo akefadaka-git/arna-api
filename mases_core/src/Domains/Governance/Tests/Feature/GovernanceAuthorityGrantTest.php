@@ -317,8 +317,8 @@ final class GovernanceAuthorityGrantTest extends TestCase
 
         $this->assertSame((int) $primary->id, (int) $assignment->substantive_occupancy_id);
         $this->assertSame(['governance.membership.manage'], $assignment->actions);
-        $this->assertTrue($assignment->allowsAction('governance.membership.manage', $start));
-        $this->assertFalse($assignment->allowsAction('governance.appointment.manage', $start));
+        $this->assertTrue($assignment->coversAction('governance.membership.manage', $start));
+        $this->assertFalse($assignment->coversAction('governance.appointment.manage', $start));
         $this->assertSame((int) $primary->id, (int) $seat->fresh()->effectiveOccupancy($start)?->id);
 
         $revoked = $service->revoke($this->administrator, (int) $this->tenant->id, (int) $assignment->id, 'Acting period concluded early');
