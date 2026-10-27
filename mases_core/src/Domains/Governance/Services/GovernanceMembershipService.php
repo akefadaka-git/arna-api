@@ -1472,8 +1472,7 @@ final class GovernanceMembershipService
         if ($overlaps) {
             throw ValidationException::withMessages([
                 'start_date' => [
-                    'This member already has an ongoing membership in the same position '
-                    . 'whose date range overlaps the supplied range.',
+                    'This position already has a primary occupancy whose date range overlaps the supplied range.',
                 ],
             ]);
         }
