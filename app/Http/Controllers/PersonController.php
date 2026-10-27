@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService;
 
@@ -110,6 +112,50 @@ final class PersonController extends Controller
         return response()->json([
             'success' => true,
             'data' => self::present($person),
+        ]);
+    }
+
+    /**
+     * Return tenant-scoped relationship indicators without exposing linked
+     * account IDs or unrelated domain attributes. This endpoint is restricted
+     * to People managers because relationship existence can itself be sensitive.
+     */
+    public function relationships(string $publicId): JsonResponse
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+
+        $person = Person::query()
+            ->where('public_id', $publicId)
+            ->where('status', 'active')
+            ->whereHas('tenantAccesses', static fn ($query) => $query
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'active'))
+            ->firstOrFail();
+
+        $employees = DB::table('employees')
+            ->where('tenant_id', $tenantId)
+            ->where('person_id', $person->getKey())
+            ->whereNull('deleted_at')
+            ->count();
+        $shareholders = DB::table('shareholders')
+            ->where('tenant_id', $tenantId)
+            ->where('person_id', $person->getKey())
+            ->count();
+        $governanceMemberships = DB::table('governance_memberships')
+            ->where('tenant_id', $tenantId)
+            ->where('person_id', $person->getKey())
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'account_linked' => $person->user_id !== null,
+                'employment_count' => $employees,
+                'shareholding_count' => $shareholders,
+                'governance_membership_count' => $governanceMemberships,
+                'document_linking_supported' => Schema::hasTable('person_document_links'),
+            ],
         ]);
     }
 
