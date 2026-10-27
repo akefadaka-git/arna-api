@@ -326,6 +326,53 @@ final class GovernanceAuthorityGrantTest extends TestCase
         $this->assertSame((int) $primary->id, (int) $seat->fresh()->effectiveOccupancy($start)?->id);
     }
 
+    public function test_authority_grant_rejects_grantee_without_explicit_tenant_access(): void
+    {
+        PersonTenantAccess::query()
+            ->where('person_id', $this->granteePerson->id)
+            ->where('tenant_id', $this->tenant->id)
+            ->delete();
+
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'governance.membership.manage',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Tenant access is required',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['grantee_person_id']);
+    }
+
+    public function test_acting_assignment_rejects_person_without_explicit_tenant_access(): void
+    {
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat($this->administrator, (int) $this->tenant->id, (int) $this->body->id, (int) $this->position->id, 'ACTING-TENANT-GUARD');
+        $start = CarbonImmutable::today()->toDateString();
+        $primary = $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->administratorPerson->id, $start, null);
+
+        PersonTenantAccess::query()
+            ->where('person_id', $this->granteePerson->id)
+            ->where('tenant_id', $this->tenant->id)
+            ->delete();
+
+        try {
+            app(GovernanceActingAssignmentService::class)->assign(
+                $this->administrator,
+                (int) $this->tenant->id,
+                (int) $seat->id,
+                (int) $primary->id,
+                (int) $this->granteePerson->id,
+                $start,
+                CarbonImmutable::today()->addDays(2)->toDateString(),
+                'BOARD-RESOLUTION-TENANT-GUARD',
+                ['governance.membership.manage'],
+                'Tenant access must be explicit',
+            );
+            $this->fail('An acting person without explicit tenant access must be rejected.');
+        } catch (\\Illuminate\\Validation\\ValidationException $exception) {
+            $this->assertArrayHasKey('acting_person_id', $exception->errors());
+        }
+    }
+
     private function makeUser(string $email): User
     {
         $user = User::query()->create([
