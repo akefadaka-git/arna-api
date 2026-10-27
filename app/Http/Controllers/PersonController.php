@@ -116,6 +116,105 @@ final class PersonController extends Controller
     }
 
     /**
+     * Link an existing domain record to the canonical Person. The domain
+     * record remains owned by its domain; this operation only changes the
+     * explicit identity reference and records the lifecycle audit event.
+     */
+    public function linkDomain(Request $request, string $publicId, string $domain, int $recordId, PersonIdentityService $identities): JsonResponse
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+        $attributes = $request->validate([
+            'reason' => ['required', 'string', 'min:8', 'max:1000'],
+        ]);
+        $person = $this->visiblePerson($publicId, (int) $tenantId);
+
+        try {
+            match ($domain) {
+                'employees' => $identities->linkEmployee((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']),
+                'shareholders' => $identities->linkShareholder((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']),
+                'governance-memberships' => $identities->linkGovernanceMembership((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']),
+                default => abort(404),
+            };
+        } catch (DomainException $exception) {
+            abort(403, 'The requested identity relationship is not authorized or is inconsistent.');
+        }
+
+        return response()->json(['success' => true, 'data' => ['linked' => true]]);
+    }
+
+    public function unlinkDomain(Request $request, string $publicId, string $domain, int $recordId, PersonIdentityService $identities): JsonResponse
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+        $attributes = $request->validate([
+            'reason' => ['required', 'string', 'min:8', 'max:1000'],
+        ]);
+        $person = $this->visiblePerson($publicId, (int) $tenantId);
+
+        try {
+            match ($domain) {
+                'employees' => $identities->unlinkEmployee((int) $tenantId, $recordId, $request->user(), $attributes['reason']),
+                'shareholders' => $identities->unlinkShareholder((int) $tenantId, $recordId, $request->user(), $attributes['reason']),
+                'governance-memberships' => $identities->unlinkGovernanceMembership((int) $tenantId, $recordId, $request->user(), $attributes['reason']),
+                default => abort(404),
+            };
+        } catch (DomainException $exception) {
+            abort(403, 'The requested identity relationship is not authorized or is inconsistent.');
+        }
+
+        return response()->json(['success' => true, 'data' => ['linked' => false]]);
+    }
+
+    public function linkAccount(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+        $attributes = $request->validate([
+            'user_id' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'min:8', 'max:1000'],
+        ]);
+        $person = $this->visiblePerson($publicId, (int) $tenantId);
+
+        try {
+            $identities->linkAccount((int) $tenantId, (int) $person->getKey(), (int) $attributes['user_id'], $request->user(), $attributes['reason']);
+        } catch (DomainException $exception) {
+            abort(403, 'The requested account relationship is not authorized or is inconsistent.');
+        }
+
+        return response()->json(['success' => true, 'data' => ['linked' => true]]);
+    }
+
+    public function unlinkAccount(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+        $attributes = $request->validate([
+            'reason' => ['required', 'string', 'min:8', 'max:1000'],
+        ]);
+        $person = $this->visiblePerson($publicId, (int) $tenantId);
+
+        try {
+            $identities->unlinkAccount((int) $tenantId, (int) $person->getKey(), $request->user(), $attributes['reason']);
+        } catch (DomainException $exception) {
+            abort(403, 'The requested account relationship is not authorized.');
+        }
+
+        return response()->json(['success' => true, 'data' => ['linked' => false]]);
+    }
+
+    private function visiblePerson(string $publicId, int $tenantId): Person
+    {
+        return Person::query()
+            ->where('public_id', $publicId)
+            ->where('status', 'active')
+            ->whereHas('tenantAccesses', static fn ($query) => $query
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'active'))
+            ->firstOrFail();
+    }
+
+    /**
      * Return tenant-scoped relationship indicators without exposing linked
      * account IDs or unrelated domain attributes. This endpoint is restricted
      * to People managers because relationship existence can itself be sensitive.
