@@ -397,6 +397,15 @@ final class GovernanceAuthorityGrantTest extends TestCase
             'start_date' => CarbonImmutable::today()->toDateString(),
             'end_date' => null,
         ])->assertCreated()->assertJsonPath('data.status', 'active');
+
+        PersonTenantAccess::query()
+            ->where('person_id', $this->administratorPerson->id)
+            ->where('tenant_id', $this->tenant->id)
+            ->delete();
+
+        $this->getJson(route('api.governance.seats.index'))
+            ->assertOk()
+            ->assertJsonCount(0, 'data.data.0.occupancies');
     }
 
     public function test_acting_assignment_api_creates_and_revokes_with_auditable_reason(): void
