@@ -530,6 +530,25 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
             ->name('relationships');
+        Route::post('/{publicId}/relationships/{domain}/{recordId}', [PersonController::class, 'linkDomain'])
+            ->whereUuid('publicId')
+            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
+            ->whereNumber('recordId')
+            ->middleware('auth.permission:people.manage')
+            ->name('relationships.link');
+        Route::delete('/{publicId}/relationships/{domain}/{recordId}', [PersonController::class, 'unlinkDomain'])
+            ->whereUuid('publicId')
+            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
+            ->whereNumber('recordId')
+            ->middleware('auth.permission:people.manage')
+            ->name('relationships.unlink');
+        // Global account-link permission is enforced by PersonIdentityService.
+        Route::post('/{publicId}/account', [PersonController::class, 'linkAccount'])
+            ->whereUuid('publicId')
+            ->name('account.link');
+        Route::delete('/{publicId}/account', [PersonController::class, 'unlinkAccount'])
+            ->whereUuid('publicId')
+            ->name('account.unlink');
         Route::put('/{publicId}', [PersonController::class, 'update'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
