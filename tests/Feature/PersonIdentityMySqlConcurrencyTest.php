@@ -99,7 +99,7 @@ final class PersonIdentityMySqlConcurrencyTest extends TestCase
                 pcntl_waitpid($pid, $status, WNOHANG);
             }
             DB::purge();
-            Person::query()->whereIn('id', [$first->getKey(), $second->getKey()])->delete();
+            Person::withTrashed()->whereIn('id', [$first->getKey(), $second->getKey()])->forceDelete();
             $user->delete();
             @unlink($release);
             foreach ($results as $path) {
