@@ -289,15 +289,17 @@ final class GovernanceTermService
 
         return DB::transaction(function () use ($term, $attributes): GovernanceTerm {
             $bodyId = (int) $term->governance_body_id;
-            $this->lockBodyForTermWrite((int) $term->tenant_id, $bodyId);
-            $this->assertNoOverlappingActiveTerm(
-                bodyId: $bodyId,
-                startDate: array_key_exists('effective_from', $attributes) ? $attributes['effective_from'] : $term->effective_from,
-                endDate: array_key_exists('effective_until', $attributes) ? $attributes['effective_until'] : $term->effective_until,
-                exceptId: (int) $term->id,
-            );
-
             $before = $term->getOriginal();
+            if (array_key_exists('effective_from', $attributes) || array_key_exists('effective_until', $attributes)) {
+                $bodyId = (int) $term->governance_body_id;
+                $this->lockBodyForTermWrite((int) $term->tenant_id, $bodyId);
+                $this->assertNoOverlappingActiveTerm(
+                    bodyId: $bodyId,
+                    startDate: array_key_exists('effective_from', $attributes) ? $attributes['effective_from'] : $term->effective_from,
+                    endDate: array_key_exists('effective_until', $attributes) ? $attributes['effective_until'] : $term->effective_until,
+                    exceptId: (int) $term->id,
+                );
+            }
             $term->fill($attributes)->save();
             $changes = $term->getChanges();
 
