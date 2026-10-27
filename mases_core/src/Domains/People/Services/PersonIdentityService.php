@@ -221,6 +221,48 @@ final class PersonIdentityService
         });
     }
 
+    public function updateProfile(int $tenantId, string $publicId, User $actor, array $attributes, string $reason): Person
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
+        $this->assertReason($reason);
+
+        return DB::transaction(function () use ($tenantId, $publicId, $actor, $attributes, $reason): Person {
+            $person = Person::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
+
+            if ($person->status !== 'active' || $person->trashed()) {
+                throw new DomainException('Only an active Person profile can be updated.');
+            }
+
+            $fields = [
+                'first_name_am', 'father_name_am', 'grandfather_name_am',
+                'first_name_en', 'father_name_en', 'grandfather_name_en',
+            ];
+            $before = $person->only($fields);
+            foreach ($fields as $field) {
+                if (array_key_exists($field, $attributes)) {
+                    $person->{$field} = $attributes[$field];
+                }
+            }
+            if (collect($person->only($fields))->filter(
+                fn ($value) => is_string($value) && trim($value) !== ''
+            )->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'name' => 'At least one Amharic or English name component is required.',
+                ]);
+            }
+            $person->save();
+            $this->recordEvent('person.profile_updated', $tenantId, $actor, $person, [
+                'before' => $before,
+                'after' => $person->only($fields),
+                'reason' => $reason,
+            ]);
+
+            return $person->refresh();
+        });
+    }
+
     private function assertPersonTenantAccess(int $tenantId, Person $person): void
     {
         $allowed = DB::table('person_tenant_accesses')
