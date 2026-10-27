@@ -18,7 +18,7 @@ on:
       - "database/seeders/**"
       - "tests/Unit/DemoSeederGuardTest.php"
       - "tests/Concerns/LoanDatabaseMigrations.php"
-      - "tests/Feature/PersonIdentityContractTest.php"
+      - "tests/Feature/PersonIdentityContractTest.php"\n      - "tests/Feature/PersonApiIntegrationTest.php"\n      - "app/Http/Controllers/PersonController.php"\n      - "routes/api.php"
       - "mases_core/src/Domains/People/**"
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
@@ -147,6 +147,13 @@ jobs:
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/PersonIdentityContractTest.php
+
+      - name: Run People Profile API integration regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/PersonApiIntegrationTest.php
 
       - name: Confirm test database is empty
         shell: bash
