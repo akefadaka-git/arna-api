@@ -53,7 +53,7 @@ final class PersonIdentityService
     public function linkAccount(int $tenantId, int $personId, int $userId, User $actor, string $reason): Person
     {
         $this->assertTenantAccess($tenantId, $actor);
-        $this->assertManagePermission($tenantId, $actor);
+        $this->assertGlobalAccountLinkPermission($actor);
         if (trim($reason) === '') {
             throw ValidationException::withMessages(['reason' => 'A reason is required for account linking.']);
         }
@@ -167,34 +167,57 @@ final class PersonIdentityService
 
     private function assertManagePermission(int $tenantId, User $actor): void
     {
-        $permissionAllowed = static function ($query) use ($tenantId): void {
-            $query->where(function ($scope) use ($tenantId): void {
-                $scope->where('scope', 'global')
-                    ->orWhere(function ($tenantScope) use ($tenantId): void {
-                        $tenantScope->where('scope', 'tenant')->where('tenant_id', $tenantId);
-                    });
-            });
-        };
-
         $direct = $actor->permissions()
             ->where('slug', 'people.manage')
             ->where('is_active', true)
-            ->where($permissionAllowed)
+            ->where(function ($query) use ($tenantId): void {
+                $query->where('scope', 'global')
+                    ->orWhere(function ($tenantScope) use ($tenantId): void {
+                        $tenantScope->where('scope', 'tenant')->where('tenant_id', $tenantId);
+                    });
+            })
             ->exists();
 
         $viaRole = $actor->roles()
             ->where(function ($query) use ($tenantId): void {
                 $query->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
             })
-            ->whereHas('permissions', function ($query) use ($permissionAllowed): void {
+            ->whereHas('permissions', function ($query) use ($tenantId): void {
                 $query->where('slug', 'people.manage')
                     ->where('is_active', true)
-                    ->where($permissionAllowed);
+                    ->where(function ($scope) use ($tenantId): void {
+                        $scope->where('scope', 'global')
+                            ->orWhere(function ($tenantScope) use ($tenantId): void {
+                                $tenantScope->where('scope', 'tenant')->where('tenant_id', $tenantId);
+                            });
+                    });
             })
             ->exists();
 
         if (! $direct && ! $viaRole) {
             throw new DomainException('The tenant-scoped people.manage permission is required for identity operations.');
+        }
+    }
+
+    private function assertGlobalAccountLinkPermission(User $actor): void
+    {
+        $direct = $actor->permissions()
+            ->where('slug', 'people.account-link.manage')
+            ->where('scope', 'global')
+            ->where('is_active', true)
+            ->exists();
+
+        $viaRole = $actor->roles()
+            ->whereNull('tenant_id')
+            ->whereHas('permissions', function ($query): void {
+                $query->where('slug', 'people.account-link.manage')
+                    ->where('scope', 'global')
+                    ->where('is_active', true);
+            })
+            ->exists();
+
+        if (! $direct && ! $viaRole) {
+            throw new DomainException('The global people.account-link.manage permission is required for account linking changes.');
         }
     }
 
@@ -210,8 +233,8 @@ final class PersonIdentityService
 
     private function assertDomainUserConsistency(Person $person, mixed $domainUserId): void
     {
-        if ($domainUserId !== null && $person->user_id !== null && (int) $person->user_id !== (int) $domainUserId) {
-            throw new DomainException('Person account association conflicts with the domain record User link.');
+        if ($domainUserId !== null && ($person->user_id === null || (int) $person->user_id !== (int) $domainUserId)) {
+            throw new DomainException('The Person must be explicitly linked to the same User as the domain record before association.');
         }
     }
 
