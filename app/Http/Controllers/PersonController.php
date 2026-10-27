@@ -130,12 +130,19 @@ final class PersonController extends Controller
         $person = $this->visiblePerson($publicId, (int) $tenantId);
 
         try {
-            match ($domain) {
-                'employees' => $identities->linkEmployee((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']),
-                'shareholders' => $identities->linkShareholder((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']),
-                'governance-memberships' => $identities->linkGovernanceMembership((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']),
-                default => abort(404),
-            };
+            switch ($domain) {
+                case 'employees':
+                    $identities->linkEmployee((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']);
+                    break;
+                case 'shareholders':
+                    $identities->linkShareholder((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']);
+                    break;
+                case 'governance-memberships':
+                    $identities->linkGovernanceMembership((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']);
+                    break;
+                default:
+                    abort(404);
+            }
         } catch (DomainException $exception) {
             abort(403, 'The requested identity relationship is not authorized or is inconsistent.');
         }
@@ -153,12 +160,19 @@ final class PersonController extends Controller
         $person = $this->visiblePerson($publicId, (int) $tenantId);
 
         try {
-            match ($domain) {
-                'employees' => $identities->unlinkEmployee((int) $tenantId, $recordId, $request->user(), $attributes['reason']),
-                'shareholders' => $identities->unlinkShareholder((int) $tenantId, $recordId, $request->user(), $attributes['reason']),
-                'governance-memberships' => $identities->unlinkGovernanceMembership((int) $tenantId, $recordId, $request->user(), $attributes['reason']),
-                default => abort(404),
-            };
+            switch ($domain) {
+                case 'employees':
+                    $identities->unlinkEmployee((int) $tenantId, $recordId, $request->user(), $attributes['reason']);
+                    break;
+                case 'shareholders':
+                    $identities->unlinkShareholder((int) $tenantId, $recordId, $request->user(), $attributes['reason']);
+                    break;
+                case 'governance-memberships':
+                    $identities->unlinkGovernanceMembership((int) $tenantId, $recordId, $request->user(), $attributes['reason']);
+                    break;
+                default:
+                    abort(404);
+            }
         } catch (DomainException $exception) {
             abort(403, 'The requested identity relationship is not authorized or is inconsistent.');
         }
