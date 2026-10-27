@@ -232,6 +232,83 @@ final class PersonIdentityService
         }
     }
 
+    public function unlinkShareholder(int $tenantId, int $shareholderId, User $actor, string $reason): void
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
+        $this->assertReason($reason);
+
+        DB::transaction(function () use ($tenantId, $shareholderId, $actor, $reason): void {
+            $holder = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)->lockForUpdate()->first();
+            if ($holder === null) {
+                throw new DomainException('Shareholder was not found in the authorized tenant.');
+            }
+            if ($holder->person_id === null) {
+                return;
+            }
+            $person = Person::query()->whereKey((int) $holder->person_id)->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
+            DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)
+                ->update(['person_id' => null, 'updated_at' => now()]);
+            $this->recordEvent('person.shareholder_unlinked', $tenantId, $actor, $person, [
+                'shareholder_id' => $shareholderId,
+                'reason' => $reason,
+            ]);
+        });
+    }
+
+    public function unlinkEmployee(int $tenantId, int $employeeId, User $actor, string $reason): void
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
+        $this->assertReason($reason);
+
+        DB::transaction(function () use ($tenantId, $employeeId, $actor, $reason): void {
+            $employee = DB::table('employees')->where('tenant_id', $tenantId)->where('id', $employeeId)
+                ->whereNull('deleted_at')->lockForUpdate()->first();
+            if ($employee === null) {
+                throw new DomainException('Employee was not found in the authorized tenant.');
+            }
+            if ($employee->person_id === null) {
+                return;
+            }
+            $person = Person::query()->whereKey((int) $employee->person_id)->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
+            DB::table('employees')->where('tenant_id', $tenantId)->where('id', $employeeId)
+                ->update(['person_id' => null, 'updated_at' => now()]);
+            $this->recordEvent('person.employee_unlinked', $tenantId, $actor, $person, [
+                'employee_id' => $employeeId,
+                'reason' => $reason,
+            ]);
+        });
+    }
+
+    public function unlinkGovernanceMembership(int $tenantId, int $membershipId, User $actor, string $reason): void
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
+        $this->assertReason($reason);
+
+        DB::transaction(function () use ($tenantId, $membershipId, $actor, $reason): void {
+            $membership = DB::table('governance_memberships')->where('tenant_id', $tenantId)
+                ->where('id', $membershipId)->lockForUpdate()->first();
+            if ($membership === null) {
+                throw new DomainException('Governance membership was not found in the authorized tenant.');
+            }
+            if ($membership->person_id === null) {
+                return;
+            }
+            $person = Person::query()->whereKey((int) $membership->person_id)->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
+            DB::table('governance_memberships')->where('tenant_id', $tenantId)->where('id', $membershipId)
+                ->update(['person_id' => null, 'updated_at' => now()]);
+            $this->recordEvent('person.governance_membership_unlinked', $tenantId, $actor, $person, [
+                'membership_id' => $membershipId,
+                'reason' => $reason,
+            ]);
+        });
+    }
+
     private function assertManagePermission(int $tenantId, User $actor): void
     {
         // Direct user grants have no tenant dimension in the current pivot.
