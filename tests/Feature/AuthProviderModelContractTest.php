@@ -11,12 +11,17 @@ use Tests\TestCase;
 final class AuthProviderModelContractTest extends TestCase
 {
     #[Test]
-    public function default_eloquent_auth_provider_uses_the_platform_user_model(): void
+    public function eloquent_auth_and_password_reset_use_only_the_platform_user_model(): void
     {
         $this->assertSame(
             CoreUser::class,
             config('auth.providers.users.model'),
-            'The auth/password-reset provider must resolve the same platform User model used by ARNA authentication.'
+            'Authentication and password resets must resolve the canonical platform Core User model.'
+        );
+
+        $this->assertFalse(
+            class_exists(\App\Models\User::class),
+            'The legacy App\\Models\\User model must not be present or autoloadable.'
         );
     }
 }
