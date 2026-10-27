@@ -8,6 +8,9 @@ use DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Exceptions\FileException;
+use MaaleArna\MASES\Core\Files\Models\File;
+use MaaleArna\MASES\Core\Files\Services\FileService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -16,6 +19,7 @@ final class PersonIdentityService
 {
     public function __construct(
         private readonly SecurityEventService $securityEvents,
+        private readonly FileService $files,
     ) {
     }
 
@@ -260,6 +264,126 @@ final class PersonIdentityService
             ]);
 
             return $person->refresh();
+        });
+    }
+
+    /**
+     * List only documents that the caller can also view through FileService.
+     * Storage paths, disk names, and ownership identifiers are never returned.
+     *
+     * @return list<array<string, int|string|null>>
+     */
+    public function listDocuments(int $tenantId, int $personId, User $actor): array
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
+        $person = Person::query()->whereKey($personId)->firstOrFail();
+        $this->assertPersonTenantAccess($tenantId, $person);
+
+        $links = DB::table('person_document_links')
+            ->where('tenant_id', $tenantId)
+            ->where('person_id', $personId)
+            ->orderByDesc('created_at')
+            ->get();
+
+        $documents = [];
+        foreach ($links as $link) {
+            try {
+                $file = $this->files->find((int) $link->file_id);
+            } catch (FileException) {
+                // Do not reveal inaccessible file metadata or even its existence.
+                continue;
+            }
+            if ($file === null || (int) $file->tenant_id !== $tenantId || $file->trashed()) {
+                continue;
+            }
+
+            $documents[] = [
+                'file_id' => (int) $file->getKey(),
+                'display_name_am' => $file->display_name_am,
+                'display_name_en' => $file->display_name_en,
+                'original_name' => $file->original_name,
+                'mime_type' => $file->mime_type,
+                'size' => (int) $file->size,
+                'version' => (int) $file->version,
+                'status' => $file->status,
+                'linked_at' => (string) $link->created_at,
+            ];
+        }
+
+        return $documents;
+    }
+
+    public function linkDocument(int $tenantId, int $personId, int $fileId, User $actor, string $reason): void
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
+        $this->assertReason($reason);
+
+        // FileService is the authoritative file-level permission boundary.
+        $authorizedFile = $this->files->find($fileId);
+        if ($authorizedFile === null || (int) $authorizedFile->tenant_id !== $tenantId || $authorizedFile->trashed()) {
+            throw new DomainException('The file is unavailable in the authorized tenant.');
+        }
+
+        DB::transaction(function () use ($tenantId, $personId, $fileId, $actor, $reason): void {
+            $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
+            $file = File::query()->whereKey($fileId)->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')->lockForUpdate()->first();
+            if ($file === null || $file->status === 'archived') {
+                throw new DomainException('Only an available, non-archived tenant file can be linked.');
+            }
+
+            $existing = DB::table('person_document_links')
+                ->where('tenant_id', $tenantId)->where('person_id', $personId)->where('file_id', $fileId)
+                ->lockForUpdate()->exists();
+            if ($existing) {
+                return;
+            }
+
+            DB::table('person_document_links')->insert([
+                'tenant_id' => $tenantId,
+                'person_id' => $personId,
+                'file_id' => $fileId,
+                'linked_by' => $actor->getKey(),
+                'link_reason' => $reason,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->recordEvent('person.document_linked', $tenantId, $actor, $person, [
+                'file_id' => $fileId,
+                'reason' => $reason,
+            ]);
+        });
+    }
+
+    public function unlinkDocument(int $tenantId, int $personId, int $fileId, User $actor, string $reason): void
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertManagePermission($tenantId, $actor);
+        $this->assertReason($reason);
+
+        // Require current file-level access before modifying the association.
+        $authorizedFile = $this->files->find($fileId);
+        if ($authorizedFile === null || (int) $authorizedFile->tenant_id !== $tenantId) {
+            throw new DomainException('The file is unavailable in the authorized tenant.');
+        }
+
+        DB::transaction(function () use ($tenantId, $personId, $fileId, $actor, $reason): void {
+            $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
+            $link = DB::table('person_document_links')->where('tenant_id', $tenantId)
+                ->where('person_id', $personId)->where('file_id', $fileId)->lockForUpdate()->first();
+            if ($link === null) {
+                return;
+            }
+
+            DB::table('person_document_links')->where('id', $link->id)->delete();
+            $this->recordEvent('person.document_unlinked', $tenantId, $actor, $person, [
+                'file_id' => $fileId,
+                'reason' => $reason,
+            ]);
         });
     }
 
