@@ -13,6 +13,8 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Authorization\Models\Role;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -120,4 +122,44 @@ final class PersonIdentityContractTest extends TestCase
             ['first_name_en' => 'Hana'],
         );
     }
+
+    #[Test]
+    public function a_platform_role_cannot_satisfy_tenant_scoped_people_manage_permission(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create(['is_active' => true]);
+        $actor->tenants()->attach($tenant->id, [
+            'joined_at' => now(),
+            'status' => 'active',
+        ]);
+
+        $permission = Permission::query()->create([
+            'name_en' => 'Manage People Profiles',
+            'slug' => 'people.manage',
+            'category' => 'user',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $platformRole = Role::query()->create([
+            'name_en' => 'Platform People Manager',
+            'slug' => 'platform-people-manager',
+            'scope' => 'platform',
+            'tenant_id' => null,
+            'is_active' => true,
+        ]);
+        $platformRole->permissions()->attach($permission->getKey(), ['assigned_at' => now()]);
+        $actor->roles()->attach($platformRole->getKey(), ['assigned_at' => now()]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('people.manage');
+
+        app(PersonIdentityService::class)->create(
+            (int) $tenant->id,
+            $actor,
+            ['first_name_en' => 'Hana'],
+        );
+    }
+
 }
