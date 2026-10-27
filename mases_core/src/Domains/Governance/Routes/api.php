@@ -226,6 +226,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAppointmentController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
@@ -378,6 +379,17 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceTermContr
 */
 
 Route::name('api.governance.')->group(static function (): void {
+
+    // P1.3-B3 — audited, position-scoped authority grants.
+    Route::get('/authority-grants', [GovernanceAuthorityGrantController::class, 'index'])
+        ->name('authority-grants.index');
+    Route::post('/authority-grants', [GovernanceAuthorityGrantController::class, 'store'])
+        ->name('authority-grants.store');
+    Route::delete('/authority-grants/{governanceAuthorityGrant}', [GovernanceAuthorityGrantController::class, 'destroy'])
+        ->whereNumber('governanceAuthorityGrant')
+        ->name('authority-grants.destroy');
+
+
 
     // =========================================================================
     // Ping — G1 smoke endpoint
