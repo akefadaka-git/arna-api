@@ -556,7 +556,11 @@ final class GovernanceAppointmentService
             // getOriginal() reflects the pre-change state.
             $beforeSnapshot = $appointment->getOriginal();
 
-            $appointment->fill($attributes)->save();
+            $appointment->fill($attributes);
+            if ($appointment->isActive() && ($appointment->appointment_role ?? 'primary') === 'primary') {
+                $this->assertNoOtherActiveAppointmentForPosition($appointment);
+            }
+            $appointment->save();
 
             $this->dispatchAfterCommit(
                 new GovernanceAppointmentUpdated($appointment, $beforeSnapshot)
@@ -608,8 +612,12 @@ final class GovernanceAppointmentService
         }
 
         return DB::transaction(function () use ($appointment): GovernanceAppointment {
-            // Serialize activations for this position before checking the incumbent invariant.
-            $this->assertNoOtherActiveAppointmentForPosition($appointment);
+            // Serialize activations for this position before checking primary occupancy.
+            if (($appointment->appointment_role ?? 'primary') === 'acting') {
+                $this->assertActingAppointmentCanActivate($appointment);
+            } else {
+                $this->assertNoOtherActiveAppointmentForPosition($appointment);
+            }
 
             // A3 / RP-01 — pre-change snapshot.
             $beforeSnapshot = $appointment->getOriginal();
@@ -906,6 +914,16 @@ final class GovernanceAppointmentService
 
         $attributes['appointment_mode'] = $mode->value;
 
+        // Appointment role is distinct from acquisition mode. Acting is never
+        // inferred from an elected/appointed/ex-officio instrument.
+        $appointmentRole = $attributes['appointment_role'] ?? 'primary';
+        if (!in_array($appointmentRole, ['primary', 'acting'], true)) {
+            throw ValidationException::withMessages([
+                'appointment_role' => ['Appointment role must be primary or acting.'],
+            ]);
+        }
+        $attributes['appointment_role'] = $appointmentRole;
+
         // ---------------------------------------------------------------------
         // 6. effective_date — required.
         // ---------------------------------------------------------------------
@@ -915,6 +933,54 @@ final class GovernanceAppointmentService
             throw ValidationException::withMessages([
                 'effective_date' => ['The effective date is required.'],
             ]);
+        }
+
+        // Inclusive appointment end date. Null means open-ended.
+        $effectiveUntil = $attributes['effective_until'] ?? null;
+        if ($effectiveUntil === '') {
+            $effectiveUntil = null;
+        }
+        $this->assertEffectiveDateOrdering($effectiveDate, $effectiveUntil);
+        $attributes['effective_until'] = $effectiveUntil;
+
+        // Acting assignments must point to a substantive primary appointment
+        // in the same tenant/body/position and be bounded by its effective term.
+        $actingForId = $attributes['acting_for_appointment_id'] ?? null;
+        if ($appointmentRole === 'acting') {
+            if ($attributes['governance_position_id'] === null || $actingForId === null || $actingForId === '') {
+                throw ValidationException::withMessages([
+                    'acting_for_appointment_id' => ['An acting appointment requires a position and a substantive primary appointment.'],
+                ]);
+            }
+
+            $actingFor = GovernanceAppointment::query()
+                ->where('tenant_id', $tenantId)
+                ->whereKey((int) $actingForId)
+                ->where('governance_body_id', $bodyId)
+                ->where('governance_position_id', (int) $attributes['governance_position_id'])
+                ->where('appointment_role', 'primary')
+                ->first();
+
+            if ($actingFor === null) {
+                throw ValidationException::withMessages([
+                    'acting_for_appointment_id' => ['The substantive primary appointment must exist in the same tenant, body, and position.'],
+                ]);
+            }
+
+            $this->assertActingIntervalWithinPrimary(
+                $effectiveDate,
+                $effectiveUntil,
+                $actingFor->effective_date,
+                $actingFor->effective_until,
+            );
+            $attributes['acting_for_appointment_id'] = (int) $actingForId;
+        } else {
+            if ($actingForId !== null && $actingForId !== '') {
+                throw ValidationException::withMessages([
+                    'acting_for_appointment_id' => ['A primary appointment cannot reference an acting-for appointment.'],
+                ]);
+            }
+            $attributes['acting_for_appointment_id'] = null;
         }
 
         // ---------------------------------------------------------------------
@@ -952,6 +1018,24 @@ final class GovernanceAppointmentService
     private function normaliseForUpdate(GovernanceAppointment $appointment, array $data): array
     {
         $attributes = $this->whitelist($data);
+
+        // Role and acting target are immutable after registration; correct an
+        // assignment by creating a new instrument rather than changing its meaning.
+        foreach (['appointment_role', 'acting_for_appointment_id'] as $field) {
+            if (!array_key_exists($field, $attributes)) {
+                continue;
+            }
+            $proposed = $attributes[$field];
+            $current = $appointment->{$field};
+            $proposedNormalised = ($proposed === null || $proposed === '') ? null : ($field === 'appointment_role' ? (string) $proposed : (int) $proposed);
+            $currentNormalised = ($current === null || $current === '') ? null : ($field === 'appointment_role' ? (string) $current : (int) $current);
+            if ($proposedNormalised !== $currentNormalised) {
+                throw ValidationException::withMessages([
+                    $field => ['Appointment role and acting target are immutable after registration. Create a new appointment instead.'],
+                ]);
+            }
+            unset($attributes[$field]);
+        }
 
         // ---------------------------------------------------------------------
         // 1. Immutable FK columns — reject any difference, drop any match.
@@ -1040,6 +1124,19 @@ final class GovernanceAppointmentService
             $attributes['appointment_mode'] = $mode->value;
         }
 
+        // Validate the proposed inclusive end date against the effective start.
+        $effectiveFrom = array_key_exists('effective_date', $attributes)
+            ? $attributes['effective_date']
+            : $appointment->effective_date;
+        $effectiveUntil = array_key_exists('effective_until', $attributes)
+            ? $attributes['effective_until']
+            : $appointment->effective_until;
+        if ($effectiveUntil === '') {
+            $effectiveUntil = null;
+            $attributes['effective_until'] = null;
+        }
+        $this->assertEffectiveDateOrdering($effectiveFrom, $effectiveUntil);
+
         // ---------------------------------------------------------------------
         // 4. status — REJECTED. The state machine is expressed through the
         //    three lifecycle methods, not through update().
@@ -1091,16 +1188,111 @@ final class GovernanceAppointmentService
             ->lockForUpdate()
             ->firstOrFail();
 
-        $conflict = GovernanceAppointment::query()
+        $query = GovernanceAppointment::query()
             ->where('tenant_id', (int) $appointment->tenant_id)
             ->where('governance_position_id', (int) $positionId)
+            ->where('appointment_role', 'primary')
             ->where('status', GovernanceAppointmentStatus::Active->value)
             ->where('id', '<>', (int) $appointment->id)
-            ->exists();
+            // Inclusive calendar-date overlap: existing.start <= candidate.end
+            // and existing.end is open or existing.end >= candidate.start.
+            ->where(function ($q) use ($appointment): void {
+                if ($appointment->effective_until !== null) {
+                    $q->where('effective_date', '<=', $appointment->effective_until);
+                }
+            })
+            ->where(function ($q) use ($appointment): void {
+                $q->whereNull('effective_until')
+                    ->orWhere('effective_until', '>=', $appointment->effective_date);
+            });
 
-        if ($conflict) {
+        if ($query->exists()) {
             throw ValidationException::withMessages([
-                'governance_position_id' => ['This position already has an active primary appointment. Revoke or supersede it before activating another.'],
+                'governance_position_id' => [
+                    'This primary appointment overlaps another active primary appointment for the same position. Set a valid inclusive end date or choose a non-overlapping effective date.',
+                ],
+            ]);
+        }
+    }
+
+    /**
+     * An acting assignment may only activate while its referenced substantive
+     * primary appointment is active, and only within that appointment's date
+     * interval. Acting authority itself remains action-bound through B3 grants.
+     */
+    private function assertActingAppointmentCanActivate(GovernanceAppointment $appointment): void
+    {
+        if ($appointment->acting_for_appointment_id === null || $appointment->governance_position_id === null) {
+            throw ValidationException::withMessages([
+                'acting_for_appointment_id' => ['An acting appointment requires a substantive primary appointment and position.'],
+            ]);
+        }
+
+        GovernancePosition::query()
+            ->where('tenant_id', (int) $appointment->tenant_id)
+            ->whereKey((int) $appointment->governance_position_id)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        $primary = GovernanceAppointment::query()
+            ->where('tenant_id', (int) $appointment->tenant_id)
+            ->whereKey((int) $appointment->acting_for_appointment_id)
+            ->where('governance_body_id', (int) $appointment->governance_body_id)
+            ->where('governance_position_id', (int) $appointment->governance_position_id)
+            ->where('appointment_role', 'primary')
+            ->where('status', GovernanceAppointmentStatus::Active->value)
+            ->first();
+
+        if ($primary === null) {
+            throw ValidationException::withMessages([
+                'acting_for_appointment_id' => ['The substantive primary appointment must be active in the same tenant, body, and position.'],
+            ]);
+        }
+
+        $this->assertActingIntervalWithinPrimary(
+            $appointment->effective_date,
+            $appointment->effective_until,
+            $primary->effective_date,
+            $primary->effective_until,
+        );
+    }
+
+    /**
+     * Enforce inclusive date ordering and containment of an acting interval.
+     */
+    private function assertActingIntervalWithinPrimary(
+        mixed $actingStart,
+        mixed $actingEnd,
+        mixed $primaryStart,
+        mixed $primaryEnd,
+    ): void {
+        $start = Carbon::parse($actingStart)->startOfDay();
+        $primaryFrom = Carbon::parse($primaryStart)->startOfDay();
+
+        if ($start->lt($primaryFrom)) {
+            throw ValidationException::withMessages([
+                'effective_date' => ['An acting appointment cannot start before its substantive primary appointment.'],
+            ]);
+        }
+
+        if ($primaryEnd !== null && $primaryEnd !== '') {
+            if ($actingEnd === null || $actingEnd === '' || Carbon::parse($actingEnd)->startOfDay()->gt(Carbon::parse($primaryEnd)->startOfDay())) {
+                throw ValidationException::withMessages([
+                    'effective_until' => ['An acting appointment must end on or before the substantive primary appointment.'],
+                ]);
+            }
+        }
+    }
+
+    private function assertEffectiveDateOrdering(mixed $effectiveDate, mixed $effectiveUntil): void
+    {
+        if ($effectiveDate === null || $effectiveDate === '' || $effectiveUntil === null || $effectiveUntil === '') {
+            return;
+        }
+
+        if (Carbon::parse($effectiveUntil)->startOfDay()->lt(Carbon::parse($effectiveDate)->startOfDay())) {
+            throw ValidationException::withMessages([
+                'effective_until' => ['The inclusive end date cannot precede the effective start date.'],
             ]);
         }
     }
