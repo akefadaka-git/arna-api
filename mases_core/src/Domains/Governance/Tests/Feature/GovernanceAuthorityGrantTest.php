@@ -262,7 +262,7 @@ final class GovernanceAuthorityGrantTest extends TestCase
         try {
             $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $this->granteePerson->id, CarbonImmutable::today()->toDateString());
             $this->fail('A global Person without explicit tenant access must not be assigned to a tenant seat.');
-        } catch (\\Illuminate\\Validation\\ValidationException $exception) {
+        } catch (\Illuminate\Validation\ValidationException $exception) {
             $this->assertArrayHasKey('person_id', $exception->errors());
         }
     }
@@ -289,7 +289,7 @@ final class GovernanceAuthorityGrantTest extends TestCase
         try {
             $seats->occupy($this->administrator, (int) $this->tenant->id, (int) $seat->id, (int) $unlinked->id, CarbonImmutable::today()->toDateString(), null, (int) $membership->id);
             $this->fail('A membership cannot be attached to a Person without a canonical account link.');
-        } catch (\\Illuminate\\Validation\\ValidationException $exception) {
+        } catch (\Illuminate\Validation\ValidationException $exception) {
             $this->assertArrayHasKey('governance_membership_id', $exception->errors());
         }
     }
@@ -368,7 +368,7 @@ final class GovernanceAuthorityGrantTest extends TestCase
                 'Tenant access must be explicit',
             );
             $this->fail('An acting person without explicit tenant access must be rejected.');
-        } catch (\\Illuminate\\Validation\\ValidationException $exception) {
+        } catch (\Illuminate\Validation\ValidationException $exception) {
             $this->assertArrayHasKey('acting_person_id', $exception->errors());
         }
     }
