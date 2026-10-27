@@ -356,6 +356,9 @@ final class GovernanceAppointmentResource extends JsonResource
             // -----------------------------------------------------------------
             'effective_date'         => $appointment->effective_date?->toDateString(),
             'effective_date_display' => $this->localizedDate($appointment->effective_date),
+            'effective_until'        => $appointment->effective_until?->toDateString(),
+            'appointment_role'       => $appointment->appointment_role ?? 'primary',
+            'acting_for_appointment_id' => $appointment->acting_for_appointment_id,
 
             // -----------------------------------------------------------------
             // Appointment mode — vocabulary pair.
