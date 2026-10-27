@@ -67,6 +67,33 @@ final class PersonController extends Controller
         ], 201);
     }
 
+    public function update(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+
+        $attributes = $request->validate([
+            'first_name_am' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'father_name_am' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'grandfather_name_am' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'first_name_en' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'father_name_en' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'grandfather_name_en' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'reason' => ['required', 'string', 'min:8', 'max:1000'],
+        ]);
+
+        $reason = $attributes['reason'];
+        unset($attributes['reason']);
+
+        try {
+            $person = $identities->updateProfile((int) $tenantId, $publicId, $request->user(), $attributes, $reason);
+        } catch (DomainException $exception) {
+            abort(403, 'The caller is not authorized to update this Person in the tenant.');
+        }
+
+        return response()->json(['success' => true, 'data' => self::present($person)]);
+    }
+
     public function show(string $publicId): JsonResponse
     {
         $tenantId = mases_tenant_id();
