@@ -665,8 +665,34 @@ final class GovernanceMembershipRepository
                 GovernanceMembershipStatus::Suspended->value,
             ]);
 
-        // Primary occupancy is exclusive per position, regardless of person identity.
-        // Acting assignments are represented separately and must not be stored as primary memberships.
+        // ---------------------------------------------------------------------
+        // Member-reference matching — apply the precedence.
+        // ---------------------------------------------------------------------
+        $appliedReference = false;
+
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+            $appliedReference = true;
+        } elseif (is_string($externalReference) && trim($externalReference) !== '') {
+            $query->where('external_reference', trim($externalReference));
+            $appliedReference = true;
+        } else {
+            $nameAm = is_string($memberNameAm) ? trim($memberNameAm) : '';
+            $nameEn = is_string($memberNameEn) ? trim($memberNameEn) : '';
+
+            if ($nameAm !== '' || $nameEn !== '') {
+                $query->where(function (Builder $q) use ($nameAm, $nameEn): void {
+                    $q->where('member_name_am', $nameAm === '' ? null : $nameAm)
+                      ->where('member_name_en', $nameEn === '' ? null : $nameEn);
+                });
+                $appliedReference = true;
+            }
+        }
+
+        if (!$appliedReference) {
+            // No member identity — no overlap possible.
+            return false;
+        }
 
         // ---------------------------------------------------------------------
         // Date-range overlap.
