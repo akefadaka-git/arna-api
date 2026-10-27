@@ -231,15 +231,14 @@ final class PersonIdentityService
 
     private function assertManagePermission(int $tenantId, User $actor): void
     {
+        // Direct user grants have no tenant dimension in the current pivot.
+        // Accept them only for a genuinely global permission; tenant-scoped
+        // people.manage must flow through a role scoped to this tenant.
         $direct = $actor->permissions()
             ->where('slug', 'people.manage')
+            ->where('scope', 'global')
+            ->whereNull('permissions.tenant_id')
             ->where('is_active', true)
-            ->where(function ($query) use ($tenantId): void {
-                $query->where('scope', 'global')
-                    ->orWhere(function ($tenantScope) use ($tenantId): void {
-                        $tenantScope->where('scope', 'tenant')->where('tenant_id', $tenantId);
-                    });
-            })
             ->exists();
 
         $viaRole = $actor->roles()
@@ -247,14 +246,12 @@ final class PersonIdentityService
                 $query->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
             })
             ->whereHas('permissions', function ($query) use ($tenantId): void {
+                // Permission definitions are shared catalogue rows with a
+                // null tenant_id; the assigned Role carries the tenant scope.
                 $query->where('slug', 'people.manage')
-                    ->where('is_active', true)
-                    ->where(function ($scope) use ($tenantId): void {
-                        $scope->where('scope', 'global')
-                            ->orWhere(function ($tenantScope) use ($tenantId): void {
-                                $tenantScope->where('scope', 'tenant')->where('tenant_id', $tenantId);
-                            });
-                    });
+                    ->whereIn('scope', ['global', 'tenant'])
+                    ->whereNull('permissions.tenant_id')
+                    ->where('is_active', true);
             })
             ->exists();
 
