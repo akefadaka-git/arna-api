@@ -539,6 +539,11 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->whereNumber('fileId')
             ->middleware('auth.permission:people.manage')
             ->name('documents.unlink');
+        Route::post('/{publicId}/documents/{fileId}/unlink', [PersonController::class, 'unlinkDocument'])
+            ->whereUuid('publicId')
+            ->whereNumber('fileId')
+            ->middleware('auth.permission:people.manage')
+            ->name('documents.unlink-command');
         Route::get('/{publicId}/relationships', [PersonController::class, 'relationships'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
