@@ -18,6 +18,15 @@ on:
       - "database/seeders/**"
       - "tests/Unit/DemoSeederGuardTest.php"
       - "tests/Concerns/LoanDatabaseMigrations.php"
+      - "tests/Feature/PersonIdentityContractTest.php"
+      - "tests/Feature/PersonApiIntegrationTest.php"
+      - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
+      - "app/Http/Controllers/PersonController.php"
+      - "routes/api.php"
+      - "mases_core/src/Domains/People/**"
+      - "mases_core/src/Auth/Models/User.php"
+      - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
+      - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
       - "mases_core/src/Domains/Loan/Tests/Unit/**"
       - "mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php"
   workflow_dispatch:
@@ -136,6 +145,20 @@ jobs:
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php
 
+      - name: Run Person identity contract regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/PersonIdentityContractTest.php
+
+      - name: Run People Profile API integration regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/PersonApiIntegrationTest.php
+
       - name: Confirm test database is empty
         shell: bash
         run: |
@@ -147,18 +170,29 @@ jobs:
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
 
+      - name: Run independent-connection People identity concurrency regression
+        env:
+          ARNA_RUN_MYSQL_CONCURRENCY: "1"
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/PersonIdentityMySqlConcurrencyTest.php
+
       - name: Verify expected core and domain tables
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 53
+          test "${applied}" -eq 56
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -186,7 +220,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 53
+          test "${applied}" -eq 56
 
       - name: Upload migration status evidence
         if: always()

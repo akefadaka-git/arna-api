@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\HasApiTokens;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
@@ -516,6 +518,16 @@ class User extends Authenticatable
             'user_id',
             'permission_id'
         )->withPivot('assigned_at', 'assigned_by');
+    }
+
+    /**
+     * The optional canonical natural-person profile for this account.
+     *
+     * This relation does not grant tenant membership or domain authority.
+     */
+    public function person(): HasOne
+    {
+        return $this->hasOne(Person::class, 'user_id');
     }
 
     // =========================================================================
