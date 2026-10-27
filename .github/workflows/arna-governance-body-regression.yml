@@ -105,6 +105,12 @@ jobs:
           php -l mases_core/src/Domains/Governance/Services/GovernanceAuthorityGrantService.php
           php -l mases_core/src/Domains/Governance/Database/Migrations/2026_10_27_120000_create_governance_authority_grants_table.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
+          php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceAuthorityGrantController.php
+          php -l mases_core/src/Domains/Governance/Routes/api.php
+          php -l mases_core/src/Domains/Governance/Policies/GovernancePositionPolicy.php
+          php -l mases_core/src/Domains/Governance/Policies/GovernanceAppointmentPolicy.php
+          php -l mases_core/src/Domains/Governance/Policies/GovernanceMembershipPolicy.php
+          php -l mases_core/src/Domains/Governance/Providers/GovernanceServiceProvider.php
 
       - name: Validate Composer manifest and lock
         run: composer validate --no-check-publish
