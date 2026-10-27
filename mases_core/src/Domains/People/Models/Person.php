@@ -29,7 +29,6 @@ final class Person extends Model
         'first_name_en',
         'father_name_en',
         'grandfather_name_en',
-        'status',
     ];
 
     protected $casts = [
