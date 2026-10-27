@@ -121,6 +121,30 @@ final class PersonIdentityService
         });
     }
 
+    public function revokeTenantAccess(int $tenantId, int $personId, User $actor, string $reason): void
+    {
+        $this->assertTenantAccess($tenantId, $actor);
+        $this->assertGlobalTenantAccessPermission($actor);
+        $this->assertReason($reason);
+
+        DB::transaction(function () use ($tenantId, $personId, $actor, $reason): void {
+            $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
+            $this->assertPersonTenantAccess($tenantId, $person);
+
+            $linked = DB::table('employees')->where('tenant_id', $tenantId)->where('person_id', $personId)->exists()
+                || DB::table('shareholders')->where('tenant_id', $tenantId)->where('person_id', $personId)->exists()
+                || DB::table('governance_memberships')->where('tenant_id', $tenantId)->where('person_id', $personId)->exists();
+
+            if ($linked) {
+                throw new DomainException('Unlink tenant domain records before revoking Person visibility.');
+            }
+
+            DB::table('person_tenant_accesses')->where('tenant_id', $tenantId)->where('person_id', $personId)
+                ->update(['status' => 'revoked', 'updated_at' => now()]);
+            $this->recordEvent('person.tenant_access_revoked', $tenantId, $actor, $person, ['reason' => $reason]);
+        });
+    }
+
     public function linkShareholder(int $tenantId, int $shareholderId, int $personId, User $actor, string $reason): void
     {
         $this->assertTenantAccess($tenantId, $actor);
