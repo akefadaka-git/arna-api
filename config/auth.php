@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\User;
+use MaaleArna\MASES\Core\Auth\Models\User;
 
 return [
 
