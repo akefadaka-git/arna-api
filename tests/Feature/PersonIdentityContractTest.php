@@ -22,6 +22,7 @@ final class PersonIdentityContractTest extends TestCase
     public function clean_schema_contains_additive_nullable_person_links(): void
     {
         $this->assertTrue(Schema::hasTable('people'));
+        $this->assertTrue(Schema::hasTable('person_tenant_accesses'));
         $this->assertTrue(Schema::hasColumn('people', 'public_id'));
         $this->assertTrue(Schema::hasColumn('people', 'user_id'));
 
