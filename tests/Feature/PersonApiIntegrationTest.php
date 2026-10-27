@@ -131,6 +131,34 @@ final class PersonApiIntegrationTest extends TestCase
             ->assertJsonMissingPath('data.tenant_id');
     }
 
+    #[Test]
+    public function tenant_people_manager_cannot_link_a_user_account_without_global_account_link_permission(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        $targetUser = User::factory()->create(['is_active' => true]);
+        $targetUser->tenants()->attach($tenant->getKey(), [
+            'joined_at' => now(),
+            'status' => 'active',
+        ]);
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Account Link Test',
+        ])->assertCreated();
+        $publicId = $created->json('data.public_id');
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/account', [
+            'user_id' => $targetUser->getKey(),
+            'reason' => 'Test unauthorized account linking',
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('people', [
+            'public_id' => $publicId,
+            'user_id' => null,
+        ]);
+    }
+
     /** @return array{0: Tenant, 1: User} */
     private function tenantPeopleManager(): array
     {
