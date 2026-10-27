@@ -34,8 +34,21 @@ final class GovernanceSeatService
             ->with([
                 'body:id,tenant_id,code,name_am,name_en',
                 'position:id,tenant_id,governance_body_id,code,name_am,name_en',
+                'occupancies' => fn ($query) => $query->whereHas(
+                    'person.tenantAccesses',
+                    fn ($access) => $access->where('tenant_id', $tenantId)->where('status', 'active'),
+                ),
                 'occupancies.person:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en',
                 'occupancies.membership:id,tenant_id,governance_body_id,governance_position_id,user_id,status',
+                'actingAssignments' => fn ($query) => $query
+                    ->whereHas(
+                        'actingPerson.tenantAccesses',
+                        fn ($access) => $access->where('tenant_id', $tenantId)->where('status', 'active'),
+                    )
+                    ->whereHas(
+                        'substantiveOccupancy.person.tenantAccesses',
+                        fn ($access) => $access->where('tenant_id', $tenantId)->where('status', 'active'),
+                    ),
                 'actingAssignments.actingPerson:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en',
             ])
             ->orderBy('id')
