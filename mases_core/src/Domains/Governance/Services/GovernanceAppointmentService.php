@@ -608,6 +608,9 @@ final class GovernanceAppointmentService
         }
 
         return DB::transaction(function () use ($appointment): GovernanceAppointment {
+            // Serialize activations for this position before checking the incumbent invariant.
+            $this->assertNoOtherActiveAppointmentForPosition($appointment);
+
             // A3 / RP-01 — pre-change snapshot.
             $beforeSnapshot = $appointment->getOriginal();
 
@@ -1072,6 +1075,37 @@ final class GovernanceAppointmentService
     // =========================================================================
 
     /**
+     * Enforce one active primary appointment per position. The position row
+     * is the shared mutex, closing the independent-connection activation race.
+     */
+    private function assertNoOtherActiveAppointmentForPosition(GovernanceAppointment $appointment): void
+    {
+        $positionId = $appointment->governance_position_id;
+        if ($positionId === null) {
+            return;
+        }
+
+        GovernancePosition::query()
+            ->where('tenant_id', (int) $appointment->tenant_id)
+            ->whereKey((int) $positionId)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        $conflict = GovernanceAppointment::query()
+            ->where('tenant_id', (int) $appointment->tenant_id)
+            ->where('governance_position_id', (int) $positionId)
+            ->where('status', GovernanceAppointmentStatus::Active->value)
+            ->where('id', '<>', (int) $appointment->id)
+            ->exists();
+
+        if ($conflict) {
+            throw ValidationException::withMessages([
+                'governance_position_id' => ['This position already has an active primary appointment. Revoke or supersede it before activating another.'],
+            ]);
+        }
+    }
+
+    /**
      * Assert that `effective_date >= instrument_date` when both are
      * set.
      *
@@ -1085,6 +1119,7 @@ final class GovernanceAppointmentService
      *
      * @throws ValidationException
      */
+
     private function assertInstrumentDateOrdering(mixed $instrumentDate, mixed $effectiveDate): void
     {
         if ($instrumentDate === null || $effectiveDate === null) {

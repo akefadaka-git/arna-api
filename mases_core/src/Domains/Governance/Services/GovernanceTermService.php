@@ -246,6 +246,17 @@ final class GovernanceTermService
         $attributes = $this->normaliseForRegister($data, $tenantId);
 
         return DB::transaction(function () use ($attributes, $tenantId): GovernanceTerm {
+            $bodyId = (int) $attributes['governance_body_id'];
+            $this->lockBodyForTermWrite($tenantId, $bodyId);
+            if ((bool) ($attributes['is_active'] ?? true)) {
+                $this->assertNoOverlappingActiveTerm(
+                    bodyId: $bodyId,
+                    startDate: $attributes['effective_from'] ?? null,
+                    endDate: $attributes['effective_until'] ?? null,
+                    exceptId: null,
+                );
+            }
+
             $term = GovernanceTerm::create([
                 'tenant_id' => $tenantId,
                 ...$attributes,
@@ -279,7 +290,19 @@ final class GovernanceTermService
         }
 
         return DB::transaction(function () use ($term, $attributes): GovernanceTerm {
+            $bodyId = (int) $term->governance_body_id;
             $before = $term->getOriginal();
+            if ((bool) ($attributes['is_active'] ?? $term->is_active)
+                && (array_key_exists('effective_from', $attributes) || array_key_exists('effective_until', $attributes))) {
+                $bodyId = (int) $term->governance_body_id;
+                $this->lockBodyForTermWrite((int) $term->tenant_id, $bodyId);
+                $this->assertNoOverlappingActiveTerm(
+                    bodyId: $bodyId,
+                    startDate: array_key_exists('effective_from', $attributes) ? $attributes['effective_from'] : $term->effective_from,
+                    endDate: array_key_exists('effective_until', $attributes) ? $attributes['effective_until'] : $term->effective_until,
+                    exceptId: (int) $term->id,
+                );
+            }
             $term->fill($attributes)->save();
             $changes = $term->getChanges();
 
@@ -332,6 +355,15 @@ final class GovernanceTermService
         }
 
         return DB::transaction(function () use ($term): GovernanceTerm {
+            $bodyId = (int) $term->governance_body_id;
+            $this->lockBodyForTermWrite((int) $term->tenant_id, $bodyId);
+            $this->assertNoOverlappingActiveTerm(
+                bodyId: $bodyId,
+                startDate: $term->effective_from,
+                endDate: $term->effective_until,
+                exceptId: (int) $term->id,
+            );
+
             $before = $term->getOriginal();
             $term->is_active = true;
             $term->save();
@@ -537,6 +569,52 @@ final class GovernanceTermService
     }
 
     /**
+     * Serialize term writes by locking the owning body row. This makes the
+     * overlap check safe across independent MySQL connections; a query-only
+     * check without this shared lock permits two concurrent inserts to race.
+     */
+    private function lockBodyForTermWrite(int $tenantId, int $bodyId): void
+    {
+        GovernanceBody::query()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($bodyId)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
+    /** Reject inclusive date-range overlap among active terms of one body. */
+    private function assertNoOverlappingActiveTerm(
+        int $bodyId,
+        mixed $startDate,
+        mixed $endDate,
+        ?int $exceptId,
+    ): void {
+        $query = GovernanceTerm::query()
+            ->where('governance_body_id', $bodyId)
+            ->where('is_active', true);
+
+        if ($exceptId !== null) {
+            $query->where('id', '<>', $exceptId);
+        }
+        if ($startDate !== null) {
+            $query->where(function ($range) use ($startDate): void {
+                $range->whereNull('effective_until')->orWhere('effective_until', '>=', $startDate);
+            });
+        }
+        if ($endDate !== null) {
+            $query->where(function ($range) use ($endDate): void {
+                $range->whereNull('effective_from')->orWhere('effective_from', '<=', $endDate);
+            });
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                'effective_from' => ['An active governance term for this body already overlaps the supplied date range.'],
+            ]);
+        }
+    }
+
+    /**
      * Assert that `effective_from <= effective_until` when both are
      * set.
      *
@@ -550,6 +628,7 @@ final class GovernanceTermService
      *
      * @throws ValidationException
      */
+
     private function assertEffectiveDateOrdering(mixed $from, mixed $until): void
     {
         if ($from === null || $until === null) {

@@ -153,8 +153,9 @@ declare(strict_types=1);
  * -----------------------------------------------------------------------------
  * No overlap enforcement
  * -----------------------------------------------------------------------------
- * The schema does NOT prevent two terms of the same body from
- * overlapping in date range. This is deliberate.
+ * The schema does not encode date-range exclusion because MySQL has no
+ * portable exclusion constraint for these nullable ranges. The service
+ * enforces non-overlap among active terms while locking the owning body row.
  *
  * Real governance practice occasionally produces overlapping terms:
  *
@@ -319,11 +320,11 @@ use Illuminate\Support\Facades\Schema;
  * distinct terms, even if their date ranges happen to coincide.
  *
  * =============================================================================
- * Overlapping terms are permitted
+ * Overlapping active terms are rejected by the service
  * =============================================================================
- * The schema does NOT prevent two terms of the same body from
- * overlapping in date range. See the file-level change-verification
- * block §"No overlap enforcement" for the reasoning.
+ * The schema does not encode date-range exclusion; the service enforces
+ * non-overlap among active terms using a body-row lock. See the service
+ * contract for the concurrency guarantee.
  *
  * =============================================================================
  * @return void

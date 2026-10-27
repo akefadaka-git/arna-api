@@ -637,8 +637,8 @@ final class GovernanceMembershipService
         $attributes = $this->normaliseForRegister($data, $tenantId);
 
         return DB::transaction(function () use ($attributes, $tenantId): GovernanceMembership {
-            // Overlap check runs inside the transaction so a
-            // concurrent writer cannot slip a row past it.
+            // Serialize overlap checks for this position across independent connections.
+            $this->lockPositionForOverlapCheck($tenantId, (int) $attributes['governance_position_id']);
             $this->assertNoOverlap(
                 tenantId:          $tenantId,
                 bodyId:            (int) $attributes['governance_body_id'],
@@ -705,6 +705,7 @@ final class GovernanceMembershipService
             // changed. See the file-level change-verification block
             // §"The overlap invariant".
             if ($this->updateAffectsOverlapTuple($membership, $attributes)) {
+                $this->lockPositionForOverlapCheck((int) $membership->tenant_id, (int) $membership->governance_position_id);
                 $this->assertNoOverlap(
                     tenantId:          (int) $membership->tenant_id,
                     bodyId:            (int) $membership->governance_body_id,
@@ -1411,6 +1412,16 @@ final class GovernanceMembershipService
         }
     }
 
+    /** Lock the stable position row before overlap queries. */
+    private function lockPositionForOverlapCheck(int $tenantId, int $positionId): void
+    {
+        GovernancePosition::query()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($positionId)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
     /**
      * Assert that the candidate range does not overlap any ongoing
      * membership for the same (person, position, body) tuple.
@@ -1432,6 +1443,7 @@ final class GovernanceMembershipService
      *
      * @throws ValidationException
      */
+
     private function assertNoOverlap(
         int $tenantId,
         int $bodyId,
