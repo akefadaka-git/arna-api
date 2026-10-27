@@ -406,6 +406,25 @@ final class StoreGovernanceAppointmentRequest extends FormRequest
                 'date',
             ],
 
+            'effective_until' => [
+                'sometimes',
+                'nullable',
+                'date',
+            ],
+
+            'appointment_role' => [
+                'sometimes',
+                'string',
+                'in:primary,acting',
+            ],
+
+            'acting_for_appointment_id' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                'min:1',
+            ],
+
             // -----------------------------------------------------------------
             // Appointment mode — required; must resolve to a declared
             // GovernanceAppointmentMode case.
