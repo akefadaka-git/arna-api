@@ -165,19 +165,22 @@ final class GovernanceInvariantsMySqlConcurrencyTest extends TestCase
             'default_tenant_id' => $tenant->id,
         ]);
         $actor->tenants()->attach($tenant->id, ['joined_at' => now()]);
-        $permission = Permission::query()->create([
-            'slug' => 'governance.body.manage',
-            'name_am' => 'የአስተዳደር አካል ማስተዳደር',
-            'name_en' => 'Manage governance bodies',
-            'description_am' => 'የመቀመጫ የሙከራ ፈቃድ',
-            'description_en' => 'Seat concurrency test permission',
-            'category' => 'governance',
-            'scope' => 'tenant',
-            'tenant_id' => null,
-            'application_id' => null,
-            'is_active' => true,
-            'is_system' => true,
-        ]);
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'governance.body.manage'],
+            [
+                'name_am' => 'የአስተዳደር አካል ማስተዳደር',
+                'name_en' => 'Manage governance bodies',
+                'description_am' => 'የመቀመጫ የሙከራ ፈቃድ',
+                'description_en' => 'Seat concurrency test permission',
+                'category' => 'governance',
+                'scope' => 'tenant',
+                'tenant_id' => null,
+                'application_id' => null,
+                'is_active' => true,
+                'is_system' => true,
+            ],
+        );
+        $createdPermission = $permission->wasRecentlyCreated;
         $actor->permissions()->attach($permission->id, ['assigned_at' => now()]);
 
         $people = [];
@@ -228,7 +231,7 @@ final class GovernanceInvariantsMySqlConcurrencyTest extends TestCase
             DB::table('users')->where('id', $actor->id)->delete();
             DB::table('governance_positions')->where('id', $position->id)->delete();
             DB::table('governance_bodies')->where('id', $body->id)->delete();
-            DB::table('permissions')->where('id', $permission->id)->delete();
+            if ($createdPermission) {\n                DB::table('permissions')->where('id', $permission->id)->delete();\n            }
             DB::table('tenants')->where('id', $tenant->id)->delete();
         }
     }
