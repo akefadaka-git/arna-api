@@ -14,6 +14,8 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceSeatService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceActingAssignmentService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
