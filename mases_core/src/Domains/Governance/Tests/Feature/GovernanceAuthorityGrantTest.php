@@ -142,6 +142,44 @@ final class GovernanceAuthorityGrantTest extends TestCase
         ));
     }
 
+    public function test_delegation_authorizes_other_membership_but_not_the_grantee_own_record(): void
+    {
+        $this->service->grant($this->administrator, (int) $this->tenant->id, [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'governance.membership.manage',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Manage other memberships in this position',
+        ]);
+
+        $target = $this->makeUser('target@authority.example.test');
+        $targetMembership = GovernanceMembership::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $this->body->id,
+            'governance_position_id' => $this->position->id,
+            'user_id' => $target->id,
+            'member_name_en' => 'Target Member',
+            'start_date' => CarbonImmutable::today()->toDateString(),
+            'end_date' => null,
+            'status' => 'active',
+            'is_ex_officio' => false,
+        ]);
+
+        Sanctum::actingAs($this->grantee, ['*']);
+        $this->patchJson(route('api.governance.memberships.update', [
+            'governanceMembership' => $targetMembership->id,
+        ]), ['member_name_en' => 'Updated by delegate'])->assertOk();
+
+        $ownMembership = GovernanceMembership::query()
+            ->where('user_id', $this->grantee->id)
+            ->where('governance_position_id', $this->position->id)
+            ->firstOrFail();
+
+        $this->patchJson(route('api.governance.memberships.update', [
+            'governanceMembership' => $ownMembership->id,
+        ]), ['member_name_en' => 'Attempted self-change'])->assertForbidden();
+    }
+
     public function test_self_delegation_and_unknown_actions_are_rejected(): void
     {
         try {
