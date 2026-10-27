@@ -231,7 +231,9 @@ final class GovernanceInvariantsMySqlConcurrencyTest extends TestCase
             DB::table('users')->where('id', $actor->id)->delete();
             DB::table('governance_positions')->where('id', $position->id)->delete();
             DB::table('governance_bodies')->where('id', $body->id)->delete();
-            if ($createdPermission) {\n                DB::table('permissions')->where('id', $permission->id)->delete();\n            }
+            if ($createdPermission) {
+                DB::table('permissions')->where('id', $permission->id)->delete();
+            }
             DB::table('tenants')->where('id', $tenant->id)->delete();
         }
     }
