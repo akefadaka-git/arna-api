@@ -693,13 +693,12 @@ final class GovernanceTermTest extends TestCase
      * fully contains `termA1`'s range, and asserts both are
      * retrievable via the index.
      */
-    public function test_overlapping_terms_are_allowed(): void
+    public function test_overlapping_active_terms_are_rejected(): void
     {
         Sanctum::actingAs($this->admin, ['*']);
 
-        // termA1 covers 2026-09-18 → 2029-09-17.
-        // This new term covers 2028-01-01 → 2028-12-31 — fully inside
-        // termA1's range.
+        // termA1 covers 2026-09-18 → 2029-09-17. This requested term is
+        // fully inside that inclusive range and must be rejected.
         $response = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenantA->id,
         ])->postJson(route('api.governance.terms.store', [
@@ -711,9 +710,10 @@ final class GovernanceTermTest extends TestCase
             'effective_until' => '2028-12-31',
         ]);
 
-        $response->assertStatus(201);
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['effective_from']);
 
-        // Both terms must appear in the index.
+        // The rejected overlapping term must not be persisted.
         $index = $this->withHeaders([
             'X-Tenant-ID' => (string) $this->tenantA->id,
         ])->getJson(route('api.governance.terms.index', [
@@ -721,14 +721,12 @@ final class GovernanceTermTest extends TestCase
         ]));
 
         $index->assertStatus(200);
-
         $labels = array_map(
             static fn (array $row): string => (string) ($row['label_am'] ?? ''),
             $index->json('data'),
         );
-
         $this->assertContains('የ2018-2021 የሥራ ዘመን', $labels);
-        $this->assertContains('የሽግግር ወቅት', $labels);
+        $this->assertNotContains('የሽግግር ወቅት', $labels);
     }
 
     // =========================================================================
