@@ -10,6 +10,7 @@ use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
@@ -175,6 +176,35 @@ final class GovernanceAuthorityGrantTest extends TestCase
         $this->patchJson(route('api.governance.memberships.update', [
             'governanceMembership' => $ownMembership->id,
         ]), ['member_name_en' => 'Attempted self-change'])->assertForbidden();
+    }
+
+    public function test_position_scoped_appointment_grant_authorizes_only_the_matching_action(): void
+    {
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'governance.appointment.manage',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Manage appointments for this position',
+        ])->assertCreated();
+
+        $appointment = GovernanceAppointment::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $this->body->id,
+            'governance_position_id' => $this->position->id,
+            'instrument_type' => 'resolution',
+            'instrument_reference' => 'RES-AUTHORITY-1',
+            'instrument_date' => CarbonImmutable::today()->toDateString(),
+            'effective_date' => CarbonImmutable::today()->toDateString(),
+            'appointment_mode' => 'elected',
+            'status' => 'draft',
+            'title_en' => 'Initial appointment',
+        ]);
+
+        Sanctum::actingAs($this->grantee, ['*']);
+        $this->patchJson(route('api.governance.appointments.update', [
+            'governanceAppointment' => $appointment->id,
+        ]), ['title_en' => 'Updated by delegated authority'])->assertOk();
     }
 
     public function test_self_delegation_and_unknown_actions_are_rejected(): void
