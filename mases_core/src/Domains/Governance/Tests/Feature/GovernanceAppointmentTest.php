@@ -75,6 +75,8 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceTerm;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAppointmentService;
+use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
 
@@ -206,6 +208,30 @@ final class GovernanceAppointmentTest extends TestCase
         $response->assertStatus(404);
 
         gc_collect_cycles();
+    }
+
+    public function test_second_active_primary_appointment_for_position_is_rejected(): void
+    {
+        $body = $this->createGovernanceBody();
+        $position = $this->createGovernancePosition($body);
+        $first = $this->createAppointment($body, ['governance_position_id' => $position->id]);
+        $second = $this->createAppointment($body, [
+            'governance_position_id' => $position->id,
+            'instrument_reference' => 'RES-2026-001',
+        ]);
+
+        $service = app(GovernanceAppointmentService::class);
+        $service->activate($first);
+
+        try {
+            $service->activate($second);
+            $this->fail('A second active primary appointment for one position must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('governance_position_id', $exception->errors());
+        }
+
+        $this->assertSame('active', $first->fresh()->status);
+        $this->assertSame('draft', $second->fresh()->status);
     }
 
     // =========================================================================
