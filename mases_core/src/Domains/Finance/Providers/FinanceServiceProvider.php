@@ -26,9 +26,10 @@ use MaaleArna\MASES\Core\Domains\Finance\Events\AccountingPeriodOpened;
 use MaaleArna\MASES\Core\Domains\Finance\Events\AccountingPeriodClosed;
 use MaaleArna\MASES\Core\Domains\Finance\Listeners\AuditFinanceLifecycleEvent;
 use MaaleArna\MASES\Core\Domains\Finance\Services\SubledgerIntegrationService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\SourceLegalEntityMappingService;
+use MaaleArna\MASES\Core\Domains\Finance\Contracts\SourceLegalEntityMappingContract;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
-
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LedgerAccountRepository;
@@ -36,13 +37,6 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
 
-/**
- * Finance domain integration point.
- *
- * Registers the Finance translation namespace and domain services. Finance
- * routes and migrations remain centrally registered in this foundation slice;
- * moving them is a separate migration-safe restructuring step.
- */
 final class FinanceServiceProvider extends ServiceProvider
 {
     public function register(): void
@@ -57,6 +51,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(TrialBalanceService::class);
         $this->app->singleton(FinancialReportService::class);
         $this->app->singleton(SubledgerIntegrationService::class);
+        $this->app->singleton(SourceLegalEntityMappingContract::class, SourceLegalEntityMappingService::class);
     }
 
     public function boot(): void
