@@ -133,3 +133,48 @@ The next evidence task is to retrieve the exact bylaw PDF from the Library, insp
 **A5:** production migration/deployment and any public release require separate authorization.
 
 **Current disposition:** business approval authority is **not yet resolved** because the necessary authoritative instruments are not evidenced in the inspected source. The safe matrix is resolved to **deny until evidence-backed authority rules are approved**. No approval or publication rights are granted by this document.
+
+## 8. Clause-level source verification — evidence log (2026-10-28)
+
+### Source located and inspected
+
+- **File:** `የማሌ_ዓርና_አክሲዮን_ማኅበር_መተዳደሪያ_ደንብ.pdf`
+- **Library file reference:** `file_00000000c62c81faabf645f3b8cf7d31`
+- **Extent:** 17 scanned pages; page images were inspected across the complete file.
+- **Physical-form indicators:** signatures and circular stamps are visible on multiple internal pages; the last page contains additional signature/stamp marks. This confirms only that marks appear in the scan. It does **not** authenticate signatories, certify registration/currentness, or establish that the text is the latest effective version.
+- **OCR/transcription limitation:** the PDF is image-only and no reliable searchable text was returned. The page images are not clear enough to transcribe every Amharic clause without risking a false quotation. Consequently, this review does not claim verified verbatim clause numbers or wording.
+- **Citation anchors:** pages 1–6: <FileCite ref_id="turn653file0" />; pages 7–12: <FileCite ref_id="turn653file1" />; pages 13–17: <FileCite ref_id="turn653file2" />.
+
+### Clause verification register
+
+| Subject needed for a production authority rule | Evidence inspected | Verification outcome | Decision |
+|---|---|---|---|
+| Board powers and reserved matters | Bylaw scan pages 1–17 visually inspected; no reliable verbatim transcription | PARTIAL / NOT VERIFIED at clause level | Do not assign document approval power from an inferred heading or role |
+| General Assembly powers, quorum, voting and adopted resolutions | Bylaw scan visually inspected; separate Articles/Memorandum and signed adopted resolution were not located in the Library search | MISSING from the retrieved evidence | Do not encode quorum, majority, or reserved-matter thresholds |
+| Official letters, signing authority, seal use and delegation | No sufficiently legible, verified clause and no current signing/delegation instrument matched | UNRESOLVED | Signing authority remains denied until source instrument and active office-holder are verified |
+| Meeting notices, agenda and minutes adoption/signature | No reliable clause-level transcription; no matching adopted minutes/resolution evidence located | UNRESOLVED | No default secretary/chair approval route is activated |
+| Publication/disclosure authority | No verified company-specific disclosure instrument located | UNRESOLVED | Public release denied by default |
+| Finance policy, accounting basis, chart of accounts, period close and sign-off | No approved company accounting policy or current Finance/Board resolution located | MISSING from retrieved evidence | Architecture recommendations remain proposals, not approved accounting policy |
+| Retention, archive and lawful disposal | No verified retention schedule or legal-hold policy located | UNRESOLVED | Preserve records; do not implement destructive disposal rules |
+
+### Other repository/library artifacts excluded as authority evidence
+
+- The retrieved Governance & Digital Transformation blueprints and procurement/approval-threshold drafts contain proposed committees and ETB limits, but their presence in the Library does not prove adoption by the competent body. In particular, draft figures such as Department Head ETB 200,000, Procurement Manager ETB 500,000, CEO ETB 5,000,000, or a Procurement Committee ETB 2,000,000 ceiling are **not approved authority** on the evidence inspected and must not be configured.
+- A legacy SQL dump contains website content about shareholder meetings/notices; a notice or website announcement is not itself a signed resolution or proof of the adopted outcome.
+- The existence of a scanned signed/stamped bylaw is not enough to certify its legal effect or currentness. Obtain a legible certified copy and match it to the Articles/Memorandum and the latest amendment/resolution register.
+
+### Determination
+
+The bylaw file was found and all 17 page images were inspected, but **clause-level legal verification is not complete** because the source is image-only/low legibility and the necessary companion Articles/Memorandum and adopted resolutions were not located. It would be unsafe to claim otherwise.
+
+The only rule safe to activate now is the control rule: **deny approval, signature, certification, and publication when authority evidence is absent, ambiguous, expired, or outside scope**. All business approver assignments remain blocked. This is a control determination, not legal advice or a certification of the bylaw.
+
+### Required evidence to close this gate
+
+1. Legible/certified current Articles and Memorandum of Association, including amendment history.
+2. A readable copy of the 17-page bylaw or a verified human transcription with page and clause references.
+3. Current adopted Board/General Assembly resolutions and minutes that appoint office-holders, approve delegation/signing/seal authority, and establish document-specific approval rules.
+4. The effective accounting policy and resolutions approving accounting basis, fiscal year, reporting currency, close authority, and financial-statement sign-off.
+5. Legal/Company Secretary confirmation of which instruments are current and which authority is reserved by law or the Articles.
+
+No production approval route is activated by this evidence log.
