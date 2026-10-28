@@ -176,6 +176,34 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
+    public function test_cancelled_draft_is_audited_and_no_longer_blocks_period_closure(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'CANCEL-001',
+            'effective_date' => '2026-01-15',
+            'currency' => 'ETB',
+            'idempotency_key' => 'cancel-draft-test',
+            'description' => 'Draft to cancel',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '15', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '15'],
+        ]);
+
+        $cancelled = $service->cancelDraft((int) $tenant->id, (int) $user->id, (int) $draft->id, 'Entered in error');
+        $this->assertSame(JournalEntry::CANCELLED, $cancelled->status);
+        $this->assertSame((int) $user->id, (int) $cancelled->cancelled_by);
+        $this->assertNotNull($cancelled->cancelled_at);
+        $this->assertSame('Entered in error', $cancelled->cancellation_reason);
+        $this->assertSame(2, $cancelled->lines->count());
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::CANCELLED]);
+        $this->assertDatabaseMissing('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+        $this->assertSame(0, JournalEntry::query()->where('accounting_period_id', $period->id)
+            ->where('status', JournalEntry::DRAFT)->count());
+    }
+
     public function test_reversal_posts_an_equal_and_opposite_journal_and_preserves_the_original(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
