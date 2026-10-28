@@ -11,8 +11,8 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\SourceLegalEntityMappingContract;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalSourceEntityMapping;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
-use MaaleArna\MASES\Core\Domains\Finance\Models\SourceLegalEntityMapping;
 
 final class SourceLegalEntityMappingService implements SourceLegalEntityMappingContract
 {
@@ -23,7 +23,7 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
         int $legalEntityId,
         User $actor,
         string $reason,
-    ): SourceLegalEntityMapping {
+    ): JournalSourceEntityMapping {
         $sourceId = trim($sourceId);
         $reason = trim($reason);
         $this->assertTrustedTenant($tenantId);
@@ -33,20 +33,20 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
             ]);
         }
 
-        Gate::forUser($actor)->authorize('create', SourceLegalEntityMapping::class);
+        Gate::forUser($actor)->authorize('create', JournalSourceEntityMapping::class);
         $this->assertActiveEntity($tenantId, $legalEntityId);
 
-        return DB::transaction(function () use ($tenantId, $sourceType, $sourceId, $legalEntityId, $actor, $reason): SourceLegalEntityMapping {
-            $mapping = new SourceLegalEntityMapping();
+        return DB::transaction(function () use ($tenantId, $sourceType, $sourceId, $legalEntityId, $actor, $reason): JournalSourceEntityMapping {
+            $mapping = new JournalSourceEntityMapping();
             $mapping->fill([
                 'tenant_id' => $tenantId,
                 'source_type' => $sourceType->value,
                 'source_id' => $sourceId,
                 'legal_entity_id' => $legalEntityId,
                 'created_by' => (int) $actor->id,
-                'reason' => $reason,
+                'mapping_reason' => $reason,
             ]);
-            $mapping->forceFill(['status' => SourceLegalEntityMapping::PENDING]);
+            $mapping->forceFill(['status' => JournalSourceEntityMapping::STATUS_PENDING]);
             $mapping->save();
 
             $this->audit($mapping, $actor, 'source_mapping.requested', null, $this->state($mapping), $reason);
@@ -54,7 +54,7 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
         });
     }
 
-    public function approve(int $mappingId, User $actor, string $reason): SourceLegalEntityMapping
+    public function approve(int $mappingId, User $actor, string $reason): JournalSourceEntityMapping
     {
         $reason = trim($reason);
         if ($mappingId < 1 || $reason === '') {
@@ -62,26 +62,27 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
         }
         $tenantId = $this->requireTrustedTenant();
 
-        return DB::transaction(function () use ($mappingId, $actor, $reason, $tenantId): SourceLegalEntityMapping {
-            $mapping = SourceLegalEntityMapping::query()
+        return DB::transaction(function () use ($mappingId, $actor, $reason, $tenantId): JournalSourceEntityMapping {
+            $mapping = JournalSourceEntityMapping::query()
                 ->where('tenant_id', $tenantId)
                 ->whereKey($mappingId)
                 ->lockForUpdate()
                 ->firstOrFail();
             Gate::forUser($actor)->authorize('approve', $mapping);
 
-            if ($mapping->status !== SourceLegalEntityMapping::PENDING) {
+            if ($mapping->status !== JournalSourceEntityMapping::STATUS_PENDING) {
                 throw ValidationException::withMessages(['mapping' => 'Only pending mappings may be approved.']);
             }
             $this->assertActiveEntity($tenantId, (int) $mapping->legal_entity_id);
 
             $before = $this->state($mapping);
             $mapping->forceFill([
-                'status' => SourceLegalEntityMapping::APPROVED,
+                'status' => JournalSourceEntityMapping::STATUS_APPROVED,
                 'approved_by' => (int) $actor->id,
                 'approved_at' => now(),
                 'revoked_at' => null,
-                'reason' => $reason,
+                'approval_reason' => $reason,
+                'revocation_reason' => null,
             ]);
             $mapping->save();
             $this->audit($mapping, $actor, 'source_mapping.approved', $before, $this->state($mapping), $reason);
@@ -90,7 +91,7 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
         });
     }
 
-    public function revoke(int $mappingId, User $actor, string $reason): SourceLegalEntityMapping
+    public function revoke(int $mappingId, User $actor, string $reason): JournalSourceEntityMapping
     {
         $reason = trim($reason);
         if ($mappingId < 1 || $reason === '') {
@@ -98,23 +99,23 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
         }
         $tenantId = $this->requireTrustedTenant();
 
-        return DB::transaction(function () use ($mappingId, $actor, $reason, $tenantId): SourceLegalEntityMapping {
-            $mapping = SourceLegalEntityMapping::query()
+        return DB::transaction(function () use ($mappingId, $actor, $reason, $tenantId): JournalSourceEntityMapping {
+            $mapping = JournalSourceEntityMapping::query()
                 ->where('tenant_id', $tenantId)
                 ->whereKey($mappingId)
                 ->lockForUpdate()
                 ->firstOrFail();
             Gate::forUser($actor)->authorize('revoke', $mapping);
 
-            if ($mapping->status !== SourceLegalEntityMapping::APPROVED) {
+            if ($mapping->status !== JournalSourceEntityMapping::STATUS_APPROVED) {
                 throw ValidationException::withMessages(['mapping' => 'Only approved mappings may be revoked.']);
             }
 
             $before = $this->state($mapping);
             $mapping->forceFill([
-                'status' => SourceLegalEntityMapping::REVOKED,
+                'status' => JournalSourceEntityMapping::STATUS_REVOKED,
                 'revoked_at' => now(),
-                'reason' => $reason,
+                'revocation_reason' => $reason,
             ]);
             $mapping->save();
             $this->audit($mapping, $actor, 'source_mapping.revoked', $before, $this->state($mapping), $reason);
@@ -132,11 +133,11 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
             ]);
         }
 
-        $mappings = SourceLegalEntityMapping::query()
+        $mappings = JournalSourceEntityMapping::query()
             ->where('tenant_id', $tenantId)
             ->where('source_type', $sourceType->value)
             ->where('source_id', $sourceId)
-            ->where('status', SourceLegalEntityMapping::APPROVED)
+            ->where('status', JournalSourceEntityMapping::STATUS_APPROVED)
             ->whereNotNull('approved_at')
             ->whereNotNull('approved_by')
             ->limit(2)
@@ -196,7 +197,7 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
         }
     }
 
-    private function state(SourceLegalEntityMapping $mapping): array
+    private function state(JournalSourceEntityMapping $mapping): array
     {
         return [
             'tenant_id' => (int) $mapping->tenant_id,
@@ -208,12 +209,14 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
             'approved_by' => $mapping->approved_by === null ? null : (int) $mapping->approved_by,
             'approved_at' => $mapping->approved_at?->toISOString(),
             'revoked_at' => $mapping->revoked_at?->toISOString(),
-            'reason' => $mapping->reason,
+            'mapping_reason' => $mapping->mapping_reason,
+            'approval_reason' => $mapping->approval_reason,
+            'revocation_reason' => $mapping->revocation_reason,
         ];
     }
 
     private function audit(
-        SourceLegalEntityMapping $mapping,
+        JournalSourceEntityMapping $mapping,
         User $actor,
         string $eventType,
         ?array $before,
@@ -225,7 +228,7 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
             'legal_entity_id' => (int) $mapping->legal_entity_id,
             'actor_id' => (int) $actor->id,
             'event_type' => $eventType,
-            'subject_type' => 'SourceLegalEntityMapping',
+            'subject_type' => 'JournalSourceEntityMapping',
             'subject_id' => (int) $mapping->id,
             'before_state' => $before,
             'after_state' => $after,

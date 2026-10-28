@@ -57,7 +57,9 @@ final class JournalSourceEntityMappingResolver implements JournalSourceReference
             ->where('legal_entity_id', $legalEntityId)
             ->where('source_type', $sourceType->value)
             ->where('source_id', $sourceId)
-            ->where('status', JournalSourceEntityMapping::STATUS_ACTIVE)
+            ->where('status', JournalSourceEntityMapping::STATUS_APPROVED)
+            ->whereNotNull('approved_by')
+            ->whereNotNull('approved_at')
             ->whereHas('entity', static function ($query) use ($tenantId, $legalEntityId): void {
                 $query->where('tenant_id', $tenantId)
                     ->whereKey($legalEntityId)
@@ -92,7 +94,7 @@ final class JournalSourceEntityMappingResolver implements JournalSourceReference
     private function rejectReference(): never
     {
         throw ValidationException::withMessages([
-            'source_id' => 'The originating record is unavailable or is not actively mapped to this legal entity.',
+            'source_id' => 'The originating record is unavailable or is not approved for this legal entity.',
         ]);
     }
 }

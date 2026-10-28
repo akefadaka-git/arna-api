@@ -8,8 +8,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalSourceEntityMapping;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
-use MaaleArna\MASES\Core\Domains\Finance\Models\SourceLegalEntityMapping;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\SourceLegalEntityMappingContract;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
@@ -35,19 +35,20 @@ final class FinanceSourceEntityMappingTest extends TestCase
     public function test_mass_assignment_cannot_set_approval_state(): void
     {
         [$tenant, $user, $entity] = $this->fixture();
-        $mapping = SourceLegalEntityMapping::query()->create([
+        $mapping = JournalSourceEntityMapping::query()->create([
             'tenant_id' => $tenant->id,
             'legal_entity_id' => $entity->id,
             'source_type' => JournalSourceType::WALLET->value,
             'source_id' => 'wallet-entry-200',
-            'status' => SourceLegalEntityMapping::APPROVED,
+            'status' => JournalSourceEntityMapping::STATUS_APPROVED,
             'created_by' => $user->id,
             'approved_by' => $user->id,
             'approved_at' => now(),
-            'reason' => 'Attempted mass-assignment approval',
+            'mapping_reason' => 'Attempted mass-assignment approval',
         ]);
 
-        $this->assertSame(SourceLegalEntityMapping::PENDING, $mapping->fresh()->status);
+        $this->assertSame(JournalSourceEntityMapping::STATUS_PENDING, $mapping->fresh()->status);
+        $this->assertNull($mapping->fresh()->approved_by);
         $this->expectException(ValidationException::class);
         app(SourceLegalEntityMappingContract::class)->resolve(
             (int) $tenant->id,
@@ -61,13 +62,13 @@ final class FinanceSourceEntityMappingTest extends TestCase
     {
         [$tenant, $user, $entity] = $this->fixture();
         $otherTenant = Tenant::factory()->create(['is_active' => true]);
-        SourceLegalEntityMapping::query()->create([
+        JournalSourceEntityMapping::query()->create([
             'tenant_id' => $tenant->id,
             'legal_entity_id' => $entity->id,
             'source_type' => JournalSourceType::SHAREHOLDER->value,
             'source_id' => 'shareholding-entry-300',
             'created_by' => $user->id,
-            'reason' => 'Test request',
+            'mapping_reason' => 'Test request',
         ]);
 
         $this->expectException(ValidationException::class);

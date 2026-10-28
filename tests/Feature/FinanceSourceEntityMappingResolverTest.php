@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use MaaleArna\MASES\Core\Auth\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -158,14 +159,22 @@ final class FinanceSourceEntityMappingResolverTest extends TestCase
         int|string $sourceId,
         string $status = JournalSourceEntityMapping::STATUS_ACTIVE,
     ): void {
-        JournalSourceEntityMapping::query()->create([
+        $mapping = new JournalSourceEntityMapping();
+        $mapping->fill([
             'tenant_id' => $tenantId,
             'legal_entity_id' => $legalEntityId,
             'source_type' => JournalSourceType::SHAREHOLDER->value,
             'source_id' => (string) $sourceId,
-            'status' => $status,
+            'created_by' => null,
             'mapping_reason' => 'Automated resolver regression test fixture',
         ]);
+        $approver = User::factory()->create();
+        $mapping->forceFill([
+            'status' => $status,
+            'approved_by' => $status === JournalSourceEntityMapping::STATUS_APPROVED ? $approver->id : null,
+            'approved_at' => $status === JournalSourceEntityMapping::STATUS_APPROVED ? now() : null,
+        ]);
+        $mapping->save();
     }
 
     private function assertRejected(

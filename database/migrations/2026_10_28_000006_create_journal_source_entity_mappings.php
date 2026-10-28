@@ -16,9 +16,14 @@ return new class extends Migration
             $table->foreignId('legal_entity_id');
             $table->string('source_type', 64);
             $table->string('source_id', 128);
-            $table->string('status', 16)->default('active');
+            $table->string('status', 16)->default('pending');
             $table->foreignId('created_by')->nullable()->constrained('users')->restrictOnDelete();
+            $table->foreignId('approved_by')->nullable()->constrained('users')->restrictOnDelete();
+            $table->timestamp('approved_at')->nullable();
+            $table->timestamp('revoked_at')->nullable();
             $table->text('mapping_reason');
+            $table->text('approval_reason')->nullable();
+            $table->text('revocation_reason')->nullable();
             $table->timestamps();
 
             // One originating record has one authoritative Finance entity mapping
