@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Requests;
+namespace MaaleArna\MASES\Core\Domains\Finance\Http\Requests;
 
-use Illuminate\\Foundation\\Http\\FormRequest;
+use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Validates the payload shape for creating a Finance legal entity.
