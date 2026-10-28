@@ -526,41 +526,41 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::get('/{publicId}', [PersonController::class, 'show'])
             ->whereUuid('publicId')
             ->name('show');
-        Route::get('/{publicId}/participations', [\App\Http\Controllers\PersonParticipationController::class, 'index'])
+        Route::get('/{publicId}/participations', [\App\Http\Controllers\PersonController::class, 'participations'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
             ->name('participations.index');
-        Route::post('/{publicId}/participations', [\App\Http\Controllers\PersonParticipationController::class, 'store'])
+        Route::post('/{publicId}/participations', [\App\Http\Controllers\PersonController::class, 'createParticipation'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
             ->name('participations.store');
-        Route::post('/{publicId}/participations/{participationId}/deactivate', [\App\Http\Controllers\PersonParticipationController::class, 'deactivate'])
+        Route::post('/{publicId}/participations/{participationId}/deactivate', [\App\Http\Controllers\PersonController::class, 'deactivateParticipation'])
             ->whereUuid('publicId')
             ->whereNumber('participationId')
             ->middleware('auth.permission:people.manage')
             ->name('participations.deactivate');
-        Route::get('/{publicId}/person-relationships', [\App\Http\Controllers\PersonRelationshipController::class, 'index'])
+        Route::get('/{publicId}/person-relationships', [\App\Http\Controllers\PersonController::class, 'personRelationships'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
             ->name('person-relationships.index');
-        Route::post('/{publicId}/person-relationships', [\App\Http\Controllers\PersonRelationshipController::class, 'store'])
+        Route::post('/{publicId}/person-relationships', [\App\Http\Controllers\PersonController::class, 'createPersonRelationship'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
             ->name('person-relationships.store');
-        Route::post('/{publicId}/person-relationships/{relationshipId}/deactivate', [\App\Http\Controllers\PersonRelationshipController::class, 'deactivate'])
+        Route::post('/{publicId}/person-relationships/{relationshipId}/deactivate', [\App\Http\Controllers\PersonController::class, 'deactivatePersonRelationship'])
             ->whereUuid('publicId')
             ->whereNumber('relationshipId')
             ->middleware('auth.permission:people.manage')
             ->name('person-relationships.deactivate');
-        Route::get('/{publicId}/contacts', [\App\Http\Controllers\PersonContactPointController::class, 'index'])
+        Route::get('/{publicId}/contacts', [\App\Http\Controllers\PersonController::class, 'contacts'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
             ->name('contacts.index');
-        Route::post('/{publicId}/contacts', [\App\Http\Controllers\PersonContactPointController::class, 'store'])
+        Route::post('/{publicId}/contacts', [\App\Http\Controllers\PersonController::class, 'createContact'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
             ->name('contacts.store');
-        Route::post('/{publicId}/contacts/{contactId}/deactivate', [\App\Http\Controllers\PersonContactPointController::class, 'deactivate'])
+        Route::post('/{publicId}/contacts/{contactId}/deactivate', [\App\Http\Controllers\PersonController::class, 'deactivateContact'])
             ->whereUuid('publicId')
             ->whereNumber('contactId')
             ->middleware('auth.permission:people.manage')
