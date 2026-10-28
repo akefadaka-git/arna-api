@@ -532,6 +532,46 @@ final class PersonApiIntegrationTest extends TestCase
         $this->assertDatabaseHas('governance_memberships', ['id' => $membershipId, 'tenant_id' => $tenant->getKey(), 'person_id' => null]);
     }
 
+    #[Test]
+    public function directory_search_is_paginated_and_remains_scoped_to_the_active_tenant_grant(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        foreach ([
+            ['first_name_am' => 'ሀና', 'first_name_en' => 'Hana'],
+            ['first_name_am' => 'ሚካኤል', 'first_name_en' => 'Michael'],
+            ['first_name_en' => 'Hana Private'],
+        ] as $attributes) {
+            $this->withHeaders($headers)->postJson('/api/people', $attributes)->assertCreated();
+        }
+
+        $this->withHeaders($headers)->getJson('/api/people?search=Hana&per_page=1')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 1)
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('meta.last_page', 2)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.first_name_en', 'Hana');
+
+        $this->withHeaders($headers)->getJson('/api/people?search=%E1%88%80%E1%8A%93')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.first_name_am', 'ሀና');
+
+        $this->withHeaders($headers)->getJson('/api/people?search=NoMatchingPerson')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0)
+            ->assertJsonCount(0, 'data');
+
+        $this->withHeaders($headers)->getJson('/api/people?search='.str_repeat('x', 101))
+            ->assertUnprocessable();
+
+        $this->withHeaders($headers)->getJson('/api/people?per_page=101')
+            ->assertUnprocessable();
+    }
+
     /** @return array{0: Tenant, 1: User} */
     private function tenantPeopleManager(): array
     {
