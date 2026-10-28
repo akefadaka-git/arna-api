@@ -675,6 +675,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
 
         Route::get('/journals', [$controller, 'journals'])->middleware('auth.permission:finance.journal.view')->name('journals.index');
         Route::post('/journals', [$controller, 'createJournal'])->middleware('auth.permission:finance.journal.create')->name('journals.store');
+        Route::post('/journals/{journalId}/cancel', [$controller, 'cancelJournal'])->whereNumber('journalId')->middleware('auth.permission:finance.journal.cancel')->name('journals.cancel');
         Route::post('/journals/{journalId}/post', [$controller, 'postJournal'])->whereNumber('journalId')->middleware('auth.permission:finance.journal.post')->name('journals.post');
         Route::post('/journals/{journalId}/reverse', [$controller, 'reverseJournal'])->whereNumber('journalId')->middleware('auth.permission:finance.journal.reverse')->name('journals.reverse');
 
