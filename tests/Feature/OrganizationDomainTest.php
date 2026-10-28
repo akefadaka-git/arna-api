@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAuditEvent;
+use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
+use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationHierarchyPolicy;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
@@ -199,6 +202,139 @@ final class OrganizationDomainTest extends TestCase
         $this->assertDatabaseHas('organization_assignments', [
             'tenant_id' => $tenant->id, 'person_id' => $person->id, 'status' => 'active',
         ]);
+    }
+
+
+    #[Test]
+    public function assignment_listing_requires_assignment_view_permission_not_only_unit_view(): void
+    {
+        [$tenant, $manager] = $this->manager();
+        Sanctum::actingAs($manager);
+        $headers = ['X-Tenant-ID' => (string) $tenant->id];
+        $unitId = $this->withHeaders($headers)->postJson('/api/organization/units', [
+            'code' => 'HQ', 'unit_type' => 'company', 'name_en' => 'Head Office',
+            'reason' => 'Create root company',
+        ])->assertCreated()->json('data.id');
+
+        $reader = $this->memberWithPermissions($tenant, ['organization.unit.view']);
+        Sanctum::actingAs($reader);
+        $this->withHeaders($headers)->getJson('/api/organization/units/'.$unitId.'/assignments')
+            ->assertForbidden();
+    }
+
+    #[Test]
+    public function tenant_cannot_enumerate_read_or_mutate_another_tenants_units_or_assignments(): void
+    {
+        [$tenantA, $userA] = $this->manager();
+        [$tenantB, $userB] = $this->manager();
+        Sanctum::actingAs($userA);
+        $unitA = $this->withHeader('X-Tenant-ID', (string) $tenantA->id)->postJson('/api/organization/units', [
+            'code' => 'A-HQ', 'unit_type' => 'company', 'name_en' => 'Tenant A HQ',
+            'reason' => 'Create tenant A root',
+        ])->assertCreated()->json('data.id');
+
+        Sanctum::actingAs($userB);
+        $unitB = $this->withHeader('X-Tenant-ID', (string) $tenantB->id)->postJson('/api/organization/units', [
+            'code' => 'B-HQ', 'unit_type' => 'company', 'name_en' => 'Tenant B HQ',
+            'reason' => 'Create tenant B root',
+        ])->assertCreated()->json('data.id');
+
+        Sanctum::actingAs($userA);
+        $headersA = ['X-Tenant-ID' => (string) $tenantA->id];
+        $this->withHeaders($headersA)->getJson('/api/organization/units')
+            ->assertOk()->assertJsonCount(1, 'data.data')->assertJsonPath('data.data.0.id', $unitA);
+        $this->withHeaders($headersA)->getJson('/api/organization/units/'.$unitB)->assertNotFound();
+        $this->withHeaders($headersA)->putJson('/api/organization/units/'.$unitB, [
+            'name_en' => 'Tampered', 'reason' => 'Attempt cross tenant update',
+        ])->assertNotFound();
+        $this->withHeaders($headersA)->getJson('/api/organization/units/'.$unitB.'/assignments')->assertNotFound();
+    }
+
+    #[Test]
+    public function inactive_tenant_membership_cannot_access_organization_endpoints(): void
+    {
+        [$tenant, $user] = $this->manager();
+        DB::table('tenant_memberships')->where('tenant_id', $tenant->id)
+            ->where('user_id', $user->id)->update(['status' => 'inactive']);
+        Sanctum::actingAs($user);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/organization/units')->assertForbidden();
+    }
+
+    #[Test]
+    public function centralized_hierarchy_policy_enforces_the_complete_parent_type_matrix(): void
+    {
+        $policy = app(OrganizationHierarchyPolicy::class);
+        $permitted = [
+            'company' => [],
+            'division' => ['company'],
+            'branch' => ['company', 'division'],
+            'department' => ['company', 'division', 'branch'],
+            'team' => ['department'],
+        ];
+
+        $policy->assertParentType('company', null);
+        foreach ($permitted as $childType => $allowedParents) {
+            foreach (OrganizationHierarchyPolicy::unitTypes() as $parentType) {
+                $parent = new OrganizationUnit(['unit_type' => $parentType]);
+                if (in_array($parentType, $allowedParents, true)) {
+                    $policy->assertParentType($childType, $parent);
+                    continue;
+                }
+
+                try {
+                    $policy->assertParentType($childType, $parent);
+                    $this->fail("Expected {$parentType} -> {$childType} to be rejected.");
+                } catch (ConflictHttpException) {
+                    $this->assertTrue(true);
+                }
+            }
+            if ($childType !== 'company') {
+                try {
+                    $policy->assertParentType($childType, null);
+                    $this->fail("Expected {$childType} without a parent to be rejected.");
+                } catch (ConflictHttpException) {
+                    $this->assertTrue(true);
+                }
+            }
+        }
+
+        try {
+            $policy->assertParentType('untrusted-custom-type', null);
+            $this->fail('Unregistered unit types must be rejected.');
+        } catch (ConflictHttpException) {
+            $this->assertTrue(true);
+        }
+    }
+
+
+    private function memberWithPermissions(Tenant $tenant, array $permissionSlugs): User
+    {
+        $user = User::factory()->create();
+        DB::table('tenant_memberships')->insert([
+            'user_id' => $user->id, 'tenant_id' => $tenant->id, 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $role = Role::query()->firstOrCreate(
+            ['slug' => 'organization-test-reader-'.$tenant->id],
+            ['name_en' => 'Organization Test Reader', 'scope' => 'tenant', 'tenant_id' => $tenant->id]
+        );
+        foreach ($permissionSlugs as $slug) {
+            $permission = Permission::query()->firstOrCreate(
+                ['slug' => $slug],
+                ['name_en' => $slug, 'scope' => 'tenant', 'tenant_id' => $tenant->id, 'category' => 'organization']
+            );
+            DB::table('role_has_permissions')->updateOrInsert([
+                'role_id' => $role->id, 'permission_id' => $permission->id,
+            ], []);
+        }
+        DB::table('user_has_roles')->updateOrInsert(
+            ['user_id' => $user->id, 'role_id' => $role->id],
+            ['assigned_at' => now(), 'assigned_by' => $user->id]
+        );
+
+        return $user;
     }
 
     private function manager(): array
