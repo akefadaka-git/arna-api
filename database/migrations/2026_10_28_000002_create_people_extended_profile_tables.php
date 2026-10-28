@@ -16,7 +16,6 @@ return new class extends Migration
             $table->foreignId('person_id')->constrained('people')->restrictOnDelete();
             $table->string('contact_type', 16);
             $table->string('label', 120)->nullable();
-            // Application-layer encrypted ciphertext; never return this column.
             $table->text('contact_value');
             $table->char('normalized_hash', 64);
             $table->boolean('is_primary')->default(false);
@@ -29,11 +28,9 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('deactivation_reason', 1000)->nullable();
             $table->timestamps();
-
             $table->index(['tenant_id', 'person_id', 'status'], 'person_contact_profile_status_idx');
             $table->index(['tenant_id', 'contact_type', 'normalized_hash'], 'person_contact_lookup_idx');
         });
-
         Schema::create('person_relationships', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
@@ -47,11 +44,9 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('deactivation_reason', 1000)->nullable();
             $table->timestamps();
-
             $table->index(['tenant_id', 'person_id', 'status'], 'person_relationship_profile_status_idx');
             $table->index(['tenant_id', 'related_person_id', 'status'], 'person_relationship_related_status_idx');
         });
-
         Schema::create('person_participations', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
@@ -66,7 +61,6 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('deactivation_reason', 1000)->nullable();
             $table->timestamps();
-
             $table->index(['tenant_id', 'person_id', 'status'], 'person_participation_profile_status_idx');
             $table->index(['tenant_id', 'participation_type', 'status'], 'person_participation_type_status_idx');
         });
