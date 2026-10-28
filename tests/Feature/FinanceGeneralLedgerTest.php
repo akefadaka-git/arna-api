@@ -47,6 +47,28 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
+    public function identical_idempotency_request_returns_the_persisted_journal(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $header = [
+            'legal_entity_id' => $entity->id, 'journal_number' => 'JV-IDEMPOTENT',
+            'effective_date' => '2026-10-01', 'description' => 'Idempotency test',
+            'currency' => 'ETB', 'idempotency_key' => 'same-request-key',
+        ];
+        $lines = [
+            ['account_id' => $cash->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+        ];
+
+        $first = $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+        $second = $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertDatabaseCount('journal_entries', 1);
+    }
+
+    #[Test]
     public function unbalanced_journal_is_rejected_before_a_draft_is_persisted(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
