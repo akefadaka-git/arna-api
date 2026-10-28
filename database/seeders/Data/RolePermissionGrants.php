@@ -217,6 +217,12 @@ final class RolePermissionGrants
             'app.finance.access',
             'file.upload', 'file.download', 'file.view', 'file.list',
             'user.profile.view',
+            'finance.entity.view',
+            'finance.account.view', 'finance.account.manage',
+            'finance.period.view', 'finance.period.manage',
+            'finance.journal.view', 'finance.journal.create',
+            'finance.journal.post', 'finance.journal.reverse',
+            'finance.report.view',
         ],
         'hr_manager'      => [
             'app.hr.access',
