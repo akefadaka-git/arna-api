@@ -1,0 +1,261 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MaaleArna\MASES\Core\Domains\Finance\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
+
+final class FinanceController extends Controller
+{
+    public function __construct(
+        private readonly TenantContextService $tenantContext,
+        private readonly JournalEntryService $journals,
+    ) {
+    }
+
+    public function entities(Request $request): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => LegalEntity::query()
+            ->where('tenant_id', $this->tenantId())->orderBy('code')->paginate($this->perPage($request))]);
+    }
+
+    public function createEntity(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/', Rule::unique('legal_entities', 'code')->where(fn ($query) => $query->where('tenant_id', $this->tenantId()))],
+            'name_am' => ['nullable', 'string', 'max:180'],
+            'name_en' => ['required', 'string', 'max:180'],
+            'base_currency' => ['sometimes', 'string', 'size:3', Rule::in(['ETB'])],
+        ]);
+        if (empty($data['name_am']) && empty($data['name_en'])) {
+            throw ValidationException::withMessages(['name_am' => 'Provide at least one localized entity name.']);
+        }
+
+        $entity = LegalEntity::query()->create([
+            ...$data,
+            'tenant_id' => $this->tenantId(),
+            'code' => strtoupper($data['code']),
+            'base_currency' => $data['base_currency'] ?? 'ETB',
+            'status' => 'active',
+        ]);
+
+        return response()->json(['success' => true, 'data' => $entity], 201);
+    }
+
+    public function accounts(Request $request): JsonResponse
+    {
+        $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
+        $query = LedgerAccount::query()->where('tenant_id', $this->tenantId())
+            ->where('legal_entity_id', $data['legal_entity_id'])->orderBy('code');
+        $this->assertEntityExists((int) $data['legal_entity_id']);
+        return response()->json(['success' => true, 'data' => $query->paginate($this->perPage($request))]);
+    }
+
+    public function createAccount(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer'],
+            'parent_id' => ['nullable', 'integer'],
+            'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/', Rule::unique('ledger_accounts', 'code')->where(fn ($query) => $query->where('tenant_id', $this->tenantId())->where('legal_entity_id', (int) $request->input('legal_entity_id')))],
+            'name_am' => ['nullable', 'string', 'max:180'],
+            'name_en' => ['required', 'string', 'max:180'],
+            'account_type' => ['required', Rule::in(LedgerAccount::TYPES)],
+            'normal_balance' => ['required', Rule::in(LedgerAccount::NORMAL_BALANCES)],
+            'is_posting_allowed' => ['sometimes', 'boolean'],
+        ]);
+        $tenantId = $this->tenantId();
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+        if (($data['parent_id'] ?? null) !== null) {
+            $parent = LedgerAccount::query()->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $entity->id)->findOrFail((int) $data['parent_id']);
+            if ($parent->account_type !== $data['account_type']) {
+                throw ValidationException::withMessages(['parent_id' => 'Parent and child accounts must use the same account type.']);
+            }
+        }
+
+        $account = LedgerAccount::query()->create([
+            ...$data,
+            'tenant_id' => $tenantId,
+            'legal_entity_id' => $entity->id,
+            'code' => strtoupper($data['code']),
+            'status' => 'active',
+            'is_posting_allowed' => $data['is_posting_allowed'] ?? true,
+        ]);
+        return response()->json(['success' => true, 'data' => $account], 201);
+    }
+
+    public function periods(Request $request): JsonResponse
+    {
+        $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
+        $this->assertEntityExists((int) $data['legal_entity_id']);
+        $periods = AccountingPeriod::query()->where('tenant_id', $this->tenantId())
+            ->where('legal_entity_id', $data['legal_entity_id'])->orderBy('starts_on')->paginate($this->perPage($request));
+        return response()->json(['success' => true, 'data' => $periods]);
+    }
+
+    public function createPeriod(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer'],
+            'code' => ['required', 'string', 'max:32'],
+            'starts_on' => ['required', 'date'],
+            'ends_on' => ['required', 'date', 'after_or_equal:starts_on'],
+        ]);
+        $tenantId = $this->tenantId();
+
+        $period = DB::transaction(function () use ($data, $tenantId): AccountingPeriod {
+            $entity = LegalEntity::query()->where('tenant_id', $tenantId)
+                ->lockForUpdate()->findOrFail((int) $data['legal_entity_id']);
+            $overlap = AccountingPeriod::query()->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $entity->id)->where('starts_on', '<=', $data['ends_on'])
+                ->where('ends_on', '>=', $data['starts_on'])->exists();
+            if ($overlap) {
+                throw ValidationException::withMessages(['starts_on' => 'Accounting periods for one legal entity cannot overlap.']);
+            }
+
+            return AccountingPeriod::query()->create([
+                ...$data, 'tenant_id' => $tenantId, 'status' => AccountingPeriod::OPEN,
+            ]);
+        });
+
+        return response()->json(['success' => true, 'data' => $period], 201);
+    }
+
+    public function closePeriod(Request $request, int $periodId): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
+        $period = AccountingPeriod::query()->where('tenant_id', $this->tenantId())->findOrFail($periodId);
+        DB::transaction(function () use ($period, $request, $data): void {
+            $locked = AccountingPeriod::query()->where('tenant_id', $this->tenantId())->lockForUpdate()->findOrFail($period->id);
+            if ($locked->status !== AccountingPeriod::OPEN) {
+                throw ValidationException::withMessages(['status' => 'Only an open period can be closed.']);
+            }
+            $drafts = JournalEntry::query()->where('tenant_id', $this->tenantId())
+                ->where('accounting_period_id', $locked->id)->where('status', JournalEntry::DRAFT)->exists();
+            if ($drafts) {
+                throw ValidationException::withMessages(['period' => 'Resolve or discard all draft journals before closing this period.']);
+            }
+            $locked->status = AccountingPeriod::CLOSED;
+            $locked->closed_by = (int) $request->user()->getAuthIdentifier();
+            $locked->closed_at = now();
+            $locked->close_reason = $data['reason'];
+            $locked->save();
+        });
+        return response()->json(['success' => true, 'data' => $period->fresh()]);
+    }
+
+    public function journals(Request $request): JsonResponse
+    {
+        $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
+        $this->assertEntityExists((int) $data['legal_entity_id']);
+        $journals = JournalEntry::query()->with('lines')->where('tenant_id', $this->tenantId())
+            ->where('legal_entity_id', $data['legal_entity_id'])->orderByDesc('effective_date')->orderByDesc('id')
+            ->paginate($this->perPage($request));
+        return response()->json(['success' => true, 'data' => $journals]);
+    }
+
+    public function createJournal(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer'],
+            'journal_number' => ['required', 'string', 'max:64'],
+            'effective_date' => ['required', 'date'],
+            'currency' => ['sometimes', 'string', 'size:3', Rule::in(['ETB'])],
+            'description' => ['required', 'string', 'max:500'],
+            'source_type' => ['nullable', 'string', 'max:64'],
+            'source_id' => ['nullable', 'string', 'max:128'],
+            'idempotency_key' => ['required', 'string', 'max:128'],
+            'lines' => ['required', 'array', 'min:2', 'max:200'],
+            'lines.*.account_id' => ['required', 'integer'],
+            'lines.*.debit_amount' => ['required', 'numeric', 'min:0'],
+            'lines.*.credit_amount' => ['required', 'numeric', 'min:0'],
+            'lines.*.description' => ['nullable', 'string', 'max:500'],
+        ]);
+        $journal = $this->journals->createDraft($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data, $data['lines']);
+        return response()->json(['success' => true, 'data' => $journal], 201);
+    }
+
+    public function postJournal(Request $request, int $journalId): JsonResponse
+    {
+        $journal = $this->journals->post($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $journalId);
+        return response()->json(['success' => true, 'data' => $journal]);
+    }
+
+    public function reverseJournal(Request $request, int $journalId): JsonResponse
+    {
+        $data = $request->validate([
+            'journal_number' => ['required', 'string', 'max:64'],
+            'effective_date' => ['required', 'date'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+        $journal = $this->journals->reverse(
+            $this->tenantId(), (int) $request->user()->getAuthIdentifier(), $journalId,
+            $data['journal_number'], $data['effective_date'], $data['reason'],
+        );
+        return response()->json(['success' => true, 'data' => $journal], 201);
+    }
+
+    public function trialBalance(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer'],
+            'as_of' => ['required', 'date'],
+        ]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+        $rows = LedgerAccount::query()->where('tenant_id', $this->tenantId())
+            ->where('legal_entity_id', $entity->id)
+            ->leftJoin('journal_lines', function ($join): void {
+                $join->on('journal_lines.account_id', '=', 'ledger_accounts.id')
+                    ->on('journal_lines.tenant_id', '=', 'ledger_accounts.tenant_id')
+                    ->on('journal_lines.legal_entity_id', '=', 'ledger_accounts.legal_entity_id');
+            })
+            ->leftJoin('journal_entries', function ($join) use ($data): void {
+                $join->on('journal_entries.id', '=', 'journal_lines.journal_entry_id')
+                    ->on('journal_entries.tenant_id', '=', 'journal_lines.tenant_id')
+                    ->on('journal_entries.legal_entity_id', '=', 'journal_lines.legal_entity_id')
+                    ->where('journal_entries.status', JournalEntry::POSTED)
+                    ->whereDate('journal_entries.effective_date', '<=', $data['as_of']);
+            })
+            ->groupBy('ledger_accounts.id', 'ledger_accounts.code', 'ledger_accounts.name_en', 'ledger_accounts.name_am', 'ledger_accounts.account_type')
+            ->orderBy('ledger_accounts.code')
+            ->get([
+                'ledger_accounts.id', 'ledger_accounts.code', 'ledger_accounts.name_am', 'ledger_accounts.name_en',
+                'ledger_accounts.account_type',
+                DB::raw('COALESCE(SUM(CASE WHEN journal_entries.id IS NOT NULL THEN journal_lines.debit_amount ELSE 0 END), 0) AS debit_total'),
+                DB::raw('COALESCE(SUM(CASE WHEN journal_entries.id IS NOT NULL THEN journal_lines.credit_amount ELSE 0 END), 0) AS credit_total'),
+            ]);
+        return response()->json(['success' => true, 'data' => [
+            'legal_entity_id' => $entity->id, 'currency' => $entity->base_currency,
+            'as_of' => $data['as_of'], 'accounts' => $rows,
+        ]]);
+    }
+
+    private function tenantId(): int
+    {
+        $tenantId = $this->tenantContext->getTenantId();
+        abort_if($tenantId === null, 403, 'A resolved tenant context is required.');
+        return (int) $tenantId;
+    }
+
+    private function assertEntityExists(int $entityId): LegalEntity
+    {
+        return LegalEntity::query()->where('tenant_id', $this->tenantId())->findOrFail($entityId);
+    }
+
+    private function perPage(Request $request): int
+    {
+        return min(max($request->integer('per_page', 25), 1), 100);
+    }
+}

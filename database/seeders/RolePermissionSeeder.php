@@ -14,7 +14,7 @@ use RuntimeException;
  * RolePermissionSeeder
  *
  * Attaches permissions to roles — the join-table writes that turn the
- * twelve role definitions and thirty-seven permissions into a
+ * twelve role definitions and fifty-one permissions into a
  * meaningful authorization graph. Runs after RoleSeeder and
  * PermissionSeeder, before the two user seeders.
  *
