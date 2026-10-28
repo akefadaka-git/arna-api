@@ -327,6 +327,20 @@ final class PersonApiIntegrationTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $invalidShareholderId = DB::table('shareholders')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'shareholder_number' => 'SH-INVALID-001',
+            'shareholder_type' => 'individual',
+            'first_name_am' => 'ያልተገናኘ',
+            'first_name_en' => 'Invalid Individual',
+            'user_id' => null,
+            'representative_user_id' => null,
+            'person_id' => null,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         $bodyId = DB::table('governance_bodies')->insertGetId([
             'tenant_id' => $tenant->getKey(),
             'code' => 'TEST-BOARD',
@@ -388,10 +402,14 @@ final class PersonApiIntegrationTest extends TestCase
             ->assertJsonMissingPath('data.candidates.0.user_id');
         $this->assertStringNotContainsString('EMP-OTHER-001', $employeeOptions->getContent());
 
-        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/shareholders/options')
+        $shareholderOptions = $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/shareholders/options')
             ->assertOk()
             ->assertJsonPath('data.candidates.0.label', 'ማርታ')
             ->assertJsonMissingPath('data.candidates.0.user_id');
+        $this->assertStringNotContainsString('SH-INVALID-001', $shareholderOptions->getContent());
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/relationships/shareholders/'.$invalidShareholderId, [
+            'reason' => 'Reject individual shareholder without direct account',
+        ])->assertForbidden();
 
         $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/governance-memberships/options')
             ->assertOk()
