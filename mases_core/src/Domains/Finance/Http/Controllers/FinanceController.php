@@ -179,8 +179,8 @@ final class FinanceController extends Controller
             'idempotency_key' => ['required', 'string', 'max:128'],
             'lines' => ['required', 'array', 'min:2', 'max:200'],
             'lines.*.account_id' => ['required', 'integer'],
-            'lines.*.debit_amount' => ['required', 'numeric', 'min:0'],
-            'lines.*.credit_amount' => ['required', 'numeric', 'min:0'],
+            'lines.*.debit_amount' => ['required', 'string', 'regex:/^\\d{1,16}(?:\\.\\d{1,4})?$/'],
+            'lines.*.credit_amount' => ['required', 'string', 'regex:/^\\d{1,16}(?:\\.\\d{1,4})?$/'],
             'lines.*.description' => ['nullable', 'string', 'max:500'],
         ]);
         $journal = $this->journals->createDraft($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data, $data['lines']);
