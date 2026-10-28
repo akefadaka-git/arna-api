@@ -23,6 +23,7 @@ final class FinanceController extends Controller
 {
     public function __construct(
         private readonly TenantContextService $tenantContext,
+        private readonly LegalEntityRepository $entitiesRepository,
         private readonly LegalEntityService $legalEntities,
         private readonly JournalEntryService $journals,
     ) {
@@ -30,8 +31,8 @@ final class FinanceController extends Controller
 
     public function entities(Request $request): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => LegalEntity::query()
-            ->where('tenant_id', $this->tenantId())->orderBy('code')->paginate($this->perPage($request))]);
+        return response()->json(['success' => true, 'data' => $this->entitiesRepository
+            ->paginateForTenant($this->tenantId(), $this->perPage($request))]);
     }
 
     public function createEntity(StoreLegalEntityRequest $request): JsonResponse
@@ -41,7 +42,7 @@ final class FinanceController extends Controller
             $request->validated(),
         );
 
-        return response()->json(['success' => true, 'data' => $entity], 201);
+        return response()->json(['success' => true, 'data' => LegalEntityResource::make($entity)->resolve($request)], 201);
     }
 
     public function accounts(Request $request): JsonResponse
@@ -256,7 +257,8 @@ final class FinanceController extends Controller
 
     private function assertEntityExists(int $entityId): LegalEntity
     {
-        return LegalEntity::query()->where('tenant_id', $this->tenantId())->findOrFail($entityId);
+        return $this->entitiesRepository->findForTenant($this->tenantId(), $entityId)
+            ?? abort(404);
     }
 
     private function perPage(Request $request): int
