@@ -165,6 +165,40 @@ final class OrganizationDomainTest extends TestCase
         ]);
     }
 
+    #[Test]
+    public function assignment_starting_at_today_midnight_is_active_not_scheduled(): void
+    {
+        [$tenant, $user] = $this->manager();
+        Sanctum::actingAs($user);
+        $headers = ['X-Tenant-ID' => (string) $tenant->id];
+
+        $unitId = $this->withHeaders($headers)->postJson('/api/organization/units', [
+            'code' => 'HQ', 'unit_type' => 'company', 'name_en' => 'Head Office',
+            'reason' => 'Create root company',
+        ])->assertCreated()->json('data.id');
+
+        $person = Person::query()->create([
+            'first_name_en' => 'Test', 'father_name_en' => 'Person',
+            'grandfather_name_en' => 'Regression',
+        ]);
+        PersonTenantAccess::query()->create([
+            'person_id' => $person->id, 'tenant_id' => $tenant->id,
+            'status' => 'active', 'created_by' => $user->id,
+        ]);
+
+        $todayAtMidnight = now()->startOfDay()->toIso8601String();
+        $response = $this->withHeaders($headers)->postJson('/api/organization/units/'.$unitId.'/assignments', [
+            'person_id' => $person->id, 'assignment_type' => 'member',
+            'starts_on' => $todayAtMidnight,
+            'reason' => 'Verify calendar date boundary',
+        ]);
+
+        $response->assertCreated()->assertJsonPath('data.status', 'active');
+        $this->assertDatabaseHas('organization_assignments', [
+            'tenant_id' => $tenant->id, 'person_id' => $person->id, 'status' => 'active',
+        ]);
+    }
+
     private function manager(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
