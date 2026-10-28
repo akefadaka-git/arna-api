@@ -23,6 +23,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreLedgerAccountRequest
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
@@ -41,6 +42,7 @@ final class FinanceController extends Controller
         private readonly TrialBalanceService $trialBalance,
         private readonly LedgerAccountRepository $ledgerAccounts,
         private readonly AccountingPeriodRepository $accountingPeriods,
+        private readonly AccountingPeriodService $accountingPeriodService,
         private readonly JournalEntryRepository $journalEntries,
     ) {
     }
@@ -107,23 +109,7 @@ final class FinanceController extends Controller
 
     public function createPeriod(StoreAccountingPeriodRequest $request): JsonResponse
     {
-        $data = $request->validated();
-        $tenantId = $this->tenantId();
-
-        $period = DB::transaction(function () use ($data, $tenantId): AccountingPeriod {
-            $entity = LegalEntity::query()->where('tenant_id', $tenantId)
-                ->lockForUpdate()->findOrFail((int) $data['legal_entity_id']);
-            $overlap = AccountingPeriod::query()->where('tenant_id', $tenantId)
-                ->where('legal_entity_id', $entity->id)->where('starts_on', '<=', $data['ends_on'])
-                ->where('ends_on', '>=', $data['starts_on'])->exists();
-            if ($overlap) {
-                throw ValidationException::withMessages(['starts_on' => 'Accounting periods for one legal entity cannot overlap.']);
-            }
-
-            return AccountingPeriod::query()->create([
-                ...$data, 'tenant_id' => $tenantId, 'status' => AccountingPeriod::OPEN,
-            ]);
-        });
+        $period = $this->accountingPeriodService->create($this->tenantId(), $request->validated());
 
         return response()->json(['success' => true, 'data' => $period], 201);
     }
@@ -131,24 +117,14 @@ final class FinanceController extends Controller
     public function closePeriod(Request $request, int $periodId): JsonResponse
     {
         $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
-        $period = AccountingPeriod::query()->where('tenant_id', $this->tenantId())->findOrFail($periodId);
-        DB::transaction(function () use ($period, $request, $data): void {
-            $locked = AccountingPeriod::query()->where('tenant_id', $this->tenantId())->lockForUpdate()->findOrFail($period->id);
-            if ($locked->status !== AccountingPeriod::OPEN) {
-                throw ValidationException::withMessages(['status' => 'Only an open period can be closed.']);
-            }
-            $drafts = JournalEntry::query()->where('tenant_id', $this->tenantId())
-                ->where('accounting_period_id', $locked->id)->where('status', JournalEntry::DRAFT)->exists();
-            if ($drafts) {
-                throw ValidationException::withMessages(['period' => 'Resolve or discard all draft journals before closing this period.']);
-            }
-            $locked->status = AccountingPeriod::CLOSED;
-            $locked->closed_by = (int) $request->user()->getAuthIdentifier();
-            $locked->closed_at = now();
-            $locked->close_reason = $data['reason'];
-            $locked->save();
-        });
-        return response()->json(['success' => true, 'data' => $period->fresh()]);
+        $period = $this->accountingPeriodService->close(
+            $this->tenantId(),
+            (int) $request->user()->getAuthIdentifier(),
+            $periodId,
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $period]);
     }
 
     public function journals(Request $request): JsonResponse

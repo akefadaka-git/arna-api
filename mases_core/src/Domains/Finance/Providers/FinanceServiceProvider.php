@@ -10,6 +10,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LedgerAccountRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
 
 /**
@@ -28,6 +29,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(AccountingPeriodRepository::class);
         $this->app->singleton(LedgerAccountRepository::class);
         $this->app->singleton(LegalEntityService::class);
+        $this->app->singleton(AccountingPeriodService::class);
         $this->app->singleton(TrialBalanceService::class);
     }
 
