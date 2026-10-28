@@ -25,6 +25,7 @@ on:
       - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
       - "tests/Feature/OrganizationDomainTest.php"
+      - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/**"
       - "app/Http/Controllers/PersonController.php"
       - "routes/api.php"
