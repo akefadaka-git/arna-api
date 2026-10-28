@@ -78,6 +78,7 @@ return new class extends Migration
             $table->string('source_type', 64)->nullable();
             $table->string('source_id', 128)->nullable();
             $table->string('idempotency_key', 128);
+            $table->char('request_hash', 64);
             $table->foreignId('created_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->foreignId('posted_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->timestamp('posted_at')->nullable();
@@ -117,8 +118,22 @@ return new class extends Migration
         });
     }
 
+        if (DB::getDriverName() === 'mysql') {
+            DB::unprepared("CREATE TRIGGER journal_entries_immutable_update BEFORE UPDATE ON journal_entries FOR EACH ROW BEGIN IF OLD.status IN ('posted', 'reversed') THEN IF NOT (OLD.status = 'posted' AND NEW.status = 'reversed' AND NEW.reversed_at IS NOT NULL AND OLD.id <=> NEW.id AND OLD.tenant_id <=> NEW.tenant_id AND OLD.legal_entity_id <=> NEW.legal_entity_id AND OLD.accounting_period_id <=> NEW.accounting_period_id AND OLD.journal_number <=> NEW.journal_number AND OLD.effective_date <=> NEW.effective_date AND OLD.currency <=> NEW.currency AND OLD.description <=> NEW.description AND OLD.source_type <=> NEW.source_type AND OLD.source_id <=> NEW.source_id AND OLD.idempotency_key <=> NEW.idempotency_key AND OLD.request_hash <=> NEW.request_hash AND OLD.created_by <=> NEW.created_by AND OLD.posted_by <=> NEW.posted_by AND OLD.posted_at <=> NEW.posted_at AND OLD.reversal_of_id <=> NEW.reversal_of_id AND OLD.created_at <=> NEW.created_at) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Posted journal entries are immutable'; END IF; END IF; END");
+            DB::unprepared("CREATE TRIGGER journal_entries_immutable_delete BEFORE DELETE ON journal_entries FOR EACH ROW BEGIN IF OLD.status IN ('posted', 'reversed') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Posted journal entries cannot be deleted'; END IF; END");
+            DB::unprepared("CREATE TRIGGER journal_lines_insert_draft_only BEFORE INSERT ON journal_lines FOR EACH ROW BEGIN IF EXISTS (SELECT 1 FROM journal_entries WHERE id = NEW.journal_entry_id AND tenant_id = NEW.tenant_id AND legal_entity_id = NEW.legal_entity_id AND status <> 'draft') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Journal lines may only be added to drafts'; END IF; END");
+            DB::unprepared("CREATE TRIGGER journal_lines_update_draft_only BEFORE UPDATE ON journal_lines FOR EACH ROW BEGIN IF EXISTS (SELECT 1 FROM journal_entries WHERE id = OLD.journal_entry_id AND tenant_id = OLD.tenant_id AND legal_entity_id = OLD.legal_entity_id AND status <> 'draft') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Posted journal lines are immutable'; END IF; END");
+            DB::unprepared("CREATE TRIGGER journal_lines_delete_draft_only BEFORE DELETE ON journal_lines FOR EACH ROW BEGIN IF EXISTS (SELECT 1 FROM journal_entries WHERE id = OLD.journal_entry_id AND tenant_id = OLD.tenant_id AND legal_entity_id = OLD.legal_entity_id AND status <> 'draft') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Posted journal lines cannot be deleted'; END IF; END");
+        }
     public function down(): void
     {
+        if (DB::getDriverName() === 'mysql') {
+            DB::unprepared('DROP TRIGGER IF EXISTS journal_lines_delete_draft_only');
+            DB::unprepared('DROP TRIGGER IF EXISTS journal_lines_update_draft_only');
+            DB::unprepared('DROP TRIGGER IF EXISTS journal_lines_insert_draft_only');
+            DB::unprepared('DROP TRIGGER IF EXISTS journal_entries_immutable_delete');
+            DB::unprepared('DROP TRIGGER IF EXISTS journal_entries_immutable_update');
+        }
         Schema::dropIfExists('journal_lines');
         Schema::dropIfExists('journal_entries');
         Schema::dropIfExists('accounting_periods');
