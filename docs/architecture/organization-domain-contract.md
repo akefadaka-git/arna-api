@@ -30,9 +30,21 @@
 - Person assignments reference canonical People records and support multiple effective-dated assignments without implicit authorization.
 - Reparenting/deactivation checks active descendants and assignments, requires a reason, and records actor, timestamp, and history.
 - Stable identifiers and uniqueness/FK constraints are verified against the supported production MySQL engine.
-- Fresh disposable MySQL migration + seed, repeat migration, API tests, negative tenant tests, and app contract/type/build checks pass on exact candidate SHAs.
+- Fresh disposable MySQL migration + seed, repeat migration, API tests, and negative tenant tests pass on exact candidate SHAs. App contract/type/build checks are required when an app consumer exists or is changed in the same release.
 - The pull request is reviewed and merged only after required checks pass. The issue/gate must not be closed while any acceptance evidence is missing or failing.
 
 ## Gate disposition
 
 The Owner has authorized implementation. This document records the bounded decisions; it does **not** itself establish production readiness. Production acceptance remains pending until implementation, automated verification, and review evidence are attached to the implementation pull request.
+
+
+## Cross-repository API boundary review — 2026-10-28
+
+**Purpose:** Record whether PR #25 changes a contract already consumed by the ARNA app, without silently expanding this API-only implementation into a frontend feature.
+
+- API candidate at review start: `akefadaka-git/arna-api` PR #25, head `66e46b823e025a7bb41fa62ec98e481caf80dfa3`; remediation is being added to the same PR branch.
+- App baseline inspected: `akefadaka-git/arna-app` `main` at `7b04286d4a20b3587249eed8b90281699492b4c7`.
+- Read-only inspected app files: `src/core/api/client.ts`, `src/router/routes-workspace.ts`, `src/features/people/api.ts`, and `src/features/governance/api.ts`; inspected the feature-directory listing.
+- The inspected API client, workspace router, People API module, and Governance API module contain no Organization endpoint or `/api/organization` contract reference; the feature-directory listing has no Organization feature directory.
+- **Disposition:** The current Organization API is not yet an app-consumed contract in the inspected app baseline. Frontend Organization UI/API integration is explicitly deferred; no app files are changed by PR #25. Do not describe this as cross-repository app acceptance, and do not infer frontend readiness from the API checks.
+- **Release boundary:** Before an Organization frontend consumer is introduced or shipped, add typed API contracts for the unit and assignment endpoints, permission-aware UI behavior, Amharic-first labels, error handling, and app type-check/build verification against the exact API candidate SHA. That future integration requires its own bounded change and acceptance evidence.
