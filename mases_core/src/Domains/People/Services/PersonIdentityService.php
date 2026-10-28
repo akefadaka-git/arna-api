@@ -155,7 +155,8 @@ final class PersonIdentityService
         $this->assertManagePermission($tenantId, $actor);
         $this->assertReason($reason);
         DB::transaction(function () use ($tenantId, $shareholderId, $personId, $actor, $reason): void {
-            $holder = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)->lockForUpdate()->first();
+            $holder = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)
+                ->whereNull('deleted_at')->where('is_active', true)->lockForUpdate()->first();
             if ($holder === null) {
                 throw new DomainException('Shareholder was not found in the authorized tenant.');
             }
@@ -185,7 +186,8 @@ final class PersonIdentityService
         $this->assertManagePermission($tenantId, $actor);
         $this->assertReason($reason);
         DB::transaction(function () use ($tenantId, $employeeId, $personId, $actor, $reason): void {
-            $employee = DB::table('employees')->where('tenant_id', $tenantId)->where('id', $employeeId)->whereNull('deleted_at')->lockForUpdate()->first();
+            $employee = DB::table('employees')->where('tenant_id', $tenantId)->where('id', $employeeId)
+                ->whereNull('deleted_at')->where('is_active', true)->lockForUpdate()->first();
             if ($employee === null) {
                 throw new DomainException('Employee was not found in the authorized tenant.');
             }
@@ -216,7 +218,7 @@ final class PersonIdentityService
             // then membership, then Person. This serializes identity-link overlap
             // checks with concurrent membership registration/update operations.
             $reference = DB::table('governance_memberships')->where('tenant_id', $tenantId)
-                ->where('id', $membershipId)->first();
+                ->where('id', $membershipId)->whereNull('deleted_at')->where('status', 'active')->first();
             if ($reference === null) {
                 throw new DomainException('Governance membership was not found in the authorized tenant.');
             }
@@ -226,7 +228,7 @@ final class PersonIdentityService
                 throw new DomainException('Governance position was not found in the authorized tenant.');
             }
             $membership = DB::table('governance_memberships')->where('tenant_id', $tenantId)
-                ->where('id', $membershipId)->lockForUpdate()->first();
+                ->where('id', $membershipId)->whereNull('deleted_at')->where('status', 'active')->lockForUpdate()->first();
             if ($membership === null
                 || (int) $membership->governance_position_id !== (int) $reference->governance_position_id
                 || (int) $membership->governance_body_id !== (int) $reference->governance_body_id) {
