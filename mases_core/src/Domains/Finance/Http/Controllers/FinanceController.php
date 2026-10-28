@@ -34,7 +34,7 @@ final class FinanceController extends Controller
     public function createEntity(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
+            'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/', Rule::unique('legal_entities', 'code')->where(fn ($query) => $query->where('tenant_id', $this->tenantId()))],
             'name_am' => ['nullable', 'string', 'max:180'],
             'name_en' => ['required', 'string', 'max:180'],
             'base_currency' => ['sometimes', 'string', 'size:3', Rule::in(['ETB'])],
@@ -68,7 +68,7 @@ final class FinanceController extends Controller
         $data = $request->validate([
             'legal_entity_id' => ['required', 'integer'],
             'parent_id' => ['nullable', 'integer'],
-            'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
+            'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/', Rule::unique('ledger_accounts', 'code')->where(fn ($query) => $query->where('tenant_id', $this->tenantId())->where('legal_entity_id', (int) $request->input('legal_entity_id')))],
             'name_am' => ['nullable', 'string', 'max:180'],
             'name_en' => ['required', 'string', 'max:180'],
             'account_type' => ['required', Rule::in(LedgerAccount::TYPES)],
@@ -113,23 +113,30 @@ final class FinanceController extends Controller
             'starts_on' => ['required', 'date'],
             'ends_on' => ['required', 'date', 'after_or_equal:starts_on'],
         ]);
-        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
-        $overlap = AccountingPeriod::query()->where('tenant_id', $this->tenantId())
-            ->where('legal_entity_id', $entity->id)->where('starts_on', '<=', $data['ends_on'])
-            ->where('ends_on', '>=', $data['starts_on'])->exists();
-        if ($overlap) {
-            throw ValidationException::withMessages(['starts_on' => 'Accounting periods for one legal entity cannot overlap.']);
-        }
-        $period = AccountingPeriod::query()->create([
-            ...$data, 'tenant_id' => $this->tenantId(), 'status' => AccountingPeriod::OPEN,
-        ]);
+        $tenantId = $this->tenantId();
+
+        $period = DB::transaction(function () use ($data, $tenantId): AccountingPeriod {
+            $entity = LegalEntity::query()->where('tenant_id', $tenantId)
+                ->lockForUpdate()->findOrFail((int) $data['legal_entity_id']);
+            $overlap = AccountingPeriod::query()->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $entity->id)->where('starts_on', '<=', $data['ends_on'])
+                ->where('ends_on', '>=', $data['starts_on'])->exists();
+            if ($overlap) {
+                throw ValidationException::withMessages(['starts_on' => 'Accounting periods for one legal entity cannot overlap.']);
+            }
+
+            return AccountingPeriod::query()->create([
+                ...$data, 'tenant_id' => $tenantId, 'status' => AccountingPeriod::OPEN,
+            ]);
+        });
+
         return response()->json(['success' => true, 'data' => $period], 201);
     }
 
     public function closePeriod(Request $request, int $periodId): JsonResponse
     {
         $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
-        $period = AccountingPeriod::query()->where('tenant_id', $this->tenantId())->lockForUpdate()->findOrFail($periodId);
+        $period = AccountingPeriod::query()->where('tenant_id', $this->tenantId())->findOrFail($periodId);
         DB::transaction(function () use ($period, $request, $data): void {
             $locked = AccountingPeriod::query()->where('tenant_id', $this->tenantId())->lockForUpdate()->findOrFail($period->id);
             if ($locked->status !== AccountingPeriod::OPEN) {
