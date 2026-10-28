@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Organization\\Policies;
+namespace MaaleArna\MASES\Core\Domains\Organization\Policies;
 
-use Illuminate\\Database\\Eloquent\\ModelNotFoundException;
-use MaaleArna\\MASES\\Core\\Domains\\Organization\\Models\\OrganizationUnit;
-use Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException;
+use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
  * Canonical Organization unit taxonomy and parent/child compatibility policy.
