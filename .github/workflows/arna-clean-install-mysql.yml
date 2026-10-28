@@ -226,6 +226,10 @@ jobs:
         run: php artisan migrate --force -vvv
 
       - name: Verify full fresh migration and seed on disposable MySQL
+        # Explicitly permit demo/bootstrap seed data only inside this disposable CI database.
+        # Production environments must never set this flag.
+        env:
+          MASES_ENABLE_DEMO_SEEDING: "true"
         run: php artisan migrate:fresh --seed --force -vvv
 
       - name: Confirm no pending migrations
