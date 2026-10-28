@@ -348,12 +348,12 @@ final class PersonApiIntegrationTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/employees/options')
+        $employeeOptions = $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/employees/options')
             ->assertOk()
             ->assertJsonPath('data.domain', 'employees')
             ->assertJsonPath('data.candidates.0.label', 'EMP-TEST-001')
-            ->assertJsonMissingText('EMP-OTHER-001')
             ->assertJsonMissingPath('data.candidates.0.user_id');
+        $this->assertStringNotContainsString('EMP-OTHER-001', $employeeOptions->getContent());
 
         $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/shareholders/options')
             ->assertOk()
