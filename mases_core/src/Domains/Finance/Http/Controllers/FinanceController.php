@@ -23,7 +23,6 @@ use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreAccountingPeriodRequ
 use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreLedgerAccountRequest;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
-use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
@@ -41,7 +40,6 @@ final class FinanceController extends Controller
         private readonly LegalEntityRepository $entitiesRepository,
         private readonly LegalEntityService $legalEntities,
         private readonly JournalEntryService $journals,
-        private readonly TrialBalanceService $trialBalance,
         private readonly FinancialReportService $financialReports,
         private readonly LedgerAccountRepository $ledgerAccounts,
         private readonly AccountingPeriodRepository $accountingPeriods,

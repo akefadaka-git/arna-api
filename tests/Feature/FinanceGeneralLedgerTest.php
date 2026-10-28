@@ -12,6 +12,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
 use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Domains\Finance\Policies\LegalEntityPolicy;
 use MaaleArna\MASES\Core\Domains\Finance\Policies\LedgerAccountPolicy;
@@ -732,6 +733,33 @@ final class FinanceGeneralLedgerTest extends TestCase
         return str_contains($amount, '.') ? $whole.'.'.explode('.', $amount, 2)[1] : $whole;
     }
 
+
+    #[Test]
+    public function test_trial_balance_report_returns_exact_balanced_summary_and_net_account_balances(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id, 'journal_number' => 'JV-REPORT-SUMMARY',
+            'effective_date' => '2026-10-10', 'description' => 'Financial report summary',
+            'currency' => 'ETB', 'idempotency_key' => 'report-summary-key',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '123.4567', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '123.4567'],
+        ]);
+        $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+
+        $report = app(FinancialReportService::class)->trialBalance(
+            (int) $tenant->id, (int) $entity->id, '2026-10-10',
+        );
+
+        $this->assertTrue($report['summary']['is_balanced']);
+        $this->assertSame('123.4567', $report['summary']['total_debits']);
+        $this->assertSame('123.4567', $report['summary']['total_credits']);
+        $this->assertSame('0.0000', $report['summary']['difference']);
+        $this->assertSame('123.4567', (string) $report['accounts']->firstWhere('id', $cash->id)->net_debit);
+        $this->assertSame('123.4567', (string) $report['accounts']->firstWhere('id', $equity->id)->net_credit);
+    }
 
     #[Test]
     public function test_finance_policies_are_registered_and_period_closure_is_audited(): void
