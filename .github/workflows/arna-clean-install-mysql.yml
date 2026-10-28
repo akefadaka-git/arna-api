@@ -162,6 +162,13 @@ jobs:
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/PersonApiIntegrationTest.php
 
+      - name: Run Organization domain tenant and lifecycle regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/OrganizationDomainTest.php
+
       - name: Confirm test database is empty
         shell: bash
         run: |
