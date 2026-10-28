@@ -8,6 +8,8 @@ use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService;
@@ -452,6 +454,183 @@ final class PersonController extends Controller
             ],
         ]);
     }
+
+
+    public function contacts(Request $request, string $publicId): JsonResponse
+    {
+        [$tenantId, $person] = $this->visiblePersonContext($publicId);
+        $rows = DB::table('person_contact_points')->where('tenant_id', $tenantId)
+            ->where('person_id', $person->getKey())->orderByDesc('is_primary')->orderBy('id')->limit(100)->get();
+        return response()->json(['success' => true, 'data' => $rows->map(fn ($row) => $this->presentContact($row))->values()]);
+    }
+
+    public function createContact(Request $request, string $publicId): JsonResponse
+    {
+        [$tenantId, $person] = $this->visiblePersonContext($publicId);
+        $a = $request->validate([
+            'contact_type' => ['required', 'string', 'in:email,phone,other'],
+            'label' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'contact_value' => ['required', 'string', 'min:3', 'max:320'],
+            'is_primary' => ['sometimes', 'boolean'],
+        ]);
+        $value = trim($a['contact_value']);
+        if ($a['contact_type'] === 'email' && filter_var($value, FILTER_VALIDATE_EMAIL) === false) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['contact_value' => 'Enter a valid email address.']);
+        }
+        if ($a['contact_type'] === 'phone' && !preg_match('/^[+0-9().\-\s]{6,32}$/', $value)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['contact_value' => 'Enter a valid phone number.']);
+        }
+        $primary = (bool) ($a['is_primary'] ?? false);
+        $id = DB::transaction(function () use ($tenantId, $person, $a, $value, $primary, $request): int {
+            if ($primary) {
+                DB::table('person_contact_points')->where('tenant_id', $tenantId)->where('person_id', $person->getKey())
+                    ->where('status', 'active')->update(['is_primary' => false, 'updated_at' => now()]);
+            }
+            return (int) DB::table('person_contact_points')->insertGetId([
+                'tenant_id' => $tenantId, 'person_id' => $person->getKey(), 'contact_type' => $a['contact_type'],
+                'label' => $a['label'] ?? null, 'contact_value' => \Illuminate\Support\Facades\Crypt::encryptString($value),
+                'normalized_hash' => hash('sha256', $a['contact_type'] === 'email' ? mb_strtolower($value) : preg_replace('/\s+/', '', $value)),
+                'is_primary' => $primary, 'is_verified' => false, 'verified_at' => null, 'source' => 'manual',
+                'status' => 'active', 'created_by' => $request->user()?->getAuthIdentifier(),
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        });
+        $row = DB::table('person_contact_points')->where('tenant_id', $tenantId)->where('id', $id)->first();
+        return response()->json(['success' => true, 'data' => $this->presentContact($row)], 201);
+    }
+
+    public function deactivateContact(Request $request, string $publicId, int $contactId): JsonResponse
+    {
+        [$tenantId, $person] = $this->visiblePersonContext($publicId);
+        $a = $request->validate(['reason' => ['required', 'string', 'min:8', 'max:1000']]);
+        $count = DB::table('person_contact_points')->where('tenant_id', $tenantId)->where('person_id', $person->getKey())
+            ->where('id', $contactId)->where('status', 'active')
+            ->update(['status' => 'inactive', 'is_primary' => false, 'deactivation_reason' => trim($a['reason']), 'updated_at' => now()]);
+        abort_if($count === 0, 404, 'Active contact point not found.');
+        return response()->json(['success' => true, 'data' => $this->presentContact(DB::table('person_contact_points')->where('tenant_id', $tenantId)->where('id', $contactId)->first())]);
+    }
+
+    public function personRelationships(Request $request, string $publicId): JsonResponse
+    {
+        [$tenantId, $person] = $this->visiblePersonContext($publicId);
+        $rows = DB::table('person_relationships as rel')->join('people as related', 'related.id', '=', 'rel.related_person_id')
+            ->where('rel.tenant_id', $tenantId)->where('rel.person_id', $person->getKey())->orderBy('rel.id')->limit(100)
+            ->get(['rel.id','related.public_id as related_public_id','related.first_name_am as related_first_name_am','related.father_name_am as related_father_name_am','related.grandfather_name_am as related_grandfather_name_am','related.first_name_en as related_first_name_en','related.father_name_en as related_father_name_en','related.grandfather_name_en as related_grandfather_name_en','rel.relationship_type','rel.effective_from','rel.effective_to','rel.status']);
+        return response()->json(['success' => true, 'data' => $rows->map(fn ($row) => $this->presentPersonRelationship($row))->values()]);
+    }
+
+    public function createPersonRelationship(Request $request, string $publicId): JsonResponse
+    {
+        [$tenantId, $person] = $this->visiblePersonContext($publicId);
+        $types = ['parent','child','guardian','dependent','spouse','sibling','emergency_contact','household_member','other'];
+        $a = $request->validate([
+            'related_public_id' => ['required','uuid'],
+            'relationship_type' => ['required','string',\Illuminate\Validation\Rule::in($types)],
+            'effective_from' => ['sometimes','nullable','date'],
+            'effective_to' => ['sometimes','nullable','date','after_or_equal:effective_from'],
+            'reason' => ['required','string','min:8','max:1000'],
+        ]);
+        abort_if($a['related_public_id'] === $publicId, 422, 'A person cannot be related to themselves.');
+        $related = Person::query()->where('public_id', $a['related_public_id'])->where('status', 'active')
+            ->whereHas('tenantAccesses', static fn ($q) => $q->where('tenant_id', $tenantId)->where('status', 'active'))->firstOrFail();
+        $id = DB::transaction(function () use ($tenantId, $person, $related, $a, $request): int {
+            $duplicate = DB::table('person_relationships')->where('tenant_id', $tenantId)->where('person_id', $person->getKey())
+                ->where('related_person_id', $related->getKey())->where('relationship_type', $a['relationship_type'])->where('status', 'active')->lockForUpdate()->exists();
+            abort_if($duplicate, 409, 'An active relationship of this type already exists.');
+            return (int) DB::table('person_relationships')->insertGetId([
+                'tenant_id'=>$tenantId,'person_id'=>$person->getKey(),'related_person_id'=>$related->getKey(),
+                'relationship_type'=>$a['relationship_type'],'effective_from'=>$a['effective_from'] ?? null,'effective_to'=>$a['effective_to'] ?? null,
+                'status'=>'active','reason'=>trim($a['reason']),'created_by'=>$request->user()?->getAuthIdentifier(),'created_at'=>now(),'updated_at'=>now(),
+            ]);
+        });
+        $row = DB::table('person_relationships as rel')->join('people as related','related.id','=','rel.related_person_id')
+            ->where('rel.tenant_id',$tenantId)->where('rel.id',$id)
+            ->first(['rel.id','related.public_id as related_public_id','related.first_name_am as related_first_name_am','related.father_name_am as related_father_name_am','related.grandfather_name_am as related_grandfather_name_am','related.first_name_en as related_first_name_en','related.father_name_en as related_father_name_en','related.grandfather_name_en as related_grandfather_name_en','rel.relationship_type','rel.effective_from','rel.effective_to','rel.status']);
+        return response()->json(['success'=>true,'data'=>$this->presentPersonRelationship($row)],201);
+    }
+
+    public function deactivatePersonRelationship(Request $request, string $publicId, int $relationshipId): JsonResponse
+    {
+        [$tenantId, $person] = $this->visiblePersonContext($publicId);
+        $a = $request->validate(['reason'=>['required','string','min:8','max:1000']]);
+        $count = DB::table('person_relationships')->where('tenant_id',$tenantId)->where('person_id',$person->getKey())
+            ->where('id',$relationshipId)->where('status','active')->update(['status'=>'inactive','deactivation_reason'=>trim($a['reason']),'updated_at'=>now()]);
+        abort_if($count === 0,404,'Active person relationship not found.');
+        $row = DB::table('person_relationships as rel')->join('people as related','related.id','=','rel.related_person_id')
+            ->where('rel.tenant_id',$tenantId)->where('rel.id',$relationshipId)
+            ->first(['rel.id','related.public_id as related_public_id','related.first_name_am as related_first_name_am','related.father_name_am as related_father_name_am','related.grandfather_name_am as related_grandfather_name_am','related.first_name_en as related_first_name_en','related.father_name_en as related_father_name_en','related.grandfather_name_en as related_grandfather_name_en','rel.relationship_type','rel.effective_from','rel.effective_to','rel.status']);
+        return response()->json(['success'=>true,'data'=>$this->presentPersonRelationship($row)]);
+    }
+
+    public function participations(Request $request, string $publicId): JsonResponse
+    {
+        [$tenantId, $person] = $this->visiblePersonContext($publicId);
+        $rows = DB::table('person_participations')->where('tenant_id',$tenantId)->where('person_id',$person->getKey())
+            ->orderByDesc('effective_from')->orderBy('id')->limit(200)->get()->map(fn ($row) => $this->presentParticipation($row))->values();
+        return response()->json(['success'=>true,'data'=>$rows]);
+    }
+
+    public function createParticipation(Request $request, string $publicId): JsonResponse
+    {
+        [$tenantId, $person] = $this->visiblePersonContext($publicId);
+        $types = ['membership','ministry','volunteer','committee','event_attendance','training','qualification','other'];
+        $a = $request->validate([
+            'participation_type'=>['required','string',\Illuminate\Validation\Rule::in($types)],
+            'title'=>['required','string','min:2','max:180'],'reference_code'=>['sometimes','nullable','string','max:100'],
+            'effective_from'=>['sometimes','nullable','date'],'effective_to'=>['sometimes','nullable','date','after_or_equal:effective_from'],
+            'reason'=>['required','string','min:8','max:1000'],
+        ]);
+        $id = DB::table('person_participations')->insertGetId([
+            'tenant_id'=>$tenantId,'person_id'=>$person->getKey(),'participation_type'=>$a['participation_type'],'title'=>trim($a['title']),
+            'reference_code'=>isset($a['reference_code']) ? trim($a['reference_code']) : null,'effective_from'=>$a['effective_from'] ?? null,
+            'effective_to'=>$a['effective_to'] ?? null,'status'=>'active','reason'=>trim($a['reason']),
+            'created_by'=>$request->user()?->getAuthIdentifier(),'created_at'=>now(),'updated_at'=>now(),
+        ]);
+        return response()->json(['success'=>true,'data'=>$this->presentParticipation(DB::table('person_participations')->where('tenant_id',$tenantId)->where('id',$id)->first())],201);
+    }
+
+    public function deactivateParticipation(Request $request, string $publicId, int $participationId): JsonResponse
+    {
+        [$tenantId,$person] = $this->visiblePersonContext($publicId);
+        $a = $request->validate(['reason'=>['required','string','min:8','max:1000']]);
+        $count = DB::table('person_participations')->where('tenant_id',$tenantId)->where('person_id',$person->getKey())
+            ->where('id',$participationId)->where('status','active')->update(['status'=>'inactive','deactivation_reason'=>trim($a['reason']),'updated_at'=>now()]);
+        abort_if($count===0,404,'Active participation record not found.');
+        return response()->json(['success'=>true,'data'=>$this->presentParticipation(DB::table('person_participations')->where('tenant_id',$tenantId)->where('id',$participationId)->first())]);
+    }
+
+    private function visiblePersonContext(string $publicId): array
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+        $person = Person::query()->where('public_id',$publicId)->where('status','active')
+            ->whereHas('tenantAccesses', static fn($q)=>$q->where('tenant_id',$tenantId)->where('status','active'))->firstOrFail();
+        return [(int)$tenantId,$person];
+    }
+
+    private function presentContact(object $row): array
+    {
+        try { $value = \Illuminate\Support\Facades\Crypt::decryptString((string)$row->contact_value); } catch (\Throwable) { $value = ''; }
+        $masked = match ($row->contact_type) {
+            'email' => str_contains($value,'@') ? mb_substr(explode('@',$value,2)[0],0,1).'•••@'.explode('@',$value,2)[1] : '••••',
+            'phone' => '••••'.substr(preg_replace('/\D+/', '', $value), -3),
+            default => mb_substr($value,0,1).'••••',
+        };
+        return ['id'=>(int)$row->id,'contact_type'=>$row->contact_type,'label'=>$row->label,'masked_value'=>$masked,'is_primary'=>(bool)$row->is_primary,'is_verified'=>(bool)$row->is_verified,'verified_at'=>$row->verified_at,'status'=>$row->status,'created_at'=>$row->created_at];
+    }
+
+    private function presentPersonRelationship(object $row): array
+    {
+        $am = trim(implode(' ',array_filter([$row->related_first_name_am,$row->related_father_name_am,$row->related_grandfather_name_am])));
+        $en = trim(implode(' ',array_filter([$row->related_first_name_en,$row->related_father_name_en,$row->related_grandfather_name_en])));
+        return ['id'=>(int)$row->id,'related_public_id'=>$row->related_public_id,'related_name_am'=>$am !== '' ? $am : null,'related_name_en'=>$en !== '' ? $en : null,'relationship_type'=>$row->relationship_type,'effective_from'=>$row->effective_from,'effective_to'=>$row->effective_to,'status'=>$row->status];
+    }
+
+    private function presentParticipation(object $row): array
+    {
+        return ['id'=>(int)$row->id,'participation_type'=>$row->participation_type,'title'=>$row->title,'reference_code'=>$row->reference_code,'effective_from'=>$row->effective_from,'effective_to'=>$row->effective_to,'status'=>$row->status];
+    }
+
 
     /**
      * Explicit allow-list: never serialize credentials, internal user IDs,
