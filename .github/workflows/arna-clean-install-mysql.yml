@@ -223,6 +223,9 @@ jobs:
       - name: Run migrations a second time (idempotence)
         run: php artisan migrate --force -vvv
 
+      - name: Verify full fresh migration and seed on disposable MySQL
+        run: php artisan migrate:fresh --seed --force -vvv
+
       - name: Confirm no pending migrations
         run: php artisan migrate:status
 
