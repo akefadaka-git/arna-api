@@ -11,6 +11,8 @@ use Illuminate\Validation\Rule;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonParticipation;
 use MaaleArna\MASES\Core\Domains\People\Events\PersonProfileLifecycleChanged;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\StorePersonParticipationRequest;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\DeactivatePersonRecordRequest;
 
 final class PersonParticipationController extends Controller
 {
@@ -42,19 +44,12 @@ final class PersonParticipationController extends Controller
         ]);
     }
 
-    public function store(Request $request, string $publicId): JsonResponse
+    public function store(StorePersonParticipationRequest $request, string $publicId): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $person = $this->visiblePerson($publicId, (int) $tenantId);
-        $attributes = $request->validate([
-            'participation_type' => ['required', Rule::in(self::TYPES)],
-            'title' => ['required', 'string', 'min:2', 'max:180'],
-            'reference_code' => ['nullable', 'string', 'max:100'],
-            'effective_from' => ['nullable', 'date'],
-            'effective_to' => ['nullable', 'date'],
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
 
         if (! empty($attributes['effective_from']) && ! empty($attributes['effective_to'])
             && $attributes['effective_from'] > $attributes['effective_to']) {
@@ -86,14 +81,12 @@ final class PersonParticipationController extends Controller
         return response()->json(['success' => true, 'data' => $this->present($record)], 201);
     }
 
-    public function deactivate(Request $request, string $publicId, int $participationId): JsonResponse
+    public function deactivate(DeactivatePersonRecordRequest $request, string $publicId, int $participationId): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $person = $this->visiblePerson($publicId, (int) $tenantId);
-        $attributes = $request->validate([
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
 
         $record = DB::transaction(function () use ($tenantId, $person, $participationId, $attributes): PersonParticipation {
             $record = PersonParticipation::query()
