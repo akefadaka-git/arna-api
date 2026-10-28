@@ -86,6 +86,7 @@ final class PersonIdentityService
             if ($otherPerson !== null) {
                 throw new DomainException('Account is already associated with another Person.');
             }
+            $this->assertAccountCompatibleWithLinkedDomains($person, $userId);
             if ($person->user_id === $userId) {
                 return $person;
             }
@@ -115,6 +116,7 @@ final class PersonIdentityService
                 return $person;
             }
             $previousUserId = (int) $person->user_id;
+            $this->assertAccountCanBeUnlinked($person);
             $person->user_id = null;
             $person->save();
             $this->recordEvent('person.account_unlinked', $tenantId, $actor, $person, [
@@ -610,6 +612,48 @@ final class PersonIdentityService
             ->where('user_id', $user->getKey())->where('status', 'active')->exists();
         if (! $activeTenant || ! $user->is_active || ! $membership) {
             throw new DomainException('A valid active tenant membership is required.');
+        }
+    }
+
+    /**
+     * Preserve account consistency for domain rows already linked to this Person.
+     * Employee and governance records may be account-less, but a populated
+     * account reference must match the canonical Person account. Individual
+     * shareholders require a direct account by the Shareholder domain contract.
+     */
+    private function assertAccountCompatibleWithLinkedDomains(Person $person, int $userId): void
+    {
+        foreach (['employees', 'governance_memberships'] as $table) {
+            $conflictingAccount = DB::table($table)->where('person_id', $person->getKey())
+                ->whereNotNull('user_id')->where('user_id', '<>', $userId)->exists();
+            if ($conflictingAccount) {
+                throw new DomainException('A linked domain record references a different account from the proposed Person account.');
+            }
+        }
+
+        $invalidShareholder = DB::table('shareholders')->where('person_id', $person->getKey())
+            ->where(function ($query) use ($userId): void {
+                $query->whereNull('user_id')->orWhere('user_id', '<>', $userId);
+            })->exists();
+        if ($invalidShareholder) {
+            throw new DomainException('Every linked individual shareholder must reference the same direct account as the Person.');
+        }
+    }
+
+    /**
+     * Do not detach the canonical account while linked domain records still
+     * depend on an account-backed identity association.
+     */
+    private function assertAccountCanBeUnlinked(Person $person): void
+    {
+        $hasAccountBackedEmployee = DB::table('employees')->where('person_id', $person->getKey())
+            ->whereNotNull('user_id')->exists();
+        $hasLinkedShareholder = DB::table('shareholders')->where('person_id', $person->getKey())->exists();
+        $hasAccountBackedGovernanceMembership = DB::table('governance_memberships')->where('person_id', $person->getKey())
+            ->whereNotNull('user_id')->exists();
+
+        if ($hasAccountBackedEmployee || $hasLinkedShareholder || $hasAccountBackedGovernanceMembership) {
+            throw new DomainException('Unlink account-backed domain relationships before unlinking the Person account.');
         }
     }
 
