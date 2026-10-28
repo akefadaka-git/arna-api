@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalEntryType;
 
 final class JournalEntry extends Model
 {
@@ -19,7 +20,7 @@ final class JournalEntry extends Model
 
     protected $fillable = [
         'tenant_id', 'legal_entity_id', 'accounting_period_id', 'journal_number',
-        'effective_date', 'status', 'currency', 'description', 'source_type',
+        'journal_type', 'effective_date', 'status', 'currency', 'description', 'source_type',
         'source_id', 'idempotency_key', 'request_hash', 'created_by', 'posted_by', 'posted_at',
         'reversal_of_id', 'reversed_at', 'cancelled_by', 'cancelled_at', 'cancellation_reason',
     ];
@@ -28,6 +29,7 @@ final class JournalEntry extends Model
         'tenant_id' => 'integer',
         'legal_entity_id' => 'integer',
         'accounting_period_id' => 'integer',
+        'journal_type' => JournalEntryType::class,
         'effective_date' => 'date',
         'created_by' => 'integer',
         'posted_by' => 'integer',
