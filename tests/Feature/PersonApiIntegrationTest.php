@@ -572,6 +572,101 @@ final class PersonApiIntegrationTest extends TestCase
             ->assertUnprocessable();
     }
 
+    #[Test]
+    public function people_manager_can_manage_encrypted_contact_points_without_exposing_raw_values(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $person = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Hana',
+        ])->assertCreated();
+        $publicId = $person->json('data.public_id');
+
+        $created = $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/contacts', [
+            'contact_type' => 'email',
+            'label' => 'Primary email',
+            'contact_value' => 'hana@example.test',
+            'is_primary' => true,
+        ])->assertCreated()
+            ->assertJsonPath('data.contact_type', 'email')
+            ->assertJsonPath('data.is_primary', true)
+            ->assertJsonPath('data.is_verified', false)
+            ->assertJsonMissing(['contact_value' => 'hana@example.test'])
+            ->assertJsonMissing(['masked_value' => 'hana@example.test']);
+
+        $contactId = $created->json('data.id');
+        $storedCiphertext = DB::table('person_contact_points')->where('id', $contactId)->value('contact_value');
+        $this->assertNotSame('hana@example.test', $storedCiphertext);
+
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/contacts')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $contactId)
+            ->assertJsonPath('data.0.is_verified', false)
+            ->assertJsonMissing(['contact_value' => 'hana@example.test']);
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/contacts/'.$contactId.'/deactivate', [
+            'reason' => 'Contact details are no longer current',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'inactive');
+
+        $this->assertDatabaseHas('person_contact_points', [
+            'id' => $contactId,
+            'status' => 'inactive',
+            'deactivation_reason' => 'Contact details are no longer current',
+        ]);
+    }
+
+    #[Test]
+    public function people_manager_can_create_only_tenant_visible_person_relationships_and_prevent_duplicates(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $person = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_am' => 'ሀና',
+        ])->assertCreated();
+        $related = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Michael',
+        ])->assertCreated();
+
+        $publicId = $person->json('data.public_id');
+        $relatedId = $related->json('data.public_id');
+        $payload = [
+            'related_public_id' => $relatedId,
+            'relationship_type' => 'guardian',
+            'reason' => 'Confirmed by the authorized record keeper',
+        ];
+
+        $created = $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/person-relationships', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.relationship_type', 'guardian')
+            ->assertJsonPath('data.related_public_id', $relatedId);
+
+        $relationshipId = $created->json('data.id');
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/person-relationships', $payload)
+            ->assertStatus(409);
+
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/person-relationships')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $relationshipId);
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/person-relationships/'.$relationshipId.'/deactivate', [
+            'reason' => 'Relationship record was entered in error',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'inactive');
+
+        $this->assertDatabaseHas('person_relationships', [
+            'id' => $relationshipId,
+            'status' => 'inactive',
+            'deactivation_reason' => 'Relationship record was entered in error',
+        ]);
+    }
+
     /** @return array{0: Tenant, 1: User} */
     private function tenantPeopleManager(): array
     {
