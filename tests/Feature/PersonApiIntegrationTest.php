@@ -276,7 +276,7 @@ final class PersonApiIntegrationTest extends TestCase
         ])->assertCreated();
         $publicId = $created->json('data.public_id');
 
-        DB::table('employees')->insert([
+        $employeeId = DB::table('employees')->insertGetId([
             'tenant_id' => $tenant->getKey(),
             'employee_number' => 'EMP-TEST-001',
             'user_id' => null,
@@ -295,7 +295,7 @@ final class PersonApiIntegrationTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('shareholders')->insert([
+        $shareholderId = DB::table('shareholders')->insertGetId([
             'tenant_id' => $tenant->getKey(),
             'shareholder_number' => 'SH-TEST-001',
             'shareholder_type' => 'individual',
@@ -332,7 +332,7 @@ final class PersonApiIntegrationTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        DB::table('governance_memberships')->insert([
+        $membershipId = DB::table('governance_memberships')->insertGetId([
             'tenant_id' => $tenant->getKey(),
             'governance_body_id' => $bodyId,
             'governance_position_id' => $positionId,
@@ -365,6 +365,35 @@ final class PersonApiIntegrationTest extends TestCase
             ->assertJsonPath('data.candidates.0.label', 'የሙከራ አባል')
             ->assertJsonPath('data.candidates.0.detail', 'GOV-TEST-001')
             ->assertJsonMissingPath('data.candidates.0.user_id');
+        $personId = (int) Person::query()->where('public_id', $publicId)->value('id');
+
+        foreach ([
+            ['employees', $employeeId, 'Employee relationship'],
+            ['shareholders', $shareholderId, 'Shareholder relationship'],
+            ['governance-memberships', $membershipId, 'Governance relationship'],
+        ] as [$domain, $recordId, $reason]) {
+            $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/relationships/'.$domain.'/'.$recordId, [
+                'reason' => 'Link '.$reason.' to canonical Person',
+            ])->assertOk()->assertJsonPath('data.linked', true);
+        }
+
+        $this->assertDatabaseHas('employees', ['id' => $employeeId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
+        $this->assertDatabaseHas('shareholders', ['id' => $shareholderId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
+        $this->assertDatabaseHas('governance_memberships', ['id' => $membershipId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
+
+        foreach ([
+            ['employees', $employeeId, 'Employee relationship'],
+            ['shareholders', $shareholderId, 'Shareholder relationship'],
+            ['governance-memberships', $membershipId, 'Governance relationship'],
+        ] as [$domain, $recordId, $reason]) {
+            $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/relationships/'.$domain.'/'.$recordId.'/unlink', [
+                'reason' => 'Unlink '.$reason.' from canonical Person',
+            ])->assertOk()->assertJsonPath('data.linked', false);
+        }
+
+        $this->assertDatabaseHas('employees', ['id' => $employeeId, 'tenant_id' => $tenant->getKey(), 'person_id' => null]);
+        $this->assertDatabaseHas('shareholders', ['id' => $shareholderId, 'tenant_id' => $tenant->getKey(), 'person_id' => null]);
+        $this->assertDatabaseHas('governance_memberships', ['id' => $membershipId, 'tenant_id' => $tenant->getKey(), 'person_id' => null]);
     }
 
     /** @return array{0: Tenant, 1: User} */
