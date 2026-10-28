@@ -18,6 +18,7 @@ use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Events\AuthorizationFailureEvent;
 use MaaleArna\MASES\Core\Files\Services\FileService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
+use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceEntityMappingResolver;
 use MaaleArna\MASES\Core\Listeners\InvalidateAuthorizationCacheListener;
 use MaaleArna\MASES\Core\Listeners\LogAuthorizationFailureListener;
 use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
@@ -249,6 +250,15 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         // --- Finance source-reference validation ----------------------------
+        // The mapping resolver is authoritative for Shareholder, Wallet, and Loan
+        // records only. Other source types stay disabled until their own resolver
+        // proves source ownership and legal-entity eligibility.
+        $this->app->singleton(JournalSourceEntityMappingResolver::class);
+        $this->app->tag(
+            [JournalSourceEntityMappingResolver::class],
+            'finance.journal_source_reference_resolvers'
+        );
+
         // Resolvers are opt-in and must prove tenant plus legal-entity scope.
         // With no tagged adapters, the registry remains empty and rejects all
         // external source types (fail-closed). Domain providers may tag only
