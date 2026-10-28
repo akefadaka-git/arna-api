@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonParticipation;
+use MaaleArna\MASES\Core\Domains\People\Events\PersonProfileLifecycleChanged;
 
 final class PersonParticipationController extends Controller
 {
@@ -48,8 +49,8 @@ final class PersonParticipationController extends Controller
         $person = $this->visiblePerson($publicId, (int) $tenantId);
         $attributes = $request->validate([
             'participation_type' => ['required', Rule::in(self::TYPES)],
-            'title' => ['required', 'string', 'min:2', 'max:160'],
-            'reference_code' => ['nullable', 'string', 'max:80'],
+            'title' => ['required', 'string', 'min:2', 'max:180'],
+            'reference_code' => ['nullable', 'string', 'max:100'],
             'effective_from' => ['nullable', 'date'],
             'effective_to' => ['nullable', 'date'],
             'reason' => ['required', 'string', 'min:8', 'max:1000'],
@@ -80,6 +81,8 @@ final class PersonParticipationController extends Controller
             return $record;
         });
 
+        event(new PersonProfileLifecycleChanged('people.participation.created', (int) $tenantId, (int) $person->getKey(), $request->user()?->getKey(), 'participation', (int) $record->getKey()));
+
         return response()->json(['success' => true, 'data' => $this->present($record)], 201);
     }
 
@@ -106,6 +109,8 @@ final class PersonParticipationController extends Controller
 
             return $record;
         });
+
+        event(new PersonProfileLifecycleChanged('people.participation.deactivated', (int) $tenantId, (int) $person->getKey(), $request->user()?->getKey(), 'participation', (int) $record->getKey()));
 
         return response()->json(['success' => true, 'data' => $this->present($record)]);
     }
