@@ -50,10 +50,15 @@ final class PersonRelationshipController extends Controller
         $attributes = $request->validate([
             'related_public_id' => ['required', 'uuid'],
             'relationship_type' => ['required', Rule::in(self::TYPES)],
-            'effective_from' => ['nullable', 'date', 'before_or_equal:effective_to'],
-            'effective_to' => ['nullable', 'date', 'after_or_equal:effective_from'],
+            'effective_from' => ['nullable', 'date'],
+            'effective_to' => ['nullable', 'date'],
             'reason' => ['required', 'string', 'min:8', 'max:1000'],
         ]);
+
+        if (! empty($attributes['effective_from']) && ! empty($attributes['effective_to'])
+            && $attributes['effective_from'] > $attributes['effective_to']) {
+            abort(422, 'The effective end date must not precede the start date.');
+        }
 
         if ($attributes['related_public_id'] === $publicId) {
             abort(422, 'A person cannot be related to themselves.');
