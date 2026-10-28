@@ -294,6 +294,103 @@ final class PersonController extends Controller
      * account IDs or unrelated domain attributes. This endpoint is restricted
      * to People managers because relationship existence can itself be sensitive.
      */
+    /**
+     * Return tenant-scoped, privacy-minimized records available for explicit
+     * People identity association. Internal user IDs and unrelated attributes
+     * are deliberately excluded from the response.
+     */
+    public function relationshipOptions(Request $request, string $publicId, string $domain): JsonResponse
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+        abort_unless(in_array($domain, ['employees', 'shareholders', 'governance-memberships'], true), 404);
+
+        $attributes = $request->validate(['search' => ['sometimes', 'string', 'max:100']]);
+        $search = trim((string) ($attributes['search'] ?? ''));
+        $person = $this->visiblePerson($publicId, (int) $tenantId);
+        $userMatches = static function ($query) use ($person): void {
+            $query->whereNull('user_id');
+            if ($person->user_id !== null) {
+                $query->orWhere('user_id', (int) $person->user_id);
+            }
+        };
+
+        if ($domain === 'employees') {
+            $base = DB::table('employees')->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')->where('is_active', true);
+            $candidateQuery = (clone $base)->whereNull('person_id')->where($userMatches);
+            $linkedQuery = (clone $base)->where('person_id', $person->getKey());
+            if ($search !== '') {
+                foreach ([$candidateQuery, $linkedQuery] as $query) {
+                    $query->where('employee_number', 'like', '%'.$search.'%');
+                }
+            }
+            $map = static fn ($row): array => [
+                'id' => (int) $row->id,
+                'label' => (string) $row->employee_number,
+                'detail' => 'Employee',
+            ];
+        } elseif ($domain === 'shareholders') {
+            $base = DB::table('shareholders')->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')->where('is_active', true)
+                ->where('shareholder_type', 'individual');
+            $candidateQuery = (clone $base)->whereNull('person_id')->where($userMatches);
+            $linkedQuery = (clone $base)->where('person_id', $person->getKey());
+            if ($search !== '') {
+                foreach ([$candidateQuery, $linkedQuery] as $query) {
+                    $query->where(function ($nested) use ($search): void {
+                        $nested->where('shareholder_number', 'like', '%'.$search.'%')
+                            ->orWhere('first_name_am', 'like', '%'.$search.'%')
+                            ->orWhere('father_name_am', 'like', '%'.$search.'%')
+                            ->orWhere('first_name_en', 'like', '%'.$search.'%')
+                            ->orWhere('father_name_en', 'like', '%'.$search.'%');
+                    });
+                }
+            }
+            $map = static fn ($row): array => [
+                'id' => (int) $row->id,
+                'label' => trim(implode(' ', array_filter([
+                    $row->first_name_am ?? null, $row->father_name_am ?? null, $row->grandfather_name_am ?? null,
+                ])) ?: implode(' ', array_filter([
+                    $row->first_name_en ?? null, $row->father_name_en ?? null, $row->grandfather_name_en ?? null,
+                ]))) ?: (string) ($row->shareholder_number ?? 'Shareholder'),
+                'detail' => (string) ($row->shareholder_number ?? 'Individual shareholder'),
+            ];
+        } else {
+            $base = DB::table('governance_memberships')->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')->where('status', 'active');
+            $candidateQuery = (clone $base)->whereNull('person_id')->where($userMatches);
+            $linkedQuery = (clone $base)->where('person_id', $person->getKey());
+            if ($search !== '') {
+                foreach ([$candidateQuery, $linkedQuery] as $query) {
+                    $query->where(function ($nested) use ($search): void {
+                        $nested->where('member_name_am', 'like', '%'.$search.'%')
+                            ->orWhere('member_name_en', 'like', '%'.$search.'%')
+                            ->orWhere('external_reference', 'like', '%'.$search.'%');
+                    });
+                }
+            }
+            $map = static fn ($row): array => [
+                'id' => (int) $row->id,
+                'label' => trim((string) ($row->member_name_am ?? '')) ?: (trim((string) ($row->member_name_en ?? '')) ?: 'Governance membership'),
+                'detail' => trim((string) ($row->external_reference ?? '')) ?: (string) $row->status,
+            ];
+        }
+
+        $linked = $linkedQuery->orderBy('id')->limit(100)->get()->map($map)->values();
+        $candidates = $candidateQuery->orderBy('id')->limit(50)->get()->map($map)->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'domain' => $domain,
+                'linked' => $linked,
+                'candidates' => $candidates,
+                'candidate_limit' => 50,
+            ],
+        ]);
+    }
+
     public function relationships(string $publicId): JsonResponse
     {
         $tenantId = mases_tenant_id();
