@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalLine;
@@ -57,10 +58,14 @@ final class JournalEntryService
                 throw ValidationException::withMessages(['idempotency_key' => 'A non-empty idempotency key of at most 128 characters is required.']);
             }
 
+            $requestHash = hash('sha256', json_encode($this->canonicalize(['header' => $header, 'lines' => $lines]), JSON_THROW_ON_ERROR));
             $existing = JournalEntry::query()->where('tenant_id', $tenantId)
                 ->where('legal_entity_id', $entity->id)->where('idempotency_key', $key)->first();
             if ($existing) {
-                throw ValidationException::withMessages(['idempotency_key' => 'This idempotency key already exists. Retrieve the existing journal instead of creating another.']);
+                if (hash_equals((string) $existing->request_hash, $requestHash)) {
+                    return $existing->load('lines');
+                }
+                throw new ConflictHttpException('Idempotency key was already used for a different journal payload.');
             }
 
             $entry = JournalEntry::query()->create([
@@ -75,6 +80,7 @@ final class JournalEntryService
                 'source_type' => $header['source_type'] ?? null,
                 'source_id' => isset($header['source_id']) ? (string) $header['source_id'] : null,
                 'idempotency_key' => $key,
+                'request_hash' => $requestHash,
                 'created_by' => $actorId,
                 'reversal_of_id' => isset($header['reversal_of_id']) ? (int) $header['reversal_of_id'] : null,
             ]);
@@ -180,6 +186,23 @@ final class JournalEntryService
 
             return $postedReversal;
         });
+    }
+
+    /** @param array<string, mixed> $value */
+    private function canonicalize(array $value): array
+    {
+        foreach ($value as &$item) {
+            if (is_array($item)) {
+                $item = $this->canonicalize($item);
+            }
+        }
+        unset($item);
+
+        if (!array_is_list($value)) {
+            ksort($value);
+        }
+
+        return $value;
     }
 
     private function assertBalanced(JournalEntry $entry): void
