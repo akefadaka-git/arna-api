@@ -303,6 +303,15 @@ final class PersonApiIntegrationTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        $inactiveEmployeeId = DB::table('employees')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'employee_number' => 'EMP-INACTIVE-001',
+            'user_id' => null,
+            'person_id' => null,
+            'is_active' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         DB::table('employees')->insert([
             'tenant_id' => $otherTenant->getKey(),
             'employee_number' => 'EMP-OTHER-001',
@@ -395,6 +404,21 @@ final class PersonApiIntegrationTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $inactiveMembershipId = DB::table('governance_memberships')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'governance_body_id' => $bodyId,
+            'governance_position_id' => $positionId,
+            'user_id' => null,
+            'member_name_en' => 'Suspended Member',
+            'external_reference' => 'GOV-SUSPENDED-001',
+            'start_date' => now()->toDateString(),
+            'status' => 'suspended',
+            'is_ex_officio' => false,
+            'person_id' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         $employeeOptions = $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/employees/options')
             ->assertOk()
             ->assertJsonPath('data.domain', 'employees')
@@ -430,6 +454,12 @@ final class PersonApiIntegrationTest extends TestCase
 
         $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/relationships/employees/'.$duplicateEmployeeId, [
             'reason' => 'Reject duplicate active employee identity',
+        ])->assertForbidden();
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/relationships/employees/'.$inactiveEmployeeId, [
+            'reason' => 'Reject inactive employee identity link',
+        ])->assertForbidden();
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/relationships/governance-memberships/'.$inactiveMembershipId, [
+            'reason' => 'Reject suspended membership as a new link candidate',
         ])->assertForbidden();
 
         $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/relationships/governance-memberships/'.$overlapMembershipId, [
