@@ -17,6 +17,10 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreLegalEntityRequest;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
+use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Resources\LegalEntityResource;
+
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
 final class FinanceController extends Controller
@@ -26,6 +30,7 @@ final class FinanceController extends Controller
         private readonly LegalEntityRepository $entitiesRepository,
         private readonly LegalEntityService $legalEntities,
         private readonly JournalEntryService $journals,
+        private readonly TrialBalanceService $trialBalance,
     ) {
     }
 
@@ -220,31 +225,17 @@ final class FinanceController extends Controller
             'as_of' => ['required', 'date'],
         ]);
         $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
-        $rows = LedgerAccount::query()->where('tenant_id', $this->tenantId())
-            ->where('legal_entity_id', $entity->id)
-            ->leftJoin('journal_lines', function ($join): void {
-                $join->on('journal_lines.account_id', '=', 'ledger_accounts.id')
-                    ->on('journal_lines.tenant_id', '=', 'ledger_accounts.tenant_id')
-                    ->on('journal_lines.legal_entity_id', '=', 'ledger_accounts.legal_entity_id');
-            })
-            ->leftJoin('journal_entries', function ($join) use ($data): void {
-                $join->on('journal_entries.id', '=', 'journal_lines.journal_entry_id')
-                    ->on('journal_entries.tenant_id', '=', 'journal_lines.tenant_id')
-                    ->on('journal_entries.legal_entity_id', '=', 'journal_lines.legal_entity_id')
-                    ->where('journal_entries.status', JournalEntry::POSTED)
-                    ->whereDate('journal_entries.effective_date', '<=', $data['as_of']);
-            })
-            ->groupBy('ledger_accounts.id', 'ledger_accounts.code', 'ledger_accounts.name_en', 'ledger_accounts.name_am', 'ledger_accounts.account_type')
-            ->orderBy('ledger_accounts.code')
-            ->get([
-                'ledger_accounts.id', 'ledger_accounts.code', 'ledger_accounts.name_am', 'ledger_accounts.name_en',
-                'ledger_accounts.account_type',
-                DB::raw('COALESCE(SUM(CASE WHEN journal_entries.id IS NOT NULL THEN journal_lines.debit_amount ELSE 0 END), 0) AS debit_total'),
-                DB::raw('COALESCE(SUM(CASE WHEN journal_entries.id IS NOT NULL THEN journal_lines.credit_amount ELSE 0 END), 0) AS credit_total'),
-            ]);
+        $rows = $this->trialBalance->forEntity(
+            $this->tenantId(),
+            (int) $entity->id,
+            (string) $data['as_of'],
+        );
+
         return response()->json(['success' => true, 'data' => [
-            'legal_entity_id' => $entity->id, 'currency' => $entity->base_currency,
-            'as_of' => $data['as_of'], 'accounts' => $rows,
+            'legal_entity_id' => $entity->id,
+            'currency' => $entity->base_currency,
+            'as_of' => $data['as_of'],
+            'accounts' => $rows,
         ]]);
     }
 
