@@ -323,11 +323,19 @@ final class OrganizationController extends Controller
 
     private function initialAssignmentStatus(string $startsOn, ?string $endsOn): string
     {
+        // The request validator accepts date-time strings as well as date-only values.
+        // Compare normalized calendar dates so a timestamp at today's midnight is not
+        // incorrectly classified as future merely because its string is longer.
+        $startDate = \Illuminate\Support\Carbon::parse($startsOn)->toDateString();
+        $endDate = $endsOn !== null
+            ? \Illuminate\Support\Carbon::parse($endsOn)->toDateString()
+            : null;
         $today = now()->toDateString();
-        if ($startsOn > $today) {
+
+        if ($startDate > $today) {
             return 'scheduled';
         }
-        if ($endsOn !== null && $endsOn < $today) {
+        if ($endDate !== null && $endDate < $today) {
             return 'ended';
         }
         return 'active';
