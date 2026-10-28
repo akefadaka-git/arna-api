@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonContactPoint;
 use MaaleArna\MASES\Core\Domains\People\Events\PersonProfileLifecycleChanged;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\StorePersonContactPointRequest;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\DeactivatePersonRecordRequest;
 
 final class PersonContactPointController extends Controller
 {
@@ -34,17 +36,12 @@ final class PersonContactPointController extends Controller
         ]);
     }
 
-    public function store(Request $request, string $publicId): JsonResponse
+    public function store(StorePersonContactPointRequest $request, string $publicId): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $person = $this->visiblePerson($publicId, (int) $tenantId);
-        $attributes = $request->validate([
-            'contact_type' => ['required', 'in:email,phone,other'],
-            'label' => ['nullable', 'string', 'max:80'],
-            'contact_value' => ['required', 'string', 'min:2', 'max:320'],
-            'is_primary' => ['sometimes', 'boolean'],
-        ]);
+        $attributes = $request->validated();
         $value = trim($attributes['contact_value']);
         if ($value === '') {
             abort(422, 'A non-empty contact value is required.');
@@ -96,14 +93,12 @@ final class PersonContactPointController extends Controller
         return response()->json(['success' => true, 'data' => $this->present($contact)], 201);
     }
 
-    public function deactivate(Request $request, string $publicId, int $contactId): JsonResponse
+    public function deactivate(DeactivatePersonRecordRequest $request, string $publicId, int $contactId): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $person = $this->visiblePerson($publicId, (int) $tenantId);
-        $attributes = $request->validate([
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
 
         $contact = DB::transaction(function () use ($tenantId, $person, $contactId, $request, $attributes): PersonContactPoint {
             $contact = PersonContactPoint::query()
