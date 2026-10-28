@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Resources;
+namespace MaaleArna\MASES\Core\Domains\Finance\Http\Resources;
 
-use Illuminate\\Http\\Request;
-use Illuminate\\Http\\Resources\\Json\\JsonResource;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * Stable API representation for a Finance legal entity.
@@ -13,7 +13,7 @@ use Illuminate\\Http\\Resources\\Json\\JsonResource;
  * Keeps the existing model-backed response fields explicit rather than
  * exposing future internal model attributes automatically.
  *
- * @mixin \\MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LegalEntity
+ * @mixin \MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity
  */
 final class LegalEntityResource extends JsonResource
 {
