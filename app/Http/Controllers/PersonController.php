@@ -514,6 +514,9 @@ final class PersonController extends Controller
     {
         [$tenantId, $person] = $this->visiblePersonContext($publicId);
         $rows = DB::table('person_relationships as rel')->join('people as related', 'related.id', '=', 'rel.related_person_id')
+            ->join('person_tenant_accesses as related_access', function ($join) use ($tenantId): void {
+                $join->on('related_access.person_id', '=', 'related.id')->where('related_access.tenant_id', $tenantId)->where('related_access.status', 'active');
+            })->where('related.status', 'active')
             ->where('rel.tenant_id', $tenantId)->where('rel.person_id', $person->getKey())->orderBy('rel.id')->limit(100)
             ->get(['rel.id','related.public_id as related_public_id','related.first_name_am as related_first_name_am','related.father_name_am as related_father_name_am','related.grandfather_name_am as related_grandfather_name_am','related.first_name_en as related_first_name_en','related.father_name_en as related_father_name_en','related.grandfather_name_en as related_grandfather_name_en','rel.relationship_type','rel.effective_from','rel.effective_to','rel.status']);
         return response()->json(['success' => true, 'data' => $rows->map(fn ($row) => $this->presentPersonRelationship($row))->values()]);
@@ -544,6 +547,7 @@ final class PersonController extends Controller
             ]);
         });
         $row = DB::table('person_relationships as rel')->join('people as related','related.id','=','rel.related_person_id')
+            ->join('person_tenant_accesses as related_access', function ($join) use ($tenantId): void { $join->on('related_access.person_id','=','related.id')->where('related_access.tenant_id',$tenantId)->where('related_access.status','active'); })->where('related.status','active')
             ->where('rel.tenant_id',$tenantId)->where('rel.id',$id)
             ->first(['rel.id','related.public_id as related_public_id','related.first_name_am as related_first_name_am','related.father_name_am as related_father_name_am','related.grandfather_name_am as related_grandfather_name_am','related.first_name_en as related_first_name_en','related.father_name_en as related_father_name_en','related.grandfather_name_en as related_grandfather_name_en','rel.relationship_type','rel.effective_from','rel.effective_to','rel.status']);
         return response()->json(['success'=>true,'data'=>$this->presentPersonRelationship($row)],201);
@@ -557,6 +561,7 @@ final class PersonController extends Controller
             ->where('id',$relationshipId)->where('status','active')->update(['status'=>'inactive','deactivation_reason'=>trim($a['reason']),'updated_at'=>now()]);
         abort_if($count === 0,404,'Active person relationship not found.');
         $row = DB::table('person_relationships as rel')->join('people as related','related.id','=','rel.related_person_id')
+            ->join('person_tenant_accesses as related_access', function ($join) use ($tenantId): void { $join->on('related_access.person_id','=','related.id')->where('related_access.tenant_id',$tenantId)->where('related_access.status','active'); })->where('related.status','active')
             ->where('rel.tenant_id',$tenantId)->where('rel.id',$relationshipId)
             ->first(['rel.id','related.public_id as related_public_id','related.first_name_am as related_first_name_am','related.father_name_am as related_father_name_am','related.grandfather_name_am as related_grandfather_name_am','related.first_name_en as related_first_name_en','related.father_name_en as related_father_name_en','related.grandfather_name_en as related_grandfather_name_en','rel.relationship_type','rel.effective_from','rel.effective_to','rel.status']);
         return response()->json(['success'=>true,'data'=>$this->presentPersonRelationship($row)]);
