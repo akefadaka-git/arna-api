@@ -20,13 +20,11 @@ return new class extends Migration
             $table->date('effective_to')->nullable();
             $table->string('status', 16)->default('active');
             $table->string('reason', 1000);
-            $table->string('deactivation_reason', 1000)->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('deactivation_reason', 1000)->nullable();
             $table->timestamps();
-
-            $table->index(['tenant_id', 'person_id', 'status'], 'person_relationships_person_scope_index');
-            $table->index(['tenant_id', 'related_person_id', 'status'], 'person_relationships_related_scope_index');
-            $table->index(['tenant_id', 'relationship_type', 'status'], 'person_relationships_type_scope_index');
+            $table->index(['tenant_id', 'person_id', 'status'], 'person_relationship_profile_status_idx');
+            $table->index(['tenant_id', 'related_person_id', 'status'], 'person_relationship_related_status_idx');
         });
     }
 
