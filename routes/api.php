@@ -526,6 +526,19 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::get('/{publicId}', [PersonController::class, 'show'])
             ->whereUuid('publicId')
             ->name('show');
+        Route::get('/{publicId}/participations', [\App\Http\Controllers\PersonParticipationController::class, 'index'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('participations.index');
+        Route::post('/{publicId}/participations', [\App\Http\Controllers\PersonParticipationController::class, 'store'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('participations.store');
+        Route::post('/{publicId}/participations/{participationId}/deactivate', [\App\Http\Controllers\PersonParticipationController::class, 'deactivate'])
+            ->whereUuid('publicId')
+            ->whereNumber('participationId')
+            ->middleware('auth.permission:people.manage')
+            ->name('participations.deactivate');
         Route::get('/{publicId}/person-relationships', [\App\Http\Controllers\PersonRelationshipController::class, 'index'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
