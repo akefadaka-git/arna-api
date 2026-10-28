@@ -22,7 +22,9 @@ final class TrialBalanceResource extends JsonResource
             'as_of' => (string) ($report['as_of'] ?? ''),
             'currency' => (string) ($report['currency'] ?? 'ETB'),
             'accounts' => collect($report['accounts'] ?? [])->map(static function ($account): array {
-                $account = (array) $account;
+                $account = is_object($account) && method_exists($account, 'toArray')
+                    ? $account->toArray()
+                    : (array) $account;
 
                 return [
                     'id' => (int) ($account['id'] ?? 0),
