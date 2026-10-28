@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
+use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalEntryType;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
@@ -204,6 +205,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             ->where('status', JournalEntry::DRAFT)->count());
     }
 
+    #[Test]
     public function test_reversal_posts_an_equal_and_opposite_journal_and_preserves_the_original(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
@@ -229,10 +231,64 @@ final class FinanceGeneralLedgerTest extends TestCase
 
         $this->assertSame(JournalEntry::REVERSED, $original->fresh()->status);
         $this->assertSame(JournalEntry::POSTED, $reversal->status);
+        $this->assertSame(JournalEntryType::REVERSAL, $reversal->journal_type);
         $this->assertSame((int) $original->id, (int) $reversal->reversal_of_id);
         $this->assertDatabaseCount('journal_entries', 2);
         $this->assertSame('0.0000', (string) $reversal->lines->where('account_id', $cash->id)->first()->debit_amount);
         $this->assertSame('125.2500', (string) $reversal->lines->where('account_id', $cash->id)->first()->credit_amount);
+    }
+
+
+    #[Test]
+    public function test_ordinary_draft_workflow_rejects_reversal_journal_type(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-UNAUTHORIZED-REVERSAL',
+                'effective_date' => '2026-10-01',
+                'description' => 'Must use the controlled reversal workflow',
+                'currency' => 'ETB',
+                'journal_type' => JournalEntryType::REVERSAL->value,
+                'idempotency_key' => 'unauthorized-reversal-type',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('Ordinary draft creation must not permit reversal journal types.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('journal_type', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'unauthorized-reversal-type']);
+    }
+
+    #[Test]
+    public function test_cancellation_requires_a_non_empty_reason_and_preserves_draft(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $draft = app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-CANCEL-REASON',
+            'effective_date' => '2026-10-01',
+            'description' => 'Cancellation reason validation',
+            'currency' => 'ETB',
+            'idempotency_key' => 'cancel-reason-required',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ]);
+
+        try {
+            app(JournalEntryService::class)->cancelDraft((int) $tenant->id, (int) $user->id, (int) $draft->id, '   ');
+            $this->fail('Cancellation must require a meaningful reason.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('reason', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
     }
 
     /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */
