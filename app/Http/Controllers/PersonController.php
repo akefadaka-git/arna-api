@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\People\Contracts\PersonProfileRepositoryContract;
 use MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService;
 
 final class PersonController extends Controller
@@ -18,7 +19,7 @@ final class PersonController extends Controller
      * List only profiles explicitly visible in the middleware-validated tenant.
      * Never accept tenant_id from the body or query as an authority source.
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, PersonProfileRepositoryContract $peopleRepository): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
@@ -28,27 +29,11 @@ final class PersonController extends Controller
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
         $search = trim((string) ($filters['search'] ?? ''));
-
-        $query = Person::query()
-            ->where('people.status', 'active')
-            ->whereHas('tenantAccesses', static fn ($query) => $query
-                ->where('tenant_id', $tenantId)
-                ->where('status', 'active'));
-
-        if ($search !== '') {
-            $pattern = '%'.$search.'%';
-            $query->where(static function ($names) use ($pattern): void {
-                foreach ([
-                    'first_name_am', 'father_name_am', 'grandfather_name_am',
-                    'first_name_en', 'father_name_en', 'grandfather_name_en',
-                ] as $column) {
-                    $names->orWhere('people.'.$column, 'like', $pattern);
-                }
-            });
-        }
-
-        $people = $query->orderBy('people.id')
-            ->paginate((int) ($filters['per_page'] ?? 25));
+        $people = $peopleRepository->paginateVisible(
+            (int) $tenantId,
+            $search,
+            (int) ($filters['per_page'] ?? config('people.directory.default_per_page', 25)),
+        );
 
         return response()->json([
             'success' => true,
