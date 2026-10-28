@@ -19,6 +19,67 @@ use Tests\TestCase;
 final class PersonIdentityMySqlConcurrencyTest extends TestCase
 {
     #[Test]
+    public function mysql_generated_unique_keys_reject_duplicate_active_employee_and_individual_shareholder_person_links(): void
+    {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Generated-column uniqueness is verified on MySQL 8.');
+        }
+
+        $suffix = bin2hex(random_bytes(5));
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $person = Person::query()->create(['first_name_en' => 'Unique link test '.$suffix]);
+
+        $employeeIds = [];
+        foreach (['A', 'B'] as $part) {
+            $employeeIds[] = (int) DB::table('employees')->insertGetId([
+                'tenant_id' => $tenant->getKey(),
+                'employee_number' => 'EMP-UNIQ-'.$suffix.'-'.$part,
+                'user_id' => null,
+                'person_id' => null,
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        DB::table('employees')->where('id', $employeeIds[0])->update(['person_id' => $person->getKey()]);
+        try {
+            DB::table('employees')->where('id', $employeeIds[1])->update(['person_id' => $person->getKey()]);
+            $this->fail('A second active employee link to the same Person and tenant must be rejected by MySQL.');
+        } catch (QueryException) {
+            $this->assertSame(1, DB::table('employees')->where('tenant_id', $tenant->getKey())
+                ->where('person_id', $person->getKey())->where('is_active', true)->whereNull('deleted_at')->count());
+        }
+
+        $shareholderIds = [];
+        foreach (['A', 'B'] as $part) {
+            $shareholderIds[] = (int) DB::table('shareholders')->insertGetId([
+                'tenant_id' => $tenant->getKey(),
+                'shareholder_number' => 'SH-UNIQ-'.$suffix.'-'.$part,
+                'shareholder_type' => 'individual',
+                'first_name_am' => 'የልዩነት ሙከራ',
+                'first_name_en' => 'Unique test',
+                'user_id' => null,
+                'representative_user_id' => null,
+                'person_id' => null,
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        DB::table('shareholders')->where('id', $shareholderIds[0])->update(['person_id' => $person->getKey()]);
+        try {
+            DB::table('shareholders')->where('id', $shareholderIds[1])->update(['person_id' => $person->getKey()]);
+            $this->fail('A second active individual shareholder link to the same Person and tenant must be rejected by MySQL.');
+        } catch (QueryException) {
+            $this->assertSame(1, DB::table('shareholders')->where('tenant_id', $tenant->getKey())
+                ->where('person_id', $person->getKey())->where('is_active', true)
+                ->where('shareholder_type', 'individual')->whereNull('deleted_at')->count());
+        }
+    }
+
+    #[Test]
     public function concurrent_independent_mysql_connections_cannot_link_two_active_employee_records_to_one_person(): void
     {
         if (DB::connection()->getDriverName() !== 'mysql'

@@ -4,7 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # Include the active stacked People implementation PR base as well as main.
+    # This lets the same clean-install gate run automatically for PR #23.
+    branches: [main, feat/p1-4-people-domain-production]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - "database/migrations/**"
@@ -204,7 +206,7 @@ jobs:
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 59
+          test "${applied}" -eq 60
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -223,6 +225,13 @@ jobs:
       - name: Run migrations a second time (idempotence)
         run: php artisan migrate --force -vvv
 
+      - name: Verify full fresh migration and seed on disposable MySQL
+        # Explicitly permit demo/bootstrap seed data only inside this disposable CI database.
+        # Production environments must never set this flag.
+        env:
+          MASES_ENABLE_DEMO_SEEDING: "true"
+        run: php artisan migrate:fresh --seed --force -vvv
+
       - name: Confirm no pending migrations
         run: php artisan migrate:status
 
@@ -232,7 +241,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 59
+          test "${applied}" -eq 60
 
       - name: Upload migration status evidence
         if: always()
@@ -261,7 +270,7 @@ jobs:
 
   cleanup-merged-source-branches:
     name: Clean up merged source branches after successful main verification
-    if: ${{ needs.clean-install.result == 'success' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') }}
+    if: ${{ needs.clean-install.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     needs: clean-install
     runs-on: ubuntu-latest
     timeout-minutes: 5
