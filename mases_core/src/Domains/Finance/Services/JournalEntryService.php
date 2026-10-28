@@ -39,14 +39,6 @@ final class JournalEntryService
             }
 
             $date = (string) ($header['effective_date'] ?? '');
-            $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
-                ->where('legal_entity_id', $entity->id)
-                ->where('starts_on', '<=', $date)->where('ends_on', '>=', $date)
-                ->lockForUpdate()->first();
-
-            if (!$period || $period->status !== AccountingPeriod::OPEN) {
-                throw ValidationException::withMessages(['effective_date' => 'The effective date must belong to an open accounting period.']);
-            }
 
             $currency = strtoupper((string) ($header['currency'] ?? $entity->base_currency));
             if ($currency !== $entity->base_currency) {
@@ -66,6 +58,15 @@ final class JournalEntryService
                     return $existing->load('lines');
                 }
                 throw new ConflictHttpException('Idempotency key was already used for a different journal payload.');
+            }
+
+            $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $entity->id)
+                ->where('starts_on', '<=', $date)->where('ends_on', '>=', $date)
+                ->lockForUpdate()->first();
+
+            if (!$period || $period->status !== AccountingPeriod::OPEN) {
+                throw ValidationException::withMessages(['effective_date' => 'The effective date must belong to an open accounting period.']);
             }
 
             $entry = JournalEntry::query()->create([
