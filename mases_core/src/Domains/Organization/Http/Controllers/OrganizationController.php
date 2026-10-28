@@ -16,6 +16,7 @@ use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAuditEvent;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationAssignmentPolicy;
+use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationHierarchyPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
@@ -28,6 +29,7 @@ final class OrganizationController extends Controller
         private readonly TenantContextService $tenantContext,
         private readonly OrganizationUnitPolicy $unitPolicy,
         private readonly OrganizationAssignmentPolicy $assignmentPolicy,
+        private readonly OrganizationHierarchyPolicy $hierarchyPolicy,
     ) {
     }
 
@@ -53,7 +55,7 @@ final class OrganizationController extends Controller
             // Legal-entity references stay disabled until the authoritative domain contract is wired.
             'legal_entity_id' => ['prohibited'],
             'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
-            'unit_type' => ['required', Rule::in(['company', 'division', 'branch', 'department', 'team'])],
+            'unit_type' => ['required', Rule::in(OrganizationHierarchyPolicy::unitTypes())],
             'name_am' => ['nullable', 'string', 'max:180'],
             'name_en' => ['nullable', 'string', 'max:180'],
             'reason' => ['required', 'string', 'min:5', 'max:2000'],
@@ -95,7 +97,7 @@ final class OrganizationController extends Controller
             'parent_id' => ['sometimes', 'nullable', 'integer'],
             'legal_entity_id' => ['prohibited'],
             'code' => ['sometimes', 'required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
-            'unit_type' => ['sometimes', 'required', Rule::in(['company', 'division', 'branch', 'department', 'team'])],
+            'unit_type' => ['sometimes', 'required', Rule::in(OrganizationHierarchyPolicy::unitTypes())],
             'name_am' => ['sometimes', 'nullable', 'string', 'max:180'],
             'name_en' => ['sometimes', 'nullable', 'string', 'max:180'],
             'status' => ['sometimes', Rule::in(['active', 'inactive'])],
@@ -158,6 +160,7 @@ final class OrganizationController extends Controller
 
     public function assignments(Request $request, int $id): JsonResponse
     {
+        abort_unless($this->assignmentPolicy->viewAny($request->user()), 403, 'Assignment listing is not authorized.');
         $unit = $this->unit($id);
         abort_unless($this->unitPolicy->view($request->user(), $unit), 403, 'Organization unit access is not authorized.');
         $tenantId = $this->tenantId();
@@ -343,14 +346,7 @@ final class OrganizationController extends Controller
 
     private function assertParentType(string $type, ?OrganizationUnit $parent): void
     {
-        $allowed = [
-            'company' => [], 'division' => ['company'], 'branch' => ['company', 'division'],
-            'department' => ['company', 'division', 'branch'], 'team' => ['department'],
-        ];
-        if (($type === 'company' && $parent !== null)
-            || ($type !== 'company' && ($parent === null || !in_array($parent->unit_type, $allowed[$type] ?? [], true)))) {
-            throw new ConflictHttpException('The parent unit type is not valid for this organization unit type.');
-        }
+        $this->hierarchyPolicy->assertParentType($type, $parent);
     }
 
     private function assertNoCycle(OrganizationUnit $unit, ?OrganizationUnit $parent): void
