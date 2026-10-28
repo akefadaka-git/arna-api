@@ -39,14 +39,14 @@ final class LegalEntityService
 
         if ($code === '' || $nameEn === '') {
             throw ValidationException::withMessages([
-                'code' => ['A legal entity code is required.'],
-                'name_en' => ['An English legal entity name is required.'],
+                'code' => [__('finance::validation.legal_entity_code_required')],
+                'name_en' => [__('finance::validation.legal_entity_name_en_required')],
             ]);
         }
 
         if ($currency !== 'ETB') {
             throw ValidationException::withMessages([
-                'base_currency' => ['The base currency must be ETB until multi-currency accounting policy is approved.'],
+                'base_currency' => [__('finance::validation.base_currency_must_be_etb')],
             ]);
         }
 
@@ -72,7 +72,7 @@ final class LegalEntityService
 
             if ($isUniqueViolation && str_contains($message, 'legal_entities')) {
                 throw ValidationException::withMessages([
-                    'code' => ['This legal entity code is already in use for the current tenant.'],
+                    'code' => [__('finance::validation.legal_entity_code_unique')],
                 ]);
             }
 
