@@ -646,6 +646,9 @@ return [
      */
     MaaleArna\MASES\Core\Domains\Governance\Providers\GovernanceServiceProvider::class,
 
+    // Canonical People profile domain.
+    MaaleArna\MASES\Core\Domains\People\Providers\PeopleServiceProvider::class,
+
     /*
      * -------------------------------------------------------------------------
      * 10. Future Domain Providers (Phase 2D and 2F)
