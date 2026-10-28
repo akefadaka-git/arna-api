@@ -67,8 +67,13 @@ final class LegalEntityService
             $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
             $driverCode = (int) ($exception->errorInfo[1] ?? 0);
             $message = strtolower($exception->getMessage());
-            $isUniqueViolation = in_array($sqlState, ['23000', '23505'], true)
-                || in_array($driverCode, [19, 1062, 2601, 2627], true);
+            $isUniqueViolation = (
+                in_array($sqlState, ['23000', '23505'], true)
+                || in_array($driverCode, [19, 1062, 2601, 2627], true)
+            ) && (
+                str_contains($message, 'unique')
+                || str_contains($message, 'duplicate')
+            );
 
             if ($isUniqueViolation && str_contains($message, 'legal_entities')) {
                 throw ValidationException::withMessages([
