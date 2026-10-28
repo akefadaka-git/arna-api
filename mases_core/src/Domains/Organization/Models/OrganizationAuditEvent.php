@@ -18,9 +18,11 @@ final class OrganizationAuditEvent extends Model
     ];
 
     protected $casts = [
-        'tenant_id' => 'integer', 'actor_user_id' => 'integer', 'subject_id' => 'integer',
-        'before_state' => 'array', 'after_state' => 'array', 'created_at' => 'datetime',
-    }
-
-    ;
+        'tenant_id' => 'integer',
+        'actor_user_id' => 'integer',
+        'subject_id' => 'integer',
+        'before_state' => 'array',
+        'after_state' => 'array',
+        'created_at' => 'datetime',
+    ];
 }
