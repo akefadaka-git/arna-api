@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
@@ -386,6 +388,94 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertSame(JournalEntryType::REVERSAL, $second->journal_type);
         $this->assertSame((int) $original->id, (int) $second->reversal_of_id);
         $this->assertDatabaseCount('journal_entries', 2);
+    }
+
+
+    #[Test]
+    public function test_database_rejects_a_second_reversal_for_the_same_original_journal(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-UNIQUE-REVERSAL-ORIGINAL',
+            'effective_date' => '2026-10-01',
+            'description' => 'Original for unique reversal constraint',
+            'currency' => 'ETB',
+            'idempotency_key' => 'unique-reversal-original',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '12', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '12'],
+        ]);
+        $original = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $reversal = $service->reverse(
+            (int) $tenant->id,
+            (int) $user->id,
+            (int) $original->id,
+            'JV-UNIQUE-REVERSAL-ONE',
+            '2026-10-02',
+            'First reversal'
+        );
+
+        $duplicate = $reversal->getAttributes();
+        unset($duplicate['id'], $duplicate['created_at'], $duplicate['updated_at']);
+        $duplicate['journal_number'] = 'JV-UNIQUE-REVERSAL-TWO';
+        $duplicate['idempotency_key'] = 'unique-reversal-second-attempt';
+        $duplicate['created_at'] = now();
+        $duplicate['updated_at'] = now();
+
+        try {
+            DB::table('journal_entries')->insert($duplicate);
+            $this->fail('The database must reject a second reversal for one original journal.');
+        } catch (QueryException $exception) {
+            $this->assertStringContainsString(
+                'journal_entries_single_reversal_unique',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseCount('journal_entries', 2);
+    }
+
+    #[Test]
+    public function test_reversal_cannot_be_accessed_through_another_tenant_context(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-TENANT-REVERSAL-ORIGINAL',
+            'effective_date' => '2026-10-01',
+            'description' => 'Tenant isolation original',
+            'currency' => 'ETB',
+            'idempotency_key' => 'tenant-isolation-original',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '18', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '18'],
+        ]);
+        $original = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+
+        try {
+            $service->reverse(
+                (int) $otherTenant->id,
+                (int) $user->id,
+                (int) $original->id,
+                'JV-CROSS-TENANT-REVERSAL',
+                '2026-10-02',
+                'Must not cross tenant boundary'
+            );
+            $this->fail('A tenant must not reverse another tenant\'s journal.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('journal', $exception->errors());
+        }
+
+        $this->assertDatabaseCount('journal_entries', 1);
+        $this->assertDatabaseHas('journal_entries', [
+            'id' => $original->id,
+            'tenant_id' => $tenant->id,
+            'status' => JournalEntry::POSTED,
+        ]);
     }
 
     /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */
