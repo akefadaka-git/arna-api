@@ -253,7 +253,9 @@ final class PersonIdentityService
                     ->where(function ($query) use ($membership): void {
                         $query->whereNull('end_date')->orWhere('end_date', '>=', $membership->start_date);
                     })
-                    ->exists();
+                    // This is a current/locking read: a plain exists() can use a
+                    // REPEATABLE READ snapshot taken before waiting on the position lock.
+                    ->lockForUpdate()->first() !== null;
                 if ($overlap) {
                     throw new DomainException('Person already has an overlapping ongoing membership in this governance position.');
                 }
