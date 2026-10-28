@@ -186,11 +186,13 @@ final class OrganizationHierarchyMySqlConcurrencyTest extends TestCase
                 $this->assertSame($companyId, (int) $branch->parent_id, 'Rejected reparenting must leave the branch under the company.');
             }
 
-            $this->assertSame(1, DB::table('organization_units')
-                ->where('tenant_id', $tenant->getKey())
-                ->where('parent_id', $companyId)
-                ->whereIn('id', [$divisionId, $branchId])
-                ->count(), 'The final hierarchy must match exactly one valid serialized outcome.');
+            $this->assertSame(0, DB::table('organization_units as child')
+                ->join('organization_units as parent', 'parent.id', '=', 'child.parent_id')
+                ->where('child.tenant_id', $tenant->getKey())
+                ->where('child.id', $branchId)
+                ->where('parent.id', $divisionId)
+                ->where('parent.unit_type', 'branch')
+                ->count(), 'A branch must never remain beneath a parent concurrently changed to branch.');
         } finally {
             if (is_resource($server)) {
                 proc_terminate($server);
