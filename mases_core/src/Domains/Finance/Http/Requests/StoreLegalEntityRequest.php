@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\MASES\Core\Domains\Finance\Http\Requests;
+namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
-use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
+use Illuminate\\Foundation\\Http\\FormRequest;
 
+/**
+ * Validates the payload shape for creating a Finance legal entity.
+ *
+ * Tenant authorization and permission checks remain route/controller
+ * responsibilities. Tenant-scoped uniqueness is enforced by the Finance
+ * service and the database constraint, so concurrent requests cannot bypass it.
+ */
 final class StoreLegalEntityRequest extends FormRequest
 {
-    /**
-     * Route middleware owns authentication, tenant membership, and the
-     * finance.entity.manage permission. This request class owns payload
-     * validation; it does not replace those authorization gates.
-     */
     public function authorize(): bool
     {
         return true;
@@ -22,12 +22,26 @@ final class StoreLegalEntityRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $normalized = [];
+
         if (is_string($this->input('code'))) {
-            $this->merge(['code' => strtoupper(trim($this->input('code')))]);
+            $normalized['code'] = strtoupper(trim($this->input('code')));
+        }
+
+        if (is_string($this->input('name_am'))) {
+            $normalized['name_am'] = trim($this->input('name_am'));
+        }
+
+        if (is_string($this->input('name_en'))) {
+            $normalized['name_en'] = trim($this->input('name_en'));
         }
 
         if (is_string($this->input('base_currency'))) {
-            $this->merge(['base_currency' => strtoupper(trim($this->input('base_currency')))]);
+            $normalized['base_currency'] = strtoupper(trim($this->input('base_currency')));
+        }
+
+        if ($normalized !== []) {
+            $this->merge($normalized);
         }
     }
 
@@ -36,18 +50,12 @@ final class StoreLegalEntityRequest extends FormRequest
      */
     public function rules(): array
     {
-        $tenantId = app(TenantContextService::class)->getTenantId();
-
-        abort_if($tenantId === null, 403, 'A resolved tenant context is required.');
-
         return [
             'code' => [
                 'required',
                 'string',
                 'max:64',
                 'regex:/^[A-Z0-9][A-Z0-9._-]*$/',
-                Rule::unique('legal_entities', 'code')
-                    ->where(fn ($query) => $query->where('tenant_id', (int) $tenantId)),
             ],
             'name_am' => ['nullable', 'string', 'max:180'],
             'name_en' => ['required', 'string', 'max:180'],
@@ -56,23 +64,37 @@ final class StoreLegalEntityRequest extends FormRequest
                 'required',
                 'string',
                 'size:3',
-                Rule::in(['ETB']),
+                'in:ETB',
             ],
         ];
     }
 
     /**
-     * Keep the public API validation contract explicit and stable.
+     * Validation messages use the Finance translation namespace, consistent
+     * with the Amharic-first conventions in established domains.
      *
      * @return array<string, string>
      */
     public function messages(): array
     {
         return [
-            'code.regex' => 'The legal entity code may contain uppercase letters, numbers, dots, underscores, and hyphens, and must start with a letter or number.',
-            'code.unique' => 'This legal entity code is already in use for the current tenant.',
-            'name_en.required' => 'An English legal entity name is required.',
-            'base_currency.in' => 'The base currency must be ETB until multi-currency accounting policy is approved.',
+            'code.required' => __('finance::validation.legal_entity_code_required'),
+            'code.regex' => __('finance::validation.legal_entity_code_format'),
+            'name_en.required' => __('finance::validation.legal_entity_name_en_required'),
+            'base_currency.in' => __('finance::validation.base_currency_must_be_etb'),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'code' => __('finance::attributes.legal_entity_code'),
+            'name_am' => __('finance::attributes.legal_entity_name_am'),
+            'name_en' => __('finance::attributes.legal_entity_name_en'),
+            'base_currency' => __('finance::attributes.base_currency'),
         ];
     }
 }
