@@ -263,6 +263,110 @@ final class PersonApiIntegrationTest extends TestCase
             ->assertOk()->assertExactJson(['success' => true, 'data' => []]);
     }
 
+    #[Test]
+    public function people_manager_can_discover_only_eligible_relationship_candidates_in_the_current_tenant(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Candidate Profile',
+        ])->assertCreated();
+        $publicId = $created->json('data.public_id');
+
+        DB::table('employees')->insert([
+            'tenant_id' => $tenant->getKey(),
+            'employee_number' => 'EMP-TEST-001',
+            'user_id' => null,
+            'person_id' => null,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('employees')->insert([
+            'tenant_id' => $otherTenant->getKey(),
+            'employee_number' => 'EMP-OTHER-001',
+            'user_id' => null,
+            'person_id' => null,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('shareholders')->insert([
+            'tenant_id' => $tenant->getKey(),
+            'shareholder_number' => 'SH-TEST-001',
+            'shareholder_type' => 'individual',
+            'first_name_am' => 'ማርታ',
+            'first_name_en' => 'Marta',
+            'user_id' => null,
+            'representative_user_id' => null,
+            'person_id' => null,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $bodyId = DB::table('governance_bodies')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'code' => 'TEST-BOARD',
+            'body_type' => 'board',
+            'name_am' => 'የሙከራ ቦርድ',
+            'name_en' => 'Test Board',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $positionId = DB::table('governance_positions')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'governance_body_id' => $bodyId,
+            'code' => 'TEST-MEMBER',
+            'name_am' => 'አባል',
+            'name_en' => 'Member',
+            'is_voting' => true,
+            'is_officer' => false,
+            'sort_order' => 1,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('governance_memberships')->insert([
+            'tenant_id' => $tenant->getKey(),
+            'governance_body_id' => $bodyId,
+            'governance_position_id' => $positionId,
+            'user_id' => null,
+            'member_name_am' => 'የሙከራ አባል',
+            'member_name_en' => 'Test Member',
+            'external_reference' => 'GOV-TEST-001',
+            'start_date' => now()->toDateString(),
+            'status' => 'active',
+            'is_ex_officio' => false,
+            'person_id' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/employees/options')
+            ->assertOk()
+            ->assertJsonPath('data.domain', 'employees')
+            ->assertJsonPath('data.candidates.0.label', 'EMP-TEST-001')
+            ->assertJsonMissingText('EMP-OTHER-001')
+            ->assertJsonMissingPath('data.candidates.0.user_id');
+
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/shareholders/options')
+            ->assertOk()
+            ->assertJsonPath('data.candidates.0.label', 'ማርታ')
+            ->assertJsonMissingPath('data.candidates.0.user_id');
+
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/governance-memberships/options')
+            ->assertOk()
+            ->assertJsonPath('data.candidates.0.label', 'የሙከራ አባል')
+            ->assertJsonPath('data.candidates.0.detail', 'GOV-TEST-001')
+            ->assertJsonMissingPath('data.candidates.0.user_id');
+    }
+
     /** @return array{0: Tenant, 1: User} */
     private function tenantPeopleManager(): array
     {
