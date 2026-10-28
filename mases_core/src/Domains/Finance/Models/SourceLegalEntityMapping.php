@@ -14,9 +14,10 @@ final class SourceLegalEntityMapping extends Model
 
     protected $table = 'finance_source_entity_mappings';
 
+    // Lifecycle fields can only be changed by the controlled workflow.
     protected $fillable = [
         'tenant_id', 'source_type', 'source_id', 'legal_entity_id',
-        'status', 'created_by', 'approved_by', 'approved_at', 'revoked_at', 'reason',
+        'created_by', 'reason',
     ];
 
     protected $casts = [

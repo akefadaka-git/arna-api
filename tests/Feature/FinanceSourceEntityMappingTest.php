@@ -22,25 +22,20 @@ final class FinanceSourceEntityMappingTest extends TestCase
     #[Test]
     public function test_missing_mapping_fails_closed(): void
     {
-        [$tenant, $user, $entity] = $this->fixture();
-
-        try {
-            app(SourceLegalEntityMappingContract::class)->resolve(
-                (int) $tenant->id,
-                JournalSourceType::LOAN,
-                'loan-source-100',
-            );
-            $this->fail('A source without an approved mapping must not resolve.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('legal_entity_id', $exception->errors());
-        }
+        [$tenant] = $this->fixture();
+        $this->expectException(ValidationException::class);
+        app(SourceLegalEntityMappingContract::class)->resolve(
+            (int) $tenant->id,
+            JournalSourceType::LOAN,
+            'loan-source-100',
+        );
     }
 
     #[Test]
-    public function test_only_an_explicitly_approved_mapping_resolves(): void
+    public function test_mass_assignment_cannot_set_approval_state(): void
     {
         [$tenant, $user, $entity] = $this->fixture();
-        SourceLegalEntityMapping::query()->create([
+        $mapping = SourceLegalEntityMapping::query()->create([
             'tenant_id' => $tenant->id,
             'legal_entity_id' => $entity->id,
             'source_type' => JournalSourceType::WALLET->value,
@@ -49,16 +44,16 @@ final class FinanceSourceEntityMappingTest extends TestCase
             'created_by' => $user->id,
             'approved_by' => $user->id,
             'approved_at' => now(),
-            'reason' => 'Explicit test approval',
+            'reason' => 'Attempted mass-assignment approval',
         ]);
 
-        $resolved = app(SourceLegalEntityMappingContract::class)->resolve(
+        $this->assertSame(SourceLegalEntityMapping::PENDING, $mapping->fresh()->status);
+        $this->expectException(ValidationException::class);
+        app(SourceLegalEntityMappingContract::class)->resolve(
             (int) $tenant->id,
             JournalSourceType::WALLET,
             'wallet-entry-200',
         );
-
-        $this->assertSame((int) $entity->id, $resolved);
     }
 
     #[Test]
@@ -71,23 +66,16 @@ final class FinanceSourceEntityMappingTest extends TestCase
             'legal_entity_id' => $entity->id,
             'source_type' => JournalSourceType::SHAREHOLDER->value,
             'source_id' => 'shareholding-entry-300',
-            'status' => SourceLegalEntityMapping::APPROVED,
             'created_by' => $user->id,
-            'approved_by' => $user->id,
-            'approved_at' => now(),
-            'reason' => 'Explicit test approval',
+            'reason' => 'Test request',
         ]);
 
-        try {
-            app(SourceLegalEntityMappingContract::class)->resolve(
-                (int) $otherTenant->id,
-                JournalSourceType::SHAREHOLDER,
-                'shareholding-entry-300',
-            );
-            $this->fail('A mapping must not cross tenant boundaries.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('legal_entity_id', $exception->errors());
-        }
+        $this->expectException(ValidationException::class);
+        app(SourceLegalEntityMappingContract::class)->resolve(
+            (int) $otherTenant->id,
+            JournalSourceType::SHAREHOLDER,
+            'shareholding-entry-300',
+        );
     }
 
     private function fixture(): array
