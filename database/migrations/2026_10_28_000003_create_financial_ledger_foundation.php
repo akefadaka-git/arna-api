@@ -117,7 +117,6 @@ return new class extends Migration
                 ->references(['tenant_id', 'legal_entity_id', 'id'])->on('ledger_accounts')->restrictOnDelete();
             $table->index(['tenant_id', 'legal_entity_id', 'account_id', 'journal_entry_id'], 'journal_lines_account_ledger_index');
         });
-    }
 
         if (DB::getDriverName() === 'mysql') {
             DB::unprepared("CREATE TRIGGER journal_entries_immutable_update BEFORE UPDATE ON journal_entries FOR EACH ROW BEGIN IF OLD.status IN ('posted', 'reversed') THEN IF NOT (OLD.status = 'posted' AND NEW.status = 'reversed' AND NEW.reversed_at IS NOT NULL AND OLD.id <=> NEW.id AND OLD.tenant_id <=> NEW.tenant_id AND OLD.legal_entity_id <=> NEW.legal_entity_id AND OLD.accounting_period_id <=> NEW.accounting_period_id AND OLD.journal_number <=> NEW.journal_number AND OLD.effective_date <=> NEW.effective_date AND OLD.currency <=> NEW.currency AND OLD.description <=> NEW.description AND OLD.source_type <=> NEW.source_type AND OLD.source_id <=> NEW.source_id AND OLD.idempotency_key <=> NEW.idempotency_key AND OLD.request_hash <=> NEW.request_hash AND OLD.created_by <=> NEW.created_by AND OLD.posted_by <=> NEW.posted_by AND OLD.posted_at <=> NEW.posted_at AND OLD.reversal_of_id <=> NEW.reversal_of_id AND OLD.created_at <=> NEW.created_at) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Posted journal entries are immutable'; END IF; END IF; END");
