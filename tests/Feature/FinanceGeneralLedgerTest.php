@@ -14,6 +14,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\SubledgerIntegrationService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Domains\Finance\Policies\LegalEntityPolicy;
@@ -788,6 +789,25 @@ final class FinanceGeneralLedgerTest extends TestCase
         ]);
     }
 
+
+    #[Test]
+    public function test_unconfigured_subledger_integration_fails_closed(): void
+    {
+        [$tenant, $user, $entity] = $this->ledgerFixture();
+
+        try {
+            app(SubledgerIntegrationService::class)->postSource(
+                JournalSourceType::WALLET,
+                (int) $tenant->id,
+                (int) $user->id,
+                (int) $entity->id,
+                'wallet-source-1',
+            );
+            $this->fail('Subledger posting must remain disabled without an authoritative adapter.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_type', $exception->errors());
+        }
+    }
 
     #[Test]
     public function test_entity_account_and_period_opening_lifecycle_events_are_audited(): void
