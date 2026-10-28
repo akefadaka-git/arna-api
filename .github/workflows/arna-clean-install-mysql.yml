@@ -264,7 +264,7 @@ jobs:
 
   cleanup-merged-source-branches:
     name: Clean up merged source branches after successful main verification
-    if: ${{ needs.clean-install.result == 'success' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') }}
+    if: ${{ needs.clean-install.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     needs: clean-install
     runs-on: ubuntu-latest
     timeout-minutes: 5
