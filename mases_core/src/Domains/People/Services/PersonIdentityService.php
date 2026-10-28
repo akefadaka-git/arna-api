@@ -224,8 +224,9 @@ final class PersonIdentityService
             }
             $position = DB::table('governance_positions')->where('tenant_id', $tenantId)
                 ->where('id', $reference->governance_position_id)->lockForUpdate()->first();
-            if ($position === null) {
-                throw new DomainException('Governance position was not found in the authorized tenant.');
+            if ($position === null
+                || (int) $position->governance_body_id !== (int) $reference->governance_body_id) {
+                throw new DomainException('Governance position and membership must belong to the same authorized body and tenant.');
             }
             $membership = DB::table('governance_memberships')->where('tenant_id', $tenantId)
                 ->where('id', $membershipId)->whereNull('deleted_at')->where('status', 'active')->lockForUpdate()->first();
