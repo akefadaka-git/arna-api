@@ -15,7 +15,9 @@ use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Finance\Contracts\JournalSourceReferenceResolver;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -346,6 +348,109 @@ final class FinanceGeneralLedgerTest extends TestCase
         }
 
         $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'external-source-reference-required']);
+    }
+
+    #[Test]
+    public function test_external_source_is_rejected_when_no_authoritative_resolver_is_registered(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-SOURCE-FAIL-CLOSED',
+                'effective_date' => '2026-10-01',
+                'description' => 'Unknown source must fail closed',
+                'currency' => 'ETB',
+                'source_type' => JournalSourceType::SHAREHOLDER->value,
+                'source_id' => 'shareholder-123',
+                'idempotency_key' => 'source-fail-closed',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('External source references must be rejected without an authoritative resolver.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_type', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'source-fail-closed']);
+    }
+
+    #[Test]
+    public function test_registered_source_resolver_receives_tenant_and_legal_entity_scope(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        $resolver = new class implements JournalSourceReferenceResolver {
+            public array $calls = [];
+
+            public function supports(JournalSourceType $sourceType): bool
+            {
+                return $sourceType === JournalSourceType::SHAREHOLDER;
+            }
+
+            public function assertValid(
+                JournalSourceType $sourceType,
+                string $sourceId,
+                int $tenantId,
+                int $legalEntityId,
+            ): void {
+                $this->calls[] = [$sourceType, $sourceId, $tenantId, $legalEntityId];
+            }
+        };
+
+        $registry = new JournalSourceReferenceResolverRegistry([$resolver]);
+        $this->app->instance(JournalSourceReferenceResolverRegistry::class, $registry);
+
+        $draft = app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-SOURCE-RESOLVED',
+            'effective_date' => '2026-10-01',
+            'description' => 'Registered resolver integration',
+            'currency' => 'ETB',
+            'source_type' => JournalSourceType::SHAREHOLDER->value,
+            'source_id' => 'shareholder-456',
+            'idempotency_key' => 'source-resolver-integrated',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ]);
+
+        $this->assertSame(JournalEntry::DRAFT, $draft->status);
+        $this->assertSame(1, count($resolver->calls));
+        $this->assertSame(JournalSourceType::SHAREHOLDER, $resolver->calls[0][0]);
+        $this->assertSame('shareholder-456', $resolver->calls[0][1]);
+        $this->assertSame((int) $tenant->id, $resolver->calls[0][2]);
+        $this->assertSame((int) $entity->id, $resolver->calls[0][3]);
+    }
+
+    #[Test]
+    public function test_source_resolver_registry_rejects_ambiguous_resolvers(): void
+    {
+        $resolver = new class implements JournalSourceReferenceResolver {
+            public function supports(JournalSourceType $sourceType): bool
+            {
+                return $sourceType === JournalSourceType::LOAN;
+            }
+
+            public function assertValid(
+                JournalSourceType $sourceType,
+                string $sourceId,
+                int $tenantId,
+                int $legalEntityId,
+            ): void {
+            }
+        };
+
+        $registry = new JournalSourceReferenceResolverRegistry([$resolver, $resolver]);
+
+        try {
+            $registry->assertValid(JournalSourceType::LOAN, 'loan-1', 10, 20);
+            $this->fail('Ambiguous source resolvers must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_type', $exception->errors());
+        }
     }
 
     #[Test]
