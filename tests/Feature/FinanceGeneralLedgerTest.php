@@ -142,7 +142,7 @@ final class FinanceGeneralLedgerTest extends TestCase
         $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
 
         $header['description'] = 'Changed payload';
-        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\ConflictHttpException::class);
         $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
     }
 
