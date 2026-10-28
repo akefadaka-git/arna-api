@@ -200,3 +200,46 @@ These are capability identifiers only. The role/position-to-permission and appro
 | FIN-D12 | Retention, audit access, export controls and financial record legal hold | UNRESOLVED |
 
 **Disposition:** schema and domain contract proposed; no ledger implementation or production readiness claim.
+
+## 10. Evidence reconciliation and proposed accounting-policy decisions (2026-10-28)
+
+### Evidence result
+
+- **VERIFIED:** the Library contains draft Governance/MASES blueprint documents and a large legacy SQL dump; these are useful discovery inputs, not proof of Board adoption or an approved accounting policy.
+- **VERIFIED:** a separate Finance & Accounting architecture contract exists on `main`; it defines a proposed GL boundary and logical model, but it does not demonstrate implemented GL runtime or approved accounting policy.
+- **MISSING from retrieved evidence:** an approved company accounting-policy document; current adopted Board/General Assembly resolution approving Finance policies; verified legal-entity register and entity-to-tenant mapping; signed opening-trial-balance/cutover pack; approved chart of accounts; signed-off Wallet/Loan/Shareholder event-to-accounting map.
+- **NOT VERIFIED:** accounting basis, fiscal year/period calendar, reporting and functional currencies by legal entity, tax treatment, FX source/rounding, financial approval limits, financial-statement signatories, and consolidation/elimination policy.
+
+The document search did surface a draft governance/approval framework that proposes thresholds such as ETB 200,000 for Department Heads, ETB 500,000 for Procurement Manager, ETB 5,000,000 for CEO, and an ETB 2,000,000 Procurement Committee ceiling. Those are draft figures without verified adoption evidence. **They are explicitly excluded from the Finance policy and must not be seeded into production.**
+
+### Architecture decisions recommended for Owner approval
+
+These are design-level recommendations. They are **not represented as company accounting-policy approval** and do not authorize implementation by themselves.
+
+| ID | Recommended decision | Rationale / safe default | State |
+|---|---|---|---|
+| FIN-A01 | Separate entity books, with tenant + legal-entity scoping on every Finance record | Prevent cross-entity contamination; reuse verified canonical entity registry | RECOMMENDED — Owner approval required |
+| FIN-A02 | Double-entry GL; posted journals must balance exactly in base currency | Fundamental ledger invariant | RECOMMENDED — approve as architecture invariant |
+| FIN-A03 | Accrual accounting as the candidate accounting basis, subject to applicable law and company auditor/accountant confirmation | Best candidate for a full enterprise GL; source recognition events still require accounting policy | PENDING professional/company approval |
+| FIN-A04 | ETB as proposed group reporting currency; each entity's functional currency must be explicitly recorded | Existing project context proposes ETB base, but no approved currency policy was located | PENDING Owner/Finance confirmation |
+| FIN-A05 | Exact-decimal money/rate handling with a documented currency scale and rounding rule; never binary floating point | Deterministic journals and reconciliation | RECOMMENDED — approve as technical invariant; exact scale/mode unresolved |
+| FIN-A06 | Posted journal immutability; correct errors only with linked reversal/replacement | Auditability and reproducibility | RECOMMENDED — approve as architecture invariant |
+| FIN-A07 | No automatic posting without a verified source event, unique mapping, entity ownership, and idempotency key | Avoid guessed accounting and duplicate recognition | RECOMMENDED — approve as architecture invariant |
+| FIN-A08 | No opening balances until independently reconciled and explicitly approved | Prevent fabricated or unbalanced opening ledger | HARD BLOCK / no implementation bypass |
+| FIN-A09 | Close/reopen rights, preparer/approver/poster separation, limits and statement signatories must come from an adopted authority matrix | No verified current financial authority instrument was located | BLOCKED |
+| FIN-A10 | FX, tax, recognition timing, write-off, dividend/equity, consolidation and intercompany rules require approved accounting policy and professional review | These are substantive policy decisions, not schema defaults | BLOCKED |
+
+### Required policy decision record
+
+Before implementation, each approved decision must record: decision ID/version, exact adopted policy or resolution reference, competent approving body/authority, effective date, applicable entities/currencies, owner, accounting-professional review where relevant, and superseding decision. An Owner design approval may authorize architecture direction, but it cannot substitute for a legally required Board/General Assembly resolution or professional accounting/tax determination.
+
+### Implementation readiness
+
+- Logical schema proposal: **READY FOR REVIEW**.
+- Architecture invariants: **RECOMMENDED; not yet Owner-approved in the repository**.
+- Company accounting policy: **NOT APPROVED / evidence missing**.
+- Source-subledger mapping: **NOT COMPLETE**.
+- Opening balances and cutover: **BLOCKED**.
+- Production implementation authorization: **NOT GRANTED by this document**.
+
+The next gate is evidence acquisition and formal decisions, not migrations or code.
