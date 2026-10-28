@@ -16,9 +16,15 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalLine;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
 
 final class JournalEntryService
 {
+    public function __construct(
+        private readonly JournalSourceReferenceResolverRegistry $sourceReferenceResolvers,
+    ) {
+    }
+
     /**
      * Create an immutable-identity draft with entity-scoped, validated lines.
      * Ordinary callers may create standard or adjusting journals only.
@@ -59,7 +65,7 @@ final class JournalEntryService
         $header['source_id'] = $sourceId === '' ? null : $sourceId;
 
         try {
-            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType): JournalEntry {
+            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType): JournalEntry {
                 if (count($lines) < 2) {
                     throw ValidationException::withMessages(['lines' => 'A journal must contain at least two lines.']);
                 }
@@ -71,6 +77,15 @@ final class JournalEntryService
                 if (!$entity) {
                     throw (new ModelNotFoundException())->setModel(LegalEntity::class);
                 }
+
+                // Validate source provenance against the resolved tenant and
+                // legal entity before accepting or returning an idempotent draft.
+                $this->sourceReferenceResolvers->assertValid(
+                    $sourceType,
+                    isset($header['source_id']) ? (string) $header['source_id'] : null,
+                    $tenantId,
+                    (int) $entity->id,
+                );
 
                 $date = (string) ($header['effective_date'] ?? '');
                 $currency = strtoupper((string) ($header['currency'] ?? $entity->base_currency));
