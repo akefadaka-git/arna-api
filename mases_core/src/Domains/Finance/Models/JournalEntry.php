@@ -6,7 +6,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\RelationsHasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class JournalEntry extends Model
 {
