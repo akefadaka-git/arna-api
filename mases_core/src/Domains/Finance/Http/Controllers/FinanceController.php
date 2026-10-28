@@ -19,6 +19,9 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
+use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
+use MaaleArna\MASES\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
+use MaaleArna\MASES\Core\Domains\Finance\Repositories\LedgerAccountRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Http\Resources\LegalEntityResource;
 
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
@@ -31,6 +34,9 @@ final class FinanceController extends Controller
         private readonly LegalEntityService $legalEntities,
         private readonly JournalEntryService $journals,
         private readonly TrialBalanceService $trialBalance,
+        private readonly LedgerAccountRepository $ledgerAccounts,
+        private readonly AccountingPeriodRepository $accountingPeriods,
+        private readonly JournalEntryRepository $journalEntries,
     ) {
     }
 
@@ -53,10 +59,11 @@ final class FinanceController extends Controller
     public function accounts(Request $request): JsonResponse
     {
         $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
-        $query = LedgerAccount::query()->where('tenant_id', $this->tenantId())
-            ->where('legal_entity_id', $data['legal_entity_id'])->orderBy('code');
-        $this->assertEntityExists((int) $data['legal_entity_id']);
-        return response()->json(['success' => true, 'data' => $query->paginate($this->perPage($request))]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+
+        return response()->json(['success' => true, 'data' => $this->ledgerAccounts->paginateForEntity(
+            $this->tenantId(), (int) $entity->id, $this->perPage($request),
+        )]);
     }
 
     public function createAccount(Request $request): JsonResponse
@@ -95,10 +102,11 @@ final class FinanceController extends Controller
     public function periods(Request $request): JsonResponse
     {
         $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
-        $this->assertEntityExists((int) $data['legal_entity_id']);
-        $periods = AccountingPeriod::query()->where('tenant_id', $this->tenantId())
-            ->where('legal_entity_id', $data['legal_entity_id'])->orderBy('starts_on')->paginate($this->perPage($request));
-        return response()->json(['success' => true, 'data' => $periods]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+
+        return response()->json(['success' => true, 'data' => $this->accountingPeriods->paginateForEntity(
+            $this->tenantId(), (int) $entity->id, $this->perPage($request),
+        )]);
     }
 
     public function createPeriod(Request $request): JsonResponse
@@ -155,11 +163,11 @@ final class FinanceController extends Controller
     public function journals(Request $request): JsonResponse
     {
         $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
-        $this->assertEntityExists((int) $data['legal_entity_id']);
-        $journals = JournalEntry::query()->with('lines')->where('tenant_id', $this->tenantId())
-            ->where('legal_entity_id', $data['legal_entity_id'])->orderByDesc('effective_date')->orderByDesc('id')
-            ->paginate($this->perPage($request));
-        return response()->json(['success' => true, 'data' => $journals]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+
+        return response()->json(['success' => true, 'data' => $this->journalEntries->paginateForEntity(
+            $this->tenantId(), (int) $entity->id, $this->perPage($request),
+        )]);
     }
 
     public function createJournal(Request $request): JsonResponse

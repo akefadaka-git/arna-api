@@ -6,6 +6,9 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
+use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
+use MaaleArna\MASES\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
+use MaaleArna\MASES\Core\Domains\Finance\Repositories\LedgerAccountRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
 
@@ -21,6 +24,9 @@ final class FinanceServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(LegalEntityRepository::class);
+        $this->app->singleton(JournalEntryRepository::class);
+        $this->app->singleton(AccountingPeriodRepository::class);
+        $this->app->singleton(LedgerAccountRepository::class);
         $this->app->singleton(LegalEntityService::class);
         $this->app->singleton(TrialBalanceService::class);
     }
