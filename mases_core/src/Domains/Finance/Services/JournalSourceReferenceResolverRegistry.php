@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Contracts\\JournalSourceReferenceResolver;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Enums\\JournalSourceType;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Finance\Contracts\JournalSourceReferenceResolver;
+use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 
 /**
  * Dispatches source-reference validation to exactly one authoritative resolver.
@@ -29,7 +29,7 @@ final class JournalSourceReferenceResolverRegistry
 
         foreach ($resolvers as $resolver) {
             if (!$resolver instanceof JournalSourceReferenceResolver) {
-                throw new \\InvalidArgumentException(
+                throw new \InvalidArgumentException(
                     'Every source-reference resolver must implement JournalSourceReferenceResolver.'
                 );
             }
