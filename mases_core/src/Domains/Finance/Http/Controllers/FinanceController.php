@@ -116,7 +116,7 @@ final class FinanceController extends Controller
     public function createPeriod(StoreAccountingPeriodRequest $request): JsonResponse
     {
         Gate::authorize('create', AccountingPeriod::class);
-        $period = $this->accountingPeriodService->create($this->tenantId(), $request->validated());
+        $period = $this->accountingPeriodService->create($this->tenantId(), $request->validated(), (int) $request->user()->getAuthIdentifier());
 
         return response()->json(['success' => true, 'data' => $period], 201);
     }

@@ -22,9 +22,9 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 final class AccountingPeriodService
 {
     /** @param array{legal_entity_id:int|string,code:string,starts_on:string,ends_on:string} $data */
-    public function create(int $tenantId, array $data): AccountingPeriod
+    public function create(int $tenantId, array $data, int $actorId): AccountingPeriod
     {
-        return DB::transaction(function () use ($tenantId, $data): AccountingPeriod {
+        return DB::transaction(function () use ($tenantId, $data, $actorId): AccountingPeriod {
             $entity = LegalEntity::query()
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'active')
@@ -53,7 +53,7 @@ final class AccountingPeriodService
                     'ends_on' => $data['ends_on'],
                     'status' => AccountingPeriod::OPEN,
                 ]);
-                event(new AccountingPeriodOpened($period, (int) auth()->id()));
+                event(new AccountingPeriodOpened($period, $actorId));
                 return $period;
             } catch (QueryException $exception) {
                 $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());

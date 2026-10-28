@@ -10,6 +10,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
+use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
+use Illuminate\Support\Facades\Gate;
+use MaaleArna\MASES\Core\Domains\Finance\Policies\LegalEntityPolicy;
+use MaaleArna\MASES\Core\Domains\Finance\Policies\LedgerAccountPolicy;
+use MaaleArna\MASES\Core\Domains\Finance\Policies\AccountingPeriodPolicy;
+use MaaleArna\MASES\Core\Domains\Finance\Policies\JournalEntryPolicy;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalEntryType;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
@@ -50,6 +57,14 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertSame(JournalEntry::POSTED, $posted->status);
         $this->assertSame((int) $user->id, $posted->posted_by);
         $this->assertNotNull($posted->posted_at);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.draft_created',
+            'subject_type' => 'journal_entry', 'subject_id' => $draft->id,
+        ]);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.posted',
+            'subject_type' => 'journal_entry', 'subject_id' => $draft->id,
+        ]);
     }
 
     #[Test]
@@ -206,6 +221,10 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertSame(2, $cancelled->lines->count());
         $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::CANCELLED]);
         $this->assertDatabaseMissing('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.cancelled',
+            'subject_type' => 'journal_entry', 'subject_id' => $draft->id,
+        ]);
         $this->assertSame(0, JournalEntry::query()->where('accounting_period_id', $period->id)
             ->where('status', JournalEntry::DRAFT)->count());
     }
@@ -710,6 +729,28 @@ final class FinanceGeneralLedgerTest extends TestCase
         $whole = ltrim($whole, '0') ?: '0';
 
         return str_contains($amount, '.') ? $whole.'.'.explode('.', $amount, 2)[1] : $whole;
+    }
+
+
+    #[Test]
+    public function test_finance_policies_are_registered_and_period_closure_is_audited(): void
+    {
+        [$tenant, $user, $entity, $period] = $this->ledgerFixture();
+
+        $this->assertInstanceOf(LegalEntityPolicy::class, Gate::getPolicyFor(LegalEntity::class));
+        $this->assertInstanceOf(LedgerAccountPolicy::class, Gate::getPolicyFor(LedgerAccount::class));
+        $this->assertInstanceOf(AccountingPeriodPolicy::class, Gate::getPolicyFor(AccountingPeriod::class));
+        $this->assertInstanceOf(JournalEntryPolicy::class, Gate::getPolicyFor(JournalEntry::class));
+
+        $closed = app(AccountingPeriodService::class)->close(
+            (int) $tenant->id, (int) $user->id, (int) $period->id, 'Approved period close',
+        );
+
+        $this->assertSame(AccountingPeriod::CLOSED, $closed->status);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.period.closed',
+            'subject_type' => 'accounting_period', 'subject_id' => $period->id,
+        ]);
     }
 
     /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */

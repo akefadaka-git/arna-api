@@ -172,7 +172,7 @@ final class JournalEntryService
 
                 $this->assertBalanced($entry);
                 $entry = $entry->load('lines');
-                event(new JournalDraftCreated($entry));
+                event(new JournalDraftCreated($entry, $actorId));
 
                 return $entry;
             });
