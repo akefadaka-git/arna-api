@@ -515,6 +515,39 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertDatabaseCount('journal_entries', 1);
     }
 
+
+    #[Test]
+    public function test_changed_reversal_retry_is_rejected(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-RETRY-ORIGINAL',
+            'effective_date' => '2026-10-01',
+            'description' => 'Original journal',
+            'currency' => 'ETB',
+            'idempotency_key' => 'retry-original',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '40', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '40'],
+        ]);
+        $original = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $service->reverse((int) $tenant->id, (int) $user->id, (int) $original->id,
+            'JV-RETRY-REVERSAL-1', '2026-10-02', 'Approved reversal');
+
+        try {
+            $service->reverse((int) $tenant->id, (int) $user->id, (int) $original->id,
+                'JV-RETRY-REVERSAL-2', '2026-10-03', 'Changed reversal request');
+            $this->fail('Changed retry input must be rejected.');
+        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException $exception) {
+            $this->assertNotSame('', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('journal_entries', 2);
+        $this->assertSame(JournalEntry::REVERSED, $original->fresh()->status);
+    }
+
     /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */
     private function ledgerFixture(): array
     {
