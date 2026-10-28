@@ -466,6 +466,21 @@ final class PersonApiIntegrationTest extends TestCase
             'reason' => 'Reject overlapping governance identity',
         ])->assertForbidden();
 
+        $accountLinkPermission = Permission::query()->create([
+            'name_en' => 'Manage Global Person Account Links',
+            'slug' => 'people.account-link.manage',
+            'category' => 'user',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $actor->permissions()->attach($accountLinkPermission->getKey(), ['assigned_at' => now()]);
+        $this->withHeaders($headers)->deleteJson('/api/people/'.$publicId.'/account', [
+            'reason' => 'Cannot unlink account while shareholder link exists',
+        ])->assertForbidden();
+        $this->assertDatabaseHas('people', ['id' => $personId, 'user_id' => $shareholderUser->getKey()]);
+
         $this->assertDatabaseHas('employees', ['id' => $employeeId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
         $this->assertDatabaseHas('shareholders', ['id' => $shareholderId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
         $this->assertDatabaseHas('governance_memberships', ['id' => $membershipId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
