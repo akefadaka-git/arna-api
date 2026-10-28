@@ -482,12 +482,12 @@ final class PersonController extends Controller
         $id = DB::transaction(function () use ($tenantId, $person, $a, $value, $primary, $request): int {
             if ($primary) {
                 DB::table('person_contact_points')->where('tenant_id', $tenantId)->where('person_id', $person->getKey())
-                    ->where('status', 'active')->update(['is_primary' => false, 'updated_at' => now()]);
+                    ->where('contact_type', $a['contact_type'])->where('status', 'active')->update(['is_primary' => false, 'updated_at' => now()]);
             }
             return (int) DB::table('person_contact_points')->insertGetId([
                 'tenant_id' => $tenantId, 'person_id' => $person->getKey(), 'contact_type' => $a['contact_type'],
                 'label' => $a['label'] ?? null, 'contact_value' => \Illuminate\Support\Facades\Crypt::encryptString($value),
-                'normalized_hash' => hash('sha256', $a['contact_type'] === 'email' ? mb_strtolower($value) : preg_replace('/\s+/', '', $value)),
+                'normalized_hash' => hash_hmac('sha256', $a['contact_type'] === 'email' ? mb_strtolower($value) : preg_replace('/\s+/', '', $value), (string) config('app.key')),
                 'is_primary' => $primary, 'is_verified' => false, 'verified_at' => null, 'source' => 'manual',
                 'status' => 'active', 'created_by' => $request->user()?->getAuthIdentifier(),
                 'created_at' => now(), 'updated_at' => now(),
