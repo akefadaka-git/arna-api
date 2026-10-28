@@ -66,6 +66,8 @@ final class PersonRelationshipController extends Controller
 
         $related = $this->visiblePerson($attributes['related_public_id'], (int) $tenantId);
         $relationship = DB::transaction(function () use ($tenantId, $person, $related, $request, $attributes): PersonRelationship {
+            // Serialize relationship creation for this source person before checking duplicates.
+            $person = Person::query()->whereKey($person->getKey())->lockForUpdate()->firstOrFail();
             $duplicate = PersonRelationship::query()
                 ->where('tenant_id', $tenantId)
                 ->where('person_id', $person->getKey())
