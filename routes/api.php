@@ -526,6 +526,19 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::get('/{publicId}', [PersonController::class, 'show'])
             ->whereUuid('publicId')
             ->name('show');
+        Route::get('/{publicId}/contacts', [\\App\\Http\\Controllers\\PersonContactPointController::class, 'index'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('contacts.index');
+        Route::post('/{publicId}/contacts', [\\App\\Http\\Controllers\\PersonContactPointController::class, 'store'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('contacts.store');
+        Route::post('/{publicId}/contacts/{contactId}/deactivate', [\\App\\Http\\Controllers\\PersonContactPointController::class, 'deactivate'])
+            ->whereUuid('publicId')
+            ->whereNumber('contactId')
+            ->middleware('auth.permission:people.manage')
+            ->name('contacts.deactivate');
         Route::get('/{publicId}/documents', [PersonController::class, 'documents'])
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
