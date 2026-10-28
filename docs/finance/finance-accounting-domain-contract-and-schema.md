@@ -1,11 +1,14 @@
-# ARNA Finance & Accounting — Domain Contract and Schema Design
+# ARNA Finance & Accounting — Contract Reconciliation and Schema Elaboration
 
 - **Document ID:** ARNA-FIN-ADR-001
-- **Status:** A1 design proposal; Owner/governance decisions and source-schema verification required before implementation
+- **Status:** Companion A1 design proposal; not a replacement for the canonical Finance contract.
+- **Canonical contract:** [`docs/architecture/finance-accounting-domain-contract.md`](https://github.com/akefadaka-git/arna-api/blob/main/docs/architecture/finance-accounting-domain-contract.md) (current main blob `a28040d3926973004675aaf5bbe0760cd5b4565a`)
 - **Baseline:** `main` at `e853874ee41130d47be07d2ffc097a41ecb69a9b`
 - **Branch:** `docs/finance-accounting-domain-contract`
-- **Scope:** General ledger, legal-entity books, source-subledger integration, reconciliation, periods, and consolidated reporting.
+- **Purpose:** Reconcile the existing contract with current source-subledger evidence and elaborate the logical schema, integration guarantees, and unresolved implementation decisions.
 - **Explicit exclusions:** No application code, migrations, seed data, opening balances, production database changes, deployment, or merge.
+
+> The canonical Finance contract already defines the main GL boundary and logical tables. This companion does not create a second Finance specification. Where table names differ, the canonical contract names below are preferred: `finance_periods`, `finance_posting_sources`, and optional `finance_journal_approvals`. Reuse a verified shared legal-entity/currency catalogue rather than creating duplicate registries.
 
 ## 1. Contract summary
 
@@ -22,7 +25,7 @@ Finance & Accounting owns the authoritative **posted general ledger (GL)** and a
 
 ## 2. Evidence-based current assessment
 
-The inspected API contains Loan, Wallet, Shareholder, Governance, Organization, People and Core file capabilities. The repository search did not establish an existing dedicated GL implementation with chart of accounts, balanced journal posting, accounting periods, trial balance, or consolidation. Treat those capabilities as **MISSING in inspected paths / NOT YET VERIFIED exhaustively**, not as proof that no related code exists anywhere.
+The current `main` already contains a Finance & Accounting domain contract (`docs/architecture/finance-accounting-domain-contract.md`, blob `a28040d3926973004675aaf5bbe0760cd5b4565a`). That is the canonical architecture baseline, not evidence of an implemented GL. Source searches did not establish implemented GL tables/services for chart of accounts, balanced posting, periods, trial balance, or consolidation. Treat the GL runtime as **MISSING in inspected source paths / NOT YET VERIFIED exhaustively**, while treating the existing architecture contract as **EXISTS**. This companion records the delta and elaborates implementation invariants; it must not be mistaken for a second canonical contract.
 
 The existing Governance delegation package is deliberately non-financial: its documented action catalogue covers appointment and membership management. It does not authorize financial posting or approval thresholds.
 
@@ -48,7 +51,7 @@ Names below are proposals, not existing tables. Use Laravel migration convention
 
 ### 4.1 Legal entities and currency policy
 
-**`finance_legal_entities`**
+**`finance_legal_entities` (conditional; do not create if a canonical registry is adopted)**
 - `id`, `tenant_id`, stable `entity_code`, localized `name`, `status`, `functional_currency_code`, effective dates, timestamps.
 - Unique: `(tenant_id, entity_code)`.
 - Functional currency is explicit per entity; ETB is the proposed default, not a reason to force every entity's functional currency to ETB.
@@ -57,7 +60,7 @@ Names below are proposals, not existing tables. Use Laravel migration convention
 - ISO-like `currency_code`, display metadata, `minor_unit_scale`, enabled status, effective dates.
 - Currency precision and allowed rates are controlled data, not hard-coded assumptions. Confirm the canonical currency catalogue before creating a duplicate.
 
-**`finance_fiscal_periods`**
+**`finance_periods` (canonical table name)**
 - `id`, `tenant_id`, `legal_entity_id`, period code, start/end dates, status (`open`, `closing`, `closed`), closed/reopened actor and timestamps, reason, optimistic version.
 - Unique period code per entity; no overlapping periods for the same entity. Enforce overlap and close/post race behavior transactionally; do not rely only on a preflight query.
 
@@ -90,7 +93,7 @@ Names below are proposals, not existing tables. Use Laravel migration convention
 - Unique active mapping for a specific source event/category and effective scope. Mapping changes are versioned/effective-dated and cannot rewrite posted journals.
 - A source event with no unique valid mapping must be held as an exception; never post to a generic suspense account without approved policy.
 
-**`finance_source_postings`**
+**`finance_posting_sources` (canonical table name)**
 - `id`, tenant, legal entity, source domain, source event ID, event version, payload hash, journal ID, status, received/posted timestamps, error code/reference.
 - Unique source-event idempotency tuple. Stores delivery/processing status; source operational data remains owned by the source domain.
 - Source domains publish committed business events or provide a stable read API/outbox. Finance must not read half-committed state or mutate subledger rows.
