@@ -144,6 +144,9 @@ use App\Http\Controllers\FileController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
+use App\Http\Controllers\PersonContactPointController;
+use App\Http\Controllers\PersonRelationshipController;
+use App\Http\Controllers\PersonParticipationController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
