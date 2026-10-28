@@ -1,6 +1,6 @@
 # ARNA People Domain — Phase 2 Implementation Register
 
-**Status:** Phase 2.1 implementation increment submitted for CI review  
+**Status:** Phase 2.1–2.4 implementation increment submitted for review  
 **Scope:** Destination repository `akefadaka-git/arna-api`  
 **Base:** `main` at `e853874ee41130d47be07d2ffc097a41ecb69a9b`
 
@@ -13,19 +13,19 @@
 - Keep the response allow-list and pagination envelope unchanged.
 - Add API integration coverage for English and Amharic matching, empty results, bounds, and pagination.
 
-### P2.2 — Contact points and profile completeness
-- Add additive contact-point records only after reviewing existing user phone/email verification and privacy contracts.
-- Separate contact value, verification state, primary designation, source, and effective dates.
-- Never expose private contact values to directory endpoints by default.
-- Define uniqueness and normalization rules before migration.
+### P2.2 — Contact points and profile completeness (implemented; verification integration pending)
+- Added tenant-scoped contact-point storage with application-layer encryption, normalized lookup hash, primary designation, source, effective dates, and lifecycle state.
+- Contact responses expose masked values only. New values remain unverified until an approved verification flow is integrated; no verification is inferred from entry.
+- Primary designation is transactionally exclusive within the profile's active contact points.
 
-### P2.3 — Relationships and household
-- Model typed, dated person-to-person relationships with tenant visibility and restricted minor/dependent data.
-- Make corrections auditable; do not infer legal identity or grant permissions from relationships.
+### P2.3 — Relationships and household (implemented; policy refinement pending)
+- Added tenant-scoped typed, dated person-to-person relationships, active duplicate rejection, and reason-required deactivation history.
+- Both people must have active tenant visibility. Relationship data grants no identity, login, role, or legal authority.
+- Sensitive household/minor field-level rules and reciprocal relationship semantics remain to be specified.
 
-### P2.4 — Membership and participation
-- Reuse existing membership and governance authorities; do not create a second role/authority source.
-- Define separate ministry/volunteer participation records only after confirming no existing domain owns the behavior.
+### P2.4 — Participation (implemented as a bounded record; domain integrations pending)
+- Added tenant-scoped ministry, volunteer, committee, event-attendance, training, qualification, and generic participation records with effective dates and reason-required deactivation.
+- These records do not grant organization membership, governance authority, permissions, or employment. Existing domain systems remain authoritative for those concepts.
 
 ### P2.5 — Lifecycle and records
 - Integrate onboarding, training, credentials/qualifications, and review with Organization, Documents, Calendar, and Reporting through explicit contracts.
@@ -38,5 +38,6 @@
 - No production database operations, data backfill, deployment, or merge are included in this PR.
 
 ## Acceptance evidence
-- The new integration test is committed but must be reported as **NOT RUN** until the destination GitHub workflow reports its result.
-- The phase is not production-certified until CI, route-contract review, and relevant security checks pass.
+- Integration tests cover contact encryption/masking, person-relationship tenant visibility/duplicate rejection/deactivation, participation lifecycle, and directory search.
+- Per your instruction, no CI runs are being retried or investigated in this increment. Runtime and workflow verification remain **NOT RUN / UNKNOWN** until existing evidence is reviewed separately.
+- Verification flow integration, profile UI wiring, field-level privacy policies, and broader audit/retention requirements remain open; this increment is not production-certified.
