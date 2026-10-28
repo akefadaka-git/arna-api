@@ -23,13 +23,32 @@ final class PersonController extends Controller
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
 
-        $people = Person::query()
+        $filters = $request->validate([
+            'search' => ['sometimes', 'string', 'max:100'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+        $search = trim((string) ($filters['search'] ?? ''));
+
+        $query = Person::query()
             ->where('people.status', 'active')
             ->whereHas('tenantAccesses', static fn ($query) => $query
                 ->where('tenant_id', $tenantId)
-                ->where('status', 'active'))
-            ->orderBy('people.id')
-            ->paginate(min(max((int) $request->integer('per_page', 25), 1), 100));
+                ->where('status', 'active'));
+
+        if ($search !== '') {
+            $pattern = '%'.$search.'%';
+            $query->where(static function ($names) use ($pattern): void {
+                foreach ([
+                    'first_name_am', 'father_name_am', 'grandfather_name_am',
+                    'first_name_en', 'father_name_en', 'grandfather_name_en',
+                ] as $column) {
+                    $names->orWhere('people.'.$column, 'like', $pattern);
+                }
+            });
+        }
+
+        $people = $query->orderBy('people.id')
+            ->paginate((int) ($filters['per_page'] ?? 25));
 
         return response()->json([
             'success' => true,
