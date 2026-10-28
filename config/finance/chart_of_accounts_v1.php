@@ -60,12 +60,12 @@ return [
     ['3600', '3000', 'Declared shareholder distributions', 'የታወጁ የባለአክሲዮን ስርጭቶች', 'equity', 'debit', true, true, 'Shareholder/Finance', 'out_of_scope'],
 
     ['4000', null, 'Revenue', 'ገቢ', 'revenue', 'credit', false, false, 'Finance', 'out_of_scope'],
-    ['4100', '4000', 'Sales revenue', 'የሽያጭ ገቢ', 'revenue', 'credit', true, false, 'Sales/Procurement', 'undetermined'],
-    ['4200', '4000', 'Service revenue', 'የአገልግሎት ገቢ', 'revenue', 'credit', true, false, 'Sales/Finance', 'undetermined'],
+    ['4100', '4000', 'Sales revenue', 'የሽያጭ ገቢ', 'revenue', 'credit', true, false, 'Sales/Procurement', 'taxable'],
+    ['4200', '4000', 'Service revenue', 'የአገልግሎት ገቢ', 'revenue', 'credit', true, false, 'Sales/Finance', 'taxable'],
     ['4300', '4000', 'Loan interest income', 'የብድር ወለድ ገቢ', 'revenue', 'credit', true, true, 'Loan', 'undetermined'],
     ['4400', '4000', 'Wallet and transaction fee income', 'የዋሌትና የግብይት ክፍያ ገቢ', 'revenue', 'credit', true, true, 'Wallet', 'undetermined'],
     ['4500', '4000', 'Commission income', 'የኮሚሽን ገቢ', 'revenue', 'credit', true, true, 'Finance/Commercial', 'undetermined'],
-    ['4600', '4000', 'Procurement and fulfillment income', 'የግዥና የማሟያ ገቢ', 'revenue', 'credit', true, false, 'Procurement', 'undetermined'],
+    ['4600', '4000', 'Procurement and fulfillment income', 'የግዥና የማሟያ ገቢ', 'revenue', 'credit', true, false, 'Procurement', 'taxable'],
     ['4700', '4000', 'Other operating revenue', 'ሌላ የሥራ ገቢ', 'revenue', 'credit', true, false, 'Finance', 'undetermined'],
 
     ['5000', null, 'Direct costs', 'ቀጥተኛ ወጪዎች', 'expense', 'debit', false, false, 'Finance', 'out_of_scope'],
