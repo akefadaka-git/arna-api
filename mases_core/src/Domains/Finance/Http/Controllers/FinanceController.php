@@ -14,6 +14,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreLegalEntityRequest;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
@@ -31,17 +32,9 @@ final class FinanceController extends Controller
             ->where('tenant_id', $this->tenantId())->orderBy('code')->paginate($this->perPage($request))]);
     }
 
-    public function createEntity(Request $request): JsonResponse
+    public function createEntity(StoreLegalEntityRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/', Rule::unique('legal_entities', 'code')->where(fn ($query) => $query->where('tenant_id', $this->tenantId()))],
-            'name_am' => ['nullable', 'string', 'max:180'],
-            'name_en' => ['required', 'string', 'max:180'],
-            'base_currency' => ['sometimes', 'string', 'size:3', Rule::in(['ETB'])],
-        ]);
-        if (empty($data['name_am']) && empty($data['name_en'])) {
-            throw ValidationException::withMessages(['name_am' => 'Provide at least one localized entity name.']);
-        }
+        $data = $request->validated();
 
         $entity = LegalEntity::query()->create([
             ...$data,
