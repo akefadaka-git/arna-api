@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1);
+return ['domain'=>'People','contact_type'=>['email'=>'Email','phone'=>'Phone','other'=>'Other'],'relationship_type'=>['parent'=>'Parent','child'=>'Child','guardian'=>'Guardian','dependent'=>'Dependent','spouse'=>'Spouse','sibling'=>'Sibling','emergency_contact'=>'Emergency contact','household_member'=>'Household member','other'=>'Other'],'participation_type'=>['membership'=>'Membership record','ministry'=>'Ministry','volunteer'=>'Volunteer','committee'=>'Committee','event_attendance'=>'Event attendance','training'=>'Training','qualification'=>'Qualification','other'=>'Other']];
