@@ -23,7 +23,12 @@ final class PersonContactPoint extends Model
         'contact_type',
         'label',
         'contact_value',
+        'normalized_hash',
         'is_primary',
+        'is_verified',
+        'source',
+        'effective_from',
+        'effective_to',
         'verified_at',
         'status',
         'deactivation_reason',
@@ -36,6 +41,9 @@ final class PersonContactPoint extends Model
             'contact_value' => 'encrypted',
             'is_primary' => 'boolean',
             'verified_at' => 'datetime',
+            'is_verified' => 'boolean',
+            'effective_from' => 'date',
+            'effective_to' => 'date',
         ];
     }
 
