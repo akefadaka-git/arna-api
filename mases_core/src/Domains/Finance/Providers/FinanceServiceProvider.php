@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Providers;
+namespace MaaleArna\MASES\Core\Domains\Finance\Providers;
 
-use Illuminate\\Support\\ServiceProvider;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Repositories\\LegalEntityRepository;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\LegalEntityService;
+use Illuminate\Support\ServiceProvider;
+use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
+use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 
 /**
  * Finance domain integration point.
