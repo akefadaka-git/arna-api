@@ -12,7 +12,6 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalLine;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
-use RuntimeException;
 
 final class JournalEntryService
 {
@@ -77,6 +76,7 @@ final class JournalEntryService
                 'source_id' => isset($header['source_id']) ? (string) $header['source_id'] : null,
                 'idempotency_key' => $key,
                 'created_by' => $actorId,
+                'reversal_of_id' => isset($header['reversal_of_id']) ? (int) $header['reversal_of_id'] : null,
             ]);
 
             foreach (array_values($lines) as $index => $line) {
@@ -165,6 +165,7 @@ final class JournalEntryService
                 'source_type' => 'journal_reversal',
                 'source_id' => (string) $original->id,
                 'idempotency_key' => 'reversal:'.$original->id,
+                'reversal_of_id' => $original->id,
             ], $originalLines->map(fn (JournalLine $line): array => [
                 'account_id' => $line->account_id,
                 'debit_amount' => $line->credit_amount,
@@ -214,9 +215,8 @@ final class JournalEntryService
 
     private function normalizeDecimal(string $value): string
     {
-        $value = number_format((float) $value, 4, '.', '');
-        // Only used for comparisons after SQL aggregation; avoid floats in monetary calculations.
-        [$whole, $fraction] = explode('.', $value, 2);
+        // Exact string normalization; never cast monetary values to float.
+        [$whole, $fraction] = array_pad(explode('.', trim($value), 2), 2, '');
         $whole = ltrim($whole, '0') ?: '0';
         $fraction = rtrim($fraction, '0');
         return $fraction === '' ? $whole : $whole.'.'.$fraction;
