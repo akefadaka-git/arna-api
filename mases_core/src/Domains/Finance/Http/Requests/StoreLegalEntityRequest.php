@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Requests;
+namespace MaaleArna\MASES\Core\Domains\Finance\Http\Requests;
 
-use Illuminate\\Foundation\\Http\\FormRequest;
-use Illuminate\\Validation\\Rule;
-use MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
 final class StoreLegalEntityRequest extends FormRequest
 {
