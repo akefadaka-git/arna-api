@@ -21,6 +21,7 @@ return new class extends Migration
             $table->boolean('is_primary')->default(false);
             $table->timestamp('verified_at')->nullable();
             $table->string('status', 16)->default('active');
+            $table->string('deactivation_reason', 1000)->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
