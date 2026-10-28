@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAuditEvent;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -62,6 +63,38 @@ final class OrganizationDomainTest extends TestCase
             'code' => 'HQ', 'unit_type' => 'company', 'name_en' => 'HQ',
             'reason' => 'Initial organizational registration',
         ])->assertForbidden();
+    }
+
+    #[Test]
+    public function audit_events_reject_model_updates_and_deletes(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $event = OrganizationAuditEvent::query()->create([
+            'tenant_id' => $tenant->id,
+            'subject_type' => 'unit',
+            'subject_id' => 999,
+            'action' => 'created',
+            'reason' => 'Test append-only audit record',
+            'before_state' => null,
+            'after_state' => ['status' => 'active'],
+            'request_id' => 'audit-immutability-test',
+            'created_at' => now(),
+        ]);
+
+        try {
+            $event->reason = 'tampered';
+            $event->save();
+            $this->fail('Updating an audit event should throw.');
+        } catch (\LogicException $exception) {
+            $this->assertSame('Organization audit events are append-only.', $exception->getMessage());
+        }
+
+        try {
+            $event->delete();
+            $this->fail('Deleting an audit event should throw.');
+        } catch (\LogicException $exception) {
+            $this->assertSame('Organization audit events are append-only.', $exception->getMessage());
+        }
     }
 
     private function manager(): array

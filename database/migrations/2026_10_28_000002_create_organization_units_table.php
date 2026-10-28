@@ -57,7 +57,8 @@ return new class extends Migration
         Schema::create('organization_audit_events', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
-            $table->foreignId('actor_user_id')->nullable()->constrained('users')->nullOnDelete();
+            // Preserve actor attribution; referenced users cannot be deleted. Null is reserved for system events.
+            $table->foreignId('actor_user_id')->nullable()->constrained('users')->restrictOnDelete();
             $table->string('subject_type', 48);
             $table->unsignedBigInteger('subject_id');
             $table->string('action', 48);

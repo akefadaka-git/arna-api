@@ -5,10 +5,21 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Organization\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use LogicException;
 
 final class OrganizationAuditEvent extends Model
 {
     public $timestamps = false;
+
+    protected static function booted(): void
+    {
+        static::updating(static function (): never {
+            throw new LogicException('Organization audit events are append-only.');
+        });
+        static::deleting(static function (): never {
+            throw new LogicException('Organization audit events are append-only.');
+        });
+    }
 
     protected $table = 'organization_audit_events';
 
