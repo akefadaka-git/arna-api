@@ -23,7 +23,7 @@ return [
     ['1160', '1100', 'Employee advances', 'ለሠራተኞች የተሰጡ ቅድሚያ ክፍያዎች', 'asset', 'debit', true, true, 'People/Finance', 'undetermined'],
     ['1170', '1100', 'Supplier advances', 'ለአቅራቢዎች የተሰጡ ቅድሚያ ክፍያዎች', 'asset', 'debit', true, true, 'Procurement', 'undetermined'],
     ['1180', '1100', 'Prepaid expenses', 'በቅድሚያ የተከፈሉ ወጪዎች', 'asset', 'debit', true, false, 'Finance', 'undetermined'],
-    ['1190', '1100', 'Recoverable input tax', 'ተመላሽ የግብዓት ታክስ', 'asset', 'debit', true, true, 'Finance/Tax', 'non_taxable'],
+    ['1190', '1100', 'Recoverable input tax', 'ተመላሽ የግብዓት ታክስ', 'asset', 'debit', true, true, 'Finance/Tax', 'out_of_scope'],
     ['1200', '1000', 'Loan principal receivable', 'የብድር ዋና ገንዘብ ተቀባይ', 'asset', 'debit', true, true, 'Loan', 'out_of_scope'],
     ['1210', '1000', 'Accrued loan interest receivable', 'የተጠራቀመ የብድር ወለድ ተቀባይ', 'asset', 'debit', true, true, 'Loan', 'undetermined'],
     ['1220', '1000', 'Expected credit loss allowance', 'የሚጠበቅ የብድር ኪሳራ አበል', 'asset', 'credit', true, true, 'Loan/Finance', 'out_of_scope'],
