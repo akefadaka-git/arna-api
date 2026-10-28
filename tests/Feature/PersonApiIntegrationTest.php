@@ -276,9 +276,27 @@ final class PersonApiIntegrationTest extends TestCase
         ])->assertCreated();
         $publicId = $created->json('data.public_id');
 
+        // Fixture an already-validated account association so the individual
+        // shareholder obeys ShareholderService's required user_id invariant.
+        $shareholderUser = User::factory()->create(['is_active' => true]);
+        $shareholderUser->tenants()->attach($tenant->getKey(), [
+            'joined_at' => now(),
+            'status' => 'active',
+        ]);
+        DB::table('people')->where('public_id', $publicId)->update(['user_id' => $shareholderUser->getKey()]);
+
         $employeeId = DB::table('employees')->insertGetId([
             'tenant_id' => $tenant->getKey(),
             'employee_number' => 'EMP-TEST-001',
+            'user_id' => null,
+            'person_id' => null,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $duplicateEmployeeId = DB::table('employees')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'employee_number' => 'EMP-TEST-002',
             'user_id' => null,
             'person_id' => null,
             'is_active' => true,
@@ -301,7 +319,7 @@ final class PersonApiIntegrationTest extends TestCase
             'shareholder_type' => 'individual',
             'first_name_am' => 'ማርታ',
             'first_name_en' => 'Marta',
-            'user_id' => null,
+            'user_id' => $shareholderUser->getKey(),
             'representative_user_id' => null,
             'person_id' => null,
             'is_active' => true,
@@ -347,6 +365,21 @@ final class PersonApiIntegrationTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        $overlapMembershipId = DB::table('governance_memberships')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'governance_body_id' => $bodyId,
+            'governance_position_id' => $positionId,
+            'user_id' => null,
+            'member_name_am' => 'ሌላ አባል',
+            'member_name_en' => 'Different Member Name',
+            'external_reference' => 'GOV-TEST-002',
+            'start_date' => now()->toDateString(),
+            'status' => 'active',
+            'is_ex_officio' => false,
+            'person_id' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $employeeOptions = $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/employees/options')
             ->assertOk()
@@ -376,6 +409,14 @@ final class PersonApiIntegrationTest extends TestCase
                 'reason' => 'Link '.$reason.' to canonical Person',
             ])->assertOk()->assertJsonPath('data.linked', true);
         }
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/relationships/employees/'.$duplicateEmployeeId, [
+            'reason' => 'Reject duplicate active employee identity',
+        ])->assertForbidden();
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/relationships/governance-memberships/'.$overlapMembershipId, [
+            'reason' => 'Reject overlapping governance identity',
+        ])->assertForbidden();
 
         $this->assertDatabaseHas('employees', ['id' => $employeeId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
         $this->assertDatabaseHas('shareholders', ['id' => $shareholderId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
