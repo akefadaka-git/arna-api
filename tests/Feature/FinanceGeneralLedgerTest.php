@@ -653,6 +653,46 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertSame(JournalEntry::REVERSED, $original->fresh()->status);
     }
 
+
+    #[Test]
+    public function test_trial_balance_includes_original_reversed_journal_and_posted_counter_entry(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $journals = app(JournalEntryService::class);
+        $draft = $journals->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-TRIAL-BALANCE-REVERSAL',
+            'effective_date' => '2026-10-01',
+            'description' => 'Trial balance reversal regression',
+            'currency' => 'ETB',
+            'idempotency_key' => 'trial-balance-reversal-original',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '40', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '40'],
+        ]);
+        $original = $journals->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $journals->reverse(
+            (int) $tenant->id,
+            (int) $user->id,
+            (int) $original->id,
+            'JV-TRIAL-BALANCE-REVERSAL-COUNTER',
+            '2026-10-02',
+            'Approved reversal for reporting regression',
+        );
+
+        $rows = app(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\TrialBalanceService::class)
+            ->forEntity((int) $tenant->id, (int) $entity->id, '2026-10-02');
+        $cashRow = $rows->firstWhere('id', $cash->id);
+        $equityRow = $rows->firstWhere('id', $equity->id);
+
+        $this->assertNotNull($cashRow);
+        $this->assertNotNull($equityRow);
+        $this->assertSame('40.0000', (string) $cashRow->debit_total);
+        $this->assertSame('40.0000', (string) $cashRow->credit_total);
+        $this->assertSame('40.0000', (string) $equityRow->debit_total);
+        $this->assertSame('40.0000', (string) $equityRow->credit_total);
+    }
+
     /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */
     private function ledgerFixture(): array
     {

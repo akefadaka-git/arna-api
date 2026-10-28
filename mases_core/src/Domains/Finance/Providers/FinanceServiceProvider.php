@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Providers;
 use Illuminate\Support\ServiceProvider;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
 
 /**
  * Finance domain integration point.
@@ -21,6 +22,7 @@ final class FinanceServiceProvider extends ServiceProvider
     {
         $this->app->singleton(LegalEntityRepository::class);
         $this->app->singleton(LegalEntityService::class);
+        $this->app->singleton(TrialBalanceService::class);
     }
 
     public function boot(): void
