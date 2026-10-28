@@ -667,6 +667,46 @@ final class PersonApiIntegrationTest extends TestCase
         ]);
     }
 
+    #[Test]
+    public function people_manager_can_record_list_and_deactivate_tenant_scoped_participation(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+        $person = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Participation Profile',
+        ])->assertCreated();
+        $publicId = $person->json('data.public_id');
+
+        $created = $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/participations', [
+            'participation_type' => 'ministry',
+            'title' => 'Youth Ministry',
+            'reference_code' => 'MIN-001',
+            'effective_from' => '2026-01-01',
+            'reason' => 'Record authorized ministry participation',
+        ])->assertCreated()
+            ->assertJsonPath('data.participation_type', 'ministry')
+            ->assertJsonPath('data.title', 'Youth Ministry')
+            ->assertJsonPath('data.status', 'active');
+
+        $participationId = $created->json('data.id');
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/participations')
+            ->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $participationId)
+            ->assertJsonPath('data.0.reference_code', 'MIN-001');
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/participations/'.$participationId.'/deactivate', [
+            'reason' => 'Participation has formally ended',
+        ])->assertOk()->assertJsonPath('data.status', 'inactive');
+
+        $this->assertDatabaseHas('person_participations', [
+            'id' => $participationId,
+            'tenant_id' => $tenant->getKey(),
+            'status' => 'inactive',
+            'deactivation_reason' => 'Participation has formally ended',
+        ]);
+    }
+
     /** @return array{0: Tenant, 1: User} */
     private function tenantPeopleManager(): array
     {
