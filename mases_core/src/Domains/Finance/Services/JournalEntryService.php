@@ -1,0 +1,224 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MaaleArna\MASES\Core\Domains\Finance\Services;
+
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalLine;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use RuntimeException;
+
+final class JournalEntryService
+{
+    /**
+     * Create an immutable-identity draft with entity-scoped, validated lines.
+     * Amounts remain decimal strings and are never converted to PHP floats.
+     *
+     * @param array<string, mixed> $header
+     * @param list<array<string, mixed>> $lines
+     */
+    public function createDraft(int $tenantId, int $actorId, array $header, array $lines): JournalEntry
+    {
+        return DB::transaction(function () use ($tenantId, $actorId, $header, $lines): JournalEntry {
+            if (count($lines) < 2) {
+                throw ValidationException::withMessages(['lines' => 'A journal must contain at least two lines.']);
+            }
+
+            $entity = LegalEntity::query()->where('tenant_id', $tenantId)
+                ->whereKey((int) ($header['legal_entity_id'] ?? 0))
+                ->where('status', 'active')->lockForUpdate()->first();
+
+            if (!$entity) {
+                throw (new ModelNotFoundException())->setModel(LegalEntity::class);
+            }
+
+            $date = (string) ($header['effective_date'] ?? '');
+            $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $entity->id)
+                ->where('starts_on', '<=', $date)->where('ends_on', '>=', $date)
+                ->lockForUpdate()->first();
+
+            if (!$period || $period->status !== AccountingPeriod::OPEN) {
+                throw ValidationException::withMessages(['effective_date' => 'The effective date must belong to an open accounting period.']);
+            }
+
+            $currency = strtoupper((string) ($header['currency'] ?? $entity->base_currency));
+            if ($currency !== $entity->base_currency) {
+                throw ValidationException::withMessages(['currency' => 'Foreign-currency journals are disabled until the approved FX contract is implemented.']);
+            }
+
+            $key = trim((string) ($header['idempotency_key'] ?? ''));
+            if ($key === '' || strlen($key) > 128) {
+                throw ValidationException::withMessages(['idempotency_key' => 'A non-empty idempotency key of at most 128 characters is required.']);
+            }
+
+            $existing = JournalEntry::query()->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $entity->id)->where('idempotency_key', $key)->first();
+            if ($existing) {
+                throw ValidationException::withMessages(['idempotency_key' => 'This idempotency key already exists. Retrieve the existing journal instead of creating another.']);
+            }
+
+            $entry = JournalEntry::query()->create([
+                'tenant_id' => $tenantId,
+                'legal_entity_id' => $entity->id,
+                'accounting_period_id' => $period->id,
+                'journal_number' => trim((string) ($header['journal_number'] ?? '')),
+                'effective_date' => $date,
+                'status' => JournalEntry::DRAFT,
+                'currency' => $currency,
+                'description' => trim((string) ($header['description'] ?? '')),
+                'source_type' => $header['source_type'] ?? null,
+                'source_id' => isset($header['source_id']) ? (string) $header['source_id'] : null,
+                'idempotency_key' => $key,
+                'created_by' => $actorId,
+            ]);
+
+            foreach (array_values($lines) as $index => $line) {
+                $accountId = (int) ($line['account_id'] ?? 0);
+                $account = LedgerAccount::query()->where('tenant_id', $tenantId)
+                    ->where('legal_entity_id', $entity->id)->whereKey($accountId)
+                    ->where('status', 'active')->where('is_posting_allowed', true)->first();
+
+                if (!$account) {
+                    throw ValidationException::withMessages(["lines.{$index}.account_id" => 'Account is unavailable for posting in this legal entity.']);
+                }
+
+                $debit = $this->money((string) ($line['debit_amount'] ?? '0'), "lines.{$index}.debit_amount");
+                $credit = $this->money((string) ($line['credit_amount'] ?? '0'), "lines.{$index}.credit_amount");
+                $hasDebit = $this->isPositive($debit);
+                $hasCredit = $this->isPositive($credit);
+
+                if ($hasDebit === $hasCredit) {
+                    throw ValidationException::withMessages(["lines.{$index}" => 'Each journal line must have exactly one positive debit or credit amount.']);
+                }
+
+                JournalLine::query()->create([
+                    'tenant_id' => $tenantId,
+                    'legal_entity_id' => $entity->id,
+                    'journal_entry_id' => $entry->id,
+                    'account_id' => $account->id,
+                    'line_number' => $index + 1,
+                    'description' => isset($line['description']) ? trim((string) $line['description']) : null,
+                    'debit_amount' => $debit,
+                    'credit_amount' => $credit,
+                ]);
+            }
+
+            $this->assertBalanced($entry);
+
+            return $entry->load('lines');
+        });
+    }
+
+    public function post(int $tenantId, int $actorId, int $journalId): JournalEntry
+    {
+        return DB::transaction(function () use ($tenantId, $actorId, $journalId): JournalEntry {
+            $entry = JournalEntry::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($journalId);
+
+            if ($entry->status !== JournalEntry::DRAFT) {
+                throw ValidationException::withMessages(['status' => 'Only draft journals can be posted.']);
+            }
+
+            $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $entry->legal_entity_id)
+                ->lockForUpdate()->findOrFail($entry->accounting_period_id);
+
+            if ($period->status !== AccountingPeriod::OPEN
+                || $entry->effective_date->lt($period->starts_on)
+                || $entry->effective_date->gt($period->ends_on)) {
+                throw ValidationException::withMessages(['accounting_period' => 'The accounting period is not open for this journal date.']);
+            }
+
+            $this->assertBalanced($entry);
+            $entry->status = JournalEntry::POSTED;
+            $entry->posted_by = $actorId;
+            $entry->posted_at = now();
+            $entry->save();
+
+            return $entry->load('lines');
+        });
+    }
+
+    public function reverse(int $tenantId, int $actorId, int $journalId, string $reversalNumber, string $reversalDate, string $reason): JournalEntry
+    {
+        return DB::transaction(function () use ($tenantId, $actorId, $journalId, $reversalNumber, $reversalDate, $reason): JournalEntry {
+            $original = JournalEntry::query()->where('tenant_id', $tenantId)
+                ->lockForUpdate()->findOrFail($journalId);
+
+            if ($original->status !== JournalEntry::POSTED || $original->reversal_of_id !== null) {
+                throw ValidationException::withMessages(['journal' => 'Only a posted, non-reversal journal can be reversed.']);
+            }
+
+            $originalLines = $original->lines()->orderBy('line_number')->get();
+            $reversal = $this->createDraft($tenantId, $actorId, [
+                'legal_entity_id' => $original->legal_entity_id,
+                'journal_number' => $reversalNumber,
+                'effective_date' => $reversalDate,
+                'currency' => $original->currency,
+                'description' => 'Reversal of '.$original->journal_number.': '.trim($reason),
+                'source_type' => 'journal_reversal',
+                'source_id' => (string) $original->id,
+                'idempotency_key' => 'reversal:'.$original->id,
+            ], $originalLines->map(fn (JournalLine $line): array => [
+                'account_id' => $line->account_id,
+                'debit_amount' => $line->credit_amount,
+                'credit_amount' => $line->debit_amount,
+                'description' => $line->description,
+            ])->all());
+
+            $postedReversal = $this->post($tenantId, $actorId, (int) $reversal->id);
+            $original->status = JournalEntry::REVERSED;
+            $original->reversed_at = now();
+            $original->save();
+
+            return $postedReversal;
+        });
+    }
+
+    private function assertBalanced(JournalEntry $entry): void
+    {
+        $totals = JournalLine::query()->where('tenant_id', $entry->tenant_id)
+            ->where('legal_entity_id', $entry->legal_entity_id)
+            ->where('journal_entry_id', $entry->id)
+            ->selectRaw('COUNT(*) AS line_count, COALESCE(SUM(debit_amount), 0) AS total_debits, COALESCE(SUM(credit_amount), 0) AS total_credits')
+            ->first();
+
+        if ((int) $totals->line_count < 2
+            || $this->normalizeDecimal((string) $totals->total_debits) !== $this->normalizeDecimal((string) $totals->total_credits)
+            || !$this->isPositive((string) $totals->total_debits)) {
+            throw ValidationException::withMessages(['lines' => 'Journal debits and credits must be equal and greater than zero.']);
+        }
+    }
+
+    private function money(string $value, string $field): string
+    {
+        $value = trim($value);
+        if (!preg_match('/^\d{1,16}(?:\.\d{1,4})?$/', $value)) {
+            throw ValidationException::withMessages([$field => 'Amount must be a non-negative decimal with at most four fractional digits.']);
+        }
+
+        [$whole, $fraction] = array_pad(explode('.', $value, 2), 2, '');
+        return ltrim($whole, '0') === '' ? '0.'.str_pad($fraction, 4, '0') : ltrim($whole, '0').'.'.str_pad($fraction, 4, '0');
+    }
+
+    private function isPositive(string $value): bool
+    {
+        return $this->normalizeDecimal($value) !== '0';
+    }
+
+    private function normalizeDecimal(string $value): string
+    {
+        $value = number_format((float) $value, 4, '.', '');
+        // Only used for comparisons after SQL aggregation; avoid floats in monetary calculations.
+        [$whole, $fraction] = explode('.', $value, 2);
+        $whole = ltrim($whole, '0') ?: '0';
+        $fraction = rtrim($fraction, '0');
+        return $fraction === '' ? $whole : $whole.'.'.$fraction;
+    }
+}
