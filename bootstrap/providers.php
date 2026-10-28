@@ -655,7 +655,7 @@ return [
      * catalogues. Existing Finance routes and migrations remain centrally
      * registered until their dedicated domain integration is approved.
      */
-    MaaleArna\\MASES\\Core\\Domains\\Finance\\Providers\\FinanceServiceProvider::class,
+    MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
