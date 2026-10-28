@@ -162,10 +162,18 @@ final class PersonIdentityService
             if (($holder->shareholder_type ?? null) !== 'individual') {
                 throw new DomainException('Legal-entity shareholders cannot link to a natural-person profile.');
             }
+            if (($holder->user_id ?? null) === null) {
+                throw new DomainException('An individual shareholder must have its required direct user account before Person linking.');
+            }
             $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
             $this->assertPersonTenantAccess($tenantId, $person);
             $this->assertDomainLinkAvailable($holder->person_id ?? null, $personId);
             $this->assertDomainUserConsistency($person, $holder->user_id ?? null);
+            $otherShareholder = DB::table('shareholders')->where('tenant_id', $tenantId)
+                ->where('person_id', $personId)->where('id', '<>', $shareholderId)->whereNull('deleted_at')->first();
+            if ($otherShareholder !== null) {
+                throw new DomainException('Person is already associated with an individual shareholder record in this tenant.');
+            }
             DB::table('shareholders')->where('id', $shareholderId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
             $this->recordEvent('person.shareholder_linked', $tenantId, $actor, $person, ['shareholder_id' => $shareholderId, 'reason' => $reason]);
         });
@@ -185,6 +193,14 @@ final class PersonIdentityService
             $this->assertPersonTenantAccess($tenantId, $person);
             $this->assertDomainLinkAvailable($employee->person_id ?? null, $personId);
             $this->assertDomainUserConsistency($person, $employee->user_id ?? null);
+            if ((bool) ($employee->is_active ?? false)) {
+                $otherActiveEmployee = DB::table('employees')->where('tenant_id', $tenantId)
+                    ->where('person_id', $personId)->where('is_active', true)->whereNull('deleted_at')
+                    ->where('id', '<>', $employeeId)->exists();
+                if ($otherActiveEmployee) {
+                    throw new DomainException('Person already has an active employee record in this tenant.');
+                }
+            }
             DB::table('employees')->where('id', $employeeId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
             $this->recordEvent('person.employee_linked', $tenantId, $actor, $person, ['employee_id' => $employeeId, 'reason' => $reason]);
         });
@@ -196,14 +212,48 @@ final class PersonIdentityService
         $this->assertManagePermission($tenantId, $actor);
         $this->assertReason($reason);
         DB::transaction(function () use ($tenantId, $membershipId, $personId, $actor, $reason): void {
-            $membership = DB::table('governance_memberships')->where('tenant_id', $tenantId)->where('id', $membershipId)->lockForUpdate()->first();
-            if ($membership === null) {
+            // Match GovernanceMembershipService lock ordering: position first,
+            // then membership, then Person. This serializes identity-link overlap
+            // checks with concurrent membership registration/update operations.
+            $reference = DB::table('governance_memberships')->where('tenant_id', $tenantId)
+                ->where('id', $membershipId)->first();
+            if ($reference === null) {
                 throw new DomainException('Governance membership was not found in the authorized tenant.');
+            }
+            $position = DB::table('governance_positions')->where('tenant_id', $tenantId)
+                ->where('id', $reference->governance_position_id)->lockForUpdate()->first();
+            if ($position === null) {
+                throw new DomainException('Governance position was not found in the authorized tenant.');
+            }
+            $membership = DB::table('governance_memberships')->where('tenant_id', $tenantId)
+                ->where('id', $membershipId)->lockForUpdate()->first();
+            if ($membership === null
+                || (int) $membership->governance_position_id !== (int) $reference->governance_position_id
+                || (int) $membership->governance_body_id !== (int) $reference->governance_body_id) {
+                throw new DomainException('Governance membership changed while its identity link was being validated.');
             }
             $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
             $this->assertPersonTenantAccess($tenantId, $person);
             $this->assertDomainLinkAvailable($membership->person_id ?? null, $personId);
             $this->assertDomainUserConsistency($person, $membership->user_id ?? null);
+
+            if (in_array($membership->status, ['active', 'suspended'], true)) {
+                $overlap = DB::table('governance_memberships')->where('tenant_id', $tenantId)
+                    ->where('governance_body_id', $membership->governance_body_id)
+                    ->where('governance_position_id', $membership->governance_position_id)
+                    ->where('person_id', $personId)
+                    ->whereIn('status', ['active', 'suspended'])->whereNull('deleted_at')
+                    ->where('id', '<>', $membershipId)
+                    ->where('start_date', '<=', $membership->end_date ?? '9999-12-31')
+                    ->where(function ($query) use ($membership): void {
+                        $query->whereNull('end_date')->orWhere('end_date', '>=', $membership->start_date);
+                    })
+                    ->exists();
+                if ($overlap) {
+                    throw new DomainException('Person already has an overlapping ongoing membership in this governance position.');
+                }
+            }
+
             DB::table('governance_memberships')->where('id', $membershipId)->where('tenant_id', $tenantId)->update(['person_id' => $personId, 'updated_at' => now()]);
             $this->recordEvent('person.governance_membership_linked', $tenantId, $actor, $person, ['membership_id' => $membershipId, 'reason' => $reason]);
         });
