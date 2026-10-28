@@ -73,8 +73,15 @@ final class PersonContactPointController extends Controller
                 'contact_type' => $attributes['contact_type'],
                 'label' => $attributes['label'] ?? null,
                 'contact_value' => $value,
+                'normalized_hash' => hash_hmac(
+                    'sha256',
+                    $attributes['contact_type'] === 'email' ? mb_strtolower($value) : preg_replace('/\\s+/', '', $value),
+                    (string) config('app.key'),
+                ),
                 'is_primary' => (bool) ($attributes['is_primary'] ?? false),
+                'is_verified' => false,
                 'verified_at' => null,
+                'source' => 'manual',
                 'status' => 'active',
                 'created_by' => $request->user()?->getKey(),
             ]);
