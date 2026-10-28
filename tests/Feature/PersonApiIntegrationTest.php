@@ -476,17 +476,16 @@ final class PersonApiIntegrationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.linked.0.id', $employeeId)
             ->assertJsonPath('data.linked.0.status', 'inactive')
-            ->assertJsonMissingPath('data.candidates.0');
+            ->assertJsonPath('data.candidates.0.label', 'EMP-TEST-002');
         $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/shareholders/options')
             ->assertOk()
             ->assertJsonPath('data.linked.0.id', $shareholderId)
-            ->assertJsonPath('data.linked.0.status', 'inactive')
-            ->assertJsonMissingPath('data.candidates.0');
+            ->assertJsonPath('data.linked.0.status', 'inactive');
         $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/governance-memberships/options')
             ->assertOk()
             ->assertJsonPath('data.linked.0.id', $membershipId)
             ->assertJsonPath('data.linked.0.status', 'suspended')
-            ->assertJsonMissingPath('data.candidates.0');
+            ->assertJsonPath('data.candidates.0.label', 'ሌላ አባል');
 
         $accountLinkPermission = Permission::query()->create([
             'name_en' => 'Manage Global Person Account Links',
