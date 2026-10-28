@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Repositories;
+namespace MaaleArna\MASES\Core\Domains\Finance\Repositories;
 
-use Illuminate\\Contracts\\Pagination\\LengthAwarePaginator;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LegalEntity;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 
 /**
  * Tenant-scoped read repository for Finance legal entities.
