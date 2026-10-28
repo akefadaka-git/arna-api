@@ -52,6 +52,7 @@ final class FinanceGeneralLedgerTest extends TestCase
         ]);
 
         $this->assertSame(JournalEntry::DRAFT, $draft->status);
+        $this->assertSame(JournalEntryType::STANDARD, $draft->journal_type);
         $posted = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
 
         $this->assertSame(JournalEntry::POSTED, $posted->status);
