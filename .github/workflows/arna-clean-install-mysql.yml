@@ -205,6 +205,17 @@ jobs:
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php
 
+      - name: Run Organization hierarchy concurrent mutation regression
+        env:
+          ARNA_RUN_MYSQL_CONCURRENCY: "1"
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php
+
       - name: Verify expected core and domain tables
         shell: bash
         run: |
