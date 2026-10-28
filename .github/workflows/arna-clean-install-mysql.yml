@@ -24,6 +24,8 @@ on:
       - "tests/Feature/PersonApiIntegrationTest.php"
       - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
+      - "tests/Feature/OrganizationDomainTest.php"
+      - "mases_core/src/Domains/Organization/**"
       - "app/Http/Controllers/PersonController.php"
       - "routes/api.php"
       - "mases_core/src/Domains/People/**"
@@ -213,7 +215,7 @@ jobs:
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 60
+          test "${applied}" -eq 61
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -248,7 +250,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 60
+          test "${applied}" -eq 61
 
       - name: Upload migration status evidence
         if: always()
