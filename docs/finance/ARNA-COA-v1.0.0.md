@@ -24,6 +24,16 @@ Allowed default tax categories:
 
 An account is not itself a taxable supply. Revenue and expense accounts may contain transactions with different VAT treatments. Accordingly, undetermined is an intentional fail-safe default where classification requires transaction or tax-policy facts. The current v1 register assigns a default category to every account; it does not assert that every account has been legally classified as taxable or non-taxable.
 
+## Owner review disposition — 2026-10-28
+
+**Structural baseline:** accepted as the proposed v1 account structure for continued implementation review. This is not authorization to post production journals or activate subledger adapters.
+
+**Tax defaults:** conservative routing defaults only. The register's sales, service, and procurement/fulfillment revenue defaults are provisionally taxable; actual transaction treatment must be determined from the supply and approved tax code. Loan interest, wallet fees, commissions, supplier costs, inventory and most operating expenses remain undetermined where facts drive treatment. Account balances such as recoverable input tax are out of scope for supply classification; account 1190 is categorized out_of_scope.
+
+**Control ownership:** proposed domain ownership is Finance/Treasury for cash and bank, Wallet + Finance for wallet settlement/customer balances, Loan + Finance for loan receivables and impairment, Procurement + Finance for supplier balances, People/Payroll + Finance for payroll, Shareholder + Finance with Governance authorization for capital/distributions, Finance/Tax for tax balances, and Finance/Consolidation for intercompany accounts. Each control account requires a defined reconciliation owner and evidence schedule before adapter activation.
+
+**Approval boundary:** final Ethiopian tax treatment and legal classification require review by a qualified accounting/tax professional and explicit Owner approval. No tax classification should be inferred solely from the account name. No production activation or adapter enablement is authorized by this review.
+
 ## Governance and activation
 
 1. Owner authorization permits preparation and implementation in this branch; it does not substitute for review by the responsible Ethiopian tax/accounting professional.
