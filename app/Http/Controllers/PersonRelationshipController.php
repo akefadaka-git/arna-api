@@ -48,7 +48,7 @@ final class PersonRelationshipController extends Controller
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $person = $this->visiblePerson($publicId, (int) $tenantId);
         $attributes = $request->validate([
-            'related_public_id' => ['required', 'uuid', 'different:person_public_id'],
+            'related_public_id' => ['required', 'uuid'],
             'relationship_type' => ['required', Rule::in(self::TYPES)],
             'effective_from' => ['nullable', 'date', 'before_or_equal:effective_to'],
             'effective_to' => ['nullable', 'date', 'after_or_equal:effective_from'],
