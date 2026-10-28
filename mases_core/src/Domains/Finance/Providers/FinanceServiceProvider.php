@@ -24,6 +24,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Events\AccountingPeriodOpened;
 use MaaleArna\MASES\Core\Domains\Finance\Events\AccountingPeriodClosed;
 use MaaleArna\MASES\Core\Domains\Finance\Listeners\AuditFinanceLifecycleEvent;
 use MaaleArna\MASES\Core\Domains\Finance\Services\SubledgerIntegrationService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
 
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
@@ -50,6 +51,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(LegalEntityService::class);
         $this->app->singleton(AccountingPeriodService::class);
         $this->app->singleton(TrialBalanceService::class);
+        $this->app->singleton(FinancialReportService::class);
         $this->app->singleton(SubledgerIntegrationService::class);
     }
 

@@ -24,6 +24,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreLedgerAccountRequest
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
@@ -41,6 +42,7 @@ final class FinanceController extends Controller
         private readonly LegalEntityService $legalEntities,
         private readonly JournalEntryService $journals,
         private readonly TrialBalanceService $trialBalance,
+        private readonly FinancialReportService $financialReports,
         private readonly LedgerAccountRepository $ledgerAccounts,
         private readonly AccountingPeriodRepository $accountingPeriods,
         private readonly AccountingPeriodService $accountingPeriodService,
@@ -198,7 +200,7 @@ final class FinanceController extends Controller
             'as_of' => ['required', 'date'],
         ]);
         $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
-        $rows = $this->trialBalance->forEntity(
+        $report = $this->financialReports->trialBalance(
             $this->tenantId(),
             (int) $entity->id,
             (string) $data['as_of'],
@@ -206,9 +208,7 @@ final class FinanceController extends Controller
 
         return response()->json(['success' => true, 'data' => [
             'legal_entity_id' => $entity->id,
-            'currency' => $entity->base_currency,
-            'as_of' => $data['as_of'],
-            'accounts' => $rows,
+            ...$report,
         ]]);
     }
 
