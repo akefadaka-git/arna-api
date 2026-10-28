@@ -471,12 +471,23 @@ final class PersonApiIntegrationTest extends TestCase
         DB::table('employees')->where('id', $employeeId)->update(['is_active' => false]);
         DB::table('shareholders')->where('id', $shareholderId)->update(['is_active' => false]);
         DB::table('governance_memberships')->where('id', $membershipId)->update(['status' => 'suspended']);
+        $softDeletedEmployeeId = (int) DB::table('employees')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'employee_number' => 'EMP-DELETED-001',
+            'user_id' => null,
+            'person_id' => $personId,
+            'is_active' => false,
+            'deleted_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/employees/options')
             ->assertOk()
             ->assertJsonPath('data.linked.0.id', $employeeId)
             ->assertJsonPath('data.linked.0.status', 'inactive')
-            ->assertJsonPath('data.candidates.0.label', 'EMP-TEST-002');
+            ->assertJsonPath('data.candidates.0.label', 'EMP-TEST-002')
+            ->assertJsonMissing(['id' => $softDeletedEmployeeId]);
         $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/relationships/shareholders/options')
             ->assertOk()
             ->assertJsonPath('data.linked.0.id', $shareholderId)
