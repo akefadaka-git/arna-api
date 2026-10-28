@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use MaaleArna\MASES\Core\Auth\Models\User;
 
 final class JournalSourceEntityMapping extends Model
 {
@@ -39,7 +40,7 @@ final class JournalSourceEntityMapping extends Model
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function scopeForTenant(Builder $query, int $tenantId): Builder
