@@ -13,6 +13,9 @@ use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalSourceEntityMapping;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Loan\Models\Loan;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
+use MaaleArna\MASES\Core\Domains\Wallet\Models\Wallet;
 
 final class SourceLegalEntityMappingService implements SourceLegalEntityMappingContract
 {
@@ -35,6 +38,7 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
 
         Gate::forUser($actor)->authorize('create', JournalSourceEntityMapping::class);
         $this->assertActiveEntity($tenantId, $legalEntityId);
+        $this->assertSourceExists($tenantId, $sourceType, $sourceId);
 
         return DB::transaction(function () use ($tenantId, $sourceType, $sourceId, $legalEntityId, $actor, $reason): JournalSourceEntityMapping {
             $mapping = JournalSourceEntityMapping::query()
@@ -101,6 +105,7 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
                 throw ValidationException::withMessages(['mapping' => 'Only pending mappings may be approved.']);
             }
             $this->assertActiveEntity($tenantId, (int) $mapping->legal_entity_id);
+            $this->assertSourceExists($tenantId, JournalSourceType::from((string) $mapping->source_type), (string) $mapping->source_id);
 
             $before = $this->state($mapping);
             $mapping->forceFill([
@@ -160,6 +165,8 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
             ]);
         }
 
+        $this->assertSourceExists($tenantId, $sourceType, $sourceId);
+
         $mappings = JournalSourceEntityMapping::query()
             ->where('tenant_id', $tenantId)
             ->where('source_type', $sourceType->value)
@@ -191,6 +198,34 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
         }
 
         return (int) $entity->id;
+    }
+
+
+    private function assertSourceExists(int $tenantId, JournalSourceType $sourceType, string $sourceId): void
+    {
+        $modelClass = match ($sourceType) {
+            JournalSourceType::SHAREHOLDER => Shareholder::class,
+            JournalSourceType::WALLET => Wallet::class,
+            JournalSourceType::LOAN => Loan::class,
+            default => null,
+        };
+
+        if ($modelClass === null || $tenantId < 1 || trim($sourceId) === '') {
+            throw ValidationException::withMessages([
+                'source_id' => 'This source type has no authoritative mapping workflow or the source reference is invalid.',
+            ]);
+        }
+
+        $exists = $modelClass::query()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($sourceId)
+            ->exists();
+
+        if (!$exists) {
+            throw ValidationException::withMessages([
+                'source_id' => 'The originating record is unavailable in the trusted tenant.',
+            ]);
+        }
     }
 
     private function assertTrustedTenant(int $tenantId): void
