@@ -112,6 +112,59 @@ final class OrganizationDomainTest extends TestCase
         }
     }
 
+    #[Test]
+    public function incompatible_parent_type_is_rejected(): void
+    {
+        [$tenant, $user] = $this->manager();
+        Sanctum::actingAs($user);
+        $headers = ['X-Tenant-ID' => (string) $tenant->id];
+
+        $company = $this->withHeaders($headers)->postJson('/api/organization/units', [
+            'code' => 'HQ', 'unit_type' => 'company', 'name_en' => 'Head Office',
+            'reason' => 'Create root company',
+        ])->assertCreated()->json('data.id');
+
+        $this->withHeaders($headers)->postJson('/api/organization/units', [
+            'parent_id' => $company, 'code' => 'TEAM', 'unit_type' => 'team',
+            'name_en' => 'Invalid Team', 'reason' => 'Reject invalid hierarchy edge',
+        ])->assertStatus(409);
+
+        $this->assertDatabaseMissing('organization_units', [
+            'tenant_id' => $tenant->id, 'code' => 'TEAM',
+        ]);
+    }
+
+    #[Test]
+    public function reparenting_a_root_under_its_descendant_is_rejected(): void
+    {
+        [$tenant, $user] = $this->manager();
+        Sanctum::actingAs($user);
+        $headers = ['X-Tenant-ID' => (string) $tenant->id];
+
+        $company = $this->withHeaders($headers)->postJson('/api/organization/units', [
+            'code' => 'HQ', 'unit_type' => 'company', 'name_en' => 'Head Office',
+            'reason' => 'Create root company',
+        ])->assertCreated()->json('data.id');
+
+        $division = $this->withHeaders($headers)->postJson('/api/organization/units', [
+            'parent_id' => $company, 'code' => 'DIV', 'unit_type' => 'division',
+            'name_en' => 'Division', 'reason' => 'Create division under company',
+        ])->assertCreated()->json('data.id');
+
+        $branch = $this->withHeaders($headers)->postJson('/api/organization/units', [
+            'parent_id' => $division, 'code' => 'BR', 'unit_type' => 'branch',
+            'name_en' => 'Branch', 'reason' => 'Create branch under division',
+        ])->assertCreated()->json('data.id');
+
+        $this->withHeaders($headers)->putJson('/api/organization/units/'.$company, [
+            'parent_id' => $branch, 'reason' => 'Reject cycle in hierarchy',
+        ])->assertStatus(409);
+
+        $this->assertDatabaseHas('organization_units', [
+            'id' => $company, 'tenant_id' => $tenant->id, 'parent_id' => null,
+        ]);
+    }
+
     private function manager(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
