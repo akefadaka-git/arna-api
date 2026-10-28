@@ -104,17 +104,8 @@ final class PersonContactPointController extends Controller
                 ->firstOrFail();
             $contact->status = 'inactive';
             $contact->is_primary = false;
+            $contact->deactivation_reason = $attributes['reason'];
             $contact->save();
-
-            // Record only the operation and reason, never the encrypted contact value.
-            DB::table('security_events')->insert([
-                'tenant_id' => $tenantId,
-                'user_id' => $request->user()?->getKey(),
-                'event_type' => 'person.contact_point_deactivated',
-                'description' => mb_substr($attributes['reason'], 0, 1000),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
 
             return $contact;
         });
