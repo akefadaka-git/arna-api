@@ -654,6 +654,7 @@ final class GovernanceMembershipRepository
         ?string $memberNameEn,
         mixed $startDate,
         mixed $endDate,
+        ?int $personId = null,
         ?int $exceptId = null
     ): bool {
         $query = GovernanceMembership::query()
@@ -670,7 +671,12 @@ final class GovernanceMembershipRepository
         // ---------------------------------------------------------------------
         $appliedReference = false;
 
-        if ($userId !== null) {
+        // Canonical Person identity supersedes legacy account/reference/name
+        // keys whenever a relationship has been explicitly established.
+        if ($personId !== null) {
+            $query->where('person_id', $personId);
+            $appliedReference = true;
+        } elseif ($userId !== null) {
             $query->where('user_id', $userId);
             $appliedReference = true;
         } elseif (is_string($externalReference) && trim($externalReference) !== '') {
