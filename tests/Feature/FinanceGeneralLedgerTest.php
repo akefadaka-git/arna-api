@@ -687,10 +687,29 @@ final class FinanceGeneralLedgerTest extends TestCase
 
         $this->assertNotNull($cashRow);
         $this->assertNotNull($equityRow);
-        $this->assertSame('40.0000', (string) $cashRow->debit_total);
-        $this->assertSame('40.0000', (string) $cashRow->credit_total);
-        $this->assertSame('40.0000', (string) $equityRow->debit_total);
-        $this->assertSame('40.0000', (string) $equityRow->credit_total);
+        $this->assertSame('40', $this->normalizeAmount($cashRow->debit_total));
+        $this->assertSame('40', $this->normalizeAmount($cashRow->credit_total));
+        $this->assertSame('40', $this->normalizeAmount($equityRow->debit_total));
+        $this->assertSame('40', $this->normalizeAmount($equityRow->credit_total));
+    }
+
+    private function normalizeAmount(mixed $value): string
+    {
+        $amount = trim((string) $value);
+        if (!preg_match('/^\d+(?:\.\d+)?$/', $amount)) {
+            self::fail('Expected a non-negative decimal database aggregate.');
+        }
+
+        if (str_contains($amount, '.')) {
+            [$whole, $fraction] = explode('.', $amount, 2);
+            $fraction = rtrim($fraction, '0');
+            $amount = $whole.($fraction === '' ? '' : '.'.$fraction);
+        }
+
+        $whole = str_contains($amount, '.') ? explode('.', $amount, 2)[0] : $amount;
+        $whole = ltrim($whole, '0') ?: '0';
+
+        return str_contains($amount, '.') ? $whole.'.'.explode('.', $amount, 2)[1] : $whole;
     }
 
     /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */
