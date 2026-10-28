@@ -56,6 +56,7 @@ final class PersonContactPointController extends Controller
         }
 
         $contact = DB::transaction(function () use ($tenantId, $person, $request, $attributes, $value): PersonContactPoint {
+            $person = Person::query()->whereKey($person->getKey())->lockForUpdate()->firstOrFail();
             if (($attributes['is_primary'] ?? false) === true) {
                 PersonContactPoint::query()
                     ->where('tenant_id', $tenantId)
