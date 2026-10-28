@@ -16,12 +16,14 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreLegalEntityRequest;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
 final class FinanceController extends Controller
 {
     public function __construct(
         private readonly TenantContextService $tenantContext,
+        private readonly LegalEntityService $legalEntities,
         private readonly JournalEntryService $journals,
     ) {
     }
@@ -34,15 +36,10 @@ final class FinanceController extends Controller
 
     public function createEntity(StoreLegalEntityRequest $request): JsonResponse
     {
-        $data = $request->validated();
-
-        $entity = LegalEntity::query()->create([
-            ...$data,
-            'tenant_id' => $this->tenantId(),
-            'code' => strtoupper($data['code']),
-            'base_currency' => $data['base_currency'] ?? 'ETB',
-            'status' => 'active',
-        ]);
+        $entity = $this->legalEntities->create(
+            $this->tenantId(),
+            $request->validated(),
+        );
 
         return response()->json(['success' => true, 'data' => $entity], 201);
     }
