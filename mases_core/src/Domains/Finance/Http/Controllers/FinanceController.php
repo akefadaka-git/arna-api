@@ -187,6 +187,21 @@ final class FinanceController extends Controller
         return response()->json(['success' => true, 'data' => $journal], 201);
     }
 
+    public function cancelJournal(Request $request, int $journalId): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+        $journal = $this->journals->cancelDraft(
+            $this->tenantId(),
+            (int) $request->user()->getAuthIdentifier(),
+            $journalId,
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $journal]);
+    }
+
     public function postJournal(Request $request, int $journalId): JsonResponse
     {
         $journal = $this->journals->post($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $journalId);
