@@ -843,6 +843,31 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */
+
+    #[Test]
+    public function test_accounting_period_service_rejects_overlapping_periods_for_the_same_entity(): void
+    {
+        [$tenant, $user, $entity] = $this->ledgerFixture();
+
+        try {
+            app(AccountingPeriodService::class)->create((int) $tenant->id, [
+                'legal_entity_id' => $entity->id,
+                'code' => '2026-Q4',
+                'starts_on' => '2026-10-15',
+                'ends_on' => '2026-12-31',
+            ], (int) $user->id);
+            $this->fail('Overlapping accounting periods must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('starts_on', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('accounting_periods', [
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'code' => '2026-Q4',
+        ]);
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
