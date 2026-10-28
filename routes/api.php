@@ -559,6 +559,12 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->whereNumber('recordId')
             ->middleware('auth.permission:people.manage')
             ->name('relationships.link');
+        Route::post('/{publicId}/relationships/{domain}/{recordId}/unlink', [PersonController::class, 'unlinkDomain'])
+            ->whereUuid('publicId')
+            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
+            ->whereNumber('recordId')
+            ->middleware('auth.permission:people.manage')
+            ->name('relationships.unlink-command');
         Route::delete('/{publicId}/relationships/{domain}/{recordId}', [PersonController::class, 'unlinkDomain'])
             ->whereUuid('publicId')
             ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
