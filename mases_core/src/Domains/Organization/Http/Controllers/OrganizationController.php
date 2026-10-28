@@ -50,7 +50,8 @@ final class OrganizationController extends Controller
         $tenantId = $this->tenantId();
         $data = $request->validate([
             'parent_id' => ['nullable', 'integer'],
-            'legal_entity_id' => ['nullable', 'integer'],
+            // Legal-entity references stay disabled until the authoritative domain contract is wired.
+            'legal_entity_id' => ['prohibited'],
             'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
             'unit_type' => ['required', Rule::in(['company', 'division', 'branch', 'department', 'team'])],
             'name_am' => ['nullable', 'string', 'max:180'],
@@ -92,7 +93,7 @@ final class OrganizationController extends Controller
         abort_unless($this->unitPolicy->update($request->user(), $unit), 403, 'Organization unit update is not authorized.');
         $data = $request->validate([
             'parent_id' => ['sometimes', 'nullable', 'integer'],
-            'legal_entity_id' => ['sometimes', 'nullable', 'integer'],
+            'legal_entity_id' => ['prohibited'],
             'code' => ['sometimes', 'required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
             'unit_type' => ['sometimes', 'required', Rule::in(['company', 'division', 'branch', 'department', 'team'])],
             'name_am' => ['sometimes', 'nullable', 'string', 'max:180'],
@@ -116,7 +117,7 @@ final class OrganizationController extends Controller
             $type = $data['unit_type'] ?? $locked->unit_type;
             $this->assertParentType($type, $parent);
             $this->assertSubtreeCompatible($locked, $type, $tenantId);
-            $changes = array_intersect_key($data, array_flip(['legal_entity_id', 'unit_type', 'name_am', 'name_en', 'status']));
+            $changes = array_intersect_key($data, array_flip(['unit_type', 'name_am', 'name_en', 'status']));
             if (array_key_exists('code', $data)) {
                 $changes['code'] = strtoupper($data['code']);
             }
@@ -223,6 +224,18 @@ final class OrganizationController extends Controller
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'ends_on' => 'The end date must be on or after the persisted start date.',
                 ]);
+            }
+            $effectiveEnd = array_key_exists('ends_on', $data)
+                ? $data['ends_on']
+                : $locked->ends_on?->toDateString();
+            $today = now()->toDateString();
+            if (array_key_exists('status', $data) && $data['status'] === 'active'
+                && ($locked->starts_on->toDateString() > $today || ($effectiveEnd !== null && $effectiveEnd < $today))) {
+                throw new ConflictHttpException('An assignment outside its effective date interval cannot be activated.');
+            }
+            if ($effectiveEnd !== null && $effectiveEnd < $today
+                && ($data['status'] ?? $locked->status) !== 'ended') {
+                throw new ConflictHttpException('An assignment ending before today must be marked ended.');
             }
             if (array_key_exists('status', $data)) {
                 $allowedTransitions = [

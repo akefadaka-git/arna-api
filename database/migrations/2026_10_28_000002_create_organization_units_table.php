@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -69,10 +70,20 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent();
             $table->index(['tenant_id', 'subject_type', 'subject_id', 'created_at'], 'organization_audit_subject_index');
         });
+
+        // MySQL/MariaDB enforcement also blocks bulk query-builder writes that bypass Eloquent events.
+        if (DB::getDriverName() === 'mysql') {
+            DB::unprepared("CREATE TRIGGER organization_audit_events_no_update BEFORE UPDATE ON organization_audit_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Organization audit events are append-only'");
+            DB::unprepared("CREATE TRIGGER organization_audit_events_no_delete BEFORE DELETE ON organization_audit_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Organization audit events are append-only'");
+        }
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'mysql') {
+            DB::unprepared('DROP TRIGGER IF EXISTS organization_audit_events_no_update');
+            DB::unprepared('DROP TRIGGER IF EXISTS organization_audit_events_no_delete');
+        }
         Schema::dropIfExists('organization_audit_events');
         Schema::dropIfExists('organization_assignments');
         Schema::dropIfExists('organization_units');

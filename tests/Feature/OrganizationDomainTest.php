@@ -95,6 +95,21 @@ final class OrganizationDomainTest extends TestCase
         } catch (\LogicException $exception) {
             $this->assertSame('Organization audit events are append-only.', $exception->getMessage());
         }
+
+        if (DB::getDriverName() === 'mysql') {
+            try {
+                DB::table('organization_audit_events')->where('id', $event->id)->update(['reason' => 'bulk tamper']);
+                $this->fail('A bulk update must be blocked by the database trigger.');
+            } catch (\Illuminate\Database\QueryException) {
+                $this->assertDatabaseHas('organization_audit_events', ['id' => $event->id, 'reason' => 'Test append-only audit record']);
+            }
+            try {
+                DB::table('organization_audit_events')->where('id', $event->id)->delete();
+                $this->fail('A bulk delete must be blocked by the database trigger.');
+            } catch (\Illuminate\Database\QueryException) {
+                $this->assertDatabaseHas('organization_audit_events', ['id' => $event->id]);
+            }
+        }
     }
 
     private function manager(): array
