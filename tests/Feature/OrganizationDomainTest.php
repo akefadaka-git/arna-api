@@ -226,20 +226,18 @@ final class OrganizationDomainTest extends TestCase
     public function tenant_cannot_enumerate_read_or_mutate_another_tenants_units_or_assignments(): void
     {
         [$tenantA, $userA] = $this->manager();
-        [$tenantB, $userB] = $this->manager();
+        $tenantB = Tenant::factory()->create(['is_active' => true]);
         Sanctum::actingAs($userA);
         $unitA = $this->withHeader('X-Tenant-ID', (string) $tenantA->id)->postJson('/api/organization/units', [
             'code' => 'A-HQ', 'unit_type' => 'company', 'name_en' => 'Tenant A HQ',
             'reason' => 'Create tenant A root',
         ])->assertCreated()->json('data.id');
 
-        Sanctum::actingAs($userB);
-        $unitB = $this->withHeader('X-Tenant-ID', (string) $tenantB->id)->postJson('/api/organization/units', [
-            'code' => 'B-HQ', 'unit_type' => 'company', 'name_en' => 'Tenant B HQ',
-            'reason' => 'Create tenant B root',
-        ])->assertCreated()->json('data.id');
-
-        Sanctum::actingAs($userA);
+        $unitB = DB::table('organization_units')->insertGetId([
+            'tenant_id' => $tenantB->id, 'parent_id' => null, 'code' => 'B-HQ',
+            'unit_type' => 'company', 'name_en' => 'Tenant B HQ', 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $headersA = ['X-Tenant-ID' => (string) $tenantA->id];
         $this->withHeaders($headersA)->getJson('/api/organization/units')
             ->assertOk()->assertJsonCount(1, 'data.data')->assertJsonPath('data.data.0.id', $unitA);
