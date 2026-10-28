@@ -316,10 +316,9 @@ final class PersonController extends Controller
         };
 
         if ($domain === 'employees') {
-            $base = DB::table('employees')->where('tenant_id', $tenantId)
-                ->whereNull('deleted_at')->where('is_active', true);
-            $candidateQuery = (clone $base)->whereNull('person_id')->where($userMatches);
-            $linkedQuery = (clone $base)->where('person_id', $person->getKey());
+            $linkedBase = DB::table('employees')->where('tenant_id', $tenantId)->whereNull('deleted_at');
+            $candidateQuery = (clone $linkedBase)->where('is_active', true)->whereNull('person_id')->where($userMatches);
+            $linkedQuery = (clone $linkedBase)->where('person_id', $person->getKey());
             if ($search !== '') {
                 foreach ([$candidateQuery, $linkedQuery] as $query) {
                     $query->where('employee_number', 'like', '%'.$search.'%');
@@ -329,13 +328,13 @@ final class PersonController extends Controller
                 'id' => (int) $row->id,
                 'label' => (string) $row->employee_number,
                 'detail' => 'Employee',
+                'status' => (bool) $row->is_active ? 'active' : 'inactive',
             ];
         } elseif ($domain === 'shareholders') {
-            $base = DB::table('shareholders')->where('tenant_id', $tenantId)
-                ->whereNull('deleted_at')->where('is_active', true)
-                ->where('shareholder_type', 'individual')->whereNotNull('user_id');
-            $candidateQuery = (clone $base)->whereNull('person_id')->where($userMatches);
-            $linkedQuery = (clone $base)->where('person_id', $person->getKey());
+            $linkedBase = DB::table('shareholders')->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')->where('shareholder_type', 'individual');
+            $candidateQuery = (clone $linkedBase)->where('is_active', true)->whereNotNull('user_id')->whereNull('person_id')->where($userMatches);
+            $linkedQuery = (clone $linkedBase)->where('person_id', $person->getKey());
             if ($search !== '') {
                 foreach ([$candidateQuery, $linkedQuery] as $query) {
                     $query->where(function ($nested) use ($search): void {
@@ -355,12 +354,12 @@ final class PersonController extends Controller
                     $row->first_name_en ?? null, $row->father_name_en ?? null, $row->grandfather_name_en ?? null,
                 ]))) ?: (string) ($row->shareholder_number ?? 'Shareholder'),
                 'detail' => (string) ($row->shareholder_number ?? 'Individual shareholder'),
+                'status' => (bool) $row->is_active ? 'active' : 'inactive',
             ];
         } else {
-            $base = DB::table('governance_memberships')->where('tenant_id', $tenantId)
-                ->whereNull('deleted_at')->where('status', 'active');
-            $candidateQuery = (clone $base)->whereNull('person_id')->where($userMatches);
-            $linkedQuery = (clone $base)->where('person_id', $person->getKey());
+            $linkedBase = DB::table('governance_memberships')->where('tenant_id', $tenantId)->whereNull('deleted_at');
+            $candidateQuery = (clone $linkedBase)->where('status', 'active')->whereNull('person_id')->where($userMatches);
+            $linkedQuery = (clone $linkedBase)->where('person_id', $person->getKey());
             if ($search !== '') {
                 foreach ([$candidateQuery, $linkedQuery] as $query) {
                     $query->where(function ($nested) use ($search): void {
@@ -374,6 +373,7 @@ final class PersonController extends Controller
                 'id' => (int) $row->id,
                 'label' => trim((string) ($row->member_name_am ?? '')) ?: (trim((string) ($row->member_name_en ?? '')) ?: 'Governance membership'),
                 'detail' => trim((string) ($row->external_reference ?? '')) ?: (string) $row->status,
+                'status' => (string) $row->status,
             ];
         }
 
