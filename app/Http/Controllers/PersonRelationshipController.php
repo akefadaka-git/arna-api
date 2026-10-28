@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonRelationship;
+use MaaleArna\MASES\Core\Domains\People\Events\PersonProfileLifecycleChanged;
 
 final class PersonRelationshipController extends Controller
 {
@@ -97,6 +98,8 @@ final class PersonRelationshipController extends Controller
             return $relationship->load('relatedPerson');
         });
 
+        event(new PersonProfileLifecycleChanged('people.relationship.created', (int) $tenantId, (int) $person->getKey(), $request->user()?->getKey(), 'relationship', (int) $relationship->getKey()));
+
         return response()->json(['success' => true, 'data' => $this->present($relationship)], 201);
     }
 
@@ -123,6 +126,8 @@ final class PersonRelationshipController extends Controller
 
             return $relationship->load('relatedPerson');
         });
+
+        event(new PersonProfileLifecycleChanged('people.relationship.deactivated', (int) $tenantId, (int) $person->getKey(), $request->user()?->getKey(), 'relationship', (int) $relationship->getKey()));
 
         return response()->json(['success' => true, 'data' => $this->present($relationship)]);
     }
