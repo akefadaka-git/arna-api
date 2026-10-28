@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -125,6 +126,8 @@ return new class extends Migration
             DB::unprepared("CREATE TRIGGER journal_lines_update_draft_only BEFORE UPDATE ON journal_lines FOR EACH ROW BEGIN IF EXISTS (SELECT 1 FROM journal_entries WHERE id = OLD.journal_entry_id AND tenant_id = OLD.tenant_id AND legal_entity_id = OLD.legal_entity_id AND status <> 'draft') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Posted journal lines are immutable'; END IF; END");
             DB::unprepared("CREATE TRIGGER journal_lines_delete_draft_only BEFORE DELETE ON journal_lines FOR EACH ROW BEGIN IF EXISTS (SELECT 1 FROM journal_entries WHERE id = OLD.journal_entry_id AND tenant_id = OLD.tenant_id AND legal_entity_id = OLD.legal_entity_id AND status <> 'draft') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Posted journal lines cannot be deleted'; END IF; END");
         }
+    }
+
     public function down(): void
     {
         if (DB::getDriverName() === 'mysql') {
