@@ -13,6 +13,7 @@ final class JournalEntry extends Model
     public const DRAFT = 'draft';
     public const POSTED = 'posted';
     public const REVERSED = 'reversed';
+    public const CANCELLED = 'cancelled';
 
     protected $table = 'journal_entries';
 
@@ -20,7 +21,7 @@ final class JournalEntry extends Model
         'tenant_id', 'legal_entity_id', 'accounting_period_id', 'journal_number',
         'effective_date', 'status', 'currency', 'description', 'source_type',
         'source_id', 'idempotency_key', 'request_hash', 'created_by', 'posted_by', 'posted_at',
-        'reversal_of_id', 'reversed_at',
+        'reversal_of_id', 'reversed_at', 'cancelled_by', 'cancelled_at', 'cancellation_reason',
     ];
 
     protected $casts = [
@@ -33,6 +34,8 @@ final class JournalEntry extends Model
         'posted_at' => 'datetime',
         'reversal_of_id' => 'integer',
         'reversed_at' => 'datetime',
+        'cancelled_by' => 'integer',
+        'cancelled_at' => 'datetime',
     ];
 
     public function entity(): BelongsTo
