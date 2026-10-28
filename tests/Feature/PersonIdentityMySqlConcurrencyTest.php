@@ -164,6 +164,181 @@ final class PersonIdentityMySqlConcurrencyTest extends TestCase
     }
 
     #[Test]
+    public function concurrent_independent_mysql_connections_cannot_link_one_person_to_overlapping_governance_memberships(): void
+    {
+        if (DB::connection()->getDriverName() !== 'mysql'
+            || ! function_exists('pcntl_fork')
+            || getenv('ARNA_RUN_MYSQL_CONCURRENCY') !== '1') {
+            $this->markTestSkipped('Requires the dedicated MySQL concurrency workflow and pcntl.');
+        }
+
+        $suffix = bin2hex(random_bytes(5));
+        $tenant = \MaaleArna\MASES\Core\Tenancy\Models\Tenant::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->getKey()]);
+        $actor->tenants()->attach($tenant->getKey(), ['joined_at' => now(), 'status' => 'active']);
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'people.manage'],
+            [
+                'name_en' => 'Manage People Profiles',
+                'category' => 'user',
+                'scope' => 'tenant',
+                'tenant_id' => null,
+                'is_active' => true,
+                'is_system' => true,
+            ],
+        );
+        $createdPermission = $permission->wasRecentlyCreated;
+        $role = Role::query()->create([
+            'name_en' => 'Governance Identity Manager '.$suffix,
+            'slug' => 'governance-identity-'.$suffix,
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->getKey(),
+            'is_active' => true,
+        ]);
+        $role->permissions()->attach($permission->getKey(), ['assigned_at' => now()]);
+        $actor->roles()->attach($role->getKey(), ['assigned_at' => now()]);
+
+        $person = Person::query()->create(['first_name_en' => 'Governance Link Concurrency']);
+        DB::table('person_tenant_accesses')->insert([
+            'person_id' => $person->getKey(),
+            'tenant_id' => $tenant->getKey(),
+            'created_by' => $actor->getKey(),
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $bodyId = (int) DB::table('governance_bodies')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'code' => 'GOV-LINK-BODY-'.$suffix,
+            'body_type' => 'board',
+            'name_am' => 'የግንኙነት ሙከራ ቦርድ',
+            'name_en' => 'Identity Link Test Board',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $positionId = (int) DB::table('governance_positions')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'governance_body_id' => $bodyId,
+            'code' => 'GOV-LINK-POS-'.$suffix,
+            'name_am' => 'አባል',
+            'name_en' => 'Member',
+            'is_voting' => true,
+            'is_officer' => false,
+            'sort_order' => 1,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $membershipIds = [];
+        foreach (['GOV-LINK-A-'.$suffix, 'GOV-LINK-B-'.$suffix] as $index => $externalReference) {
+            $membershipIds[] = (int) DB::table('governance_memberships')->insertGetId([
+                'tenant_id' => $tenant->getKey(),
+                'governance_body_id' => $bodyId,
+                'governance_position_id' => $positionId,
+                'user_id' => null,
+                'member_name_en' => 'Distinct Legacy Name '.$index,
+                'external_reference' => $externalReference,
+                'start_date' => now()->toDateString(),
+                'end_date' => null,
+                'status' => 'active',
+                'is_ex_officio' => false,
+                'person_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $release = tempnam(sys_get_temp_dir(), 'arna-governance-link-release-');
+        $results = [
+            tempnam(sys_get_temp_dir(), 'arna-governance-link-result-'),
+            tempnam(sys_get_temp_dir(), 'arna-governance-link-result-'),
+        ];
+        @unlink($release);
+        foreach ($results as $path) {
+            @unlink($path);
+        }
+        DB::disconnect();
+        $children = [];
+
+        try {
+            foreach ($membershipIds as $index => $membershipId) {
+                $pid = pcntl_fork();
+                if ($pid === -1) {
+                    throw new RuntimeException('Unable to fork governance-link concurrency worker.');
+                }
+                if ($pid === 0) {
+                    DB::purge();
+                    $deadline = microtime(true) + 10;
+                    while (! file_exists($release) && microtime(true) < $deadline) {
+                        usleep(10000);
+                    }
+                    if (! file_exists($release)) {
+                        file_put_contents($results[$index], 'error:release-timeout');
+                        exit(2);
+                    }
+                    try {
+                        $workerActor = User::query()->findOrFail($actor->getKey());
+                        app(PersonIdentityService::class)->linkGovernanceMembership(
+                            (int) $tenant->getKey(),
+                            $membershipId,
+                            (int) $person->getKey(),
+                            $workerActor,
+                            'Concurrency test governance identity link',
+                        );
+                        file_put_contents($results[$index], 'success');
+                        exit(0);
+                    } catch (DomainException $exception) {
+                        file_put_contents($results[$index], 'conflict');
+                        exit(0);
+                    } catch (Throwable $exception) {
+                        file_put_contents($results[$index], 'error:'.get_class($exception));
+                        exit(3);
+                    }
+                }
+                $children[] = $pid;
+            }
+
+            file_put_contents($release, 'go');
+            $exitCodes = [];
+            foreach ($children as $pid) {
+                pcntl_waitpid($pid, $status);
+                $exitCodes[] = pcntl_wifexited($status) ? pcntl_wexitstatus($status) : 99;
+            }
+            $outcomes = array_map(
+                static fn (string $path): string => is_file($path) ? trim((string) file_get_contents($path)) : 'missing-result',
+                $results,
+            );
+            $this->assertSame([0, 0], $exitCodes, 'Both governance-link workers must finish without infrastructure errors.');
+            $this->assertCount(1, array_filter($outcomes, static fn (string $value): bool => $value === 'success'));
+            $this->assertCount(1, array_filter($outcomes, static fn (string $value): bool => $value === 'conflict'));
+        } finally {
+            foreach ($children as $pid) {
+                pcntl_waitpid($pid, $status, WNOHANG);
+            }
+            DB::purge();
+            DB::table('governance_memberships')->whereIn('id', $membershipIds)->delete();
+            DB::table('governance_positions')->where('id', $positionId)->delete();
+            DB::table('governance_bodies')->where('id', $bodyId)->delete();
+            DB::table('person_tenant_accesses')->where('person_id', $person->getKey())->delete();
+            Person::withTrashed()->whereKey($person->getKey())->forceDelete();
+            DB::table('user_has_roles')->where('user_id', $actor->getKey())->delete();
+            DB::table('role_has_permissions')->where('role_id', $role->getKey())->delete();
+            DB::table('tenant_memberships')->where('tenant_id', $tenant->getKey())->where('user_id', $actor->getKey())->delete();
+            DB::table('roles')->where('id', $role->getKey())->delete();
+            if ($createdPermission) {
+                DB::table('permissions')->where('id', $permission->getKey())->delete();
+            }
+            DB::table('users')->where('id', $actor->getKey())->delete();
+            DB::table('tenants')->where('id', $tenant->getKey())->delete();
+            @unlink($release);
+            foreach ($results as $path) {
+                @unlink($path);
+            }
+        }
+    }
+
+    #[Test]
     public function concurrent_independent_mysql_connections_cannot_link_one_account_to_two_people(): void
     {
         if (DB::connection()->getDriverName() !== 'mysql' || ! function_exists('pcntl_fork')) {
