@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\JournalSourceReferenceResolver;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
