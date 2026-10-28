@@ -262,6 +262,30 @@ final class OrganizationDomainTest extends TestCase
             ->getJson('/api/organization/units')->assertForbidden();
     }
 
+
+    #[Test]
+    public function organization_endpoints_fail_closed_without_resolved_tenant_context(): void
+    {
+        [, $user] = $this->manager();
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/organization/units')
+            ->assertBadRequest()
+            ->assertJsonPath('error.code', 'TENANT_REQUIRED');
+    }
+
+    #[Test]
+    public function revoked_tenant_membership_cannot_access_organization_endpoints(): void
+    {
+        [$tenant, $user] = $this->manager();
+        DB::table('tenant_memberships')->where('tenant_id', $tenant->id)
+            ->where('user_id', $user->id)->delete();
+        Sanctum::actingAs($user);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/organization/units')->assertForbidden();
+    }
+
     #[Test]
     public function centralized_hierarchy_policy_enforces_the_complete_parent_type_matrix(): void
     {
