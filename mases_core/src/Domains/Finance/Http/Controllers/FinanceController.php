@@ -15,6 +15,11 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreLegalEntityRequest;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\ReverseJournalRequest;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\CancelJournalRequest;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreJournalRequest;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreAccountingPeriodRequest;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreLedgerAccountRequest;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
@@ -66,18 +71,9 @@ final class FinanceController extends Controller
         )]);
     }
 
-    public function createAccount(Request $request): JsonResponse
+    public function createAccount(StoreLedgerAccountRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'legal_entity_id' => ['required', 'integer'],
-            'parent_id' => ['nullable', 'integer'],
-            'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/', Rule::unique('ledger_accounts', 'code')->where(fn ($query) => $query->where('tenant_id', $this->tenantId())->where('legal_entity_id', (int) $request->input('legal_entity_id')))],
-            'name_am' => ['nullable', 'string', 'max:180'],
-            'name_en' => ['required', 'string', 'max:180'],
-            'account_type' => ['required', Rule::in(LedgerAccount::TYPES)],
-            'normal_balance' => ['required', Rule::in(LedgerAccount::NORMAL_BALANCES)],
-            'is_posting_allowed' => ['sometimes', 'boolean'],
-        ]);
+        $data = $request->validated();
         $tenantId = $this->tenantId();
         $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
         if (($data['parent_id'] ?? null) !== null) {
@@ -109,14 +105,9 @@ final class FinanceController extends Controller
         )]);
     }
 
-    public function createPeriod(Request $request): JsonResponse
+    public function createPeriod(StoreAccountingPeriodRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'legal_entity_id' => ['required', 'integer'],
-            'code' => ['required', 'string', 'max:32'],
-            'starts_on' => ['required', 'date'],
-            'ends_on' => ['required', 'date', 'after_or_equal:starts_on'],
-        ]);
+        $data = $request->validated();
         $tenantId = $this->tenantId();
 
         $period = DB::transaction(function () use ($data, $tenantId): AccountingPeriod {
@@ -170,32 +161,16 @@ final class FinanceController extends Controller
         )]);
     }
 
-    public function createJournal(Request $request): JsonResponse
+    public function createJournal(StoreJournalRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'legal_entity_id' => ['required', 'integer'],
-            'journal_number' => ['required', 'string', 'max:64'],
-            'effective_date' => ['required', 'date'],
-            'currency' => ['sometimes', 'string', 'size:3', Rule::in(['ETB'])],
-            'description' => ['required', 'string', 'max:500'],
-            'source_type' => ['nullable', 'string', 'max:64'],
-            'source_id' => ['nullable', 'string', 'max:128'],
-            'idempotency_key' => ['required', 'string', 'max:128'],
-            'lines' => ['required', 'array', 'min:2', 'max:200'],
-            'lines.*.account_id' => ['required', 'integer'],
-            'lines.*.debit_amount' => ['required', 'string', 'regex:/^\\d{1,16}(?:\\.\\d{1,4})?$/'],
-            'lines.*.credit_amount' => ['required', 'string', 'regex:/^\\d{1,16}(?:\\.\\d{1,4})?$/'],
-            'lines.*.description' => ['nullable', 'string', 'max:500'],
-        ]);
+        $data = $request->validated();
         $journal = $this->journals->createDraft($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data, $data['lines']);
         return response()->json(['success' => true, 'data' => $journal], 201);
     }
 
-    public function cancelJournal(Request $request, int $journalId): JsonResponse
+    public function cancelJournal(CancelJournalRequest $request, int $journalId): JsonResponse
     {
-        $data = $request->validate([
-            'reason' => ['required', 'string', 'min:5', 'max:2000'],
-        ]);
+        $data = $request->validated();
         $journal = $this->journals->cancelDraft(
             $this->tenantId(),
             (int) $request->user()->getAuthIdentifier(),
@@ -212,13 +187,9 @@ final class FinanceController extends Controller
         return response()->json(['success' => true, 'data' => $journal]);
     }
 
-    public function reverseJournal(Request $request, int $journalId): JsonResponse
+    public function reverseJournal(ReverseJournalRequest $request, int $journalId): JsonResponse
     {
-        $data = $request->validate([
-            'journal_number' => ['required', 'string', 'max:64'],
-            'effective_date' => ['required', 'date'],
-            'reason' => ['required', 'string', 'min:5', 'max:2000'],
-        ]);
+        $data = $request->validated();
         $journal = $this->journals->reverse(
             $this->tenantId(), (int) $request->user()->getAuthIdentifier(), $journalId,
             $data['journal_number'], $data['effective_date'], $data['reason'],
