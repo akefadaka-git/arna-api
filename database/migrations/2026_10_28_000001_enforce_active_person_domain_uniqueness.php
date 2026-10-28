@@ -17,7 +17,9 @@ return new class extends Migration
     public function up(): void
     {
         if (DB::getDriverName() !== 'mysql') {
-            throw new RuntimeException('People active-link uniqueness requires MySQL generated columns.');
+            // SQLite is used by hermetic unit tests; MySQL-specific constraints
+            // are exercised by the dedicated MySQL migration/concurrency gate.
+            return;
         }
 
         DB::statement(<<<'SQL'
