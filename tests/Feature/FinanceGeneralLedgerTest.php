@@ -21,7 +21,7 @@ final class FinanceGeneralLedgerTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function balanced_journal_can_be_posted_and_is_marked_with_actor(): void
+    public function test_balanced_journal_can_be_posted_and_is_marked_with_actor(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
         $service = app(JournalEntryService::class);
@@ -47,7 +47,7 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
-    public function identical_idempotency_request_returns_the_persisted_journal(): void
+    public function test_identical_idempotency_request_returns_the_persisted_journal(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
         $service = app(JournalEntryService::class);
@@ -69,7 +69,7 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
-    public function unbalanced_journal_is_rejected_before_a_draft_is_persisted(): void
+    public function test_unbalanced_journal_is_rejected_before_a_draft_is_persisted(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
         $service = app(JournalEntryService::class);
@@ -95,7 +95,7 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
-    public function account_from_another_legal_entity_cannot_be_used_in_a_journal(): void
+    public function test_account_from_another_legal_entity_cannot_be_used_in_a_journal(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
         $otherEntity = LegalEntity::query()->create([
@@ -126,7 +126,7 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
-    public function reusing_an_idempotency_key_for_a_different_payload_conflicts(): void
+    public function test_reusing_an_idempotency_key_for_a_different_payload_conflicts(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
         $service = app(JournalEntryService::class);
@@ -147,7 +147,7 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
-    public function a_draft_cannot_be_posted_after_its_period_is_closed(): void
+    public function test_a_draft_cannot_be_posted_after_its_period_is_closed(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
         $service = app(JournalEntryService::class);
@@ -176,7 +176,7 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
-    public function reversal_posts_an_equal_and_opposite_journal_and_preserves_the_original(): void
+    public function test_reversal_posts_an_equal_and_opposite_journal_and_preserves_the_original(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
         $service = app(JournalEntryService::class);
