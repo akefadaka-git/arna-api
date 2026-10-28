@@ -78,6 +78,11 @@ final class Person extends Model
         return $this->hasMany(\MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership::class, 'person_id');
     }
 
+    public function documentLinks(): HasMany
+    {
+        return $this->hasMany(PersonDocumentLink::class, 'person_id');
+    }
+
     public function scopeWithPublicId(Builder $query, string $publicId): Builder
     {
         return $query->where('public_id', $publicId);

@@ -526,6 +526,62 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::get('/{publicId}', [PersonController::class, 'show'])
             ->whereUuid('publicId')
             ->name('show');
+        Route::get('/{publicId}/documents', [PersonController::class, 'documents'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('documents.index');
+        Route::post('/{publicId}/documents', [PersonController::class, 'linkDocument'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('documents.link');
+        Route::delete('/{publicId}/documents/{fileId}', [PersonController::class, 'unlinkDocument'])
+            ->whereUuid('publicId')
+            ->whereNumber('fileId')
+            ->middleware('auth.permission:people.manage')
+            ->name('documents.unlink');
+        Route::post('/{publicId}/documents/{fileId}/unlink', [PersonController::class, 'unlinkDocument'])
+            ->whereUuid('publicId')
+            ->whereNumber('fileId')
+            ->middleware('auth.permission:people.manage')
+            ->name('documents.unlink-command');
+        Route::get('/{publicId}/relationships', [PersonController::class, 'relationships'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('relationships');
+        Route::get('/{publicId}/relationships/{domain}/options', [PersonController::class, 'relationshipOptions'])
+            ->whereUuid('publicId')
+            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
+            ->middleware('auth.permission:people.manage')
+            ->name('relationships.options');
+        Route::post('/{publicId}/relationships/{domain}/{recordId}', [PersonController::class, 'linkDomain'])
+            ->whereUuid('publicId')
+            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
+            ->whereNumber('recordId')
+            ->middleware('auth.permission:people.manage')
+            ->name('relationships.link');
+        Route::post('/{publicId}/relationships/{domain}/{recordId}/unlink', [PersonController::class, 'unlinkDomain'])
+            ->whereUuid('publicId')
+            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
+            ->whereNumber('recordId')
+            ->middleware('auth.permission:people.manage')
+            ->name('relationships.unlink-command');
+        Route::delete('/{publicId}/relationships/{domain}/{recordId}', [PersonController::class, 'unlinkDomain'])
+            ->whereUuid('publicId')
+            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
+            ->whereNumber('recordId')
+            ->middleware('auth.permission:people.manage')
+            ->name('relationships.unlink');
+        // Global account-link permission is enforced by PersonIdentityService.
+        Route::post('/{publicId}/account', [PersonController::class, 'linkAccount'])
+            ->whereUuid('publicId')
+            ->name('account.link');
+        Route::delete('/{publicId}/account', [PersonController::class, 'unlinkAccount'])
+            ->whereUuid('publicId')
+            ->name('account.unlink');
+        Route::put('/{publicId}', [PersonController::class, 'update'])
+            ->whereUuid('publicId')
+            ->middleware('auth.permission:people.manage')
+            ->name('update');
     });
 
     // File Management
