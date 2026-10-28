@@ -9,6 +9,7 @@ use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalEntryType;
+use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
@@ -289,6 +290,102 @@ final class FinanceGeneralLedgerTest extends TestCase
         }
 
         $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+    }
+
+
+    #[Test]
+    public function test_unsupported_source_type_is_rejected(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-INVALID-SOURCE',
+                'effective_date' => '2026-10-01',
+                'description' => 'Unsupported source type',
+                'currency' => 'ETB',
+                'source_type' => 'journal_reversal',
+                'source_id' => '1',
+                'idempotency_key' => 'unsupported-source-type',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('Unsupported source types must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_type', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'unsupported-source-type']);
+    }
+
+    #[Test]
+    public function test_external_source_requires_originating_business_reference(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-SOURCE-REFERENCE',
+                'effective_date' => '2026-10-01',
+                'description' => 'External source without reference',
+                'currency' => 'ETB',
+                'source_type' => JournalSourceType::SHAREHOLDER->value,
+                'idempotency_key' => 'external-source-reference-required',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('External source types must require a source reference.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_id', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'external-source-reference-required']);
+    }
+
+    #[Test]
+    public function test_repeating_successful_reversal_returns_the_same_persisted_reversal(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-RETRY-ORIGINAL',
+            'effective_date' => '2026-10-01',
+            'description' => 'Original for retry-safe reversal',
+            'currency' => 'ETB',
+            'idempotency_key' => 'retry-original-journal',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '25', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '25'],
+        ]);
+        $original = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+
+        $first = $service->reverse(
+            (int) $tenant->id,
+            (int) $user->id,
+            (int) $original->id,
+            'JV-RETRY-REVERSAL',
+            '2026-10-02',
+            'Retry idempotency acceptance case',
+        );
+        $second = $service->reverse(
+            (int) $tenant->id,
+            (int) $user->id,
+            (int) $original->id,
+            'JV-RETRY-REVERSAL',
+            '2026-10-02',
+            'Retry idempotency acceptance case',
+        );
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame(JournalEntry::POSTED, $second->status);
+        $this->assertSame(JournalEntryType::REVERSAL, $second->journal_type);
+        $this->assertSame((int) $original->id, (int) $second->reversal_of_id);
+        $this->assertDatabaseCount('journal_entries', 2);
     }
 
     /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */
