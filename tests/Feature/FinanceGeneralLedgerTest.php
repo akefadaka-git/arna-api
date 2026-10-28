@@ -125,6 +125,88 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'test-cross-entity']);
     }
 
+    #[Test]
+    public function reusing_an_idempotency_key_for_a_different_payload_conflicts(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $header = [
+            'legal_entity_id' => $entity->id, 'journal_number' => 'JV-IDEMPOTENCY-CONFLICT',
+            'effective_date' => '2026-10-01', 'description' => 'First payload',
+            'currency' => 'ETB', 'idempotency_key' => 'same-key-different-payload',
+        ];
+        $lines = [
+            ['account_id' => $cash->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+        ];
+        $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+
+        $header['description'] = 'Changed payload';
+        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException::class);
+        $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+    }
+
+    #[Test]
+    public function a_draft_cannot_be_posted_after_its_period_is_closed(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id, 'journal_number' => 'JV-CLOSED-PERIOD',
+            'effective_date' => '2026-10-01', 'description' => 'Closed-period test',
+            'currency' => 'ETB', 'idempotency_key' => 'closed-period-test',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '20', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '20'],
+        ]);
+
+        $period->status = AccountingPeriod::CLOSED;
+        $period->closed_at = now();
+        $period->close_reason = 'Acceptance test closure';
+        $period->save();
+
+        try {
+            $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('Posting into a closed accounting period must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('accounting_period', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+    }
+
+    #[Test]
+    public function reversal_posts_an_equal_and_opposite_journal_and_preserves_the_original(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id, 'journal_number' => 'JV-REVERSAL-ORIGINAL',
+            'effective_date' => '2026-10-01', 'description' => 'Original journal',
+            'currency' => 'ETB', 'idempotency_key' => 'original-for-reversal',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '125.2500', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '125.2500'],
+        ]);
+        $original = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+
+        $reversal = $service->reverse(
+            (int) $tenant->id,
+            (int) $user->id,
+            (int) $original->id,
+            'JV-REVERSAL-001',
+            '2026-10-02',
+            'Correct the original entry',
+        );
+
+        $this->assertSame(JournalEntry::REVERSED, $original->fresh()->status);
+        $this->assertSame(JournalEntry::POSTED, $reversal->status);
+        $this->assertSame((int) $original->id, (int) $reversal->reversal_of_id);
+        $this->assertDatabaseCount('journal_entries', 2);
+        $this->assertSame('0.0000', (string) $reversal->lines->where('account_id', $cash->id)->first()->debit_amount);
+        $this->assertSame('125.2500', (string) $reversal->lines->where('account_id', $cash->id)->first()->credit_amount);
+    }
+
     /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */
     private function ledgerFixture(): array
     {
