@@ -9,6 +9,12 @@
 
 ## 1. Findings that constrain this matrix
 
+### Existing authority evidence reconciled
+
+The repository already has an Owner-approved **provisional control matrix**: [`docs/governance/ARNA-GOV-MAT-PSC-001-AM.md`](https://github.com/akefadaka-git/arna-api/blob/main/docs/governance/ARNA-GOV-MAT-PSC-001-AM.md), blob `07eb3f567bcc67fe2c7ac8e66c0a993c0d1e69c2`. Its approval is explicitly limited to control principles (segregation of duties, evidence retention, conflict declarations, bounded delegation, audit trail, tenant scope, and denial of unverified authority); it does not verify legal powers, committee appointments, quorum, monetary limits, bank signatures, or specific approvers. The companion policy [`docs/governance/ARNA-GOV-POL-PSC-001.md`](https://github.com/akefadaka-git/arna-api/blob/main/docs/governance/ARNA-GOV-POL-PSC-001.md) states that reserved/unknown authority remains pending formal approval and prohibits inventing thresholds.
+
+The source register also reports a signed/stamped 17-page internal-bylaw scan located in the user's Library, but clause-level verification is still in progress; the Articles/Memorandum have not yet been matched to a separate source file, and Board/General Assembly resolutions and finance/signing authority evidence are not verified. Therefore, this matrix is **resolved as a fail-closed control design**, but its business approver assignments remain **blocked** until exact clauses/resolutions are extracted and checked. No unapproved draft framework or proposed threshold is elevated to authority.
+
 1. The Core file layer supports file upload, listing, metadata update, download, soft delete/restore, and version history. It does not itself prove formal business approval.
 2. Governance configuration defines document categories including meeting notices, agendas, minutes, resolutions, appointment letters, committee mandates, election records, declarations, action evidence, and governance reports.
 3. Governance confidentiality vocabulary includes `public`, `restricted`, `confidential`, and `secret`; access requires both RBAC permission and record-level confidentiality authorization.
@@ -106,6 +112,15 @@ Controls that can be designed independently of business-role assignments:
 | DOC-A11 | Canonical authority source and controlled policy/version registry | Approved source-of-truth decision | UNRESOLVED |
 
 ## 7. Implementation gate
+
+### Evidence reconciliation outcome
+
+- **VERIFIED:** an Owner-approved provisional governance control matrix exists; it establishes controls and a default denial for unsupported authority, not specific legal authority assignments.
+- **PARTIAL:** a signed/stamped internal-bylaw scan is reported located in the Library, but clause-level transcription/verification remains in progress in the source register.
+- **MISSING / NOT VERIFIED:** a matched authoritative Articles/Memorandum source and adopted resolution evidence for document-specific approval, signature, quorum, delegation, and publication authority.
+- **BLOCKED:** assigning actual approver identities/roles to document types, activating approval routes, or granting document approval/delegation permissions.
+
+The next evidence task is to retrieve the exact bylaw PDF from the Library, inspect its page images/text, transcribe relevant clauses with page references, and compare them against the matched Articles and adopted resolutions. Until that is done, do not populate a production approver matrix from the provisional or historical draft frameworks.
 
 **A1:** this control matrix and unresolved decision register are ready for Owner/governance review.
 
