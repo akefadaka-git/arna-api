@@ -478,6 +478,43 @@ final class FinanceGeneralLedgerTest extends TestCase
         ]);
     }
 
+
+    #[Test]
+    public function test_a_posted_journal_cannot_be_posted_a_second_time(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-DOUBLE-POST',
+            'effective_date' => '2026-10-01',
+            'description' => 'Double posting guard',
+            'currency' => 'ETB',
+            'idempotency_key' => 'double-post-guard',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '30', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '30'],
+        ]);
+
+        $posted = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $postedAt = $posted->posted_at?->toISOString();
+
+        try {
+            $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('A posted journal must not be posted again.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('status', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('journal_entries', [
+            'id' => $draft->id,
+            'status' => JournalEntry::POSTED,
+            'posted_by' => $user->id,
+        ]);
+        $this->assertSame($postedAt, $posted->fresh()->posted_at?->toISOString());
+        $this->assertDatabaseCount('journal_entries', 1);
+    }
+
     /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */
     private function ledgerFixture(): array
     {
