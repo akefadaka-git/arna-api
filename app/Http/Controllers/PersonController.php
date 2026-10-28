@@ -333,7 +333,7 @@ final class PersonController extends Controller
         } elseif ($domain === 'shareholders') {
             $base = DB::table('shareholders')->where('tenant_id', $tenantId)
                 ->whereNull('deleted_at')->where('is_active', true)
-                ->where('shareholder_type', 'individual');
+                ->where('shareholder_type', 'individual')->whereNotNull('user_id');
             $candidateQuery = (clone $base)->whereNull('person_id')->where($userMatches);
             $linkedQuery = (clone $base)->where('person_id', $person->getKey());
             if ($search !== '') {
