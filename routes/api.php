@@ -548,6 +548,11 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
             ->name('relationships');
+        Route::get('/{publicId}/relationships/{domain}/options', [PersonController::class, 'relationshipOptions'])
+            ->whereUuid('publicId')
+            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
+            ->middleware('auth.permission:people.manage')
+            ->name('relationships.options');
         Route::post('/{publicId}/relationships/{domain}/{recordId}', [PersonController::class, 'linkDomain'])
             ->whereUuid('publicId')
             ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
