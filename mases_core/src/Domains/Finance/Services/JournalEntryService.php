@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -25,7 +26,8 @@ final class JournalEntryService
      */
     public function createDraft(int $tenantId, int $actorId, array $header, array $lines): JournalEntry
     {
-        return DB::transaction(function () use ($tenantId, $actorId, $header, $lines): JournalEntry {
+        try {
+            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines): JournalEntry {
             if (count($lines) < 2) {
                 throw ValidationException::withMessages(['lines' => 'A journal must contain at least two lines.']);
             }
@@ -118,6 +120,53 @@ final class JournalEntryService
             }
 
             $this->assertBalanced($entry);
+
+            return $entry->load('lines');
+            });
+        } catch (QueryException $exception) {
+            // Concurrent requests can race at the unique idempotency constraint.
+            // Re-read only after the failed transaction has rolled back.
+            $key = trim((string) ($header['idempotency_key'] ?? ''));
+            $entityId = (int) ($header['legal_entity_id'] ?? 0);
+            if ($key !== '' && $entityId > 0) {
+                $existing = JournalEntry::query()->where('tenant_id', $tenantId)
+                    ->where('legal_entity_id', $entityId)->where('idempotency_key', $key)->first();
+                if ($existing) {
+                    $requestHash = hash('sha256', json_encode(
+                        $this->canonicalize(['header' => $header, 'lines' => $lines]),
+                        JSON_THROW_ON_ERROR
+                    ));
+                    if (hash_equals((string) $existing->request_hash, $requestHash)) {
+                        return $existing->load('lines');
+                    }
+                    throw new ConflictHttpException('Idempotency key was already used for a different journal payload.', 0, $exception);
+                }
+            }
+
+            throw $exception;
+        }
+    }
+
+    public function cancelDraft(int $tenantId, int $actorId, int $journalId, string $reason): JournalEntry
+    {
+        return DB::transaction(function () use ($tenantId, $actorId, $journalId, $reason): JournalEntry {
+            $entry = JournalEntry::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($journalId);
+            if ($entry->status !== JournalEntry::DRAFT) {
+                throw ValidationException::withMessages(['status' => 'Only draft journals can be cancelled.']);
+            }
+
+            $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $entry->legal_entity_id)
+                ->lockForUpdate()->findOrFail($entry->accounting_period_id);
+            if ($period->status !== AccountingPeriod::OPEN) {
+                throw ValidationException::withMessages(['accounting_period' => 'A draft can only be cancelled while its accounting period is open.']);
+            }
+
+            $entry->status = JournalEntry::CANCELLED;
+            $entry->cancelled_by = $actorId;
+            $entry->cancelled_at = now();
+            $entry->cancellation_reason = trim($reason);
+            $entry->save();
 
             return $entry->load('lines');
         });
