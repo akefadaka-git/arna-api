@@ -9,6 +9,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalEntryType;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalLine;
@@ -19,6 +20,7 @@ final class JournalEntryService
 {
     /**
      * Create an immutable-identity draft with entity-scoped, validated lines.
+     * Ordinary callers may create standard or adjusting journals only.
      * Amounts remain decimal strings and are never converted to PHP floats.
      *
      * @param array<string, mixed> $header
@@ -26,102 +28,115 @@ final class JournalEntryService
      */
     public function createDraft(int $tenantId, int $actorId, array $header, array $lines): JournalEntry
     {
-        try {
-            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines): JournalEntry {
-            if (count($lines) < 2) {
-                throw ValidationException::withMessages(['lines' => 'A journal must contain at least two lines.']);
-            }
+        $typeValue = (string) ($header['journal_type'] ?? JournalEntryType::STANDARD->value);
+        $journalType = JournalEntryType::tryFrom($typeValue);
 
-            $entity = LegalEntity::query()->where('tenant_id', $tenantId)
-                ->whereKey((int) ($header['legal_entity_id'] ?? 0))
-                ->where('status', 'active')->lockForUpdate()->first();
-
-            if (!$entity) {
-                throw (new ModelNotFoundException())->setModel(LegalEntity::class);
-            }
-
-            $date = (string) ($header['effective_date'] ?? '');
-
-            $currency = strtoupper((string) ($header['currency'] ?? $entity->base_currency));
-            if ($currency !== $entity->base_currency) {
-                throw ValidationException::withMessages(['currency' => 'Foreign-currency journals are disabled until the approved FX contract is implemented.']);
-            }
-
-            $key = trim((string) ($header['idempotency_key'] ?? ''));
-            if ($key === '' || strlen($key) > 128) {
-                throw ValidationException::withMessages(['idempotency_key' => 'A non-empty idempotency key of at most 128 characters is required.']);
-            }
-
-            $requestHash = hash('sha256', json_encode($this->canonicalize(['header' => $header, 'lines' => $lines]), JSON_THROW_ON_ERROR));
-            $existing = JournalEntry::query()->where('tenant_id', $tenantId)
-                ->where('legal_entity_id', $entity->id)->where('idempotency_key', $key)->first();
-            if ($existing) {
-                if (hash_equals((string) $existing->request_hash, $requestHash)) {
-                    return $existing->load('lines');
-                }
-                throw new ConflictHttpException('Idempotency key was already used for a different journal payload.');
-            }
-
-            $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
-                ->where('legal_entity_id', $entity->id)
-                ->where('starts_on', '<=', $date)->where('ends_on', '>=', $date)
-                ->lockForUpdate()->first();
-
-            if (!$period || $period->status !== AccountingPeriod::OPEN) {
-                throw ValidationException::withMessages(['effective_date' => 'The effective date must belong to an open accounting period.']);
-            }
-
-            $entry = JournalEntry::query()->create([
-                'tenant_id' => $tenantId,
-                'legal_entity_id' => $entity->id,
-                'accounting_period_id' => $period->id,
-                'journal_number' => trim((string) ($header['journal_number'] ?? '')),
-                'effective_date' => $date,
-                'status' => JournalEntry::DRAFT,
-                'currency' => $currency,
-                'description' => trim((string) ($header['description'] ?? '')),
-                'source_type' => $header['source_type'] ?? null,
-                'source_id' => isset($header['source_id']) ? (string) $header['source_id'] : null,
-                'idempotency_key' => $key,
-                'request_hash' => $requestHash,
-                'created_by' => $actorId,
-                'reversal_of_id' => isset($header['reversal_of_id']) ? (int) $header['reversal_of_id'] : null,
+        if ($journalType === null || !$journalType->isOrdinaryManualEntryAllowed()) {
+            throw ValidationException::withMessages([
+                'journal_type' => 'Only standard or adjusting journals may be created through the ordinary draft workflow.',
             ]);
+        }
 
-            foreach (array_values($lines) as $index => $line) {
-                $accountId = (int) ($line['account_id'] ?? 0);
-                $account = LedgerAccount::query()->where('tenant_id', $tenantId)
-                    ->where('legal_entity_id', $entity->id)->whereKey($accountId)
-                    ->where('status', 'active')->where('is_posting_allowed', true)->first();
+        // Normalize the effective type into the idempotency payload so omitted
+        // and explicitly supplied "standard" values have the same meaning.
+        $header['journal_type'] = $journalType->value;
 
-                if (!$account) {
-                    throw ValidationException::withMessages(["lines.{$index}.account_id" => 'Account is unavailable for posting in this legal entity.']);
+        try {
+            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType): JournalEntry {
+                if (count($lines) < 2) {
+                    throw ValidationException::withMessages(['lines' => 'A journal must contain at least two lines.']);
                 }
 
-                $debit = $this->money((string) ($line['debit_amount'] ?? '0'), "lines.{$index}.debit_amount");
-                $credit = $this->money((string) ($line['credit_amount'] ?? '0'), "lines.{$index}.credit_amount");
-                $hasDebit = $this->isPositive($debit);
-                $hasCredit = $this->isPositive($credit);
+                $entity = LegalEntity::query()->where('tenant_id', $tenantId)
+                    ->whereKey((int) ($header['legal_entity_id'] ?? 0))
+                    ->where('status', 'active')->lockForUpdate()->first();
 
-                if ($hasDebit === $hasCredit) {
-                    throw ValidationException::withMessages(["lines.{$index}" => 'Each journal line must have exactly one positive debit or credit amount.']);
+                if (!$entity) {
+                    throw (new ModelNotFoundException())->setModel(LegalEntity::class);
                 }
 
-                JournalLine::query()->create([
+                $date = (string) ($header['effective_date'] ?? '');
+                $currency = strtoupper((string) ($header['currency'] ?? $entity->base_currency));
+                if ($currency !== $entity->base_currency) {
+                    throw ValidationException::withMessages(['currency' => 'Foreign-currency journals are disabled until the approved FX contract is implemented.']);
+                }
+
+                $key = trim((string) ($header['idempotency_key'] ?? ''));
+                if ($key === '' || strlen($key) > 128) {
+                    throw ValidationException::withMessages(['idempotency_key' => 'A non-empty idempotency key of at most 128 characters is required.']);
+                }
+
+                $requestHash = hash('sha256', json_encode($this->canonicalize(['header' => $header, 'lines' => $lines]), JSON_THROW_ON_ERROR));
+                $existing = JournalEntry::query()->where('tenant_id', $tenantId)
+                    ->where('legal_entity_id', $entity->id)->where('idempotency_key', $key)->first();
+                if ($existing) {
+                    if (hash_equals((string) $existing->request_hash, $requestHash)) {
+                        return $existing->load('lines');
+                    }
+                    throw new ConflictHttpException('Idempotency key was already used for a different journal payload.');
+                }
+
+                $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
+                    ->where('legal_entity_id', $entity->id)
+                    ->where('starts_on', '<=', $date)->where('ends_on', '>=', $date)
+                    ->lockForUpdate()->first();
+
+                if (!$period || $period->status !== AccountingPeriod::OPEN) {
+                    throw ValidationException::withMessages(['effective_date' => 'The effective date must belong to an open accounting period.']);
+                }
+
+                $entry = JournalEntry::query()->create([
                     'tenant_id' => $tenantId,
                     'legal_entity_id' => $entity->id,
-                    'journal_entry_id' => $entry->id,
-                    'account_id' => $account->id,
-                    'line_number' => $index + 1,
-                    'description' => isset($line['description']) ? trim((string) $line['description']) : null,
-                    'debit_amount' => $debit,
-                    'credit_amount' => $credit,
+                    'accounting_period_id' => $period->id,
+                    'journal_number' => trim((string) ($header['journal_number'] ?? '')),
+                    'journal_type' => $journalType,
+                    'effective_date' => $date,
+                    'status' => JournalEntry::DRAFT,
+                    'currency' => $currency,
+                    'description' => trim((string) ($header['description'] ?? '')),
+                    'source_type' => $header['source_type'] ?? null,
+                    'source_id' => isset($header['source_id']) ? (string) $header['source_id'] : null,
+                    'idempotency_key' => $key,
+                    'request_hash' => $requestHash,
+                    'created_by' => $actorId,
+                    'reversal_of_id' => null,
                 ]);
-            }
 
-            $this->assertBalanced($entry);
+                foreach (array_values($lines) as $index => $line) {
+                    $accountId = (int) ($line['account_id'] ?? 0);
+                    $account = LedgerAccount::query()->where('tenant_id', $tenantId)
+                        ->where('legal_entity_id', $entity->id)->whereKey($accountId)
+                        ->where('status', 'active')->where('is_posting_allowed', true)->first();
 
-            return $entry->load('lines');
+                    if (!$account) {
+                        throw ValidationException::withMessages(["lines.{$index}.account_id" => 'Account is unavailable for posting in this legal entity.']);
+                    }
+
+                    $debit = $this->money((string) ($line['debit_amount'] ?? '0'), "lines.{$index}.debit_amount");
+                    $credit = $this->money((string) ($line['credit_amount'] ?? '0'), "lines.{$index}.credit_amount");
+                    $hasDebit = $this->isPositive($debit);
+                    $hasCredit = $this->isPositive($credit);
+
+                    if ($hasDebit === $hasCredit) {
+                        throw ValidationException::withMessages(["lines.{$index}" => 'Each journal line must have exactly one positive debit or credit amount.']);
+                    }
+
+                    JournalLine::query()->create([
+                        'tenant_id' => $tenantId,
+                        'legal_entity_id' => $entity->id,
+                        'journal_entry_id' => $entry->id,
+                        'account_id' => $account->id,
+                        'line_number' => $index + 1,
+                        'description' => isset($line['description']) ? trim((string) $line['description']) : null,
+                        'debit_amount' => $debit,
+                        'credit_amount' => $credit,
+                    ]);
+                }
+
+                $this->assertBalanced($entry);
+
+                return $entry->load('lines');
             });
         } catch (QueryException $exception) {
             // Concurrent requests can race at the unique idempotency constraint.
@@ -155,6 +170,10 @@ final class JournalEntryService
                 throw ValidationException::withMessages(['status' => 'Only draft journals can be cancelled.']);
             }
 
+            if (trim($reason) === '') {
+                throw ValidationException::withMessages(['reason' => 'A cancellation reason is required.']);
+            }
+
             $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
                 ->where('legal_entity_id', $entry->legal_entity_id)
                 ->lockForUpdate()->findOrFail($entry->accounting_period_id);
@@ -179,6 +198,30 @@ final class JournalEntryService
 
             if ($entry->status !== JournalEntry::DRAFT) {
                 throw ValidationException::withMessages(['status' => 'Only draft journals can be posted.']);
+            }
+
+            $type = $entry->journal_type instanceof JournalEntryType
+                ? $entry->journal_type
+                : JournalEntryType::tryFrom((string) $entry->journal_type);
+
+            if ($type === null) {
+                throw ValidationException::withMessages(['journal_type' => 'Journal type is invalid.']);
+            }
+
+            if ($type->requiresReversalReference()) {
+                if ($entry->reversal_of_id === null) {
+                    throw ValidationException::withMessages(['reversal_of_id' => 'A reversal journal must reference its original journal.']);
+                }
+
+                $original = JournalEntry::query()->where('tenant_id', $tenantId)
+                    ->where('legal_entity_id', $entry->legal_entity_id)
+                    ->whereKey($entry->reversal_of_id)->lockForUpdate()->first();
+
+                if (!$original || $original->status !== JournalEntry::POSTED || $original->reversal_of_id !== null) {
+                    throw ValidationException::withMessages(['reversal_of_id' => 'The referenced journal is not eligible for reversal.']);
+                }
+            } elseif ($entry->reversal_of_id !== null || !$type->isOrdinaryManualEntryAllowed()) {
+                throw ValidationException::withMessages(['journal_type' => 'This journal type is not permitted through the ordinary posting workflow.']);
             }
 
             $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
@@ -210,6 +253,9 @@ final class JournalEntryService
             if ($original->status !== JournalEntry::POSTED || $original->reversal_of_id !== null) {
                 throw ValidationException::withMessages(['journal' => 'Only a posted, non-reversal journal can be reversed.']);
             }
+            if (trim($reason) === '' || trim($reversalNumber) === '') {
+                throw ValidationException::withMessages(['reason' => 'A reversal number and reason are required.']);
+            }
 
             $originalLines = $original->lines()->orderBy('line_number')->get();
             $reversal = $this->createDraft($tenantId, $actorId, [
@@ -221,13 +267,17 @@ final class JournalEntryService
                 'source_type' => 'journal_reversal',
                 'source_id' => (string) $original->id,
                 'idempotency_key' => 'reversal:'.$original->id,
-                'reversal_of_id' => $original->id,
             ], $originalLines->map(fn (JournalLine $line): array => [
                 'account_id' => $line->account_id,
                 'debit_amount' => $line->credit_amount,
                 'credit_amount' => $line->debit_amount,
                 'description' => $line->description,
             ])->all());
+
+            // Only this controlled reversal path may assign REVERSAL and its reference.
+            $reversal->journal_type = JournalEntryType::REVERSAL;
+            $reversal->reversal_of_id = $original->id;
+            $reversal->save();
 
             $postedReversal = $this->post($tenantId, $actorId, (int) $reversal->id);
             $original->status = JournalEntry::REVERSED;
