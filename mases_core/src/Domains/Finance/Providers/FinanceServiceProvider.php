@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Providers;
 
 use Illuminate\\Support\\ServiceProvider;
+use MaaleArna\\MASES\\Core\\Domains\\Finance\\Repositories\\LegalEntityRepository;
 use MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\LegalEntityService;
 
 /**
@@ -18,6 +19,7 @@ final class FinanceServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(LegalEntityRepository::class);
         $this->app->singleton(LegalEntityService::class);
     }
 
