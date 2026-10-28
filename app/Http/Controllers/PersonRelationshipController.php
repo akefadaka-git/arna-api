@@ -11,6 +11,8 @@ use Illuminate\Validation\Rule;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonRelationship;
 use MaaleArna\MASES\Core\Domains\People\Events\PersonProfileLifecycleChanged;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\StorePersonRelationshipRequest;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\DeactivatePersonRecordRequest;
 
 final class PersonRelationshipController extends Controller
 {
@@ -43,18 +45,12 @@ final class PersonRelationshipController extends Controller
         ]);
     }
 
-    public function store(Request $request, string $publicId): JsonResponse
+    public function store(StorePersonRelationshipRequest $request, string $publicId): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $person = $this->visiblePerson($publicId, (int) $tenantId);
-        $attributes = $request->validate([
-            'related_public_id' => ['required', 'uuid'],
-            'relationship_type' => ['required', Rule::in(self::TYPES)],
-            'effective_from' => ['nullable', 'date'],
-            'effective_to' => ['nullable', 'date'],
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
 
         if (! empty($attributes['effective_from']) && ! empty($attributes['effective_to'])
             && $attributes['effective_from'] > $attributes['effective_to']) {
@@ -103,14 +99,12 @@ final class PersonRelationshipController extends Controller
         return response()->json(['success' => true, 'data' => $this->present($relationship)], 201);
     }
 
-    public function deactivate(Request $request, string $publicId, int $relationshipId): JsonResponse
+    public function deactivate(DeactivatePersonRecordRequest $request, string $publicId, int $relationshipId): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $person = $this->visiblePerson($publicId, (int) $tenantId);
-        $attributes = $request->validate([
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
 
         $relationship = DB::transaction(function () use ($tenantId, $person, $relationshipId, $attributes): PersonRelationship {
             $relationship = PersonRelationship::query()
