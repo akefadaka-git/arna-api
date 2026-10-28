@@ -7,6 +7,8 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Finance\Events\AccountingPeriodOpened;
+use MaaleArna\MASES\Core\Domains\Finance\Events\AccountingPeriodClosed;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
@@ -43,7 +45,7 @@ final class AccountingPeriodService
             }
 
             try {
-                return AccountingPeriod::query()->create([
+                $period = AccountingPeriod::query()->create([
                     'tenant_id' => $tenantId,
                     'legal_entity_id' => $entity->id,
                     'code' => trim($data['code']),
@@ -51,6 +53,8 @@ final class AccountingPeriodService
                     'ends_on' => $data['ends_on'],
                     'status' => AccountingPeriod::OPEN,
                 ]);
+                event(new AccountingPeriodOpened($period, (int) auth()->id()));
+                return $period;
             } catch (QueryException $exception) {
                 $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
                 $driverCode = (int) ($exception->errorInfo[1] ?? 0);
@@ -110,8 +114,9 @@ final class AccountingPeriodService
             $period->closed_at = now();
             $period->close_reason = $reason;
             $period->save();
-
-            return $period->fresh();
+            $period = $period->fresh();
+            event(new AccountingPeriodClosed($period, $actorId, $reason));
+            return $period;
         });
     }
 }

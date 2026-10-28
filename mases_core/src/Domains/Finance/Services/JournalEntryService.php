@@ -11,6 +11,10 @@ use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalEntryType;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
+use MaaleArna\MASES\Core\Domains\Finance\Events\JournalDraftCreated;
+use MaaleArna\MASES\Core\Domains\Finance\Events\JournalPosted;
+use MaaleArna\MASES\Core\Domains\Finance\Events\JournalCancelled;
+use MaaleArna\MASES\Core\Domains\Finance\Events\JournalReversed;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalLine;
@@ -167,8 +171,10 @@ final class JournalEntryService
                 }
 
                 $this->assertBalanced($entry);
+                $entry = $entry->load('lines');
+                event(new JournalDraftCreated($entry));
 
-                return $entry->load('lines');
+                return $entry;
             });
         } catch (QueryException $exception) {
             // Concurrent requests can race at the unique idempotency constraint.
@@ -218,8 +224,10 @@ final class JournalEntryService
             $entry->cancelled_at = now();
             $entry->cancellation_reason = trim($reason);
             $entry->save();
+            $entry = $entry->load('lines');
+            event(new JournalCancelled($entry, $actorId, trim($reason)));
 
-            return $entry->load('lines');
+            return $entry;
         });
     }
 
@@ -271,8 +279,10 @@ final class JournalEntryService
             $entry->posted_by = $actorId;
             $entry->posted_at = now();
             $entry->save();
+            $entry = $entry->load('lines');
+            event(new JournalPosted($entry, $actorId));
 
-            return $entry->load('lines');
+            return $entry;
         });
     }
 
@@ -345,6 +355,7 @@ final class JournalEntryService
             $original->status = JournalEntry::REVERSED;
             $original->reversed_at = now();
             $original->save();
+            event(new JournalReversed($original->fresh(), $postedReversal, $actorId, trim($reason)));
 
             return $postedReversal;
         });

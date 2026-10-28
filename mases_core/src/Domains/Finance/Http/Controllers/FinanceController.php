@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
@@ -49,12 +50,14 @@ final class FinanceController extends Controller
 
     public function entities(Request $request): JsonResponse
     {
+        Gate::authorize('viewAny', LegalEntity::class);
         return response()->json(['success' => true, 'data' => $this->entitiesRepository
             ->paginateForTenant($this->tenantId(), $this->perPage($request))]);
     }
 
     public function createEntity(StoreLegalEntityRequest $request): JsonResponse
     {
+        Gate::authorize('create', LegalEntity::class);
         $entity = $this->legalEntities->create(
             $this->tenantId(),
             $request->validated(),
@@ -65,6 +68,7 @@ final class FinanceController extends Controller
 
     public function accounts(Request $request): JsonResponse
     {
+        Gate::authorize('viewAny', LedgerAccount::class);
         $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
         $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
 
@@ -75,6 +79,7 @@ final class FinanceController extends Controller
 
     public function createAccount(StoreLedgerAccountRequest $request): JsonResponse
     {
+        Gate::authorize('create', LedgerAccount::class);
         $data = $request->validated();
         $tenantId = $this->tenantId();
         $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
@@ -99,6 +104,7 @@ final class FinanceController extends Controller
 
     public function periods(Request $request): JsonResponse
     {
+        Gate::authorize('viewAny', AccountingPeriod::class);
         $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
         $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
 
@@ -109,6 +115,7 @@ final class FinanceController extends Controller
 
     public function createPeriod(StoreAccountingPeriodRequest $request): JsonResponse
     {
+        Gate::authorize('create', AccountingPeriod::class);
         $period = $this->accountingPeriodService->create($this->tenantId(), $request->validated());
 
         return response()->json(['success' => true, 'data' => $period], 201);
@@ -116,6 +123,8 @@ final class FinanceController extends Controller
 
     public function closePeriod(Request $request, int $periodId): JsonResponse
     {
+        $periodForAuthorization = AccountingPeriod::query()->where('tenant_id', $this->tenantId())->findOrFail($periodId);
+        Gate::authorize('close', $periodForAuthorization);
         $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
         $period = $this->accountingPeriodService->close(
             $this->tenantId(),
@@ -129,6 +138,7 @@ final class FinanceController extends Controller
 
     public function journals(Request $request): JsonResponse
     {
+        Gate::authorize('viewAny', JournalEntry::class);
         $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
         $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
 
@@ -139,6 +149,7 @@ final class FinanceController extends Controller
 
     public function createJournal(StoreJournalRequest $request): JsonResponse
     {
+        Gate::authorize('create', JournalEntry::class);
         $data = $request->validated();
         $journal = $this->journals->createDraft($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data, $data['lines']);
         return response()->json(['success' => true, 'data' => $journal], 201);
@@ -146,6 +157,8 @@ final class FinanceController extends Controller
 
     public function cancelJournal(CancelJournalRequest $request, int $journalId): JsonResponse
     {
+        $journalForAuthorization = JournalEntry::query()->where('tenant_id', $this->tenantId())->findOrFail($journalId);
+        Gate::authorize('cancel', $journalForAuthorization);
         $data = $request->validated();
         $journal = $this->journals->cancelDraft(
             $this->tenantId(),
@@ -159,12 +172,16 @@ final class FinanceController extends Controller
 
     public function postJournal(Request $request, int $journalId): JsonResponse
     {
+        $journalForAuthorization = JournalEntry::query()->where('tenant_id', $this->tenantId())->findOrFail($journalId);
+        Gate::authorize('post', $journalForAuthorization);
         $journal = $this->journals->post($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $journalId);
         return response()->json(['success' => true, 'data' => $journal]);
     }
 
     public function reverseJournal(ReverseJournalRequest $request, int $journalId): JsonResponse
     {
+        $journalForAuthorization = JournalEntry::query()->where('tenant_id', $this->tenantId())->findOrFail($journalId);
+        Gate::authorize('reverse', $journalForAuthorization);
         $data = $request->validated();
         $journal = $this->journals->reverse(
             $this->tenantId(), (int) $request->user()->getAuthIdentifier(), $journalId,
@@ -175,6 +192,7 @@ final class FinanceController extends Controller
 
     public function trialBalance(Request $request): JsonResponse
     {
+        Gate::authorize('viewReport', JournalEntry::class);
         $data = $request->validate([
             'legal_entity_id' => ['required', 'integer'],
             'as_of' => ['required', 'date'],
