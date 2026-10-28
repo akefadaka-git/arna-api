@@ -97,7 +97,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             ]);
             $this->fail('A journal must not reference an account from another entity.');
         } catch (ValidationException $exception) {
-            $this->assertStringContainsString('Account is unavailable', $exception->getMessage());
+            $this->assertArrayHasKey('lines.1.account_id', $exception->errors());
         }
 
         $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'test-cross-entity']);
