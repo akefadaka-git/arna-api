@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace Database\Seeders;
+namespace MaaleArna\MASES\Core\Domains\People\Database\Seeders;
 use Illuminate\Database\Seeder;
 /** People never seeds synthetic personal/contact/relationship data. */
 final class PeopleDomainSeeder extends Seeder {
