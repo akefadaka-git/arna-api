@@ -26,6 +26,7 @@ final class PersonContactPoint extends Model
         'is_primary',
         'verified_at',
         'status',
+        'deactivation_reason',
         'created_by',
     ];
 
