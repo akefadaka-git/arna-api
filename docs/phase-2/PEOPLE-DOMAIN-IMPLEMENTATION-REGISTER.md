@@ -1,6 +1,6 @@
 # ARNA People Domain — Phase 2 Implementation Register
 
-**Status:** Phase 2.1–2.4 implementation increment submitted for review  
+**Status:** Phase 2.1–2.4 code expanded; structural reconciliation committed; runtime verification pending  
 **Scope:** Destination repository `akefadaka-git/arna-api`  
 **Base:** `main` at `e853874ee41130d47be07d2ffc097a41ecb69a9b`
 
@@ -27,6 +27,12 @@
 - Added tenant-scoped ministry, volunteer, committee, event-attendance, training, qualification, and generic participation records with effective dates and reason-required deactivation.
 - These records do not grant organization membership, governance authority, permissions, or employment. Existing domain systems remain authoritative for those concepts.
 
+### Domain structure added in this increment
+- Added `Config/people.php`, backed enums for contact/relationship/participation vocabulary, a profile repository contract and tenant-scoped Eloquent repository.
+- Added a registered `PeopleServiceProvider`, a fail-closed tenant-aware `PersonPolicy`, FormRequests for contact/relationship/participation creation and record deactivation, and a profile JSON resource.
+- Added Amharic and English translation catalogues, an explicit no-demo-PII `PeopleDomainSeeder`, and lifecycle events/listener wired to the platform audit service.
+- Added a structural feature test for vocabulary stability, repository binding and bounded configuration. This test is committed but has not been run.
+
 ### P2.5 — Lifecycle and records
 - Integrate onboarding, training, credentials/qualifications, and review with Organization, Documents, Calendar, and Reporting through explicit contracts.
 - Establish field-level authorization, retention, export auditing, and concurrency tests.
@@ -36,8 +42,10 @@
 - Search cannot bypass active tenant grants.
 - Natural-person identity, account credentials, membership, employment, ownership, and governance authority remain distinct.
 - No production database operations, data backfill, deployment, or merge are included in this PR.
+- Resolved the duplicate table-creation path by removing `create_people_extended_profile_tables.php` and retaining one migration per contact, relationship, and participation table. The individual migrations were aligned to the fields consumed by the contact controller/model.
+- Updated API routes to use the dedicated contact, relationship and participation controllers; profile directory pagination now uses the registered repository contract.
 
 ## Acceptance evidence
 - Integration tests cover contact encryption/masking, person-relationship tenant visibility/duplicate rejection/deactivation, participation lifecycle, and directory search.
 - Per your instruction, no CI runs are being retried or investigated in this increment. Runtime and workflow verification remain **NOT RUN / UNKNOWN** until existing evidence is reviewed separately.
-- Verification flow integration, profile UI wiring, field-level privacy policies, and broader audit/retention requirements remain open; this increment is not production-certified.
+- Verification flow integration, complete service-layer extraction for each lifecycle, resource adoption by all controllers, field-level privacy policies, seeder orchestration, and broader audit/retention requirements remain open; this increment is not production-certified.
