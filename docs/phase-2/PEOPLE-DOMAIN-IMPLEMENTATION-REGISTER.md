@@ -33,6 +33,13 @@
 - Added Amharic and English translation catalogues, an explicit no-demo-PII `PeopleDomainSeeder`, and lifecycle events/listener wired to the platform audit service.
 - Added a structural feature test for vocabulary stability, repository binding and bounded configuration. This test is committed but has not been run.
 
+### Architecture alignment — domain ownership
+
+- People now follows the same domain-owned layout used by Shareholder and Wallet: `Config/`, `Database/Migrations/`, `Database/Seeders/`, `Enums/`, `Events/`, `Http/Controllers/`, `Http/Requests/`, `Http/Resources/`, `Listeners/`, `Models/`, `Policies/`, `Providers/`, `Repositories/`, `Resources/lang/`, `Routes/api.php`, `Services/`, and `Tests/Feature/`.
+- `PeopleServiceProvider` owns the config merge, repository binding, policy and audit-listener registration, domain migration discovery, and route mounting. The configured route contract is `api/people` with `api`, `auth:sanctum`, and `tenant.membership` middleware; per-action `people.manage` permissions remain on the route definitions.
+- People controllers, eight People-owned migrations, the People seeder, and four People feature tests were moved under the domain. The platform-level `routes/api.php` no longer declares People endpoints; their public URI and route-name contract is retained in the domain route file.
+- This was a path/ownership refactor, not a schema redesign or data operation. Existing migration filenames and migration contents were preserved. No local tests or CI workflows were run, per Owner instruction; runtime route discovery, fresh-install migration discovery, and the domain test suite remain **NOT RUN**.
+
 ### P2.5 — Lifecycle and records
 - Integrate onboarding, training, credentials/qualifications, and review with Organization, Documents, Calendar, and Reporting through explicit contracts.
 - Establish field-level authorization, retention, export auditing, and concurrency tests.
