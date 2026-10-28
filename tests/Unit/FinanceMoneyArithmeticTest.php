@@ -39,4 +39,28 @@ final class FinanceMoneyArithmeticTest extends TestCase
         $this->assertSame('123400', MoneyArithmetic::toMinorUnits('12.34'));
         $this->assertSame('0.0000', MoneyArithmetic::format('0'));
     }
+
+    #[Test]
+    public function it_exposes_a_stable_trial_balance_report_shape(): void
+    {
+        $resource = new \MaaleArna\MASES\Core\Domains\Finance\Http\Resources\TrialBalanceResource([
+            'as_of' => '2026-10-10',
+            'currency' => 'ETB',
+            'accounts' => collect([(object) [
+                'id' => 7, 'code' => '1000', 'name_en' => 'Cash', 'name_am' => null,
+                'account_type' => 'asset', 'debit_total' => '10.0000', 'credit_total' => '0.0000',
+                'net_debit' => '10.0000', 'net_credit' => '0.0000',
+            ]]),
+            'summary' => ['total_debits' => '10.0000', 'total_credits' => '10.0000',
+                'difference' => '0.0000', 'is_balanced' => true],
+        ]);
+
+        $data = $resource->resolve(request());
+
+        $this->assertSame('2026-10-10', $data['as_of']);
+        $this->assertSame('ETB', $data['currency']);
+        $this->assertSame('10.0000', $data['accounts'][0]['net_debit']);
+        $this->assertTrue($data['summary']['is_balanced']);
+    }
+
 }

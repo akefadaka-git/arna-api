@@ -31,6 +31,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LedgerAccountRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Http\Resources\LegalEntityResource;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Resources\TrialBalanceResource;
 
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
@@ -195,8 +196,8 @@ final class FinanceController extends Controller
         );
 
         return response()->json(['success' => true, 'data' => [
-            'legal_entity_id' => $entity->id,
-            ...$report,
+            'legal_entity_id' => (int) $entity->id,
+            ...TrialBalanceResource::make($report)->resolve($request),
         ]]);
     }
 
