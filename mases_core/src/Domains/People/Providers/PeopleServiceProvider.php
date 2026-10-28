@@ -2,6 +2,9 @@
 declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\People\Providers;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Event;
+use MaaleArna\MASES\Core\Domains\People\Events\PersonProfileLifecycleChanged;
+use MaaleArna\MASES\Core\Domains\People\Listeners\AuditPersonProfileLifecycle;
 use Illuminate\Support\ServiceProvider;
 use MaaleArna\MASES\Core\Domains\People\Contracts\PersonProfileRepositoryContract;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
@@ -15,5 +18,6 @@ final class PeopleServiceProvider extends ServiceProvider {
  public function boot(): void {
   $this->loadTranslationsFrom(__DIR__.'/../Resources/lang','people');
   Gate::policy(Person::class,PersonPolicy::class);
+  Event::listen(PersonProfileLifecycleChanged::class, AuditPersonProfileLifecycle::class);
  }
 }
