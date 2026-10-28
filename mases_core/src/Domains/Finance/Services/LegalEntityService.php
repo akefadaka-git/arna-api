@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Finance\Events\LegalEntityCreated;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 
 /**
@@ -26,7 +27,7 @@ final class LegalEntityService
      *
      * @param array<string, mixed> $data Validated request data.
      */
-    public function create(int $tenantId, array $data): LegalEntity
+    public function create(int $tenantId, array $data, int $actorId): LegalEntity
     {
         if ($tenantId < 1) {
             abort(403, 'A resolved tenant context is required.');
@@ -51,8 +52,8 @@ final class LegalEntityService
         }
 
         try {
-            return DB::transaction(static function () use ($tenantId, $code, $nameAm, $nameEn, $currency): LegalEntity {
-                return LegalEntity::query()->create([
+            return DB::transaction(function () use ($tenantId, $code, $nameAm, $nameEn, $currency, $actorId): LegalEntity {
+                $entity = LegalEntity::query()->create([
                     'tenant_id' => $tenantId,
                     'code' => $code,
                     'name_am' => $nameAm === '' ? null : $nameAm,
@@ -60,6 +61,8 @@ final class LegalEntityService
                     'base_currency' => $currency,
                     'status' => 'active',
                 ]);
+                event(new LegalEntityCreated($entity, $actorId));
+                return $entity;
             });
         } catch (QueryException $exception) {
             // The tenant/code unique index is the race-safe authority. Convert

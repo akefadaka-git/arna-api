@@ -23,6 +23,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreAccountingPeriodRequ
 use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreLedgerAccountRequest;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
@@ -39,6 +40,7 @@ final class FinanceController extends Controller
         private readonly TenantContextService $tenantContext,
         private readonly LegalEntityRepository $entitiesRepository,
         private readonly LegalEntityService $legalEntities,
+        private readonly LedgerAccountService $ledgerAccountService,
         private readonly JournalEntryService $journals,
         private readonly FinancialReportService $financialReports,
         private readonly LedgerAccountRepository $ledgerAccounts,
@@ -61,6 +63,7 @@ final class FinanceController extends Controller
         $entity = $this->legalEntities->create(
             $this->tenantId(),
             $request->validated(),
+            (int) $request->user()->getAuthIdentifier(),
         );
 
         return response()->json(['success' => true, 'data' => LegalEntityResource::make($entity)->resolve($request)], 201);
@@ -80,25 +83,12 @@ final class FinanceController extends Controller
     public function createAccount(StoreLedgerAccountRequest $request): JsonResponse
     {
         Gate::authorize('create', LedgerAccount::class);
-        $data = $request->validated();
-        $tenantId = $this->tenantId();
-        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
-        if (($data['parent_id'] ?? null) !== null) {
-            $parent = LedgerAccount::query()->where('tenant_id', $tenantId)
-                ->where('legal_entity_id', $entity->id)->findOrFail((int) $data['parent_id']);
-            if ($parent->account_type !== $data['account_type']) {
-                throw ValidationException::withMessages(['parent_id' => 'Parent and child accounts must use the same account type.']);
-            }
-        }
+        $account = $this->ledgerAccountService->create(
+            $this->tenantId(),
+            (int) $request->user()->getAuthIdentifier(),
+            $request->validated(),
+        );
 
-        $account = LedgerAccount::query()->create([
-            ...$data,
-            'tenant_id' => $tenantId,
-            'legal_entity_id' => $entity->id,
-            'code' => strtoupper($data['code']),
-            'status' => 'active',
-            'is_posting_allowed' => $data['is_posting_allowed'] ?? true,
-        ]);
         return response()->json(['success' => true, 'data' => $account], 201);
     }
 

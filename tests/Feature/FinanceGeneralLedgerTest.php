@@ -13,6 +13,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Domains\Finance\Policies\LegalEntityPolicy;
 use MaaleArna\MASES\Core\Domains\Finance\Policies\LedgerAccountPolicy;
@@ -259,6 +261,10 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertSame(JournalEntry::POSTED, $reversal->status);
         $this->assertSame(JournalEntryType::REVERSAL, $reversal->journal_type);
         $this->assertSame((int) $original->id, (int) $reversal->reversal_of_id);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.reversed',
+            'subject_type' => 'journal_entry', 'subject_id' => $original->id,
+        ]);
         $this->assertDatabaseCount('journal_entries', 2);
         $this->assertSame('0.0000', (string) $reversal->lines->where('account_id', $cash->id)->first()->debit_amount);
         $this->assertSame('125.2500', (string) $reversal->lines->where('account_id', $cash->id)->first()->credit_amount);
@@ -779,6 +785,40 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertDatabaseHas('finance_audit_entries', [
             'tenant_id' => $tenant->id, 'event_type' => 'finance.period.closed',
             'subject_type' => 'accounting_period', 'subject_id' => $period->id,
+        ]);
+    }
+
+
+    #[Test]
+    public function test_entity_account_and_period_opening_lifecycle_events_are_audited(): void
+    {
+        [$tenant, $user, $entity, $period] = $this->ledgerFixture();
+
+        $createdEntity = app(LegalEntityService::class)->create((int)$tenant->id, [
+            'code' => 'AUDIT-ENTITY', 'name_en' => 'Audited Entity', 'base_currency' => 'ETB',
+        ], (int)$user->id);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.entity.created',
+            'subject_type' => 'legal_entity', 'subject_id' => $createdEntity->id,
+        ]);
+
+        $account = app(LedgerAccountService::class)->create((int)$tenant->id, (int)$user->id, [
+            'legal_entity_id' => $entity->id, 'code' => 'AUDIT-9000',
+            'name_en' => 'Audited Account', 'account_type' => 'asset',
+            'normal_balance' => 'debit', 'is_posting_allowed' => true,
+        ]);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.account.created',
+            'subject_type' => 'ledger_account', 'subject_id' => $account->id,
+        ]);
+
+        $opened = app(AccountingPeriodService::class)->create((int)$tenant->id, [
+            'legal_entity_id' => $entity->id, 'code' => '2027',
+            'starts_on' => '2027-01-01', 'ends_on' => '2027-12-31',
+        ], (int)$user->id);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.period.opened',
+            'subject_type' => 'accounting_period', 'subject_id' => $opened->id,
         ]);
     }
 
