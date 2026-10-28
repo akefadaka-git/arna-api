@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonContactPoint;
+use MaaleArna\MASES\Core\Domains\People\Events\PersonProfileLifecycleChanged;
 
 final class PersonContactPointController extends Controller
 {
@@ -90,6 +91,8 @@ final class PersonContactPointController extends Controller
             return $contact;
         });
 
+        event(new PersonProfileLifecycleChanged('people.contact.created', (int) $tenantId, (int) $person->getKey(), $request->user()?->getKey(), 'contact_point', (int) $contact->getKey()));
+
         return response()->json(['success' => true, 'data' => $this->present($contact)], 201);
     }
 
@@ -117,6 +120,8 @@ final class PersonContactPointController extends Controller
 
             return $contact;
         });
+
+        event(new PersonProfileLifecycleChanged('people.contact.deactivated', (int) $tenantId, (int) $person->getKey(), $request->user()?->getKey(), 'contact_point', (int) $contact->getKey()));
 
         return response()->json(['success' => true, 'data' => $this->present($contact)]);
     }
