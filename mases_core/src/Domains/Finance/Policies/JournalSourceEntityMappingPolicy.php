@@ -9,8 +9,11 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\JournalSourceEntityMapping;
 
 final class JournalSourceEntityMappingPolicy extends FinancePolicy
 {
-    // Reuse the established tenant-scoped Finance entity-management permission.
-    // No role grants are broadened by this workflow change.
+    public function viewAny(User $user): bool
+    {
+        return $this->allows($user, 'finance.entity.view');
+    }
+
     public function create(User $user): bool
     {
         return $this->allows($user, 'finance.entity.manage');

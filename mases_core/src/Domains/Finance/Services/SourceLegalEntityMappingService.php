@@ -37,7 +37,27 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
         $this->assertActiveEntity($tenantId, $legalEntityId);
 
         return DB::transaction(function () use ($tenantId, $sourceType, $sourceId, $legalEntityId, $actor, $reason): JournalSourceEntityMapping {
-            $mapping = new JournalSourceEntityMapping();
+            $mapping = JournalSourceEntityMapping::query()
+                ->where('tenant_id', $tenantId)
+                ->where('source_type', $sourceType->value)
+                ->where('source_id', $sourceId)
+                ->lockForUpdate()
+                ->first();
+
+            $before = null;
+            $eventType = 'source_mapping.requested';
+            if ($mapping !== null) {
+                if ($mapping->status !== JournalSourceEntityMapping::STATUS_REVOKED) {
+                    throw ValidationException::withMessages([
+                        'source_id' => 'A pending or approved mapping already exists for this source.',
+                    ]);
+                }
+                $before = $this->state($mapping);
+                $eventType = 'source_mapping.reassignment_requested';
+            } else {
+                $mapping = new JournalSourceEntityMapping();
+            }
+
             $mapping->fill([
                 'tenant_id' => $tenantId,
                 'source_type' => $sourceType->value,
@@ -46,10 +66,17 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
                 'created_by' => (int) $actor->id,
                 'mapping_reason' => $reason,
             ]);
-            $mapping->forceFill(['status' => JournalSourceEntityMapping::STATUS_PENDING]);
+            $mapping->forceFill([
+                'status' => JournalSourceEntityMapping::STATUS_PENDING,
+                'approved_by' => null,
+                'approved_at' => null,
+                'revoked_at' => null,
+                'approval_reason' => null,
+                'revocation_reason' => null,
+            ]);
             $mapping->save();
 
-            $this->audit($mapping, $actor, 'source_mapping.requested', null, $this->state($mapping), $reason);
+            $this->audit($mapping, $actor, $eventType, $before, $this->state($mapping), $reason);
             return $mapping;
         });
     }

@@ -15,6 +15,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalSourceEntityMapping;
 use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\StoreLegalEntityRequest;
 use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\ReverseJournalRequest;
 use MaaleArna\MASES\Core\Domains\Finance\Http\Requests\CancelJournalRequest;
@@ -25,6 +26,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\SourceLegalEntityMappingService;
+use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
@@ -48,7 +51,79 @@ final class FinanceController extends Controller
         private readonly AccountingPeriodRepository $accountingPeriods,
         private readonly AccountingPeriodService $accountingPeriodService,
         private readonly JournalEntryRepository $journalEntries,
+        private readonly SourceLegalEntityMappingService $sourceMappingService,
     ) {
+    }
+
+
+    public function sourceMappings(Request $request): JsonResponse
+    {
+        Gate::authorize('viewAny', JournalSourceEntityMapping::class);
+        $data = $request->validate([
+            'status' => ['sometimes', 'string', Rule::in([
+                JournalSourceEntityMapping::STATUS_PENDING,
+                JournalSourceEntityMapping::STATUS_APPROVED,
+                JournalSourceEntityMapping::STATUS_REVOKED,
+            ])],
+        ]);
+
+        $query = JournalSourceEntityMapping::query()
+            ->where('tenant_id', $this->tenantId())
+            ->with('entity:id,tenant_id,code,name_en');
+        if (isset($data['status'])) {
+            $query->where('status', $data['status']);
+        }
+
+        return response()->json(['success' => true, 'data' => $query->orderByDesc('id')->paginate($this->perPage($request))]);
+    }
+
+    public function requestSourceMapping(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'source_type' => ['required', 'string', Rule::in([
+                JournalSourceType::SHAREHOLDER->value,
+                JournalSourceType::WALLET->value,
+                JournalSourceType::LOAN->value,
+            ])],
+            'source_id' => ['required', 'string', 'max:128'],
+            'legal_entity_id' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+
+        $mapping = $this->sourceMappingService->request(
+            $this->tenantId(),
+            JournalSourceType::from($data['source_type']),
+            $data['source_id'],
+            (int) $data['legal_entity_id'],
+            $request->user(),
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $mapping], 201);
+    }
+
+    public function approveSourceMapping(Request $request, int $mappingId): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
+        $mapping = $this->sourceMappingService->approve(
+            $mappingId,
+            $request->user(),
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $mapping]);
+    }
+
+    public function revokeSourceMapping(Request $request, int $mappingId): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
+        $mapping = $this->sourceMappingService->revoke(
+            $mappingId,
+            $request->user(),
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $mapping]);
     }
 
     public function entities(Request $request): JsonResponse

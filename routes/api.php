@@ -666,6 +666,11 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
         Route::get('/entities', [$controller, 'entities'])->middleware('auth.permission:finance.entity.view')->name('entities.index');
         Route::post('/entities', [$controller, 'createEntity'])->middleware('auth.permission:finance.entity.manage')->name('entities.store');
 
+        Route::get('/source-mappings', [$controller, 'sourceMappings'])->middleware('auth.permission:finance.entity.view')->name('source-mappings.index');
+        Route::post('/source-mappings', [$controller, 'requestSourceMapping'])->middleware('auth.permission:finance.entity.manage')->name('source-mappings.store');
+        Route::post('/source-mappings/{mappingId}/approve', [$controller, 'approveSourceMapping'])->whereNumber('mappingId')->middleware('auth.permission:finance.entity.manage')->name('source-mappings.approve');
+        Route::post('/source-mappings/{mappingId}/revoke', [$controller, 'revokeSourceMapping'])->whereNumber('mappingId')->middleware('auth.permission:finance.entity.manage')->name('source-mappings.revoke');
+
         Route::get('/accounts', [$controller, 'accounts'])->middleware('auth.permission:finance.account.view')->name('accounts.index');
         Route::post('/accounts', [$controller, 'createAccount'])->middleware('auth.permission:finance.account.manage')->name('accounts.store');
 
