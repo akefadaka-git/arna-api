@@ -177,7 +177,13 @@ final class FileController extends Controller
             throw FileException::notFound((string) $id);
         }
 
-        if (!$file->is_public) {
+        // A Person association overrides the file's public flag: linked
+        // identity documents must always require authenticated tenant access.
+        $isPersonLinked = Illuminate\Support\Facades\DB::table('person_document_links')
+            ->where('file_id', $file->getKey())
+            ->exists();
+
+        if (!$file->is_public || $isPersonLinked) {
             if (!$user) {
                 throw FileException::authRequired();
             }
@@ -203,7 +209,13 @@ final class FileController extends Controller
             throw FileException::notFound((string) $id);
         }
 
-        if (!$file->is_public) {
+        // A Person association overrides the file's public flag: linked
+        // identity documents must always require authenticated tenant access.
+        $isPersonLinked = Illuminate\Support\Facades\DB::table('person_document_links')
+            ->where('file_id', $file->getKey())
+            ->exists();
+
+        if (!$file->is_public || $isPersonLinked) {
             if (!$user) {
                 throw FileException::authRequired();
             }
