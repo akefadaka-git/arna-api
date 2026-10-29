@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMeeting;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceMeetingService;
-use Symfony\Component\HttpKernel\Exception\ModelNotFoundException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 final class GovernanceMeetingController extends Controller
 {
@@ -26,6 +26,7 @@ final class GovernanceMeetingController extends Controller
         $perPage = min(max($request->integer('per_page', 25), 1), 100);
 
         $meetings = GovernanceMeeting::query()->where('tenant_id', $tenantId)
+            ->whereHas('body', fn ($query) => $query->where('tenant_id', $tenantId))
             ->with(['body:id,tenant_id,code,body_type,name_am,name_en'])
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
             ->when($request->filled('governance_body_id'), fn ($query) => $query->where('governance_body_id', $request->integer('governance_body_id')))
@@ -112,7 +113,9 @@ final class GovernanceMeetingController extends Controller
 
     private function assertTenant(GovernanceMeeting $meeting): void
     {
-        if ((int) $meeting->tenant_id === $this->tenantId()) {
+        $tenantId = $this->tenantId();
+        if ((int) $meeting->tenant_id === $tenantId
+            && $meeting->body()->where('tenant_id', $tenantId)->exists()) {
             return;
         }
         throw (new ModelNotFoundException())->setModel(GovernanceMeeting::class, [$meeting->getKey()]);
