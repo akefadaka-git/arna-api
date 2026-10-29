@@ -53,22 +53,22 @@ if ($LASTEXITCODE -ne 0) { throw 'Unable to determine PHP CLI version.' }
 if ([version]$version -lt [version]'8.3.0') { throw "PHP $version found; ARNA API requires PHP 8.3 or later." }
 if (-not (Test-Path 'vendor/autoload.php')) { throw 'vendor/autoload.php is missing. Run composer install manually in this existing checkout.' }
 
-# Composer resolves its generated PSR-4 base directory relative to the physical
-# vendor/autoload.php path. On some Windows PowerShell/filesystem combinations,
-# Get-Item.LinkType does not reliably expose a directory junction. Ask PHP for the
-# physical autoloader path instead, then compare its owning checkout with this repo.
-# This is a read-only preflight and intentionally runs before route:list or tests.
-$autoloadPhysicalPath = (& php -r 'echo realpath("vendor/autoload.php") ?: "";').Trim()
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($autoloadPhysicalPath)) {
-    throw 'Could not resolve the physical vendor/autoload.php path. No tests were run.'
+# Inspect Composer's effective PSR-4 map, not only vendor/autoload.php's path:
+# a copied autoload.php can live in this checkout while generated metadata still
+# points at a different checkout. Compare the actual Core namespace base directory.
+$autoloadPsr4Roots = @(& php -r 'require "vendor/autoload.php"; foreach (\Composer\Autoload\ClassLoader::getRegisteredLoaders() as $loader) { foreach (($loader->getPrefixesPsr4()["MaaleArna\\MASES\\Core\\"] ?? []) as $path) { echo (realpath($path) ?: $path), PHP_EOL; } }')
+if ($LASTEXITCODE -ne 0 -or $autoloadPsr4Roots.Count -eq 0) {
+    throw 'Could not inspect Composer PSR-4 metadata for MaaleArna\\MASES\\Core\\. No tests were run.'
 }
-$autoloadPhysicalPath = [IO.Path]::GetFullPath($autoloadPhysicalPath)
-$physicalVendorDirectory = Split-Path -LiteralPath $autoloadPhysicalPath -Parent
-$autoloadOwnerRepo = Split-Path -LiteralPath $physicalVendorDirectory -Parent
-$resolvedRepoPath = [IO.Path]::GetFullPath($Repo).TrimEnd([IO.Path]::DirectorySeparatorChar)
-$resolvedAutoloadOwnerRepo = [IO.Path]::GetFullPath($autoloadOwnerRepo).TrimEnd([IO.Path]::DirectorySeparatorChar)
-if (-not $resolvedAutoloadOwnerRepo.Equals($resolvedRepoPath, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "vendor/autoload.php physically resolves to '$autoloadPhysicalPath', owned by checkout '$resolvedAutoloadOwnerRepo', not '$resolvedRepoPath'. Composer PSR-4 metadata may resolve ARNA classes against another checkout. Establish an isolated vendor directory for '$resolvedRepoPath'. No repository files were changed by this check; no tests were run."
+$repoDomainRoot = (Resolve-Path -LiteralPath (Join-Path $Repo 'mases_core/src')).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
+$resolvedPsr4Roots = @($autoloadPsr4Roots | ForEach-Object {
+    [IO.Path]::GetFullPath(([string] $_).Trim()).TrimEnd([IO.Path]::DirectorySeparatorChar)
+})
+$matchingPsr4Root = @($resolvedPsr4Roots | Where-Object {
+    $_.Equals($repoDomainRoot, [StringComparison]::OrdinalIgnoreCase)
+})
+if ($matchingPsr4Root.Count -eq 0) {
+    throw "Composer's MaaleArna\\MASES\\Core\\ PSR-4 roots [$($resolvedPsr4Roots -join '; ')] do not include this checkout's '$repoDomainRoot'. The generated autoload map is stale or cross-checkout. Rebuild vendor for '$Repo' before testing. No repository files were changed by this check; no tests were run."
 }
 
 Write-Host ''
