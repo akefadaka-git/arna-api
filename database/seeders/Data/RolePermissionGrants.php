@@ -19,8 +19,8 @@ namespace Database\Seeders\Data;
  * 1.2.0  — People-domain least-privilege read permissions:
  *          · Added people.view to the manager role for directory/profile reads.
  *          · Added people.view and people.sensitive.view to the tenant-scoped
- *            permission catalogue; tenant_admin/platform_admin receive the
- *            tenant-scoped capabilities through their existing scope grants.
+ *            permission catalogue. tenant_admin receives tenant-scoped grants;
+ *            platform_admin excludes people.sensitive.view from that scope.
  *          · No sensitive read permission is granted to manager by default.
  *
  * 1.0.0  — initial delivery (Unit S-6). Extracted from MasesCoreSeeder
@@ -83,23 +83,22 @@ namespace Database\Seeders\Data;
  *      Used by: super_admin.
  *
  *   2. 'scope:{scope}' — the scope grant. Matches every permission
- *                        in the catalogue whose `scope` field equals
- *                        the named scope. The scope names are the
- *                        three values defined by PermissionCatalogue:
+ *      whose `scope` field equals the named scope. Supported scopes
+ *      are global, tenant, and application.
  *
- *                          scope:global
- *                          scope:tenant
- *                          scope:application
+ *      Used by: platform_admin (scope:global), tenant_admin (scope:tenant).
  *
- *      Used by: platform_admin (scope:global, scope:tenant),
- *               tenant_admin (scope:tenant).
+ *   3. 'scope:{scope}-except:{slug}[,{slug}]' — matches every permission
+ *      in the named scope except the listed permission slugs. Exclusions
+ *      are applied only to this scope entry; other explicit grants still
+ *      apply. This lets broad administrative roles retain scoped access
+ *      without inheriting a sensitive capability by default.
  *
- *   3. A literal permission slug — the exact grant. Matches the one
- *      permission whose slug equals the string. Every slug used
- *      below is defined in PermissionCatalogue; a slug that does not
- *      resolve to a permission is silently skipped by the seeder.
+ *      Used by: platform_admin (scope:tenant-except:people.sensitive.view).
  *
- *      Used by: every role except super_admin.
+ *   4. A literal permission slug — the exact grant. Matches the one
+ *      permission whose slug equals the string. Every slug used below
+ *      is defined in PermissionCatalogue; unknown slugs are skipped.
  *
  * =============================================================================
  * The form is a map, keyed by role slug
@@ -122,12 +121,12 @@ namespace Database\Seeders\Data;
  * =============================================================================
  *   super_admin     — '*'              : every permission
  *
- *   platform_admin  — scope:global + scope:tenant
+ *   platform_admin  — scope:global + scope:tenant-except:people.sensitive.view
  *                     + app.admin.access + app.app.access
  *                     + app.launcher.access
- *                                      : the two non-application scopes
- *                                        plus the three platform-operation
- *                                        applications
+ *                                      : global and tenant capabilities except
+ *                                        sensitive People reads, plus three
+ *                                        platform-operation applications
  *
  *   tenant_admin    — scope:tenant + every 'app.*.access'
  *                                      : everything scoped to a tenant,
@@ -207,7 +206,7 @@ final class RolePermissionGrants
     public const MAP = [
         'super_admin'     => ['*'],
         'platform_admin'  => [
-            'scope:global', 'scope:tenant',
+            'scope:global', 'scope:tenant-except:people.sensitive.view',
             'app.admin.access', 'app.app.access', 'app.launcher.access',
         ],
         'tenant_admin'    => [
