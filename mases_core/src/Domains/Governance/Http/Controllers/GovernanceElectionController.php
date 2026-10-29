@@ -149,7 +149,8 @@ final class GovernanceElectionController extends Controller
                 }
                 DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->update([
                     'status' => 'voting_open', 'current_round' => $nextRound, 'winner_nomination_id' => null,
-                    'result_summary_json' => null, 'challenge_bylaw_reference' => null, 'challenge_window_ends_at' => null,\n                    'challenge_window_evidence_reference' => null, 'challenge_window_verified_by' => null, 'challenge_window_verified_at' => null, 'updated_at' => now(),
+                    'result_summary_json' => null, 'challenge_bylaw_reference' => null, 'challenge_window_ends_at' => null,
+                    'challenge_window_evidence_reference' => null, 'challenge_window_verified_by' => null, 'challenge_window_verified_at' => null, 'updated_at' => now(),
                 ]);
                 $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'election.round_opened', [
                     'round_number' => $nextRound, 'round_type' => $transition === 'start_runoff' ? 'runoff' : 'rerun',
@@ -185,7 +186,10 @@ final class GovernanceElectionController extends Controller
                     'frozen_eligible_voter_count' => (int) $election->frozen_eligible_voter_count,
                     'result_summary' => json_decode((string) $election->result_summary_json, true),
                     'challenge_bylaw_reference' => $election->challenge_bylaw_reference,
-                    'challenge_window_ends_at' => $election->challenge_window_ends_at,\n                    'challenge_window_evidence_reference' => $election->challenge_window_evidence_reference,\n                    'challenge_window_verified_by' => (int) $election->challenge_window_verified_by,\n                    'challenge_window_verified_at' => $election->challenge_window_verified_at,
+                    'challenge_window_ends_at' => $election->challenge_window_ends_at,
+                    'challenge_window_evidence_reference' => $election->challenge_window_evidence_reference,
+                    'challenge_window_verified_by' => (int) $election->challenge_window_verified_by,
+                    'challenge_window_verified_at' => $election->challenge_window_verified_at,
                 ]);
             });
             return response()->json(['success' => true, 'data' => DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->first()]);
