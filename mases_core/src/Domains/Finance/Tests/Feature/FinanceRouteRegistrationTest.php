@@ -83,7 +83,7 @@ final class FinanceRouteRegistrationTest extends TestCase
 
         $this->assertNotNull($route, 'Finance entity index route must be registered.');
 
-        $middleware = $route->gatherMiddleware();
+        $middleware = $route->middleware();
 
         $this->assertContains('auth:sanctum', $middleware);
         $this->assertContains('tenant.membership', $middleware);
