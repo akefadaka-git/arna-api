@@ -140,7 +140,6 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\ApplicationController;
-use App\Http\Controllers\FileController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
@@ -584,51 +583,9 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->name('update');
     });
 
-    // File Management
-    // -------------------------------------------------------------------------
+    // File-management endpoints are owned by the FileManagement domain.
+    require base_path('mases_core/src/Domains/FileManagement/Routes/api.php');
 
-    Route::prefix('/files')->name('api.files.')->group(static function (): void {
-
-        /** Upload a file (multipart/form-data). */
-        Route::post('/upload', [FileController::class, 'upload'])
-            ->name('upload');
-
-        /** List files for the current tenant (paginated, filterable). */
-        Route::get('/', [FileController::class, 'index'])
-            ->name('index');
-
-        /** Get file metadata (no content). */
-        Route::get('/{id}', [FileController::class, 'show'])
-            ->name('show');
-
-        /** Download file content (streamed). */
-        Route::get('/{id}/download', [FileController::class, 'download'])
-            ->name('download');
-
-        /** Update file metadata or replace content (creates a new version). */
-        Route::put('/{id}', [FileController::class, 'update'])
-            ->name('update');
-
-        /** Soft delete a file (recoverable). */
-        Route::delete('/{id}', [FileController::class, 'destroy'])
-            ->name('destroy');
-
-        /** Permanently delete a file (hard delete). */
-        Route::delete('/{id}/force', [FileController::class, 'forceDestroy'])
-            ->name('force-destroy');
-
-        /** Restore a soft-deleted file. */
-        Route::post('/{id}/restore', [FileController::class, 'restore'])
-            ->name('restore');
-
-        /** Get version history of a file. */
-        Route::get('/{id}/versions', [FileController::class, 'versions'])
-            ->name('versions');
-
-        /** Get the latest version of a file. */
-        Route::get('/{id}/latest', [FileController::class, 'latestVersion'])
-            ->name('latest');
-    });
 });
 
 
