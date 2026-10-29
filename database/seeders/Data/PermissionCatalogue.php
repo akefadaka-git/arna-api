@@ -195,6 +195,7 @@ final class PermissionCatalogue
         ['slug' => 'finance.period.manage', 'name_am' => 'የሂሳብ ጊዜዎችን ማስተዳደር', 'name_en' => 'Manage Accounting Periods', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.view', 'name_am' => 'የመዝገብ ማስታወሻዎችን ማየት', 'name_en' => 'View Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.create', 'name_am' => 'የመዝገብ ማስታወሻ መፍጠር', 'name_en' => 'Create Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.journal.cancel', 'name_am' => 'የሂሳብ ረቂቅ ማስታወሻዎችን መሰረዝ', 'name_en' => 'Cancel Draft Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.post', 'name_am' => 'የመዝገብ ማስታወሻ መለጠፍ', 'name_en' => 'Post Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.reverse', 'name_am' => 'የመዝገብ ማስታወሻ መቀልበስ', 'name_en' => 'Reverse Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.report.view', 'name_am' => 'የፋይናንስ ሪፖርቶችን ማየት', 'name_en' => 'View Financial Reports', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],

@@ -648,6 +648,17 @@ return [
 
     /*
      * -------------------------------------------------------------------------
+     * 10. Finance Domain Provider
+     * -------------------------------------------------------------------------
+     *
+     * Registers Finance domain services and Amharic/English translation
+     * catalogues. Existing Finance routes and migrations remain centrally
+     * registered until their dedicated domain integration is approved.
+     */
+    MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
+
+    /*
+     * -------------------------------------------------------------------------
      * 10. Future Domain Providers (Phase 2D and 2F)
      * -------------------------------------------------------------------------
      *
