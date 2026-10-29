@@ -556,6 +556,7 @@ return [
      * provider that depends on Core services.
      */
     MaaleArna\MASES\Core\Providers\CoreServiceProvider::class,
+    MaaleArna\MASES\Core\Domains\FileManagement\Providers\FileManagementServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
