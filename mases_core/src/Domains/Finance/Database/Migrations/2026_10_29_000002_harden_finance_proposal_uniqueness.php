@@ -26,15 +26,8 @@ return new class extends Migration
         $this->backfillMappingVersions();
         $this->backfillExchangeRateVersions();
 
-        $this->dropUniqueIfPresent(
-            'finance_consolidation_account_mappings',
-            'finance_consolidation_mapping_account_status_unique'
-        );
-        $this->dropUniqueIfPresent(
-            'finance_exchange_rates',
-            'finance_exchange_rate_pair_date_status_unique'
-        );
-
+        // Create replacement indexes before dropping the old keys. MySQL may rely on
+        // the old left-prefix index to enforce the composite ledger-account foreign key.
         $this->addUniqueIfMissing(
             'finance_consolidation_account_mappings',
             ['tenant_id', 'legal_entity_id', 'ledger_account_id', 'proposal_version'],
@@ -44,6 +37,15 @@ return new class extends Migration
             'finance_exchange_rates',
             ['tenant_id', 'base_currency', 'quote_currency', 'effective_on', 'proposal_version'],
             'finance_exchange_rate_proposal_version_unique'
+        );
+
+        $this->dropUniqueIfPresent(
+            'finance_consolidation_account_mappings',
+            'finance_consolidation_mapping_account_status_unique'
+        );
+        $this->dropUniqueIfPresent(
+            'finance_exchange_rates',
+            'finance_exchange_rate_pair_date_status_unique'
         );
     }
 
@@ -66,6 +68,19 @@ return new class extends Migration
             );
         }
 
+        // Restore the legacy keys before dropping replacement indexes, because the
+        // composite account foreign key needs a supporting left-prefix index on MySQL.
+        $this->addUniqueIfMissing(
+            'finance_consolidation_account_mappings',
+            ['tenant_id', 'legal_entity_id', 'ledger_account_id', 'status'],
+            'finance_consolidation_mapping_account_status_unique'
+        );
+        $this->addUniqueIfMissing(
+            'finance_exchange_rates',
+            ['tenant_id', 'base_currency', 'quote_currency', 'effective_on', 'status'],
+            'finance_exchange_rate_pair_date_status_unique'
+        );
+
         $this->dropUniqueIfPresent(
             'finance_consolidation_account_mappings',
             'finance_consolidation_mapping_proposal_version_unique'
@@ -85,17 +100,6 @@ return new class extends Migration
                 $table->dropColumn('proposal_version');
             });
         }
-
-        $this->addUniqueIfMissing(
-            'finance_consolidation_account_mappings',
-            ['tenant_id', 'legal_entity_id', 'ledger_account_id', 'status'],
-            'finance_consolidation_mapping_account_status_unique'
-        );
-        $this->addUniqueIfMissing(
-            'finance_exchange_rates',
-            ['tenant_id', 'base_currency', 'quote_currency', 'effective_on', 'status'],
-            'finance_exchange_rate_pair_date_status_unique'
-        );
     }
 
     private function backfillMappingVersions(): void
