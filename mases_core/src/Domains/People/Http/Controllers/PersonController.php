@@ -161,13 +161,13 @@ final class PersonController extends Controller
         try {
             switch ($domain) {
                 case 'employees':
-                    $identities->unlinkEmployee((int) $tenantId, $recordId, $request->user(), $attributes['reason']);
+                    $identities->unlinkEmployee((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']);
                     break;
                 case 'shareholders':
-                    $identities->unlinkShareholder((int) $tenantId, $recordId, $request->user(), $attributes['reason']);
+                    $identities->unlinkShareholder((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']);
                     break;
                 case 'governance-memberships':
-                    $identities->unlinkGovernanceMembership((int) $tenantId, $recordId, $request->user(), $attributes['reason']);
+                    $identities->unlinkGovernanceMembership((int) $tenantId, $recordId, (int) $person->getKey(), $request->user(), $attributes['reason']);
                     break;
                 default:
                     abort(404);
