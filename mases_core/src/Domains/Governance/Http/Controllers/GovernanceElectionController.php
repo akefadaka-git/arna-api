@@ -216,7 +216,7 @@ final class GovernanceElectionController extends Controller
             if (count($acceptedIds) < 2) throw new ConflictHttpException('Majority/runoff elections require at least two accepted candidates.');
             DB::transaction(function () use ($tenant, $electionId, $eligibleCount, $acceptedIds, $election, $request): void {
                 DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->update([
-                    'frozen_eligible_voter_count' => $eligibleCount, 'current_round' => 1, 'winner_nomination_id' => null,
+                    'status' => 'voting_open', 'frozen_eligible_voter_count' => $eligibleCount, 'current_round' => 1, 'winner_nomination_id' => null,
                     'result_summary_json' => null, 'updated_at' => now(),
                 ]);
                 DB::table('governance_election_rounds')->insert([
@@ -238,6 +238,7 @@ final class GovernanceElectionController extends Controller
                 }
                 $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'election.round_opened', ['round_number' => 1, 'round_type' => 'initial', 'eligible_voter_count' => $eligibleCount]);
             });
+            return response()->json(['success' => true, 'data' => DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->first()]);
         }
         if ($transition === 'close_voting') {
             $round = DB::table('governance_election_rounds')->where('tenant_id', $tenant)->where('election_id', $electionId)->where('round_number', $election->current_round)->first();
@@ -376,7 +377,6 @@ final class GovernanceElectionController extends Controller
         if (!$round || now()->gt($round->closes_at)) throw new ConflictHttpException('The current round is outside its voting window.');
         $data = $request->validate(['governance_membership_id' => ['required', 'integer', 'min:1'], 'nomination_id' => ['required', 'integer', 'min:1']]);
         $actorId = (int) $request->user()->getAuthIdentifier();
-        $today = now()->toDateString();
         // Eligibility was frozen when the round opened. Revalidate identity binding, not mutable
         // membership state, so a later status/date change cannot silently alter the frozen register.
         $membership = DB::table('governance_memberships')->where('tenant_id', $tenant)->where('governance_body_id', $election->governance_body_id)
@@ -526,13 +526,16 @@ final class GovernanceElectionController extends Controller
             'evidence_references' => ['sometimes', 'array', 'max:20'],
             'evidence_references.*' => ['string', 'max:500'],
         ]);
-        $id = DB::table('governance_election_challenges')->insertGetId([
-            'tenant_id' => $tenant, 'election_id' => $electionId, 'submitted_by_user_id' => (int) $request->user()->getAuthIdentifier(),
-            'challenge_type' => $data['challenge_type'], 'reason' => trim($data['reason']),
-            'evidence_references' => json_encode($data['evidence_references'] ?? [], JSON_THROW_ON_ERROR),
-            'status' => 'pending', 'submitted_at' => now(), 'created_at' => now(), 'updated_at' => now(),
-        ]);
-        $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'election.challenge_submitted', ['challenge_id' => $id, 'challenge_type' => $data['challenge_type']]);
+        $id = DB::transaction(function () use ($tenant, $electionId, $data, $request): int {
+            $id = DB::table('governance_election_challenges')->insertGetId([
+                'tenant_id' => $tenant, 'election_id' => $electionId, 'submitted_by_user_id' => (int) $request->user()->getAuthIdentifier(),
+                'challenge_type' => $data['challenge_type'], 'reason' => trim($data['reason']),
+                'evidence_references' => json_encode($data['evidence_references'] ?? [], JSON_THROW_ON_ERROR),
+                'status' => 'pending', 'submitted_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'election.challenge_submitted', ['challenge_id' => $id, 'challenge_type' => $data['challenge_type']]);
+            return $id;
+        });
         return response()->json(['success' => true, 'data' => DB::table('governance_election_challenges')->where('id', $id)->first()], 201);
     }
 
