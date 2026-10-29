@@ -29,6 +29,10 @@ use MaaleArna\MASES\Core\Domains\FileManagement\Http\Controllers\FileController;
         Route::get('/{id}', [FileController::class, 'show'])
             ->name('show');
 
+        /** Verify a file through the current authenticated tenant context. */
+        Route::get('/{id}/verify', [FileController::class, 'verifyAuthenticated'])
+            ->name('verify');
+
         /** Download file content (streamed). */
         Route::get('/{id}/download', [FileController::class, 'download'])
             ->name('download');
