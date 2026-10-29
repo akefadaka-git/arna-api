@@ -12,12 +12,15 @@ final class LedgerAccount extends Model
 {
     public const TYPES = ['asset', 'liability', 'equity', 'revenue', 'expense'];
     public const NORMAL_BALANCES = ['debit', 'credit'];
+    public const TAX_CATEGORIES = ['taxable', 'non_taxable', 'exempt', 'zero_rated', 'out_of_scope', 'undetermined'];
 
     protected $table = 'ledger_accounts';
 
     protected $fillable = [
         'tenant_id', 'legal_entity_id', 'parent_id', 'code', 'name_am', 'name_en',
         'account_type', 'normal_balance', 'is_posting_allowed', 'status',
+        'is_control_account', 'control_domain', 'default_tax_category',
+        'coa_version', 'is_system_account',
     ];
 
     protected $casts = [
@@ -25,6 +28,8 @@ final class LedgerAccount extends Model
         'legal_entity_id' => 'integer',
         'parent_id' => 'integer',
         'is_posting_allowed' => 'boolean',
+        'is_control_account' => 'boolean',
+        'is_system_account' => 'boolean',
     ];
 
     public function entity(): BelongsTo
