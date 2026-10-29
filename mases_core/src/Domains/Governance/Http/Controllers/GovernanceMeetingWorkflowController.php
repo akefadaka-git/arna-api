@@ -101,13 +101,22 @@ final class GovernanceMeetingWorkflowController extends Controller
     {
         $this->authorizeMeeting($request, $governanceMeeting, 'view');
         $tenantId = $this->tenantId();
+        $meetingDate = ($governanceMeeting->scheduled_at ?? now())->toDateString();
         $eligible = GovernanceMembership::query()->where('tenant_id', $tenantId)
             ->where('governance_body_id', $governanceMeeting->governance_body_id)
-            ->where('status', 'active')->where('is_voting_member', true)->count();
+            ->where('status', 'active')->where('is_voting_member', true)
+            ->whereDate('start_date', '<=', $meetingDate)
+            ->where(function ($query) use ($meetingDate): void {
+                $query->whereNull('end_date')->orWhereDate('end_date', '>=', $meetingDate);
+            })->count();
         $present = DB::table('governance_meeting_attendance as a')
             ->join('governance_memberships as m', 'm.id', '=', 'a.governance_membership_id')
             ->where('a.tenant_id', $tenantId)->where('a.meeting_id', $governanceMeeting->id)
-            ->where('m.status', 'active')->where('m.is_voting_member', true)->whereIn('a.attendance_status', ['present', 'remote'])->count();
+            ->where('m.status', 'active')->where('m.is_voting_member', true)
+            ->whereDate('m.start_date', '<=', $meetingDate)
+            ->where(function ($query) use ($meetingDate): void {
+                $query->whereNull('m.end_date')->orWhereDate('m.end_date', '>=', $meetingDate);
+            })->whereIn('a.attendance_status', ['present', 'remote'])->count();
         $threshold = max(1, (int) ceil($eligible * 0.5));
         $snapshot = ['rule' => 'active_members_at_evaluation', 'eligible_voting_members' => $eligible, 'present_voting_members' => $present, 'threshold_percent' => 50, 'threshold_count' => $threshold, 'quorum_met' => $eligible > 0 && $present >= $threshold, 'evaluated_at' => now()->toIso8601String()];
         DB::table('governance_meetings')->where('tenant_id', $tenantId)->where('id', $governanceMeeting->id)->update([
