@@ -933,6 +933,15 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertSame('100.0000', $report['summary']['total_revenue']);
         $this->assertSame('40.0000', $report['summary']['total_expenses']);
         $this->assertSame('60.0000', $report['summary']['net_income']);
+
+        $balanceSheet = app(FinancialReportService::class)->balanceSheet(
+            (int) $tenant->id,
+            (int) $entity->id,
+            '2026-10-31',
+        );
+        $this->assertSame('60.0000', $balanceSheet['summary']['total_assets']);
+        $this->assertSame('60.0000', $balanceSheet['summary']['total_liabilities_and_equity']);
+        $this->assertTrue($balanceSheet['summary']['is_balanced']);
     }
 
     private function ledgerFixture(): array
