@@ -19,8 +19,8 @@ final class LedgerAccount extends Model
     protected $fillable = [
         'tenant_id', 'legal_entity_id', 'parent_id', 'code', 'name_am', 'name_en',
         'account_type', 'normal_balance', 'is_posting_allowed', 'status',
-        'is_control_account', 'control_domain', 'default_tax_category',
-        'coa_version', 'is_system_account',
+        // Canonical/system-managed metadata is intentionally not mass assignable.
+        // Only the controlled CoA seeder may write these fields directly.
     ];
 
     protected $casts = [
