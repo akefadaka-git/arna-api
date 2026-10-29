@@ -34,7 +34,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
  * The two-method surface
  * =============================================================================
  *   seed(array $applications): array
- *     The primary entry point. Performs the 37 upserts and returns
+ *     The primary entry point. Performs the 53 upserts and returns
  *     the map of persisted models. Called by the orchestrator when it
  *     needs the map to pass to the seeders that follow.
  *
