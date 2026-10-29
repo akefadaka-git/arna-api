@@ -6,7 +6,7 @@ This branch extends the canonical CoA implementation branch with:
 - protection against mass assignment of system-managed CoA metadata on `LedgerAccount`;
 - an explicit schema precondition for `legal_entities.id`, `tenant_id`, and `status` before seeding;
 - a control-account reconciliation ownership register covering all canonical accounts marked as control accounts;
-- a read-only `ControlAccountOwnershipRegistry` that validates exact CoA coverage, required role/evidence fields, and fail-closed pending-designation state;
+- a read-only `ControlAccountOwnershipRegistry` that validates exact CoA coverage, required role/evidence fields, and fail-closed pending-personnel-assignment state;
 - a seeder preflight that validates ownership coverage before the first account write;
 - unit/acceptance tests for CoA structure, parent ordering, category values, and one-to-one ownership coverage.
 
@@ -19,10 +19,10 @@ The register includes **36** control accounts. Every entry defines:
 - required evidence;
 - independent reviewer role;
 - named accountable person (currently `null`);
-- designation status (`PENDING_OWNER_DESIGNATION`);
+- designation status (`ROLE_DESIGNATED_PERSON_PENDING`);
 - adapter activation guard (`BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED`).
 
-These are role-level implementation defaults, not formal personnel appointments. The Owner must designate actual people and approve reconciliation procedures before the corresponding adapters are enabled. The independent reviewer should not be the preparer.
+The accountable functional roles are designated under the Owner's authorization. Named individuals remain unassigned and must be recorded by the Owner/authorized management; reconciliation procedures must also be approved before corresponding adapters are enabled. The independent reviewer should not be the preparer.
 
 ## Seeder and activation boundary
 
