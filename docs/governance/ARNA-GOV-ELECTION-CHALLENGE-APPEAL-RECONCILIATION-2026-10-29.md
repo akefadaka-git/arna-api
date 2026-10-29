@@ -22,11 +22,11 @@ The Owner selected **bylaw-defined** for the challenge/appeal window. This recor
 
 ## Implementation control until the source is supplied
 
-1. Store the bylaw/resolution citation and the resolved deadline against each election.
-2. Do not permit certification when either is absent, when the deadline cannot be derived, or while an in-window challenge/appeal remains unresolved.
-3. Preserve challenge submission, evidence references, disposition, reviewer identity, timestamps, and audit events.
-4. Do not infer a deadline from the meeting quorum rule, a training manual, a draft policy, a general election convention, or the Owner's policy choice.
-5. Once the authoritative instrument is supplied, record its exact identifier, clause, effective version/date, applicable deadline, and how the deadline is calculated (including calendar/business-day and timezone rules). Any interpretation not explicit in the source must be escalated to the authorized governance/legal reviewer.
+1. Store the bylaw/resolution citation, a controlled source-evidence reference, and the resolved deadline against each election.\n2. Require a separately authorized reviewer to verify the recorded source/deadline; the reviewer must be distinct from election-administration actors. This verification records an evidence-control attestation, not a substitute for locating the authoritative instrument.
+3. Do not permit certification when either is absent, when the deadline cannot be derived, or while an in-window challenge/appeal remains unresolved.
+4. Preserve challenge submission, evidence references, disposition, reviewer identity, timestamps, and audit events.
+5. Do not infer a deadline from the meeting quorum rule, a training manual, a draft policy, a general election convention, or the Owner's policy choice.
+6. Once the authoritative instrument is supplied, record its exact identifier, clause, effective version/date, applicable deadline, and how the deadline is calculated (including calendar/business-day and timezone rules). Any interpretation not explicit in the source must be escalated to the authorized governance/legal reviewer.
 
 ## Evidence required to close this reconciliation
 
@@ -38,4 +38,4 @@ The Owner selected **bylaw-defined** for the challenge/appeal window. This recor
 
 ## Gate
 
-**PARTIAL / BLOCKED:** Owner policy is known; the company-specific deadline clause is not evidenced. Source-only implementation may proceed with a fail-closed certification gate. Production readiness and certification remain blocked until the governing source is reconciled.
+**PARTIAL / BLOCKED:** Owner policy is known; the company-specific deadline clause is not evidenced. Source-only implementation now requires a bylaw citation, controlled source-evidence reference, and independent verification. Production readiness and certification remain blocked until the governing source is reconciled.
