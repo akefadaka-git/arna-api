@@ -563,27 +563,6 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
 
 
 /**
- * Organization domain — tenant membership is necessary but not sufficient;
- * each operation also checks an explicit domain permission and tenant boundary.
- */
-Route::middleware(['auth:sanctum', 'tenant.membership'])
-    ->prefix('organization')
-    ->name('api.organization.')
-    ->group(static function (): void {
-        $controller = \MaaleArna\MASES\Core\Domains\Organization\Http\Controllers\OrganizationController::class;
-
-        Route::get('/units', [$controller, 'index'])->name('units.index');
-        Route::post('/units', [$controller, 'store'])->name('units.store');
-        Route::get('/units/{id}', [$controller, 'show'])->whereNumber('id')->name('units.show');
-        Route::put('/units/{id}', [$controller, 'update'])->whereNumber('id')->name('units.update');
-        Route::delete('/units/{id}', [$controller, 'archive'])->whereNumber('id')->name('units.archive');
-        Route::get('/units/{id}/assignments', [$controller, 'assignments'])->whereNumber('id')->name('units.assignments.index');
-        Route::post('/units/{id}/assignments', [$controller, 'assign'])->whereNumber('id')->name('units.assignments.store');
-        Route::patch('/assignments/{id}', [$controller, 'updateAssignment'])->whereNumber('id')->name('assignments.update');
-    });
-
-
-/**
  * Financial & Accounting domain — all endpoints require resolved tenant membership
  * plus explicit finance permission. Legal entity IDs are always tenant-scoped.
  */
