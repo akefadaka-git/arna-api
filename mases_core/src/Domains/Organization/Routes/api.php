@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Illuminate\\Support\\Facades\\Route;
-use MaaleArna\\MASES\\Core\\Domains\\Organization\\Http\\Controllers\\OrganizationController;
+use Illuminate\Support\Facades\Route;
+use MaaleArna\MASES\Core\Domains\Organization\Http\Controllers\OrganizationController;
 
 /*
  * Organization domain owns its HTTP contract. OrganizationServiceProvider
