@@ -16,10 +16,10 @@ final class FinanceExchangeRate extends Model
     protected $fillable = [
         'tenant_id', 'base_currency', 'quote_currency', 'rate', 'effective_on',
         'source', 'source_reference', 'status', 'created_by', 'reviewed_by',
-        'reviewed_at', 'proposal_reason', 'review_reason',
+        'reviewed_at', 'proposal_reason', 'review_reason', 'proposal_version',
     ];
     protected $casts = [
         'tenant_id' => 'integer', 'effective_on' => 'date', 'created_by' => 'integer',
-        'reviewed_by' => 'integer', 'reviewed_at' => 'datetime',
+        'reviewed_by' => 'integer', 'reviewed_at' => 'datetime', 'proposal_version' => 'integer',
     ];
 }
