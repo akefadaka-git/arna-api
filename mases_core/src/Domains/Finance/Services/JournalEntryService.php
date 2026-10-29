@@ -158,7 +158,12 @@ final class JournalEntryService
                         throw ValidationException::withMessages(["lines.{$index}" => 'Each journal line must have exactly one positive debit or credit amount.']);
                     }
 
-                    $cashFlowActivity = $line['cash_flow_activity'] ?? null;\n                    if ($cashFlowActivity !== null && !(bool) $account->is_cash_equivalent) {\n                        throw ValidationException::withMessages([\"lines.{$index}.cash_flow_activity\" => 'Cash-flow activity may only be assigned to an account approved as a cash equivalent.']);\n                    }\n\n                    JournalLine::query()->create([
+                    $cashFlowActivity = $line['cash_flow_activity'] ?? null;
+                    if ($cashFlowActivity !== null && !(bool) $account->is_cash_equivalent) {
+                        throw ValidationException::withMessages([\"lines.{$index}.cash_flow_activity\" => 'Cash-flow activity may only be assigned to an account approved as a cash equivalent.']);
+                    }
+
+                    JournalLine::query()->create([
                         'tenant_id' => $tenantId,
                         'legal_entity_id' => $entity->id,
                         'journal_entry_id' => $entry->id,
