@@ -10,7 +10,7 @@ final class Document extends Model
 {
     protected $table = 'documents';
 
-    protected $guarded = ['id', 'uuid', 'canonical_number', 'sequence_number', 'ec_year', 'issued_by', 'issued_at'];
+    protected $guarded = ['id'];
 
     protected function casts(): array
     {
