@@ -442,6 +442,28 @@ final class PersonApiIntegrationTest extends TestCase
             ->assertJsonMissingPath('data.candidates.0.user_id');
         $personId = (int) Person::query()->where('public_id', $publicId)->value('id');
 
+        // A valid manager must not unlink a domain record by supplying a
+        // different Person's public ID in the URL. The service verifies the
+        // record's current person_id against the target Person under lock.
+        $otherPersonResponse = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Different Person',
+        ])->assertCreated();
+        $otherPublicId = $otherPersonResponse->json('data.public_id');
+
+        foreach ([
+            ['employees', $employeeId],
+            ['shareholders', $shareholderId],
+            ['governance-memberships', $membershipId],
+        ] as [$domain, $recordId]) {
+            $this->withHeaders($headers)->postJson('/api/people/'.$otherPublicId.'/relationships/'.$domain.'/'.$recordId.'/unlink', [
+                'reason' => 'Reject unlink against a different Person',
+            ])->assertForbidden();
+        }
+
+        $this->assertDatabaseHas('employees', ['id' => $employeeId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
+        $this->assertDatabaseHas('shareholders', ['id' => $shareholderId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
+        $this->assertDatabaseHas('governance_memberships', ['id' => $membershipId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
+
         foreach ([
             ['employees', $employeeId, 'Employee relationship'],
             ['shareholders', $shareholderId, 'Shareholder relationship'],
