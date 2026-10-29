@@ -649,6 +649,9 @@ return [
     // Canonical People profile domain.
     MaaleArna\MASES\Core\Domains\People\Providers\PeopleServiceProvider::class,
 
+    // Organization domain routes, configuration, and migrations.
+    MaaleArna\MASES\Core\Domains\Organization\Providers\OrganizationServiceProvider::class,
+
     /*
      * -------------------------------------------------------------------------
      * 10. Future Domain Providers (Phase 2D and 2F)
