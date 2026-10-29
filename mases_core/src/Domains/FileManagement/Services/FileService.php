@@ -170,8 +170,13 @@ final class FileService
             }
         }
 
-        // 2. Permission check (require 'file.upload')
+        // 2. Uploading and publishing are separate capabilities. A request to
+        // mark an upload public must also carry publication authority; new files
+        // nevertheless start as drafts and are never public until explicitly published.
         $this->authorizeAction('file.upload', null, $user, $tenantId);
+        if ($isPublic) {
+            $this->authorizeAction('file.publish', null, $user, $tenantId);
+        }
 
         // A version must reference an existing file in the same tenant, and
         // creating a version requires update authority on that parent record.
@@ -248,7 +253,7 @@ final class FileService
                 'disk'           => $this->disk,
                 'version'        => $version,
                 'parent_file_id' => $parentFileId,
-                'status'         => 'published',
+                'status'         => 'draft',
                 'is_public'      => $isPublic,
                 'metadata'       => $metadata,
             ]);
@@ -393,8 +398,14 @@ final class FileService
         $file = $this->resolveFile($file);
         $user = $user ?? mases_user();
 
-        // Permission check for update
+        // Metadata/content maintenance does not confer publication authority.
         $this->authorizeAction('file.update', $file, $user);
+        $publicationRequested =
+            (array_key_exists('status', $data) && $data['status'] === 'published')
+            || (array_key_exists('is_public', $data) && filter_var($data['is_public'], FILTER_VALIDATE_BOOLEAN));
+        if ($publicationRequested) {
+            $this->authorizeAction('file.publish', $file, $user);
+        }
 
         if ($newFile !== null) {
             // Preserve the existing directory without duplicating the tenant segment.
