@@ -506,7 +506,7 @@ final class FileService
         $file = $this->resolveFile($file);
         $user = $user ?? mases_user();
 
-        $this->authorizeAction('file.delete', $file, $user);
+        $this->authorizeAction('file.force_delete', $file, $user);
 
         if (Storage::disk($file->disk)->exists($file->path)) {
             Storage::disk($file->disk)->delete($file->path);
@@ -545,7 +545,7 @@ final class FileService
         $file = $this->resolveFile($file, true);
         $user = $user ?? mases_user();
 
-        $this->authorizeAction('file.delete', $file, $user); // or 'file.restore'
+        $this->authorizeAction('file.restore', $file, $user);
 
         if (!$file->trashed()) {
             throw FileException::notDeleted();
@@ -625,12 +625,36 @@ final class FileService
             $query->where('mime_type', $filters['mime_type']);
         }
 
-        $orderBy = $filters['order_by'] ?? 'created_at';
-        $orderDirection = $filters['order_direction'] ?? 'desc';
+        // Never pass arbitrary request values into ORDER BY. Column names cannot
+        // be parameter-bound, so enforce the same allowlist here as at the HTTP edge.
+        $allowedOrderColumns = [
+            'created_at',
+            'updated_at',
+            'original_name',
+            'size',
+            'mime_type',
+            'status',
+            'version',
+        ];
+        $requestedOrderBy = (string) ($filters['order_by'] ?? 'created_at');
+        $orderBy = in_array($requestedOrderBy, $allowedOrderColumns, true)
+            ? $requestedOrderBy
+            : 'created_at';
+
+        $requestedDirection = strtolower((string) ($filters['order_direction'] ?? 'desc'));
+        $orderDirection = in_array($requestedDirection, ['asc', 'desc'], true)
+            ? $requestedDirection
+            : 'desc';
+
         $query->orderBy($orderBy, $orderDirection);
 
         if (isset($filters['limit'])) {
-            $query->limit($filters['limit']);
+            $limit = filter_var($filters['limit'], FILTER_VALIDATE_INT);
+            if ($limit !== false && $limit > 0) {
+                $query->limit(min($limit, 100));
+            } else {
+                $query->limit(50);
+            }
         }
 
         return $query->get();
