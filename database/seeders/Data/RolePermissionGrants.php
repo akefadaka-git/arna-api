@@ -16,6 +16,13 @@ namespace Database\Seeders\Data;
  * =============================================================================
  * Revision history
  * =============================================================================
+ * 1.2.0  — People-domain least-privilege read permissions:
+ *          · Added people.view to the manager role for directory/profile reads.
+ *          · Added people.view and people.sensitive.view to the tenant-scoped
+ *            permission catalogue; tenant_admin/platform_admin receive the
+ *            tenant-scoped capabilities through their existing scope grants.
+ *          · No sensitive read permission is granted to manager by default.
+ *
  * 1.0.0  — initial delivery (Unit S-6). Extracted from MasesCoreSeeder
  *          during the seeder refactoring. Twelve roles, three grant-
  *          spec forms ('*', 'scope:{scope}', literal slugs).
@@ -38,7 +45,7 @@ namespace Database\Seeders\Data;
  *
  *          · The change preserves the role hierarchy: super_admin
  *            remains the only role with universal access (its ['*']
- *            wildcard resolves to all 51 permissions), and the four
+ *            wildcard resolves to all 53 permissions), and the four
  *            end-user applications remain exclusive to the roles
  *            whose purpose they serve (tenant_admin for the tenant-
  *            scoped grants, and the end-user roles for their own).
@@ -209,7 +216,7 @@ final class RolePermissionGrants
             'app.admin.access', 'app.arna.access', 'app.app.access', 'app.launcher.access',
         ],
         'manager'         => [
-            'user.profile.view', 'user.list',
+            'user.profile.view', 'user.list', 'people.view',
             'file.list', 'file.view', 'file.download',
             'app.finance.access', 'app.hr.access', 'app.portal.access',
         ],
