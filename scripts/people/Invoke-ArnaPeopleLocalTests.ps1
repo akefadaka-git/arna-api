@@ -82,15 +82,10 @@ foreach ($file in $phpFiles) {
 Write-Host "Syntax checked $($phpFiles.Count) PHP files."
 
 Write-Host ''
-Write-Host '=== People route registration acceptance test (local only) ===' -ForegroundColor Cyan
-# artisan route:list reflects every registered controller, including unrelated
-# domains, so an unrelated missing controller can mask whether People routes boot.
-# Exercise the route collection directly through the focused PHPUnit acceptance test.
-$routeTest = Join-Path $TestsPath 'PeopleRouteRegistrationTest.php'
-if (-not (Test-Path $routeTest)) { throw "Missing focused route registration test: $routeTest" }
-Invoke-Checked 'php' @('artisan', 'test', $routeTest, '--stop-on-failure')
-Write-Host ''
-Write-Host '=== People feature acceptance tests ===' -ForegroundColor Cyan
+Write-Host '=== People feature and route-registration acceptance tests (local only) ===' -ForegroundColor Cyan
+# PeopleRouteRegistrationTest is included in this suite. Do not run artisan route:list:
+# it reflects unrelated registered controllers and can fail before People routes are
+# assessed. Run the People suite once so route and feature acceptance are not repeated.
 if (-not (Test-Path $TestsPath)) { throw "Missing People test directory: $TestsPath" }
 Invoke-Checked 'php' @('artisan', 'test', $TestsPath, '--stop-on-failure')
 
