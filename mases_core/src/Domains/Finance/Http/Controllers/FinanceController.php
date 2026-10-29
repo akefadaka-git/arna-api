@@ -26,6 +26,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\CashFlowReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\SourceLegalEntityMappingService;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
