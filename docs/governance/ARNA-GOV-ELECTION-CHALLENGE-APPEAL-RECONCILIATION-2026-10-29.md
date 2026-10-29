@@ -21,7 +21,8 @@ The Owner selected **bylaw-defined** for the challenge/appeal window. This recor
 
 ## Implementation control until the source is supplied
 
-1. Store the bylaw/resolution citation, a controlled source-evidence reference, and the resolved deadline against each election.\n2. Require a separately authorized reviewer to verify the recorded source/deadline; the reviewer must be distinct from election-administration actors. This verification records an evidence-control attestation, not a substitute for locating the authoritative instrument.
+1. Store the bylaw/resolution citation, a controlled source-evidence reference, and the resolved deadline against each election.
+2. Require a separately authorized reviewer to verify the recorded source/deadline; the reviewer must be distinct from election-administration actors. This verification records an evidence-control attestation, not a substitute for locating the authoritative instrument.
 3. Do not permit certification when either is absent, when the deadline cannot be derived, or while an in-window challenge/appeal remains unresolved.
 4. Preserve challenge submission, evidence references, disposition, reviewer identity, timestamps, and audit events.
 5. Do not infer a deadline from the meeting quorum rule, a training manual, a draft policy, a general election convention, or the Owner's policy choice.
