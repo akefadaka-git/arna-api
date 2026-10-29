@@ -82,10 +82,13 @@ foreach ($file in $phpFiles) {
 Write-Host "Syntax checked $($phpFiles.Count) PHP files."
 
 Write-Host ''
-Write-Host '=== Laravel route registration (local only) ===' -ForegroundColor Cyan
-# Do not use --except-vendor here: Laravel reflects unrelated registered controllers
-# while applying that filter, which can block this People-only acceptance check.
-Invoke-Checked 'php' @('artisan', 'route:list', '--path=api/people')
+Write-Host '=== People route registration acceptance test (local only) ===' -ForegroundColor Cyan
+# artisan route:list reflects every registered controller, including unrelated
+# domains, so an unrelated missing controller can mask whether People routes boot.
+# Exercise the route collection directly through the focused PHPUnit acceptance test.
+$routeTest = Join-Path $TestsPath 'PeopleRouteRegistrationTest.php'
+if (-not (Test-Path $routeTest)) { throw "Missing focused route registration test: $routeTest" }
+Invoke-Checked 'php' @('artisan', 'test', $routeTest, '--stop-on-failure')
 Write-Host ''
 Write-Host '=== People feature acceptance tests ===' -ForegroundColor Cyan
 if (-not (Test-Path $TestsPath)) { throw "Missing People test directory: $TestsPath" }
