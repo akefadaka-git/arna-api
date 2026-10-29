@@ -199,7 +199,6 @@ declare(strict_types=1);
  *      → TenantContextService (singleton)
  *      → AuthorizationService (singleton)
  *      → AuditService (singleton)
- *      → FileService (singleton)
  *      → SecurityEventService (singleton)
  *      → EthiopianCalendar (singleton)
  *      → LocalizationService (singleton)
