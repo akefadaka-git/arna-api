@@ -179,9 +179,7 @@ final class FileController extends Controller
 
         // A Person association overrides the file's public flag: linked
         // identity documents must always require authenticated tenant access.
-        $isPersonLinked = \Illuminate\Support\Facades\DB::table('person_document_links')
-            ->where('file_id', $file->getKey())
-            ->exists();
+        $isPersonLinked = $this->fileService->isPersonLinked($file);
 
         if (!$file->is_public || $isPersonLinked) {
             if (!$user) {
@@ -211,9 +209,7 @@ final class FileController extends Controller
 
         // A Person association overrides the file's public flag: linked
         // identity documents must always require authenticated tenant access.
-        $isPersonLinked = \Illuminate\Support\Facades\DB::table('person_document_links')
-            ->where('file_id', $file->getKey())
-            ->exists();
+        $isPersonLinked = $this->fileService->isPersonLinked($file);
 
         if (!$file->is_public || $isPersonLinked) {
             if (!$user) {
