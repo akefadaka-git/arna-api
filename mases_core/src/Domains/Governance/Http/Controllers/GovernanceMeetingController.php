@@ -23,6 +23,11 @@ final class GovernanceMeetingController extends Controller
     {
         Gate::authorize('viewAny', GovernanceMeeting::class);
         $tenantId = $this->tenantId();
+        $request->validate([
+            'status' => ['sometimes', 'in:draft,scheduled,in_progress,completed,cancelled'],
+            'governance_body_id' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
         $perPage = min(max($request->integer('per_page', 25), 1), 100);
 
         $meetings = GovernanceMeeting::query()->where('tenant_id', $tenantId)
