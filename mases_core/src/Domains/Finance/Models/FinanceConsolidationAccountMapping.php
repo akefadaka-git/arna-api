@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Models;
+namespace MaaleArna\MASES\Core\Domains\Finance\Models;
 
-use Illuminate\\Database\\Eloquent\\Model;
+use Illuminate\Database\Eloquent\Model;
 
 final class FinanceConsolidationAccountMapping extends Model
 {
