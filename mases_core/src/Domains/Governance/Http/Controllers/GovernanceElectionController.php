@@ -47,7 +47,8 @@ final class GovernanceElectionController extends Controller
         }
         $body = DB::table('governance_bodies')->where('tenant_id', $tenant)->where('id', $data['governance_body_id'])->where('is_active', true)->first();
         if (!$body) throw new NotFoundHttpException();
-        $id = DB::table('governance_elections')->insertGetId([
+        $id = DB::transaction(function () use ($tenant, $body, $data, $request): int {
+            $id = DB::table('governance_elections')->insertGetId([
             'tenant_id' => $tenant, 'governance_body_id' => $body->id,
             'title_am' => $data['title_am'] ?? null, 'title_en' => $data['title_en'] ?? null,
             'mandate' => $data['mandate'], 'status' => 'draft',
@@ -56,7 +57,9 @@ final class GovernanceElectionController extends Controller
             'rules_snapshot' => json_encode(['rules_source' => 'owner_approved_governance_policy_required', 'secret_ballot' => true], JSON_THROW_ON_ERROR),
             'created_at' => now(), 'updated_at' => now(),
         ]);
-        $this->audit($tenant, $id, (int) $request->user()->getAuthIdentifier(), 'election.created', ['body_id' => $body->id]);
+            $this->audit($tenant, $id, (int) $request->user()->getAuthIdentifier(), 'election.created', ['body_id' => $body->id]);
+            return $id;
+        });
         return response()->json(['success' => true, 'data' => DB::table('governance_elections')->where('id', $id)->first()], 201);
     }
 
@@ -76,11 +79,14 @@ final class GovernanceElectionController extends Controller
                 $query->whereNull('end_date')->orWhereDate('end_date', '>=', $votingDate);
             })->first();
         if (!$membership) throw new NotFoundHttpException();
-        $id = DB::table('governance_election_nominations')->insertGetId([
+        $id = DB::transaction(function () use ($tenant, $electionId, $membership, $data, $request): int {
+            $id = DB::table('governance_election_nominations')->insertGetId([
             'tenant_id' => $tenant, 'election_id' => $electionId, 'governance_membership_id' => $membership->id,
             'statement' => $data['statement'] ?? null, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now(),
         ]);
-        $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'nomination.submitted', ['nomination_id' => $id]);
+            $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'nomination.submitted', ['nomination_id' => $id]);
+            return $id;
+        });
         return response()->json(['success' => true, 'data' => DB::table('governance_election_nominations')->where('id', $id)->first()], 201);
     }
 
@@ -115,8 +121,10 @@ final class GovernanceElectionController extends Controller
             $update['certified_by'] = (int) $request->user()->getAuthIdentifier();
             $update['certified_at'] = now();
         }
-        DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->update($update);
-        $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'election.transitioned', ['from' => $election->status, 'to' => $next, 'transition' => $data['transition']]);
+        DB::transaction(function () use ($tenant, $electionId, $update, $request, $election, $next, $data): void {
+            DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->update($update);
+            $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'election.transitioned', ['from' => $election->status, 'to' => $next, 'transition' => $data['transition']]);
+        });
         return response()->json(['success' => true, 'data' => DB::table('governance_elections')->where('id', $electionId)->first()]);
     }
 
@@ -132,11 +140,13 @@ final class GovernanceElectionController extends Controller
         $nomination = DB::table('governance_election_nominations')->where('tenant_id', $tenant)
             ->where('election_id', $electionId)->where('id', $nominationId)->where('status', 'pending')->first();
         if (!$nomination) throw new NotFoundHttpException();
-        DB::table('governance_election_nominations')->where('id', $nominationId)->update([
-            'status' => $data['status'], 'reviewed_by' => (int) $request->user()->getAuthIdentifier(),
-            'reviewed_at' => now(), 'updated_at' => now(),
-        ]);
-        $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'nomination.reviewed', ['nomination_id' => $nominationId, 'status' => $data['status']]);
+        DB::transaction(function () use ($nominationId, $data, $request, $tenant, $electionId): void {
+            DB::table('governance_election_nominations')->where('tenant_id', $tenant)->where('election_id', $electionId)->where('id', $nominationId)->update([
+                'status' => $data['status'], 'reviewed_by' => (int) $request->user()->getAuthIdentifier(),
+                'reviewed_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'nomination.reviewed', ['nomination_id' => $nominationId, 'status' => $data['status']]);
+        });
         return response()->json(['success' => true, 'data' => DB::table('governance_election_nominations')->where('id', $nominationId)->first()]);
     }
 
@@ -147,13 +157,19 @@ final class GovernanceElectionController extends Controller
         $election = $this->election($tenant, $electionId);
         if (!in_array($election->status, ['draft', 'nominations_open', 'nominations_closed'], true)) throw new ConflictHttpException('Voter register is locked after voting opens.');
         $data = $request->validate(['governance_membership_id' => ['required', 'integer', 'min:1']]);
+        $votingDate = Carbon::parse($election->voting_open_at)->toDateString();
         $membership = DB::table('governance_memberships')->where('tenant_id', $tenant)->where('governance_body_id', $election->governance_body_id)
-            ->where('id', $data['governance_membership_id'])->where('status', 'active')->where('is_voting_member', true)->first();
+            ->where('id', $data['governance_membership_id'])->where('status', 'active')->where('is_voting_member', true)
+            ->whereDate('start_date', '<=', $votingDate)->where(function ($query) use ($votingDate): void {
+                $query->whereNull('end_date')->orWhereDate('end_date', '>=', $votingDate);
+            })->first();
         if (!$membership) throw new NotFoundHttpException();
-        DB::table('governance_election_eligible_voters')->insertOrIgnore([
-            'tenant_id' => $tenant, 'election_id' => $electionId, 'governance_membership_id' => $membership->id, 'created_at' => now(), 'updated_at' => now(),
-        ]);
-        $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'voter.registered', ['membership_id' => $membership->id]);
+        DB::transaction(function () use ($tenant, $electionId, $membership, $request): void {
+            DB::table('governance_election_eligible_voters')->insertOrIgnore([
+                'tenant_id' => $tenant, 'election_id' => $electionId, 'governance_membership_id' => $membership->id, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'voter.registered', ['membership_id' => $membership->id]);
+        });
         return response()->json(['success' => true, 'data' => ['registered' => true]]);
     }
 
@@ -173,7 +189,7 @@ final class GovernanceElectionController extends Controller
             })->first();
         if (!$membership) throw new AccessDeniedHttpException('Ballot must be cast for the authenticated member.');
         $receipt = bin2hex(random_bytes(32));
-        DB::transaction(function () use ($tenant, $electionId, $election, $data, $receipt): void {
+        DB::transaction(function () use ($tenant, $electionId, $election, $data, $receipt, $actorId): void {
             $voter = DB::table('governance_election_eligible_voters')->where('tenant_id', $tenant)->where('election_id', $electionId)
                 ->where('governance_membership_id', $data['governance_membership_id'])->lockForUpdate()->first();
             if (!$voter || $voter->cast_at !== null) throw new ConflictHttpException('Voter is not eligible or has already cast a ballot.');
@@ -185,8 +201,8 @@ final class GovernanceElectionController extends Controller
                 'ballot_receipt_hash' => hash('sha256', $receipt), 'cast_at' => now(),
             ]);
             DB::table('governance_election_eligible_voters')->where('id', $voter->id)->update(['cast_at' => now(), 'updated_at' => now()]);
+            $this->audit($tenant, $electionId, $actorId, 'ballot.cast', ['receipt_hash' => hash('sha256', $receipt)]);
         });
-        $this->audit($tenant, $electionId, $actorId, 'ballot.cast', ['receipt_hash' => hash('sha256', $receipt)]);
         return response()->json(['success' => true, 'data' => ['receipt' => $receipt]]);
     }
 
