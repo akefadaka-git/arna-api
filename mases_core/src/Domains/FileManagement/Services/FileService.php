@@ -173,6 +173,20 @@ final class FileService
         // 2. Permission check (require 'file.upload')
         $this->authorizeAction('file.upload', null, $user, $tenantId);
 
+        // A version must reference an existing file in the same tenant, and
+        // creating a version requires update authority on that parent record.
+        $parentFile = null;
+        if ($parentFileId !== null) {
+            $parentFile = File::find($parentFileId);
+            if (!$parentFile) {
+                throw FileException::notFound((string) $parentFileId);
+            }
+            if ((string) $parentFile->tenant_id !== (string) $tenantId) {
+                throw FileException::accessDenied('Parent file does not belong to the same tenant.');
+            }
+            $this->authorizeAction('file.update', $parentFile, $user);
+        }
+
         // 3. Validate the uploaded file
         $this->validateFile($uploadedFile);
 
@@ -203,19 +217,8 @@ final class FileService
             throw FileException::uploadFailed($e->getMessage());
         }
 
-        // 6. Determine version (if this is a new version of an existing file)
-        $version = 1;
-        if ($parentFileId !== null) {
-            $parentFile = File::find($parentFileId);
-            if ($parentFile) {
-                if ((string) $parentFile->tenant_id !== (string) $tenantId) {
-                    // Remove uploaded file to prevent orphan
-                    Storage::disk($this->disk)->delete($path);
-                    throw FileException::accessDenied('Parent file does not belong to the same tenant.');
-                }
-                $version = $parentFile->version + 1;
-            }
-        }
+        // 6. Determine version from the already-authorized parent, if supplied.
+        $version = $parentFile !== null ? $parentFile->version + 1 : 1;
 
         // 7. Create the file record
         try {
