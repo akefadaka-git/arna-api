@@ -32,7 +32,14 @@ final class PersonContactPointService
         }
 
         return DB::transaction(function () use ($tenantId, $person, $attributes, $actorId, $value, $type, $normalized): PersonContactPoint {
-            Person::query()->whereKey($person->getKey())->lockForUpdate()->firstOrFail();
+            $lockedPerson = Person::query()->whereKey($person->getKey())
+                ->where('status', 'active')->lockForUpdate()->firstOrFail();
+            $activeGrant = DB::table('person_tenant_accesses')
+                ->where('tenant_id', $tenantId)->where('person_id', $lockedPerson->getKey())
+                ->where('status', 'active')->lockForUpdate()->first();
+            if ($activeGrant === null) {
+                abort(404, 'Active Person tenant access was not found.');
+            }
 
             $duplicate = PersonContactPoint::query()
                 ->where('tenant_id', $tenantId)
