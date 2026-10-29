@@ -583,8 +583,6 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->name('update');
     });
 
-    // File-management endpoints are owned by the FileManagement domain.
-    require base_path('mases_core/src/Domains/FileManagement/Routes/api.php');
 
 });
 
