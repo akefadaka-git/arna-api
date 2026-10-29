@@ -33,7 +33,7 @@ declare(strict_types=1);
  *
  *   What the seeder writes:
  *
- *     · 38 tenant-scoped permissions with the `governance.` prefix.
+ *     · 40 tenant-scoped permissions with the `governance.` prefix.
  *       Each carries `scope = 'tenant'`, `tenant_id = null`,
  *       `application_id = null`, `is_active = true`,
  *       `is_system = true`.
@@ -82,7 +82,7 @@ declare(strict_types=1);
  * `governance.election.vote` and `governance.election.certify`
  * without assigning either permission to a role. The current source
  * therefore contains 38 tenant-scoped Governance permissions and
- * 39 total rows including `app.governance.access`.
+ * 41 total rows including `app.governance.access`.
  *
  * =============================================================================
  * The current 38-slug inventory (by group)
@@ -100,7 +100,7 @@ declare(strict_types=1);
  *     governance.action        4  (view, create, manage, verify)
  *     governance.delegation    2  (view, manage)
  *     governance.declaration   2  (view, manage)
- *     governance.election      4  (view, manage, vote, certify)
+ *     governance.election      6  (view, manage, vote, certify, challenge, challenge.review)
  *     governance.document      3  (view, upload, download)
  *     governance.report        2  (view, generate)
  *                              ──
@@ -110,7 +110,7 @@ declare(strict_types=1);
  *
  *     app.governance.access    1  (application-scoped launcher gate)
  *                              ──
- *                              39 total
+ *                              41 total
  *
  * The `verify` verb on the action group is the only verb in the
  * inventory that is not one of the four standard verbs (view,
@@ -300,7 +300,7 @@ declare(strict_types=1);
  *     ...     ::where('slug', 'app.governance.access')->value('application_id')
  *     => 8
  *
- * Expected: 38 tenant-scoped governance permissions and one
+ * Expected: 40 tenant-scoped governance permissions and one
  * application-scoped `app.governance.access` row pointing at
  * `application_id = 8`.
  *
@@ -308,7 +308,7 @@ declare(strict_types=1);
  * Files modified:            none (this is a new file)
  * Files added:               this file only
  * Files deleted:             none
- * Permissions added:         39 (38 tenant-scoped + 1 application-scoped)
+ * Permissions added:         41 (40 tenant-scoped + 1 application-scoped)
  * Roles modified:            none (G1 file 8)
  * Users modified:            none
  * =============================================================================
@@ -389,7 +389,7 @@ use RuntimeException;
  *
  * Expected output:
  *
- *     Governance permissions seeded: 39 entries (38 tenant + 1 application).
+ *     Governance permissions seeded: 41 entries (40 tenant + 1 application).
  *
  * @package MaaleArna\MASES\Core\Domains\Governance\Database\Seeders
  * @version 1.0.0
@@ -397,7 +397,7 @@ use RuntimeException;
 final class GovernancePermissionsSeeder extends Seeder
 {
     /**
-     * The 38 tenant-scoped permissions this seeder manages.
+     * The 40 tenant-scoped permissions this seeder manages.
      *
      * Each entry carries a slug, an Amharic label, an English label,
      * and a category. The `scope` is uniform across the set
@@ -662,6 +662,18 @@ final class GovernancePermissionsSeeder extends Seeder
             'name_en'  => 'Certify election results',
             'category' => 'governance',
         ],
+        [
+            'slug'     => 'governance.election.challenge',
+            'name_am'  => 'የምርጫ ውጤትን መቃወም ወይም ይግባኝ ማቅረብ',
+            'name_en'  => 'Submit election challenge or appeal',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.challenge.review',
+            'name_am'  => 'የምርጫ ተቃውሞን ወይም ይግባኝን መወሰን',
+            'name_en'  => 'Review election challenge or appeal',
+            'category' => 'governance',
+        ],
 
         // ---------------------------------------------------------------------
         // Documents
@@ -717,7 +729,7 @@ final class GovernancePermissionsSeeder extends Seeder
     /**
      * Run the database seeds.
      *
-     * Writes the 38 tenant-scoped permissions, then resolves the
+     * Writes the 40 tenant-scoped permissions, then resolves the
      * Governance platform application and writes the
      * application-scoped permission. Fails loudly if the
      * application row is missing.
