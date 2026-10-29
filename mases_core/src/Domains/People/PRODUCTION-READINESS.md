@@ -28,7 +28,7 @@ For a clean-install MySQL migration gate, first provision an **empty disposable 
 .\scripts\people\Invoke-ArnaPeopleLocalTests.ps1 -RepositoryPath 'D:\MASES\github-current\arna-api' -RunMySql
 ```
 
-The runner requires exact database-name confirmation and runs ordinary `artisan migrate` (not `migrate:fresh` or `db:wipe`) before running the suite under testing environment variables. Do not point this at any shared, staging, or production schema.
+The runner requires exact database-name confirmation, verifies the target schema has zero tables, and runs ordinary `artisan migrate` (not `migrate:fresh` or `db:wipe`). It then runs only `PersonIdentityMySqlConcurrencyTest.php` against MySQL, avoiding the broader `RefreshDatabase` suite on that schema. Concurrency cases that require `pcntl_fork` are skipped on Windows PHP builds without `pcntl`. Do not point this at any shared, staging, or production schema.
 
 ## Security and contract notes
 
