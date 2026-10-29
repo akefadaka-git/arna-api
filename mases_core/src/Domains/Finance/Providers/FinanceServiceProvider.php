@@ -38,6 +38,9 @@ use MaaleArna\MASES\Core\Domains\Finance\Repositories\LedgerAccountRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceConsolidationService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceConsolidationMappingService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceExchangeRateService;
 
 final class FinanceServiceProvider extends ServiceProvider
 {
@@ -50,7 +53,10 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(LegalEntityService::class);
         $this->app->singleton(LedgerAccountService::class);
         $this->app->singleton(AccountingPeriodService::class);
-        $this->app->singleton(TrialBalanceService::class);\n        $this->app->singleton(FinanceConsolidationService::class);\n        $this->app->singleton(FinanceConsolidationMappingService::class);\n        $this->app->singleton(FinanceExchangeRateService::class);
+        $this->app->singleton(TrialBalanceService::class);
+        $this->app->singleton(FinanceConsolidationService::class);
+        $this->app->singleton(FinanceConsolidationMappingService::class);
+        $this->app->singleton(FinanceExchangeRateService::class);
         $this->app->singleton(FinancialReportService::class);
         $this->app->singleton(SubledgerIntegrationService::class);
         $this->app->singleton(SourceLegalEntityMappingContract::class, SourceLegalEntityMappingService::class);
