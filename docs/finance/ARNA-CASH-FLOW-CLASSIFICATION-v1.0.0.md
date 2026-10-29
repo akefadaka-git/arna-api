@@ -21,6 +21,7 @@ The first three values are implemented by `CashFlowActivity`. `undetermined` is 
 - `journal_lines.cash_flow_activity` stores the explicit classification on the cash movement line.
 - `journal_lines.cash_flow_classification_note` records the rationale/evidence reference. The HTTP request contract and canonical journal service require a non-empty note whenever `cash_flow_activity` is assigned; the service also validates the enum and rejects classification on accounts not explicitly enabled as cash equivalents.
 - Non-cash journal lines do not create cash movement rows.
+- The report service independently validates both dates as real `YYYY-MM-DD` calendar dates and rejects a start date after the end date, including when called outside HTTP request validation.
 - Tenant and legal-entity IDs are enforced across journal lines, journal entries and accounts in the report query.
 - Only `posted` and `reversed` journal entry states are included, preserving original and reversal movements in the net movement report.
 - Debit to a cash/equivalent account is treated as inflow; credit is treated as outflow. Amounts are accumulated as decimal strings using `MoneyArithmetic`, not binary floating point.
