@@ -21,8 +21,6 @@ use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
 final class DocumentIssuanceService
 {
-    private const TYPE_CODES = ['LET', 'MEM', 'LEG', 'INV', 'CER', 'RES', 'CIR', 'RPT', 'CON', 'NOT', 'POL'];
-
     public function __construct(
         private readonly AuthorizationService $authorization,
         private readonly TenantContextService $tenantContext,
@@ -153,8 +151,11 @@ final class DocumentIssuanceService
                 throw new ConflictHttpException('The numbering scope is unavailable or disabled.');
             }
 
-            if (!hash_equals((string) $counter->organization_code, $payload['organization_code'])) {
-                throw new ConflictHttpException('The organization code for this numbering scope is immutable.');
+            if (!hash_equals((string) $counter->organization_code, $payload['organization_code'])
+                || !hash_equals((string) $counter->department_code, $payload['department_code'])
+                || !hash_equals((string) $counter->issuing_role_code, $payload['issuing_role_code'])
+                || (int) $counter->governance_body_id !== $payload['governance_body_id']) {
+                throw new ConflictHttpException('A canonical code or Governance scope changed within an existing numbering scope; an explicit migration of the numbering scope is required.');
             }
 
             $sequence = (int) $counter->next_sequence;
