@@ -12,7 +12,7 @@ return new class extends Migration
     {
         Schema::create('document_number_counters', function (Blueprint $table): void {
             $table->id();
-            $table->unsignedBigInteger('tenant_id');
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->foreignId('legal_entity_id')->constrained('legal_entities')->restrictOnDelete();
             $table->foreignId('organization_unit_id')->constrained('organization_units')->restrictOnDelete();
             $table->foreignId('governance_body_id')->constrained('governance_bodies')->restrictOnDelete();
@@ -47,7 +47,7 @@ return new class extends Migration
             $table->string('issuing_role_code', 12);
             $table->unsignedSmallInteger('ec_year');
             $table->unsignedInteger('sequence_number');
-            $table->string('canonical_number', 200)->unique();
+            $table->string('canonical_number', 200);
             $table->string('title', 255);
             $table->unsignedBigInteger('file_id');
             $table->unsignedInteger('file_version');
@@ -55,16 +55,17 @@ return new class extends Migration
             $table->char('request_hash', 64);
             $table->string('idempotency_key', 128);
             $table->json('metadata')->nullable();
-            $table->unsignedBigInteger('issued_by');
+            $table->foreignId('issued_by')->constrained('users')->restrictOnDelete();
             $table->timestamp('issued_at');
-            $table->unsignedBigInteger('voided_by')->nullable();
+            $table->foreignId('voided_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->timestamp('voided_at')->nullable();
             $table->string('void_reason', 1000)->nullable();
-            $table->unsignedBigInteger('revoked_by')->nullable();
+            $table->foreignId('revoked_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->timestamp('revoked_at')->nullable();
             $table->string('revoke_reason', 1000)->nullable();
             $table->timestamps();
 
+            $table->unique(['tenant_id', 'canonical_number'], 'documents_tenant_canonical_number_unique');
             $table->foreign('file_id', 'documents_file_fk')
                 ->references('id')->on('files')->restrictOnDelete();
             $table->unique(['tenant_id', 'idempotency_key'], 'documents_idempotency_unique');
@@ -81,7 +82,7 @@ return new class extends Migration
             $table->unsignedBigInteger('document_id');
             $table->unsignedBigInteger('tenant_id');
             $table->string('event_type', 16);
-            $table->unsignedBigInteger('actor_user_id');
+            $table->foreignId('actor_user_id')->constrained('users')->restrictOnDelete();
             $table->string('reason', 1000)->nullable();
             $table->json('metadata')->nullable();
             $table->timestamp('occurred_at');
