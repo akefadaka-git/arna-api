@@ -11,6 +11,8 @@
 - Transactional lifecycle services with tenant/person-scoped reads and writes, bounded active-record counts, duplicate checks, and reasoned deactivation.
 - Focused feature coverage for route registration, declared middleware, migration path discovery, duplicate contact rejection, tenant isolation, encryption/masking and deactivation. Existing API integration tests also exercise the contact, relationship and participation endpoints.
 - Local PowerShell runner at `scripts/people/Invoke-ArnaPeopleLocalTests.ps1`.
+- Destination-aware runner synchronization helper at `scripts/people/Sync-ArnaPeopleLocalRunner.ps1`; it reads the target branch directly from `akefadaka-git/arna-api` and does not depend on the local `origin` remote.
+- Domain unlink operations now require the record's current `person_id` to match the Person named in the route; mismatch is rejected inside the transaction after the domain record is locked.
 
 ## Run locally
 
@@ -20,7 +22,7 @@ From the existing API checkout in PowerShell:
 .\scripts\people\Invoke-ArnaPeopleLocalTests.ps1 -RepositoryPath 'D:\MASES\github-current\arna-api'
 ```
 
-The runner checks branch identity and PHP >= 8.3, preserves unrelated working-tree changes, lints People PHP files, lists People routes, and runs the People feature suite. It does not invoke GitHub Actions, reset the checkout, install packages, commit, push, merge or deploy.
+The runner checks branch identity and PHP >= 8.3, preserves unrelated working-tree changes, verifies the effective Composer PSR-4 mapping points to the current checkout, lints People PHP files, and runs the People feature suite once. It intentionally does not run global `artisan route:list`, because unrelated controller registration can fail before People route acceptance is evaluated. It does not invoke GitHub Actions, reset the checkout, install packages, commit, push, merge or deploy.
 
 For a clean-install MySQL migration gate, first provision an **empty disposable schema** and configure it in `.env.testing` with `DB_CONNECTION=mysql`, a dedicated database name beginning with `arna` and ending in a test/testing/disposable marker, plus connection credentials. Then run:
 
@@ -46,6 +48,7 @@ The original logs for workflow run `40734382888`, failed job `122978877517`, ret
 ## Acceptance status
 
 - Code generation and controller integration: **implemented, static review only**.
+- Cross-Person domain unlink guard and regression assertions: **generated, NOT RUN**.
 - Focused test code: **added, NOT RUN**.
 - PHP lint and route registration: **NOT RUN**.
 - Fresh MySQL migration: **NOT RUN locally; existing CI run failed, root cause unresolved**.
