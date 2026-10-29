@@ -26,7 +26,7 @@ final class PersonContactPointResource extends JsonResource
             'label' => $this->label,
             'masked_value' => $masked,
             'is_primary' => (bool) $this->is_primary,
-            'is_verified' => $this->verified_at !== null,
+            'is_verified' => (bool) $this->is_verified && $this->verified_at !== null,
             'verified_at' => $this->verified_at?->toISOString(),
             'status' => $this->status,
             'created_at' => $this->created_at?->toISOString(),
