@@ -377,11 +377,10 @@ final class GovernanceElectionController extends Controller
         $data = $request->validate(['governance_membership_id' => ['required', 'integer', 'min:1'], 'nomination_id' => ['required', 'integer', 'min:1']]);
         $actorId = (int) $request->user()->getAuthIdentifier();
         $today = now()->toDateString();
+        // Eligibility was frozen when the round opened. Revalidate identity binding, not mutable
+        // membership state, so a later status/date change cannot silently alter the frozen register.
         $membership = DB::table('governance_memberships')->where('tenant_id', $tenant)->where('governance_body_id', $election->governance_body_id)
-            ->where('id', $data['governance_membership_id'])->where('user_id', $actorId)->where('status', 'active')->where('is_voting_member', true)
-            ->whereDate('start_date', '<=', $today)->where(function ($query) use ($today): void {
-                $query->whereNull('end_date')->orWhereDate('end_date', '>=', $today);
-            })->first();
+            ->where('id', $data['governance_membership_id'])->where('user_id', $actorId)->first();
         if (!$membership) throw new AccessDeniedHttpException('Ballot must be cast for the authenticated member.');
         $receipt = bin2hex(random_bytes(32));
         DB::transaction(function () use ($tenant, $electionId, $election, $round, $data, $receipt, $actorId): void {
@@ -393,10 +392,10 @@ final class GovernanceElectionController extends Controller
             if (!$candidate) throw new ConflictHttpException('Candidate is not eligible in the current round.');
             DB::table('governance_election_ballots')->insert([
                 'tenant_id' => $tenant, 'election_id' => $electionId, 'nomination_id' => $data['nomination_id'],
-                'round_number' => $election->current_round, 'ballot_receipt_hash' => hash('sha256', $receipt), 'cast_at' => now(),
+                'round_number' => $election->current_round, 'ballot_receipt_hash' => hash('sha256', $receipt), 'cast_at' => $round->opened_at,
             ]);
             DB::table('governance_election_round_voters')->where('id', $voter->id)->update(['cast_at' => now(), 'updated_at' => now()]);
-            $this->audit($tenant, $electionId, $actorId, 'ballot.cast', ['round_number' => (int) $election->current_round, 'receipt_hash' => hash('sha256', $receipt)]);
+            $this->audit($tenant, $electionId, null, 'ballot.cast', ['round_number' => (int) $election->current_round]);
         });
         return response()->json(['success' => true, 'data' => ['receipt' => $receipt]]);
     }
