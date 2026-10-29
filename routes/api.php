@@ -642,6 +642,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
     ->group(static function (): void {
         $controller = \MaaleArna\MASES\Core\Domains\Organization\Http\Controllers\OrganizationController::class;
 
+        Route::get('/audit-events', [$controller, 'auditEvents'])->name('audit-events.index');
         Route::get('/units', [$controller, 'index'])->name('units.index');
         Route::post('/units', [$controller, 'store'])->name('units.store');
         Route::get('/units/{id}', [$controller, 'show'])->whereNumber('id')->name('units.show');
