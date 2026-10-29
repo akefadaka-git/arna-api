@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 
 use InvalidArgumentException;
 use LogicException;
@@ -10,30 +10,15 @@ use LogicException;
 /**
  * Read-only registry for the CoA v1 control-account accountability baseline.
  *
- * The registry defines functional roles and evidence requirements only. It
- * does not appoint personnel, grant permissions, enable adapters, or post
- * reconciliation results.
+ * Defines functional roles and evidence requirements only. It does not appoint
+ * personnel, grant permissions, enable adapters, or post reconciliation results.
  */
 final class ControlAccountOwnershipRegistry
 {
-    /**
-     * @return array<string, array{
-     *   account_name_en:string,
-     *   account_type:string,
-     *   accountable_role:string,
-     *   contributing_domains:list<string>,
-     *   frequency:string,
-     *   required_evidence:list<string>,
-     *   independent_reviewer_role:string,
-     *   named_accountable_person:null|string,
-     *   designation_status:string,
-     *   adapter_activation:string
-     * }>
-     */
+    /** @return array<string, array<string, mixed>> */
     public function all(): array
     {
         $policies = require base_path('config/finance/control_account_ownership_v1.php');
-
         if (!is_array($policies)) {
             throw new LogicException('Finance control-account ownership configuration must return an array.');
         }
@@ -41,9 +26,7 @@ final class ControlAccountOwnershipRegistry
         return $policies;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function forAccountCode(string $code): array
     {
         $normalized = trim($code);
