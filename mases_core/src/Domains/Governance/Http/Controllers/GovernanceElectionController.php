@@ -148,7 +148,7 @@ final class GovernanceElectionController extends Controller
                 }
                 DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->update([
                     'status' => 'voting_open', 'current_round' => $nextRound, 'winner_nomination_id' => null,
-                    'result_summary_json' => null, 'updated_at' => now(),
+                    'result_summary_json' => null, 'challenge_bylaw_reference' => null, 'challenge_window_ends_at' => null, 'updated_at' => now(),
                 ]);
                 $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'election.round_opened', [
                     'round_number' => $nextRound, 'round_type' => $transition === 'start_runoff' ? 'runoff' : 'rerun',
@@ -170,7 +170,7 @@ final class GovernanceElectionController extends Controller
                 throw new ConflictHttpException('Certification is blocked while a challenge or appeal remains unresolved.');
             }
             $administrativeActors = DB::table('governance_election_audit_events')->where('tenant_id', $tenant)->where('election_id', $electionId)
-                ->whereIn('event_type', ['election.created', 'election.transitioned', 'election.round_opened', 'nomination.reviewed', 'voter.registered'])
+                ->whereIn('event_type', ['election.created', 'election.transitioned', 'election.round_opened', 'election.round_closed', 'election.challenge_window_recorded', 'nomination.reviewed', 'voter.registered'])
                 ->whereNotNull('actor_id')->pluck('actor_id')->map(fn ($id): int => (int) $id)->unique()->all();
             $certifierId = (int) $request->user()->getAuthIdentifier();
             if ((int) ($election->created_by ?? 0) === $certifierId || in_array($certifierId, $administrativeActors, true)) {
@@ -427,7 +427,7 @@ final class GovernanceElectionController extends Controller
         $tenant = $this->tenantId();
         $this->requirePermission($request, 'governance.election.view');
         $election = $this->election($tenant, $electionId);
-        if (!in_array($election->status, ['voting_closed', 'certified'], true)) throw new ConflictHttpException('Results are withheld until voting closes.');
+        if (!in_array($election->status, ['voting_closed', 'certified', 'runoff_required', 'rerun_required', 'quorum_failed'], true)) throw new ConflictHttpException('Results are withheld until the current round closes.');
         $roundNumber = (int) ($election->current_round ?? 1);
         $rows = DB::table('governance_election_round_candidates as rc')
             ->join('governance_election_nominations as n', function ($join): void {
@@ -445,7 +445,7 @@ final class GovernanceElectionController extends Controller
         $tenant = $this->tenantId();
         $this->requirePermission($request, 'governance.election.manage');
         $election = $this->election($tenant, $electionId);
-        if (!in_array($election->status, ['voting_closed', 'runoff_required', 'rerun_required'], true)) {
+        if ($election->status !== 'voting_closed') {
             throw new ConflictHttpException('The challenge/appeal window can only be set after a round closes.');
         }
         $data = $request->validate([
