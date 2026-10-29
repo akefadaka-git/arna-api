@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 
 use DateTimeImmutable;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\AccountingPeriod;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\JournalEntry;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\JournalSourceEntityMapping;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalSourceEntityMapping;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 
 /**
  * Read-only year-end close gate. This service reports prerequisites; it does
@@ -24,7 +24,7 @@ final class YearEndCloseReadinessService
     public function assess(int $tenantId, int $legalEntityId, string $yearStart, string $yearEnd): array
     {
         if ($yearStart > $yearEnd) {
-            throw new \\InvalidArgumentException('Fiscal year start must not be after fiscal year end.');
+            throw new \InvalidArgumentException('Fiscal year start must not be after fiscal year end.');
         }
 
         $entity = LegalEntity::query()
@@ -75,6 +75,7 @@ final class YearEndCloseReadinessService
             }
         }
 
+        $trialBalanceIsBalanced = (bool) ($trialBalance['summary']['is_balanced'] ?? false);
         $checks = [
             'accounting_period_coverage' => [
                 'passed' => $coverage['covered'],
@@ -92,8 +93,8 @@ final class YearEndCloseReadinessService
                 'count' => $draftJournals,
             ],
             'trial_balance_balanced' => [
-                'passed' => (bool) ($trialBalance['summary']['is_balanced'] ?? false),
-                'details' => (bool) ($trialBalance['summary']['is_balanced'] ?? false) ? 'Trial balance debits and credits balance as of fiscal year end.' : 'Trial balance does not balance or could not be confirmed.',
+                'passed' => $trialBalanceIsBalanced,
+                'details' => $trialBalanceIsBalanced ? 'Trial balance debits and credits balance as of fiscal year end.' : 'Trial balance does not balance or could not be confirmed.',
                 'summary' => $trialBalance['summary'] ?? [],
             ],
             'source_entity_mappings_resolved' => [
