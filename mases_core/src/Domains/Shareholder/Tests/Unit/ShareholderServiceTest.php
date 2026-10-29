@@ -117,6 +117,57 @@ final class ShareholderServiceTest extends TestCase
         ]);
     }
 
+    public function test_find_for_tenant_or_fail_returns_shareholder_in_the_requested_tenant(): void
+    {
+        $shareholder = Shareholder::create([
+            'tenant_id' => $this->tenant->id,
+            'shareholder_type' => 'individual',
+            'first_name_en' => 'Tenant-scoped holder',
+            'is_active' => true,
+        ]);
+
+        $found = (new ShareholderRepository())->findForTenantOrFail(
+            (int) $this->tenant->id,
+            (int) $shareholder->id,
+        );
+
+        $this->assertSame($shareholder->id, $found->id);
+    }
+
+    public function test_find_for_tenant_or_fail_throws_not_found_for_nonexistent_id(): void
+    {
+        $this->expectException(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+
+        (new ShareholderRepository())->findForTenantOrFail(
+            (int) $this->tenant->id,
+            2147483000,
+        );
+    }
+
+    public function test_find_for_tenant_or_fail_hides_shareholder_from_another_tenant(): void
+    {
+        $otherTenant = Tenant::create([
+            'slug' => 'other-tenant-' . uniqid(),
+            'name_am' => 'ሌላ ቴናንት',
+            'name_en' => 'Other Tenant',
+            'domain' => 'other-' . uniqid() . '.maalearna.com.et',
+            'is_active' => true,
+        ]);
+        $foreignShareholder = Shareholder::create([
+            'tenant_id' => $otherTenant->id,
+            'shareholder_type' => 'individual',
+            'first_name_en' => 'Foreign holder',
+            'is_active' => true,
+        ]);
+
+        $this->expectException(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+
+        (new ShareholderRepository())->findForTenantOrFail(
+            (int) $this->tenant->id,
+            (int) $foreignShareholder->id,
+        );
+    }
+
     public function test_register_fails_closed_when_legacy_shareholder_number_is_unreconciled(): void
     {
         Shareholder::create([
