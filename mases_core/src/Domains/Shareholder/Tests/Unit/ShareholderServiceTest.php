@@ -136,7 +136,7 @@ final class ShareholderServiceTest extends TestCase
 
     public function test_find_for_tenant_or_fail_throws_not_found_for_nonexistent_id(): void
     {
-        $this->expectException(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
         (new ShareholderRepository())->findForTenantOrFail(
             (int) $this->tenant->id,
@@ -160,7 +160,7 @@ final class ShareholderServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->expectException(\\Illuminate\\Database\\Eloquent\\ModelNotFoundException::class);
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
         (new ShareholderRepository())->findForTenantOrFail(
             (int) $this->tenant->id,
