@@ -6,6 +6,7 @@ use Illuminate\\Database\\Migrations\\Migration;
 use Illuminate\\Database\\Schema\\Blueprint;
 use Illuminate\\Support\\Facades\\DB;
 use Illuminate\\Support\\Facades\\Schema;
+use RuntimeException;
 
 return new class extends Migration
 {
@@ -49,6 +50,23 @@ return new class extends Migration
 
     public function down(): void
     {
+        // A downgrade must not discard proposal history that the old status-based
+        // unique keys cannot represent (for example, two rejected attempts).
+        $duplicateMappingStatus = DB::table('finance_consolidation_account_mappings')
+            ->select('tenant_id', 'legal_entity_id', 'ledger_account_id', 'status')
+            ->groupBy('tenant_id', 'legal_entity_id', 'ledger_account_id', 'status')
+            ->havingRaw('COUNT(*) > 1')->exists();
+        $duplicateRateStatus = DB::table('finance_exchange_rates')
+            ->select('tenant_id', 'base_currency', 'quote_currency', 'effective_on', 'status')
+            ->groupBy('tenant_id', 'base_currency', 'quote_currency', 'effective_on', 'status')
+            ->havingRaw('COUNT(*) > 1')->exists();
+        if ($duplicateMappingStatus || $duplicateRateStatus) {
+            throw new RuntimeException(
+                'Cannot safely downgrade Finance proposal versioning: repeated status history exists. '
+                . 'Reconcile proposal history before rolling back this migration.'
+            );
+        }
+
         $this->dropUniqueIfPresent(
             'finance_consolidation_account_mappings',
             'finance_consolidation_mapping_proposal_version_unique'
