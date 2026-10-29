@@ -14,7 +14,7 @@ use RuntimeException;
  * RolePermissionSeeder
  *
  * Attaches permissions to roles — the join-table writes that turn the
- * twelve role definitions and fifty-one permissions into a
+ * twelve role definitions and fifty-three permissions into a
  * meaningful authorization graph. Runs after RoleSeeder and
  * PermissionSeeder, before the two user seeders.
  *
@@ -160,7 +160,7 @@ use RuntimeException;
  *     permissions map, produce an empty id list, and sync it. The
  *     sync would DETACH every permission from every role. The
  *     database would be left with twelve permission-less roles and
- *     thirty-seven unattached permissions — a state the operator
+ *     fifty-three unattached permissions — a state the operator
  *     would not have asked for and might not notice.
  *
  * Throwing on both cases is the correct behavior. The delegate exists
