@@ -611,4 +611,5 @@ final class PersonController extends Controller
     private static function present(Person $person): array
     {
         return (new PersonProfileResource($person))->resolve();
-    }}
+    }
+}
