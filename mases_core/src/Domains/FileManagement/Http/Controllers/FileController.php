@@ -454,6 +454,33 @@ class FileController extends Controller
     }
 
     /**
+     * Verify a file after normal authenticated tenant and file-view authorization.
+     * Private file details are never returned to unauthenticated callers.
+     */
+    public function verifyAuthenticated(int|string $id): JsonResponse
+    {
+        $file = $this->fileService->find($id);
+        if (!$file) {
+            throw FileException::notFound((string) $id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'file_id' => (string) $file->id,
+                'document_number' => data_get($file->metadata, 'document_number'),
+                'document_type' => data_get($file->metadata, 'document_type'),
+                'original_name' => $file->original_name,
+                'version' => $file->version,
+                'published' => $file->status === 'published',
+                'public' => (bool) $file->is_public,
+                'updated_at' => $file->updated_at?->toIso8601String(),
+                'verification_url' => route('api.files.verify', ['id' => $file->id]),
+            ],
+        ]);
+    }
+
+    /**
      * Verify a public document through its file-specific signed QR URL.
      *
      * This verifies the current publication record and its identity. It is
@@ -516,7 +543,10 @@ class FileController extends Controller
             // Private records must use the authenticated application route.
             'verification_url' => ($file->is_public && $file->status === 'published')
                 ? URL::signedRoute('api.files.public.verify', ['id' => $file->id])
-                : null,
+                : route('api.files.verify', ['id' => $file->id]),
+            'verification_mode' => ($file->is_public && $file->status === 'published')
+                ? 'public_signed'
+                : 'authenticated',
         ];
     }
 }
