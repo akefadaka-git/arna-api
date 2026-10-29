@@ -25,18 +25,19 @@ The default \`Finance\` suite discovers Finance-related PHP test files under \`t
 
 ## Option B — retrieve only the runner script, not the repository
 
-If the local checkout already contains the Finance code but not this helper script, download this one script file to the Windows temporary directory:
+If the local checkout already contains the Finance code but not this helper script, retrieve this one script file through your authenticated GitHub CLI session:
 
 \`\`\`powershell
 $runner = Join-Path $env:TEMP 'Invoke-FinanceTests.ps1'
-Invoke-WebRequest \`
-  -Uri 'https://raw.githubusercontent.com/akefadaka-git/arna-api/feat/finance-phase0-baseline-local-test-runner/tools/finance/Invoke-FinanceTests.ps1' \`
-  -OutFile $runner
+$encoded = gh api 'repos/akefadaka-git/arna-api/contents/tools/finance/Invoke-FinanceTests.ps1?ref=feat/finance-phase0-baseline-local-test-runner' --jq .content
+if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI could not read the runner; confirm gh auth status and repository access.' }
+$bytes = [Convert]::FromBase64String(($encoded -replace '\\s', ''))
+[IO.File]::WriteAllText($runner, [Text.Encoding]::UTF8.GetString($bytes), [Text.UTF8Encoding]::new($false))
 
 & $runner -RepoPath 'D:\\MASES\\github-current\\arna-api'
 \`\`\`
 
-This retrieves only the runner script. It does not download or update the repository. The runner checks the local origin and executes the tests in the local files currently present; it does not certify that those files match a remote commit. Confirm the printed commit SHA before interpreting results.
+This retrieves only the runner file. It does not clone, download, or update the repository. The runner checks the local origin and executes the tests in the local files currently present; it does not certify that those files match a remote commit. Confirm the printed commit SHA before interpreting results.
 
 ## Useful invocations
 
