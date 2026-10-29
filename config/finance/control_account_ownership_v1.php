@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 /**
  * ARNA Finance CoA v1.0.0 reconciliation accountability register.
- * Role assignments are implementation defaults, not formal appointments.
- * Named owners remain null until the Owner records an explicit designation.
+ * Accountable functional roles are formally designated under Owner authorization.
+ * Named individuals remain null until personnel are assigned to those roles.
  * Adapters must remain disabled while designation_status is pending.
  */
 return [
@@ -24,7 +24,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1120' => [
@@ -42,7 +43,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1130' => [
@@ -61,7 +63,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1140' => [
@@ -80,7 +83,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1150' => [
@@ -100,7 +104,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1160' => [
@@ -119,7 +124,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1170' => [
@@ -139,7 +145,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1190' => [
@@ -158,7 +165,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1200' => [
@@ -178,7 +186,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1210' => [
@@ -198,7 +207,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1220' => [
@@ -218,7 +228,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1300' => [
@@ -239,7 +250,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1410' => [
@@ -258,7 +270,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '1600' => [
@@ -277,7 +290,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2110' => [
@@ -298,7 +312,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2120' => [
@@ -316,7 +331,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2130' => [
@@ -336,7 +352,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2140' => [
@@ -355,7 +372,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2150' => [
@@ -374,7 +392,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2160' => [
@@ -394,7 +413,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2200' => [
@@ -414,7 +434,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2210' => [
@@ -434,7 +455,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2300' => [
@@ -453,7 +475,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2400' => [
@@ -471,7 +494,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2500' => [
@@ -489,7 +513,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2600' => [
@@ -508,7 +533,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '2700' => [
@@ -527,7 +553,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '3100' => [
@@ -548,7 +575,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '3600' => [
@@ -569,7 +597,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '4300' => [
@@ -589,7 +618,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '4400' => [
@@ -609,7 +639,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '4500' => [
@@ -628,7 +659,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '6100' => [
@@ -648,7 +680,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '6800' => [
@@ -668,7 +701,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '7100' => [
@@ -686,7 +720,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ],
     '7500' => [
@@ -705,7 +740,8 @@ return [
         ],
         'independent_reviewer_role' => 'Finance Controller or formally designated independent reviewer',
         'named_accountable_person' => null,
-        'designation_status' => 'PENDING_OWNER_DESIGNATION',
+        'designation_status' => 'ROLE_DESIGNATED_PERSON_PENDING',
+        'designation_basis' => 'Owner-authorized functional role designation; named person pending',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
     ]
 ];
