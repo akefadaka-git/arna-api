@@ -38,7 +38,7 @@ An account is not itself a taxable supply. Revenue and expense accounts may cont
 
 1. Owner authorization permits preparation and implementation in this branch; it does not substitute for review by the responsible Ethiopian tax/accounting professional.
 2. Before production activation, approve the legal-entity accounting policy, tax-category defaults, control-account ownership, and subledger mappings.
-3. Run migrations before invoking `php artisan db:seed --class='MaaleArna\\MASES\\Core\\Domains\\Finance\\Database\\Seeders\\FinanceChartOfAccountsSeeder'` in an approved environment.
+3. Run migrations before invoking `php artisan db:seed --class='MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceChartOfAccountsSeeder'` in an approved environment.
 4. The seeder is deliberately not wired into DatabaseSeeder: that entry point invokes the legacy MasesCoreSeeder orchestrator, and automatic activation is not authorized by this change.
 5. Seeder processes active legal entities only, fails if no active legal entity exists, refuses to overwrite any matching non-system account, and does not create opening balances.
 6. Re-running the seeder updates only rows marked is_system_account=true for the same tenant/legal entity/code. Do not change posted journal history to match a new CoA version; future versions require a controlled migration/reclassification plan.
