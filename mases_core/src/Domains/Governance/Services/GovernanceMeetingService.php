@@ -67,6 +67,7 @@ final class GovernanceMeetingService
 
             if (array_key_exists('governance_body_id', $data)) {
                 GovernanceBody::query()->where('tenant_id', $tenantId)
+                    ->where('is_active', true)
                     ->whereKey((int) $data['governance_body_id'])->firstOrFail();
             }
 
@@ -87,6 +88,8 @@ final class GovernanceMeetingService
             if ($locked->status !== 'draft') {
                 throw new ConflictHttpException('Only draft meetings can be approved.');
             }
+            GovernanceBody::query()->where('tenant_id', $tenantId)
+                ->where('is_active', true)->whereKey($locked->governance_body_id)->firstOrFail();
             if ($locked->scheduled_at === null || $locked->scheduled_at->lessThan(Carbon::now())) {
                 throw ValidationException::withMessages([
                     'scheduled_at' => ['A future scheduled date and time are required before approval.'],
