@@ -13,6 +13,7 @@
 - Local PowerShell runner at `scripts/people/Invoke-ArnaPeopleLocalTests.ps1`.
 - Destination-aware runner synchronization helper at `scripts/people/Sync-ArnaPeopleLocalRunner.ps1`; it reads the target branch directly from `akefadaka-git/arna-api` and does not depend on the local `origin` remote.
 - Domain unlink operations now require the record's current `person_id` to match the Person named in the route; mismatch is rejected inside the transaction after the domain record is locked.
+- Tenant-access reactivation preserves the original `created_by` and `created_at` grant provenance; only `status` and `updated_at` change on reactivation. New grants insert a provenance row, with the composite unique key retained as the final duplicate guard.
 
 ## Run locally
 
@@ -49,6 +50,7 @@ The original logs for workflow run `40734382888`, failed job `122978877517`, ret
 
 - Code generation and controller integration: **implemented, static review only**.
 - Cross-Person domain unlink guard and regression assertions: **generated, NOT RUN**.
+- Tenant-access grant-provenance preservation: **implemented, NOT RUN**.
 - Focused test code: **added, NOT RUN**.
 - PHP lint and route registration: **NOT RUN**.
 - Fresh MySQL migration: **NOT RUN locally; existing CI run failed, root cause unresolved**.
