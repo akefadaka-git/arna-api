@@ -943,6 +943,62 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertTrue($balanceSheet['summary']['is_balanced']);
     }
 
+    #[Test]
+    public function test_cash_flow_report_uses_explicit_classification_and_reports_cash_movements(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        LedgerAccount::query()->whereKey($cash->id)->update(['is_cash_equivalent' => true]);
+
+        $revenue = LedgerAccount::query()->create([
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'code' => 'REV-CF-TEST',
+            'name_en' => 'Cash Flow Test Revenue',
+            'account_type' => 'revenue',
+            'normal_balance' => 'credit',
+            'is_posting_allowed' => true,
+            'status' => 'active',
+        ]);
+
+        $journal = app(JournalEntryService::class)->createDraft(
+            (int) $tenant->id,
+            (int) $user->id,
+            [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-CF-OPERATING',
+                'effective_date' => '2026-10-15',
+                'description' => 'Cash flow report fixture',
+                'currency' => 'ETB',
+                'idempotency_key' => 'cash-flow-report-fixture',
+            ],
+            [
+                [
+                    'account_id' => $cash->id,
+                    'debit_amount' => '100.0000',
+                    'credit_amount' => '0',
+                    'cash_flow_activity' => 'operating',
+                    'cash_flow_classification_note' => 'Test classification evidence',
+                ],
+                [
+                    'account_id' => $revenue->id,
+                    'debit_amount' => '0',
+                    'credit_amount' => '100.0000',
+                ],
+            ],
+        );
+        app(JournalEntryService::class)->post((int) $tenant->id, (int) $user->id, (int) $journal->id);
+
+        $report = app(\MaaleArna\MASES\Core\Domains\Finance\Services\CashFlowReportService::class)
+            ->cashFlow((int) $tenant->id, (int) $entity->id, '2026-10-01', '2026-10-31');
+
+        $this->assertSame('100.0000', $report['activities']['operating']['inflows']);
+        $this->assertSame('100.0000', $report['summary']['total_inflows']);
+        $this->assertSame(1, $report['summary']['movement_count']);
+        $this->assertSame(0, $report['summary']['unclassified_movement_count']);
+        $this->assertFalse($report['summary']['has_unclassified_movements']);
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
