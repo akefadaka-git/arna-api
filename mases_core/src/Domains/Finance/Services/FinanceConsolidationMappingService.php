@@ -28,6 +28,12 @@ final class FinanceConsolidationMappingService
         $account = LedgerAccount::query()->where('tenant_id', $tenantId)
             ->where('legal_entity_id', $entity->id)->findOrFail($ledgerAccountId);
 
+        if (FinanceConsolidationAccountMapping::query()->where('tenant_id', $tenantId)
+            ->where('legal_entity_id', $entity->id)->where('ledger_account_id', $account->id)
+            ->where('status', FinanceConsolidationAccountMapping::APPROVED)->exists()) {
+            throw ValidationException::withMessages(['ledger_account_id' => 'An approved mapping already exists. A separately reviewed remapping workflow is required to change it.']);
+        }
+
         try {
             return FinanceConsolidationAccountMapping::query()->create([
                 'tenant_id' => $tenantId,
