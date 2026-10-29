@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
@@ -46,6 +47,8 @@ final class FinanceServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->mergeConfigFrom(__DIR__ . '/../Config/finance.php', 'finance');
+
         $this->app->singleton(LegalEntityRepository::class);
         $this->app->singleton(JournalEntryRepository::class);
         $this->app->singleton(AccountingPeriodRepository::class);
@@ -78,5 +81,32 @@ final class FinanceServiceProvider extends ServiceProvider
         Event::listen(JournalReversed::class, AuditFinanceLifecycleEvent::class);
         Event::listen(AccountingPeriodOpened::class, AuditFinanceLifecycleEvent::class);
         Event::listen(AccountingPeriodClosed::class, AuditFinanceLifecycleEvent::class);
+
+        if (!(bool) config('finance.enabled', true)) {
+            return;
+        }
+
+        $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
+        $this->loadDomainRoutes();
+    }
+
+    private function loadDomainRoutes(): void
+    {
+        $routesPath = __DIR__ . '/../Routes/api.php';
+        if (!is_file($routesPath)) {
+            return;
+        }
+
+        $routes = (array) config('finance.routes', []);
+        $middleware = (array) ($routes['middleware'] ?? ['api', 'auth:sanctum', 'tenant.membership']);
+        $prefix = (string) ($routes['prefix'] ?? 'api/finance');
+        $namePrefix = (string) ($routes['name_prefix'] ?? 'api.finance.');
+
+        Route::middleware($middleware)
+            ->prefix($prefix)
+            ->name($namePrefix)
+            ->group(static function () use ($routesPath): void {
+                require $routesPath;
+            });
     }
 }

@@ -4,9 +4,9 @@
 
 ## Canonical source
 
-- Register: config/finance/chart_of_accounts_v1.php
-- Seeder: database/seeders/FinanceChartOfAccountsSeeder.php
-- Metadata migration: database/migrations/2026_10_28_120000_add_canonical_coa_metadata_to_ledger_accounts.php
+- Register: mases_core/src/Domains/Finance/Config/chart_of_accounts_v1.php
+- Seeder: mases_core/src/Domains/Finance/Database/Seeders/FinanceChartOfAccountsSeeder.php
+- Metadata migration: mases_core/src/Domains/Finance/Database/Migrations/2026_10_28_120000_add_canonical_coa_metadata_to_ledger_accounts.php
 - Model: mases_core/src/Domains/Finance/Models/LedgerAccount.php
 - Version: 1.0.0
 
@@ -38,7 +38,7 @@ An account is not itself a taxable supply. Revenue and expense accounts may cont
 
 1. Owner authorization permits preparation and implementation in this branch; it does not substitute for review by the responsible Ethiopian tax/accounting professional.
 2. Before production activation, approve the legal-entity accounting policy, tax-category defaults, control-account ownership, and subledger mappings.
-3. Run migrations before invoking `php artisan db:seed --class=FinanceChartOfAccountsSeeder` in an approved environment.
+3. Run migrations before invoking `php artisan db:seed --class='MaaleArna\\MASES\\Core\\Domains\\Finance\\Database\\Seeders\\FinanceChartOfAccountsSeeder'` in an approved environment.
 4. The seeder is deliberately not wired into DatabaseSeeder: that entry point invokes the legacy MasesCoreSeeder orchestrator, and automatic activation is not authorized by this change.
 5. Seeder processes active legal entities only, fails if no active legal entity exists, refuses to overwrite any matching non-system account, and does not create opening balances.
 6. Re-running the seeder updates only rows marked is_system_account=true for the same tenant/legal entity/code. Do not change posted journal history to match a new CoA version; future versions require a controlled migration/reclassification plan.

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit;
+namespace MaaleArna\MASES\Core\Domains\Finance\Tests\Unit;
 
 use MaaleArna\MASES\Core\Domains\Finance\Support\MoneyArithmetic;
 use PHPUnit\Framework\Attributes\Test;
