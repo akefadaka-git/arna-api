@@ -642,6 +642,33 @@ final class PersonApiIntegrationTest extends TestCase
     }
 
     #[Test]
+    public function phone_contact_duplicate_detection_ignores_formatting_punctuation(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $person = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Phone Duplicate Check',
+        ])->assertCreated();
+        $publicId = $person->json('data.public_id');
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/contacts', [
+            'contact_type' => 'phone',
+            'contact_value' => '+251 (911) 234-567',
+            'is_primary' => true,
+        ])->assertCreated();
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/contacts', [
+            'contact_type' => 'phone',
+            'contact_value' => '+251911234567',
+            'is_primary' => false,
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseCount('person_contact_points', 1);
+    }
+
+    #[Test]
     public function people_manager_can_create_only_tenant_visible_person_relationships_and_prevent_duplicates(): void
     {
         [$tenant, $actor] = $this->tenantPeopleManager();
