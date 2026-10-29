@@ -43,10 +43,21 @@ return new class extends Migration
             $table->unsignedInteger('valid_ballot_count')->default(0);
             $table->unsignedBigInteger('winner_nomination_id')->nullable();
             $table->timestamp('opened_at')->nullable();
+            $table->timestamp('closes_at')->nullable();
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();
             $table->unique(['tenant_id', 'election_id', 'round_number'], 'gov_election_round_tenant_no_uq');
             $table->unique(['tenant_id', 'election_id', 'round_number', 'id'], 'gov_election_round_tenant_no_id_uq');
+        });
+
+        Schema::create('governance_election_round_candidates', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->foreignId('election_id')->constrained('governance_elections')->restrictOnDelete();
+            $table->unsignedSmallInteger('round_number');
+            $table->unsignedBigInteger('nomination_id');
+            $table->timestamps();
+            $table->unique(['tenant_id', 'election_id', 'round_number', 'nomination_id'], 'gov_election_round_candidate_uq');
         });
 
         Schema::create('governance_election_round_voters', function (Blueprint $table): void {
@@ -83,6 +94,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('governance_election_challenges');
         Schema::dropIfExists('governance_election_round_voters');
+        Schema::dropIfExists('governance_election_round_candidates');
         Schema::dropIfExists('governance_election_rounds');
         Schema::table('governance_election_ballots', function (Blueprint $table): void {
             $table->dropIndex('gov_election_ballot_round_count_idx');
