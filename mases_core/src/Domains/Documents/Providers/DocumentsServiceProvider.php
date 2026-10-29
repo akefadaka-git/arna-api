@@ -6,12 +6,14 @@ namespace MaaleArna\MASES\Core\Domains\Documents\Providers;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentAuthorityService;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentIssuanceService;
 
 final class DocumentsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(DocumentAuthorityService::class);
         $this->app->singleton(DocumentIssuanceService::class);
     }
 
