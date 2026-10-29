@@ -77,7 +77,12 @@ final class OrganizationRequestRules
     /** @return array<string, array<int, mixed>> */
     public static function listAssignments(): array
     {
-        return ['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']];
+        return [
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'status' => ['sometimes', Rule::in(['scheduled', 'active', 'ended', 'cancelled'])],
+            'person_id' => ['sometimes', 'integer', 'min:1'],
+            'effective_on' => ['sometimes', 'date'],
+        ];
     }
 
     /** @return array<string, array<int, mixed>> */
