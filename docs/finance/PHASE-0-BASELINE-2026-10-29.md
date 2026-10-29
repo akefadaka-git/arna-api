@@ -5,7 +5,9 @@
 **Assessment date:** 2026-10-29  
 **Assessment type:** Destination-GitHub, read-only source and branch assessment  
 **Repository:** `akefadaka-git/arna-api`  
-**Reviewed feature head:** `f5359467d131aebbfc11c6806793b1e77cfad97d`  
+**Reviewed reporting feature head:** `f5359467d131aebbfc11c6806793b1e77cfad97d`  
+**Phase 0 implementation branch:** `feat/finance-phase0-baseline-local-test-runner`  
+**Current Phase 0 branch head:** `370c5a1b24c0076dffbefeb0c3ffb47f06d3c22e`  
 **Feature base:** `8adb090c70158f8d4b22b1a28050722cffcac447`  
 **Current main baseline observed by compare API:** `ed1a937456d2e240802a05ea729c902c0af6b06d`  
 **Status:** PARTIAL — evidence-based initial baseline; Phase 0 is not closed.
@@ -14,7 +16,7 @@
 
 The Owner approved the Finance & Accounting enhancement roadmap and authorized Phase 0 plus code generation. This assessment is read-only. No CI/workflow was started, no local tests were executed, and no database migration, seeder, opening-balance import, production posting, merge, or deployment was performed.
 
-The Owner requires test execution to remain available from Windows PowerShell on an existing local checkout, without cloning or downloading the repository as part of the runner. A local test runner is being added; it must fail closed if the checkout, dependencies, PHP version, or hermetic test database configuration are missing. It must never clone, fetch, pull, install dependencies, reset a branch, or mutate production configuration.
+The Owner requires test execution to remain available from Windows PowerShell on an existing local checkout, without cloning or downloading the repository as part of the runner. A local test runner has been added at `tools/finance/Invoke-FinanceTests.ps1`; it must fail closed if the checkout, dependencies, PHP version, or hermetic test database configuration are missing. It must never clone, fetch, pull, install dependencies, reset a branch, or mutate production configuration.
 
 ## 2. Branch and pull-request reconciliation
 
@@ -99,9 +101,9 @@ Source-level project configuration declares:
 - PHPUnit suites named `Unit`, `Feature`, and `Domain`.
 - Test environment sets `DB_CONNECTION=sqlite` and `DB_DATABASE=:memory:`, with array cache/session and synchronous queue.
 
-The repository's `composer test` script clears Laravel configuration before invoking the test suite. The proposed local runner will invoke PHPUnit directly so it does not run the cache-clearing script, change branches, fetch code, install packages, or download the repository.
+The repository's `composer test` script clears Laravel configuration before invoking the test suite. The added local runner invokes PHPUnit directly so it does not run the cache-clearing script, change branches, fetch code, install packages, or download the repository.
 
-**NOT RUN:** PHP/PHPUnit version checks on the Owner's machine; test discovery; unit/feature/domain tests; migration execution; route execution; any CI/workflow.
+**NOT RUN:** PHP/PHPUnit version checks on the Owner's machine; test discovery; unit/feature/domain tests; migration execution; route execution. The Phase 0 branch head `370c5a1b24c0076dffbefeb0c3ffb47f06d3c22e` currently has no reported workflow runs or commit status checks; no CI/workflow was manually dispatched.
 
 ## 6. Workflow evidence and quota constraint
 
@@ -134,4 +136,4 @@ This is a partial Phase 0 baseline, not a production-readiness certification.
 3. Continue implementation on an isolated Finance branch, keeping CI disabled/skipped and recording each exact commit. Do not merge or deploy.
 4. Prioritize execution-ready acceptance tests and migration/route/auth contracts; leave adapters disabled while the 36 control-account designations are pending.
 
-The next bounded implementation unit is the local Finance test runner plus a reproducible, fail-closed test invocation. It is not evidence that the tests pass.
+The local Finance test runner and focused cash-flow acceptance tests have been generated on `feat/finance-phase0-baseline-local-test-runner`. New acceptance coverage checks that unclassified movements remain `undetermined`, disabled cash-equivalent accounts are excluded, and the inclusive effective-date window is respected. These tests are **NOT RUN** and are not evidence that the implementation passes.
