@@ -324,6 +324,8 @@ final class JournalEntryService
                 'debit_amount' => $line->credit_amount,
                 'credit_amount' => $line->debit_amount,
                 'description' => $line->description,
+                'cash_flow_activity' => $line->cash_flow_activity,
+                'cash_flow_classification_note' => $line->cash_flow_classification_note,
             ])->all();
 
             // A retried request after a successful reversal returns the already
