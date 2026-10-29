@@ -17,7 +17,7 @@ final class PersonContactPointService
         $type = (string) $attributes['contact_type'];
         $normalized = match ($type) {
             'email' => mb_strtolower($value),
-            'phone' => preg_replace('/\s+/', '', $value) ?? $value,
+            'phone' => preg_replace('/\D+/', '', $value) ?? $value,
             default => $value,
         };
 
