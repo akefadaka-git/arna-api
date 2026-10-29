@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use MaaleArna\MASES\Core\Domains\Finance\Services\ControlAccountOwnershipRegistry;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -14,6 +15,9 @@ final class FinanceControlAccountOwnershipTest extends TestCase
     {
         $chart = require base_path('config/finance/chart_of_accounts_v1.php');
         $ownership = require base_path('config/finance/control_account_ownership_v1.php');
+        $registry = new ControlAccountOwnershipRegistry();
+
+        $registry->validateAgainstChart($chart);
 
         $controlCodes = [];
         foreach ($chart as $row) {
@@ -25,6 +29,7 @@ final class FinanceControlAccountOwnershipTest extends TestCase
         $this->assertNotEmpty($controlCodes);
         $this->assertSame([], array_values(array_diff($controlCodes, array_keys($ownership))), 'Every control account must have an ownership policy.');
         $this->assertSame([], array_values(array_diff(array_keys($ownership), $controlCodes)), 'Ownership policies must not reference non-control or unknown accounts.');
+        $this->assertSame($ownership['1110'], $registry->forAccountCode(' 1110 '));
 
         foreach ($ownership as $code => $policy) {
             $this->assertNotSame('', trim((string) ($policy['accountable_role'] ?? '')), "Account {$code} requires an accountable role.");
