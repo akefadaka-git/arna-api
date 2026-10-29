@@ -53,27 +53,22 @@ if ($LASTEXITCODE -ne 0) { throw 'Unable to determine PHP CLI version.' }
 if ([version]$version -lt [version]'8.3.0') { throw "PHP $version found; ARNA API requires PHP 8.3 or later." }
 if (-not (Test-Path 'vendor/autoload.php')) { throw 'vendor/autoload.php is missing. Run composer install manually in this existing checkout.' }
 
-# A vendor junction can silently reuse Composer autoload metadata generated for a
-# different checkout. That makes PSR-4 domain classes resolve against stale source
-# paths and can make route:list fail on unrelated controllers before People routes
-# are inspected. Fail early rather than report a misleading application-code defect.
-$vendorItem = Get-Item -LiteralPath 'vendor' -Force
-if ($vendorItem.LinkType -in @('Junction', 'SymbolicLink')) {
-    $vendorTarget = @($vendorItem.Target)[0]
-    if ($vendorTarget) {
-        $vendorTargetPath = [IO.Path]::GetFullPath([string] $vendorTarget)
-        $vendorTargetRepo = Split-Path -LiteralPath $vendorTargetPath -Parent
-        $targetDomainRoot = Join-Path $vendorTargetRepo 'mases_core/src'
-        $repoDomainRoot = Join-Path $Repo 'mases_core/src'
-
-        if ((Test-Path -LiteralPath $targetDomainRoot) -and (Test-Path -LiteralPath $repoDomainRoot)) {
-            $resolvedTargetDomainRoot = (Resolve-Path -LiteralPath $targetDomainRoot).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
-            $resolvedRepoDomainRoot = (Resolve-Path -LiteralPath $repoDomainRoot).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
-            if (-not $resolvedTargetDomainRoot.Equals($resolvedRepoDomainRoot, [StringComparison]::OrdinalIgnoreCase)) {
-                throw "vendor is a $($vendorItem.LinkType) targeting '$vendorTargetPath', which belongs to another checkout. Composer autoload metadata may resolve ARNA domain classes against stale source files. Set up an isolated vendor directory for '$Repo'. No repository files were changed by this check; no tests were run."
-            }
-        }
-    }
+# Composer resolves its generated PSR-4 base directory relative to the physical
+# vendor/autoload.php path. On some Windows PowerShell/filesystem combinations,
+# Get-Item.LinkType does not reliably expose a directory junction. Ask PHP for the
+# physical autoloader path instead, then compare its owning checkout with this repo.
+# This is a read-only preflight and intentionally runs before route:list or tests.
+$autoloadPhysicalPath = (& php -r 'echo realpath("vendor/autoload.php") ?: "";').Trim()
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($autoloadPhysicalPath)) {
+    throw 'Could not resolve the physical vendor/autoload.php path. No tests were run.'
+}
+$autoloadPhysicalPath = [IO.Path]::GetFullPath($autoloadPhysicalPath)
+$physicalVendorDirectory = Split-Path -LiteralPath $autoloadPhysicalPath -Parent
+$autoloadOwnerRepo = Split-Path -LiteralPath $physicalVendorDirectory -Parent
+$resolvedRepoPath = [IO.Path]::GetFullPath($Repo).TrimEnd([IO.Path]::DirectorySeparatorChar)
+$resolvedAutoloadOwnerRepo = [IO.Path]::GetFullPath($autoloadOwnerRepo).TrimEnd([IO.Path]::DirectorySeparatorChar)
+if (-not $resolvedAutoloadOwnerRepo.Equals($resolvedRepoPath, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "vendor/autoload.php physically resolves to '$autoloadPhysicalPath', owned by checkout '$resolvedAutoloadOwnerRepo', not '$resolvedRepoPath'. Composer PSR-4 metadata may resolve ARNA classes against another checkout. Establish an isolated vendor directory for '$resolvedRepoPath'. No repository files were changed by this check; no tests were run."
 }
 
 Write-Host ''
