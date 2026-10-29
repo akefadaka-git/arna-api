@@ -274,11 +274,36 @@ final class PersonIdentityService
 
         DB::transaction(function () use ($tenantId, $personId, $actor, $reason): void {
             $person = Person::query()->whereKey($personId)->where('status', 'active')->lockForUpdate()->firstOrFail();
-            DB::table('person_tenant_accesses')->updateOrInsert(
-                ['person_id' => $personId, 'tenant_id' => $tenantId],
-                ['created_by' => $actor->getKey(), 'status' => 'active', 'updated_at' => now(), 'created_at' => now()],
-            );
-            $this->recordEvent('person.tenant_access_granted', $tenantId, $actor, $person, ['reason' => $reason]);
+            // Locking the Person serializes grants for this identity. Preserve
+            // the original grant provenance when reactivating a revoked row:
+            // created_by and created_at describe the first grant, not the latest
+            // operator. The unique (person_id, tenant_id) key is the final guard.
+            $access = DB::table('person_tenant_accesses')
+                ->where('person_id', $personId)
+                ->where('tenant_id', $tenantId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($access === null) {
+                DB::table('person_tenant_accesses')->insert([
+                    'person_id' => $personId,
+                    'tenant_id' => $tenantId,
+                    'created_by' => $actor->getKey(),
+                    'status' => 'active',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } elseif ($access->status !== 'active') {
+                DB::table('person_tenant_accesses')
+                    ->where('person_id', $personId)
+                    ->where('tenant_id', $tenantId)
+                    ->update(['status' => 'active', 'updated_at' => now()]);
+            }
+
+            $this->recordEvent('person.tenant_access_granted', $tenantId, $actor, $person, [
+                'reason' => $reason,
+                'reactivated' => $access !== null && $access->status !== 'active',
+            ]);
         });
     }
 
