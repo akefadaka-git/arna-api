@@ -10,6 +10,7 @@ use Database\Seeders\Data\TenantProfile;
 use Database\Seeders\Support\UserPivotCleaner;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareholderNumberReconciler;
+use MaaleArna\MASES\Core\Domains\Organization\Database\Seeders\OrganizationDomainSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -338,6 +339,18 @@ final class MasesCoreSeeder extends Seeder
          * dependency.
          */
         (new RolePermissionSeeder())->seed($roles, $permissions);
+
+        /*
+         * Step 6a — Organization domain seed-integrity gate.
+         *
+         * Organization permissions are sourced from the domain-owned
+         * catalogue through PermissionCatalogue and written by the
+         * existing PermissionSeeder. This domain seeder validates the
+         * resulting rows and least-privilege tenant_admin grants; it
+         * intentionally creates no organization units because the
+         * authoritative initial organization tree has not been approved.
+         */
+        (new OrganizationDomainSeeder())->seed($tenant, $permissions, $roles);
 
         /*
          * Step 7 — bootstrap admins.
