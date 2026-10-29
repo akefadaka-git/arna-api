@@ -394,10 +394,17 @@ final class GovernanceElectionController extends Controller
         $tenant = $this->tenantId();
         $this->requirePermission($request, 'governance.election.view');
         $this->election($tenant, $electionId);
+        $election = $this->election($tenant, $electionId);
         $rows = DB::table('governance_election_eligible_voters as v')
-            ->join('governance_memberships as m', 'm.id', '=', 'v.governance_membership_id')
+            ->join('governance_memberships as m', function ($join): void {
+                $join->on('m.id', '=', 'v.governance_membership_id')->on('m.tenant_id', '=', 'v.tenant_id');
+            })
+            ->leftJoin('governance_election_round_voters as rv', function ($join) use ($election): void {
+                $join->on('rv.tenant_id', '=', 'v.tenant_id')->on('rv.election_id', '=', 'v.election_id')
+                    ->on('rv.governance_membership_id', '=', 'v.governance_membership_id')->where('rv.round_number', '=', (int) $election->current_round);
+            })
             ->where('v.tenant_id', $tenant)->where('v.election_id', $electionId)
-            ->select('v.id', 'v.governance_membership_id', 'v.cast_at', 'm.user_id', 'm.member_name_am', 'm.member_name_en')
+            ->select('v.id', 'v.governance_membership_id', 'rv.cast_at', 'm.user_id', 'm.member_name_am', 'm.member_name_en')
             ->orderBy('v.id')->get();
         return response()->json(['success' => true, 'data' => $rows]);
     }
