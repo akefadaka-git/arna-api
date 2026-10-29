@@ -23,11 +23,11 @@ final class FinancialReportService implements FinancialReportContract
     public function incomeStatement(int $tenantId, int $legalEntityId, string $from, string $to): array
     {
         if ($from > $to) {
-            throw new \\InvalidArgumentException('Income statement start date must not be after its end date.');
+            throw new \InvalidArgumentException('Income statement start date must not be after its end date.');
         }
 
         $entity = LegalEntity::query()->where('tenant_id', $tenantId)->findOrFail($legalEntityId);
-        $rows = \\MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LedgerAccount::query()
+        $rows = \MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount::query()
             ->where('ledger_accounts.tenant_id', $tenantId)
             ->where('ledger_accounts.legal_entity_id', $legalEntityId)
             ->whereIn('ledger_accounts.account_type', ['revenue', 'expense'])
@@ -43,8 +43,8 @@ final class FinancialReportService implements FinancialReportContract
                     ->where('journal_entries.tenant_id', '=', $tenantId)
                     ->where('journal_entries.legal_entity_id', '=', $legalEntityId)
                     ->whereIn('journal_entries.status', [
-                        \\MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\JournalEntry::POSTED,
-                        \\MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\JournalEntry::REVERSED,
+                        \MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry::POSTED,
+                        \MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry::REVERSED,
                     ])
                     ->whereBetween('journal_entries.effective_date', [$from, $to]);
             })
@@ -61,8 +61,8 @@ final class FinancialReportService implements FinancialReportContract
                 'ledger_accounts.name_en',
                 'ledger_accounts.name_am',
                 'ledger_accounts.account_type',
-                \\Illuminate\\Support\\Facades\\DB::raw('COALESCE(SUM(CASE WHEN journal_entries.id IS NOT NULL THEN journal_lines.debit_amount ELSE 0 END), 0) AS debit_total'),
-                \\Illuminate\\Support\\Facades\\DB::raw('COALESCE(SUM(CASE WHEN journal_entries.id IS NOT NULL THEN journal_lines.credit_amount ELSE 0 END), 0) AS credit_total'),
+                \Illuminate\Support\Facades\DB::raw('COALESCE(SUM(CASE WHEN journal_entries.id IS NOT NULL THEN journal_lines.debit_amount ELSE 0 END), 0) AS debit_total'),
+                \Illuminate\Support\Facades\DB::raw('COALESCE(SUM(CASE WHEN journal_entries.id IS NOT NULL THEN journal_lines.credit_amount ELSE 0 END), 0) AS credit_total'),
             ]);
 
         $revenueCredits = '0';
