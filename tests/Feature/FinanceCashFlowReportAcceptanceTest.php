@@ -164,6 +164,61 @@ final class FinanceCashFlowReportAcceptanceTest extends TestCase
         }
     }
 
+    #[Test]
+    public function it_rejects_classification_on_an_account_not_enabled_as_a_cash_equivalent(): void
+    {
+        [$tenant, $user, $entity, $cash, $revenue] = $this->fixture();
+
+        try {
+            $this->postCashJournal(
+                $tenant,
+                $user,
+                $entity,
+                $cash,
+                $revenue,
+                'JV-CF-NON-CASH-EQUIVALENT',
+                'cash-flow-disabled-classification-acceptance',
+                '7.0000',
+                '2026-10-15',
+                'operating',
+            );
+            $this->fail('A cash-flow activity must not be assigned to a disabled cash-equivalent account.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('lines.0.cash_flow_activity', $exception->errors());
+        }
+    }
+
+    #[Test]
+    public function it_never_includes_cash_movements_from_another_tenant(): void
+    {
+        [$tenant, $user, $entity] = $this->fixture();
+        [$otherTenant, $otherUser, $otherEntity, $otherCash, $otherRevenue] = $this->fixture();
+        LedgerAccount::query()->whereKey($otherCash->id)->update(['is_cash_equivalent' => true]);
+
+        $this->postCashJournal(
+            $otherTenant,
+            $otherUser,
+            $otherEntity,
+            $otherCash,
+            $otherRevenue,
+            'JV-CF-OTHER-TENANT',
+            'cash-flow-other-tenant-acceptance',
+            '99.0000',
+            '2026-10-15',
+            'operating',
+        );
+
+        $report = app(CashFlowReportService::class)->cashFlow(
+            (int) $tenant->id,
+            (int) $entity->id,
+            '2026-10-01',
+            '2026-10-31',
+        );
+
+        $this->assertSame('0.0000', $report['summary']['total_inflows']);
+        $this->assertSame(0, $report['summary']['movement_count']);
+    }
+
     private function fixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
