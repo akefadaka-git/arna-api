@@ -54,7 +54,7 @@ namespace Database\Seeders\Data;
  *            specs are byte-for-byte identical to 1.0.0.
  *
  *          · MINOR version bump. The change is additive to one role's
- *            grant spec; the file's shape, the three grant-spec
+ *            grant spec; the file's shape, the four grant-spec
  *            forms, and every other role's definition are unchanged.
  *
  *          · RE-ISSUED after the launcher-track validation's Layer 3.5
