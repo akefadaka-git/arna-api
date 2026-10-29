@@ -243,7 +243,7 @@ final class RolePermissionSeeder extends Seeder
     {
         /*
          * Read the grant map from the Data\ layer. See Unit S-6 for
-         * the row shape and the three grant-spec forms.
+         * the row shape and the four grant-spec forms.
          *
          * The map is keyed by role slug; the keys match the role
          * slugs the preceding seeder used.
