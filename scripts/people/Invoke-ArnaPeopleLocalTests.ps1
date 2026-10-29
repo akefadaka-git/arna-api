@@ -57,7 +57,26 @@ if ($RunMySql) {
  $envValues=Read-DotEnv $testingEnv
  if ($envValues['DB_CONNECTION'] -ne 'mysql') { throw 'DB_CONNECTION in .env.testing must be mysql.' }
  $database=[string]$envValues['DB_DATABASE']
- if ($database -notmatch '^arna.*(test|testing|disposable)') { throw "Database '$database' is not named like a dedicated ARNA test database. Refusing MySQL mode." }
+ if ($database -notmatch '^arna.*(?:test|testing|disposable)) { throw "Database '$database' is not named like a dedicated ARNA test database. Refusing MySQL mode." }
+ if (-not $envValues['DB_HOST'] -or -not $envValues['DB_USERNAME']) { throw '.env.testing must define DB_HOST and DB_USERNAME.' }
+ Write-Host "Target database name: $database"
+ Write-Host 'Provision this as an EMPTY disposable schema before continuing. This script does not create/drop databases and never runs migrate:fresh or db:wipe.'
+ $confirmation = Read-Host "Type the exact database name '$database' to run the clean-install migration gate"
+ if ($confirmation -cne $database) { throw 'Database confirmation mismatch; MySQL mode cancelled.' }
+ foreach($key in @('APP_ENV','DB_CONNECTION','DB_HOST','DB_PORT','DB_DATABASE','DB_USERNAME','DB_PASSWORD','APP_KEY')) {
+  if($envValues.ContainsKey($key)) { [Environment]::SetEnvironmentVariable($key,$envValues[$key],'Process') }
+ }
+ $phpCode = 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap(); echo json_encode(\Illuminate\Support\Facades\Schema::connection("mysql")->getTableListing());'
+ $tableJson = & php -r $phpCode
+ if ($LASTEXITCODE -ne 0) { throw 'Could not inspect MySQL schema; no migrations were run.' }
+ $tables = @($tableJson | ConvertFrom-Json)
+ if ($tables.Count -gt 0) { throw "Refusing clean-install check because schema is not empty. Found tables: $($tables -join ', ')" }
+ Write-Host 'Verified the target schema has zero tables.'
+ Invoke-Checked 'php' @('artisan','migrate','--env=testing','--database=mysql','--force')
+ Invoke-Checked 'php' @('artisan','test',$TestsPath,'--stop-on-failure','--env=testing')
+} else { Write-Host 'MySQL clean-install mode skipped. Use -RunMySql only with a manually provisioned empty disposable schema in .env.testing.' -ForegroundColor Yellow }
+Write-Host ''; Write-Host 'Completed local checks. No GitHub Actions workflow was triggered.' -ForegroundColor Green
+) { throw "Database '$database' is not named like a dedicated ARNA test database. Refusing MySQL mode." }
  if (-not $envValues['DB_HOST'] -or -not $envValues['DB_USERNAME']) { throw '.env.testing must define DB_HOST and DB_USERNAME.' }
  Write-Host "Target database name: $database"
  Write-Host 'Provision this as an EMPTY disposable schema before continuing. This script does not create/drop databases and never runs migrate:fresh or db:wipe.'
