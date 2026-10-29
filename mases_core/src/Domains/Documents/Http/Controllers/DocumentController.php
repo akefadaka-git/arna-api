@@ -25,10 +25,10 @@ final class DocumentController extends Controller
         $actor = $this->actor();
         $validated = $request->validate([
             'legal_entity_id' => ['required', 'integer', 'min:1'],
-            'organization_code' => ['required', 'string', 'regex:/^[A-Z0-9_-]{2,64}$/'],
+            'organization_code' => ['required', 'string', 'regex:/^[A-Z0-9_]{2,64}$/'],
             'document_type_code' => ['required', 'string', Rule::in(DocumentTypeRegistry::CODES)],
-            'department_code' => ['required', 'string', 'regex:/^[A-Z0-9_-]{2,64}$/'],
-            'issuing_role_code' => ['required', 'string', 'regex:/^[A-Z0-9_-]{2,32}$/'],
+            'department_code' => ['required', 'string', 'regex:/^[A-Z0-9_]{2,64}$/'],
+            'issuing_role_code' => ['required', 'string', 'regex:/^[A-Z0-9_]{2,32}$/'],
             'title' => ['required', 'string', 'min:1', 'max:255'],
             'file_id' => ['required', 'integer', 'min:1'],
             'metadata' => ['sometimes', 'array'],
