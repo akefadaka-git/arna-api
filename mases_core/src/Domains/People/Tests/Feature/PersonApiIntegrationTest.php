@@ -683,6 +683,24 @@ final class PersonApiIntegrationTest extends TestCase
         ])->assertCreated();
         $person = Person::query()->where('public_id', $firstResponse->json('data.public_id'))->firstOrFail();
         $related = Person::query()->where('public_id', $secondResponse->json('data.public_id'))->firstOrFail();
+        $tenantId = (int) $tenant->getKey();
+        $actorId = (int) $actor->getKey();
+
+        $contact = app(\MaaleArna\MASES\Core\Domains\People\Services\PersonContactPointService::class)->create(
+            $tenantId, $person,
+            ['contact_type' => 'email', 'contact_value' => 'existing@example.test', 'is_primary' => false],
+            $actorId,
+        );
+        $participation = app(\MaaleArna\MASES\Core\Domains\People\Services\PersonParticipationService::class)->create(
+            $tenantId, $person,
+            ['participation_type' => 'membership', 'title' => 'Existing record', 'reason' => 'Created before access revocation'],
+            $actorId,
+        );
+        $relationship = app(\MaaleArna\MASES\Core\Domains\People\Services\PersonRelationshipService::class)->create(
+            $tenantId, $person, $related,
+            ['relationship_type' => 'household_member', 'reason' => 'Created before access revocation'],
+            $actorId,
+        );
 
         DB::table('person_tenant_accesses')
             ->where('tenant_id', $tenant->getKey())
@@ -711,24 +729,31 @@ final class PersonApiIntegrationTest extends TestCase
             (int) $actor->getKey(),
         ));
         $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonRelationshipService::class)->create(
-            (int) $tenant->getKey(),
-            $person,
-            $related,
+            $tenantId, $person, $related,
             ['relationship_type' => 'household_member', 'reason' => 'Testing revoked tenant access'],
-            (int) $actor->getKey(),
+            $actorId,
+        ));
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonContactPointService::class)->deactivate(
+            $tenantId, $person, (int) $contact->getKey(), 'Testing revoked tenant access',
+        ));
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonParticipationService::class)->deactivate(
+            $tenantId, $person, (int) $participation->getKey(), 'Testing revoked tenant access',
+        ));
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonRelationshipService::class)->deactivate(
+            $tenantId, $person, (int) $relationship->getKey(), 'Testing revoked tenant access',
         ));
 
-        $this->assertDatabaseMissing('person_contact_points', [
-            'tenant_id' => $tenant->getKey(),
-            'person_id' => $person->getKey(),
+        $this->assertDatabaseHas('person_contact_points', [
+            'id' => $contact->getKey(), 'tenant_id' => $tenantId,
+            'person_id' => $person->getKey(), 'status' => 'active',
         ]);
-        $this->assertDatabaseMissing('person_participations', [
-            'tenant_id' => $tenant->getKey(),
-            'person_id' => $person->getKey(),
+        $this->assertDatabaseHas('person_participations', [
+            'id' => $participation->getKey(), 'tenant_id' => $tenantId,
+            'person_id' => $person->getKey(), 'status' => 'active',
         ]);
-        $this->assertDatabaseMissing('person_relationships', [
-            'tenant_id' => $tenant->getKey(),
-            'person_id' => $person->getKey(),
+        $this->assertDatabaseHas('person_relationships', [
+            'id' => $relationship->getKey(), 'tenant_id' => $tenantId,
+            'person_id' => $person->getKey(), 'status' => 'active',
         ]);
     }
 
