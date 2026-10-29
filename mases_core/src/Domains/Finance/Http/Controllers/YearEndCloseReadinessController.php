@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Controllers;
+namespace MaaleArna\MASES\Core\Domains\Finance\Http\Controllers;
 
-use App\\Http\\Controllers\\Controller;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\YearEndCloseReadinessService;
-use MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use MaaleArna\MASES\Core\Domains\Finance\Services\YearEndCloseReadinessService;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
 final class YearEndCloseReadinessController extends Controller
 {
