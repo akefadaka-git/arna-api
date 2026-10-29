@@ -40,6 +40,11 @@ final class FinanceConsolidationMappingService
                 'mapping_reason' => $reason,
             ]);
         } catch (QueryException $exception) {
+            $sqlState = (string) ($exception->errorInfo[0] ?? '');
+            $driverCode = (int) ($exception->errorInfo[1] ?? 0);
+            if (!in_array($sqlState, ['23000', '23505'], true) && !in_array($driverCode, [19, 1062], true)) {
+                throw $exception;
+            }
             throw ValidationException::withMessages([
                 'ledger_account_id' => 'A mapping record already exists for this entity account. Review it; do not create a competing mapping.',
             ]);
