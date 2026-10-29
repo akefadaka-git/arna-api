@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use MaaleArna\MASES\Core\Audit\Services\AuditService;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Shareholder\Http\Requests\StoreShareholderRequest;
 use MaaleArna\MASES\Core\Domains\Shareholder\Http\Requests\UpdateShareholderRequest;
@@ -205,6 +206,15 @@ final class ShareholderController extends Controller
             with: ['user', 'representative'],
         );
 
+        // Audit the successful sensitive register read, not query values.
+        app(AuditService::class)->log(
+            action: 'shareholder.read.list',
+            data: ['result_count' => count($paginator->items())],
+            user: $request->user(),
+            tenantId: $tenantId,
+            resourceType: 'shareholder_register',
+        );
+
         return response()->json([
             'success' => true,
             'data'    => ShareholderResource::collection($paginator->items())->resolve(),
@@ -244,6 +254,15 @@ final class ShareholderController extends Controller
         Gate::authorize('view', $shareholder);
 
         $shareholder->loadMissing(['user', 'representative']);
+
+        app(AuditService::class)->log(
+            action: 'shareholder.read.view',
+            data: ['access_scope' => 'policy-authorized'],
+            user: $request->user(),
+            tenantId: $tenantId,
+            resourceType: Shareholder::class,
+            resourceId: (string) $shareholder->getKey(),
+        );
 
         return response()->json([
             'success' => true,
