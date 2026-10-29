@@ -137,6 +137,40 @@ final class DocumentIssuanceService
                 throw new ConflictHttpException('The linked file version changed during issuance; retry against the current published version.');
             }
 
+            // Revalidate the permission and authoritative Finance, Organization,
+            // and Governance registry records inside the issuance transaction.
+            // The preflight checks above provide early feedback; this check is
+            // authoritative for number allocation and fails closed if the
+            // authority or canonical scope changed between preflight and commit.
+            $this->authorize('documents.issue', $actor, $tenantId);
+            $currentRegistry = $this->documentAuthority->assertCanIssue(
+                $actor,
+                (int) $tenantId,
+                (int) $payload['legal_entity_id'],
+                $payload['organization_code'],
+                $payload['department_code'],
+                $payload['issuing_role_code'],
+                $payload['document_type_code'],
+            );
+
+            $registrySnapshot = [
+                'legal_entity_id' => 'legal_entity_id',
+                'organization_unit_id' => 'organization_unit_id',
+                'governance_body_id' => 'governance_body_id',
+                'governance_position_id' => 'governance_position_id',
+                'organization_code' => 'organization_code',
+                'department_code' => 'department_code',
+                'issuing_role_code' => 'issuing_role_code',
+                'document_type_code' => 'document_type_code',
+            ];
+            foreach ($registrySnapshot as $registryKey => $payloadKey) {
+                if ($currentRegistry[$registryKey] !== $payload[$payloadKey]) {
+                    throw new ConflictHttpException(
+                        'The authoritative issuance registry changed during the request; retry against the current registry state.'
+                    );
+                }
+            }
+
             $scope = [
                 'tenant_id' => $tenantId,
                 'legal_entity_id' => $payload['legal_entity_id'],
