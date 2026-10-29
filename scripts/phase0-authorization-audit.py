@@ -135,7 +135,7 @@ for method, permissions in file_permissions.items():
     body = method_body(file_source, method)
     # show/download permit public files but require permission for non-public files.
     if method in ("show", "download"):
-        guarded = "if (!$file->is_public)" in body and all(p in body for p in permissions)
+        guarded = "if (!$file->is_public || $file->status !== 'published')" in body and all(p in body for p in permissions)
     else:
         guarded = bool(body) and all(p in body for p in permissions)
     finding(f"file-action-auth:{method}", guarded,
