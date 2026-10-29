@@ -274,7 +274,7 @@ final class RolePermissionSeeder extends Seeder
     /**
      * Resolve a grant spec into a list of permission ids.
      *
-     * Three spec forms are recognized; see the class docblock
+     * Four spec forms are recognized; see the class docblock
      * §"The grant-spec resolution" for their semantics.
      *
      * The wildcard form ('*') short-circuits — if present anywhere in
