@@ -468,9 +468,11 @@ class FileController extends Controller
             'success' => true,
             'data' => [
                 'file_id' => (string) $file->id,
-                'document_number' => data_get($file->metadata, 'document_number'),
-                'document_type' => data_get($file->metadata, 'document_type'),
-                'original_name' => $file->original_name,
+                // Official document numbers/types must come from the Documents domain,
+                // never from caller-controlled file metadata.
+                'document_number' => null,
+                'document_type' => null,
+                'file_name' => $file->original_name,
                 'version' => $file->version,
                 'published' => $file->status === 'published',
                 'public' => (bool) $file->is_public,
@@ -501,9 +503,10 @@ class FileController extends Controller
             'success' => true,
             'data' => [
                 'file_id' => (string) $file->id,
-                'document_number' => data_get($file->metadata, 'document_number'),
-                'document_type' => data_get($file->metadata, 'document_type'),
-                'original_name' => $file->original_name,
+                // Official document identity is supplied only by the Documents domain.
+                'document_number' => null,
+                'document_type' => null,
+                'file_name' => $file->original_name,
                 'version' => $file->version,
                 'published' => true,
                 'published_at' => $file->updated_at?->toIso8601String(),
