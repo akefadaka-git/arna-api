@@ -375,7 +375,7 @@ final class PersonIdentityService
     public function listDocuments(int $tenantId, int $personId, User $actor): array
     {
         $this->assertTenantAccess($tenantId, $actor);
-        $this->assertManagePermission($tenantId, $actor);
+        $this->assertSensitiveReadPermission($tenantId, $actor);
         $person = Person::query()->whereKey($personId)->firstOrFail();
         $this->assertPersonTenantAccess($tenantId, $person);
 
@@ -611,6 +611,42 @@ final class PersonIdentityService
                 'reason' => $reason,
             ]);
         });
+    }
+
+    /**
+     * Require sensitive-read access for tenant-scoped Person document metadata.
+     *
+     * The permission must be granted through a role bound to the active tenant.
+     * The existing global people.manage exception is preserved for platform-level
+     * operators; a tenant-scoped people.sensitive.view grant is never accepted
+     * as a global or cross-tenant direct user grant.
+     */
+    private function assertSensitiveReadPermission(int $tenantId, User $actor): void
+    {
+        $directGlobalManage = $actor->permissions()
+            ->where('slug', 'people.manage')
+            ->where('scope', 'global')
+            ->whereNull('permissions.tenant_id')
+            ->where('is_active', true)
+            ->exists();
+
+        $viaTenantRole = $actor->roles()
+            ->where('tenant_id', $tenantId)
+            ->whereHas('permissions', function ($query): void {
+                // Permission definitions are shared catalogue rows; the role
+                // supplies the tenant boundary for this sensitive read.
+                $query->whereIn('slug', ['people.sensitive.view', 'people.manage'])
+                    ->whereIn('scope', ['tenant', 'global'])
+                    ->whereNull('permissions.tenant_id')
+                    ->where('is_active', true);
+            })
+            ->exists();
+
+        if (! $directGlobalManage && ! $viaTenantRole) {
+            throw new DomainException(
+                'The tenant-scoped people.sensitive.view or people.manage permission is required to list Person documents.'
+            );
+        }
     }
 
     private function assertManagePermission(int $tenantId, User $actor): void
