@@ -430,6 +430,15 @@ final class FileService
                 parentFileId: $file->id
             );
 
+            // Apply only explicitly supplied lifecycle fields to the new version.
+            // The publication permission was checked before this branch.
+            foreach (['status', 'is_public'] as $lifecycleField) {
+                if (array_key_exists($lifecycleField, $data)) {
+                    $newVersion->{$lifecycleField} = $data[$lifecycleField];
+                }
+            }
+            $newVersion->save();
+
             // Archive the old version
             $file->status = 'archived';
             $file->save();
