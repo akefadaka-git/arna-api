@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use MaaleArna\MASES\Core\Domains\Finance\Services\ControlAccountOwnershipRegistry;
 use RuntimeException;
 
 /**
@@ -32,6 +33,11 @@ final class FinanceChartOfAccountsSeeder extends Seeder
         if (!Schema::hasTable('legal_entities') || !Schema::hasTable('ledger_accounts')) {
             throw new RuntimeException('ARNA CoA v1.0.0 requires legal_entities and ledger_accounts migrations.');
         }
+        foreach (['id', 'tenant_id', 'status'] as $column) {
+            if (!Schema::hasColumn('legal_entities', $column)) {
+                throw new RuntimeException("ARNA CoA v1.0.0 requires legal_entities.{$column}; verify the legal-entity schema before seeding.");
+            }
+        }
         foreach ($required as $column) {
             if (!Schema::hasColumn('ledger_accounts', $column)) {
                 throw new RuntimeException("ARNA CoA v1.0.0 requires ledger_accounts.{$column}; run migrations first.");
@@ -40,6 +46,11 @@ final class FinanceChartOfAccountsSeeder extends Seeder
 
         $register = require base_path('config/finance/chart_of_accounts_v1.php');
         $this->validateRegister($register);
+        // Validate control-account ownership before the first database write.
+        // Pending personnel designation is allowed for seeding, but the registry
+        // enforces that reconciliation adapters remain blocked until approval.
+        app(ControlAccountOwnershipRegistry::class)->validateAgainstChart($register);
+
         $entities = DB::table('legal_entities')->where('status', 'active')->orderBy('tenant_id')->orderBy('id')->get();
         if ($entities->isEmpty()) {
             throw new RuntimeException('ARNA CoA v1.0.0 found no active legal entities; no accounts were seeded.');
@@ -102,24 +113,32 @@ final class FinanceChartOfAccountsSeeder extends Seeder
     {
         $codes = [];
         foreach ($register as $row) {
-            if (count($row) !== 10) {
+            if (!is_array($row) || count($row) !== 10) {
                 throw new RuntimeException('Every CoA register row must contain exactly 10 fields.');
             }
+
             [$code, $parent, $en, $am, $type, $normal, $posting, $control, $domain, $tax] = $row;
-            if (isset($codes[$code])) {
-                throw new RuntimeException("Duplicate canonical CoA code: {$code}");
+            if (!is_string($code) || !preg_match('/^[0-9]{4}$/', $code) || isset($codes[$code])) {
+                throw new RuntimeException('Invalid or duplicate canonical CoA code: ' . (is_scalar($code) ? (string) $code : gettype($code)));
             }
-            if ($parent !== null && !isset($codes[$parent])) {
-                throw new RuntimeException("Parent {$parent} must precede child {$code} in the canonical register.");
+            if ($parent !== null && (!is_string($parent) || !isset($codes[$parent]))) {
+                throw new RuntimeException("Parent code for {$code} must be a preceding canonical account.");
             }
-            if (!in_array($type, ['asset', 'liability', 'equity', 'revenue', 'expense'], true)
+            if (!is_string($en) || trim($en) === '' || !is_string($am) || trim($am) === ''
+                || !is_string($domain) || trim($domain) === ''
+                || !in_array($type, ['asset', 'liability', 'equity', 'revenue', 'expense'], true)
                 || !in_array($normal, ['debit', 'credit'], true)
-                || !in_array($tax, ['taxable', 'non_taxable', 'exempt', 'zero_rated', 'out_of_scope', 'undetermined'], true)) {
-                throw new RuntimeException("Invalid type, normal balance, or tax category for CoA code {$code}.");
+                || !in_array($tax, ['taxable', 'non_taxable', 'exempt', 'zero_rated', 'out_of_scope', 'undetermined'], true)
+                || !is_bool($posting) || !is_bool($control)) {
+                throw new RuntimeException("Invalid required field, type, normal balance, posting/control flag, domain, or tax category for CoA code {$code}.");
             }
             if (!$posting && $control) {
                 throw new RuntimeException("Non-posting CoA code {$code} cannot be a control account.");
             }
+            if ($control && trim($domain) === '') {
+                throw new RuntimeException("Control account {$code} must declare a domain owner.");
+            }
+
             $codes[$code] = true;
         }
     }
