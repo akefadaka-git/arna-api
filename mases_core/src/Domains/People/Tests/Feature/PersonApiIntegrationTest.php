@@ -693,24 +693,24 @@ final class PersonApiIntegrationTest extends TestCase
             try {
                 $operation();
                 $this->fail('A People service must reject writes after tenant access is revoked.');
-            } catch (\\Symfony\\Component\\HttpKernel\\Exception\\HttpException $exception) {
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
                 $this->assertSame(404, $exception->getStatusCode());
             }
         };
 
-        $assertNotFound(fn () => app(\\MaaleArna\\MASES\\Core\\Domains\\People\\Services\\PersonContactPointService::class)->create(
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonContactPointService::class)->create(
             (int) $tenant->getKey(),
             $person,
             ['contact_type' => 'email', 'contact_value' => 'revoked@example.test', 'is_primary' => false],
             (int) $actor->getKey(),
         ));
-        $assertNotFound(fn () => app(\\MaaleArna\\MASES\\Core\\Domains\\People\\Services\\PersonParticipationService::class)->create(
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonParticipationService::class)->create(
             (int) $tenant->getKey(),
             $person,
             ['participation_type' => 'membership', 'title' => 'Must not persist', 'reason' => 'Testing revoked tenant access'],
             (int) $actor->getKey(),
         ));
-        $assertNotFound(fn () => app(\\MaaleArna\\MASES\\Core\\Domains\\People\\Services\\PersonRelationshipService::class)->create(
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonRelationshipService::class)->create(
             (int) $tenant->getKey(),
             $person,
             $related,
