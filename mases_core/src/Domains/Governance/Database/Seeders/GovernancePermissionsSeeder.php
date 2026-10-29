@@ -77,18 +77,15 @@ declare(strict_types=1);
  * =============================================================================
  * Correction of a prior statement
  * =============================================================================
- * Two messages in this session (the G1 file 6 delivery's status
- * block and the G1 file 5 delivery's status block) stated the
- * seeder would register "39 governance.* slugs". That was an
- * arithmetic error on this author's part. The correct count is 36,
- * matching the list in the master prompt §28 as refined during the
- * G0 assessment (which dropped `decision.*` pending the
- * Resolution-vs-Decision business decision, and unified every slug
- * under the `governance.` prefix). The 37-row total is what this
- * seeder writes.
+ * Historical baseline: the original G1 inventory contained 36
+ * tenant-scoped Governance permissions. This implementation adds
+ * `governance.election.vote` and `governance.election.certify`
+ * without assigning either permission to a role. The current source
+ * therefore contains 38 tenant-scoped Governance permissions and
+ * 39 total rows including `app.governance.access`.
  *
  * =============================================================================
- * The 36-slug inventory (by group)
+ * The current 38-slug inventory (by group)
  * =============================================================================
  * Grouped by the resource noun the slug addresses. Counts:
  *
@@ -113,7 +110,7 @@ declare(strict_types=1);
  *
  *     app.governance.access    1  (application-scoped launcher gate)
  *                              ──
- *                              37 total
+ *                              39 total
  *
  * The `verify` verb on the action group is the only verb in the
  * inventory that is not one of the four standard verbs (view,
@@ -251,7 +248,7 @@ declare(strict_types=1);
  *
  * The `application_id` lookup runs on every invocation and does not
  * itself write. A repeat run performs one extra read on
- * `platform_applications` and then the same 37 idempotent writes.
+ * `platform_applications` and then the same 39 idempotent writes.
  *
  * =============================================================================
  * How to run
@@ -266,7 +263,7 @@ declare(strict_types=1);
  *     php artisan db:seed \
  *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernanceApplicationSeeder"
  *
- *     # 2. Register the governance permissions (37 rows)
+ *     # 2. Register the governance permissions (39 rows)
  *     php artisan db:seed \
  *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernancePermissionsSeeder"
  *
@@ -298,12 +295,12 @@ declare(strict_types=1);
  *     php artisan tinker
  *     >>> \MaaleArna\MASES\Core\Authorization\Models\Permission
  *     ...     ::where('slug', 'like', 'governance.%')->count()
- *     => 36
+ *     => 38
  *     >>> \MaaleArna\MASES\Core\Authorization\Models\Permission
  *     ...     ::where('slug', 'app.governance.access')->value('application_id')
  *     => 8
  *
- * Expected: 36 tenant-scoped governance permissions and one
+ * Expected: 38 tenant-scoped governance permissions and one
  * application-scoped `app.governance.access` row pointing at
  * `application_id = 8`.
  *
@@ -311,7 +308,7 @@ declare(strict_types=1);
  * Files modified:            none (this is a new file)
  * Files added:               this file only
  * Files deleted:             none
- * Permissions added:         37 (36 tenant-scoped + 1 application-scoped)
+ * Permissions added:         39 (38 tenant-scoped + 1 application-scoped)
  * Roles modified:            none (G1 file 8)
  * Users modified:            none
  * =============================================================================
