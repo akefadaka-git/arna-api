@@ -41,10 +41,10 @@ return new class extends Migration
             $table->foreignId('organization_unit_id')->constrained('organization_units')->restrictOnDelete();
             $table->foreignId('governance_body_id')->constrained('governance_bodies')->restrictOnDelete();
             $table->foreignId('governance_position_id')->constrained('governance_positions')->restrictOnDelete();
-            $table->string('organization_code', 12);
+            $table->string('organization_code', 64);
             $table->string('document_type_code', 8);
-            $table->string('department_code', 12);
-            $table->string('issuing_role_code', 12);
+            $table->string('department_code', 64);
+            $table->string('issuing_role_code', 32);
             $table->unsignedSmallInteger('ec_year');
             $table->unsignedInteger('sequence_number');
             $table->string('canonical_number', 200);
