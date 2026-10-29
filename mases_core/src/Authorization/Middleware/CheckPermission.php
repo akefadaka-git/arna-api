@@ -49,7 +49,7 @@ final class CheckPermission
      *
      * @param Request $request
      * @param Closure $next
-     * @param string $permissionSlug The required permission slug.
+     * @param string $permissionSlug One required slug or pipe-separated alternatives (any one grants access).
      * @return mixed
      */
     public function handle(Request $request, Closure $next, string $permissionSlug): mixed
@@ -75,12 +75,19 @@ final class CheckPermission
         }
 
         // 2. PERMISSION CHECK
-        // The authorization service checks both direct user permissions and
-        // permissions inherited via roles. Tenant and application contexts are
-        // resolved automatically if not explicitly provided.
-        $hasPermission = $this->authService->hasPermission($permissionSlug, $user);
+        // A single slug preserves existing behavior. Pipe-separated slugs
+        // express an explicit any-of contract for routes allowing a read grant
+        // OR an existing management grant.
+        $permissionSlugs = array_values(array_filter(array_map('trim', explode('|', $permissionSlug))));
+        $hasPermission = false;
+        foreach ($permissionSlugs as $candidateSlug) {
+            if ($this->authService->hasPermission($candidateSlug, $user)) {
+                $hasPermission = true;
+                break;
+            }
+        }
 
-        // 3. DENY ACCESS IF PERMISSION IS MISSING
+        // 3. DENY ACCESS IF NO ALTERNATIVE PERMISSION IS HELD
         if (!$hasPermission) {
             Log::warning('CheckPermission: Permission denied.', [
                 'user_id' => $user->id,
@@ -93,7 +100,9 @@ final class CheckPermission
                 'success' => false,
                 'error' => [
                     'code' => 'AUTH_PERMISSION_DENIED',
-                    'message' => sprintf('Permission "%s" is required.', $permissionSlug),
+                    'message' => count($permissionSlugs) > 1
+                        ? sprintf('One of these permissions is required: %s.', implode(', ', $permissionSlugs))
+                        : sprintf('Permission "%s" is required.', $permissionSlug),
                 ],
             ], 403);
         }
