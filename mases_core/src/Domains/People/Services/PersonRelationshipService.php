@@ -30,7 +30,7 @@ final class PersonRelationshipService
                 ->where('relationship_type', $attributes['relationship_type'])
                 ->where('status', 'active')->lockForUpdate()->exists();
             if ($duplicate) {
-                throw ValidationException::withMessages(['related_public_id' => 'An active relationship of this type already exists.']);
+                abort(409, 'An active relationship of this type already exists.');
             }
 
             $record = new PersonRelationship();
