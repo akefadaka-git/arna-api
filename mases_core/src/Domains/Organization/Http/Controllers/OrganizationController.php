@@ -164,8 +164,18 @@ final class OrganizationController extends Controller
         $items = OrganizationAssignment::query()->where('tenant_id', $tenantId)
             ->where('organization_unit_id', $unit->id)
             ->whereHas('person.tenantAccesses', fn ($q) => $q->where('tenant_id', $tenantId)->where('status', 'active'))
+            ->when(isset($data['status']), fn ($q) => $q->where('status', $data['status']))
+            ->when(isset($data['person_id']), fn ($q) => $q->where('person_id', $data['person_id']))
+            ->when(isset($data['effective_on']), function ($q) use ($data): void {
+                $effectiveOn = Carbon::parse($data['effective_on'])->toDateString();
+                $q->whereDate('starts_on', '<=', $effectiveOn)
+                    ->where(function ($dates) use ($effectiveOn): void {
+                        $dates->whereNull('ends_on')->orWhereDate('ends_on', '>=', $effectiveOn);
+                    });
+            })
             ->with('person')
-            ->orderByDesc('starts_on')->paginate(min(max($request->integer('per_page', 25), 1), 100));
+            ->orderByDesc('starts_on')->orderByDesc('id')
+            ->paginate(min(max($request->integer('per_page', 25), 1), 100));
         return response()->json(['success' => true, 'data' => $items]);
     }
 
