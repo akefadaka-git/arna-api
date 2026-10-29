@@ -148,7 +148,7 @@ final class GovernanceElectionController extends Controller
                 }
                 DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->update([
                     'status' => 'voting_open', 'current_round' => $nextRound, 'winner_nomination_id' => null,
-                    'result_summary_json' => null, 'challenge_bylaw_reference' => null, 'challenge_window_ends_at' => null, 'updated_at' => now(),
+                    'result_summary_json' => null, 'challenge_bylaw_reference' => null, 'challenge_window_ends_at' => null,\n                    'challenge_window_evidence_reference' => null, 'challenge_window_verified_by' => null, 'challenge_window_verified_at' => null, 'updated_at' => now(),
                 ]);
                 $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'election.round_opened', [
                     'round_number' => $nextRound, 'round_type' => $transition === 'start_runoff' ? 'runoff' : 'rerun',
@@ -162,7 +162,7 @@ final class GovernanceElectionController extends Controller
             if ($election->status !== 'voting_closed' || !$election->winner_nomination_id || !$election->frozen_eligible_voter_count) {
                 throw new ConflictHttpException('Certification requires a completed, quorum-valid round with a majority winner.');
             }
-            if (blank($election->challenge_bylaw_reference) || !$election->challenge_window_ends_at) {
+            if (blank($election->challenge_bylaw_reference) || !$election->challenge_window_ends_at || blank($election->challenge_window_evidence_reference) || !$election->challenge_window_verified_at || !$election->challenge_window_verified_by) {
                 throw new ConflictHttpException('Certification is blocked until the approved bylaw/resolution clause and challenge-window deadline are recorded.');
             }
             if (now()->lt($election->challenge_window_ends_at)) throw new ConflictHttpException('The bylaw-defined challenge/appeal window has not expired.');
@@ -184,7 +184,7 @@ final class GovernanceElectionController extends Controller
                     'frozen_eligible_voter_count' => (int) $election->frozen_eligible_voter_count,
                     'result_summary' => json_decode((string) $election->result_summary_json, true),
                     'challenge_bylaw_reference' => $election->challenge_bylaw_reference,
-                    'challenge_window_ends_at' => $election->challenge_window_ends_at,
+                    'challenge_window_ends_at' => $election->challenge_window_ends_at,\n                    'challenge_window_evidence_reference' => $election->challenge_window_evidence_reference,\n                    'challenge_window_verified_by' => (int) $election->challenge_window_verified_by,\n                    'challenge_window_verified_at' => $election->challenge_window_verified_at,
                 ]);
             });
             return response()->json(['success' => true, 'data' => DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->first()]);
@@ -457,17 +457,44 @@ final class GovernanceElectionController extends Controller
         }
         $data = $request->validate([
             'bylaw_reference' => ['required', 'string', 'max:255'],
+            'evidence_reference' => ['required', 'string', 'max:500'],
             'window_ends_at' => ['required', 'date', 'after:now'],
         ]);
         DB::transaction(function () use ($tenant, $electionId, $data, $request): void {
             DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->update([
                 'challenge_bylaw_reference' => trim($data['bylaw_reference']),
                 'challenge_window_ends_at' => $data['window_ends_at'],
+                'challenge_window_evidence_reference' => trim($data['evidence_reference']),
+                'challenge_window_verified_by' => null, 'challenge_window_verified_at' => null,
                 'updated_at' => now(),
             ]);
             $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'election.challenge_window_recorded', [
-                'bylaw_reference' => trim($data['bylaw_reference']), 'window_ends_at' => $data['window_ends_at'],
+                'bylaw_reference' => trim($data['bylaw_reference']), 'evidence_reference' => trim($data['evidence_reference']), 'window_ends_at' => $data['window_ends_at'],
             ]);
+        });
+        return response()->json(['success' => true, 'data' => DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->first()]);
+    }
+
+    public function verifyChallengeWindow(Request $request, int $electionId): JsonResponse
+    {
+        $tenant = $this->tenantId();
+        $this->requirePermission($request, 'governance.election.challenge.review');
+        $election = $this->election($tenant, $electionId);
+        if ($election->status !== 'voting_closed' || blank($election->challenge_bylaw_reference) || blank($election->challenge_window_evidence_reference) || !$election->challenge_window_ends_at) {
+            throw new ConflictHttpException('A final result and source-backed challenge-window record are required before verification.');
+        }
+        $actorId = (int) $request->user()->getAuthIdentifier();
+        $administrativeActors = DB::table('governance_election_audit_events')->where('tenant_id', $tenant)->where('election_id', $electionId)
+            ->whereIn('event_type', ['election.created', 'election.transitioned', 'election.round_opened', 'election.round_closed', 'nomination.reviewed', 'voter.registered', 'election.challenge_window_recorded'])
+            ->whereNotNull('actor_id')->pluck('actor_id')->map(fn ($id): int => (int) $id)->unique()->all();
+        if ((int) ($election->created_by ?? 0) === $actorId || in_array($actorId, $administrativeActors, true)) {
+            throw new AccessDeniedHttpException('The challenge-window verifier must be independent of election administration.');
+        }
+        DB::transaction(function () use ($tenant, $electionId, $actorId, $request): void {
+            DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->update([
+                'challenge_window_verified_by' => $actorId, 'challenge_window_verified_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->audit($tenant, $electionId, $actorId, 'election.challenge_window_verified', ['verified' => true]);
         });
         return response()->json(['success' => true, 'data' => DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->first()]);
     }
@@ -478,7 +505,7 @@ final class GovernanceElectionController extends Controller
         $this->requirePermission($request, 'governance.election.challenge');
         $election = $this->election($tenant, $electionId);
         if ($election->status !== 'voting_closed') throw new ConflictHttpException('Challenges can be filed only against a final majority result before certification.');
-        if (blank($election->challenge_bylaw_reference) || !$election->challenge_window_ends_at) {
+        if (blank($election->challenge_bylaw_reference) || !$election->challenge_window_ends_at || blank($election->challenge_window_evidence_reference) || !$election->challenge_window_verified_at) {
             throw new ConflictHttpException('The applicable bylaw/resolution clause and filing deadline are not recorded.');
         }
         if (now()->gt($election->challenge_window_ends_at)) throw new ConflictHttpException('The bylaw-defined challenge/appeal window has expired.');
