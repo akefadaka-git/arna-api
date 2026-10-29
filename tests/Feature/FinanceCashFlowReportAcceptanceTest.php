@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
@@ -112,6 +113,57 @@ final class FinanceCashFlowReportAcceptanceTest extends TestCase
         $this->assertSame(0, $report['summary']['movement_count']);
     }
 
+    #[Test]
+    public function it_rejects_cash_flow_activity_without_a_classification_evidence_note(): void
+    {
+        [$tenant, $user, $entity, $cash, $revenue] = $this->fixture();
+        LedgerAccount::query()->whereKey($cash->id)->update(['is_cash_equivalent' => true]);
+
+        try {
+            $this->postCashJournal(
+                $tenant,
+                $user,
+                $entity,
+                $cash,
+                $revenue,
+                'JV-CF-MISSING-NOTE',
+                'cash-flow-missing-note-acceptance',
+                '8.0000',
+                '2026-10-15',
+                'operating',
+                null,
+            );
+            $this->fail('A classified cash movement must include its evidence note.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('lines.0.cash_flow_classification_note', $exception->errors());
+        }
+    }
+
+    #[Test]
+    public function it_rejects_unknown_cash_flow_activity_when_service_is_called_directly(): void
+    {
+        [$tenant, $user, $entity, $cash, $revenue] = $this->fixture();
+        LedgerAccount::query()->whereKey($cash->id)->update(['is_cash_equivalent' => true]);
+
+        try {
+            $this->postCashJournal(
+                $tenant,
+                $user,
+                $entity,
+                $cash,
+                $revenue,
+                'JV-CF-INVALID-ACTIVITY',
+                'cash-flow-invalid-activity-acceptance',
+                '9.0000',
+                '2026-10-15',
+                'miscellaneous',
+            );
+            $this->fail('The service must enforce the cash-flow enum even when HTTP validation is bypassed.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('lines.0.cash_flow_activity', $exception->errors());
+        }
+    }
+
     private function fixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
@@ -169,6 +221,7 @@ final class FinanceCashFlowReportAcceptanceTest extends TestCase
         string $amount,
         string $effectiveDate,
         ?string $activity,
+        ?string $classificationNote = 'Acceptance fixture classification',
     ): void {
         $cashLine = [
             'account_id' => $cash->id,
@@ -177,7 +230,9 @@ final class FinanceCashFlowReportAcceptanceTest extends TestCase
         ];
         if ($activity !== null) {
             $cashLine['cash_flow_activity'] = $activity;
-            $cashLine['cash_flow_classification_note'] = 'Acceptance fixture classification';
+            if ($classificationNote !== null) {
+                $cashLine['cash_flow_classification_note'] = $classificationNote;
+            }
         }
 
         $draft = app(JournalEntryService::class)->createDraft(
