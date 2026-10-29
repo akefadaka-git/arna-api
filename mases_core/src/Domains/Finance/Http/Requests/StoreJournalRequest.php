@@ -29,7 +29,9 @@ final class StoreJournalRequest extends FormRequest
             'lines.*.account_id' => ['required', 'integer', 'min:1'],
             'lines.*.debit_amount' => ['required', 'string', 'regex:/^\d{1,16}(?:\.\d{1,4})?$/'],
             'lines.*.credit_amount' => ['required', 'string', 'regex:/^\d{1,16}(?:\.\d{1,4})?$/'],
-            'lines.*.description' => ['nullable', 'string', 'max:500'],\n            'lines.*.cash_flow_activity' => ['nullable', 'string', Rule::in(array_column(CashFlowActivity::cases(), 'value'))],\n            'lines.*.cash_flow_classification_note' => ['nullable', 'string', 'max:1000'],
+            'lines.*.description' => ['nullable', 'string', 'max:500'],
+            'lines.*.cash_flow_activity' => ['nullable', 'string', Rule::in(array_column(CashFlowActivity::cases(), 'value'))],
+            'lines.*.cash_flow_classification_note' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }
