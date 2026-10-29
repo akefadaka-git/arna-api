@@ -21,6 +21,7 @@ final class PeopleMigrationDiscoveryTest extends TestCase {
    '2026_10_28_000001_create_person_document_links_table.php',
    '2026_10_28_000001_enforce_active_person_domain_uniqueness.php',
    '2026_10_28_000002_create_person_contact_points_table.php',
+   '2026_10_28_000002_create_person_contact_points_table.php',
    '2026_10_28_000003_create_person_relationships_table.php',
    '2026_10_28_000004_create_person_participations_table.php',
   ] as $migration) $this->assertFileExists($directory.DIRECTORY_SEPARATOR.$migration);
