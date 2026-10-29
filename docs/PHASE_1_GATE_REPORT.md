@@ -107,7 +107,7 @@ api.maalearna.com.et/
 │ ├── Config/mases.php # Central platform configuration
 │ ├── Events/AuthorizationFailureEvent # Structured denial signal
 │ ├── Exceptions/ # CoreException hierarchy
-│ ├── Files/ # File model + FileService
+│ ├── Domains/FileManagement/ # File model, service, controller, and routes
 │ ├── Listeners/LogAuthorizationFailure # Persists denials to security_events
 │ ├── Localization/
 │ │ ├── Calendar/ # EthiopianCalendar, EthiopianDate
