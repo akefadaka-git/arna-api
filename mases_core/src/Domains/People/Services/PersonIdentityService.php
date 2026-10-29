@@ -134,18 +134,35 @@ final class PersonIdentityService
         $this->assertReason($reason);
 
         DB::transaction(function () use ($tenantId, $personId, $actor, $reason): void {
+            // Use the same domain-record-before-Person lock direction as the
+            // link/unlink lifecycle methods. Lock in a fixed table order and
+            // only then lock the Person, avoiding the previous reverse-order
+            // cycle (Person -> domain row) against concurrent identity links.
+            $employees = DB::table('employees')
+                ->where('tenant_id', $tenantId)
+                ->where('person_id', $personId)
+                ->lockForUpdate()
+                ->get();
+            $shareholders = DB::table('shareholders')
+                ->where('tenant_id', $tenantId)
+                ->where('person_id', $personId)
+                ->lockForUpdate()
+                ->get();
+            $memberships = DB::table('governance_memberships')
+                ->where('tenant_id', $tenantId)
+                ->where('person_id', $personId)
+                ->lockForUpdate()
+                ->get();
+
             $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
             $this->assertPersonTenantAccess($tenantId, $person);
 
-            $linked = DB::table('employees')->where('tenant_id', $tenantId)->where('person_id', $personId)->exists()
-                || DB::table('shareholders')->where('tenant_id', $tenantId)->where('person_id', $personId)->exists()
-                || DB::table('governance_memberships')->where('tenant_id', $tenantId)->where('person_id', $personId)->exists();
-
-            if ($linked) {
+            if ($employees->isNotEmpty() || $shareholders->isNotEmpty() || $memberships->isNotEmpty()) {
                 throw new DomainException('Unlink tenant domain records before revoking Person visibility.');
             }
 
             DB::table('person_tenant_accesses')->where('tenant_id', $tenantId)->where('person_id', $personId)
+                ->where('status', 'active')
                 ->update(['status' => 'revoked', 'updated_at' => now()]);
             $this->recordEvent('person.tenant_access_revoked', $tenantId, $actor, $person, ['reason' => $reason]);
         });
