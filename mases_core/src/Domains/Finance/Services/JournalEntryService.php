@@ -172,6 +172,8 @@ final class JournalEntryService
                         'description' => isset($line['description']) ? trim((string) $line['description']) : null,
                         'debit_amount' => $debit,
                         'credit_amount' => $credit,
+                        'cash_flow_activity' => $cashFlowActivity,
+                        'cash_flow_classification_note' => isset($line['cash_flow_classification_note']) ? trim((string) $line['cash_flow_classification_note']) : null,
                     ]);
                 }
 
