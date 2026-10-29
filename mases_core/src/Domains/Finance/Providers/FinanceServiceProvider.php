@@ -51,7 +51,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(LedgerAccountService::class);
         $this->app->singleton(AccountingPeriodService::class);
         $this->app->singleton(TrialBalanceService::class);
-        $this->app->singleton(FinancialReportService::class);
+        $this->app->singleton(FinancialReportService::class);\n        $this->app->singleton(CashFlowReportContract::class, CashFlowReportService::class);
         $this->app->singleton(SubledgerIntegrationService::class);
         $this->app->singleton(SourceLegalEntityMappingContract::class, SourceLegalEntityMappingService::class);
     }
