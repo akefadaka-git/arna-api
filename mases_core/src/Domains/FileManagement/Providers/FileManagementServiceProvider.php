@@ -33,6 +33,10 @@ final class FileManagementServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // File schema is owned by this domain. The migration filename remains
+        // unchanged so already-migrated installations do not rerun it.
+        $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
+
         $routesPath = __DIR__ . '/../Routes/api.php';
 
         if (is_file($routesPath)) {
