@@ -41,14 +41,17 @@ final class GovernanceMeetingWorkflowController extends Controller
         if ($governanceMeeting->status !== 'draft') {
             throw new ConflictHttpException('Agenda can only be edited while the meeting is a draft.');
         }
-        $id = DB::table('governance_meeting_agenda_items')->insertGetId([
-            'tenant_id' => $this->tenantId(), 'meeting_id' => $governanceMeeting->id,
-            'position' => $data['position'], 'title_am' => $data['title_am'] ?? null,
-            'title_en' => $data['title_en'] ?? null, 'description' => $data['description'] ?? null,
-            'status' => 'pending', 'created_by' => (int) $request->user()->getAuthIdentifier(),
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
-        $this->audit($governanceMeeting, (int) $request->user()->getAuthIdentifier(), 'agenda_item.created', null, ['agenda_item_id' => $id] + $data);
+        $actor = (int) $request->user()->getAuthIdentifier();
+        $id = DB::transaction(function () use ($data, $governanceMeeting, $actor): int {
+            $id = DB::table('governance_meeting_agenda_items')->insertGetId([
+                'tenant_id' => $this->tenantId(), 'meeting_id' => $governanceMeeting->id,
+                'position' => $data['position'], 'title_am' => $data['title_am'] ?? null,
+                'title_en' => $data['title_en'] ?? null, 'description' => $data['description'] ?? null,
+                'status' => 'pending', 'created_by' => $actor, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->audit($governanceMeeting, $actor, 'agenda_item.created', null, ['agenda_item_id' => $id] + $data);
+            return $id;
+        });
         return response()->json(['success' => true, 'data' => DB::table('governance_meeting_agenda_items')->where('id', $id)->first()], 201);
     }
 
@@ -91,9 +94,9 @@ final class GovernanceMeetingWorkflowController extends Controller
                     'governance_membership_id' => $membership->id, 'created_at' => now(),
                 ]);
             }
+            $this->audit($governanceMeeting, $actor, 'attendance.recorded', null, ['membership_id' => $membership->id, 'status' => $data['attendance_status']]);
             return DB::table('governance_meeting_attendance')->where('id', $id)->first();
         });
-        $this->audit($governanceMeeting, $actor, 'attendance.recorded', null, ['membership_id' => $membership->id, 'status' => $data['attendance_status']]);
         return response()->json(['success' => true, 'data' => $row]);
     }
 
@@ -119,12 +122,14 @@ final class GovernanceMeetingWorkflowController extends Controller
             })->whereIn('a.attendance_status', ['present', 'remote'])->count();
         $threshold = max(1, (int) ceil($eligible * 0.5));
         $snapshot = ['rule' => 'active_members_at_evaluation', 'eligible_voting_members' => $eligible, 'present_voting_members' => $present, 'threshold_percent' => 50, 'threshold_count' => $threshold, 'quorum_met' => $eligible > 0 && $present >= $threshold, 'evaluated_at' => now()->toIso8601String()];
-        DB::table('governance_meetings')->where('tenant_id', $tenantId)->where('id', $governanceMeeting->id)->update([
-            'quorum_snapshot_json' => json_encode($snapshot, JSON_THROW_ON_ERROR),
-            'quorum_rule_snapshot' => json_encode(['eligible_basis' => 'active_governance_memberships_with_is_voting_member_true', 'threshold_percent' => 50], JSON_THROW_ON_ERROR),
-            'quorum_met' => $snapshot['quorum_met'], 'updated_at' => now(),
-        ]);
-        $this->audit($governanceMeeting, (int) $request->user()->getAuthIdentifier(), 'quorum.evaluated', null, $snapshot);
+        DB::transaction(function () use ($tenantId, $governanceMeeting, $request, $snapshot): void {
+            DB::table('governance_meetings')->where('tenant_id', $tenantId)->where('id', $governanceMeeting->id)->update([
+                'quorum_snapshot_json' => json_encode($snapshot, JSON_THROW_ON_ERROR),
+                'quorum_rule_snapshot' => json_encode(['eligible_basis' => 'active_governance_memberships_with_is_voting_member_true_effective_on_meeting_date', 'threshold_percent' => 50], JSON_THROW_ON_ERROR),
+                'quorum_met' => $snapshot['quorum_met'], 'updated_at' => now(),
+            ]);
+            $this->audit($governanceMeeting, (int) $request->user()->getAuthIdentifier(), 'quorum.evaluated', null, $snapshot);
+        });
         return response()->json(['success' => true, 'data' => $snapshot]);
     }
 
