@@ -53,7 +53,7 @@ final class OrganizationController extends Controller
         if (is_string($request->input('code'))) {
             $request->merge(['code' => strtoupper($request->input('code'))]);
         }
-        $data = $request->validate(OrganizationRequestRules::storeUnit($tenantId));;
+        $data = $request->validate(OrganizationRequestRules::storeUnit($tenantId));
         $this->assertName($data);
 
         $unit = DB::transaction(function () use ($data, $tenantId, $request): OrganizationUnit {
@@ -90,7 +90,7 @@ final class OrganizationController extends Controller
         if ($request->exists('code') && is_string($request->input('code'))) {
             $request->merge(['code' => strtoupper($request->input('code'))]);
         }
-        $data = $request->validate(OrganizationRequestRules::updateUnit($this->tenantId(), (int) $unit->id));;
+        $data = $request->validate(OrganizationRequestRules::updateUnit($this->tenantId(), (int) $unit->id));
         $this->assertName(array_merge($unit->only(['name_am', 'name_en']), $data));
         $tenantId = $this->tenantId();
 
@@ -107,6 +107,14 @@ final class OrganizationController extends Controller
             $type = $data['unit_type'] ?? $locked->unit_type;
             $this->assertParentType($type, $parent);
             $this->assertSubtreeCompatible($locked, $type, $tenantId);
+
+            $nextStatus = $data['status'] ?? $locked->status;
+            if ($nextStatus === 'inactive' && $locked->status !== 'inactive'
+                && ($locked->children()->whereNull('deleted_at')->exists()
+                    || $locked->assignments()->whereNull('deleted_at')->where('status', 'active')->exists())) {
+                throw new ConflictHttpException('Units with active children or assignments cannot be deactivated.');
+            }
+
             $changes = array_intersect_key($data, array_flip(['unit_type', 'name_am', 'name_en', 'status']));
             if (array_key_exists('code', $data)) {
                 $changes['code'] = strtoupper($data['code']);
@@ -166,7 +174,7 @@ final class OrganizationController extends Controller
         abort_unless($this->assignmentPolicy->create($request->user()), 403, 'Assignment creation is not authorized.');
         $unit = $this->unit($id);
         abort_unless($unit->status === 'active', 409, 'Assignments can only be made to active units.');
-        $data = $request->validate(OrganizationRequestRules::storeAssignment());;
+        $data = $request->validate(OrganizationRequestRules::storeAssignment());
         $assignment = DB::transaction(function () use ($unit, $data, $request): OrganizationAssignment {
             $tenantId = $this->tenantId();
             $lockedUnit = OrganizationUnit::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($unit->id);
@@ -203,7 +211,7 @@ final class OrganizationController extends Controller
         abort_unless($user && $this->unitPolicy->viewAudit($user), 403, 'Organization audit access is not authorized.');
 
         $tenantId = $this->tenantId();
-        $data = $request->validate(OrganizationRequestRules::auditEvents());;
+        $data = $request->validate(OrganizationRequestRules::auditEvents());
 
         $events = OrganizationAuditEvent::query()
             ->where('tenant_id', $tenantId)
@@ -222,7 +230,7 @@ final class OrganizationController extends Controller
     {
         $item = OrganizationAssignment::query()->where('tenant_id', $this->tenantId())->findOrFail($id);
         abort_unless($this->assignmentPolicy->update($request->user(), (int) $item->tenant_id), 403, 'Assignment update is not authorized.');
-        $data = $request->validate(OrganizationRequestRules::updateAssignment());;
+        $data = $request->validate(OrganizationRequestRules::updateAssignment());
         DB::transaction(function () use ($item, $data, $request): void {
             $locked = OrganizationAssignment::query()->where('tenant_id', $this->tenantId())->lockForUpdate()->findOrFail($item->id);
             $before = $locked->toArray();
