@@ -173,7 +173,7 @@ final class OrganizationController extends Controller
                         $dates->whereNull('ends_on')->orWhereDate('ends_on', '>=', $effectiveOn);
                     });
             })
-            ->with('person')
+            ->with(['person:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en'])
             ->orderByDesc('starts_on')->orderByDesc('id')
             ->paginate(min(max($request->integer('per_page', 25), 1), 100));
         return response()->json(['success' => true, 'data' => $items]);
