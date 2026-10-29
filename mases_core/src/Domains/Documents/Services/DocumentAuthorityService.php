@@ -85,15 +85,21 @@ final class DocumentAuthorityService
         }
 
         $roleCode = strtoupper(trim($roleCode));
-        $position = GovernancePosition::query()
+        // Governance position codes are unique per body, not tenant-wide.
+        // Until a canonical body-qualified role code is part of the number
+        // contract, reject ambiguous role-code matches rather than choosing
+        // an arbitrary authority scope.
+        $positions = GovernancePosition::query()
             ->where('tenant_id', $tenantId)
             ->where('code', $roleCode)
             ->where('is_active', true)
             ->whereNull('deleted_at')
-            ->first();
-        if (!$position) {
-            throw ValidationException::withMessages(['issuing_role_code' => ['Issuing role must match an active Governance position in the validated tenant.']]);
+            ->limit(2)
+            ->get();
+        if ($positions->count() !== 1) {
+            throw ValidationException::withMessages(['issuing_role_code' => ['Issuing role code must resolve to exactly one active Governance position in this tenant; ambiguous or missing codes fail closed.']]);
         }
+        $position = $positions->first();
 
         $body = GovernanceBody::query()
             ->where('tenant_id', $tenantId)
