@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\People\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\People\Events\PersonProfileLifecycleChanged;
 use MaaleArna\MASES\Core\Domains\People\Http\Requests\DeactivatePersonRecordRequest;
 use MaaleArna\MASES\Core\Domains\People\Http\Requests\StorePersonRelationshipRequest;
@@ -19,14 +20,20 @@ final class PersonRelationshipController extends Controller {
  public function store(StorePersonRelationshipRequest $request,string $publicId,PersonRelationshipService $service): JsonResponse {
   $tenantId=$this->tenantId(); $person=$this->visiblePerson($publicId,$tenantId); $attributes=$request->validated();
   $related=$this->visiblePerson($attributes['related_public_id'],$tenantId);
-  $record=$service->create($tenantId,$person,$related,$attributes,$request->user()?->getKey());
-  event(new PersonProfileLifecycleChanged('people.relationship.created',$tenantId,(int)$person->getKey(),$request->user()?->getKey(),'relationship',(int)$record->getKey()));
+  $record=DB::transaction(function () use ($service,$tenantId,$person,$related,$attributes,$request): PersonRelationship {
+   $record=$service->create($tenantId,$person,$related,$attributes,$request->user()?->getKey());
+   event(new PersonProfileLifecycleChanged('people.relationship.created',$tenantId,(int)$person->getKey(),$request->user()?->getKey(),'relationship',(int)$record->getKey()));
+   return $record;
+  });
   return response()->json(['success'=>true,'data'=>(new PersonRelationshipResource($record))->resolve()],201);
  }
  public function deactivate(DeactivatePersonRecordRequest $request,string $publicId,int $relationshipId,PersonRelationshipService $service): JsonResponse {
   $tenantId=$this->tenantId(); $person=$this->visiblePerson($publicId,$tenantId);
-  $record=$service->deactivate($tenantId,$person,$relationshipId,$request->validated()['reason']);
-  event(new PersonProfileLifecycleChanged('people.relationship.deactivated',$tenantId,(int)$person->getKey(),$request->user()?->getKey(),'relationship',(int)$record->getKey()));
+  $record=DB::transaction(function () use ($service,$tenantId,$person,$relationshipId,$request): PersonRelationship {
+   $record=$service->deactivate($tenantId,$person,$relationshipId,$request->validated()['reason']);
+   event(new PersonProfileLifecycleChanged('people.relationship.deactivated',$tenantId,(int)$person->getKey(),$request->user()?->getKey(),'relationship',(int)$record->getKey()));
+   return $record;
+  });
   return response()->json(['success'=>true,'data'=>(new PersonRelationshipResource($record))->resolve()]);
  }
  private function tenantId(): int { $tenantId=mases_tenant_id(); abort_if($tenantId===null,400,'A validated tenant context is required.'); return (int)$tenantId; }
