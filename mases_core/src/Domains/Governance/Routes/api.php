@@ -599,4 +599,13 @@ Route::name('api.governance.')->group(static function (): void {
     Route::post('/meetings/{governanceMeeting}/quorum/evaluate', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'evaluateQuorum'])->whereNumber('governanceMeeting')->name('meetings.quorum.evaluate');
     Route::get('/meetings/{governanceMeeting}/audit-events', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'auditEvents'])->whereNumber('governanceMeeting')->name('meetings.audit.index');
 
+    // Separate Governance election workflow; no election-specific code is placed in Organization.
+    Route::get('/elections', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'index'])->name('elections.index');
+    Route::post('/elections', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'store'])->name('elections.store');
+    Route::post('/elections/{electionId}/nominations', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'nominate'])->whereNumber('electionId')->name('elections.nominations.store');
+    Route::post('/elections/{electionId}/transition', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'transition'])->whereNumber('electionId')->name('elections.transition');
+    Route::post('/elections/{electionId}/voters', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'registerVoter'])->whereNumber('electionId')->name('elections.voters.store');
+    Route::post('/elections/{electionId}/ballots', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'castBallot'])->whereNumber('electionId')->name('elections.ballots.store');
+    Route::get('/elections/{electionId}/results', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'results'])->whereNumber('electionId')->name('elections.results');
+
 });
