@@ -20,6 +20,8 @@ use MaaleArna\MASES\Core\Domains\People\Http\Requests\LinkPersonAccountRequest;
 use MaaleArna\MASES\Core\Domains\People\Http\Requests\LinkPersonDomainRecordRequest;
 use MaaleArna\MASES\Core\Domains\People\Http\Requests\LinkPersonDocumentRequest;
 use MaaleArna\MASES\Core\Domains\People\Http\Requests\UnlinkPersonDocumentRequest;
+use MaaleArna\MASES\Core\Domains\People\Http\Resources\PersonProfileResource;
+use MaaleArna\MASES\Core\Domains\People\Http\Resources\PersonDocumentLinkResource;
 
 final class PersonController extends Controller
 {
@@ -222,10 +224,13 @@ final class PersonController extends Controller
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $person = $this->visiblePerson($publicId, (int) $tenantId);
 
-        return response()->json([
-            'success' => true,
-            'data' => $identities->listDocuments((int) $tenantId, (int) $person->getKey(), request()->user()),
-        ]);
+        $documents = $identities->listDocuments((int) $tenantId, (int) $person->getKey(), request()->user());
+        $data = array_map(
+            static fn (array $document): array => (new PersonDocumentLinkResource($document))->resolve(),
+            $documents,
+        );
+
+        return response()->json(['success' => true, 'data' => $data]);
     }
 
     public function linkDocument(LinkPersonDocumentRequest $request, string $publicId, PersonIdentityService $identities): JsonResponse
@@ -605,17 +610,5 @@ final class PersonController extends Controller
      */
     private static function present(Person $person): array
     {
-        return [
-            'public_id' => $person->public_id,
-            'first_name_am' => $person->first_name_am,
-            'father_name_am' => $person->father_name_am,
-            'grandfather_name_am' => $person->grandfather_name_am,
-            'first_name_en' => $person->first_name_en,
-            'father_name_en' => $person->father_name_en,
-            'grandfather_name_en' => $person->grandfather_name_en,
-            'status' => $person->status,
-            'created_at' => $person->created_at?->toIso8601String(),
-            'updated_at' => $person->updated_at?->toIso8601String(),
-        ];
-    }
-}
+        return (new PersonProfileResource($person))->resolve();
+    }}
