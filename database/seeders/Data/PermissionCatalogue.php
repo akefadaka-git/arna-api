@@ -7,7 +7,7 @@ namespace Database\Seeders\Data;
 /**
  * PermissionCatalogue
  *
- * The platform's forty permissions — the atomic capabilities
+ * The platform's fifty-three permissions — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -136,7 +136,7 @@ namespace Database\Seeders\Data;
 final class PermissionCatalogue
 {
     /**
-     * The forty platform permissions, in source order.
+     * The fifty-three platform permissions, in source order.
      *
      * Each row is an associative array with the six keys documented
      * in the class docblock. The order below is preserved verbatim
@@ -184,6 +184,8 @@ final class PermissionCatalogue
         ['slug' => 'tenant.update', 'name_am' => 'ቴናንት ማዘመን',        'name_en' => 'Update Tenant',  'category' => 'tenant', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'tenant.delete', 'name_am' => 'ቴናንት መሰረዝ',        'name_en' => 'Delete Tenant',  'category' => 'tenant', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'test.permission', 'name_am' => 'ፈቃድ መሞከር', 'name_en' => 'Test Permission', 'category' => 'test', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'people.view', 'name_am' => 'የሰዎች መገለጫዎችን ማየት', 'name_en' => 'View People Profiles', 'category' => 'user', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'people.sensitive.view', 'name_am' => 'ስሱ የሰዎች መረጃዎችን ማየት', 'name_en' => 'View Sensitive People Records', 'category' => 'user', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'people.manage', 'name_am' => 'የሰው መገለጫዎችን ማስተዳደር', 'name_en' => 'Manage People Profiles', 'category' => 'user', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'people.account-link.manage', 'name_am' => 'የሰው መገለጫና መለያ ግንኙነትን ማስተዳደር', 'name_en' => 'Manage Global Person Account Links', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'people.tenant-access.manage', 'name_am' => 'የሰው መገለጫን በቴናንት መካከል መፍቀድ', 'name_en' => 'Manage Global Person Tenant Access', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
