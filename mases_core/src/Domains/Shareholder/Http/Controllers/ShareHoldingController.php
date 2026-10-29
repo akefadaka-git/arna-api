@@ -108,6 +108,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use MaaleArna\MASES\Core\Audit\Services\AuditService;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Shareholder\Http\Requests\StoreShareHoldingRequest;
 use MaaleArna\MASES\Core\Domains\Shareholder\Http\Resources\ShareHoldingResource;
@@ -384,6 +385,18 @@ final class ShareHoldingController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
+        app(AuditService::class)->log(
+            action: 'share_holding.read.list',
+            data: [
+                'access_scope' => 'policy-authorized',
+                'result_count' => $holdings->count(),
+            ],
+            user: $request->user(),
+            tenantId: $tenantId,
+            resourceType: Shareholder::class,
+            resourceId: (string) $shareholder->getKey(),
+        );
+
         return response()->json([
             'success' => true,
             'data'    => ShareHoldingResource::collection($holdings)->resolve(),
@@ -422,6 +435,15 @@ final class ShareHoldingController extends Controller
         Gate::authorize('view', $shareHolding);
 
         $shareHolding->loadMissing(['shareholder', 'shareClass', 'entries']);
+
+        app(AuditService::class)->log(
+            action: 'share_holding.read.view',
+            data: ['access_scope' => 'policy-authorized'],
+            user: $request->user(),
+            tenantId: $tenantId,
+            resourceType: ShareHolding::class,
+            resourceId: (string) $shareHolding->getKey(),
+        );
 
         return response()->json([
             'success' => true,
