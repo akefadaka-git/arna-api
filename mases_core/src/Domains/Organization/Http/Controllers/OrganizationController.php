@@ -160,7 +160,7 @@ final class OrganizationController extends Controller
         $unit = $this->unit($id);
         abort_unless($this->unitPolicy->view($request->user(), $unit), 403, 'Organization unit access is not authorized.');
         $tenantId = $this->tenantId();
-        $request->validate(OrganizationRequestRules::listAssignments());
+        $data = $request->validate(OrganizationRequestRules::listAssignments());
         $items = OrganizationAssignment::query()->where('tenant_id', $tenantId)
             ->where('organization_unit_id', $unit->id)
             ->whereHas('person.tenantAccesses', fn ($q) => $q->where('tenant_id', $tenantId)->where('status', 'active'))
