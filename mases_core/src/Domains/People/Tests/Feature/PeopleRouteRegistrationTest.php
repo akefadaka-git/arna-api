@@ -10,7 +10,7 @@ final class PeopleRouteRegistrationTest extends TestCase {
   $route=Route::getRoutes()->getByName('api.people.index');
   $this->assertNotNull($route);
   $this->assertSame('api/people',trim($route->uri(),'/'));
-  $this->assertContains('auth:sanctum',$route->gatherMiddleware());
+  $this->assertContains('auth:sanctum',$route->middleware());
   $this->assertContains('tenant.membership',$route->gatherMiddleware());
  }
  #[Test]
