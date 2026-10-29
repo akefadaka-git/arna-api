@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Illuminate\\Support\\Facades\\Route;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Controllers\\YearEndCloseReadinessController;
+use Illuminate\Support\Facades\Route;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\YearEndCloseReadinessController;
 
 /*
  * Phase 3 reporting/control endpoint. Read-only; the finance provider loads
