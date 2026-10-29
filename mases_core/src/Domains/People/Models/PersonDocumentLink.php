@@ -6,7 +6,7 @@ namespace MaaleArna\MASES\Core\Domains\People\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use MaaleArna\MASES\Core\Files\Models\File;
+use MaaleArna\MASES\Core\Domains\FileManagement\Models\File;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 
