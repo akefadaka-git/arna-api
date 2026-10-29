@@ -85,3 +85,21 @@ After the initial execution log was committed, source-level review identified an
 The change set is available in [draft PR #45](https://github.com/akefadaka-git/arna-api/pull/45), stacked on `feat/finance-accounting-completion-reporting`. PR #45 head at creation: `3d8731333f853267bdb081923e2a91903f3d07d0`; base: `f5359467d131aebbfc11c6806793b1e77cfad97d`. GitHub currently reports the PR as open/draft and `mergeable: false`; do not merge. The exact head was queried after PR creation and returned zero workflow runs and zero commit status checks. CI remains NOT RUN.
 
 This follow-up does not close Phase 0. The full PR ancestry/file-overlap reconciliation and exhaustive workflow inventory remain open. All generated acceptance tests are still NOT RUN.
+
+
+## 7. PR changed-file overlap evidence
+
+A read-only changed-filename comparison was completed for PRs #39, #40, #42, #43, #44, and #45:
+
+| PR | Changed files | Overlap finding |
+|---|---:|---|
+| #39 | 81 | Finance foundation and canonical CoA |
+| #40 | 80 | **80 of 80 changed paths overlap PR #39**; the two PRs are near-duplicate change sets and must not both be merged blindly |
+| #42 | 6 | Shares the Finance service-provider file with #39, #40, and #43 |
+| #43 | 17 | Shares 10 paths with #39 and 9 with #40, including the controller, routes, report contract/service, journal service/request, provider, and Finance tests |
+| #44 | 1 | Roadmap documentation only |
+| #45 | 9 | Stacked on #43's reporting branch; overlaps #39/#40 on the journal service and request contract, and #43 on cash-flow docs plus those same source files |
+
+This establishes file-level overlap, not identical content or merge safety. The complete reconciliation must still inspect the exact base/head SHAs and diffs for each PR, distinguish already-integrated versus unmerged commits, and determine the canonical branch sequence. PR #45 is an open draft; GitHub reports `mergeable: false`. Do not merge any of these PRs as part of Phase 0.
+
+Workflow inventory remains search-derived: 18 files containing `actions/checkout` and 15 files with a `pull_request:` trigger were found on the observed main baseline. The examined workflows use named branches and/or path filters; none of the reviewed trigger declarations targeted the new PR's feature-branch base. This does not guarantee every repository automation has been enumerated. Latest reviewed head before this log update: `3d8731333f853267bdb081923e2a91903f3d07d0`; workflow-run and commit-status queries returned zero items. CI remains NOT RUN.
