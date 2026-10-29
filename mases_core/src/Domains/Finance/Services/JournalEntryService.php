@@ -160,7 +160,7 @@ final class JournalEntryService
 
                     $cashFlowActivity = $line['cash_flow_activity'] ?? null;
                     if ($cashFlowActivity !== null && !(bool) $account->is_cash_equivalent) {
-                        throw ValidationException::withMessages([\"lines.{$index}.cash_flow_activity\" => 'Cash-flow activity may only be assigned to an account approved as a cash equivalent.']);
+                        throw ValidationException::withMessages(["lines.{$index}.cash_flow_activity" => 'Cash-flow activity may only be assigned to an account approved as a cash equivalent.']);
                     }
 
                     JournalLine::query()->create([
