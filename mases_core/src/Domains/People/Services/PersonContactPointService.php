@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\People\Services;
 
 use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonContactPoint;
@@ -13,6 +15,7 @@ final class PersonContactPointService
 {
     public function create(int $tenantId, Person $person, array $attributes, ?int $actorId): PersonContactPoint
     {
+        $this->assertManagePermission($tenantId);
         $value = trim((string) $attributes['contact_value']);
         $type = (string) $attributes['contact_type'];
         $normalized = match ($type) {
@@ -93,6 +96,7 @@ final class PersonContactPointService
 
     public function deactivate(int $tenantId, Person $person, int $contactId, string $reason): PersonContactPoint
     {
+        $this->assertManagePermission($tenantId);
         return DB::transaction(function () use ($tenantId, $person, $contactId, $reason): PersonContactPoint {
             $lockedPerson = Person::query()->whereKey($person->getKey())
                 ->where('status', 'active')->lockForUpdate()->firstOrFail();
@@ -116,5 +120,19 @@ final class PersonContactPointService
 
             return $contact;
         });
+    }
+
+    private function assertManagePermission(int $tenantId): void
+    {
+        $actor = auth()->user();
+        if (! $actor instanceof User) {
+            abort(401, 'Authentication is required for People-domain mutations.');
+        }
+
+        app(AuthorizationService::class)->requirePermission(
+            user: $actor,
+            permissionSlug: 'people.manage',
+            tenantId: $tenantId
+        );
     }
 }
