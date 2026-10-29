@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Documents\Models\Document;
+use MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry;
+use Illuminate\Validation\Rule;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentIssuanceService;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Illuminate\Routing\Controller;
@@ -24,7 +26,7 @@ final class DocumentController extends Controller
         $validated = $request->validate([
             'legal_entity_id' => ['required', 'integer', 'min:1'],
             'organization_code' => ['required', 'string', 'regex:/^[A-Z0-9]{2,12}$/'],
-            'document_type_code' => ['required', 'string', 'in:LET,MEM,LEG,INV,CER,RES,CIR,RPT,CON,NOT,POL'],
+            'document_type_code' => ['required', 'string', Rule::in(DocumentTypeRegistry::CODES)],
             'department_code' => ['required', 'string', 'regex:/^[A-Z0-9]{2,12}$/'],
             'issuing_role_code' => ['required', 'string', 'regex:/^[A-Z0-9]{2,12}$/'],
             'title' => ['required', 'string', 'min:1', 'max:255'],
