@@ -51,6 +51,16 @@ return new class extends Migration {
             $table->unique(['election_id', 'governance_membership_id'], 'gov_election_voter_uq');
             $table->index(['tenant_id', 'election_id', 'cast_at'], 'gov_election_voter_cast_idx');
         });
+        Schema::create('governance_election_audit_events', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->foreignId('election_id')->constrained('governance_elections')->restrictOnDelete();
+            $table->foreignId('actor_id')->nullable()->constrained('users')->restrictOnDelete();
+            $table->string('event_type', 64);
+            $table->json('metadata')->nullable();
+            $table->timestamp('occurred_at');
+            $table->index(['tenant_id', 'election_id', 'occurred_at'], 'gov_election_audit_timeline_idx');
+        });
         Schema::create('governance_election_ballots', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
@@ -64,6 +74,7 @@ return new class extends Migration {
 
     public function down(): void
     {
+        Schema::dropIfExists('governance_election_audit_events');
         Schema::dropIfExists('governance_election_ballots');
         Schema::dropIfExists('governance_election_eligible_voters');
         Schema::dropIfExists('governance_election_nominations');
