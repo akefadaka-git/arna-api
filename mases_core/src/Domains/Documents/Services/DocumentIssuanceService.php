@@ -120,6 +120,23 @@ final class DocumentIssuanceService
                 return $existing;
             }
 
+            // Re-lock and revalidate the exact file row in the issuance
+            // transaction so publication/version cannot change between the
+            // preflight check and permanent document-number allocation.
+            $lockedFile = DB::table('files')
+                ->where('id', $payload['file_id'])
+                ->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')
+                ->lockForUpdate()
+                ->first(['id', 'version', 'status']);
+
+            if ($lockedFile === null || $lockedFile->status !== 'published') {
+                throw new ConflictHttpException('The linked file is no longer published in the active tenant.');
+            }
+            if ((int) $lockedFile->version !== (int) $payload['file_version']) {
+                throw new ConflictHttpException('The linked file version changed during issuance; retry against the current published version.');
+            }
+
             $scope = [
                 'tenant_id' => $tenantId,
                 'legal_entity_id' => $payload['legal_entity_id'],
