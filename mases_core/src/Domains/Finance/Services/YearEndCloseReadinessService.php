@@ -74,7 +74,7 @@ final class YearEndCloseReadinessService
         try {
             $this->ownershipRegistry->validateAgainstChart(config('finance.chart_of_accounts_v1', []));
             $ownershipRegisterValid = true;
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             $ownershipRegisterValid = false;
         }
 
