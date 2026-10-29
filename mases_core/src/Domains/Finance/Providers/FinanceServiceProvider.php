@@ -34,6 +34,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\CashFlowReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\CashFlowReportContract;
+use MaaleArna\MASES\Core\Domains\Finance\Services\YearEndCloseReadinessService;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LedgerAccountRepository;
@@ -55,6 +56,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(TrialBalanceService::class);
         $this->app->singleton(FinancialReportService::class);
         $this->app->singleton(CashFlowReportContract::class, CashFlowReportService::class);
+        $this->app->singleton(YearEndCloseReadinessService::class);
         $this->app->singleton(SubledgerIntegrationService::class);
         $this->app->singleton(SourceLegalEntityMappingContract::class, SourceLegalEntityMappingService::class);
     }
@@ -62,11 +64,14 @@ final class FinanceServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadTranslationsFrom(__DIR__ . '/../Resources/lang', 'finance');
+        $this->loadRoutesFrom(base_path('routes/finance-phase3.php'));
+
         Gate::policy(LegalEntity::class, LegalEntityPolicy::class);
         Gate::policy(LedgerAccount::class, LedgerAccountPolicy::class);
         Gate::policy(AccountingPeriod::class, AccountingPeriodPolicy::class);
         Gate::policy(JournalEntry::class, JournalEntryPolicy::class);
         Gate::policy(JournalSourceEntityMapping::class, JournalSourceEntityMappingPolicy::class);
+
         Event::listen(LegalEntityCreated::class, AuditFinanceLifecycleEvent::class);
         Event::listen(LedgerAccountCreated::class, AuditFinanceLifecycleEvent::class);
         Event::listen(JournalDraftCreated::class, AuditFinanceLifecycleEvent::class);
