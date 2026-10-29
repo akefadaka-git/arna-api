@@ -40,5 +40,15 @@ final class FileManagementServiceProvider extends ServiceProvider
                 ->prefix('api')
                 ->group($routesPath);
         }
+
+        // Public file access is deliberately separate from authenticated,
+        // tenant-member routes. The controller still enforces is_public and
+        // published state; a route being public never makes a private file public.
+        $publicRoutesPath = __DIR__ . '/../Routes/public.php';
+        if (is_file($publicRoutesPath)) {
+            Route::middleware(['api'])
+                ->prefix('api')
+                ->group($publicRoutesPath);
+        }
     }
 }
