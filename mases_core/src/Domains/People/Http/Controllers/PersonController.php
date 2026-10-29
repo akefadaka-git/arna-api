@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Contracts\PersonProfileRepositoryContract;
 use MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\StorePersonRequest;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\UpdatePersonRequest;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\LinkPersonAccountRequest;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\LinkPersonDomainRecordRequest;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\LinkPersonDocumentRequest;
+use MaaleArna\MASES\Core\Domains\People\Http\Requests\UnlinkPersonDocumentRequest;
 
 final class PersonController extends Controller
 {
@@ -49,19 +55,12 @@ final class PersonController extends Controller
         ]);
     }
 
-    public function store(Request $request, PersonIdentityService $identities): JsonResponse
+    public function store(StorePersonRequest $request, PersonIdentityService $identities): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
 
-        $attributes = $request->validate([
-            'first_name_am' => ['nullable', 'string', 'max:120'],
-            'father_name_am' => ['nullable', 'string', 'max:120'],
-            'grandfather_name_am' => ['nullable', 'string', 'max:120'],
-            'first_name_en' => ['nullable', 'string', 'max:120'],
-            'father_name_en' => ['nullable', 'string', 'max:120'],
-            'grandfather_name_en' => ['nullable', 'string', 'max:120'],
-        ]);
+        $attributes = $request->validated();
 
         try {
             $person = $identities->create((int) $tenantId, $request->user(), $attributes);
@@ -75,20 +74,12 @@ final class PersonController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
+    public function update(UpdatePersonRequest $request, string $publicId, PersonIdentityService $identities): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
 
-        $attributes = $request->validate([
-            'first_name_am' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'father_name_am' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'grandfather_name_am' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'first_name_en' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'father_name_en' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'grandfather_name_en' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
 
         $reason = $attributes['reason'];
         unset($attributes['reason']);
@@ -126,13 +117,11 @@ final class PersonController extends Controller
      * record remains owned by its domain; this operation only changes the
      * explicit identity reference and records the lifecycle audit event.
      */
-    public function linkDomain(Request $request, string $publicId, string $domain, int $recordId, PersonIdentityService $identities): JsonResponse
+    public function linkDomain(LinkPersonDomainRecordRequest $request, string $publicId, string $domain, int $recordId, PersonIdentityService $identities): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
-        $attributes = $request->validate([
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
         $person = $this->visiblePerson($publicId, (int) $tenantId);
 
         try {
@@ -156,13 +145,11 @@ final class PersonController extends Controller
         return response()->json(['success' => true, 'data' => ['linked' => true]]);
     }
 
-    public function unlinkDomain(Request $request, string $publicId, string $domain, int $recordId, PersonIdentityService $identities): JsonResponse
+    public function unlinkDomain(LinkPersonDomainRecordRequest $request, string $publicId, string $domain, int $recordId, PersonIdentityService $identities): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
-        $attributes = $request->validate([
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
         $person = $this->visiblePerson($publicId, (int) $tenantId);
 
         try {
@@ -186,14 +173,11 @@ final class PersonController extends Controller
         return response()->json(['success' => true, 'data' => ['linked' => false]]);
     }
 
-    public function linkAccount(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
+    public function linkAccount(LinkPersonAccountRequest $request, string $publicId, PersonIdentityService $identities): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
-        $attributes = $request->validate([
-            'user_id' => ['required', 'integer', 'min:1'],
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
         $person = $this->visiblePerson($publicId, (int) $tenantId);
 
         try {
@@ -205,13 +189,11 @@ final class PersonController extends Controller
         return response()->json(['success' => true, 'data' => ['linked' => true]]);
     }
 
-    public function unlinkAccount(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
+    public function unlinkAccount(LinkPersonDomainRecordRequest $request, string $publicId, PersonIdentityService $identities): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
-        $attributes = $request->validate([
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
         $person = $this->visiblePerson($publicId, (int) $tenantId);
 
         try {
@@ -246,14 +228,11 @@ final class PersonController extends Controller
         ]);
     }
 
-    public function linkDocument(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
+    public function linkDocument(LinkPersonDocumentRequest $request, string $publicId, PersonIdentityService $identities): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
-        $attributes = $request->validate([
-            'file_id' => ['required', 'integer', 'min:1'],
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
         $person = $this->visiblePerson($publicId, (int) $tenantId);
 
         try {
@@ -271,13 +250,11 @@ final class PersonController extends Controller
         return response()->json(['success' => true, 'data' => ['linked' => true]]);
     }
 
-    public function unlinkDocument(Request $request, string $publicId, int $fileId, PersonIdentityService $identities): JsonResponse
+    public function unlinkDocument(UnlinkPersonDocumentRequest $request, string $publicId, int $fileId, PersonIdentityService $identities): JsonResponse
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
-        $attributes = $request->validate([
-            'reason' => ['required', 'string', 'min:8', 'max:1000'],
-        ]);
+        $attributes = $request->validated();
         $person = $this->visiblePerson($publicId, (int) $tenantId);
 
         try {
