@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\People\Services;
 
 use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonRelationship;
@@ -13,6 +15,7 @@ final class PersonRelationshipService
 {
     public function create(int $tenantId, Person $person, Person $related, array $attributes, ?int $actorId): PersonRelationship
     {
+        $this->assertManagePermission($tenantId);
         if ((int) $person->getKey() === (int) $related->getKey()) {
             throw ValidationException::withMessages(['related_public_id' => 'A person cannot be related to themselves.']);
         }
@@ -70,6 +73,7 @@ final class PersonRelationshipService
 
     public function deactivate(int $tenantId, Person $person, int $relationshipId, string $reason): PersonRelationship
     {
+        $this->assertManagePermission($tenantId);
         return DB::transaction(function () use ($tenantId, $person, $relationshipId, $reason): PersonRelationship {
             $lockedPerson = Person::query()->whereKey($person->getKey())
                 ->where('status', 'active')->lockForUpdate()->firstOrFail();
@@ -88,5 +92,19 @@ final class PersonRelationshipService
 
             return $record->load('relatedPerson');
         });
+    }
+
+    private function assertManagePermission(int $tenantId): void
+    {
+        $actor = auth()->user();
+        if (! $actor instanceof User) {
+            abort(401, 'Authentication is required for People-domain mutations.');
+        }
+
+        app(AuthorizationService::class)->requirePermission(
+            user: $actor,
+            permissionSlug: 'people.manage',
+            tenantId: $tenantId
+        );
     }
 }
