@@ -13,7 +13,7 @@ final class JournalLine extends Model
 
     protected $fillable = [
         'tenant_id', 'legal_entity_id', 'journal_entry_id', 'account_id',
-        'line_number', 'description', 'debit_amount', 'credit_amount',
+        'line_number', 'description', 'debit_amount', 'credit_amount',\n        'cash_flow_activity', 'cash_flow_classification_note',
     ];
 
     protected $casts = [
