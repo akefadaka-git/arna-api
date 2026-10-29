@@ -103,3 +103,10 @@ A read-only changed-filename comparison was completed for PRs #39, #40, #42, #43
 This establishes file-level overlap, not identical content or merge safety. The complete reconciliation must still inspect the exact base/head SHAs and diffs for each PR, distinguish already-integrated versus unmerged commits, and determine the canonical branch sequence. PR #45 is an open draft; GitHub reports `mergeable: false`. Do not merge any of these PRs as part of Phase 0.
 
 Workflow inventory remains search-derived: 18 files containing `actions/checkout` and 15 files with a `pull_request:` trigger were found on the observed main baseline. The examined workflows use named branches and/or path filters; none of the reviewed trigger declarations targeted the new PR's feature-branch base. This does not guarantee every repository automation has been enumerated. Latest reviewed head before this log update: `3d8731333f853267bdb081923e2a91903f3d07d0`; workflow-run and commit-status queries returned zero items. CI remains NOT RUN.
+
+
+## 8. Additional acceptance coverage and private-repository runner retrieval
+
+- Added two more cash-flow acceptance cases: reject classification on an account not enabled as a cash equivalent, and prove a report for one tenant does not include another tenant's cash movement.
+- Updated the runner retrieval instructions to use authenticated `gh api` and decode only the PowerShell script file. This is necessary because the destination repository is private; the repository itself is never cloned or downloaded by the runner.
+- Latest reviewed branch head before this log update: `329c5d9f22caf51d7be6f738116132f3183bebd2`. Workflow-run and commit-status queries returned zero items. Tests remain NOT RUN; no CI was invoked.
