@@ -55,6 +55,7 @@ final class GovernanceElectionController extends Controller
             'rules_snapshot' => json_encode(['rules_source' => 'owner_approved_governance_policy_required', 'secret_ballot' => true], JSON_THROW_ON_ERROR),
             'created_at' => now(), 'updated_at' => now(),
         ]);
+        $this->audit($tenant, $id, (int) $request->user()->getAuthIdentifier(), 'election.created', ['body_id' => $body->id]);
         return response()->json(['success' => true, 'data' => DB::table('governance_elections')->where('id', $id)->first()], 201);
     }
 
@@ -74,6 +75,7 @@ final class GovernanceElectionController extends Controller
             'tenant_id' => $tenant, 'election_id' => $electionId, 'governance_membership_id' => $membership->id,
             'statement' => $data['statement'] ?? null, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now(),
         ]);
+        $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'nomination.submitted', ['nomination_id' => $id]);
         return response()->json(['success' => true, 'data' => DB::table('governance_election_nominations')->where('id', $id)->first()], 201);
     }
 
@@ -109,7 +111,28 @@ final class GovernanceElectionController extends Controller
             $update['certified_at'] = now();
         }
         DB::table('governance_elections')->where('tenant_id', $tenant)->where('id', $electionId)->update($update);
+        $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'election.transitioned', ['from' => $election->status, 'to' => $next, 'transition' => $data['transition']]);
         return response()->json(['success' => true, 'data' => DB::table('governance_elections')->where('id', $electionId)->first()]);
+    }
+
+    public function reviewNomination(Request $request, int $electionId, int $nominationId): JsonResponse
+    {
+        $tenant = $this->tenantId();
+        $this->requirePermission($request, 'governance.election.manage');
+        $election = $this->election($tenant, $electionId);
+        if (!in_array($election->status, ['nominations_open', 'nominations_closed'], true)) {
+            throw new ConflictHttpException('Nomination review is only available before voting opens.');
+        }
+        $data = $request->validate(['status' => ['required', 'in:accepted,rejected']]);
+        $nomination = DB::table('governance_election_nominations')->where('tenant_id', $tenant)
+            ->where('election_id', $electionId)->where('id', $nominationId)->where('status', 'pending')->first();
+        if (!$nomination) throw new NotFoundHttpException();
+        DB::table('governance_election_nominations')->where('id', $nominationId)->update([
+            'status' => $data['status'], 'reviewed_by' => (int) $request->user()->getAuthIdentifier(),
+            'reviewed_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'nomination.reviewed', ['nomination_id' => $nominationId, 'status' => $data['status']]);
+        return response()->json(['success' => true, 'data' => DB::table('governance_election_nominations')->where('id', $nominationId)->first()]);
     }
 
     public function registerVoter(Request $request, int $electionId): JsonResponse
@@ -125,6 +148,7 @@ final class GovernanceElectionController extends Controller
         DB::table('governance_election_eligible_voters')->insertOrIgnore([
             'tenant_id' => $tenant, 'election_id' => $electionId, 'governance_membership_id' => $membership->id, 'created_at' => now(), 'updated_at' => now(),
         ]);
+        $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'voter.registered', ['membership_id' => $membership->id]);
         return response()->json(['success' => true, 'data' => ['registered' => true]]);
     }
 
@@ -135,6 +159,10 @@ final class GovernanceElectionController extends Controller
         $election = $this->election($tenant, $electionId);
         if ($election->status !== 'voting_open' || now()->lt($election->voting_open_at) || now()->gt($election->voting_close_at)) throw new ConflictHttpException('Voting is not open.');
         $data = $request->validate(['governance_membership_id' => ['required', 'integer', 'min:1'], 'nomination_id' => ['required', 'integer', 'min:1']]);
+        $actorId = (int) $request->user()->getAuthIdentifier();
+        $membership = DB::table('governance_memberships')->where('tenant_id', $tenant)->where('governance_body_id', $election->governance_body_id)
+            ->where('id', $data['governance_membership_id'])->where('user_id', $actorId)->where('status', 'active')->where('is_voting_member', true)->first();
+        if (!$membership) throw new AccessDeniedHttpException('Ballot must be cast for the authenticated member.');
         $receipt = bin2hex(random_bytes(32));
         DB::transaction(function () use ($tenant, $electionId, $election, $data, $receipt): void {
             $voter = DB::table('governance_election_eligible_voters')->where('tenant_id', $tenant)->where('election_id', $electionId)
@@ -149,6 +177,7 @@ final class GovernanceElectionController extends Controller
             ]);
             DB::table('governance_election_eligible_voters')->where('id', $voter->id)->update(['cast_at' => now(), 'updated_at' => now()]);
         });
+        $this->audit($tenant, $electionId, $actorId, 'ballot.cast', ['receipt_hash' => hash('sha256', $receipt)]);
         return response()->json(['success' => true, 'data' => ['receipt' => $receipt]]);
     }
 
@@ -163,6 +192,15 @@ final class GovernanceElectionController extends Controller
         })->where('n.tenant_id', $tenant)->where('n.election_id', $electionId)->where('n.status', 'accepted')
             ->groupBy('n.id', 'n.governance_membership_id')->select('n.id as nomination_id', 'n.governance_membership_id', DB::raw('COUNT(b.id) as vote_count'))->orderByDesc('vote_count')->get();
         return response()->json(['success' => true, 'data' => $rows]);
+    }
+
+    private function audit(int $tenantId, int $electionId, ?int $actorId, string $event, array $metadata = []): void
+    {
+        DB::table('governance_election_audit_events')->insert([
+            'tenant_id' => $tenantId, 'election_id' => $electionId, 'actor_id' => $actorId,
+            'event_type' => $event, 'metadata' => json_encode($metadata, JSON_THROW_ON_ERROR),
+            'occurred_at' => now(),
+        ]);
     }
 
     private function election(int $tenantId, int $id): object
