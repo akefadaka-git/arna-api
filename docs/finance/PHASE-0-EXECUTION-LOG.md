@@ -73,3 +73,15 @@ If the existing checkout does not contain the generated Finance source/tests, th
 5. Continue to treat external tax/accounting review as deferred and statutory compliance as unresolved.
 
 **Next step:** complete the read-only PR ancestry/overlap inventory and finish mapping Finance routes, migration dependencies, test discovery, and workflow path filters. Then proceed with the next bounded ledger/reporting enhancement on the isolated branch. Do not run CI until the Owner authorizes it after quota availability returns.
+
+
+## 6. Follow-up hardening and PR record
+
+After the initial execution log was committed, source-level review identified and corrected two issues before asking the Owner to run tests:
+
+- The PowerShell runner now creates its temporary PHPUnit cache directory only when execution begins, not during `-ListOnly` or discovery/validation failures.
+- The disabled cash-equivalent acceptance fixture now leaves the cash-flow activity unclassified; assigning an activity to a disabled account is intentionally rejected by the new canonical-service invariant.
+
+The change set is available in [draft PR #45](https://github.com/akefadaka-git/arna-api/pull/45), stacked on `feat/finance-accounting-completion-reporting`. PR #45 head at creation: `3d8731333f853267bdb081923e2a91903f3d07d0`; base: `f5359467d131aebbfc11c6806793b1e77cfad97d`. GitHub currently reports the PR as open/draft and `mergeable: false`; do not merge. The exact head was queried after PR creation and returned zero workflow runs and zero commit status checks. CI remains NOT RUN.
+
+This follow-up does not close Phase 0. The full PR ancestry/file-overlap reconciliation and exhaustive workflow inventory remain open. All generated acceptance tests are still NOT RUN.
