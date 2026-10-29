@@ -33,7 +33,12 @@ on:
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
-      - "mases_core/src/Domains/Finance/Tests/**"\n      - "mases_core/src/Domains/Finance/Services/FinanceConsolidation*.php"\n      - "mases_core/src/Domains/Finance/Services/FinanceExchangeRateService.php"\n      - "mases_core/src/Domains/Finance/Models/FinanceConsolidationAccountMapping.php"\n      - "mases_core/src/Domains/Finance/Models/FinanceExchangeRate.php"\n      - "mases_core/src/Domains/Loan/Tests/Unit/**"
+      - "mases_core/src/Domains/Finance/Tests/**"
+      - "mases_core/src/Domains/Finance/Services/FinanceConsolidation*.php"
+      - "mases_core/src/Domains/Finance/Services/FinanceExchangeRateService.php"
+      - "mases_core/src/Domains/Finance/Models/FinanceConsolidationAccountMapping.php"
+      - "mases_core/src/Domains/Finance/Models/FinanceExchangeRate.php"
+      - "mases_core/src/Domains/Loan/Tests/Unit/**"
       - "mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php"
   workflow_dispatch:
     inputs:
@@ -144,7 +149,14 @@ jobs:
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Unit
 
-      - name: Run Finance consolidation and manual FX lifecycle regressions\n        env:\n          DB_CONNECTION: sqlite\n          DB_DATABASE: ":memory:"\n          DB_FOREIGN_KEYS: "true"\n        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/FinanceConsolidationAndFxFoundationTest.php\n\n      - name: Run loan repayment HTTP and financial-invariant regression tests
+      - name: Run Finance consolidation and manual FX lifecycle regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/FinanceConsolidationAndFxFoundationTest.php
+
+      - name: Run loan repayment HTTP and financial-invariant regression tests
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
