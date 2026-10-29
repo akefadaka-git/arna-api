@@ -68,7 +68,7 @@ final class FinanceCashFlowReportAcceptanceTest extends TestCase
             'cash-flow-disabled-account-acceptance',
             '40.0000',
             '2026-10-15',
-            'operating',
+            null,
         );
 
         $report = app(CashFlowReportService::class)->cashFlow(
