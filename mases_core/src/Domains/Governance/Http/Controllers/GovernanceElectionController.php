@@ -181,6 +181,19 @@ final class GovernanceElectionController extends Controller
         return response()->json(['success' => true, 'data' => ['receipt' => $receipt]]);
     }
 
+    public function voters(Request $request, int $electionId): JsonResponse
+    {
+        $tenant = $this->tenantId();
+        $this->requirePermission($request, 'governance.election.view');
+        $this->election($tenant, $electionId);
+        $rows = DB::table('governance_election_eligible_voters as v')
+            ->join('governance_memberships as m', 'm.id', '=', 'v.governance_membership_id')
+            ->where('v.tenant_id', $tenant)->where('v.election_id', $electionId)
+            ->select('v.id', 'v.governance_membership_id', 'v.cast_at', 'm.user_id', 'm.member_name_am', 'm.member_name_en')
+            ->orderBy('v.id')->get();
+        return response()->json(['success' => true, 'data' => $rows]);
+    }
+
     public function nominations(Request $request, int $electionId): JsonResponse
     {
         $tenant = $this->tenantId();
