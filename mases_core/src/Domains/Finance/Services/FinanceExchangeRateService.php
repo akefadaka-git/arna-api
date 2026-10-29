@@ -43,6 +43,11 @@ final class FinanceExchangeRateService
                 'status' => FinanceExchangeRate::PENDING, 'created_by' => $actorId, 'proposal_reason' => $reason,
             ]);
         } catch (QueryException $exception) {
+            $sqlState = (string) ($exception->errorInfo[0] ?? '');
+            $driverCode = (int) ($exception->errorInfo[1] ?? 0);
+            if (!in_array($sqlState, ['23000', '23505'], true) && !in_array($driverCode, [19, 1062], true)) {
+                throw $exception;
+            }
             throw ValidationException::withMessages([
                 'effective_on' => 'A proposal already exists for this tenant, currency pair, and effective date. Review it instead of creating a competing rate.',
             ]);
