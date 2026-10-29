@@ -149,6 +149,8 @@ if ($ListOnly) {
     exit 0
 }
 
+New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
+
 Write-Host "PHP        : $phpVersion"
 Write-Host "Suite      : $Suite"
 Write-Host "Filter     : $(if ($Filter) { $Filter } else { '(none)' })"
