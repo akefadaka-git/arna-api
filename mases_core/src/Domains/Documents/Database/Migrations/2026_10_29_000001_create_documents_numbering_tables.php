@@ -36,7 +36,7 @@ return new class extends Migration
         Schema::create('documents', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->unsignedBigInteger('tenant_id');
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->foreignId('legal_entity_id')->constrained('legal_entities')->restrictOnDelete();
             $table->foreignId('organization_unit_id')->constrained('organization_units')->restrictOnDelete();
             $table->foreignId('governance_body_id')->constrained('governance_bodies')->restrictOnDelete();
@@ -80,7 +80,7 @@ return new class extends Migration
         Schema::create('document_lifecycle_events', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('document_id');
-            $table->unsignedBigInteger('tenant_id');
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->string('event_type', 16);
             $table->foreignId('actor_user_id')->constrained('users')->restrictOnDelete();
             $table->string('reason', 1000)->nullable();
