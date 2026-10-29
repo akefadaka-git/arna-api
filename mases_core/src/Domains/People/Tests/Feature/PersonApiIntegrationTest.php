@@ -729,6 +729,54 @@ final class PersonApiIntegrationTest extends TestCase
         ]);
     }
 
+    #[Test]
+    public function tenant_access_reactivation_preserves_original_grant_provenance(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+        Sanctum::actingAs($actor);
+
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Grant Provenance',
+        ])->assertCreated();
+        $person = Person::query()->where('public_id', $created->json('data.public_id'))->firstOrFail();
+
+        $permission = Permission::query()->create([
+            'name_en' => 'Manage Global Person Tenant Access',
+            'slug' => 'people.tenant-access.manage',
+            'category' => 'user',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $actor->permissions()->attach($permission->getKey(), ['assigned_at' => now()]);
+
+        $original = DB::table('person_tenant_accesses')
+            ->where('person_id', $person->getKey())
+            ->where('tenant_id', $tenant->getKey())
+            ->first();
+        $this->assertNotNull($original);
+
+        DB::table('person_tenant_accesses')
+            ->where('person_id', $person->getKey())
+            ->where('tenant_id', $tenant->getKey())
+            ->update(['status' => 'revoked', 'updated_at' => now()->subMinute()]);
+
+        app(\MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService::class)
+            ->grantTenantAccess($tenant->getKey(), $person->getKey(), $actor, 'Restore previously revoked access');
+
+        $reactivated = DB::table('person_tenant_accesses')
+            ->where('person_id', $person->getKey())
+            ->where('tenant_id', $tenant->getKey())
+            ->first();
+
+        $this->assertNotNull($reactivated);
+        $this->assertSame('active', $reactivated->status);
+        $this->assertSame((string) $original->created_by, (string) $reactivated->created_by);
+        $this->assertSame((string) $original->created_at, (string) $reactivated->created_at);
+    }
+
     /** @return array{0: Tenant, 1: User} */
     private function tenantPeopleManager(): array
     {
