@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Organization\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Carbon;
+use MaaleArna\MASES\Core\Domains\Organization\Http\Requests\OrganizationRequestRules;
 use Illuminate\Validation\Rule;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
@@ -37,6 +37,7 @@ final class OrganizationController extends Controller
     {
         $this->authorizeUnitList($request->user());
         $tenantId = $this->tenantId();
+        $request->validate(OrganizationRequestRules::unitIndex());
 
         $units = OrganizationUnit::query()->where('tenant_id', $tenantId)
             ->when($request->query('parent_id') !== null, fn ($q) => $q->where('parent_id', $request->integer('parent_id')))
@@ -50,16 +51,10 @@ final class OrganizationController extends Controller
     {
         abort_unless($this->unitPolicy->create($request->user()), 403, 'Organization unit creation is not authorized.');
         $tenantId = $this->tenantId();
-        $data = $request->validate([
-            'parent_id' => ['nullable', 'integer'],
-            // Legal-entity references stay disabled until the authoritative domain contract is wired.
-            'legal_entity_id' => ['prohibited'],
-            'code' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
-            'unit_type' => ['required', Rule::in(OrganizationHierarchyPolicy::unitTypes())],
-            'name_am' => ['nullable', 'string', 'max:180'],
-            'name_en' => ['nullable', 'string', 'max:180'],
-            'reason' => ['required', 'string', 'min:5', 'max:2000'],
-        ]);
+        if (is_string($request->input('code'))) {
+            $request->merge(['code' => strtoupper($request->input('code'))]);
+        }
+        $data = $request->validate(OrganizationRequestRules::storeUnit($tenantId));;
         $this->assertName($data);
 
         $unit = DB::transaction(function () use ($data, $tenantId, $request): OrganizationUnit {
@@ -93,16 +88,10 @@ final class OrganizationController extends Controller
     {
         $unit = $this->unit($id);
         abort_unless($this->unitPolicy->update($request->user(), $unit), 403, 'Organization unit update is not authorized.');
-        $data = $request->validate([
-            'parent_id' => ['sometimes', 'nullable', 'integer'],
-            'legal_entity_id' => ['prohibited'],
-            'code' => ['sometimes', 'required', 'string', 'max:64', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
-            'unit_type' => ['sometimes', 'required', Rule::in(OrganizationHierarchyPolicy::unitTypes())],
-            'name_am' => ['sometimes', 'nullable', 'string', 'max:180'],
-            'name_en' => ['sometimes', 'nullable', 'string', 'max:180'],
-            'status' => ['sometimes', Rule::in(['active', 'inactive'])],
-            'reason' => ['required', 'string', 'min:5', 'max:2000'],
-        ]);
+        if ($request->exists('code') && is_string($request->input('code'))) {
+            $request->merge(['code' => strtoupper($request->input('code'))]);
+        }
+        $data = $request->validate(OrganizationRequestRules::updateUnit($this->tenantId(), (int) $unit->id));;
         $this->assertName(array_merge($unit->only(['name_am', 'name_en']), $data));
         $tenantId = $this->tenantId();
 
@@ -138,7 +127,7 @@ final class OrganizationController extends Controller
     {
         $unit = $this->unit($id);
         abort_unless($this->unitPolicy->delete($request->user(), $unit), 403, 'Organization unit archive is not authorized.');
-        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
+        $data = $request->validate(OrganizationRequestRules::archiveUnit());
         DB::transaction(function () use ($unit, $request, $data): void {
             $tenantId = $this->tenantId();
             $this->lockTenantHierarchy($tenantId);
@@ -164,6 +153,7 @@ final class OrganizationController extends Controller
         $unit = $this->unit($id);
         abort_unless($this->unitPolicy->view($request->user(), $unit), 403, 'Organization unit access is not authorized.');
         $tenantId = $this->tenantId();
+        $request->validate(OrganizationRequestRules::listAssignments());
         $items = OrganizationAssignment::query()->where('tenant_id', $tenantId)
             ->where('organization_unit_id', $unit->id)
             ->whereHas('person.tenantAccesses', fn ($q) => $q->where('tenant_id', $tenantId)->where('status', 'active'))
@@ -177,13 +167,7 @@ final class OrganizationController extends Controller
         abort_unless($this->assignmentPolicy->create($request->user()), 403, 'Assignment creation is not authorized.');
         $unit = $this->unit($id);
         abort_unless($unit->status === 'active', 409, 'Assignments can only be made to active units.');
-        $data = $request->validate([
-            'person_id' => ['required', 'integer', 'min:1'], // Tenant access is checked under lock below; avoid cross-tenant existence oracle.
-            'assignment_type' => ['required', 'string', 'max:48'],
-            'title_am' => ['nullable', 'string', 'max:160'], 'title_en' => ['nullable', 'string', 'max:160'],
-            'starts_on' => ['required', 'date'], 'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
-            'reason' => ['required', 'string', 'min:5', 'max:2000'],
-        ]);
+        $data = $request->validate(OrganizationRequestRules::storeAssignment());;
         $assignment = DB::transaction(function () use ($unit, $data, $request): OrganizationAssignment {
             $tenantId = $this->tenantId();
             $lockedUnit = OrganizationUnit::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($unit->id);
@@ -220,14 +204,7 @@ final class OrganizationController extends Controller
         abort_unless($user && $this->unitPolicy->viewAudit($user), 403, 'Organization audit access is not authorized.');
 
         $tenantId = $this->tenantId();
-        $data = $request->validate([
-            'subject_type' => ['sometimes', Rule::in(['unit', 'assignment'])],
-            'subject_id' => ['sometimes', 'integer', 'min:1'],
-            'action' => ['sometimes', 'string', 'max:48'],
-            'from' => ['sometimes', 'date'],
-            'to' => ['sometimes', 'date', 'after_or_equal:from'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-        ]);
+        $data = $request->validate(OrganizationRequestRules::auditEvents());;
 
         $events = OrganizationAuditEvent::query()
             ->where('tenant_id', $tenantId)
@@ -246,16 +223,12 @@ final class OrganizationController extends Controller
     {
         $item = OrganizationAssignment::query()->where('tenant_id', $this->tenantId())->findOrFail($id);
         abort_unless($this->assignmentPolicy->update($request->user(), (int) $item->tenant_id), 403, 'Assignment update is not authorized.');
-        $data = $request->validate([
-            'ends_on' => ['sometimes', 'nullable', 'date'],
-            'status' => ['sometimes', Rule::in(['active', 'ended', 'cancelled'])],
-            'reason' => ['required', 'string', 'min:5', 'max:2000'],
-        ]);
+        $data = $request->validate(OrganizationRequestRules::updateAssignment());;
         DB::transaction(function () use ($item, $data, $request): void {
             $locked = OrganizationAssignment::query()->where('tenant_id', $this->tenantId())->lockForUpdate()->findOrFail($item->id);
             $before = $locked->toArray();
             if (array_key_exists('ends_on', $data) && $data['ends_on'] !== null
-                && \\Illuminate\\Support\\Carbon::parse($data['ends_on'])->toDateString() < $locked->starts_on->toDateString()) {
+                && Carbon::parse($data['ends_on'])->toDateString() < $locked->starts_on->toDateString()) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'ends_on' => 'The end date must be on or after the persisted start date.',
                 ]);
