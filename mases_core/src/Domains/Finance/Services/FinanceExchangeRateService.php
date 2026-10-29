@@ -52,7 +52,10 @@ final class FinanceExchangeRateService
         } catch (QueryException $exception) {
             $sqlState = (string) ($exception->errorInfo[0] ?? '');
             $driverCode = (int) ($exception->errorInfo[1] ?? 0);
-            if (!in_array($sqlState, ['23000', '23505'], true) && !in_array($driverCode, [19, 1062], true)) {
+            $message = strtolower($exception->getMessage());
+            $isUniqueViolation = $sqlState === '23505' || $driverCode === 1062
+                || ($driverCode === 19 && str_contains($message, 'unique constraint'));
+            if (!$isUniqueViolation) {
                 throw $exception;
             }
             throw ValidationException::withMessages([
