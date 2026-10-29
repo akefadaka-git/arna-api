@@ -107,9 +107,16 @@ The repository's `composer test` script clears Laravel configuration before invo
 
 ## 6. Workflow evidence and quota constraint
 
-No CI workflow was triggered by this assessment. Workflow files, path filters, required checks, and existing run links have not yet been exhaustively inventoried; therefore workflow coverage is **UNKNOWN**, not passing. No new workflow run is authorized while the quota is unavailable.
+No CI workflow was triggered by this assessment. Read-only code search returned 18 workflow files containing `actions/checkout` on the observed `main` baseline. Representative trigger findings:
 
-Use commit messages containing `[skip ci]` for documentation and test-runner commits, and do not manually dispatch or rerun workflows. A skip marker is a safeguard, not a guarantee against every repository-specific automation; inspect run history later when the Owner authorizes it.
+- `.github/workflows/arna-clean-install-mysql.yml` targets `main` and `feat/p1-4-people-domain-production` pull requests, with path filters focused on migrations, providers, seeders, and named People/Organization/Governance tests; it also has a manual `workflow_dispatch` input.
+- `.github/workflows/arna-phase0-effective-authorization.yml` targets a dedicated audit branch for pushes and `main` pull requests, with route/controller/domain/authorization/tenancy/test path filters.
+- Migration-compatibility workflows such as `arna-totp-mfa.yml`, `arna-phone-verification-core.yml`, and wallet database compatibility target `main`, `integration/arna-system-consolidation`, or named feature branches and migration path filters.
+- Focused regression workflows are mostly scoped to named branches or specific pull-request base branches. `workflow_dispatch` workflows are manual and were not invoked.
+
+This is a search-derived inventory, not a complete directory listing; workflows that do not contain `actions/checkout` may not appear. Workflow/path-filter coverage therefore remains **PARTIAL / UNKNOWN**, not passing. No CI workflow was manually dispatched. The queried Phase 0 commit `370c5a1b24c0076dffbefeb0c3ffb47f06d3c22e` had no reported workflow runs or commit status checks when queried.
+
+All Phase 0 commits use `[skip ci]`; no workflow was intentionally run. A skip marker is a safeguard, not a guarantee against every repository-specific automation. Do not dispatch or rerun workflows while the quota is unavailable.
 
 ## 7. Readiness conclusion
 
@@ -124,7 +131,7 @@ This is a partial Phase 0 baseline, not a production-readiness certification.
 | Financial statements | PARTIAL | Statement services present in review branch; no execution/reconciliation evidence |
 | Cash-flow statement | PARTIAL | Movement-only; no opening/closing cash reconciliation |
 | Subledger integrations | BLOCKED | Resolver/contracts exist; activation remains fail-closed |
-| Test runner | IN PROGRESS | Local PowerShell runner is being added; not executed |
+| Test runner | PARTIAL | Local PowerShell runner and usage guide generated; not executed |
 | Workflow/path-filter coverage | UNKNOWN | Not exhaustively inventoried; CI intentionally not run |
 | Ethiopian tax/standards compliance | UNRESOLVED | Applicability and independent review deferred by Owner |
 | Production release | NOT AUTHORIZED | No merge, database operation, opening balances, posting activation, or deployment |
@@ -136,4 +143,4 @@ This is a partial Phase 0 baseline, not a production-readiness certification.
 3. Continue implementation on an isolated Finance branch, keeping CI disabled/skipped and recording each exact commit. Do not merge or deploy.
 4. Prioritize execution-ready acceptance tests and migration/route/auth contracts; leave adapters disabled while the 36 control-account designations are pending.
 
-The local Finance test runner and focused cash-flow acceptance tests have been generated on `feat/finance-phase0-baseline-local-test-runner`. New acceptance coverage checks that unclassified movements remain `undetermined`, disabled cash-equivalent accounts are excluded, and the inclusive effective-date window is respected. These tests are **NOT RUN** and are not evidence that the implementation passes.
+The local Finance test runner (`tools/finance/Invoke-FinanceTests.ps1`), usage guide (`docs/finance/LOCAL-TESTING.md`), and focused cash-flow acceptance test (`tests/Feature/FinanceCashFlowReportAcceptanceTest.php`) have been generated on `feat/finance-phase0-baseline-local-test-runner`. The new test covers unclassified movements, disabled cash-equivalent accounts, and inclusive effective-date filtering. All tests remain **NOT RUN**.
