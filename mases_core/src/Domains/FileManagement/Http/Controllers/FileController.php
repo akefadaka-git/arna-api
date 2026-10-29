@@ -530,8 +530,6 @@ class FileController extends Controller
             'mime_type'     => $file->mime_type,
             'extension'     => $file->extension,
             'size'          => $file->size,
-            'path'          => $file->path,
-            'disk'          => $file->disk,
             'version'       => $file->version,
             'parent_file_id'=> $file->parent_file_id,
             'status'        => $file->status,
