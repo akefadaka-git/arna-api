@@ -66,6 +66,7 @@ final class GovernanceElectionController extends Controller
     public function nominate(Request $request, int $electionId): JsonResponse
     {
         $tenant = $this->tenantId();
+        $this->requirePermission($request, 'governance.election.view');
         $election = $this->election($tenant, $electionId);
         if ($election->status !== 'nominations_open' || now()->lt($election->nominations_open_at) || now()->gt($election->nominations_close_at)) {
             throw new ConflictHttpException('Nominations are not open.');
@@ -166,8 +167,8 @@ final class GovernanceElectionController extends Controller
                 throw new ConflictHttpException('Certification is blocked until the approved bylaw/resolution clause and challenge-window deadline are recorded.');
             }
             if (now()->lt($election->challenge_window_ends_at)) throw new ConflictHttpException('The bylaw-defined challenge/appeal window has not expired.');
-            if (DB::table('governance_election_challenges')->where('tenant_id', $tenant)->where('election_id', $electionId)->where('status', 'pending')->exists()) {
-                throw new ConflictHttpException('Certification is blocked while a challenge or appeal remains unresolved.');
+            if (DB::table('governance_election_challenges')->where('tenant_id', $tenant)->where('election_id', $electionId)->whereIn('status', ['pending', 'accepted'])->exists()) {
+                throw new ConflictHttpException('Certification is blocked while a challenge/appeal is unresolved or has been upheld.');
             }
             $administrativeActors = DB::table('governance_election_audit_events')->where('tenant_id', $tenant)->where('election_id', $electionId)
                 ->whereIn('event_type', ['election.created', 'election.transitioned', 'election.round_opened', 'election.round_closed', 'election.challenge_window_recorded', 'nomination.reviewed', 'voter.registered'])
@@ -270,10 +271,17 @@ final class GovernanceElectionController extends Controller
                         $nextStatus = 'runoff_required';
                         $roundStatus = 'runoff_required';
                         $reason = 'majority_not_reached';
+                    } elseif ($cutoffTie) {
+                        // Owner policy covers a final tie, but does not define how to select exactly two
+                        // runoff candidates when the second-place cutoff itself is tied. Block rather
+                        // than inventing a tie-break or misapplying the final-tie rerun rule.
+                        $nextStatus = 'runoff_selection_blocked';
+                        $roundStatus = 'runoff_selection_blocked';
+                        $reason = 'runoff_cutoff_tie_requires_governance_rule';
                     } else {
                         $nextStatus = 'rerun_required';
                         $roundStatus = 'tie_or_no_majority';
-                        $reason = $cutoffTie ? 'runoff_cutoff_tie' : ($topTie ? 'final_tie' : 'majority_not_reached_after_runoff');
+                        $reason = $topTie ? 'final_tie' : 'majority_not_reached_after_runoff';
                     }
                 }
             }
@@ -434,7 +442,7 @@ final class GovernanceElectionController extends Controller
         $tenant = $this->tenantId();
         $this->requirePermission($request, 'governance.election.view');
         $election = $this->election($tenant, $electionId);
-        if (!in_array($election->status, ['voting_closed', 'certified', 'runoff_required', 'rerun_required', 'quorum_failed'], true)) throw new ConflictHttpException('Results are withheld until the current round closes.');
+        if (!in_array($election->status, ['voting_closed', 'certified', 'runoff_required', 'rerun_required', 'runoff_selection_blocked', 'quorum_failed'], true)) throw new ConflictHttpException('Results are withheld until the current round closes.');
         $roundNumber = (int) ($election->current_round ?? 1);
         $rows = DB::table('governance_election_round_candidates as rc')
             ->join('governance_election_nominations as n', function ($join): void {
