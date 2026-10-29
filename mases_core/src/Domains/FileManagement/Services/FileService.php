@@ -201,20 +201,34 @@ final class FileService
         $path = $this->buildPath($directory, $tenantId, $storedName);
 
         // 5. Store the file using a stream to avoid memory exhaustion
+        $stream = null;
         try {
-            $stream = fopen($uploadedFile->getRealPath(), 'rb');
-            $success = Storage::disk($this->disk)->put($path, $stream);
-            if (is_resource($stream)) {
-                fclose($stream);
+            $realPath = $uploadedFile->getRealPath();
+            if (!is_string($realPath) || $realPath === '') {
+                throw FileException::uploadFailed('The uploaded file could not be opened.');
             }
 
+            $stream = fopen($realPath, 'rb');
+            if (!is_resource($stream)) {
+                throw FileException::uploadFailed('The uploaded file could not be opened.');
+            }
+
+            $success = Storage::disk($this->disk)->put($path, $stream);
             if (!$success) {
                 throw FileException::storageFailed($path);
             }
         } catch (FileException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            throw FileException::uploadFailed($e->getMessage());
+            Log::error('File storage write failed.', [
+                'tenant_id' => $tenantId,
+                'exception' => $e::class,
+            ]);
+            throw FileException::uploadFailed('The file could not be stored.');
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
         }
 
         // 6. Determine version from the already-authorized parent, if supplied.
@@ -241,8 +255,12 @@ final class FileService
         } catch (\Throwable $e) {
             // Remove the stored file if database insert fails
             Storage::disk($this->disk)->delete($path);
+            Log::error('File metadata persistence failed after storage write.', [
+                'tenant_id' => $tenantId,
+                'exception' => $e::class,
+            ]);
             throw new FileException(
-                'Failed to create file record: ' . $e->getMessage(),
+                'The file record could not be created.',
                 FileException::ERROR_FILE_UPLOAD_FAILED,
                 500,
                 0,
@@ -723,7 +741,7 @@ final class FileService
         $allowedMimeTypes = array_map('strtolower', (array) config('mases.files.allowed_mime_types', []));
         $detectedMime = strtolower((string) $uploadedFile->getMimeType());
         if ($allowedMimeTypes !== [] && !in_array($detectedMime, $allowedMimeTypes, true)) {
-            throw FileException::extensionNotAllowed($extension, $allowedExtensions);
+            throw FileException::uploadFailed('The detected file type is not allowed.');
         }
     }
 
