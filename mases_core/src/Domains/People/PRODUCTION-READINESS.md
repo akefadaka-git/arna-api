@@ -44,13 +44,14 @@ The runner requires exact database-name confirmation, verifies the target schema
 
 ## Known blocker — MySQL clean-install workflow
 
-The original logs for workflow run `40734382888`, failed job `122978877517`, return GitHub's `BlobNotFound` response. No diagnostic exception or first failing SQL statement is available, and no workflow was rerun. Therefore the cause remains **UNKNOWN**. Do not claim the migration failure is fixed until the local disposable-schema gate succeeds or original diagnostics are recovered.
+The available retrieval for workflow run `40734382888`, failed job `122978877517`, returned GitHub's `BlobNotFound` response rather than the job's diagnostic output. This is a log-evidence retrieval failure and does not establish the migration's root cause. No first failing SQL statement is available, and no workflow was rerun. Therefore the migration failure cause remains **UNKNOWN**. Do not claim the migration failure is fixed until the local disposable-schema gate succeeds or original diagnostics are recovered.
 
 ## Acceptance status
 
 - Code generation and controller integration: **implemented, static review only**.
 - Cross-Person domain unlink guard and regression assertions: **generated, NOT RUN**.
 - Tenant-access grant-provenance preservation: **implemented, NOT RUN**.
+- Tenant-access reactivation regression coverage: **generated in `PersonApiIntegrationTest.php`, NOT RUN**.
 - Focused test code: **added, NOT RUN**.
 - PHP lint and route registration: **NOT RUN**.
 - Fresh MySQL migration: **NOT RUN locally; existing CI run failed, root cause unresolved**.
