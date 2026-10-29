@@ -475,4 +475,89 @@ final class FileSecurityTest extends TestCase
             $reflection->invoke($this->fileService, 'file.download', $file, $user);
         });
     }
+
+    // ------------------------------------------------------------------
+    // Publication Authority Regression Tests
+    // ------------------------------------------------------------------
+
+    #[Test]
+    public function upload_creates_a_draft_even_when_publication_is_requested(): void
+    {
+        ['user' => $user, 'tenant' => $tenant] = $this->createUserWithPermissions(['file.upload', 'file.publish']);
+        $this->actingAs($user, 'sanctum');
+
+        $uploadedFile = UploadedFile::fake()->create('draft.pdf', 100, 'application/pdf');
+        $file = $this->fileService->upload(
+            uploadedFile: $uploadedFile,
+            fileName: 'draft',
+            isPublic: true,
+            tenantId: $tenant->id,
+            user: $user
+        );
+
+        $this->assertSame('draft', $file->status);
+        $this->assertTrue($file->is_public);
+    }
+
+    #[Test]
+    public function upload_cannot_request_public_visibility_without_publication_permission(): void
+    {
+        ['user' => $user, 'tenant' => $tenant] = $this->createUserWithPermissions(['file.upload']);
+        $this->actingAs($user, 'sanctum');
+
+        $uploadedFile = UploadedFile::fake()->create('private.pdf', 100, 'application/pdf');
+        $this->assertFileException(403, function () use ($uploadedFile, $user, $tenant) {
+            $this->fileService->upload(
+                uploadedFile: $uploadedFile,
+                fileName: 'private',
+                isPublic: true,
+                tenantId: $tenant->id,
+                user: $user
+            );
+        });
+    }
+
+    #[Test]
+    public function update_cannot_publish_without_publication_permission(): void
+    {
+        ['user' => $user, 'tenant' => $tenant] = $this->createUserWithPermissions(['file.upload', 'file.update']);
+        $this->actingAs($user, 'sanctum');
+
+        $uploadedFile = UploadedFile::fake()->create('draft.pdf', 100, 'application/pdf');
+        $file = $this->fileService->upload(
+            uploadedFile: $uploadedFile,
+            fileName: 'draft',
+            tenantId: $tenant->id,
+            user: $user
+        );
+
+        $this->assertFileException(403, function () use ($file, $user) {
+            $this->fileService->update($file, ['status' => 'published', 'is_public' => true], user: $user);
+        });
+        $file->refresh();
+        $this->assertSame('draft', $file->status);
+        $this->assertFalse($file->is_public);
+    }
+
+    #[Test]
+    public function publication_requires_the_separate_permission_even_for_an_existing_public_draft(): void
+    {
+        ['user' => $user, 'tenant' => $tenant] = $this->createUserWithPermissions(['file.upload', 'file.update']);
+        $this->actingAs($user, 'sanctum');
+
+        $uploadedFile = UploadedFile::fake()->create('draft.pdf', 100, 'application/pdf');
+        $file = $this->fileService->upload(
+            uploadedFile: $uploadedFile,
+            fileName: 'draft',
+            tenantId: $tenant->id,
+            user: $user
+        );
+        $file->is_public = true;
+        $file->save();
+
+        $this->assertFileException(403, function () use ($file, $user) {
+            $this->fileService->update($file, ['status' => 'published'], user: $user);
+        });
+    }
+
 }
