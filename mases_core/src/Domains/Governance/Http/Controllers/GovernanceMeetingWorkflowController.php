@@ -8,10 +8,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMeeting;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -150,7 +151,7 @@ final class GovernanceMeetingWorkflowController extends Controller
             throw new NotFoundHttpException();
         }
         if (!$this->authorization->hasPermission(permissionSlug: $permission, user: $request->user(), tenantId: $tenantId)) {
-            throw new \\Symfony\\Component\\HttpKernel\\Exception\\AccessDeniedHttpException();
+            throw new AccessDeniedHttpException();
         }
     }
 
