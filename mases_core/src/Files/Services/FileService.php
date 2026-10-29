@@ -292,8 +292,8 @@ final class FileService
         $file = $this->resolveFile($file);
         $user = $user ?? mases_user();
 
-        // Public files are freely downloadable
-        if (!$file->is_public) {
+        // Person-linked documents remain private across the entire version family.
+        if (!$file->is_public || $this->isPersonLinked($file)) {
             $this->authorizeAction('file.download', $file, $user);
         }
 
@@ -373,8 +373,7 @@ final class FileService
         // Person-linked files are confidential: never allow the linked file
         // or a new version of it to be made public through this service.
         $willBePublic = (bool) ($data['is_public'] ?? $file->is_public);
-        if ($willBePublic && \Illuminate\Support\Facades\DB::table('person_document_links')
-            ->where('file_id', $file->getKey())->exists()) {
+        if ($willBePublic && $this->isPersonLinked($file)) {
             throw FileException::accessDenied('Person-linked files must remain private.');
         }
 
@@ -626,9 +625,13 @@ final class FileService
             return null;
         }
 
-        return File::where('parent_file_id', $fileId)
-            ->orWhere('id', $fileId)
-            ->orderBy('version', 'desc')
+        $familyIds = $this->versionFamilyIds($file);
+
+        return File::query()
+            ->where('tenant_id', $file->tenant_id)
+            ->whereIn('id', $familyIds)
+            ->orderByDesc('version')
+            ->orderByDesc('id')
             ->first();
     }
 
@@ -647,10 +650,66 @@ final class FileService
             return collect();
         }
 
-        return File::where('parent_file_id', $fileId)
-            ->orWhere('id', $fileId)
-            ->orderBy('version', 'asc')
+        $familyIds = $this->versionFamilyIds($file);
+
+        return File::query()
+            ->where('tenant_id', $file->tenant_id)
+            ->whereIn('id', $familyIds)
+            ->orderBy('version')
+            ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * Determine whether a file or any version in its same-tenant family is
+     * linked to a Person. Version links are treated as inherited privacy.
+     */
+    public function isPersonLinked(File $file): bool
+    {
+        $familyIds = $this->versionFamilyIds($file);
+
+        return \Illuminate\Support\Facades\DB::table('person_document_links')
+            ->whereIn('file_id', $familyIds)
+            ->exists();
+    }
+
+    /**
+     * Return all IDs in the file's version family, following both ancestors
+     * and descendants while restricting every lookup to the file's tenant.
+     *
+     * @return list<int>
+     */
+    private function versionFamilyIds(File $file): array
+    {
+        $tenantFiles = File::withTrashed()->where('tenant_id', $file->tenant_id);
+        $known = [(int) $file->getKey()];
+        $pending = $known;
+
+        while ($pending !== []) {
+            $current = array_pop($pending);
+            $related = (clone $tenantFiles)
+                ->where(function ($query) use ($current): void {
+                    $query->where('id', $current)->orWhere('parent_file_id', $current);
+                })
+                ->pluck('id')
+                ->map(static fn ($id): int => (int) $id)
+                ->all();
+
+            foreach ($related as $relatedId) {
+                if (!in_array($relatedId, $known, true)) {
+                    $known[] = $relatedId;
+                    $pending[] = $relatedId;
+                }
+            }
+
+            $parentId = (clone $tenantFiles)->where('id', $current)->value('parent_file_id');
+            if ($parentId !== null && !in_array((int) $parentId, $known, true)) {
+                $known[] = (int) $parentId;
+                $pending[] = (int) $parentId;
+            }
+        }
+
+        return $known;
     }
 
     /**
