@@ -26,7 +26,7 @@
 
 ## Fail-closed unresolved cases
 
-1. **Bylaw clause not found in the destination repository as of 2026-10-29.** See `ARNA-GOV-ELECTION-CHALLENGE-APPEAL-RECONCILIATION-2026-10-29.md`. Certification remains blocked until the actual approved instrument, exact clause, deadline calculation, and source evidence are supplied and independently verified.
+1. **Challenge/appeal deadline not found in the reviewed governing scan.** Bylaw Article 12(4) (scan page 4) covers secret-ballot director elections, but does not set a challenge/appeal deadline or process. Article 24(4) concerns objections to liquidator appointments, not election results. See `ARNA-GOV-ELECTION-CHALLENGE-APPEAL-RECONCILIATION-2026-10-29.md`. Certification remains blocked until the applicable approved clause or resolution, deadline calculation, and source evidence are supplied and independently verified.
 2. **Tie at the runoff-selection cutoff.** The Owner approved a final-tie rerun, but did not specify how to select exactly two runoff candidates when a tie crosses the second-place cutoff in the initial round. The implementation blocks this state as `runoff_selection_blocked` rather than inventing a tie-break or misapplying the final-tie rule.
 3. **Quorum failure.** The Owner approved the participation threshold but did not specify the disposition of a failed-quorum round. The implementation records `quorum_failed` and blocks certification; it does not silently convert this into an authorized rerun.
 4. **Challenge and certification permissions.** The permission catalogue declares dedicated challenge and review permissions, but does not grant them to generic roles. A separate authority assignment is required; no reviewer or certifier is invented by code.
