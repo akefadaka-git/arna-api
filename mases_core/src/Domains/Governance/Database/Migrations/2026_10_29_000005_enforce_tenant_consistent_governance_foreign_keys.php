@@ -33,6 +33,7 @@ return new class extends Migration
         });
         Schema::table('governance_election_nominations', function (Blueprint $table): void {
             $table->unique(['tenant_id', 'id'], 'gen_tenant_id_id_uq');
+            $table->unique(['tenant_id', 'election_id', 'id'], 'gen_tenant_election_id_uq');
         });
 
         // Replace single-column domain references with tenant-aware references.
@@ -129,8 +130,8 @@ return new class extends Migration
             $table->foreign(['tenant_id', 'election_id'], 'geb_election_same_tenant_fk')
                 ->references(['tenant_id', 'id'])->on('governance_elections')
                 ->cascadeOnUpdate()->restrictOnDelete();
-            $table->foreign(['tenant_id', 'nomination_id'], 'geb_nomination_same_tenant_fk')
-                ->references(['tenant_id', 'id'])->on('governance_election_nominations')
+            $table->foreign(['tenant_id', 'election_id', 'nomination_id'], 'geb_nomination_same_election_fk')
+                ->references(['tenant_id', 'election_id', 'id'])->on('governance_election_nominations')
                 ->cascadeOnUpdate()->restrictOnDelete();
         });
     }
@@ -138,7 +139,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('governance_election_ballots', function (Blueprint $table): void {
-            $table->dropForeign('geb_nomination_same_tenant_fk');
+            $table->dropForeign('geb_nomination_same_election_fk');
             $table->dropForeign('geb_election_same_tenant_fk');
         });
         Schema::table('governance_election_audit_events', function (Blueprint $table): void {
@@ -208,6 +209,7 @@ return new class extends Migration
         });
 
         Schema::table('governance_election_nominations', function (Blueprint $table): void {
+            $table->dropUnique('gen_tenant_election_id_uq');
             $table->dropUnique('gen_tenant_id_id_uq');
         });
         Schema::table('governance_elections', function (Blueprint $table): void {
