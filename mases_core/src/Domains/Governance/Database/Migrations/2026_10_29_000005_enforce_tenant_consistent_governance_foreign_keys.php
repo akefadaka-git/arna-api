@@ -172,36 +172,39 @@ return new class extends Migration
             $table->dropForeign('gm_body_same_tenant_fk');
         });
 
+        Schema::table('governance_memberships', function (Blueprint $table): void {
+            $table->foreign('governance_body_id')->references('id')->on('governance_bodies')->cascadeOnDelete();
+        });
         Schema::table('governance_meeting_agenda_items', function (Blueprint $table): void {
-            $table->foreignId('meeting_id')->constrained('governance_meetings')->restrictOnDelete();
+            $table->foreign('meeting_id')->references('id')->on('governance_meetings')->restrictOnDelete();
         });
         Schema::table('governance_meeting_attendance', function (Blueprint $table): void {
-            $table->foreignId('meeting_id')->constrained('governance_meetings')->restrictOnDelete();
-            $table->foreignId('governance_membership_id')->constrained('governance_memberships')->restrictOnDelete();
+            $table->foreign('meeting_id')->references('id')->on('governance_meetings')->restrictOnDelete();
+            $table->foreign('governance_membership_id')->references('id')->on('governance_memberships')->restrictOnDelete();
         });
         Schema::table('governance_meeting_audit_events', function (Blueprint $table): void {
-            $table->foreignId('meeting_id')->constrained('governance_meetings')->restrictOnDelete();
+            $table->foreign('meeting_id')->references('id')->on('governance_meetings')->restrictOnDelete();
         });
         Schema::table('governance_meetings', function (Blueprint $table): void {
-            $table->foreignId('governance_body_id')->constrained('governance_bodies')->restrictOnDelete();
+            $table->foreign('governance_body_id')->references('id')->on('governance_bodies')->restrictOnDelete();
         });
         Schema::table('governance_elections', function (Blueprint $table): void {
-            $table->foreignId('governance_body_id')->constrained('governance_bodies')->restrictOnDelete();
+            $table->foreign('governance_body_id')->references('id')->on('governance_bodies')->restrictOnDelete();
         });
         Schema::table('governance_election_nominations', function (Blueprint $table): void {
-            $table->foreignId('election_id')->constrained('governance_elections')->restrictOnDelete();
-            $table->foreignId('governance_membership_id')->constrained('governance_memberships')->restrictOnDelete();
+            $table->foreign('election_id')->references('id')->on('governance_elections')->restrictOnDelete();
+            $table->foreign('governance_membership_id')->references('id')->on('governance_memberships')->restrictOnDelete();
         });
         Schema::table('governance_election_eligible_voters', function (Blueprint $table): void {
-            $table->foreignId('election_id')->constrained('governance_elections')->restrictOnDelete();
-            $table->foreignId('governance_membership_id')->constrained('governance_memberships')->restrictOnDelete();
+            $table->foreign('election_id')->references('id')->on('governance_elections')->restrictOnDelete();
+            $table->foreign('governance_membership_id')->references('id')->on('governance_memberships')->restrictOnDelete();
         });
         Schema::table('governance_election_audit_events', function (Blueprint $table): void {
-            $table->foreignId('election_id')->constrained('governance_elections')->restrictOnDelete();
+            $table->foreign('election_id')->references('id')->on('governance_elections')->restrictOnDelete();
         });
         Schema::table('governance_election_ballots', function (Blueprint $table): void {
-            $table->foreignId('election_id')->constrained('governance_elections')->restrictOnDelete();
-            $table->foreignId('nomination_id')->constrained('governance_election_nominations')->restrictOnDelete();
+            $table->foreign('election_id')->references('id')->on('governance_elections')->restrictOnDelete();
+            $table->foreign('nomination_id')->references('id')->on('governance_election_nominations')->restrictOnDelete();
         });
 
         Schema::table('governance_election_nominations', function (Blueprint $table): void {
