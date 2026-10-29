@@ -6,6 +6,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use MaaleArna\MASES\Core\Domains\Finance\Enums\CashFlowActivity;
 
 final class StoreJournalRequest extends FormRequest
 {
