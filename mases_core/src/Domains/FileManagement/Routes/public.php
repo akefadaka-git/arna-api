@@ -13,10 +13,11 @@ use MaaleArna\MASES\Core\Domains\FileManagement\Http\Controllers\FileController;
 Route::prefix('/public/files')->name('api.files.public.')->group(static function (): void {
     Route::get('/{id}/download', [FileController::class, 'publicDownload'])
         ->whereNumber('id')
+        ->middleware('throttle:60,1')
         ->name('download');
 
     Route::get('/{id}/verify', [FileController::class, 'publicVerify'])
         ->whereNumber('id')
-        ->middleware('signed')
+        ->middleware(['signed', 'throttle:60,1'])
         ->name('verify');
 });
