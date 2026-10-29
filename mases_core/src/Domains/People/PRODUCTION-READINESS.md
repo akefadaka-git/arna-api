@@ -15,6 +15,8 @@
 - Domain unlink operations now require the record's current `person_id` to match the Person named in the route; mismatch is rejected inside the transaction after the domain record is locked.
 - Tenant-access reactivation preserves the original `created_by` and `created_at` grant provenance; only `status` and `updated_at` change on reactivation. New grants insert a provenance row, with the composite unique key retained as the final duplicate guard.
 - Tenant-access revocation locks linked domain records in a fixed order before locking the Person, matching the domain-link lock direction and avoiding the previous Person-first/domain-row-second lock inversion. The revocation write is restricted to an active grant.
+- Contact-point, participation, and relationship persistence now re-check active Person status and tenant grants inside their write transactions after acquiring Person locks, closing the stale-authorization window between controller visibility checks and database writes. Relationship creation revalidates both endpoint grants under stable Person-row lock ordering.
+- Phone contact duplicate detection now normalizes away formatting punctuation before deriving the keyed duplicate hash, so formatting-only variants cannot create separate active contact rows.
 - Regression coverage now asserts that revocation is rejected while an employee record remains linked and that the active tenant grant is preserved.
 
 ## Run locally
@@ -55,6 +57,7 @@ The available retrieval for workflow run `40734382888`, failed job `122978877517
 - Tenant-access grant-provenance preservation: **implemented, NOT RUN**.
 - Tenant-access reactivation regression coverage: **generated in `PersonApiIntegrationTest.php`, NOT RUN**.
 - Tenant-access revocation/link integrity regression coverage: **generated in `PersonApiIntegrationTest.php`, NOT RUN**.
+- Phone formatting duplicate and stale-tenant-grant persistence regression coverage: **generated in `PersonApiIntegrationTest.php`, NOT RUN**.
 - Focused test code: **added, NOT RUN**.
 - PHP lint and route registration: **NOT RUN**.
 - Fresh MySQL migration: **NOT RUN locally; existing CI run failed, root cause unresolved**.
