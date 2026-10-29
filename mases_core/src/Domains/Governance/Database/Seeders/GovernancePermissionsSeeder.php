@@ -33,7 +33,7 @@ declare(strict_types=1);
  *
  *   What the seeder writes:
  *
- *     · 36 tenant-scoped permissions with the `governance.` prefix.
+ *     · 40 tenant-scoped permissions with the `governance.` prefix.
  *       Each carries `scope = 'tenant'`, `tenant_id = null`,
  *       `application_id = null`, `is_active = true`,
  *       `is_system = true`.
@@ -46,7 +46,7 @@ declare(strict_types=1);
  *       other six `app.*.access` rows, all of which are
  *       `is_system = 0` except `app.admin.access`.
  *
- *   Total: 37 permission rows.
+ *   Total: 41 permission rows.
  *
  *   What the seeder deliberately does NOT do:
  *
@@ -77,18 +77,15 @@ declare(strict_types=1);
  * =============================================================================
  * Correction of a prior statement
  * =============================================================================
- * Two messages in this session (the G1 file 6 delivery's status
- * block and the G1 file 5 delivery's status block) stated the
- * seeder would register "38 governance.* slugs". That was an
- * arithmetic error on this author's part. The correct count is 36,
- * matching the list in the master prompt §28 as refined during the
- * G0 assessment (which dropped `decision.*` pending the
- * Resolution-vs-Decision business decision, and unified every slug
- * under the `governance.` prefix). The 37-row total is what this
- * seeder writes.
+ * Historical baseline: the original G1 inventory contained 36
+ * tenant-scoped Governance permissions. This implementation adds
+ * `governance.election.vote` and `governance.election.certify`
+ * without assigning either permission to a role. The current source
+ * therefore contains 40 tenant-scoped Governance permissions and
+ * 41 total rows including `app.governance.access`.
  *
  * =============================================================================
- * The 36-slug inventory (by group)
+ * The current 40-slug inventory (by group)
  * =============================================================================
  * Grouped by the resource noun the slug addresses. Counts:
  *
@@ -103,7 +100,7 @@ declare(strict_types=1);
  *     governance.action        4  (view, create, manage, verify)
  *     governance.delegation    2  (view, manage)
  *     governance.declaration   2  (view, manage)
- *     governance.election      2  (view, manage)
+ *     governance.election      6  (view, manage, vote, certify, challenge, challenge.review)
  *     governance.document      3  (view, upload, download)
  *     governance.report        2  (view, generate)
  *                              ──
@@ -113,7 +110,7 @@ declare(strict_types=1);
  *
  *     app.governance.access    1  (application-scoped launcher gate)
  *                              ──
- *                              37 total
+ *                              41 total
  *
  * The `verify` verb on the action group is the only verb in the
  * inventory that is not one of the four standard verbs (view,
@@ -251,7 +248,7 @@ declare(strict_types=1);
  *
  * The `application_id` lookup runs on every invocation and does not
  * itself write. A repeat run performs one extra read on
- * `platform_applications` and then the same 37 idempotent writes.
+ * `platform_applications` and then the same 41 idempotent writes.
  *
  * =============================================================================
  * How to run
@@ -266,7 +263,7 @@ declare(strict_types=1);
  *     php artisan db:seed \
  *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernanceApplicationSeeder"
  *
- *     # 2. Register the governance permissions (37 rows)
+ *     # 2. Register the governance permissions (41 rows)
  *     php artisan db:seed \
  *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernancePermissionsSeeder"
  *
@@ -298,12 +295,12 @@ declare(strict_types=1);
  *     php artisan tinker
  *     >>> \MaaleArna\MASES\Core\Authorization\Models\Permission
  *     ...     ::where('slug', 'like', 'governance.%')->count()
- *     => 36
+ *     => 40
  *     >>> \MaaleArna\MASES\Core\Authorization\Models\Permission
  *     ...     ::where('slug', 'app.governance.access')->value('application_id')
  *     => 8
  *
- * Expected: 36 tenant-scoped governance permissions and one
+ * Expected: 40 tenant-scoped governance permissions and one
  * application-scoped `app.governance.access` row pointing at
  * `application_id = 8`.
  *
@@ -311,7 +308,7 @@ declare(strict_types=1);
  * Files modified:            none (this is a new file)
  * Files added:               this file only
  * Files deleted:             none
- * Permissions added:         37 (36 tenant-scoped + 1 application-scoped)
+ * Permissions added:         41 (40 tenant-scoped + 1 application-scoped)
  * Roles modified:            none (G1 file 8)
  * Users modified:            none
  * =============================================================================
@@ -327,7 +324,7 @@ use RuntimeException;
 /**
  * GovernancePermissionsSeeder
  *
- * Registers the Governance domain's 37 permissions into the
+ * Registers the Governance domain's 41 permissions into the
  * platform `permissions` table.
  *
  * =============================================================================
@@ -346,9 +343,9 @@ use RuntimeException;
  * =============================================================================
  * What this seeder writes
  * =============================================================================
- * 37 rows across 2 scopes:
+ * 41 rows across 2 scopes:
  *
- *   governance.*        36 rows (scope = 'tenant', category = 'governance')
+ *   governance.*        40 rows (scope = 'tenant', category = 'governance')
  *   app.governance.*     1 row  (scope = 'application', category = 'app_access')
  *
  * The set is frozen by the master prompt §28 as refined during the
@@ -392,7 +389,7 @@ use RuntimeException;
  *
  * Expected output:
  *
- *     Governance permissions seeded: 37 entries (36 tenant + 1 application).
+ *     Governance permissions seeded: 41 entries (40 tenant + 1 application).
  *
  * @package MaaleArna\MASES\Core\Domains\Governance\Database\Seeders
  * @version 1.0.0
@@ -400,7 +397,7 @@ use RuntimeException;
 final class GovernancePermissionsSeeder extends Seeder
 {
     /**
-     * The 36 tenant-scoped permissions this seeder manages.
+     * The 40 tenant-scoped permissions this seeder manages.
      *
      * Each entry carries a slug, an Amharic label, an English label,
      * and a category. The `scope` is uniform across the set
@@ -653,6 +650,30 @@ final class GovernancePermissionsSeeder extends Seeder
             'name_en'  => 'Manage elections',
             'category' => 'governance',
         ],
+        [
+            'slug'     => 'governance.election.vote',
+            'name_am'  => 'በምርጫ መሳተፍ',
+            'name_en'  => 'Cast election ballot',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.certify',
+            'name_am'  => 'የምርጫ ውጤት ማረጋገጥ',
+            'name_en'  => 'Certify election results',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.challenge',
+            'name_am'  => 'የምርጫ ውጤትን መቃወም ወይም ይግባኝ ማቅረብ',
+            'name_en'  => 'Submit election challenge or appeal',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.challenge.review',
+            'name_am'  => 'የምርጫ ተቃውሞን ወይም ይግባኝን መወሰን',
+            'name_en'  => 'Review election challenge or appeal',
+            'category' => 'governance',
+        ],
 
         // ---------------------------------------------------------------------
         // Documents
@@ -708,7 +729,7 @@ final class GovernancePermissionsSeeder extends Seeder
     /**
      * Run the database seeds.
      *
-     * Writes the 36 tenant-scoped permissions, then resolves the
+     * Writes the 40 tenant-scoped permissions, then resolves the
      * Governance platform application and writes the
      * application-scoped permission. Fails loudly if the
      * application row is missing.

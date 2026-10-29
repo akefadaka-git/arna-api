@@ -203,11 +203,13 @@ use MaaleArna\MASES\Core\Domains\Governance\Listeners\AuditGovernanceEvent;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMeeting;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceTerm;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceAppointmentPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceBodyPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceMembershipPolicy;
+use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceMeetingPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernancePositionPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceTermPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceAppointmentRepository;
@@ -219,6 +221,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAppointmentServic
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceBodyService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceMembershipService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceMeetingService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernancePositionService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceTermService;
 
@@ -523,6 +526,9 @@ final class GovernanceServiceProvider extends ServiceProvider
         $this->app->singleton(GovernanceMembershipRepository::class);
         $this->app->singleton(GovernanceMembershipService::class);
 
+        // G5a — meeting lifecycle service.
+        $this->app->singleton(GovernanceMeetingService::class);
+
         // P1.3-B3 — explicit position-scoped authority grants.
         $this->app->singleton(GovernanceAuthorityGrantService::class);
     }
@@ -582,6 +588,9 @@ final class GovernanceServiceProvider extends ServiceProvider
 
         // G2c — membership policy.
         Gate::policy(GovernanceMembership::class, GovernanceMembershipPolicy::class);
+
+        // G5a — meeting policy.
+        Gate::policy(GovernanceMeeting::class, GovernanceMeetingPolicy::class);
     }
 
     // =========================================================================

@@ -229,6 +229,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAppointme
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePositionController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceSeatController;
@@ -567,5 +568,53 @@ Route::name('api.governance.')->group(static function (): void {
     Route::match(['patch', 'put'], '/memberships/{governanceMembership}', [GovernanceMembershipController::class, 'update'])
         ->whereNumber('governanceMembership')
         ->name('memberships.update');
+
+    // G5a — tenant-scoped meeting lifecycle. Object operations also authorize via GovernanceMeetingPolicy.
+    Route::get('/meetings', [GovernanceMeetingController::class, 'index'])
+        ->middleware('auth.permission:governance.meeting.view')
+        ->name('meetings.index');
+
+    Route::post('/meetings', [GovernanceMeetingController::class, 'store'])
+        ->middleware('auth.permission:governance.meeting.create')
+        ->name('meetings.store');
+
+    Route::get('/meetings/{governanceMeeting}', [GovernanceMeetingController::class, 'show'])
+        ->whereNumber('governanceMeeting')
+        ->name('meetings.show');
+
+    Route::match(['patch', 'put'], '/meetings/{governanceMeeting}', [GovernanceMeetingController::class, 'update'])
+        ->whereNumber('governanceMeeting')
+        ->name('meetings.update');
+
+    Route::post('/meetings/{governanceMeeting}/approve', [GovernanceMeetingController::class, 'approve'])
+        ->whereNumber('governanceMeeting')
+        ->middleware('auth.permission:governance.meeting.approve')
+        ->name('meetings.approve');
+
+    // Meeting agenda, attendance, quorum and audit history (Governance-owned).
+    Route::get('/meetings/{governanceMeeting}/agenda', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'agenda'])->whereNumber('governanceMeeting')->name('meetings.agenda.index');
+    Route::post('/meetings/{governanceMeeting}/agenda', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'addAgendaItem'])->whereNumber('governanceMeeting')->name('meetings.agenda.store');
+    Route::get('/meetings/{governanceMeeting}/attendance', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'attendance'])->whereNumber('governanceMeeting')->name('meetings.attendance.index');
+    Route::post('/meetings/{governanceMeeting}/attendance', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'recordAttendance'])->whereNumber('governanceMeeting')->name('meetings.attendance.store');
+    Route::post('/meetings/{governanceMeeting}/quorum/evaluate', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'evaluateQuorum'])->whereNumber('governanceMeeting')->name('meetings.quorum.evaluate');
+    Route::get('/meetings/{governanceMeeting}/audit-events', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'auditEvents'])->whereNumber('governanceMeeting')->name('meetings.audit.index');
+
+    // Separate Governance election workflow; no election-specific code is placed in Organization.
+    Route::get('/elections', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'index'])->name('elections.index');
+    Route::post('/elections', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'store'])->name('elections.store');
+    Route::post('/elections/{electionId}/nominations', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'nominate'])->whereNumber('electionId')->name('elections.nominations.store');
+    Route::patch('/elections/{electionId}/nominations/{nominationId}', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'reviewNomination'])->whereNumber('electionId')->whereNumber('nominationId')->name('elections.nominations.review');
+    Route::post('/elections/{electionId}/transition', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'transition'])->whereNumber('electionId')->name('elections.transition');
+    Route::post('/elections/{electionId}/voters', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'registerVoter'])->whereNumber('electionId')->name('elections.voters.store');
+    Route::post('/elections/{electionId}/ballots', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'castBallot'])->whereNumber('electionId')->name('elections.ballots.store');
+    Route::get('/elections/{electionId}/voters', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'voters'])->whereNumber('electionId')->name('elections.voters.index');
+    Route::get('/elections/{electionId}/nominations', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'nominations'])->whereNumber('electionId')->name('elections.nominations.index');
+    Route::get('/elections/{electionId}/audit-events', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'auditEvents'])->whereNumber('electionId')->name('elections.audit.index');
+    Route::get('/elections/{electionId}/results', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'results'])->whereNumber('electionId')->name('elections.results');
+    Route::post('/elections/{electionId}/challenge-window', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'setChallengeWindow'])->whereNumber('electionId')->name('elections.challenge-window.store');
+    Route::post('/elections/{electionId}/challenge-window/verify', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'verifyChallengeWindow'])->middleware('auth.permission:governance.election.challenge.review')->whereNumber('electionId')->name('elections.challenge-window.verify');
+    Route::post('/elections/{electionId}/challenges', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'submitChallenge'])->middleware('auth.permission:governance.election.challenge')->whereNumber('electionId')->name('elections.challenges.store');
+    Route::get('/elections/{electionId}/challenges', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'challenges'])->whereNumber('electionId')->name('elections.challenges.index');
+    Route::patch('/elections/{electionId}/challenges/{challengeId}', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'resolveChallenge'])->middleware('auth.permission:governance.election.challenge.review')->whereNumber('electionId')->whereNumber('challengeId')->name('elections.challenges.resolve');
 
 });
