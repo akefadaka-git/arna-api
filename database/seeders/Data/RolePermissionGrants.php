@@ -221,6 +221,7 @@ final class RolePermissionGrants
             'finance.account.view', 'finance.account.manage',
             'finance.period.view', 'finance.period.manage',
             'finance.journal.view', 'finance.journal.create',
+            'finance.journal.cancel',
             'finance.journal.post', 'finance.journal.reverse',
             'finance.report.view',
         ],
