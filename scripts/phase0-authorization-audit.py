@@ -118,7 +118,7 @@ def method_body(source, method):
         i += 1
     return source[start:i-1] if depth == 0 else source[start:]
 
-file_source = read_text(ROOT / "app/Http/Controllers/FileController.php")
+file_source = read_text(ROOT / "mases_core/src/Domains/FileManagement/Http/Controllers/FileController.php")
 file_permissions = {
     "upload": ["file.upload"],
     "destroy": ["file.delete"],
