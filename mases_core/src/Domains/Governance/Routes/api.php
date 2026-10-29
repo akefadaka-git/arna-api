@@ -611,5 +611,9 @@ Route::name('api.governance.')->group(static function (): void {
     Route::get('/elections/{electionId}/nominations', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'nominations'])->whereNumber('electionId')->name('elections.nominations.index');
     Route::get('/elections/{electionId}/audit-events', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'auditEvents'])->whereNumber('electionId')->name('elections.audit.index');
     Route::get('/elections/{electionId}/results', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'results'])->whereNumber('electionId')->name('elections.results');
+    Route::post('/elections/{electionId}/challenge-window', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'setChallengeWindow'])->whereNumber('electionId')->name('elections.challenge-window.store');
+    Route::post('/elections/{electionId}/challenges', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'submitChallenge'])->middleware('auth.permission:governance.election.challenge')->whereNumber('electionId')->name('elections.challenges.store');
+    Route::get('/elections/{electionId}/challenges', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'challenges'])->whereNumber('electionId')->name('elections.challenges.index');
+    Route::patch('/elections/{electionId}/challenges/{challengeId}', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionController', 'resolveChallenge'])->middleware('auth.permission:governance.election.challenge.review')->whereNumber('electionId')->whereNumber('challengeId')->name('elections.challenges.resolve');
 
 });
