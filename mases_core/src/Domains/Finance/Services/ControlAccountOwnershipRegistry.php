@@ -10,8 +10,8 @@ use LogicException;
 /**
  * Read-only registry for the CoA v1 control-account accountability baseline.
  *
- * Defines functional roles and evidence requirements only. It does not appoint
- * personnel, grant permissions, enable adapters, or post reconciliation results.
+ * Validates Owner-authorized functional roles and evidence requirements. Named
+ * personnel assignment, adapter activation, and reconciliation execution remain separate gates.
  */
 final class ControlAccountOwnershipRegistry
 {
@@ -108,12 +108,12 @@ final class ControlAccountOwnershipRegistry
                 }
             }
 
-            if (($policy['designation_status'] ?? null) === 'PENDING_OWNER_DESIGNATION') {
+            if (($policy['designation_status'] ?? null) === 'ROLE_DESIGNATED_PERSON_PENDING') {
                 if (($policy['named_accountable_person'] ?? null) !== null) {
-                    throw new LogicException("Control account {$code} cannot have a named owner while designation is pending.");
+                    throw new LogicException("Control account {$code} cannot have a named individual while personnel assignment is pending.");
                 }
                 if (($policy['adapter_activation'] ?? null) !== 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED') {
-                    throw new LogicException("Control account {$code} must remain blocked while owner designation is pending.");
+                    throw new LogicException("Control account {$code} must remain blocked while named-person assignment is pending.");
                 }
             }
         }
