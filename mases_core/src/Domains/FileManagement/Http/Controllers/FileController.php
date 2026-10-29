@@ -180,7 +180,7 @@ class FileController extends Controller
             throw FileException::notFound((string) $id);
         }
 
-        if (!$file->is_public) {
+        if (!$file->is_public || $file->status !== 'published') {
             if (!$user) {
                 throw FileException::authRequired();
             }
@@ -206,7 +206,7 @@ class FileController extends Controller
             throw FileException::notFound((string) $id);
         }
 
-        if (!$file->is_public) {
+        if (!$file->is_public || $file->status !== 'published') {
             if (!$user) {
                 throw FileException::authRequired();
             }
