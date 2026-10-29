@@ -591,7 +591,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
     ->prefix('finance')
     ->name('api.finance.')
     ->group(static function (): void {
-        $controller = \\MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Controllers\\FinanceController::class;
+        $controller = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\FinanceController::class;
 
         Route::get('/entities', [$controller, 'entities'])->middleware('auth.permission:finance.entity.view')->name('entities.index');
         Route::post('/entities', [$controller, 'createEntity'])->middleware('auth.permission:finance.entity.manage')->name('entities.store');
