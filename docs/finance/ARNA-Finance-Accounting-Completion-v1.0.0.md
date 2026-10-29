@@ -6,7 +6,9 @@ This branch extends the canonical CoA implementation branch with:
 - protection against mass assignment of system-managed CoA metadata on `LedgerAccount`;
 - an explicit schema precondition for `legal_entities.id`, `tenant_id`, and `status` before seeding;
 - a control-account reconciliation ownership register covering all canonical accounts marked as control accounts;
-- acceptance tests for CoA structure, parent ordering, category values, and one-to-one ownership coverage.
+- a read-only `ControlAccountOwnershipRegistry` that validates exact CoA coverage, required role/evidence fields, and fail-closed pending-designation state;
+- a seeder preflight that validates ownership coverage before the first account write;
+- unit/acceptance tests for CoA structure, parent ordering, category values, and one-to-one ownership coverage.
 
 ## Control-account accountability status
 
@@ -38,7 +40,8 @@ Per Owner direction, external tax review is deferred for now. Account tax values
 
 - GitHub source inspection confirmed 79 CoA register rows.
 - Static generation mapped all 36 register control accounts to an ownership record.
-- Automated tests added but **NOT RUN** per the Owner's no-local-tests instruction.
+- Automated tests added for CoA structure and ownership registry invariants but **NOT RUN** per the Owner's no-local-tests instruction.
+- Static source changes in the latest commits: `2b32370e1b65779ea47e787408bdbc14469c0010`, `515f7e1dfb9516350eb8ea39427913bf316b742b`, and `f614f7a79157868c2fbef92c7bd066a9ac8ff2f9`.
 - CI/workflows: **NOT RUN**.
 - Database migration/seeder execution: **NOT RUN**.
 - Merge/deployment: **NOT AUTHORIZED / NOT PERFORMED**.
