@@ -324,7 +324,7 @@ use RuntimeException;
 /**
  * GovernancePermissionsSeeder
  *
- * Registers the Governance domain's 37 permissions into the
+ * Registers the Governance domain's 39 permissions into the
  * platform `permissions` table.
  *
  * =============================================================================
@@ -343,9 +343,9 @@ use RuntimeException;
  * =============================================================================
  * What this seeder writes
  * =============================================================================
- * 37 rows across 2 scopes:
+ * 39 rows across 2 scopes:
  *
- *   governance.*        36 rows (scope = 'tenant', category = 'governance')
+ *   governance.*        38 rows (scope = 'tenant', category = 'governance')
  *   app.governance.*     1 row  (scope = 'application', category = 'app_access')
  *
  * The set is frozen by the master prompt §28 as refined during the
@@ -389,7 +389,7 @@ use RuntimeException;
  *
  * Expected output:
  *
- *     Governance permissions seeded: 37 entries (36 tenant + 1 application).
+ *     Governance permissions seeded: 39 entries (38 tenant + 1 application).
  *
  * @package MaaleArna\MASES\Core\Domains\Governance\Database\Seeders
  * @version 1.0.0
@@ -397,7 +397,7 @@ use RuntimeException;
 final class GovernancePermissionsSeeder extends Seeder
 {
     /**
-     * The 36 tenant-scoped permissions this seeder manages.
+     * The 38 tenant-scoped permissions this seeder manages.
      *
      * Each entry carries a slug, an Amharic label, an English label,
      * and a category. The `scope` is uniform across the set
@@ -717,7 +717,7 @@ final class GovernancePermissionsSeeder extends Seeder
     /**
      * Run the database seeds.
      *
-     * Writes the 36 tenant-scoped permissions, then resolves the
+     * Writes the 38 tenant-scoped permissions, then resolves the
      * Governance platform application and writes the
      * application-scoped permission. Fails loudly if the
      * application row is missing.
