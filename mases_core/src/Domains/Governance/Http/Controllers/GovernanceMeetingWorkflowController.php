@@ -58,8 +58,8 @@ final class GovernanceMeetingWorkflowController extends Controller
         $rows = DB::table('governance_meeting_attendance as a')
             ->join('governance_memberships as m', 'm.id', '=', 'a.governance_membership_id')
             ->where('a.tenant_id', $this->tenantId())->where('a.meeting_id', $governanceMeeting->id)
-            ->select('a.id', 'a.governance_membership_id', 'a.attendance_status', 'a.recorded_at', 'a.notes', 'm.person_id', 'm.status as membership_status')
-            ->orderBy('m.person_id')->get();
+            ->select('a.id', 'a.governance_membership_id', 'a.attendance_status', 'a.recorded_at', 'a.notes', 'm.user_id', 'm.member_name_am', 'm.member_name_en', 'm.status as membership_status')
+            ->orderBy('m.user_id')->orderBy('m.id')->get();
         return response()->json(['success' => true, 'data' => $rows]);
     }
 
@@ -103,15 +103,17 @@ final class GovernanceMeetingWorkflowController extends Controller
         $tenantId = $this->tenantId();
         $eligible = GovernanceMembership::query()->where('tenant_id', $tenantId)
             ->where('governance_body_id', $governanceMeeting->governance_body_id)
-            ->where('status', 'active')->count();
+            ->where('status', 'active')->where('is_voting_member', true)->count();
         $present = DB::table('governance_meeting_attendance as a')
             ->join('governance_memberships as m', 'm.id', '=', 'a.governance_membership_id')
             ->where('a.tenant_id', $tenantId)->where('a.meeting_id', $governanceMeeting->id)
-            ->where('m.status', 'active')->whereIn('a.attendance_status', ['present', 'remote'])->count();
+            ->where('m.status', 'active')->where('m.is_voting_member', true)->whereIn('a.attendance_status', ['present', 'remote'])->count();
         $threshold = max(1, (int) ceil($eligible * 0.5));
         $snapshot = ['rule' => 'active_members_at_evaluation', 'eligible_voting_members' => $eligible, 'present_voting_members' => $present, 'threshold_percent' => 50, 'threshold_count' => $threshold, 'quorum_met' => $eligible > 0 && $present >= $threshold, 'evaluated_at' => now()->toIso8601String()];
         DB::table('governance_meetings')->where('tenant_id', $tenantId)->where('id', $governanceMeeting->id)->update([
-            'quorum_snapshot_json' => json_encode($snapshot, JSON_THROW_ON_ERROR), 'updated_at' => now(),
+            'quorum_snapshot_json' => json_encode($snapshot, JSON_THROW_ON_ERROR),
+            'quorum_rule_snapshot' => json_encode(['eligible_basis' => 'active_governance_memberships_with_is_voting_member_true', 'threshold_percent' => 50], JSON_THROW_ON_ERROR),
+            'quorum_met' => $snapshot['quorum_met'], 'updated_at' => now(),
         ]);
         $this->audit($governanceMeeting, (int) $request->user()->getAuthIdentifier(), 'quorum.evaluated', null, $snapshot);
         return response()->json(['success' => true, 'data' => $snapshot]);
@@ -135,11 +137,11 @@ final class GovernanceMeetingWorkflowController extends Controller
 
     private function tenantId(): int
     {
-        $tenantId = (int) app('tenant.context')->id();
-        if ($tenantId < 1) {
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        if ($tenantId === null || (int) $tenantId < 1) {
             throw new NotFoundHttpException();
         }
-        return $tenantId;
+        return (int) $tenantId;
     }
 
     /** @param array<string, mixed>|null $before @param array<string, mixed>|null $after */
