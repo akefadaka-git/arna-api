@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use MaaleArna\MASES\Core\Domains\Finance\Services\ControlAccountOwnershipRegistry;
 use RuntimeException;
 
 /**
@@ -45,6 +46,10 @@ final class FinanceChartOfAccountsSeeder extends Seeder
 
         $register = require base_path('config/finance/chart_of_accounts_v1.php');
         $this->validateRegister($register);
+        // Validate control-account ownership before the first database write.
+        // Pending personnel designation is allowed for seeding, but the registry
+        // enforces that reconciliation adapters remain blocked until approval.
+        app(ControlAccountOwnershipRegistry::class)->validateAgainstChart($register);
         $entities = DB::table('legal_entities')->where('status', 'active')->orderBy('tenant_id')->orderBy('id')->get();
         if ($entities->isEmpty()) {
             throw new RuntimeException('ARNA CoA v1.0.0 found no active legal entities; no accounts were seeded.');
