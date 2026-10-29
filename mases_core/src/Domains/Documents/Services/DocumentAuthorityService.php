@@ -192,7 +192,40 @@ final class DocumentAuthorityService
             if (!$occupancy || !$occupancy->isEffectiveOn($today)) {
                 continue;
             }
-            if ($this->hasGrantForPerson($tenantId, $bodyId, $positionId, (int) $occupancy->person_id, $action, $today)) {
+
+            $incumbent = Person::query()
+                ->whereKey($occupancy->person_id)
+                ->where('status', 'active')
+                ->whereNull('deleted_at')
+                ->first();
+            if (!$incumbent || !$incumbent->user_id) {
+                continue;
+            }
+
+            $incumbentAccess = \MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess::query()
+                ->where('person_id', $incumbent->id)
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'active')
+                ->exists();
+            if (!$incumbentAccess) {
+                continue;
+            }
+
+            $incumbentMembership = \MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership::query()
+                ->whereKey($occupancy->governance_membership_id)
+                ->where('tenant_id', $tenantId)
+                ->where('governance_body_id', $bodyId)
+                ->where('governance_position_id', $positionId)
+                ->where('user_id', $incumbent->user_id)
+                ->where('status', 'active')
+                ->whereDate('start_date', '<=', $today)
+                ->where(fn ($query) => $query->whereNull('end_date')->orWhereDate('end_date', '>=', $today))
+                ->exists();
+            if (!$incumbentMembership) {
+                continue;
+            }
+
+            if ($this->hasGrantForPerson($tenantId, $bodyId, $positionId, (int) $incumbent->id, $action, $today)) {
                 return true;
             }
         }
