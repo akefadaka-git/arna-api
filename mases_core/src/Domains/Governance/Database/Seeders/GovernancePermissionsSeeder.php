@@ -33,7 +33,7 @@ declare(strict_types=1);
  *
  *   What the seeder writes:
  *
- *     · 37 tenant-scoped permissions with the `governance.` prefix.
+ *     · 38 tenant-scoped permissions with the `governance.` prefix.
  *       Each carries `scope = 'tenant'`, `tenant_id = null`,
  *       `application_id = null`, `is_active = true`,
  *       `is_system = true`.
@@ -46,7 +46,7 @@ declare(strict_types=1);
  *       other six `app.*.access` rows, all of which are
  *       `is_system = 0` except `app.admin.access`.
  *
- *   Total: 38 permission rows.
+ *   Total: 39 permission rows.
  *
  *   What the seeder deliberately does NOT do:
  *
@@ -103,7 +103,7 @@ declare(strict_types=1);
  *     governance.action        4  (view, create, manage, verify)
  *     governance.delegation    2  (view, manage)
  *     governance.declaration   2  (view, manage)
- *     governance.election      3  (view, manage, vote)
+ *     governance.election      4  (view, manage, vote, certify)
  *     governance.document      3  (view, upload, download)
  *     governance.report        2  (view, generate)
  *                              ──
@@ -657,6 +657,12 @@ final class GovernancePermissionsSeeder extends Seeder
             'slug'     => 'governance.election.vote',
             'name_am'  => 'በምርጫ መሳተፍ',
             'name_en'  => 'Cast election ballot',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.certify',
+            'name_am'  => 'የምርጫ ውጤት ማረጋገጥ',
+            'name_en'  => 'Certify election results',
             'category' => 'governance',
         ],
 
