@@ -30,6 +30,8 @@ final class StoreJournalRequest extends FormRequest
             'lines.*.debit_amount' => ['required', 'string', 'regex:/^\d{1,16}(?:\.\d{1,4})?$/'],
             'lines.*.credit_amount' => ['required', 'string', 'regex:/^\d{1,16}(?:\.\d{1,4})?$/'],
             'lines.*.description' => ['nullable', 'string', 'max:500'],
+            'lines.*.cash_flow_activity' => ['sometimes', 'nullable', 'string', Rule::in(['operating', 'investing', 'financing'])],
+            'lines.*.cash_flow_classification_note' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ];
     }
 }

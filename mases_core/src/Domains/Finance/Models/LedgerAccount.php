@@ -20,7 +20,7 @@ final class LedgerAccount extends Model
         'tenant_id', 'legal_entity_id', 'parent_id', 'code', 'name_am', 'name_en',
         'account_type', 'normal_balance', 'is_posting_allowed', 'status',
         'is_control_account', 'control_domain', 'default_tax_category',
-        'coa_version', 'is_system_account',
+        'coa_version', 'is_system_account', 'is_cash_equivalent',
     ];
 
     protected $casts = [
@@ -30,6 +30,7 @@ final class LedgerAccount extends Model
         'is_posting_allowed' => 'boolean',
         'is_control_account' => 'boolean',
         'is_system_account' => 'boolean',
+        'is_cash_equivalent' => 'boolean',
     ];
 
     public function entity(): BelongsTo

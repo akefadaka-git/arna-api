@@ -47,6 +47,7 @@ final class FinanceController extends Controller
         private readonly LedgerAccountService $ledgerAccountService,
         private readonly JournalEntryService $journals,
         private readonly FinancialReportService $financialReports,
+        private readonly CashFlowReportContract $cashFlowReports,
         private readonly LedgerAccountRepository $ledgerAccounts,
         private readonly AccountingPeriodRepository $accountingPeriods,
         private readonly AccountingPeriodService $accountingPeriodService,
@@ -254,6 +255,28 @@ final class FinanceController extends Controller
             $data['journal_number'], $data['effective_date'], $data['reason'],
         );
         return response()->json(['success' => true, 'data' => $journal], 201);
+    }
+
+    public function cashFlow(Request $request): JsonResponse
+    {
+        Gate::authorize('viewReport', JournalEntry::class);
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer', 'min:1'],
+            'from' => ['required', 'date'],
+            'to' => ['required', 'date', 'after_or_equal:from'],
+        ]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+        $report = $this->cashFlowReports->cashFlow(
+            $this->tenantId(),
+            (int) $entity->id,
+            (string) $data['from'],
+            (string) $data['to'],
+        );
+
+        return response()->json(['success' => true, 'data' => [
+            'legal_entity_id' => (int) $entity->id,
+            ...$report,
+        ]]);
     }
 
     public function trialBalance(Request $request): JsonResponse
