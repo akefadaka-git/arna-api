@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Organization\\Http\\Requests;
+namespace MaaleArna\MASES\Core\Domains\Organization\Http\Requests;
 
-use Illuminate\\Validation\\Rule;
+use Illuminate\Validation\Rule;
+use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationHierarchyPolicy;
 
 /**
  * Canonical validation rules for Organization HTTP endpoints.
@@ -39,7 +40,7 @@ final class OrganizationRequestRules
                     static fn ($query) => $query->where('tenant_id', $tenantId)
                 ),
             ],
-            'unit_type' => ['required', Rule::in(\\MaaleArna\\MASES\\Core\\Domains\\Organization\\Policies\\OrganizationHierarchyPolicy::unitTypes())],
+            'unit_type' => ['required', Rule::in(OrganizationHierarchyPolicy::unitTypes())],
             'name_am' => ['nullable', 'string', 'max:180'],
             'name_en' => ['nullable', 'string', 'max:180'],
             'reason' => ['required', 'string', 'min:5', 'max:2000'],
@@ -59,7 +60,7 @@ final class OrganizationRequestRules
                     static fn ($query) => $query->where('tenant_id', $tenantId)
                 )->ignore($unitId),
             ],
-            'unit_type' => ['sometimes', 'required', Rule::in(\\MaaleArna\\MASES\\Core\\Domains\\Organization\\Policies\\OrganizationHierarchyPolicy::unitTypes())],
+            'unit_type' => ['sometimes', 'required', Rule::in(OrganizationHierarchyPolicy::unitTypes())],
             'name_am' => ['sometimes', 'nullable', 'string', 'max:180'],
             'name_en' => ['sometimes', 'nullable', 'string', 'max:180'],
             'status' => ['sometimes', Rule::in(['active', 'inactive'])],
