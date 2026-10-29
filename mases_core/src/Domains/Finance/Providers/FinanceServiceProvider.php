@@ -32,6 +32,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\SourceLegalEntityMappingServic
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\SourceLegalEntityMappingContract;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\CashFlowReportService;
+use MaaleArna\MASES\Core\Domains\Finance\Contracts\CashFlowReportContract;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LedgerAccountRepository;
