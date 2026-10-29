@@ -46,7 +46,7 @@ final class FinanceController extends Controller
         private readonly LegalEntityService $legalEntities,
         private readonly LedgerAccountService $ledgerAccountService,
         private readonly JournalEntryService $journals,
-        private readonly FinancialReportService $financialReports,
+        private readonly FinancialReportService $financialReports,\n        private readonly CashFlowReportService $cashFlowReports,
         private readonly LedgerAccountRepository $ledgerAccounts,
         private readonly AccountingPeriodRepository $accountingPeriods,
         private readonly AccountingPeriodService $accountingPeriodService,
