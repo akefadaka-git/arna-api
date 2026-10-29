@@ -21,6 +21,7 @@ return new class extends Migration
             $table->timestamp('challenge_window_verified_at')->nullable()->after('challenge_window_verified_by');
             $table->unsignedBigInteger('winner_nomination_id')->nullable()->after('challenge_window_ends_at');
             $table->json('result_summary_json')->nullable()->after('winner_nomination_id');
+            $table->foreign(['tenant_id', 'id', 'winner_nomination_id'], 'gov_election_winner_tenant_nom_fk')->references(['tenant_id', 'election_id', 'id'])->on('governance_election_nominations')->restrictOnDelete();
         });
 
         Schema::table('governance_election_nominations', function (Blueprint $table): void {
@@ -52,6 +53,7 @@ return new class extends Migration
             $table->unique(['tenant_id', 'election_id', 'round_number'], 'gov_election_round_tenant_no_uq');
             $table->unique(['tenant_id', 'election_id', 'round_number', 'id'], 'gov_election_round_tenant_no_id_uq');
             $table->foreign(['tenant_id', 'election_id'], 'gov_election_round_tenant_fk')->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'election_id', 'winner_nomination_id'], 'gov_election_round_winner_nom_fk')->references(['tenant_id', 'election_id', 'id'])->on('governance_election_nominations')->restrictOnDelete();
         });
 
         Schema::create('governance_election_round_candidates', function (Blueprint $table): void {
@@ -64,6 +66,12 @@ return new class extends Migration
             $table->unique(['tenant_id', 'election_id', 'round_number', 'nomination_id'], 'gov_election_round_candidate_uq');
             $table->foreign(['tenant_id', 'election_id', 'round_number'], 'gov_election_round_candidate_round_fk')->references(['tenant_id', 'election_id', 'round_number'])->on('governance_election_rounds')->restrictOnDelete();
             $table->foreign(['tenant_id', 'election_id', 'nomination_id'], 'gov_election_round_candidate_nom_fk')->references(['tenant_id', 'election_id', 'id'])->on('governance_election_nominations')->restrictOnDelete();
+        });
+
+        Schema::table('governance_election_ballots', function (Blueprint $table): void {
+            $table->foreign(['tenant_id', 'election_id', 'round_number', 'nomination_id'], 'gov_election_ballot_round_candidate_fk')
+                ->references(['tenant_id', 'election_id', 'round_number', 'nomination_id'])
+                ->on('governance_election_round_candidates')->restrictOnDelete();
         });
 
         Schema::create('governance_election_round_voters', function (Blueprint $table): void {
@@ -101,6 +109,9 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::table('governance_election_ballots', function (Blueprint $table): void {
+            $table->dropForeign('gov_election_ballot_round_candidate_fk');
+        });
         Schema::dropIfExists('governance_election_challenges');
         Schema::dropIfExists('governance_election_round_voters');
         Schema::dropIfExists('governance_election_round_candidates');
@@ -114,6 +125,7 @@ return new class extends Migration
             $table->dropColumn(['nomination_source', 'candidate_consent_at']);
         });
         Schema::table('governance_elections', function (Blueprint $table): void {
+            $table->dropForeign('gov_election_winner_tenant_nom_fk');
             $table->dropConstrainedForeignId('created_by');
             $table->dropConstrainedForeignId('challenge_window_verified_by');
             $table->dropColumn([
