@@ -59,6 +59,7 @@ if ($RunMySql) {
  $database=[string]$envValues['DB_DATABASE']
  if ($database -notmatch '^arna.*(?:test|testing|disposable)) { throw "Database '$database' is not named like a dedicated ARNA test database. Refusing MySQL mode." }
  if (-not $envValues['DB_HOST'] -or -not $envValues['DB_USERNAME']) { throw '.env.testing must define DB_HOST and DB_USERNAME.' }
+ $env:APP_ENV = 'testing'
  Write-Host "Target database name: $database"
  Write-Host 'Provision this as an EMPTY disposable schema before continuing. This script does not create/drop databases and never runs migrate:fresh or db:wipe.'
  $confirmation = Read-Host "Type the exact database name '$database' to run the clean-install migration gate"
