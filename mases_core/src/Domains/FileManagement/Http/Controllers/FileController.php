@@ -343,7 +343,15 @@ class FileController extends Controller
             tenantId: mases_tenant_id()
         );
 
-        $filters = $request->only(['status', 'is_public', 'user_id', 'mime_type', 'order_by', 'order_direction', 'limit']);
+        $filters = $request->validate([
+            'status'          => ['sometimes', 'string', 'in:draft,published,archived'],
+            'is_public'       => ['sometimes', 'boolean'],
+            'user_id'         => ['sometimes', 'integer', 'min:1'],
+            'mime_type'       => ['sometimes', 'string', 'max:255'],
+            'order_by'        => ['sometimes', 'string', 'in:created_at,updated_at,original_name,size,mime_type,status,version'],
+            'order_direction' => ['sometimes', 'string', 'in:asc,desc'],
+            'limit'           => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
         $files = $this->fileService->getFilesForTenant(
             tenantId: mases_tenant_id(),
             filters: $filters
