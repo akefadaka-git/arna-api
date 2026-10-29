@@ -232,7 +232,7 @@ final class ShareholderRepository
         $shareholder = $this->findForTenant($tenantId, $id, $with);
 
         if ($shareholder === null) {
-            throw (new Shareholder())->newModelQuery()->findOrFail($id, ['*']);
+            throw (new ModelNotFoundException())->setModel(Shareholder::class, [$id]);
         }
 
         return $shareholder;
