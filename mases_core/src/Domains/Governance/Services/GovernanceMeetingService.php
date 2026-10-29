@@ -33,7 +33,7 @@ final class GovernanceMeetingService
         }
 
         return DB::transaction(function () use ($tenantId, $actorId, $data): GovernanceMeeting {
-            return GovernanceMeeting::query()->create([
+            $meeting = GovernanceMeeting::query()->create([
                 'tenant_id' => $tenantId,
                 'governance_body_id' => (int) $data['governance_body_id'],
                 'title_am' => $data['title_am'] ?? null,
@@ -47,6 +47,8 @@ final class GovernanceMeetingService
                 'created_by' => $actorId,
                 'updated_by' => $actorId,
             ]);
+            $this->recordAudit($tenantId, (int) $meeting->id, $actorId, 'meeting.created', null, $meeting->only(['governance_body_id', 'title_am', 'title_en', 'status', 'scheduled_at']));
+            return $meeting;
         });
     }
 
@@ -71,11 +73,14 @@ final class GovernanceMeetingService
                     ->whereKey((int) $data['governance_body_id'])->firstOrFail();
             }
 
+            $before = $locked->only(['governance_body_id', 'title_am', 'title_en', 'status', 'scheduled_at', 'location', 'meeting_mode', 'notes']);
             $locked->fill($data);
             $locked->updated_by = $actorId;
             $locked->save();
+            $after = $locked->refresh()->only(['governance_body_id', 'title_am', 'title_en', 'status', 'scheduled_at', 'location', 'meeting_mode', 'notes']);
+            $this->recordAudit($tenantId, (int) $locked->id, $actorId, 'meeting.updated', $before, $after);
 
-            return $locked->refresh();
+            return $locked;
         });
     }
 
@@ -96,13 +101,29 @@ final class GovernanceMeetingService
                 ]);
             }
 
+            $before = $locked->only(['status', 'scheduled_at']);
             $locked->status = 'scheduled';
             $locked->approved_at = now();
             $locked->approved_by = $actorId;
             $locked->updated_by = $actorId;
             $locked->save();
+            $after = $locked->refresh()->only(['status', 'scheduled_at', 'approved_at', 'approved_by']);
+            $this->recordAudit($tenantId, (int) $locked->id, $actorId, 'meeting.approved', $before, $after);
 
-            return $locked->refresh();
+            return $locked;
         });
+    }
+
+    /** @param array<string, mixed>|null $before @param array<string, mixed>|null $after */
+    private function recordAudit(int $tenantId, int $meetingId, int $actorId, string $event, ?array $before, ?array $after): void
+    {
+        DB::table('governance_meeting_audit_events')->insert([
+            'tenant_id' => $tenantId, 'meeting_id' => $meetingId, 'actor_id' => $actorId,
+            'event_type' => $event,
+            'before_json' => $before === null ? null : json_encode($before, JSON_THROW_ON_ERROR),
+            'after_json' => $after === null ? null : json_encode($after, JSON_THROW_ON_ERROR),
+            'correlation_id' => request()->headers->get('X-Correlation-ID'),
+            'occurred_at' => now(),
+        ]);
     }
 }
