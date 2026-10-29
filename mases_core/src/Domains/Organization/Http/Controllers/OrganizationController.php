@@ -178,7 +178,7 @@ final class OrganizationController extends Controller
         $unit = $this->unit($id);
         abort_unless($unit->status === 'active', 409, 'Assignments can only be made to active units.');
         $data = $request->validate([
-            'person_id' => ['required', 'integer', 'exists:people,id'],
+            'person_id' => ['required', 'integer', 'min:1'], // Tenant access is checked under lock below; avoid cross-tenant existence oracle.
             'assignment_type' => ['required', 'string', 'max:48'],
             'title_am' => ['nullable', 'string', 'max:160'], 'title_en' => ['nullable', 'string', 'max:160'],
             'starts_on' => ['required', 'date'], 'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
@@ -210,6 +210,38 @@ final class OrganizationController extends Controller
         return response()->json(['success' => true, 'data' => $assignment], 201);
     }
 
+    /**
+     * Return append-only lifecycle history for the current tenant.
+     * The endpoint deliberately exposes no cross-tenant subject enumeration.
+     */
+    public function auditEvents(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user && $this->unitPolicy->viewAudit($user), 403, 'Organization audit access is not authorized.');
+
+        $tenantId = $this->tenantId();
+        $data = $request->validate([
+            'subject_type' => ['sometimes', Rule::in(['unit', 'assignment'])],
+            'subject_id' => ['sometimes', 'integer', 'min:1'],
+            'action' => ['sometimes', 'string', 'max:48'],
+            'from' => ['sometimes', 'date'],
+            'to' => ['sometimes', 'date', 'after_or_equal:from'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $events = OrganizationAuditEvent::query()
+            ->where('tenant_id', $tenantId)
+            ->when(isset($data['subject_type']), fn ($q) => $q->where('subject_type', $data['subject_type']))
+            ->when(isset($data['subject_id']), fn ($q) => $q->where('subject_id', $data['subject_id']))
+            ->when(isset($data['action']), fn ($q) => $q->where('action', $data['action']))
+            ->when(isset($data['from']), fn ($q) => $q->whereDate('created_at', '>=', $data['from']))
+            ->when(isset($data['to']), fn ($q) => $q->whereDate('created_at', '<=', $data['to']))
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->paginate((int) ($data['per_page'] ?? 25));
+
+        return response()->json(['success' => true, 'data' => $events]);
+    }
+
     public function updateAssignment(Request $request, int $id): JsonResponse
     {
         $item = OrganizationAssignment::query()->where('tenant_id', $this->tenantId())->findOrFail($id);
@@ -223,7 +255,7 @@ final class OrganizationController extends Controller
             $locked = OrganizationAssignment::query()->where('tenant_id', $this->tenantId())->lockForUpdate()->findOrFail($item->id);
             $before = $locked->toArray();
             if (array_key_exists('ends_on', $data) && $data['ends_on'] !== null
-                && $data['ends_on'] < $locked->starts_on->toDateString()) {
+                && \\Illuminate\\Support\\Carbon::parse($data['ends_on'])->toDateString() < $locked->starts_on->toDateString()) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'ends_on' => 'The end date must be on or after the persisted start date.',
                 ]);
