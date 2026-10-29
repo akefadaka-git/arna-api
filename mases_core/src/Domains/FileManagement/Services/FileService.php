@@ -13,7 +13,8 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Exceptions\FileException;
 use MaaleArna\MASES\Core\Domains\FileManagement\Models\File;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\HeaderUtils;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * FileService
@@ -287,7 +288,7 @@ final class FileService
      * @return Response
      * @throws FileException
      */
-    public function download($file, ?User $user = null): Response
+    public function download($file, ?User $user = null): StreamedResponse
     {
         $file = $this->resolveFile($file);
         $user = $user ?? mases_user();
@@ -297,37 +298,19 @@ final class FileService
             $this->authorizeAction('file.download', $file, $user);
         }
 
-        // Determine the storage disk and read the file content.
+        // Open a storage stream rather than loading the entire object into PHP memory.
         $disk = Storage::disk($file->disk);
-        $fullPath = null;
+        if (!$disk->exists($file->path)) {
+            throw FileException::notFound((string) $file->id);
+        }
 
-        if (in_array($file->disk, ['local', 'public'], true)) {
-            // Use direct filesystem access for local disks to avoid stream callbacks.
-            $fullPath = $disk->path($file->path);
-            if (!file_exists($fullPath)) {
-                throw FileException::notFound($file->path);
-            }
-            $content = @file_get_contents($fullPath);
-            if ($content === false) {
-                throw new FileException(
-                    'Unable to read file content.',
-                    FileException::ERROR_FILE_NOT_FOUND,
-                    500
-                );
-            }
-        } else {
-            // Fallback to Storage facade for non‑local disks.
-            if (!$disk->exists($file->path)) {
-                throw FileException::notFound($file->path);
-            }
-            $content = $disk->get($file->path);
-            if ($content === false) {
-                throw new FileException(
-                    'Unable to read file content.',
-                    FileException::ERROR_FILE_NOT_FOUND,
-                    500
-                );
-            }
+        $stream = $disk->readStream($file->path);
+        if (!is_resource($stream)) {
+            throw new FileException(
+                'Unable to open file content for reading.',
+                FileException::ERROR_FILE_NOT_FOUND,
+                500
+            );
         }
 
         // Audit (non‑fatal)
@@ -341,13 +324,32 @@ final class FileService
             Log::error('Audit failed during file download: ' . $e->getMessage());
         }
 
-        $headers = [
-            'Content-Type'        => $file->mime_type,
-            'Content-Disposition' => 'attachment; filename="' . $file->original_name . '"',
-            'Content-Length'      => $file->size,
-        ];
+        $downloadName = basename(str_replace(["\r", "\n", "\0"], '', (string) $file->original_name));
+        if ($downloadName === '' || $downloadName === '.' || $downloadName === '..') {
+            $downloadName = 'download';
+        }
+        $fallbackName = preg_replace('/[^A-Za-z0-9._-]/', '_', $downloadName) ?: 'download';
+        $disposition = HeaderUtils::makeDisposition('attachment', $downloadName, $fallbackName);
 
-        return new Response($content, 200, $headers);
+        return response()->streamDownload(
+            static function () use ($stream): void {
+                try {
+                    fpassthru($stream);
+                } finally {
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                }
+            },
+            $downloadName,
+            [
+                'Content-Type' => $file->mime_type ?: 'application/octet-stream',
+                'Content-Disposition' => $disposition,
+                'Content-Length' => (string) $file->size,
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => $file->is_public ? 'public, max-age=300' : 'private, no-store',
+            ]
+        );
     }
 
     /**
@@ -371,11 +373,21 @@ final class FileService
         $this->authorizeAction('file.update', $file, $user);
 
         if ($newFile !== null) {
+            // Preserve the existing directory without duplicating the tenant segment.
+            $directory = dirname($file->path);
+            $tenantDirectory = 'tenant_' . $file->tenant_id;
+            if (basename($directory) === $tenantDirectory) {
+                $directory = dirname($directory);
+            }
+            if ($directory === '.' || $directory === DIRECTORY_SEPARATOR) {
+                $directory = null;
+            }
+
             // Creating a new version
             $newVersion = $this->upload(
                 uploadedFile: $newFile,
                 fileName: pathinfo($file->original_name, PATHINFO_FILENAME),
-                directory: dirname($file->path),
+                directory: $directory,
                 isPublic: $data['is_public'] ?? $file->is_public,
                 metadata: $data['metadata'] ?? $file->metadata,
                 user: $user,
@@ -618,10 +630,8 @@ final class FileService
             return null;
         }
 
-        return File::where('parent_file_id', $fileId)
-            ->orWhere('id', $fileId)
-            ->orderBy('version', 'desc')
-            ->first();
+        $history = $this->getVersionHistory($fileId);
+        return $history->sortByDesc('version')->first();
     }
 
     /**
@@ -639,10 +649,40 @@ final class FileService
             return collect();
         }
 
-        return File::where('parent_file_id', $fileId)
-            ->orWhere('id', $fileId)
-            ->orderBy('version', 'asc')
-            ->get();
+        // Walk to the root, then collect every descendant version in this tenant.
+        $root = $file;
+        $visited = [(string) $root->id => true];
+        while ($root->parent_file_id !== null) {
+            $parent = File::where('tenant_id', $file->tenant_id)->find($root->parent_file_id);
+            if (!$parent || isset($visited[(string) $parent->id])) {
+                break;
+            }
+            $visited[(string) $parent->id] = true;
+            $root = $parent;
+        }
+
+        $versions = collect([$root]);
+        $frontier = [(string) $root->id];
+        while ($frontier !== []) {
+            $children = File::where('tenant_id', $file->tenant_id)
+                ->whereIn('parent_file_id', $frontier)
+                ->whereNotIn('id', array_keys($visited))
+                ->orderBy('version')
+                ->get();
+
+            if ($children->isEmpty()) {
+                break;
+            }
+
+            $frontier = [];
+            foreach ($children as $child) {
+                $visited[(string) $child->id] = true;
+                $frontier[] = (string) $child->id;
+                $versions->push($child);
+            }
+        }
+
+        return $versions->sortBy('version')->values();
     }
 
     /**
@@ -654,15 +694,32 @@ final class FileService
      */
     private function validateFile(UploadedFile $uploadedFile): void
     {
-        $maxSize = (int) config('mases.files.max_upload_size', 100) * 1024 * 1024;
-        $allowedExtensions = config('mases.files.allowed_extensions', []);
+        if (!$uploadedFile->isValid()) {
+            throw FileException::uploadFailed('The uploaded file did not pass PHP upload validation.');
+        }
 
-        if ($uploadedFile->getSize() > $maxSize) {
-            throw FileException::tooLarge($maxSize, $uploadedFile->getSize());
+        $size = (int) $uploadedFile->getSize();
+        $maxSize = max(1, (int) config('mases.files.max_upload_size', 100)) * 1024 * 1024;
+        if ($size <= 0) {
+            throw FileException::uploadFailed('Empty files are not accepted.');
+        }
+        if ($size > $maxSize) {
+            throw FileException::tooLarge($maxSize, $size);
         }
 
         $extension = strtolower($uploadedFile->getClientOriginalExtension());
-        if (!empty($allowedExtensions) && !in_array($extension, $allowedExtensions, true)) {
+        $allowedExtensions = array_map(
+            static fn ($value): string => strtolower(ltrim((string) $value, '.')),
+            (array) config('mases.files.allowed_extensions', [])
+        );
+        if ($extension === '' || ($allowedExtensions !== [] && !in_array($extension, $allowedExtensions, true))) {
+            throw FileException::extensionNotAllowed($extension, $allowedExtensions);
+        }
+
+        // Optional defense-in-depth MIME allowlist based on server-detected MIME.
+        $allowedMimeTypes = array_map('strtolower', (array) config('mases.files.allowed_mime_types', []));
+        $detectedMime = strtolower((string) $uploadedFile->getMimeType());
+        if ($allowedMimeTypes !== [] && !in_array($detectedMime, $allowedMimeTypes, true)) {
             throw FileException::extensionNotAllowed($extension, $allowedExtensions);
         }
     }
@@ -678,8 +735,10 @@ final class FileService
     private function generateStoredName(string $baseName, string $extension): string
     {
         $baseName = Str::slug($baseName);
-        $uniqueId = Str::random(16);
-        return $baseName . '_' . $uniqueId . '.' . $extension;
+        $baseName = $baseName !== '' ? $baseName : 'file';
+        $extension = strtolower(ltrim($extension, '.'));
+        $uniqueId = Str::random(32);
+        return $baseName . '_' . $uniqueId . ($extension !== '' ? '.' . $extension : '');
     }
 
     /**
@@ -697,13 +756,19 @@ final class FileService
         $parts = [];
 
         if ($directory) {
-            // Sanitize directory: remove any "../", "..\\", leading/trailing slashes, and null bytes
-            $directory = trim($directory, '/\\');
-            $directory = str_replace(['../', '..\\', "\0"], '', $directory);
-            $directory = preg_replace('/\.\./', '', $directory);
-            $directory = trim($directory, '/\\');
-            if ($directory !== '') {
-                $parts[] = $directory;
+            // Normalize path segments; never preserve absolute or dot-segment paths.
+            $directory = str_replace(["\0", "\\"], ['', '/'], $directory);
+            $segments = explode('/', trim($directory, '/'));
+            $safeSegments = [];
+            foreach ($segments as $segment) {
+                $segment = trim($segment);
+                if ($segment === '' || $segment === '.' || $segment === '..') {
+                    continue;
+                }
+                $safeSegments[] = preg_replace('/[^A-Za-z0-9._-]/', '_', $segment);
+            }
+            if ($safeSegments !== []) {
+                $parts[] = implode('/', $safeSegments);
             }
         }
 
