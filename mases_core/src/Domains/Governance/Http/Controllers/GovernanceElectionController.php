@@ -68,8 +68,12 @@ final class GovernanceElectionController extends Controller
             throw new ConflictHttpException('Nominations are not open.');
         }
         $data = $request->validate(['governance_membership_id' => ['required', 'integer', 'min:1'], 'statement' => ['nullable', 'string', 'max:10000']]);
+        $votingDate = Carbon::parse($election->voting_open_at)->toDateString();
         $membership = DB::table('governance_memberships')->where('tenant_id', $tenant)->where('governance_body_id', $election->governance_body_id)
-            ->where('id', $data['governance_membership_id'])->where('status', 'active')->first();
+            ->where('id', $data['governance_membership_id'])->where('status', 'active')->where('is_voting_member', true)
+            ->whereDate('start_date', '<=', $votingDate)->where(function ($query) use ($votingDate): void {
+                $query->whereNull('end_date')->orWhereDate('end_date', '>=', $votingDate);
+            })->first();
         if (!$membership) throw new NotFoundHttpException();
         $id = DB::table('governance_election_nominations')->insertGetId([
             'tenant_id' => $tenant, 'election_id' => $electionId, 'governance_membership_id' => $membership->id,
@@ -97,9 +101,9 @@ final class GovernanceElectionController extends Controller
         if (is_array($expected) ? !in_array($election->status, $expected, true) : $election->status !== $expected) {
             throw new ConflictHttpException('Election lifecycle transition is not allowed from the current status.');
         }
-        if ($data['transition'] === 'open_nominations' && now()->lt($election->nominations_open_at)) throw new ConflictHttpException('Nomination window has not started.');
+        if ($data['transition'] === 'open_nominations' && (now()->lt($election->nominations_open_at) || now()->gt($election->nominations_close_at))) throw new ConflictHttpException('Nomination window is not currently open.');
         if ($data['transition'] === 'close_nominations' && now()->lt($election->nominations_close_at)) throw new ConflictHttpException('Nomination window is still open.');
-        if ($data['transition'] === 'open_voting' && now()->lt($election->voting_open_at)) throw new ConflictHttpException('Voting window has not started.');
+        if ($data['transition'] === 'open_voting' && (now()->lt($election->voting_open_at) || now()->gt($election->voting_close_at))) throw new ConflictHttpException('Voting window is not currently open.');
         if ($data['transition'] === 'close_voting' && now()->lt($election->voting_close_at)) throw new ConflictHttpException('Voting window is still open.');
         if ($data['transition'] === 'certify') {
             $accepted = DB::table('governance_election_nominations')->where('tenant_id', $tenant)->where('election_id', $electionId)->where('status', 'accepted')->count();
@@ -160,8 +164,12 @@ final class GovernanceElectionController extends Controller
         if ($election->status !== 'voting_open' || now()->lt($election->voting_open_at) || now()->gt($election->voting_close_at)) throw new ConflictHttpException('Voting is not open.');
         $data = $request->validate(['governance_membership_id' => ['required', 'integer', 'min:1'], 'nomination_id' => ['required', 'integer', 'min:1']]);
         $actorId = (int) $request->user()->getAuthIdentifier();
+        $today = now()->toDateString();
         $membership = DB::table('governance_memberships')->where('tenant_id', $tenant)->where('governance_body_id', $election->governance_body_id)
-            ->where('id', $data['governance_membership_id'])->where('user_id', $actorId)->where('status', 'active')->where('is_voting_member', true)->first();
+            ->where('id', $data['governance_membership_id'])->where('user_id', $actorId)->where('status', 'active')->where('is_voting_member', true)
+            ->whereDate('start_date', '<=', $today)->where(function ($query) use ($today): void {
+                $query->whereNull('end_date')->orWhereDate('end_date', '>=', $today);
+            })->first();
         if (!$membership) throw new AccessDeniedHttpException('Ballot must be cast for the authenticated member.');
         $receipt = bin2hex(random_bytes(32));
         DB::transaction(function () use ($tenant, $electionId, $election, $data, $receipt): void {
