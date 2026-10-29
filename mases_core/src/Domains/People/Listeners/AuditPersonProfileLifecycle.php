@@ -6,7 +6,7 @@ use MaaleArna\MASES\Core\Domains\People\Events\PersonProfileLifecycleChanged;
 final class AuditPersonProfileLifecycle {
  public function __construct(private readonly AuditService $audit) {}
  public function handle(PersonProfileLifecycleChanged $event): void {
-  $this->audit->log(
+  $entry = $this->audit->log(
    action: $event->action,
    data: ['person_id'=>$event->personId,'record_type'=>$event->recordType,'record_id'=>$event->recordId],
    user: $event->actorId,
@@ -14,5 +14,9 @@ final class AuditPersonProfileLifecycle {
    resourceType: 'person.'.$event->recordType,
    resourceId: (string)$event->recordId,
   );
+
+  if ($entry === null && (bool) config('mases.features.audit_enabled', true)) {
+   throw new \RuntimeException('Mandatory People lifecycle audit could not be persisted.');
+  }
  }
 }
