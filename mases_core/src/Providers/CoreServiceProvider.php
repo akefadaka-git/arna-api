@@ -242,13 +242,6 @@ final class CoreServiceProvider extends ServiceProvider
 
         // --- Files -----------------------------------------------------------
 
-        $this->app->singleton(
-            FileService::class,
-            static fn($app): FileService => new FileService(
-                $app->make(AuditService::class)
-            )
-        );
-
         // --- Finance source-reference validation ----------------------------
         // The mapping resolver is authoritative for Shareholder, Wallet, and Loan
         // records only. Other source types stay disabled until their own resolver
