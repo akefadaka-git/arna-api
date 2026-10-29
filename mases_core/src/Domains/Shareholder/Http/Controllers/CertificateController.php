@@ -114,6 +114,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use MaaleArna\MASES\Core\Audit\Services\AuditService;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Shareholder\Http\Requests\StoreCertificateRequest;
 use MaaleArna\MASES\Core\Domains\Shareholder\Http\Resources\ShareCertificateResource;
@@ -381,6 +382,18 @@ final class CertificateController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
+        app(AuditService::class)->log(
+            action: 'certificate.read.list',
+            data: [
+                'access_scope' => 'policy-authorized',
+                'result_count' => $certificates->count(),
+            ],
+            user: $request->user(),
+            tenantId: $tenantId,
+            resourceType: Shareholder::class,
+            resourceId: (string) $shareholder->getKey(),
+        );
+
         return response()->json([
             'success' => true,
             'data'    => ShareCertificateResource::collection($certificates)->resolve(),
@@ -419,6 +432,15 @@ final class CertificateController extends Controller
         Gate::authorize('view', $certificate);
 
         $certificate->loadMissing(['shareholder', 'shareClass', 'shareHolding', 'replacedBy']);
+
+        app(AuditService::class)->log(
+            action: 'certificate.read.view',
+            data: ['access_scope' => 'policy-authorized'],
+            user: $request->user(),
+            tenantId: $tenantId,
+            resourceType: ShareCertificate::class,
+            resourceId: (string) $certificate->getKey(),
+        );
 
         return response()->json([
             'success' => true,
