@@ -370,6 +370,14 @@ final class FileService
         // Permission check for update
         $this->authorizeAction('file.update', $file, $user);
 
+        // Person-linked files are confidential: never allow the linked file
+        // or a new version of it to be made public through this service.
+        $willBePublic = (bool) ($data['is_public'] ?? $file->is_public);
+        if ($willBePublic && \Illuminate\Support\Facades\DB::table('person_document_links')
+            ->where('file_id', $file->getKey())->exists()) {
+            throw FileException::accessDenied('Person-linked files must remain private.');
+        }
+
         if ($newFile !== null) {
             // Creating a new version
             $newVersion = $this->upload(
@@ -512,7 +520,7 @@ final class FileService
         $file = $this->resolveFile($file, true);
         $user = $user ?? mases_user();
 
-        $this->authorizeAction('file.delete', $file, $user); // or 'file.restore'
+        $this->authorizeAction('file.restore', $file, $user);
 
         if (!$file->trashed()) {
             throw FileException::notDeleted();
