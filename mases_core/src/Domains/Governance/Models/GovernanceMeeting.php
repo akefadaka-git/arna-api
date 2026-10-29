@@ -18,7 +18,7 @@ final class GovernanceMeeting extends Model
     protected $fillable = [
         'tenant_id', 'governance_body_id', 'title_am', 'title_en', 'meeting_type',
         'status', 'scheduled_at', 'started_at', 'ended_at', 'location', 'meeting_mode',
-        'quorum_snapshot_json', 'notes', 'approved_at', 'approved_by', 'created_by', 'updated_by',
+        'quorum_snapshot_json', 'quorum_rule_snapshot', 'quorum_met', 'notes', 'approved_at', 'approved_by', 'created_by', 'updated_by',
     ];
 
     protected $casts = [
@@ -32,6 +32,8 @@ final class GovernanceMeeting extends Model
         'created_by' => 'integer',
         'updated_by' => 'integer',
         'quorum_snapshot_json' => 'array',
+        'quorum_rule_snapshot' => 'array',
+        'quorum_met' => 'boolean',
     ];
 
     public function body(): BelongsTo
