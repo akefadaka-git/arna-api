@@ -282,8 +282,8 @@ final class FinanceController extends Controller
         Gate::authorize('viewReport', JournalEntry::class);
         $data = $request->validate([
             'legal_entity_id' => ['required', 'integer', 'min:1'],
-            'from' => ['required', 'date'],
-            'to' => ['required', 'date', 'after_or_equal:from'],
+            'from' => ['required', 'date_format:Y-m-d'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
         ]);
         $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
         $report = $this->financialReports->incomeStatement(
