@@ -82,9 +82,9 @@ final class GovernanceElectionController extends Controller
     public function transition(Request $request, int $electionId): JsonResponse
     {
         $tenant = $this->tenantId();
-        $this->requirePermission($request, 'governance.election.manage');
-        $election = $this->election($tenant, $electionId);
         $data = $request->validate(['transition' => ['required', 'in:open_nominations,close_nominations,open_voting,close_voting,certify,cancel']]);
+        $this->requirePermission($request, $data['transition'] === 'certify' ? 'governance.election.certify' : 'governance.election.manage');
+        $election = $this->election($tenant, $electionId);
         $map = [
             'open_nominations' => ['draft', 'nominations_open'],
             'close_nominations' => ['nominations_open', 'nominations_closed'],
