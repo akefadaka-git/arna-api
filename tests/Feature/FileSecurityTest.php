@@ -560,4 +560,36 @@ final class FileSecurityTest extends TestCase
         });
     }
 
+
+    #[Test]
+    public function public_download_rejects_private_or_unpublished_records(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $cases = [
+            ['is_public' => false, 'status' => 'published', 'deleted' => false],
+            ['is_public' => true, 'status' => 'draft', 'deleted' => false],
+            ['is_public' => true, 'status' => 'archived', 'deleted' => false],
+            ['is_public' => true, 'status' => 'published', 'deleted' => true],
+        ];
+
+        foreach ($cases as $index => $case) {
+            $file = File::create([
+                'tenant_id' => $tenant->id,
+                'original_name' => 'visibility-' . $index . '.pdf',
+                'name' => 'visibility-' . $index . '.pdf',
+                'size' => 100,
+                'path' => 'tenant_' . $tenant->id . '/visibility-' . $index . '.pdf',
+                'disk' => 'local',
+                'status' => $case['status'],
+                'is_public' => $case['is_public'],
+                'version' => 1,
+            ]);
+            if ($case['deleted']) {
+                $file->delete();
+            }
+
+            $this->get('/api/public/files/' . $file->id . '/download')->assertNotFound();
+        }
+    }
+
 }
