@@ -1,6 +1,6 @@
 # Document Numbering and QR Verification Contract
 
-**Status:** Design baseline for Owner review; implementation of the numbering ledger is not included in this source-only change.
+**Status:** Contract plus source implementation in draft PR #53; runtime behavior remains unverified.
 **Domain ownership:** `Domains/Documents` owns document identity, numbering, approval/publication lifecycle, and verification policy. `Domains/FileManagement` owns binary storage, file metadata, access-controlled streaming, and file version history. Documents reference FileManagement records; neither domain creates a second binary store.
 
 ## 1. Goals and invariants
