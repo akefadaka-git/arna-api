@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\People\Services;
 
 use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonParticipation;
@@ -13,6 +15,7 @@ final class PersonParticipationService
 {
     public function create(int $tenantId, Person $person, array $attributes, ?int $actorId): PersonParticipation
     {
+        $this->assertManagePermission($tenantId);
         if (! empty($attributes['effective_from']) && ! empty($attributes['effective_to']) && $attributes['effective_from'] > $attributes['effective_to']) {
             throw ValidationException::withMessages(['effective_to' => 'The effective end date must not precede the start date.']);
         }
@@ -54,6 +57,7 @@ final class PersonParticipationService
 
     public function deactivate(int $tenantId, Person $person, int $participationId, string $reason): PersonParticipation
     {
+        $this->assertManagePermission($tenantId);
         return DB::transaction(function () use ($tenantId, $person, $participationId, $reason): PersonParticipation {
             $lockedPerson = Person::query()->whereKey($person->getKey())
                 ->where('status', 'active')->lockForUpdate()->firstOrFail();
@@ -72,5 +76,19 @@ final class PersonParticipationService
 
             return $record;
         });
+    }
+
+    private function assertManagePermission(int $tenantId): void
+    {
+        $actor = auth()->user();
+        if (! $actor instanceof User) {
+            abort(401, 'Authentication is required for People-domain mutations.');
+        }
+
+        app(AuthorizationService::class)->requirePermission(
+            user: $actor,
+            permissionSlug: 'people.manage',
+            tenantId: $tenantId
+        );
     }
 }
