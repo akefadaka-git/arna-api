@@ -47,7 +47,7 @@ namespace Database\Seeders\Data;
  *
  *   category    — the permission's functional group. One of:
  *                 'user', 'role', 'permission', 'app_access',
- *                 'file', 'tenant', 'test'.
+ *                 'file', 'tenant', 'test', 'organization'.
  *
  *   scope       — the permission's scope of applicability. One of:
  *                 'global'      — platform-wide, not tied to a tenant.
