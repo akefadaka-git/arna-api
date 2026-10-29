@@ -154,6 +154,11 @@ Write-Host "Suite      : $Suite"
 Write-Host "Filter     : $(if ($Filter) { $Filter } else { '(none)' })"
 Write-Host "Execution  : local PHPUnit only; no GitHub Actions/CI is invoked"
 Write-Host "Database   : guarded by phpunit.xml (SQLite in-memory)"
+if ($Suite -eq "Finance" -and $TestPath.Count -eq 0) {
+    $selectedFiles = @($arguments | Where-Object { $_.ToLowerInvariant().EndsWith(".php") })
+    Write-Host "Discovered Finance test files ($($selectedFiles.Count)):"
+    foreach ($selectedFile in $selectedFiles) { Write-Host "  $selectedFile" }
+}
 Write-Host "Running tests. Existing repository files and dependencies will not be installed or updated."
 
 Push-Location $RepoRoot
