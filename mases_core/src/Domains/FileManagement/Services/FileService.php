@@ -608,7 +608,8 @@ final class FileService
         $tenantId = $tenantId ?? mases_tenant_id();
         $user = mases_user();
 
-        $this->authorizeAction('file.view', null, $user, $tenantId);
+        // Listing is a distinct capability from viewing a single known file.
+        $this->authorizeAction('file.list', null, $user, $tenantId);
 
         $query = File::where('tenant_id', $tenantId);
 
@@ -905,12 +906,15 @@ final class FileService
             throw FileException::authRequired();
         }
 
-        // Check tenant membership if a tenant is involved
-        if ($tenantId !== null) {
-            $isMember = $user->tenants()->where('tenant_id', $tenantId)->exists();
-            if (!$isMember) {
-                throw FileException::accessDenied('User does not belong to this tenant.');
-            }
+        // Fail closed: every non-public file operation must resolve to a tenant.
+        // A global permission is not a substitute for tenant context or membership.
+        if ($tenantId === null || $tenantId === '') {
+            throw FileException::accessDenied('A tenant context is required for this file operation.');
+        }
+
+        $isMember = $user->tenants()->where('tenant_id', $tenantId)->exists();
+        if (!$isMember) {
+            throw FileException::accessDenied('User does not belong to this tenant.');
         }
 
         // Check permission via the platform's single permission
