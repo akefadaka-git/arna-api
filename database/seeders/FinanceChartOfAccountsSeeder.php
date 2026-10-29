@@ -32,6 +32,11 @@ final class FinanceChartOfAccountsSeeder extends Seeder
         if (!Schema::hasTable('legal_entities') || !Schema::hasTable('ledger_accounts')) {
             throw new RuntimeException('ARNA CoA v1.0.0 requires legal_entities and ledger_accounts migrations.');
         }
+        foreach (['id', 'tenant_id', 'status'] as $column) {
+            if (!Schema::hasColumn('legal_entities', $column)) {
+                throw new RuntimeException("ARNA CoA v1.0.0 requires legal_entities.{$column}; verify the legal-entity schema before seeding.");
+            }
+        }
         foreach ($required as $column) {
             if (!Schema::hasColumn('ledger_accounts', $column)) {
                 throw new RuntimeException("ARNA CoA v1.0.0 requires ledger_accounts.{$column}; run migrations first.");
