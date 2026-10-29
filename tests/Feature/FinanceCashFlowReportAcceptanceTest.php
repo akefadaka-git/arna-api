@@ -219,6 +219,42 @@ final class FinanceCashFlowReportAcceptanceTest extends TestCase
         $this->assertSame(0, $report['summary']['movement_count']);
     }
 
+    #[Test]
+    public function it_rejects_invalid_calendar_dates_when_the_report_service_is_called_directly(): void
+    {
+        [$tenant, , $entity] = $this->fixture();
+
+        try {
+            app(CashFlowReportService::class)->cashFlow(
+                (int) $tenant->id,
+                (int) $entity->id,
+                '2026-02-30',
+                '2026-03-31',
+            );
+            $this->fail('The report service must reject an impossible calendar date.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('from', $exception->errors());
+        }
+    }
+
+    #[Test]
+    public function it_rejects_a_reversed_cash_flow_report_date_window(): void
+    {
+        [$tenant, , $entity] = $this->fixture();
+
+        try {
+            app(CashFlowReportService::class)->cashFlow(
+                (int) $tenant->id,
+                (int) $entity->id,
+                '2026-10-31',
+                '2026-10-01',
+            );
+            $this->fail('The report service must reject a start date after the end date.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('from', $exception->errors());
+        }
+    }
+
     private function fixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
