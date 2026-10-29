@@ -16,6 +16,14 @@ namespace Database\Seeders\Data;
  * =============================================================================
  * Revision history
  * =============================================================================
+ * 1.3.0  — platform_admin least-privilege correction:
+ *          · Replaced the broad tenant-scope grant with a tenant-scope grant
+ *            that explicitly excludes people.sensitive.view.
+ *          · platform_admin retains other tenant-scoped capabilities but no
+ *            longer inherits sensitive People reads from the scope wildcard.
+ *          · tenant_admin retains tenant-scoped sensitive-read access;
+ *            super_admin retains the existing universal wildcard grant.
+ *
  * 1.2.0  — People-domain least-privilege read permissions:
  *          · Added people.view to the manager role for directory/profile reads.
  *          · Added people.view and people.sensitive.view to the tenant-scoped
