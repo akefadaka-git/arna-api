@@ -777,6 +777,64 @@ final class PersonApiIntegrationTest extends TestCase
         $this->assertSame((string) $original->created_at, (string) $reactivated->created_at);
     }
 
+    #[Test]
+    public function tenant_access_revocation_cannot_hide_a_person_with_linked_domain_records(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Protected Linked Person',
+        ])->assertCreated();
+        $person = Person::query()->where('public_id', $created->json('data.public_id'))->firstOrFail();
+
+        $permission = Permission::query()->create([
+            'name_en' => 'Manage Global Person Tenant Access',
+            'slug' => 'people.tenant-access.manage',
+            'category' => 'user',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $actor->permissions()->attach($permission->getKey(), ['assigned_at' => now()]);
+
+        DB::table('employees')->insert([
+            'tenant_id' => $tenant->getKey(),
+            'employee_number' => 'PEOPLE-REVOKE-GUARD-001',
+            'user_id' => null,
+            'person_id' => $person->getKey(),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ]);
+
+        try {
+            app(\MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService::class)
+                ->revokeTenantAccess(
+                    $tenant->getKey(),
+                    $person->getKey(),
+                    $actor,
+                    'Cannot revoke visibility while employee relationship remains',
+                );
+            $this->fail('Tenant access must not be revoked while a linked domain record exists.');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString('Unlink tenant domain records', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('person_tenant_accesses', [
+            'person_id' => $person->getKey(),
+            'tenant_id' => $tenant->getKey(),
+            'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('employees', [
+            'tenant_id' => $tenant->getKey(),
+            'employee_number' => 'PEOPLE-REVOKE-GUARD-001',
+            'person_id' => $person->getKey(),
+        ]);
+    }
+
     /** @return array{0: Tenant, 1: User} */
     private function tenantPeopleManager(): array
     {
