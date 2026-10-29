@@ -517,6 +517,28 @@ final class PersonApiIntegrationTest extends TestCase
         $this->assertDatabaseHas('shareholders', ['id' => $shareholderId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
         $this->assertDatabaseHas('governance_memberships', ['id' => $membershipId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
 
+        // A valid manager must not unlink a domain record by supplying a
+        // different Person's public ID in the URL. The service verifies the
+        // record's current person_id against the target Person under lock.
+        $otherPersonResponse = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Different Person',
+        ])->assertCreated();
+        $otherPublicId = $otherPersonResponse->json('data.public_id');
+
+        foreach ([
+            ['employees', $employeeId],
+            ['shareholders', $shareholderId],
+            ['governance-memberships', $membershipId],
+        ] as [$domain, $recordId]) {
+            $this->withHeaders($headers)->postJson('/api/people/'.$otherPublicId.'/relationships/'.$domain.'/'.$recordId.'/unlink', [
+                'reason' => 'Reject unlink against a different Person',
+            ])->assertForbidden();
+        }
+
+        $this->assertDatabaseHas('employees', ['id' => $employeeId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
+        $this->assertDatabaseHas('shareholders', ['id' => $shareholderId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
+        $this->assertDatabaseHas('governance_memberships', ['id' => $membershipId, 'tenant_id' => $tenant->getKey(), 'person_id' => $personId]);
+
         foreach ([
             ['employees', $employeeId, 'Employee relationship'],
             ['shareholders', $shareholderId, 'Shareholder relationship'],
@@ -530,6 +552,403 @@ final class PersonApiIntegrationTest extends TestCase
         $this->assertDatabaseHas('employees', ['id' => $employeeId, 'tenant_id' => $tenant->getKey(), 'person_id' => null]);
         $this->assertDatabaseHas('shareholders', ['id' => $shareholderId, 'tenant_id' => $tenant->getKey(), 'person_id' => null]);
         $this->assertDatabaseHas('governance_memberships', ['id' => $membershipId, 'tenant_id' => $tenant->getKey(), 'person_id' => null]);
+    }
+
+    #[Test]
+    public function directory_search_is_paginated_and_remains_scoped_to_the_active_tenant_grant(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        foreach ([
+            ['first_name_am' => 'ሀና', 'first_name_en' => 'Hana'],
+            ['first_name_am' => 'ሚካኤል', 'first_name_en' => 'Michael'],
+            ['first_name_en' => 'Hana Private'],
+        ] as $attributes) {
+            $this->withHeaders($headers)->postJson('/api/people', $attributes)->assertCreated();
+        }
+
+        $this->withHeaders($headers)->getJson('/api/people?search=Hana&per_page=1')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 1)
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('meta.last_page', 2)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.first_name_en', 'Hana');
+
+        $this->withHeaders($headers)->getJson('/api/people?search=%E1%88%80%E1%8A%93')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.first_name_am', 'ሀና');
+
+        $this->withHeaders($headers)->getJson('/api/people?search=NoMatchingPerson')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0)
+            ->assertJsonCount(0, 'data');
+
+        $this->withHeaders($headers)->getJson('/api/people?search='.str_repeat('x', 101))
+            ->assertUnprocessable();
+
+        $this->withHeaders($headers)->getJson('/api/people?per_page=101')
+            ->assertUnprocessable();
+    }
+
+    #[Test]
+    public function people_manager_can_manage_encrypted_contact_points_without_exposing_raw_values(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $person = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Hana',
+        ])->assertCreated();
+        $publicId = $person->json('data.public_id');
+
+        $created = $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/contacts', [
+            'contact_type' => 'email',
+            'label' => 'Primary email',
+            'contact_value' => 'hana@example.test',
+            'is_primary' => true,
+        ])->assertCreated()
+            ->assertJsonPath('data.contact_type', 'email')
+            ->assertJsonPath('data.is_primary', true)
+            ->assertJsonPath('data.is_verified', false)
+            ->assertJsonMissing(['contact_value' => 'hana@example.test'])
+            ->assertJsonMissing(['masked_value' => 'hana@example.test']);
+
+        $contactId = $created->json('data.id');
+        $storedCiphertext = DB::table('person_contact_points')->where('id', $contactId)->value('contact_value');
+        $this->assertNotSame('hana@example.test', $storedCiphertext);
+
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/contacts')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $contactId)
+            ->assertJsonPath('data.0.is_verified', false)
+            ->assertJsonMissing(['contact_value' => 'hana@example.test']);
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/contacts/'.$contactId.'/deactivate', [
+            'reason' => 'Contact details are no longer current',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'inactive');
+
+        $this->assertDatabaseHas('person_contact_points', [
+            'id' => $contactId,
+            'status' => 'inactive',
+            'deactivation_reason' => 'Contact details are no longer current',
+        ]);
+    }
+
+    #[Test]
+    public function phone_contact_duplicate_detection_ignores_formatting_punctuation(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $person = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Phone Duplicate Check',
+        ])->assertCreated();
+        $publicId = $person->json('data.public_id');
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/contacts', [
+            'contact_type' => 'phone',
+            'contact_value' => '+251 (911) 234-567',
+            'is_primary' => true,
+        ])->assertCreated();
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/contacts', [
+            'contact_type' => 'phone',
+            'contact_value' => '+251911234567',
+            'is_primary' => false,
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseCount('person_contact_points', 1);
+    }
+
+    #[Test]
+    public function people_services_reject_writes_after_person_tenant_access_is_revoked(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $firstResponse = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Revoked Access Person',
+        ])->assertCreated();
+        $secondResponse = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Still Visible Person',
+        ])->assertCreated();
+        $person = Person::query()->where('public_id', $firstResponse->json('data.public_id'))->firstOrFail();
+        $related = Person::query()->where('public_id', $secondResponse->json('data.public_id'))->firstOrFail();
+        $tenantId = (int) $tenant->getKey();
+        $actorId = (int) $actor->getKey();
+
+        $contact = app(\MaaleArna\MASES\Core\Domains\People\Services\PersonContactPointService::class)->create(
+            $tenantId, $person,
+            ['contact_type' => 'email', 'contact_value' => 'existing@example.test', 'is_primary' => false],
+            $actorId,
+        );
+        $participation = app(\MaaleArna\MASES\Core\Domains\People\Services\PersonParticipationService::class)->create(
+            $tenantId, $person,
+            ['participation_type' => 'membership', 'title' => 'Existing record', 'reason' => 'Created before access revocation'],
+            $actorId,
+        );
+        $relationship = app(\MaaleArna\MASES\Core\Domains\People\Services\PersonRelationshipService::class)->create(
+            $tenantId, $person, $related,
+            ['relationship_type' => 'household_member', 'reason' => 'Created before access revocation'],
+            $actorId,
+        );
+
+        DB::table('person_tenant_accesses')
+            ->where('tenant_id', $tenant->getKey())
+            ->where('person_id', $person->getKey())
+            ->update(['status' => 'revoked', 'updated_at' => now()]);
+
+        $assertNotFound = function (callable $operation): void {
+            try {
+                $operation();
+                $this->fail('A People service must reject writes after tenant access is revoked.');
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+                $this->assertSame(404, $exception->getStatusCode());
+            }
+        };
+
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonContactPointService::class)->create(
+            (int) $tenant->getKey(),
+            $person,
+            ['contact_type' => 'email', 'contact_value' => 'revoked@example.test', 'is_primary' => false],
+            (int) $actor->getKey(),
+        ));
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonParticipationService::class)->create(
+            (int) $tenant->getKey(),
+            $person,
+            ['participation_type' => 'membership', 'title' => 'Must not persist', 'reason' => 'Testing revoked tenant access'],
+            (int) $actor->getKey(),
+        ));
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonRelationshipService::class)->create(
+            $tenantId, $person, $related,
+            ['relationship_type' => 'household_member', 'reason' => 'Testing revoked tenant access'],
+            $actorId,
+        ));
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonContactPointService::class)->deactivate(
+            $tenantId, $person, (int) $contact->getKey(), 'Testing revoked tenant access',
+        ));
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonParticipationService::class)->deactivate(
+            $tenantId, $person, (int) $participation->getKey(), 'Testing revoked tenant access',
+        ));
+        $assertNotFound(fn () => app(\MaaleArna\MASES\Core\Domains\People\Services\PersonRelationshipService::class)->deactivate(
+            $tenantId, $person, (int) $relationship->getKey(), 'Testing revoked tenant access',
+        ));
+
+        $this->assertDatabaseHas('person_contact_points', [
+            'id' => $contact->getKey(), 'tenant_id' => $tenantId,
+            'person_id' => $person->getKey(), 'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('person_participations', [
+            'id' => $participation->getKey(), 'tenant_id' => $tenantId,
+            'person_id' => $person->getKey(), 'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('person_relationships', [
+            'id' => $relationship->getKey(), 'tenant_id' => $tenantId,
+            'person_id' => $person->getKey(), 'status' => 'active',
+        ]);
+    }
+
+    #[Test]
+    public function people_manager_can_create_only_tenant_visible_person_relationships_and_prevent_duplicates(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $person = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_am' => 'ሀና',
+        ])->assertCreated();
+        $related = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Michael',
+        ])->assertCreated();
+
+        $publicId = $person->json('data.public_id');
+        $relatedId = $related->json('data.public_id');
+        $payload = [
+            'related_public_id' => $relatedId,
+            'relationship_type' => 'guardian',
+            'reason' => 'Confirmed by the authorized record keeper',
+        ];
+
+        $created = $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/person-relationships', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.relationship_type', 'guardian')
+            ->assertJsonPath('data.related_public_id', $relatedId);
+
+        $relationshipId = $created->json('data.id');
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/person-relationships', $payload)
+            ->assertStatus(409);
+
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/person-relationships')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $relationshipId);
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/person-relationships/'.$relationshipId.'/deactivate', [
+            'reason' => 'Relationship record was entered in error',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'inactive');
+
+        $this->assertDatabaseHas('person_relationships', [
+            'id' => $relationshipId,
+            'status' => 'inactive',
+            'deactivation_reason' => 'Relationship record was entered in error',
+        ]);
+    }
+
+    #[Test]
+    public function people_manager_can_record_list_and_deactivate_tenant_scoped_participation(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+        $person = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Participation Profile',
+        ])->assertCreated();
+        $publicId = $person->json('data.public_id');
+
+        $created = $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/participations', [
+            'participation_type' => 'ministry',
+            'title' => 'Youth Ministry',
+            'reference_code' => 'MIN-001',
+            'effective_from' => '2026-01-01',
+            'reason' => 'Record authorized ministry participation',
+        ])->assertCreated()
+            ->assertJsonPath('data.participation_type', 'ministry')
+            ->assertJsonPath('data.title', 'Youth Ministry')
+            ->assertJsonPath('data.status', 'active');
+
+        $participationId = $created->json('data.id');
+        $this->withHeaders($headers)->getJson('/api/people/'.$publicId.'/participations')
+            ->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $participationId)
+            ->assertJsonPath('data.0.reference_code', 'MIN-001');
+
+        $this->withHeaders($headers)->postJson('/api/people/'.$publicId.'/participations/'.$participationId.'/deactivate', [
+            'reason' => 'Participation has formally ended',
+        ])->assertOk()->assertJsonPath('data.status', 'inactive');
+
+        $this->assertDatabaseHas('person_participations', [
+            'id' => $participationId,
+            'tenant_id' => $tenant->getKey(),
+            'status' => 'inactive',
+            'deactivation_reason' => 'Participation has formally ended',
+        ]);
+    }
+
+    #[Test]
+    public function tenant_access_reactivation_preserves_original_grant_provenance(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+        Sanctum::actingAs($actor);
+
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Grant Provenance',
+        ])->assertCreated();
+        $person = Person::query()->where('public_id', $created->json('data.public_id'))->firstOrFail();
+
+        $permission = Permission::query()->create([
+            'name_en' => 'Manage Global Person Tenant Access',
+            'slug' => 'people.tenant-access.manage',
+            'category' => 'user',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $actor->permissions()->attach($permission->getKey(), ['assigned_at' => now()]);
+
+        $original = DB::table('person_tenant_accesses')
+            ->where('person_id', $person->getKey())
+            ->where('tenant_id', $tenant->getKey())
+            ->first();
+        $this->assertNotNull($original);
+
+        DB::table('person_tenant_accesses')
+            ->where('person_id', $person->getKey())
+            ->where('tenant_id', $tenant->getKey())
+            ->update(['status' => 'revoked', 'updated_at' => now()->subMinute()]);
+
+        app(\MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService::class)
+            ->grantTenantAccess($tenant->getKey(), $person->getKey(), $actor, 'Restore previously revoked access');
+
+        $reactivated = DB::table('person_tenant_accesses')
+            ->where('person_id', $person->getKey())
+            ->where('tenant_id', $tenant->getKey())
+            ->first();
+
+        $this->assertNotNull($reactivated);
+        $this->assertSame('active', $reactivated->status);
+        $this->assertSame((string) $original->created_by, (string) $reactivated->created_by);
+        $this->assertSame((string) $original->created_at, (string) $reactivated->created_at);
+    }
+
+    #[Test]
+    public function tenant_access_revocation_cannot_hide_a_person_with_linked_domain_records(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Protected Linked Person',
+        ])->assertCreated();
+        $person = Person::query()->where('public_id', $created->json('data.public_id'))->firstOrFail();
+
+        $permission = Permission::query()->create([
+            'name_en' => 'Manage Global Person Tenant Access',
+            'slug' => 'people.tenant-access.manage',
+            'category' => 'user',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $actor->permissions()->attach($permission->getKey(), ['assigned_at' => now()]);
+
+        DB::table('employees')->insert([
+            'tenant_id' => $tenant->getKey(),
+            'employee_number' => 'PEOPLE-REVOKE-GUARD-001',
+            'user_id' => null,
+            'person_id' => $person->getKey(),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ]);
+
+        try {
+            app(\MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService::class)
+                ->revokeTenantAccess(
+                    $tenant->getKey(),
+                    $person->getKey(),
+                    $actor,
+                    'Cannot revoke visibility while employee relationship remains',
+                );
+            $this->fail('Tenant access must not be revoked while a linked domain record exists.');
+        } catch (\DomainException $exception) {
+            $this->assertStringContainsString('Unlink tenant domain records', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('person_tenant_accesses', [
+            'person_id' => $person->getKey(),
+            'tenant_id' => $tenant->getKey(),
+            'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('employees', [
+            'tenant_id' => $tenant->getKey(),
+            'employee_number' => 'PEOPLE-REVOKE-GUARD-001',
+            'person_id' => $person->getKey(),
+        ]);
     }
 
     /** @return array{0: Tenant, 1: User} */

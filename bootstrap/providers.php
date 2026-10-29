@@ -646,6 +646,12 @@ return [
      */
     MaaleArna\MASES\Core\Domains\Governance\Providers\GovernanceServiceProvider::class,
 
+    // Canonical People profile domain.
+    MaaleArna\MASES\Core\Domains\People\Providers\PeopleServiceProvider::class,
+
+    // Organization domain routes, configuration, and migrations.
+    MaaleArna\MASES\Core\Domains\Organization\Providers\OrganizationServiceProvider::class,
+
     /*
      * -------------------------------------------------------------------------
      * 10. Finance Domain Provider

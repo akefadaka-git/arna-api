@@ -41,7 +41,7 @@ final class OrganizationController extends Controller
         $units = OrganizationUnit::query()->where('tenant_id', $tenantId)
             ->when($request->query('parent_id') !== null, fn ($q) => $q->where('parent_id', $request->integer('parent_id')))
             ->when($request->query('status') !== null, fn ($q) => $q->where('status', $request->query('status')))
-            ->orderBy('parent_id')->orderBy('code')->paginate(min(max($request->integer('per_page', 25), 1), 100));
+            ->orderBy('parent_id')->orderBy('code')->paginate($this->perPage($request));
 
         return response()->json(['success' => true, 'data' => $units]);
     }
@@ -168,7 +168,7 @@ final class OrganizationController extends Controller
             ->where('organization_unit_id', $unit->id)
             ->whereHas('person.tenantAccesses', fn ($q) => $q->where('tenant_id', $tenantId)->where('status', 'active'))
             ->with('person')
-            ->orderByDesc('starts_on')->paginate(min(max($request->integer('per_page', 25), 1), 100));
+            ->orderByDesc('starts_on')->paginate($this->perPage($request));
         return response()->json(['success' => true, 'data' => $items]);
     }
 
@@ -260,6 +260,14 @@ final class OrganizationController extends Controller
         return response()->json(['success' => true, 'data' => $item->fresh()]);
     }
 
+    private function perPage(Request $request): int
+    {
+        $default = max(1, (int) config('organization.directory.default_per_page', 25));
+        $maximum = max($default, (int) config('organization.directory.max_per_page', 100));
+
+        return min(max($request->integer('per_page', $default), 1), $maximum);
+    }
+
     private function authorizeUnitList(?User $user): void
     {
         abort_unless($user && $this->unitPolicy->viewAny($user), 403, 'Organization unit listing is not authorized.');
@@ -309,7 +317,7 @@ final class OrganizationController extends Controller
 
     private function assertDescendantsCompatible(OrganizationUnit $parent, int $tenantId, array $seen, int $depth): void
     {
-        if ($depth > 100) {
+        if ($depth > max(1, (int) config('organization.hierarchy.max_depth', 100))) {
             throw new ConflictHttpException('Organization hierarchy exceeds the maximum depth.');
         }
         $children = OrganizationUnit::query()->where('tenant_id', $tenantId)->where('parent_id', $parent->id)->get();
@@ -357,7 +365,7 @@ final class OrganizationController extends Controller
                 throw new ConflictHttpException('Organization hierarchy cycle detected.');
             }
             $seen[$parent->id] = true;
-            if (count($seen) > 100) {
+            if (count($seen) > max(1, (int) config('organization.hierarchy.max_depth', 100))) {
                 throw new ConflictHttpException('Organization hierarchy exceeds the maximum depth.');
             }
             $parent = $parent->parent()->where('tenant_id', $this->tenantId())->first();

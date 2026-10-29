@@ -143,7 +143,6 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\PublicCertificateVerificationController;
-use App\Http\Controllers\PersonController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -514,75 +513,6 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         ->name('api.launcher');
 
     // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
-    // People Profile — explicit tenant visibility and tenant-scoped mutations
-    // -------------------------------------------------------------------------
-
-    Route::prefix('/people')->name('api.people.')->group(static function (): void {
-        Route::get('/', [PersonController::class, 'index'])->name('index');
-        Route::post('/', [PersonController::class, 'store'])
-            ->middleware('throttle:30,1')
-            ->name('store');
-        Route::get('/{publicId}', [PersonController::class, 'show'])
-            ->whereUuid('publicId')
-            ->name('show');
-        Route::get('/{publicId}/documents', [PersonController::class, 'documents'])
-            ->whereUuid('publicId')
-            ->middleware('auth.permission:people.manage')
-            ->name('documents.index');
-        Route::post('/{publicId}/documents', [PersonController::class, 'linkDocument'])
-            ->whereUuid('publicId')
-            ->middleware('auth.permission:people.manage')
-            ->name('documents.link');
-        Route::delete('/{publicId}/documents/{fileId}', [PersonController::class, 'unlinkDocument'])
-            ->whereUuid('publicId')
-            ->whereNumber('fileId')
-            ->middleware('auth.permission:people.manage')
-            ->name('documents.unlink');
-        Route::post('/{publicId}/documents/{fileId}/unlink', [PersonController::class, 'unlinkDocument'])
-            ->whereUuid('publicId')
-            ->whereNumber('fileId')
-            ->middleware('auth.permission:people.manage')
-            ->name('documents.unlink-command');
-        Route::get('/{publicId}/relationships', [PersonController::class, 'relationships'])
-            ->whereUuid('publicId')
-            ->middleware('auth.permission:people.manage')
-            ->name('relationships');
-        Route::get('/{publicId}/relationships/{domain}/options', [PersonController::class, 'relationshipOptions'])
-            ->whereUuid('publicId')
-            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
-            ->middleware('auth.permission:people.manage')
-            ->name('relationships.options');
-        Route::post('/{publicId}/relationships/{domain}/{recordId}', [PersonController::class, 'linkDomain'])
-            ->whereUuid('publicId')
-            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
-            ->whereNumber('recordId')
-            ->middleware('auth.permission:people.manage')
-            ->name('relationships.link');
-        Route::post('/{publicId}/relationships/{domain}/{recordId}/unlink', [PersonController::class, 'unlinkDomain'])
-            ->whereUuid('publicId')
-            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
-            ->whereNumber('recordId')
-            ->middleware('auth.permission:people.manage')
-            ->name('relationships.unlink-command');
-        Route::delete('/{publicId}/relationships/{domain}/{recordId}', [PersonController::class, 'unlinkDomain'])
-            ->whereUuid('publicId')
-            ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
-            ->whereNumber('recordId')
-            ->middleware('auth.permission:people.manage')
-            ->name('relationships.unlink');
-        // Global account-link permission is enforced by PersonIdentityService.
-        Route::post('/{publicId}/account', [PersonController::class, 'linkAccount'])
-            ->whereUuid('publicId')
-            ->name('account.link');
-        Route::delete('/{publicId}/account', [PersonController::class, 'unlinkAccount'])
-            ->whereUuid('publicId')
-            ->name('account.unlink');
-        Route::put('/{publicId}', [PersonController::class, 'update'])
-            ->whereUuid('publicId')
-            ->middleware('auth.permission:people.manage')
-            ->name('update');
-    });
 
     // File Management
     // -------------------------------------------------------------------------
@@ -630,27 +560,6 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->name('latest');
     });
 });
-
-
-/**
- * Organization domain — tenant membership is necessary but not sufficient;
- * each operation also checks an explicit domain permission and tenant boundary.
- */
-Route::middleware(['auth:sanctum', 'tenant.membership'])
-    ->prefix('organization')
-    ->name('api.organization.')
-    ->group(static function (): void {
-        $controller = \MaaleArna\MASES\Core\Domains\Organization\Http\Controllers\OrganizationController::class;
-
-        Route::get('/units', [$controller, 'index'])->name('units.index');
-        Route::post('/units', [$controller, 'store'])->name('units.store');
-        Route::get('/units/{id}', [$controller, 'show'])->whereNumber('id')->name('units.show');
-        Route::put('/units/{id}', [$controller, 'update'])->whereNumber('id')->name('units.update');
-        Route::delete('/units/{id}', [$controller, 'archive'])->whereNumber('id')->name('units.archive');
-        Route::get('/units/{id}/assignments', [$controller, 'assignments'])->whereNumber('id')->name('units.assignments.index');
-        Route::post('/units/{id}/assignments', [$controller, 'assign'])->whereNumber('id')->name('units.assignments.store');
-        Route::patch('/assignments/{id}', [$controller, 'updateAssignment'])->whereNumber('id')->name('assignments.update');
-    });
 
 
 /**
