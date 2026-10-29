@@ -33,7 +33,7 @@ declare(strict_types=1);
  *
  *   What the seeder writes:
  *
- *     · 36 tenant-scoped permissions with the `governance.` prefix.
+ *     · 37 tenant-scoped permissions with the `governance.` prefix.
  *       Each carries `scope = 'tenant'`, `tenant_id = null`,
  *       `application_id = null`, `is_active = true`,
  *       `is_system = true`.
@@ -46,7 +46,7 @@ declare(strict_types=1);
  *       other six `app.*.access` rows, all of which are
  *       `is_system = 0` except `app.admin.access`.
  *
- *   Total: 37 permission rows.
+ *   Total: 38 permission rows.
  *
  *   What the seeder deliberately does NOT do:
  *
@@ -79,7 +79,7 @@ declare(strict_types=1);
  * =============================================================================
  * Two messages in this session (the G1 file 6 delivery's status
  * block and the G1 file 5 delivery's status block) stated the
- * seeder would register "38 governance.* slugs". That was an
+ * seeder would register "39 governance.* slugs". That was an
  * arithmetic error on this author's part. The correct count is 36,
  * matching the list in the master prompt §28 as refined during the
  * G0 assessment (which dropped `decision.*` pending the
@@ -103,7 +103,7 @@ declare(strict_types=1);
  *     governance.action        4  (view, create, manage, verify)
  *     governance.delegation    2  (view, manage)
  *     governance.declaration   2  (view, manage)
- *     governance.election      2  (view, manage)
+ *     governance.election      3  (view, manage, vote)
  *     governance.document      3  (view, upload, download)
  *     governance.report        2  (view, generate)
  *                              ──
@@ -651,6 +651,12 @@ final class GovernancePermissionsSeeder extends Seeder
             'slug'     => 'governance.election.manage',
             'name_am'  => 'ምርጫዎችን ማስተዳደር',
             'name_en'  => 'Manage elections',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.vote',
+            'name_am'  => 'በምርጫ መሳተፍ',
+            'name_en'  => 'Cast election ballot',
             'category' => 'governance',
         ],
 
