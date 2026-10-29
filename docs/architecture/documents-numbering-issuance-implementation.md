@@ -35,6 +35,7 @@ The issuing role is deliberately mapped to a Governance position code; a title s
 
 - A stable \`Idempotency-Key\` is required. The key is unique per tenant; same canonical payload returns the persisted issue, while a different payload conflicts.
 - Counter advancement, document insertion, and issuance lifecycle event insertion are one database transaction.
+- Authority and authoritative Finance/Organization/Governance registry records are resolved again inside that transaction immediately before counter allocation; a changed registry snapshot fails closed rather than issuing against stale preflight data.
 - Issued numbers are permanent. Void and revoke retain the number and append a lifecycle event; only an \`issued\` document may transition.
 - \`documents.view\`, \`documents.void\`, and \`documents.revoke\` remain separate RBAC permissions. Reads and mutations are tenant-scoped.
 - The database schema references canonical legal entities, Organization units, Governance bodies/positions, users, tenants, and FileManagement file records. Tenant-scoped canonical-number uniqueness prevents unrelated tenants from colliding.
