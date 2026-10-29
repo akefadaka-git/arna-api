@@ -655,6 +655,12 @@ return [
      * catalogues. Existing Finance routes and migrations remain centrally
      * registered until their dedicated domain integration is approved.
      */
+    /*
+     * Organization domain — owns its route definitions, configuration,
+     * migrations, permission catalogue, and domain tests.
+     */
+    MaaleArna\MASES\Core\Domains\Organization\Providers\OrganizationServiceProvider::class,
+
     MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
 
     /*

@@ -147,6 +147,7 @@ final class PermissionCatalogue
      * @var array<int, array<string, mixed>>
      */
     public const ROWS = [
+        ...\\MaaleArna\\MASES\\Core\\Domains\\Organization\\Support\\OrganizationPermissionCatalogue::ROWS,
         ['slug' => 'user.profile.view',   'name_am' => 'መገለጫ ማየት',           'name_en' => 'View Profile',              'category' => 'user', 'scope' => 'global',      'is_system' => true],
         ['slug' => 'user.profile.update', 'name_am' => 'መገለጫ ማዘመን',          'name_en' => 'Update Profile',            'category' => 'user', 'scope' => 'global',      'is_system' => false],
         ['slug' => 'user.list',           'name_am' => 'የተጠቃሚዎችን ዝርዝር ማየት', 'name_en' => 'View Users',                'category' => 'user', 'scope' => 'tenant',      'is_system' => false],
@@ -199,10 +200,10 @@ final class PermissionCatalogue
         ['slug' => 'finance.journal.post', 'name_am' => 'የመዝገብ ማስታወሻ መለጠፍ', 'name_en' => 'Post Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.reverse', 'name_am' => 'የመዝገብ ማስታወሻ መቀልበስ', 'name_en' => 'Reverse Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.report.view', 'name_am' => 'የፋይናንስ ሪፖርቶችን ማየት', 'name_en' => 'View Financial Reports', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'organization.unit.view', 'name_am' => 'የድርጅት ክፍሎችን ማየት', 'name_en' => 'View Organization Units', 'category' => 'organization', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'organization.unit.manage', 'name_am' => 'የድርጅት ክፍሎችን ማስተዳደር', 'name_en' => 'Manage Organization Units', 'category' => 'organization', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'organization.assignment.view', 'name_am' => 'የድርጅት ምደባዎችን ማየት', 'name_en' => 'View Organization Assignments', 'category' => 'organization', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'organization.assignment.manage', 'name_am' => 'የድርጅት ምደባዎችን ማስተዳደር', 'name_en' => 'Manage Organization Assignments', 'category' => 'organization', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'organization.audit.view', 'name_am' => 'የድርጅት የኦዲት ታሪክን ማየት', 'name_en' => 'View Organization Audit History', 'category' => 'organization', 'scope' => 'tenant', 'is_system' => false],
+
+
+
+
+
     ];
 }
