@@ -160,9 +160,13 @@ final class JournalEntryService
                     }
 
                     $cashFlowActivity = $line['cash_flow_activity'] ?? null;
-                    $classificationNote = isset($line['cash_flow_classification_note'])
-                        ? trim((string) $line['cash_flow_classification_note'])
-                        : null;
+                    $classificationNote = $line['cash_flow_classification_note'] ?? null;
+                    if ($classificationNote !== null && !is_string($classificationNote)) {
+                        throw ValidationException::withMessages([
+                            "lines.{$index}.cash_flow_classification_note" => 'The cash-flow classification note must be text.',
+                        ]);
+                    }
+                    $classificationNote = $classificationNote === null ? null : trim($classificationNote);
 
                     if ($cashFlowActivity !== null) {
                         $cashFlowActivity = is_string($cashFlowActivity) ? trim($cashFlowActivity) : '';
