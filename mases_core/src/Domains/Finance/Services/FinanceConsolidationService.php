@@ -36,6 +36,10 @@ final class FinanceConsolidationService
             throw ValidationException::withMessages(['legal_entity_ids' => 'One or more selected entities are unavailable in this tenant.']);
         }
 
+        if ($entities->pluck('base_currency')->unique()->count() !== 1) {
+            throw ValidationException::withMessages(['legal_entity_ids' => 'Selected entities use different base currencies. Consolidation is blocked until an approved FX translation policy and translation workflow exist.']);
+        }
+
         $consolidated = [];
         $entityReports = [];
         foreach ($entities as $entity) {
