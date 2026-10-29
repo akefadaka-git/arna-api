@@ -16,10 +16,11 @@ final class FinanceConsolidationAccountMapping extends Model
     protected $fillable = [
         'tenant_id', 'legal_entity_id', 'ledger_account_id', 'consolidation_account_code',
         'account_type', 'status', 'created_by', 'reviewed_by', 'reviewed_at',
-        'mapping_reason', 'review_reason',
+        'mapping_reason', 'review_reason', 'proposal_version',
     ];
     protected $casts = [
         'tenant_id' => 'integer', 'legal_entity_id' => 'integer', 'ledger_account_id' => 'integer',
         'created_by' => 'integer', 'reviewed_by' => 'integer', 'reviewed_at' => 'datetime',
+        'proposal_version' => 'integer',
     ];
 }

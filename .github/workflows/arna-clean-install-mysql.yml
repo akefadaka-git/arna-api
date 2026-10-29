@@ -34,6 +34,7 @@ on:
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
       - "mases_core/src/Domains/Loan/Tests/Unit/**"
+      - "mases_core/src/Domains/Finance/**"
       - "mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php"
   workflow_dispatch:
     inputs:
@@ -143,6 +144,13 @@ jobs:
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Unit
+
+      - name: Run Finance foundation schema and unit regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit
 
       - name: Run loan repayment HTTP and financial-invariant regression tests
         env:

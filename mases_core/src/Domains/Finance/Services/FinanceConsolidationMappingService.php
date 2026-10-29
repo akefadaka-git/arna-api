@@ -25,38 +25,44 @@ final class FinanceConsolidationMappingService
         }
 
         $entity = LegalEntity::query()->where('tenant_id', $tenantId)->where('status', 'active')->findOrFail($legalEntityId);
-        $account = LedgerAccount::query()->where('tenant_id', $tenantId)
-            ->where('legal_entity_id', $entity->id)->findOrFail($ledgerAccountId);
-
-        if (FinanceConsolidationAccountMapping::query()->where('tenant_id', $tenantId)
-            ->where('legal_entity_id', $entity->id)->where('ledger_account_id', $account->id)
-            ->where('status', FinanceConsolidationAccountMapping::APPROVED)->exists()) {
-            throw ValidationException::withMessages(['ledger_account_id' => 'An approved mapping already exists. A separately reviewed remapping workflow is required to change it.']);
-        }
-
         try {
-            return FinanceConsolidationAccountMapping::query()->create([
-                'tenant_id' => $tenantId,
-                'legal_entity_id' => $entity->id,
-                'ledger_account_id' => $account->id,
-                'consolidation_account_code' => $code,
-                'account_type' => (string) $account->account_type,
-                'status' => FinanceConsolidationAccountMapping::PENDING,
-                'created_by' => $actorId,
-                'mapping_reason' => $reason,
-            ]);
+            return DB::transaction(function () use ($tenantId, $actorId, $entity, $ledgerAccountId, $code, $reason): FinanceConsolidationAccountMapping {
+                // Serialize proposals and reviews for this entity account. Locking
+                // the parent account avoids races when no proposal row exists yet.
+                $account = LedgerAccount::query()->where('tenant_id', $tenantId)
+                    ->where('legal_entity_id', $entity->id)->lockForUpdate()->findOrFail($ledgerAccountId);
+
+                $activeProposalExists = FinanceConsolidationAccountMapping::query()
+                    ->where('tenant_id', $tenantId)->where('legal_entity_id', $entity->id)
+                    ->where('ledger_account_id', $account->id)
+                    ->whereIn('status', [FinanceConsolidationAccountMapping::PENDING, FinanceConsolidationAccountMapping::APPROVED])
+                    ->exists();
+                if ($activeProposalExists) {
+                    throw ValidationException::withMessages([
+                        'ledger_account_id' => 'A pending or approved mapping already exists. Review the pending proposal or use the governed remapping workflow.',
+                    ]);
+                }
+
+                $version = ((int) FinanceConsolidationAccountMapping::query()
+                    ->where('tenant_id', $tenantId)->where('legal_entity_id', $entity->id)
+                    ->where('ledger_account_id', $account->id)->max('proposal_version')) + 1;
+
+                return FinanceConsolidationAccountMapping::query()->create([
+                    'tenant_id' => $tenantId, 'legal_entity_id' => $entity->id,
+                    'ledger_account_id' => $account->id, 'consolidation_account_code' => $code,
+                    'account_type' => (string) $account->account_type,
+                    'status' => FinanceConsolidationAccountMapping::PENDING, 'proposal_version' => $version,
+                    'created_by' => $actorId, 'mapping_reason' => $reason,
+                ]);
+            }, 3);
         } catch (QueryException $exception) {
             $sqlState = (string) ($exception->errorInfo[0] ?? '');
             $driverCode = (int) ($exception->errorInfo[1] ?? 0);
             $message = strtolower($exception->getMessage());
             $isUniqueViolation = $sqlState === '23505' || $driverCode === 1062
                 || ($driverCode === 19 && str_contains($message, 'unique constraint'));
-            if (!$isUniqueViolation) {
-                throw $exception;
-            }
-            throw ValidationException::withMessages([
-                'ledger_account_id' => 'A mapping record already exists for this entity account. Review it; do not create a competing mapping.',
-            ]);
+            if (!$isUniqueViolation) throw $exception;
+            throw ValidationException::withMessages(['ledger_account_id' => 'A competing mapping proposal was created. Reload the account mapping before retrying.']);
         }
     }
 
@@ -72,8 +78,16 @@ final class FinanceConsolidationMappingService
 
     private function review(int $tenantId, int $actorId, int $mappingId, string $reason, string $decision): FinanceConsolidationAccountMapping
     {
-        return DB::transaction(function () use ($tenantId, $actorId, $mappingId, $reason, $decision): FinanceConsolidationAccountMapping {
-            $mapping = FinanceConsolidationAccountMapping::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($mappingId);
+        $snapshot = FinanceConsolidationAccountMapping::query()->where('tenant_id', $tenantId)->findOrFail($mappingId);
+
+        return DB::transaction(function () use ($tenantId, $actorId, $mappingId, $reason, $decision, $snapshot): FinanceConsolidationAccountMapping {
+            // Keep lock order identical to propose(): account, then proposal.
+            LedgerAccount::query()->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $snapshot->legal_entity_id)
+                ->lockForUpdate()->findOrFail($snapshot->ledger_account_id);
+
+            $mapping = FinanceConsolidationAccountMapping::query()
+                ->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($mappingId);
             if ($mapping->status !== FinanceConsolidationAccountMapping::PENDING) {
                 throw ValidationException::withMessages(['status' => 'Only pending consolidation mappings can be reviewed.']);
             }
@@ -85,10 +99,17 @@ final class FinanceConsolidationMappingService
             }
 
             $account = LedgerAccount::query()->where('tenant_id', $tenantId)
-                ->where('legal_entity_id', $mapping->legal_entity_id)
-                ->findOrFail($mapping->ledger_account_id);
+                ->where('legal_entity_id', $mapping->legal_entity_id)->findOrFail($mapping->ledger_account_id);
             if ((string) $account->account_type !== (string) $mapping->account_type) {
                 throw ValidationException::withMessages(['account_type' => 'The ledger account type changed after proposal; submit a new mapping for review.']);
+            }
+            if ($decision === FinanceConsolidationAccountMapping::APPROVED
+                && FinanceConsolidationAccountMapping::query()->where('tenant_id', $tenantId)
+                    ->where('legal_entity_id', $mapping->legal_entity_id)
+                    ->where('ledger_account_id', $mapping->ledger_account_id)
+                    ->where('status', FinanceConsolidationAccountMapping::APPROVED)
+                    ->where('id', '<>', $mapping->id)->exists()) {
+                throw ValidationException::withMessages(['status' => 'Another approved mapping exists for this account; this proposal cannot be approved.']);
             }
 
             $mapping->status = $decision;
@@ -97,6 +118,6 @@ final class FinanceConsolidationMappingService
             $mapping->review_reason = trim($reason);
             $mapping->save();
             return $mapping->fresh();
-        });
+        }, 3);
     }
 }
