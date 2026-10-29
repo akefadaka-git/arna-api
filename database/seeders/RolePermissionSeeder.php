@@ -316,15 +316,21 @@ final class RolePermissionSeeder extends Seeder
 
         foreach ($grantSpec as $entry) {
             /*
-             * Scope wildcard. The spec name is 'scope:' followed by
-             * the scope value; the prefix is 6 characters long. Match
-             * every permission whose `scope` field equals the given
-             * value.
+             * Scope wildcard. A plain `scope:{scope}` entry matches all
+             * permissions in that scope. The optional
+             * `-except:{slug}[,{slug}]` suffix excludes specific slugs from
+             * this scope entry without affecting other grant entries.
              */
             if (str_starts_with($entry, 'scope:')) {
-                $scope = substr($entry, 6);
-                foreach ($permissions as $permission) {
-                    if ($permission->scope === $scope) {
+                $scopeSpec = substr($entry, 6);
+                $parts = explode('-except:', $scopeSpec, 2);
+                $scope = $parts[0];
+                $excludedSlugs = isset($parts[1])
+                    ? array_values(array_filter(array_map('trim', explode(',', $parts[1]))))
+                    : [];
+
+                foreach ($permissions as $slug => $permission) {
+                    if ($permission->scope === $scope && !in_array($slug, $excludedSlugs, true)) {
                         $ids[] = (int) $permission->id;
                     }
                 }
