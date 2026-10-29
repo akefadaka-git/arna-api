@@ -673,7 +673,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             $service->reverse((int) $tenant->id, (int) $user->id, (int) $original->id,
                 'JV-RETRY-REVERSAL-2', '2026-10-03', 'Changed reversal request');
             $this->fail('Changed retry input must be rejected.');
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException $exception) {
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException $exception) {
             $this->assertNotSame('', $exception->getMessage());
         }
 
@@ -708,7 +708,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             'Approved reversal for reporting regression',
         );
 
-        $rows = app(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\TrialBalanceService::class)
+        $rows = app(\MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService::class)
             ->forEntity((int) $tenant->id, (int) $entity->id, '2026-10-02');
         $cashRow = $rows->firstWhere('id', $cash->id);
         $equityRow = $rows->firstWhere('id', $equity->id);
@@ -865,6 +865,79 @@ final class FinanceGeneralLedgerTest extends TestCase
             'tenant_id' => $tenant->id,
             'legal_entity_id' => $entity->id,
             'code' => '2026-Q4',
+        ]);
+    }
+
+    #[Test]
+    public function test_journal_draft_cannot_cross_tenant_legal_entity_boundary(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $otherEntity = LegalEntity::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'code' => 'OTHER',
+            'name_en' => 'Other Tenant Entity',
+            'base_currency' => 'ETB',
+            'status' => 'active',
+        ]);
+
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $otherEntity->id,
+            'journal_number' => 'JV-CROSS-TENANT-ENTITY',
+            'effective_date' => '2026-10-10',
+            'description' => 'Cross-tenant isolation regression',
+            'currency' => 'ETB',
+            'idempotency_key' => 'cross-tenant-entity-key',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ]);
+    }
+
+    #[Test]
+    public function test_journal_draft_cannot_post_an_account_from_another_tenant(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $otherEntity = LegalEntity::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'code' => 'OTHER',
+            'name_en' => 'Other Tenant Entity',
+            'base_currency' => 'ETB',
+            'status' => 'active',
+        ]);
+        $foreignAccount = LedgerAccount::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'legal_entity_id' => $otherEntity->id,
+            'code' => 'FOREIGN-1000',
+            'name_en' => 'Foreign Tenant Cash',
+            'account_type' => 'asset',
+            'normal_balance' => 'debit',
+            'is_posting_allowed' => true,
+            'status' => 'active',
+        ]);
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-CROSS-TENANT-ACCOUNT',
+                'effective_date' => '2026-10-10',
+                'description' => 'Cross-tenant account isolation regression',
+                'currency' => 'ETB',
+                'idempotency_key' => 'cross-tenant-account-key',
+            ], [
+                ['account_id' => $foreignAccount->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('A ledger account belonging to another tenant must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('lines.0.account_id', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', [
+            'tenant_id' => $tenant->id,
+            'idempotency_key' => 'cross-tenant-account-key',
         ]);
     }
 
