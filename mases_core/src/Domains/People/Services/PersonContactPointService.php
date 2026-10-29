@@ -94,7 +94,14 @@ final class PersonContactPointService
     public function deactivate(int $tenantId, Person $person, int $contactId, string $reason): PersonContactPoint
     {
         return DB::transaction(function () use ($tenantId, $person, $contactId, $reason): PersonContactPoint {
-            Person::query()->whereKey($person->getKey())->lockForUpdate()->firstOrFail();
+            $lockedPerson = Person::query()->whereKey($person->getKey())
+                ->where('status', 'active')->lockForUpdate()->firstOrFail();
+            $activeGrant = DB::table('person_tenant_accesses')
+                ->where('tenant_id', $tenantId)->where('person_id', $lockedPerson->getKey())
+                ->where('status', 'active')->lockForUpdate()->first();
+            if ($activeGrant === null) {
+                abort(404, 'Active Person tenant access was not found.');
+            }
             $contact = PersonContactPoint::query()
                 ->where('tenant_id', $tenantId)
                 ->where('person_id', $person->getKey())
