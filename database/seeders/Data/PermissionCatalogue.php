@@ -147,7 +147,6 @@ final class PermissionCatalogue
      * @var array<int, array<string, mixed>>
      */
     public const ROWS = [
-        ...\\MaaleArna\\MASES\\Core\\Domains\\Organization\\Support\\OrganizationPermissionCatalogue::ROWS,
         ['slug' => 'user.profile.view',   'name_am' => 'መገለጫ ማየት',           'name_en' => 'View Profile',              'category' => 'user', 'scope' => 'global',      'is_system' => true],
         ['slug' => 'user.profile.update', 'name_am' => 'መገለጫ ማዘመን',          'name_en' => 'Update Profile',            'category' => 'user', 'scope' => 'global',      'is_system' => false],
         ['slug' => 'user.list',           'name_am' => 'የተጠቃሚዎችን ዝርዝር ማየት', 'name_en' => 'View Users',                'category' => 'user', 'scope' => 'tenant',      'is_system' => false],
@@ -205,5 +204,6 @@ final class PermissionCatalogue
 
 
 
+        ...\MaaleArna\MASES\Core\Domains\Organization\Support\OrganizationPermissionCatalogue::ROWS,
     ];
 }
