@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\People\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\People\Events\PersonProfileLifecycleChanged;
 use MaaleArna\MASES\Core\Domains\People\Http\Requests\DeactivatePersonRecordRequest;
 use MaaleArna\MASES\Core\Domains\People\Http\Requests\StorePersonParticipationRequest;
@@ -18,14 +19,20 @@ final class PersonParticipationController extends Controller {
  }
  public function store(StorePersonParticipationRequest $request,string $publicId,PersonParticipationService $service): JsonResponse {
   $tenantId=$this->tenantId(); $person=$this->visiblePerson($publicId,$tenantId);
-  $record=$service->create($tenantId,$person,$request->validated(),$request->user()?->getKey());
-  event(new PersonProfileLifecycleChanged('people.participation.created',$tenantId,(int)$person->getKey(),$request->user()?->getKey(),'participation',(int)$record->getKey()));
+  $record=DB::transaction(function () use ($service,$tenantId,$person,$request): PersonParticipation {
+   $record=$service->create($tenantId,$person,$request->validated(),$request->user()?->getKey());
+   event(new PersonProfileLifecycleChanged('people.participation.created',$tenantId,(int)$person->getKey(),$request->user()?->getKey(),'participation',(int)$record->getKey()));
+   return $record;
+  });
   return response()->json(['success'=>true,'data'=>(new PersonParticipationResource($record))->resolve()],201);
  }
  public function deactivate(DeactivatePersonRecordRequest $request,string $publicId,int $participationId,PersonParticipationService $service): JsonResponse {
   $tenantId=$this->tenantId(); $person=$this->visiblePerson($publicId,$tenantId);
-  $record=$service->deactivate($tenantId,$person,$participationId,$request->validated()['reason']);
-  event(new PersonProfileLifecycleChanged('people.participation.deactivated',$tenantId,(int)$person->getKey(),$request->user()?->getKey(),'participation',(int)$record->getKey()));
+  $record=DB::transaction(function () use ($service,$tenantId,$person,$participationId,$request): PersonParticipation {
+   $record=$service->deactivate($tenantId,$person,$participationId,$request->validated()['reason']);
+   event(new PersonProfileLifecycleChanged('people.participation.deactivated',$tenantId,(int)$person->getKey(),$request->user()?->getKey(),'participation',(int)$record->getKey()));
+   return $record;
+  });
   return response()->json(['success'=>true,'data'=>(new PersonParticipationResource($record))->resolve()]);
  }
  private function tenantId(): int { $tenantId=mases_tenant_id(); abort_if($tenantId===null,400,'A validated tenant context is required.'); return (int)$tenantId; }
