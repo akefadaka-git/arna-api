@@ -29,7 +29,8 @@ final class LedgerAccount extends Model
         'parent_id' => 'integer',
         'is_posting_allowed' => 'boolean',
         'is_control_account' => 'boolean',
-        'is_system_account' => 'boolean',\n        'is_cash_equivalent' => 'boolean',
+        'is_system_account' => 'boolean',
+        'is_cash_equivalent' => 'boolean',
     ];
 
     public function entity(): BelongsTo
