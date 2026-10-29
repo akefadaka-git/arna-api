@@ -709,7 +709,11 @@ final class FileService
             }
 
             $parentId = (clone $tenantFiles)->where('id', $current)->value('parent_file_id');
-            if ($parentId !== null && !in_array((int) $parentId, $known, true)) {
+            if (
+                $parentId !== null
+                && (clone $tenantFiles)->where('id', (int) $parentId)->exists()
+                && !in_array((int) $parentId, $known, true)
+            ) {
                 $known[] = (int) $parentId;
                 $pending[] = (int) $parentId;
             }
