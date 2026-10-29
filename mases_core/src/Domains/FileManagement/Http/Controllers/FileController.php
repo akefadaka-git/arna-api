@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Audit\Traits\LogsAudit;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
@@ -432,6 +433,59 @@ class FileController extends Controller
     }
 
     /**
+     * Download a deliberately public, published file without requiring a login.
+     *
+     * This endpoint is outside tenant.membership middleware by design. Public
+     * visibility is checked against the persisted record on every request;
+     * private, draft, archived, and soft-deleted records are never served here.
+     */
+    public function publicDownload(int|string $id): StreamedResponse
+    {
+        $file = File::query()
+            ->where('is_public', true)
+            ->where('status', 'published')
+            ->find($id);
+
+        if (!$file) {
+            throw FileException::notFound((string) $id);
+        }
+
+        return $this->fileService->download($file, null);
+    }
+
+    /**
+     * Verify a public document through its file-specific signed QR URL.
+     *
+     * This verifies the current publication record and its identity. It is
+     * not a cryptographic signature over the document bytes.
+     */
+    public function publicVerify(int|string $id): JsonResponse
+    {
+        $file = File::query()
+            ->where('is_public', true)
+            ->where('status', 'published')
+            ->find($id);
+
+        if (!$file) {
+            throw FileException::notFound((string) $id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'file_id' => (string) $file->id,
+                'document_number' => data_get($file->metadata, 'document_number'),
+                'document_type' => data_get($file->metadata, 'document_type'),
+                'original_name' => $file->original_name,
+                'version' => $file->version,
+                'published' => true,
+                'published_at' => $file->updated_at?->toIso8601String(),
+                'verification_url' => URL::signedRoute('api.files.public.verify', ['id' => $file->id]),
+            ],
+        ]);
+    }
+
+    /**
      * Format a file instance for API response.
      *
      * @param File $file
@@ -458,6 +512,11 @@ class FileController extends Controller
             'created_at'    => $file->created_at?->toIso8601String(),
             'updated_at'    => $file->updated_at?->toIso8601String(),
             'deleted_at'    => $file->deleted_at?->toIso8601String(),
+            // Public QR verification is available only after explicit publication.
+            // Private records must use the authenticated application route.
+            'verification_url' => ($file->is_public && $file->status === 'published')
+                ? URL::signedRoute('api.files.public.verify', ['id' => $file->id])
+                : null,
         ];
     }
 }
