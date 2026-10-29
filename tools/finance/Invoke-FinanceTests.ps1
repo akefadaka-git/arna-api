@@ -102,7 +102,8 @@ if ($TestPath.Count -gt 0) {
             Stop-Runner "Requested test file does not exist: $item"
         }
         $full = (Resolve-Path -LiteralPath $candidate).Path
-        if (-not $full.StartsWith($RepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $rootPrefix = $RepoRoot.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+        if (-not $full.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
             Stop-Runner "Test path must remain inside the selected repository: $item"
         }
         if ([IO.Path]::GetExtension($full) -ne ".php") {
