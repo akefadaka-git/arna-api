@@ -91,7 +91,6 @@ if ($phpunitXml -notmatch '<env\s+name="DB_CONNECTION"\s+value="sqlite"\s*/?>' -
 
 $arguments = @("--configuration", "phpunit.xml")
 $cacheRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("arna-finance-phpunit-" + [guid]::NewGuid().ToString("N"))
-New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
 $arguments += @("--cache-directory", $cacheRoot)
 
 if ($TestPath.Count -gt 0) {
