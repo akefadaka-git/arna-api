@@ -35,6 +35,13 @@ final class FinanceExchangeRateService
             throw ValidationException::withMessages(['source' => 'A rate source and proposal reason are required.']);
         }
 
+        if (FinanceExchangeRate::query()->where('tenant_id', $tenantId)
+            ->where('base_currency', $base)->where('quote_currency', $quote)
+            ->whereDate('effective_on', $data['effective_on'])
+            ->where('status', FinanceExchangeRate::APPROVED)->exists()) {
+            throw ValidationException::withMessages(['effective_on' => 'An approved rate already exists for this pair and date. Approved rates are immutable; use a separately governed correction workflow.']);
+        }
+
         try {
             return FinanceExchangeRate::query()->create([
                 'tenant_id' => $tenantId, 'base_currency' => $base, 'quote_currency' => $quote,
