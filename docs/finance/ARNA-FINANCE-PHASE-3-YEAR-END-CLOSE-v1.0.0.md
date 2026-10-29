@@ -5,7 +5,7 @@
 - Phase 1 scope is frozen against further expansion.
 - Phase 2 scope is frozen against further expansion.
 - This is a scope transition, not a claim that every Phase 1/2 acceptance gate passed.
-- The ledger foundation PR #29 is merged. The broader Finance foundation/CoA/ownership implementation remains in draft PRs and has not passed automated verification.
+- The ledger foundation PR #29 and canonical CoA PR #32 are merged to `main` (current `main` at report time: `ed1a937456d2e240802a05ea729c902c0af6b06d`). Control-account ownership safeguards, financial reporting, and the broader completion work remain in draft PRs and have not passed automated verification.
 - Phase 3 begins with a read-only year-end close readiness assessment.
 
 ## Endpoint
