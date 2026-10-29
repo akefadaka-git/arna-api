@@ -53,6 +53,29 @@ if ($LASTEXITCODE -ne 0) { throw 'Unable to determine PHP CLI version.' }
 if ([version]$version -lt [version]'8.3.0') { throw "PHP $version found; ARNA API requires PHP 8.3 or later." }
 if (-not (Test-Path 'vendor/autoload.php')) { throw 'vendor/autoload.php is missing. Run composer install manually in this existing checkout.' }
 
+# A vendor junction can silently reuse Composer autoload metadata generated for a
+# different checkout. That makes PSR-4 domain classes resolve against stale source
+# paths and can make route:list fail on unrelated controllers before People routes
+# are inspected. Fail early rather than report a misleading application-code defect.
+$vendorItem = Get-Item -LiteralPath 'vendor' -Force
+if ($vendorItem.LinkType -in @('Junction', 'SymbolicLink')) {
+    $vendorTarget = @($vendorItem.Target)[0]
+    if ($vendorTarget) {
+        $vendorTargetPath = [IO.Path]::GetFullPath([string] $vendorTarget)
+        $vendorTargetRepo = Split-Path -LiteralPath $vendorTargetPath -Parent
+        $targetDomainRoot = Join-Path $vendorTargetRepo 'mases_core/src'
+        $repoDomainRoot = Join-Path $Repo 'mases_core/src'
+
+        if ((Test-Path -LiteralPath $targetDomainRoot) -and (Test-Path -LiteralPath $repoDomainRoot)) {
+            $resolvedTargetDomainRoot = (Resolve-Path -LiteralPath $targetDomainRoot).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
+            $resolvedRepoDomainRoot = (Resolve-Path -LiteralPath $repoDomainRoot).Path.TrimEnd([IO.Path]::DirectorySeparatorChar)
+            if (-not $resolvedTargetDomainRoot.Equals($resolvedRepoDomainRoot, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "vendor is a $($vendorItem.LinkType) targeting '$vendorTargetPath', which belongs to another checkout. Composer autoload metadata may resolve ARNA domain classes against stale source files. Set up an isolated vendor directory for '$Repo'. No repository files were changed by this check; no tests were run."
+            }
+        }
+    }
+}
+
 Write-Host ''
 Write-Host '=== PHP syntax: People domain ===' -ForegroundColor Cyan
 $phpFiles = Get-ChildItem -LiteralPath $DomainPath -Recurse -File -Filter '*.php'
