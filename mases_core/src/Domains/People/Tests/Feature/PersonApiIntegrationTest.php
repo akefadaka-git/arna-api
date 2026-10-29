@@ -669,6 +669,70 @@ final class PersonApiIntegrationTest extends TestCase
     }
 
     #[Test]
+    public function people_services_reject_writes_after_person_tenant_access_is_revoked(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $firstResponse = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Revoked Access Person',
+        ])->assertCreated();
+        $secondResponse = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Still Visible Person',
+        ])->assertCreated();
+        $person = Person::query()->where('public_id', $firstResponse->json('data.public_id'))->firstOrFail();
+        $related = Person::query()->where('public_id', $secondResponse->json('data.public_id'))->firstOrFail();
+
+        DB::table('person_tenant_accesses')
+            ->where('tenant_id', $tenant->getKey())
+            ->where('person_id', $person->getKey())
+            ->update(['status' => 'revoked', 'updated_at' => now()]);
+
+        $assertNotFound = function (callable $operation): void {
+            try {
+                $operation();
+                $this->fail('A People service must reject writes after tenant access is revoked.');
+            } catch (\\Symfony\\Component\\HttpKernel\\Exception\\HttpException $exception) {
+                $this->assertSame(404, $exception->getStatusCode());
+            }
+        };
+
+        $assertNotFound(fn () => app(\\MaaleArna\\MASES\\Core\\Domains\\People\\Services\\PersonContactPointService::class)->create(
+            (int) $tenant->getKey(),
+            $person,
+            ['contact_type' => 'email', 'contact_value' => 'revoked@example.test', 'is_primary' => false],
+            (int) $actor->getKey(),
+        ));
+        $assertNotFound(fn () => app(\\MaaleArna\\MASES\\Core\\Domains\\People\\Services\\PersonParticipationService::class)->create(
+            (int) $tenant->getKey(),
+            $person,
+            ['participation_type' => 'membership', 'title' => 'Must not persist', 'reason' => 'Testing revoked tenant access'],
+            (int) $actor->getKey(),
+        ));
+        $assertNotFound(fn () => app(\\MaaleArna\\MASES\\Core\\Domains\\People\\Services\\PersonRelationshipService::class)->create(
+            (int) $tenant->getKey(),
+            $person,
+            $related,
+            ['relationship_type' => 'household_member', 'reason' => 'Testing revoked tenant access'],
+            (int) $actor->getKey(),
+        ));
+
+        $this->assertDatabaseMissing('person_contact_points', [
+            'tenant_id' => $tenant->getKey(),
+            'person_id' => $person->getKey(),
+        ]);
+        $this->assertDatabaseMissing('person_participations', [
+            'tenant_id' => $tenant->getKey(),
+            'person_id' => $person->getKey(),
+        ]);
+        $this->assertDatabaseMissing('person_relationships', [
+            'tenant_id' => $tenant->getKey(),
+            'person_id' => $person->getKey(),
+        ]);
+    }
+
+    #[Test]
     public function people_manager_can_create_only_tenant_visible_person_relationships_and_prevent_duplicates(): void
     {
         [$tenant, $actor] = $this->tenantPeopleManager();
