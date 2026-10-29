@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Organization\\Providers;
+namespace MaaleArna\MASES\Core\Domains\Organization\Providers;
 
-use Illuminate\\Support\\Facades\\Route;
-use Illuminate\\Support\\ServiceProvider;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
 
 final class OrganizationServiceProvider extends ServiceProvider
 {
