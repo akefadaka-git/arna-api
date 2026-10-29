@@ -115,13 +115,13 @@ return new class extends Migration
         });
         Schema::table('governance_elections', function (Blueprint $table): void {
             $table->dropConstrainedForeignId('created_by');
+            $table->dropConstrainedForeignId('challenge_window_verified_by');
             $table->dropColumn([
                 'frozen_eligible_voter_count',
                 'current_round',
                 'challenge_bylaw_reference',
                 'challenge_window_ends_at',
                 'challenge_window_evidence_reference',
-                'challenge_window_verified_by',
                 'challenge_window_verified_at',
                 'winner_nomination_id',
                 'result_summary_json',
