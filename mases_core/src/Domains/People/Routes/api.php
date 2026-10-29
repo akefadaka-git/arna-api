@@ -23,7 +23,7 @@ Route::name('api.people.')->group(static function (): void {
             ->name('show');
         Route::get('/{publicId}/participations', [PersonParticipationController::class, 'index'])
             ->whereUuid('publicId')
-            ->middleware('auth.permission:people.manage')
+            ->middleware('auth.permission:people.sensitive.view|people.manage')
             ->name('participations.index');
         Route::post('/{publicId}/participations', [PersonParticipationController::class, 'store'])
             ->whereUuid('publicId')
@@ -36,7 +36,7 @@ Route::name('api.people.')->group(static function (): void {
             ->name('participations.deactivate');
         Route::get('/{publicId}/person-relationships', [PersonRelationshipController::class, 'index'])
             ->whereUuid('publicId')
-            ->middleware('auth.permission:people.manage')
+            ->middleware('auth.permission:people.sensitive.view|people.manage')
             ->name('person-relationships.index');
         Route::post('/{publicId}/person-relationships', [PersonRelationshipController::class, 'store'])
             ->whereUuid('publicId')
@@ -49,7 +49,7 @@ Route::name('api.people.')->group(static function (): void {
             ->name('person-relationships.deactivate');
         Route::get('/{publicId}/contacts', [PersonContactPointController::class, 'index'])
             ->whereUuid('publicId')
-            ->middleware('auth.permission:people.manage')
+            ->middleware('auth.permission:people.sensitive.view|people.manage')
             ->name('contacts.index');
         Route::post('/{publicId}/contacts', [PersonContactPointController::class, 'store'])
             ->whereUuid('publicId')
@@ -62,7 +62,7 @@ Route::name('api.people.')->group(static function (): void {
             ->name('contacts.deactivate');
         Route::get('/{publicId}/documents', [PersonController::class, 'documents'])
             ->whereUuid('publicId')
-            ->middleware('auth.permission:people.manage')
+            ->middleware('auth.permission:people.sensitive.view|people.manage')
             ->name('documents.index');
         Route::post('/{publicId}/documents', [PersonController::class, 'linkDocument'])
             ->whereUuid('publicId')
@@ -80,12 +80,12 @@ Route::name('api.people.')->group(static function (): void {
             ->name('documents.unlink-command');
         Route::get('/{publicId}/relationships', [PersonController::class, 'relationships'])
             ->whereUuid('publicId')
-            ->middleware('auth.permission:people.manage')
+            ->middleware('auth.permission:people.sensitive.view|people.manage')
             ->name('relationships');
         Route::get('/{publicId}/relationships/{domain}/options', [PersonController::class, 'relationshipOptions'])
             ->whereUuid('publicId')
             ->whereIn('domain', ['employees', 'shareholders', 'governance-memberships'])
-            ->middleware('auth.permission:people.manage')
+            ->middleware('auth.permission:people.sensitive.view|people.manage')
             ->name('relationships.options');
         Route::post('/{publicId}/relationships/{domain}/{recordId}', [PersonController::class, 'linkDomain'])
             ->whereUuid('publicId')
