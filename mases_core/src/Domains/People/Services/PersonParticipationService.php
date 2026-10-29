@@ -55,7 +55,14 @@ final class PersonParticipationService
     public function deactivate(int $tenantId, Person $person, int $participationId, string $reason): PersonParticipation
     {
         return DB::transaction(function () use ($tenantId, $person, $participationId, $reason): PersonParticipation {
-            Person::query()->whereKey($person->getKey())->lockForUpdate()->firstOrFail();
+            $lockedPerson = Person::query()->whereKey($person->getKey())
+                ->where('status', 'active')->lockForUpdate()->firstOrFail();
+            $activeGrant = DB::table('person_tenant_accesses')
+                ->where('tenant_id', $tenantId)->where('person_id', $lockedPerson->getKey())
+                ->where('status', 'active')->lockForUpdate()->first();
+            if ($activeGrant === null) {
+                abort(404, 'Active Person tenant access was not found.');
+            }
             $record = PersonParticipation::query()
                 ->where('tenant_id', $tenantId)->where('person_id', $person->getKey())
                 ->whereKey($participationId)->where('status', 'active')->lockForUpdate()->firstOrFail();
