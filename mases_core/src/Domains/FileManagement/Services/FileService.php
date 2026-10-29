@@ -314,8 +314,9 @@ final class FileService
         $file = $this->resolveFile($file);
         $user = $user ?? mases_user();
 
-        // Public files are freely downloadable
-        if (!$file->is_public) {
+        // Only published public files bypass tenant membership and download permission.
+        // Draft or archived records remain protected even if is_public was set previously.
+        if (!$file->is_public || $file->status !== 'published') {
             $this->authorizeAction('file.download', $file, $user);
         }
 
