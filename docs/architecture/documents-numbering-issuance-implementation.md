@@ -1,7 +1,7 @@
 # Documents Domain: Numbering Ledger and Issuance Lifecycle
 
-**Status:** Governed implementation slice; source-only, not runtime verified.
-**Domain boundary:** Documents owns canonical document identity, numbering, issue/void/revoke lifecycle, and the append-only lifecycle event record. FileManagement remains the owner of binary storage and file versions. Governance/Organization remains the source of authority and office assignments. Finance remains the source of legal-entity and invoice/accounting truth.
+**Status:** Governed source implementation; runtime and migration behavior are not verified.
+**Domain boundary:** Documents owns canonical document identity, numbering, issue/void/revoke lifecycle, and the lifecycle-event record. FileManagement owns binary storage and file versions. Finance owns legal-entity identity. Organization owns units and department codes. Governance owns positions, authority grants, and acting assignments.
 
 ## Canonical number
 
@@ -9,18 +9,36 @@
 
 Example only: \`ARNA-LET-HQ-CEO-000042-EC2019\`.
 
-Sequence scope is tenant + legal entity + type + department + issuing role + Ethiopian Calendar year. The calendar year is derived server-side from the captured Addis Ababa issuance timestamp using the platform \`EthiopianCalendar\`; callers cannot submit the year. Sequence allocation uses a unique scope row, \`insertOrIgnore\`, and \`lockForUpdate\` inside the same transaction as the document and lifecycle event inserts. Canonical numbers and scope sequence tuples have database unique constraints. Six-digit exhaustion fails closed.
+The number uses registered codes rather than caller-defined labels:
+- \`ORG\` is the active Finance \`legal_entities.code\`.
+- \`DP\` is an active \`organization_units.code\` in the same tenant and legal entity.
+- \`RL\` is an active \`governance_positions.code\` belonging to an active Governance body in the same tenant.
+- \`TYP\` is defined by the Documents \`DocumentTypeRegistry\`; each type has a separate authority action \`documents.issue.{TYP}\`.
+- Number segments reject hyphens so delimiter-based canonical numbers remain unambiguous. Existing registered codes with unsupported characters must be corrected through their owning domain before issuance.
 
-## Issuance and idempotency
+Sequence scope is tenant + legal entity + Organization unit + Governance position + document type + Ethiopian Calendar year. The year is derived server-side from the captured Addis Ababa issuance timestamp using the platform Ethiopian Calendar service. The counter row snapshots the canonical codes; changing a code mid-scope fails closed and requires an explicit numbering-scope migration. Sequence allocation uses a unique scope row and row locking in the same transaction as the document and issuance event. The six-digit sequence limit fails closed.
 
-- Issuance requires the \`documents.issue\` permission, a verified tenant context, an active tenant-owned file, supported type code, registered-code-shaped inputs, and an \`Idempotency-Key\`.
-- The idempotency key is unique per tenant. Reusing it with the same canonicalized request returns the persisted issuance; reusing it with a different request returns conflict.
-- Issuance, counter advancement, document insertion, and lifecycle event insertion commit or roll back together.
-- A successful issue permanently consumes its number. Void and revoke retain the number and append a lifecycle event; only documents in \`issued\` state can transition.
-- \`documents.view\`, \`documents.void\`, and \`documents.revoke\` are separate permissions. All reads and mutations are tenant-scoped.
+## Authoritative registry and issuing authority
 
-## Explicit integration limits
+The Documents domain does not duplicate the owning domains' registries:
+- Finance \`LegalEntity\`: entity must be active and belong to the resolved tenant.
+- Organization \`OrganizationUnit\`: unit must be active, non-deleted, belong to the resolved tenant, and reference the selected legal entity.
+- Governance \`GovernancePosition\` and \`GovernanceBody\`: position and body must be active and belong to the resolved tenant.
+- Documents \`DocumentTypeRegistry\`: single code catalogue for the supported document types.
+- Governance \`GovernanceAuthorityGrant\`: a current, unrevoked grant must match the exact \`documents.issue.{TYP}\` action and position.
+- Acting authority is explicit, never inherited: an active acting assignment must name the exact action, cover the current date, and match the acting person's seat and position; the substantive incumbent must hold the same effective type-specific grant.
+- The caller must also hold the tenant-scoped \`documents.issue\` RBAC permission and an active canonical Person identity with active tenant access.
 
-This slice does not create public verification or QR-image rendering. A future verification slice must bind the canonical document to a precise file version and compute/verify content SHA-256 without exposing storage paths. It does not yet integrate a registered legal-entity code registry, Organization department registry, or Governance acting-authority matrix. Current code validates code syntax and snapshots the supplied codes, but the issuance permission is not a substitute for the document-type-specific authority decision. Before production issuance is enabled, those registries and the authoritative legal-entity relationship must be enforced.
+The issuing role is deliberately mapped to a Governance position code; a title string or Organization assignment alone cannot grant authority. Missing registry matches, missing grants, expired/revoked authority, or tenant mismatch fail closed. No default grants are seeded by this change.
 
-The migration references the existing \`files\` table and therefore assumes the FileManagement migration is available earlier in the migration set. Migration discovery is registered by \`DocumentsServiceProvider\` in Laravel's provider registry. Database migration execution, tests, workflows, deployment, and merge were not run as part of this source-only delivery.
+## Issuance and lifecycle
+
+- A stable \`Idempotency-Key\` is required. The key is unique per tenant; same canonical payload returns the persisted issue, while a different payload conflicts.
+- Counter advancement, document insertion, and issuance lifecycle event insertion are one database transaction.
+- Issued numbers are permanent. Void and revoke retain the number and append a lifecycle event; only an \`issued\` document may transition.
+- \`documents.view\`, \`documents.void\`, and \`documents.revoke\` remain separate RBAC permissions. Reads and mutations are tenant-scoped.
+- The database schema references canonical legal entities, Organization units, Governance bodies/positions, users, tenants, and FileManagement file records. Tenant-scoped canonical-number uniqueness prevents unrelated tenants from colliding.
+
+## Remaining production gates
+
+Public document verification, QR-image rendering, and SHA-256 verification of the exact linked file bytes are not implemented. The issuing-authority integration is source-complete but has not been runtime-verified. The migration assumes the existing Finance, Organization, Governance, tenant/user, and FileManagement tables are discovered before the Documents migration. No migration was executed; tests and GitHub Actions were NOT RUN; database operations, deployment, and merge were NOT performed. Keep the PR draft until these runtime gates can be verified and the Owner approves the authority policy and registry-code conventions.
