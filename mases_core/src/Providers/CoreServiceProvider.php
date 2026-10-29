@@ -16,7 +16,6 @@ use MaaleArna\MASES\Core\Auth\Events\FailedLogin;
 use MaaleArna\MASES\Core\Authorization\Events\RolePermissionsChanged;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Events\AuthorizationFailureEvent;
-use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceEntityMappingResolver;
 use MaaleArna\MASES\Core\Listeners\InvalidateAuthorizationCacheListener;
