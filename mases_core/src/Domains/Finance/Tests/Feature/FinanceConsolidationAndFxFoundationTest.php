@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Tests\\Feature;
+namespace MaaleArna\MASES\Core\Domains\Finance\Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Schema;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\FinanceConsolidationAccountMapping;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\FinanceExchangeRate;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LedgerAccount;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LegalEntity;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinanceConsolidationMappingService;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinanceExchangeRateService;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceConsolidationAccountMapping;
+use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceExchangeRate;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceConsolidationMappingService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceExchangeRateService;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class FinanceConsolidationAndFxFoundationTest extends TestCase
 {
@@ -87,7 +87,7 @@ final class FinanceConsolidationAndFxFoundationTest extends TestCase
         try {
             $service->resolveApproved((int) $tenant->id, 'ETB', 'USD', '2026-10-01');
             $this->fail('A pending or rejected rate must never resolve as an approved rate.');
-        } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
             $this->assertDatabaseCount('finance_exchange_rates', 2);
         }
 
