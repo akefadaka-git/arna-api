@@ -479,19 +479,22 @@ final class PersonIdentityService
         }
     }
 
-    public function unlinkShareholder(int $tenantId, int $shareholderId, User $actor, string $reason): void
+    public function unlinkShareholder(int $tenantId, int $shareholderId, int $expectedPersonId, User $actor, string $reason): void
     {
         $this->assertTenantAccess($tenantId, $actor);
         $this->assertManagePermission($tenantId, $actor);
         $this->assertReason($reason);
 
-        DB::transaction(function () use ($tenantId, $shareholderId, $actor, $reason): void {
+        DB::transaction(function () use ($tenantId, $shareholderId, $expectedPersonId, $actor, $reason): void {
             $holder = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)->lockForUpdate()->first();
             if ($holder === null) {
                 throw new DomainException('Shareholder was not found in the authorized tenant.');
             }
             if ($holder->person_id === null) {
                 return;
+            }
+            if ((int) $holder->person_id !== $expectedPersonId) {
+                throw new DomainException('The shareholder is not linked to the Person specified by the request.');
             }
             $person = Person::query()->whereKey((int) $holder->person_id)->lockForUpdate()->firstOrFail();
             $this->assertPersonTenantAccess($tenantId, $person);
@@ -504,13 +507,13 @@ final class PersonIdentityService
         });
     }
 
-    public function unlinkEmployee(int $tenantId, int $employeeId, User $actor, string $reason): void
+    public function unlinkEmployee(int $tenantId, int $employeeId, int $expectedPersonId, User $actor, string $reason): void
     {
         $this->assertTenantAccess($tenantId, $actor);
         $this->assertManagePermission($tenantId, $actor);
         $this->assertReason($reason);
 
-        DB::transaction(function () use ($tenantId, $employeeId, $actor, $reason): void {
+        DB::transaction(function () use ($tenantId, $employeeId, $expectedPersonId, $actor, $reason): void {
             $employee = DB::table('employees')->where('tenant_id', $tenantId)->where('id', $employeeId)
                 ->whereNull('deleted_at')->lockForUpdate()->first();
             if ($employee === null) {
@@ -518,6 +521,9 @@ final class PersonIdentityService
             }
             if ($employee->person_id === null) {
                 return;
+            }
+            if ((int) $employee->person_id !== $expectedPersonId) {
+                throw new DomainException('The employee is not linked to the Person specified by the request.');
             }
             $person = Person::query()->whereKey((int) $employee->person_id)->lockForUpdate()->firstOrFail();
             $this->assertPersonTenantAccess($tenantId, $person);
@@ -530,13 +536,13 @@ final class PersonIdentityService
         });
     }
 
-    public function unlinkGovernanceMembership(int $tenantId, int $membershipId, User $actor, string $reason): void
+    public function unlinkGovernanceMembership(int $tenantId, int $membershipId, int $expectedPersonId, User $actor, string $reason): void
     {
         $this->assertTenantAccess($tenantId, $actor);
         $this->assertManagePermission($tenantId, $actor);
         $this->assertReason($reason);
 
-        DB::transaction(function () use ($tenantId, $membershipId, $actor, $reason): void {
+        DB::transaction(function () use ($tenantId, $membershipId, $expectedPersonId, $actor, $reason): void {
             $membership = DB::table('governance_memberships')->where('tenant_id', $tenantId)
                 ->where('id', $membershipId)->lockForUpdate()->first();
             if ($membership === null) {
@@ -544,6 +550,9 @@ final class PersonIdentityService
             }
             if ($membership->person_id === null) {
                 return;
+            }
+            if ((int) $membership->person_id !== $expectedPersonId) {
+                throw new DomainException('The governance membership is not linked to the Person specified by the request.');
             }
             $person = Person::query()->whereKey((int) $membership->person_id)->lockForUpdate()->firstOrFail();
             $this->assertPersonTenantAccess($tenantId, $person);
