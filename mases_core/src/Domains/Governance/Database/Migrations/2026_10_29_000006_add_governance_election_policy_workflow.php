@@ -16,6 +16,9 @@ return new class extends Migration
             $table->unsignedSmallInteger('current_round')->default(1)->after('frozen_eligible_voter_count');
             $table->string('challenge_bylaw_reference', 255)->nullable()->after('current_round');
             $table->timestamp('challenge_window_ends_at')->nullable()->after('challenge_bylaw_reference');
+            $table->string('challenge_window_evidence_reference', 500)->nullable()->after('challenge_window_ends_at');
+            $table->foreignId('challenge_window_verified_by')->nullable()->after('challenge_window_evidence_reference')->constrained('users')->restrictOnDelete();
+            $table->timestamp('challenge_window_verified_at')->nullable()->after('challenge_window_verified_by');
             $table->unsignedBigInteger('winner_nomination_id')->nullable()->after('challenge_window_ends_at');
             $table->json('result_summary_json')->nullable()->after('winner_nomination_id');
         });
@@ -111,6 +114,9 @@ return new class extends Migration
                 'current_round',
                 'challenge_bylaw_reference',
                 'challenge_window_ends_at',
+                'challenge_window_evidence_reference',
+                'challenge_window_verified_by',
+                'challenge_window_verified_at',
                 'winner_nomination_id',
                 'result_summary_json',
             ]);
