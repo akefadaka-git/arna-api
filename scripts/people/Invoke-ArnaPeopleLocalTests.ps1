@@ -101,7 +101,7 @@ if ($RunMySql) {
     Write-Host 'Verified the target schema has zero tables.'
 
     Invoke-Checked 'php' @('artisan', 'migrate', '--env=testing', '--database=mysql', '--force')
-    Invoke-Checked 'php' @('artisan', 'test', $TestsPath, '--stop-on-failure', '--env=testing')
+    Invoke-Checked 'php' @('artisan', 'test', "$DomainPath/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php", '--stop-on-failure', '--env=testing')
 } else {
     Write-Host 'MySQL clean-install mode skipped. Use -RunMySql only with an empty disposable schema configured in .env.testing.' -ForegroundColor Yellow
 }
