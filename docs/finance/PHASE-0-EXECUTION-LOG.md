@@ -20,6 +20,7 @@
 | `tests/Feature/FinanceRouteAndMigrationDiscoveryTest.php` | Report route registration/middleware and canonical Finance migration discovery/order checks | GENERATED; NOT RUN |
 | `mases_core/src/Domains/Finance/Services/JournalEntryService.php` | Canonical service now validates cash-flow activity enum, restricts classification to explicitly enabled cash-equivalent accounts, requires a non-empty evidence note for classified movements, validates note type/length | GENERATED; NOT RUN |
 | `mases_core/src/Domains/Finance/Http/Requests/StoreJournalRequest.php` | Request contract requires a classification note whenever cash-flow activity is supplied | GENERATED; NOT RUN |
+| `mases_core/src/Domains/Finance/Services/CashFlowReportService.php` | Rejects impossible ISO dates and reversed date windows even for direct service callers | GENERATED; NOT RUN |
 | `docs/finance/ARNA-CASH-FLOW-CLASSIFICATION-v1.0.0.md` | Documents the enforced evidence-note and service validation contract | UPDATED |
 
 No database migration or schema change was made in this unit. No control-account owner was appointed and no adapter was activated.
@@ -100,7 +101,7 @@ A read-only changed-filename comparison was completed for PRs #39, #40, #42, #43
 | #44 | 1 | Roadmap documentation only |
 | #45 | 9 | Stacked on #43's reporting branch; overlaps #39/#40 on the journal service and request contract, and #43 on cash-flow docs plus those same source files |
 
-This establishes file-level overlap, not identical content or merge safety. The complete reconciliation must still inspect the exact base/head SHAs and diffs for each PR, distinguish already-integrated versus unmerged commits, and determine the canonical branch sequence. PR #45 is an open draft; GitHub reports `mergeable: false`. Do not merge any of these PRs as part of Phase 0.
+This establishes file-level overlap, not identical content or merge safety. The complete reconciliation must still inspect the exact base/head SHAs and diffs for each PR, distinguish already-integrated versus unmerged commits, and determine the canonical branch sequence. PR #45 is an open draft. At creation GitHub reported `mergeable: false`; compare metadata shows the feature head descends from its feature base with zero commits behind, so refresh/reconcile the PR state before any future merge. Do not merge any of these PRs as part of Phase 0.
 
 Workflow inventory remains search-derived: 18 files containing `actions/checkout` and 15 files with a `pull_request:` trigger were found on the observed main baseline. The examined workflows use named branches and/or path filters; none of the reviewed trigger declarations targeted the new PR's feature-branch base. This does not guarantee every repository automation has been enumerated. Latest reviewed head before this log update: `3d8731333f853267bdb081923e2a91903f3d07d0`; workflow-run and commit-status queries returned zero items. CI remains NOT RUN.
 
@@ -110,3 +111,26 @@ Workflow inventory remains search-derived: 18 files containing `actions/checkout
 - Added two more cash-flow acceptance cases: reject classification on an account not enabled as a cash equivalent, and prove a report for one tenant does not include another tenant's cash movement.
 - Updated the runner retrieval instructions to use authenticated `gh api` and decode only the PowerShell script file. This is necessary because the destination repository is private; the repository itself is never cloned or downloaded by the runner.
 - Latest reviewed branch head before this log update: `329c5d9f22caf51d7be6f738116132f3183bebd2`. Workflow-run and commit-status queries returned zero items. Tests remain NOT RUN; no CI was invoked.
+
+
+## 9. Exact branch graph update and reporting-service hardening
+
+The PR ancestry comparison now identifies the principal branch heads:
+
+| PR | Head branch / SHA | Base relationship observed | Status |
+|---|---|---|---|
+| #39 | `feat/finance-accounting-completion` / `8adb090c70158f8d4b22b1a28050722cffcac447` | Compared with current main `ed1a937456d2e240802a05ea729c902c0af6b06d`: 112 ahead, 7 behind; 81 files | Open |
+| #40 | `feat/finance-accounting-reconciled-v1` / `179581588160b083812c7715953bb1a477f6074b` | Based on `e853874ee41130d47be07d2ffc097a41ecb69a9b`; 80 changed paths. Compared with current main: 3 ahead, 2 behind | Open |
+| #42 | `feat/finance-phase3-year-end-close-readiness` / `5be4152e1a917aeb1e6b2ece1b056a89743c9746` | Directly based on #39 base/head `8adb090c70158f8d4b22b1a28050722cffcac447`; 14 commits ahead, 6 files | Open |
+| #43 | `feat/finance-accounting-completion-reporting` / `f5359467d131aebbfc11c6806793b1e77cfad97d` | Directly based on `8adb090c70158f8d4b22b1a28050722cffcac447`; 32 commits ahead, 17 files | Open, draft |
+| #44 | `docs/finance-accounting-enhancement-roadmap` / `3499624ff1bd5e12c918d11d5a88d2fbc67698f7` | Documentation-only branch based on `8adb090c70158f8d4b22b1a28050722cffcac447` | Open, draft |
+| #45 | `feat/finance-phase0-baseline-local-test-runner` / current head `ef438e70578315da6da87c03950fbf2a36b8b960` | Based on #43 head `f5359467d131aebbfc11c6806793b1e77cfad97d`; 27 commits ahead, 0 behind, 10 changed files | Open, draft |
+
+The #39/#40 overlap remains the main integration hazard: #40 has 80 changed paths, all 80 also occur in #39. #39's branch has 7 commits of divergence from current main, while #40 is 2 commits behind current main and 3 commits ahead of its recorded base. This evidence helps select an integration path but does not authorize merging either branch.
+
+A further fail-closed reporting enhancement was generated:
+- `CashFlowReportService` now rejects impossible `YYYY-MM-DD` dates and a start date later than the end date, even when invoked directly outside request validation.
+- Two acceptance tests cover invalid calendar dates and reversed date windows.
+- The cash-flow acceptance test file now contains nine cases; route/migration discovery has two cases. They remain NOT RUN.
+
+Latest reviewed branch head: `ef438e70578315da6da87c03950fbf2a36b8b960`; workflow-run and commit-status queries returned zero items. CI/workflows remain NOT RUN.
