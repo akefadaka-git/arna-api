@@ -424,6 +424,9 @@ final class PersonIdentityService
         if ($authorizedFile === null || (int) $authorizedFile->tenant_id !== $tenantId || $authorizedFile->trashed()) {
             throw new DomainException('The file is unavailable in the authorized tenant.');
         }
+        if ($authorizedFile->is_public) {
+            throw new DomainException('Public files cannot be linked to a Person record; make the file private first.');
+        }
 
         DB::transaction(function () use ($tenantId, $personId, $fileId, $actor, $reason): void {
             $person = Person::query()->whereKey($personId)->lockForUpdate()->firstOrFail();
@@ -432,6 +435,9 @@ final class PersonIdentityService
                 ->whereNull('deleted_at')->lockForUpdate()->first();
             if ($file === null || $file->status === 'archived') {
                 throw new DomainException('Only an available, non-archived tenant file can be linked.');
+            }
+            if ($file->is_public) {
+                throw new DomainException('Public files cannot be linked to a Person record; make the file private first.');
             }
 
             $existing = DB::table('person_document_links')
