@@ -21,8 +21,13 @@ final class PersonRelationshipService
         }
 
         return DB::transaction(function () use ($tenantId, $person, $related, $attributes, $actorId): PersonRelationship {
-            Person::query()->whereKey($person->getKey())->lockForUpdate()->firstOrFail();
-            Person::query()->whereKey($related->getKey())->lockForUpdate()->firstOrFail();
+            // Acquire person-row locks in a stable global order to reduce deadlocks
+            // when two authorized requests create inverse relationships concurrently.
+            $lockIds = [(int) $person->getKey(), (int) $related->getKey()];
+            sort($lockIds, SORT_NUMERIC);
+            foreach ($lockIds as $lockId) {
+                Person::query()->whereKey($lockId)->lockForUpdate()->firstOrFail();
+            }
 
             $duplicate = PersonRelationship::query()
                 ->where('tenant_id', $tenantId)->where('person_id', $person->getKey())
