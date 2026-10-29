@@ -24,6 +24,12 @@ final class OrganizationUnitPolicy
         return $this->sameTenant($unit) && $this->allows($user, 'organization.unit.view');
     }
 
+    /** Audit history requires a separate explicit capability. */
+    public function viewAudit(User $user): bool
+    {
+        return $this->allows($user, 'organization.audit.view');
+    }
+
     public function create(User $user): bool
     {
         return $this->allows($user, 'organization.unit.manage');
