@@ -17,9 +17,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class GovernanceMeetingWorkflowController extends Controller
 {
+    public function __construct(private readonly AuthorizationService $authorization) {}
     public function agenda(Request $request, GovernanceMeeting $governanceMeeting): JsonResponse
     {
-        $this->authorizeMeeting($request, $governanceMeeting, 'view');
+        $this->authorizeMeeting($request, $governanceMeeting, 'governance.agenda.view');
         $items = DB::table('governance_meeting_agenda_items')
             ->where('tenant_id', $this->tenantId())->where('meeting_id', $governanceMeeting->id)
             ->orderBy('position')->orderBy('id')->get();
@@ -28,7 +29,7 @@ final class GovernanceMeetingWorkflowController extends Controller
 
     public function addAgendaItem(Request $request, GovernanceMeeting $governanceMeeting): JsonResponse
     {
-        $this->authorizeMeeting($request, $governanceMeeting, 'update');
+        $this->authorizeMeeting($request, $governanceMeeting, 'governance.agenda.manage');
         $data = $request->validate([
             'position' => ['required', 'integer', 'min:1', 'max:1000'],
             'title_am' => ['nullable', 'string', 'max:200'],
@@ -57,7 +58,7 @@ final class GovernanceMeetingWorkflowController extends Controller
 
     public function attendance(Request $request, GovernanceMeeting $governanceMeeting): JsonResponse
     {
-        $this->authorizeMeeting($request, $governanceMeeting, 'view');
+        $this->authorizeMeeting($request, $governanceMeeting, 'governance.attendance.view');
         $rows = DB::table('governance_meeting_attendance as a')
             ->join('governance_memberships as m', 'm.id', '=', 'a.governance_membership_id')
             ->where('a.tenant_id', $this->tenantId())->where('a.meeting_id', $governanceMeeting->id)
@@ -68,7 +69,7 @@ final class GovernanceMeetingWorkflowController extends Controller
 
     public function recordAttendance(Request $request, GovernanceMeeting $governanceMeeting): JsonResponse
     {
-        $this->authorizeMeeting($request, $governanceMeeting, 'update');
+        $this->authorizeMeeting($request, $governanceMeeting, 'governance.attendance.manage');
         $data = $request->validate([
             'governance_membership_id' => ['required', 'integer', 'min:1'],
             'attendance_status' => ['required', 'in:present,absent,excused,remote'],
@@ -102,7 +103,7 @@ final class GovernanceMeetingWorkflowController extends Controller
 
     public function evaluateQuorum(Request $request, GovernanceMeeting $governanceMeeting): JsonResponse
     {
-        $this->authorizeMeeting($request, $governanceMeeting, 'view');
+        $this->authorizeMeeting($request, $governanceMeeting, 'governance.attendance.manage');
         $tenantId = $this->tenantId();
         $meetingDate = ($governanceMeeting->scheduled_at ?? now())->toDateString();
         $eligible = GovernanceMembership::query()->where('tenant_id', $tenantId)
@@ -135,18 +136,22 @@ final class GovernanceMeetingWorkflowController extends Controller
 
     public function auditEvents(Request $request, GovernanceMeeting $governanceMeeting): JsonResponse
     {
-        $this->authorizeMeeting($request, $governanceMeeting, 'view');
+        $this->authorizeMeeting($request, $governanceMeeting, 'governance.meeting.view');
         $events = DB::table('governance_meeting_audit_events')->where('tenant_id', $this->tenantId())
             ->where('meeting_id', $governanceMeeting->id)->orderByDesc('occurred_at')->limit(200)->get();
         return response()->json(['success' => true, 'data' => $events]);
     }
 
-    private function authorizeMeeting(Request $request, GovernanceMeeting $meeting, string $ability): void
+    private function authorizeMeeting(Request $request, GovernanceMeeting $meeting, string $permission): void
     {
-        if ((int) $meeting->tenant_id !== $this->tenantId()) {
+        $tenantId = $this->tenantId();
+        if ((int) $meeting->tenant_id !== $tenantId
+            || !$meeting->body()->where('tenant_id', $tenantId)->exists()) {
             throw new NotFoundHttpException();
         }
-        Gate::authorize($ability, $meeting);
+        if (!$this->authorization->hasPermission(permissionSlug: $permission, user: $request->user(), tenantId: $tenantId)) {
+            throw new \\Symfony\\Component\\HttpKernel\\Exception\\AccessDeniedHttpException();
+        }
     }
 
     private function tenantId(): int
