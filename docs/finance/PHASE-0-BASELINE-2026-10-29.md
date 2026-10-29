@@ -139,8 +139,8 @@ This is a partial Phase 0 baseline, not a production-readiness certification.
 ## 8. Immediate next actions
 
 1. Complete a read-only PR-chain/file-overlap and workflow-path inventory against the exact destination branches; do not run CI.
-2. Provide the local PowerShell runner and a documented command that runs only Finance tests from an already-existing checkout.
-3. Continue implementation on an isolated Finance branch, keeping CI disabled/skipped and recording each exact commit. Do not merge or deploy.
-4. Prioritize execution-ready acceptance tests and migration/route/auth contracts; leave adapters disabled while the 36 control-account designations are pending.
+2. Review the generated local PowerShell runner and run the Finance acceptance tests from an existing local checkout when ready; the runner does not download or update the repository.
+3. Complete exact PR-chain/file-overlap reconciliation before selecting a canonical integration branch. Keep CI disabled/skipped and record exact commits; do not merge or deploy.
+4. Continue code generation in the isolated Finance branch, prioritizing accounting invariants, route/auth contracts, and migration safety; leave adapters disabled while the 36 control-account designations are pending.
 
-The local Finance test runner (`tools/finance/Invoke-FinanceTests.ps1`), usage guide (`docs/finance/LOCAL-TESTING.md`), and focused cash-flow acceptance test (`tests/Feature/FinanceCashFlowReportAcceptanceTest.php`) have been generated on `feat/finance-phase0-baseline-local-test-runner`. The new test covers unclassified movements, disabled cash-equivalent accounts, and inclusive effective-date filtering. All tests remain **NOT RUN**.
+The local Finance test runner (`tools/finance/Invoke-FinanceTests.ps1`), usage guide (`docs/finance/LOCAL-TESTING.md`), cash-flow acceptance tests (`tests/Feature/FinanceCashFlowReportAcceptanceTest.php`), and route/migration discovery acceptance tests (`tests/Feature/FinanceRouteAndMigrationDiscoveryTest.php`) have been generated on `feat/finance-phase0-baseline-local-test-runner`. The generated checks cover unclassified movements, disabled cash-equivalent accounts, inclusive effective-date filtering, report-route auth/tenant/permission middleware, and canonical migration discovery/order. All tests remain **NOT RUN**.
