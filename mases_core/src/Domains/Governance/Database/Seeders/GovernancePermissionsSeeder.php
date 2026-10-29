@@ -46,7 +46,7 @@ declare(strict_types=1);
  *       other six `app.*.access` rows, all of which are
  *       `is_system = 0` except `app.admin.access`.
  *
- *   Total: 39 permission rows.
+ *   Total: 41 permission rows.
  *
  *   What the seeder deliberately does NOT do:
  *
@@ -81,11 +81,11 @@ declare(strict_types=1);
  * tenant-scoped Governance permissions. This implementation adds
  * `governance.election.vote` and `governance.election.certify`
  * without assigning either permission to a role. The current source
- * therefore contains 38 tenant-scoped Governance permissions and
+ * therefore contains 40 tenant-scoped Governance permissions and
  * 41 total rows including `app.governance.access`.
  *
  * =============================================================================
- * The current 38-slug inventory (by group)
+ * The current 40-slug inventory (by group)
  * =============================================================================
  * Grouped by the resource noun the slug addresses. Counts:
  *
@@ -248,7 +248,7 @@ declare(strict_types=1);
  *
  * The `application_id` lookup runs on every invocation and does not
  * itself write. A repeat run performs one extra read on
- * `platform_applications` and then the same 39 idempotent writes.
+ * `platform_applications` and then the same 41 idempotent writes.
  *
  * =============================================================================
  * How to run
@@ -263,7 +263,7 @@ declare(strict_types=1);
  *     php artisan db:seed \
  *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernanceApplicationSeeder"
  *
- *     # 2. Register the governance permissions (39 rows)
+ *     # 2. Register the governance permissions (41 rows)
  *     php artisan db:seed \
  *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernancePermissionsSeeder"
  *
@@ -295,7 +295,7 @@ declare(strict_types=1);
  *     php artisan tinker
  *     >>> \MaaleArna\MASES\Core\Authorization\Models\Permission
  *     ...     ::where('slug', 'like', 'governance.%')->count()
- *     => 38
+ *     => 40
  *     >>> \MaaleArna\MASES\Core\Authorization\Models\Permission
  *     ...     ::where('slug', 'app.governance.access')->value('application_id')
  *     => 8
@@ -324,7 +324,7 @@ use RuntimeException;
 /**
  * GovernancePermissionsSeeder
  *
- * Registers the Governance domain's 39 permissions into the
+ * Registers the Governance domain's 41 permissions into the
  * platform `permissions` table.
  *
  * =============================================================================
@@ -343,9 +343,9 @@ use RuntimeException;
  * =============================================================================
  * What this seeder writes
  * =============================================================================
- * 39 rows across 2 scopes:
+ * 41 rows across 2 scopes:
  *
- *   governance.*        38 rows (scope = 'tenant', category = 'governance')
+ *   governance.*        40 rows (scope = 'tenant', category = 'governance')
  *   app.governance.*     1 row  (scope = 'application', category = 'app_access')
  *
  * The set is frozen by the master prompt §28 as refined during the
