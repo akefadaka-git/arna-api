@@ -28,9 +28,6 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
  */
 final class DocumentAuthorityService
 {
-    /** @var list<string> */
-    private const TYPE_CODES = ['LET', 'MEM', 'LEG', 'INV', 'CER', 'RES', 'CIR', 'RPT', 'CON', 'NOT', 'POL'];
-
     public function __construct(
         private readonly AuthorizationService $authorization,
         private readonly TenantContextService $tenantContext,
@@ -57,7 +54,7 @@ final class DocumentAuthorityService
         }
 
         $typeCode = strtoupper(trim($typeCode));
-        if (!in_array($typeCode, self::TYPE_CODES, true)) {
+        if (!DocumentTypeRegistry::supports($typeCode)) {
             throw ValidationException::withMessages(['document_type_code' => ['The document type is not in the canonical Documents type catalogue.']]);
         }
 
@@ -107,7 +104,7 @@ final class DocumentAuthorityService
             throw ValidationException::withMessages(['issuing_role_code' => ['Issuing role must belong to an active Governance body in the validated tenant.']]);
         }
 
-        $action = 'documents.issue.' . $typeCode;
+        $action = DocumentTypeRegistry::authorityAction($typeCode);
         if (!$this->hasSubstantiveOrExplicitActingAuthority($actor, $tenantId, (int) $body->id, (int) $position->id, $action)) {
             throw new AuthorizationException('No effective document-type-specific Governance authority grant or explicitly scoped acting assignment authorizes this issuance.');
         }
