@@ -11,12 +11,12 @@ final class PeopleRouteRegistrationTest extends TestCase {
   $this->assertNotNull($route);
   $this->assertSame('api/people',trim($route->uri(),'/'));
   $this->assertContains('auth:sanctum',$route->middleware());
-  $this->assertContains('tenant.membership',$route->gatherMiddleware());
+  $this->assertContains('tenant.membership',$route->middleware());
  }
  #[Test]
  public function people_mutations_keep_the_explicit_permission_gate(): void {
   $route=Route::getRoutes()->getByName('api.people.contacts.store');
   $this->assertNotNull($route);
-  $this->assertContains('auth.permission:people.manage',$route->gatherMiddleware());
+  $this->assertContains('auth.permission:people.manage',$route->middleware());
  }
 }
