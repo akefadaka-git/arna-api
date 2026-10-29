@@ -49,14 +49,14 @@ final class GovernanceElectionController extends Controller
         if (!$body) throw new NotFoundHttpException();
         $id = DB::transaction(function () use ($tenant, $body, $data, $request): int {
             $id = DB::table('governance_elections')->insertGetId([
-            'tenant_id' => $tenant, 'governance_body_id' => $body->id,
-            'title_am' => $data['title_am'] ?? null, 'title_en' => $data['title_en'] ?? null,
-            'mandate' => $data['mandate'], 'status' => 'draft',
-            'nominations_open_at' => $data['nominations_open_at'], 'nominations_close_at' => $data['nominations_close_at'],
-            'voting_open_at' => $data['voting_open_at'], 'voting_close_at' => $data['voting_close_at'],
-            'rules_snapshot' => json_encode(['rules_source' => 'owner_approved_governance_policy_required', 'secret_ballot' => true], JSON_THROW_ON_ERROR),
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
+                'tenant_id' => $tenant, 'governance_body_id' => $body->id,
+                'title_am' => $data['title_am'] ?? null, 'title_en' => $data['title_en'] ?? null,
+                'mandate' => $data['mandate'], 'status' => 'draft',
+                'nominations_open_at' => $data['nominations_open_at'], 'nominations_close_at' => $data['nominations_close_at'],
+                'voting_open_at' => $data['voting_open_at'], 'voting_close_at' => $data['voting_close_at'],
+                'rules_snapshot' => json_encode(['rules_source' => 'owner_approved_governance_policy_required', 'secret_ballot' => true], JSON_THROW_ON_ERROR),
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
             $this->audit($tenant, $id, (int) $request->user()->getAuthIdentifier(), 'election.created', ['body_id' => $body->id]);
             return $id;
         });
@@ -81,9 +81,9 @@ final class GovernanceElectionController extends Controller
         if (!$membership) throw new NotFoundHttpException();
         $id = DB::transaction(function () use ($tenant, $electionId, $membership, $data, $request): int {
             $id = DB::table('governance_election_nominations')->insertGetId([
-            'tenant_id' => $tenant, 'election_id' => $electionId, 'governance_membership_id' => $membership->id,
-            'statement' => $data['statement'] ?? null, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now(),
-        ]);
+                'tenant_id' => $tenant, 'election_id' => $electionId, 'governance_membership_id' => $membership->id,
+                'statement' => $data['statement'] ?? null, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now(),
+            ]);
             $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'nomination.submitted', ['nomination_id' => $id]);
             return $id;
         });
@@ -165,10 +165,12 @@ final class GovernanceElectionController extends Controller
             })->first();
         if (!$membership) throw new NotFoundHttpException();
         DB::transaction(function () use ($tenant, $electionId, $membership, $request): void {
-            DB::table('governance_election_eligible_voters')->insertOrIgnore([
+            $inserted = DB::table('governance_election_eligible_voters')->insertOrIgnore([
                 'tenant_id' => $tenant, 'election_id' => $electionId, 'governance_membership_id' => $membership->id, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'voter.registered', ['membership_id' => $membership->id]);
+            if ($inserted === 1) {
+                $this->audit($tenant, $electionId, (int) $request->user()->getAuthIdentifier(), 'voter.registered', ['membership_id' => $membership->id]);
+            }
         });
         return response()->json(['success' => true, 'data' => ['registered' => true]]);
     }
