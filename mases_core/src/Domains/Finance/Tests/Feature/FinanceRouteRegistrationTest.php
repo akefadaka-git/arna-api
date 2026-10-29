@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Tests\\Feature;
+namespace MaaleArna\MASES\Core\Domains\Finance\Tests\Feature;
 
-use Illuminate\\Support\\Facades\\Route;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Illuminate\Support\Facades\Route;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class FinanceRouteRegistrationTest extends TestCase
 {
