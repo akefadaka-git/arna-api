@@ -111,6 +111,97 @@ final class FinancialReportService implements FinancialReportContract
         ];
     }
 
+
+    /**
+     * Read-only balance sheet as of an inclusive posting date. Unclosed
+     * cumulative profit/loss is presented as current earnings within equity.
+     *
+     * @return array{as_of:string,currency:string,accounts:array<int,array<string,string>>,summary:array{total_assets:string,total_liabilities:string,total_equity_accounts:string,current_earnings:string,total_liabilities_and_equity:string,is_balanced:bool}}
+     */
+    public function balanceSheet(int $tenantId, int $legalEntityId, string $asOf): array
+    {
+        $entity = LegalEntity::query()->where('tenant_id', $tenantId)->findOrFail($legalEntityId);
+        $rows = $this->trialBalance->forEntity($tenantId, $legalEntityId, $asOf);
+
+        $assetDebits = $assetCredits = '0';
+        $liabilityDebits = $liabilityCredits = '0';
+        $equityDebits = $equityCredits = '0';
+        $revenueDebits = $revenueCredits = '0';
+        $expenseDebits = $expenseCredits = '0';
+        $accounts = [];
+
+        foreach ($rows as $row) {
+            $debits = MoneyArithmetic::toMinorUnits((string) $row->debit_total);
+            $credits = MoneyArithmetic::toMinorUnits((string) $row->credit_total);
+            $type = (string) $row->account_type;
+
+            if ($type === 'asset') {
+                $assetDebits = MoneyArithmetic::add($assetDebits, $debits);
+                $assetCredits = MoneyArithmetic::add($assetCredits, $credits);
+                $amount = $this->signedDifference($debits, $credits);
+            } elseif ($type === 'liability') {
+                $liabilityDebits = MoneyArithmetic::add($liabilityDebits, $debits);
+                $liabilityCredits = MoneyArithmetic::add($liabilityCredits, $credits);
+                $amount = $this->signedDifference($credits, $debits);
+            } elseif ($type === 'equity') {
+                $equityDebits = MoneyArithmetic::add($equityDebits, $debits);
+                $equityCredits = MoneyArithmetic::add($equityCredits, $credits);
+                $amount = $this->signedDifference($credits, $debits);
+            } elseif ($type === 'revenue') {
+                $revenueDebits = MoneyArithmetic::add($revenueDebits, $debits);
+                $revenueCredits = MoneyArithmetic::add($revenueCredits, $credits);
+                continue;
+            } elseif ($type === 'expense') {
+                $expenseDebits = MoneyArithmetic::add($expenseDebits, $debits);
+                $expenseCredits = MoneyArithmetic::add($expenseCredits, $credits);
+                continue;
+            } else {
+                continue;
+            }
+
+            $accounts[] = [
+                'code' => (string) $row->code,
+                'name_en' => (string) $row->name_en,
+                'name_am' => (string) ($row->name_am ?? ''),
+                'account_type' => $type,
+                'debit_total' => MoneyArithmetic::format($debits),
+                'credit_total' => MoneyArithmetic::format($credits),
+                'amount' => $amount,
+            ];
+        }
+
+        $currentEarningsCredits = MoneyArithmetic::add($revenueCredits, $expenseCredits);
+        $currentEarningsDebits = MoneyArithmetic::add($revenueDebits, $expenseDebits);
+        $totalAssets = $this->signedDifference($assetDebits, $assetCredits);
+        $totalLiabilities = $this->signedDifference($liabilityCredits, $liabilityDebits);
+        $totalEquityAccounts = $this->signedDifference($equityCredits, $equityDebits);
+        $currentEarnings = $this->signedDifference($currentEarningsCredits, $currentEarningsDebits);
+        $totalLiabilitiesAndEquity = $this->signedDifference(
+            MoneyArithmetic::add(
+                MoneyArithmetic::add($liabilityCredits, $equityCredits),
+                $currentEarningsCredits,
+            ),
+            MoneyArithmetic::add(
+                MoneyArithmetic::add($liabilityDebits, $equityDebits),
+                $currentEarningsDebits,
+            ),
+        );
+
+        return [
+            'as_of' => $asOf,
+            'currency' => (string) $entity->base_currency,
+            'accounts' => $accounts,
+            'summary' => [
+                'total_assets' => $totalAssets,
+                'total_liabilities' => $totalLiabilities,
+                'total_equity_accounts' => $totalEquityAccounts,
+                'current_earnings' => $currentEarnings,
+                'total_liabilities_and_equity' => $totalLiabilitiesAndEquity,
+                'is_balanced' => $totalAssets === $totalLiabilitiesAndEquity,
+            ],
+        ];
+    }
+
     private function signedDifference(string $positive, string $negative): string
     {
         if (MoneyArithmetic::compare($positive, $negative) >= 0) {
