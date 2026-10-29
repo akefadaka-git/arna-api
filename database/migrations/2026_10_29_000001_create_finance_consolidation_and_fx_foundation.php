@@ -24,7 +24,7 @@ return new class extends Migration
             $table->text('mapping_reason');
             $table->text('review_reason')->nullable();
             $table->timestamps();
-            $table->unique(['tenant_id', 'legal_entity_id', 'ledger_account_id'], 'finance_consolidation_mapping_account_unique');
+            $table->unique(['tenant_id', 'legal_entity_id', 'ledger_account_id', 'status'], 'finance_consolidation_mapping_account_status_unique');
             $table->foreign(['tenant_id', 'legal_entity_id', 'ledger_account_id'], 'finance_consolidation_mapping_account_fk')
                 ->references(['tenant_id', 'legal_entity_id', 'id'])->on('ledger_accounts')->restrictOnDelete();
             $table->index(['tenant_id', 'legal_entity_id', 'status', 'consolidation_account_code'], 'finance_consolidation_mapping_lookup_index');
@@ -46,7 +46,7 @@ return new class extends Migration
             $table->text('proposal_reason');
             $table->text('review_reason')->nullable();
             $table->timestamps();
-            $table->unique(['tenant_id', 'base_currency', 'quote_currency', 'effective_on'], 'finance_exchange_rate_pair_date_unique');
+            $table->unique(['tenant_id', 'base_currency', 'quote_currency', 'effective_on', 'status'], 'finance_exchange_rate_pair_date_status_unique');
             $table->index(['tenant_id', 'base_currency', 'quote_currency', 'status', 'effective_on'], 'finance_exchange_rate_resolution_index');
             $table->index(['tenant_id', 'status', 'effective_on'], 'finance_exchange_rate_review_index');
         });
