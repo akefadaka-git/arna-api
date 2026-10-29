@@ -9,10 +9,10 @@ $ExpectedBranch = 'feat/people-domain-phase-2-api'
 $DomainPath = 'mases_core/src/Domains/People'
 $TestsPath = "$DomainPath/Tests/Feature"
 
-function Invoke-Checked([string] $Exe, [string[]] $Args) {
-    Write-Host ("> " + $Exe + " " + ($Args -join " "))
-    & $Exe @Args
-    if ($LASTEXITCODE -ne 0) { throw "Command failed ($LASTEXITCODE): $Exe $($Args -join ' ')" }
+function Invoke-Checked([string] $Exe, [string[]] $CommandArgs) {
+    Write-Host ("> " + $Exe + " " + ($CommandArgs -join " "))
+    & $Exe @CommandArgs
+    if ($LASTEXITCODE -ne 0) { throw "Command failed ($LASTEXITCODE): $Exe $($CommandArgs -join ' ')" }
 }
 function Read-DotEnv([string] $File) {
     $values = @{}
