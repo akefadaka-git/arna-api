@@ -591,6 +591,14 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.meeting.approve')
         ->name('meetings.approve');
 
+    // Meeting agenda, attendance, quorum and audit history (Governance-owned).
+    Route::get('/meetings/{governanceMeeting}/agenda', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'agenda'])->whereNumber('governanceMeeting')->name('meetings.agenda.index');
+    Route::post('/meetings/{governanceMeeting}/agenda', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'addAgendaItem'])->whereNumber('governanceMeeting')->name('meetings.agenda.store');
+    Route::get('/meetings/{governanceMeeting}/attendance', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'attendance'])->whereNumber('governanceMeeting')->name('meetings.attendance.index');
+    Route::post('/meetings/{governanceMeeting}/attendance', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'recordAttendance'])->whereNumber('governanceMeeting')->name('meetings.attendance.store');
+    Route::post('/meetings/{governanceMeeting}/quorum/evaluate', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'evaluateQuorum'])->whereNumber('governanceMeeting')->name('meetings.quorum.evaluate');
+    Route::get('/meetings/{governanceMeeting}/audit-events', ['MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceMeetingWorkflowController', 'auditEvents'])->whereNumber('governanceMeeting')->name('meetings.audit.index');
+
 });
 
 // Meeting agenda, attendance, quorum and audit history (Governance-owned).
