@@ -10,16 +10,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('journal_entries', function (Blueprint $table): void {
-            // Existing rows remain valid and are classified as standard journals.
-            $table->string('journal_type', 24)->default('standard')->after('journal_number');
-        });
+        // The ledger-foundation migration already defines this column on fresh installs.
+        // Guard this additive migration so fresh and historically-created schemas converge.
+        if (!Schema::hasColumn('journal_entries', 'journal_type')) {
+            Schema::table('journal_entries', function (Blueprint $table): void {
+                $table->string('journal_type', 24)->default('standard')->after('journal_number');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('journal_entries', function (Blueprint $table): void {
-            $table->dropColumn('journal_type');
-        });
+        // journal_type is part of the ledger-foundation schema and must not be dropped
+        // when rolling back this compatibility migration.
     }
 };

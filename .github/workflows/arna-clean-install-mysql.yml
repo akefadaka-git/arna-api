@@ -33,6 +33,11 @@ on:
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
+      - "mases_core/src/Domains/Finance/Tests/**"
+      - "mases_core/src/Domains/Finance/Services/FinanceConsolidation*.php"
+      - "mases_core/src/Domains/Finance/Services/FinanceExchangeRateService.php"
+      - "mases_core/src/Domains/Finance/Models/FinanceConsolidationAccountMapping.php"
+      - "mases_core/src/Domains/Finance/Models/FinanceExchangeRate.php"
       - "mases_core/src/Domains/Loan/Tests/Unit/**"
       - "mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php"
   workflow_dispatch:
@@ -144,6 +149,13 @@ jobs:
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Unit
 
+      - name: Run Finance consolidation and manual FX lifecycle regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/FinanceConsolidationAndFxFoundationTest.php
+
       - name: Run loan repayment HTTP and financial-invariant regression tests
         env:
           DB_CONNECTION: sqlite
@@ -227,7 +239,7 @@ jobs:
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 61
+          test "${applied}" -eq 68
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -262,7 +274,7 @@ jobs:
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 61
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 68
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -273,7 +285,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 61
+          test "${applied}" -eq 68
 
       - name: Upload migration status evidence
         if: always()
