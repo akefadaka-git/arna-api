@@ -16,8 +16,10 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
  */
 final class YearEndCloseReadinessService
 {
-    public function __construct(private readonly FinancialReportService $reports)
-    {
+    public function __construct(
+        private readonly FinancialReportService $reports,
+        private readonly ControlAccountOwnershipRegistry $ownershipRegistry,
+    ) {
     }
 
     /** @return array<string, mixed> */
@@ -64,6 +66,18 @@ final class YearEndCloseReadinessService
         $trialBalance = $this->reports->trialBalance($tenantId, $legalEntityId, $yearEnd);
         $ownership = config('finance.control_account_ownership_v1', []);
         $configuredControls = is_array($ownership) ? count($ownership) : 0;
+
+        // Readiness must fail closed if ownership policies do not exactly match
+        // the canonical control-account set, even if every configured row looks
+        // designated. A partial or stale registry must never pass this gate.
+        $ownershipRegisterValid = false;
+        try {
+            $this->ownershipRegistry->validateAgainstChart(config('finance.chart_of_accounts_v1', []));
+            $ownershipRegisterValid = true;
+        } catch (\\Throwable) {
+            $ownershipRegisterValid = false;
+        }
+
         $pendingOwners = 0;
         if (is_array($ownership)) {
             foreach ($ownership as $policy) {
@@ -103,11 +117,14 @@ final class YearEndCloseReadinessService
                 'count' => $pendingMappings,
             ],
             'control_account_owners_designated' => [
-                'passed' => $configuredControls > 0 && $pendingOwners === 0,
-                'details' => $configuredControls === 0
-                    ? 'Control-account ownership register is unavailable; readiness fails closed.'
-                    : ($pendingOwners === 0 ? 'All control-account owners are designated.' : 'Named accountable persons and formal designation remain pending.'),
+                'passed' => $ownershipRegisterValid && $configuredControls > 0 && $pendingOwners === 0,
+                'details' => !$ownershipRegisterValid
+                    ? 'Ownership register does not exactly match the canonical control-account register; readiness fails closed.'
+                    : ($configuredControls === 0
+                        ? 'Control-account ownership register is unavailable; readiness fails closed.'
+                        : ($pendingOwners === 0 ? 'All control-account owners are designated.' : 'Named accountable persons and formal designation remain pending.')),
                 'control_account_count' => $configuredControls,
+                'ownership_register_valid' => $ownershipRegisterValid,
                 'pending_designations' => $pendingOwners,
             ],
         ];
