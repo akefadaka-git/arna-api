@@ -229,6 +229,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAppointme
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePositionController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceSeatController;
@@ -567,5 +568,27 @@ Route::name('api.governance.')->group(static function (): void {
     Route::match(['patch', 'put'], '/memberships/{governanceMembership}', [GovernanceMembershipController::class, 'update'])
         ->whereNumber('governanceMembership')
         ->name('memberships.update');
+
+    // G5a — tenant-scoped meeting lifecycle. Object operations also authorize via GovernanceMeetingPolicy.
+    Route::get('/meetings', [GovernanceMeetingController::class, 'index'])
+        ->middleware('auth.permission:governance.meeting.view')
+        ->name('meetings.index');
+
+    Route::post('/meetings', [GovernanceMeetingController::class, 'store'])
+        ->middleware('auth.permission:governance.meeting.create')
+        ->name('meetings.store');
+
+    Route::get('/meetings/{governanceMeeting}', [GovernanceMeetingController::class, 'show'])
+        ->whereNumber('governanceMeeting')
+        ->name('meetings.show');
+
+    Route::match(['patch', 'put'], '/meetings/{governanceMeeting}', [GovernanceMeetingController::class, 'update'])
+        ->whereNumber('governanceMeeting')
+        ->name('meetings.update');
+
+    Route::post('/meetings/{governanceMeeting}/approve', [GovernanceMeetingController::class, 'approve'])
+        ->whereNumber('governanceMeeting')
+        ->middleware('auth.permission:governance.meeting.approve')
+        ->name('meetings.approve');
 
 });
