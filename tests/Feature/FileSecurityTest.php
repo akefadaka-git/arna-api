@@ -592,4 +592,30 @@ final class FileSecurityTest extends TestCase
         }
     }
 
+
+    #[Test]
+    public function publisher_can_explicitly_publish_after_upload(): void
+    {
+        ['user' => $user, 'tenant' => $tenant] = $this->createUserWithPermissions(['file.upload', 'file.update', 'file.publish']);
+        $this->actingAs($user, 'sanctum');
+
+        $uploadedFile = UploadedFile::fake()->create('publish.pdf', 100, 'application/pdf');
+        $file = $this->fileService->upload(
+            uploadedFile: $uploadedFile,
+            fileName: 'publish',
+            tenantId: $tenant->id,
+            user: $user
+        );
+        $this->assertSame('draft', $file->status);
+
+        $published = $this->fileService->update(
+            $file,
+            ['status' => 'published', 'is_public' => true],
+            user: $user
+        );
+
+        $this->assertSame('published', $published->status);
+        $this->assertTrue($published->is_public);
+    }
+
 }
