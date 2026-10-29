@@ -369,7 +369,9 @@ final class FileService
                 'Content-Disposition' => $disposition,
                 'Content-Length' => (string) $file->size,
                 'X-Content-Type-Options' => 'nosniff',
-                'Cache-Control' => $file->is_public ? 'public, max-age=300' : 'private, no-store',
+                'Cache-Control' => ($file->is_public && $file->status === 'published')
+                    ? 'public, max-age=300'
+                    : 'private, no-store',
             ]
         );
     }
