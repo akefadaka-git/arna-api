@@ -8,8 +8,8 @@ declare(strict_types=1);
  * Named owners remain null until the Owner records an explicit designation.
  * Adapters must remain disabled while designation_status is pending.
  */
-return {
-    '1110' => {
+return [
+    '1110' => [
         'account_name_en' => 'Cash on hand',
         'account_type' => 'asset',
         'accountable_role' => 'Finance/Treasury Lead',
@@ -26,8 +26,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1120' => {
+    ],
+    '1120' => [
         'account_name_en' => 'Bank accounts',
         'account_type' => 'asset',
         'accountable_role' => 'Finance/Treasury Lead',
@@ -44,8 +44,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1130' => {
+    ],
+    '1130' => [
         'account_name_en' => 'Mobile money and payment clearing',
         'account_type' => 'asset',
         'accountable_role' => 'Wallet Operations Lead',
@@ -63,8 +63,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1140' => {
+    ],
+    '1140' => [
         'account_name_en' => 'Wallet settlement receivable',
         'account_type' => 'asset',
         'accountable_role' => 'Wallet Operations Lead',
@@ -82,8 +82,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1150' => {
+    ],
+    '1150' => [
         'account_name_en' => 'Trade receivables',
         'account_type' => 'asset',
         'accountable_role' => 'Finance Receivables Lead',
@@ -102,8 +102,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1160' => {
+    ],
+    '1160' => [
         'account_name_en' => 'Employee advances',
         'account_type' => 'asset',
         'accountable_role' => 'People/Payroll Lead',
@@ -121,8 +121,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1170' => {
+    ],
+    '1170' => [
         'account_name_en' => 'Supplier advances',
         'account_type' => 'asset',
         'accountable_role' => 'Procurement/Accounts Payable Lead',
@@ -141,8 +141,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1190' => {
+    ],
+    '1190' => [
         'account_name_en' => 'Recoverable input tax',
         'account_type' => 'asset',
         'accountable_role' => 'Finance/Tax Lead',
@@ -160,8 +160,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1200' => {
+    ],
+    '1200' => [
         'account_name_en' => 'Loan principal receivable',
         'account_type' => 'asset',
         'accountable_role' => 'Loan Operations/Credit Lead',
@@ -180,8 +180,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1210' => {
+    ],
+    '1210' => [
         'account_name_en' => 'Accrued loan interest receivable',
         'account_type' => 'asset',
         'accountable_role' => 'Loan Operations/Credit Lead',
@@ -200,8 +200,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1220' => {
+    ],
+    '1220' => [
         'account_name_en' => 'Expected credit loss allowance',
         'account_type' => 'asset',
         'accountable_role' => 'Credit Risk/Loan Lead',
@@ -220,8 +220,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1300' => {
+    ],
+    '1300' => [
         'account_name_en' => 'Inventory',
         'account_type' => 'asset',
         'accountable_role' => 'Inventory/Procurement Lead',
@@ -241,8 +241,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1410' => {
+    ],
+    '1410' => [
         'account_name_en' => 'Accumulated depreciation',
         'account_type' => 'asset',
         'accountable_role' => 'Fixed Assets/Finance Lead',
@@ -260,8 +260,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '1600' => {
+    ],
+    '1600' => [
         'account_name_en' => 'Intercompany receivables',
         'account_type' => 'asset',
         'accountable_role' => 'Group Finance/Consolidation Lead',
@@ -279,8 +279,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2110' => {
+    ],
+    '2110' => [
         'account_name_en' => 'Trade payables',
         'account_type' => 'liability',
         'accountable_role' => 'Procurement/Accounts Payable Lead',
@@ -300,8 +300,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2120' => {
+    ],
+    '2120' => [
         'account_name_en' => 'Accrued expenses payable',
         'account_type' => 'liability',
         'accountable_role' => 'Finance Accounting Lead',
@@ -318,8 +318,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2130' => {
+    ],
+    '2130' => [
         'account_name_en' => 'Payroll payable',
         'account_type' => 'liability',
         'accountable_role' => 'People/Payroll Lead',
@@ -338,8 +338,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2140' => {
+    ],
+    '2140' => [
         'account_name_en' => 'Tax payable',
         'account_type' => 'liability',
         'accountable_role' => 'Finance/Tax Lead',
@@ -357,8 +357,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2150' => {
+    ],
+    '2150' => [
         'account_name_en' => 'Customer advances',
         'account_type' => 'liability',
         'accountable_role' => 'Sales/Receivables Lead',
@@ -376,8 +376,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2160' => {
+    ],
+    '2160' => [
         'account_name_en' => 'Supplier and payment settlement payable',
         'account_type' => 'liability',
         'accountable_role' => 'Procurement/Wallet Settlement Lead',
@@ -396,8 +396,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2200' => {
+    ],
+    '2200' => [
         'account_name_en' => 'Wallet customer funds payable',
         'account_type' => 'liability',
         'accountable_role' => 'Wallet Operations Lead',
@@ -416,8 +416,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2210' => {
+    ],
+    '2210' => [
         'account_name_en' => 'Unclaimed wallet funds payable',
         'account_type' => 'liability',
         'accountable_role' => 'Wallet Operations Lead',
@@ -436,8 +436,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2300' => {
+    ],
+    '2300' => [
         'account_name_en' => 'Loan funds payable',
         'account_type' => 'liability',
         'accountable_role' => 'Loan Treasury/Finance Lead',
@@ -455,8 +455,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2400' => {
+    ],
+    '2400' => [
         'account_name_en' => 'Short-term borrowings',
         'account_type' => 'liability',
         'accountable_role' => 'Finance/Treasury Lead',
@@ -473,8 +473,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2500' => {
+    ],
+    '2500' => [
         'account_name_en' => 'Long-term borrowings',
         'account_type' => 'liability',
         'accountable_role' => 'Finance/Treasury Lead',
@@ -491,8 +491,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2600' => {
+    ],
+    '2600' => [
         'account_name_en' => 'Lease liabilities',
         'account_type' => 'liability',
         'accountable_role' => 'Finance Lease Accounting Lead',
@@ -510,8 +510,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '2700' => {
+    ],
+    '2700' => [
         'account_name_en' => 'Intercompany payables',
         'account_type' => 'liability',
         'accountable_role' => 'Group Finance/Consolidation Lead',
@@ -529,8 +529,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '3100' => {
+    ],
+    '3100' => [
         'account_name_en' => 'Share capital',
         'account_type' => 'equity',
         'accountable_role' => 'Shareholder Operations Lead with Finance',
@@ -550,8 +550,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '3600' => {
+    ],
+    '3600' => [
         'account_name_en' => 'Declared shareholder distributions',
         'account_type' => 'equity',
         'accountable_role' => 'Shareholder Operations Lead with Finance',
@@ -571,8 +571,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '4300' => {
+    ],
+    '4300' => [
         'account_name_en' => 'Loan interest income',
         'account_type' => 'revenue',
         'accountable_role' => 'Loan Operations/Credit Lead',
@@ -591,8 +591,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '4400' => {
+    ],
+    '4400' => [
         'account_name_en' => 'Wallet and transaction fee income',
         'account_type' => 'revenue',
         'accountable_role' => 'Wallet Operations Lead',
@@ -611,8 +611,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '4500' => {
+    ],
+    '4500' => [
         'account_name_en' => 'Commission income',
         'account_type' => 'revenue',
         'accountable_role' => 'Commercial Finance Lead',
@@ -630,8 +630,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '6100' => {
+    ],
+    '6100' => [
         'account_name_en' => 'Salaries and employee benefits',
         'account_type' => 'expense',
         'accountable_role' => 'People/Payroll Lead',
@@ -650,8 +650,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '6800' => {
+    ],
+    '6800' => [
         'account_name_en' => 'Credit loss expense',
         'account_type' => 'expense',
         'accountable_role' => 'Credit Risk/Loan Lead',
@@ -670,8 +670,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '7100' => {
+    ],
+    '7100' => [
         'account_name_en' => 'Interest expense',
         'account_type' => 'expense',
         'accountable_role' => 'Finance/Treasury Lead',
@@ -688,8 +688,8 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    },
-    '7500' => {
+    ],
+    '7500' => [
         'account_name_en' => 'Income tax expense',
         'account_type' => 'expense',
         'accountable_role' => 'Finance/Tax Lead',
@@ -707,5 +707,5 @@ return {
         'named_accountable_person' => null,
         'designation_status' => 'PENDING_OWNER_DESIGNATION',
         'adapter_activation' => 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED'
-    }
-};
+    ]
+];
