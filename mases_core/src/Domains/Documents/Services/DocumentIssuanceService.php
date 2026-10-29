@@ -27,6 +27,7 @@ final class DocumentIssuanceService
         private readonly AuthorizationService $authorization,
         private readonly TenantContextService $tenantContext,
         private readonly EthiopianCalendar $ethiopianCalendar,
+        private readonly DocumentAuthorityService $documentAuthority,
     ) {
     }
 
@@ -44,13 +45,6 @@ final class DocumentIssuanceService
         $tenantId = $this->requireTenantId();
         $this->authorize('documents.issue', $actor, $tenantId);
 
-        if (!preg_match('/^[A-Z0-9]{2,12}$/', (string) ($input['organization_code'] ?? ''))
-            || !in_array((string) ($input['document_type_code'] ?? ''), self::TYPE_CODES, true)
-            || !preg_match('/^[A-Z0-9]{2,12}$/', (string) ($input['department_code'] ?? ''))
-            || !preg_match('/^[A-Z0-9]{2,12}$/', (string) ($input['issuing_role_code'] ?? ''))) {
-            throw new UnprocessableEntityHttpException('Document numbering codes are invalid or unsupported.');
-        }
-
         if (!preg_match('/^[A-Za-z0-9._:-]{16,128}$/', $idempotencyKey)) {
             throw new UnprocessableEntityHttpException('A stable Idempotency-Key of 16–128 safe characters is required.');
         }
@@ -62,6 +56,16 @@ final class DocumentIssuanceService
         if (!$legalEntityId || !$fileId || $title === '' || mb_strlen($title) > 255) {
             throw new UnprocessableEntityHttpException('Legal entity, file, and a title of 1–255 characters are required.');
         }
+
+        $registry = $this->documentAuthority->assertCanIssue(
+            $actor,
+            (int) $tenantId,
+            (int) $legalEntityId,
+            (string) ($input['organization_code'] ?? ''),
+            (string) ($input['department_code'] ?? ''),
+            (string) ($input['issuing_role_code'] ?? ''),
+            (string) ($input['document_type_code'] ?? ''),
+        );
 
         $file = DB::table('files')
             ->where('id', $fileId)
@@ -84,11 +88,14 @@ final class DocumentIssuanceService
         }
 
         $payload = [
-            'legal_entity_id' => (int) $legalEntityId,
-            'organization_code' => (string) $input['organization_code'],
-            'document_type_code' => (string) $input['document_type_code'],
-            'department_code' => (string) $input['department_code'],
-            'issuing_role_code' => (string) $input['issuing_role_code'],
+            'legal_entity_id' => $registry['legal_entity_id'],
+            'organization_unit_id' => $registry['organization_unit_id'],
+            'governance_body_id' => $registry['governance_body_id'],
+            'governance_position_id' => $registry['governance_position_id'],
+            'organization_code' => $registry['organization_code'],
+            'document_type_code' => $registry['document_type_code'],
+            'department_code' => $registry['department_code'],
+            'issuing_role_code' => $registry['issuing_role_code'],
             'title' => $title,
             'file_id' => (int) $fileId,
             'file_version' => (int) $file->version,
@@ -118,9 +125,9 @@ final class DocumentIssuanceService
             $scope = [
                 'tenant_id' => $tenantId,
                 'legal_entity_id' => $payload['legal_entity_id'],
+                'organization_unit_id' => $payload['organization_unit_id'],
+                'governance_position_id' => $payload['governance_position_id'],
                 'document_type_code' => $payload['document_type_code'],
-                'department_code' => $payload['department_code'],
-                'issuing_role_code' => $payload['issuing_role_code'],
                 'ec_year' => $payload['ec_year'],
             ];
 
@@ -128,6 +135,9 @@ final class DocumentIssuanceService
             // the subsequent row lock serializes allocation for this exact scope.
             DB::table('document_number_counters')->insertOrIgnore($scope + [
                 'organization_code' => $payload['organization_code'],
+                'governance_body_id' => $payload['governance_body_id'],
+                'department_code' => $payload['department_code'],
+                'issuing_role_code' => $payload['issuing_role_code'],
                 'next_sequence' => 1,
                 'is_active' => true,
                 'created_at' => $now,
@@ -171,6 +181,9 @@ final class DocumentIssuanceService
                 'uuid' => (string) Str::uuid(),
                 'tenant_id' => $tenantId,
                 'legal_entity_id' => $payload['legal_entity_id'],
+                'organization_unit_id' => $payload['organization_unit_id'],
+                'governance_body_id' => $payload['governance_body_id'],
+                'governance_position_id' => $payload['governance_position_id'],
                 'organization_code' => $payload['organization_code'],
                 'document_type_code' => $payload['document_type_code'],
                 'department_code' => $payload['department_code'],
