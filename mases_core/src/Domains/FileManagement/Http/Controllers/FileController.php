@@ -51,6 +51,7 @@ class FileController extends Controller
     {
         $validated = $request->validate([
             'file'          => ['required', 'file', 'max:' . (config('mases.files.max_upload_size', 100) * 1024)],
+            'file_name'     => ['sometimes', 'string', 'max:255'],
             'directory'     => ['sometimes', 'string', 'max:255'],
             'is_public'     => ['sometimes', 'boolean'],
             'metadata'      => ['sometimes', 'array'],
