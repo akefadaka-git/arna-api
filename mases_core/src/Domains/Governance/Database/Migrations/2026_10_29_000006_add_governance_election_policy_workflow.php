@@ -51,6 +51,7 @@ return new class extends Migration
             $table->timestamps();
             $table->unique(['tenant_id', 'election_id', 'round_number'], 'gov_election_round_tenant_no_uq');
             $table->unique(['tenant_id', 'election_id', 'round_number', 'id'], 'gov_election_round_tenant_no_id_uq');
+            $table->foreign(['tenant_id', 'election_id'], 'gov_election_round_tenant_fk')->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
         });
 
         Schema::create('governance_election_round_candidates', function (Blueprint $table): void {
@@ -61,6 +62,8 @@ return new class extends Migration
             $table->unsignedBigInteger('nomination_id');
             $table->timestamps();
             $table->unique(['tenant_id', 'election_id', 'round_number', 'nomination_id'], 'gov_election_round_candidate_uq');
+            $table->foreign(['tenant_id', 'election_id', 'round_number'], 'gov_election_round_candidate_round_fk')->references(['tenant_id', 'election_id', 'round_number'])->on('governance_election_rounds')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'election_id', 'nomination_id'], 'gov_election_round_candidate_nom_fk')->references(['tenant_id', 'election_id', 'id'])->on('governance_election_nominations')->restrictOnDelete();
         });
 
         Schema::create('governance_election_round_voters', function (Blueprint $table): void {
@@ -73,6 +76,8 @@ return new class extends Migration
             $table->timestamps();
             $table->unique(['tenant_id', 'election_id', 'round_number', 'governance_membership_id'], 'gov_election_round_voter_uq');
             $table->index(['tenant_id', 'election_id', 'round_number', 'cast_at'], 'gov_election_round_voter_cast_idx');
+            $table->foreign(['tenant_id', 'election_id', 'round_number'], 'gov_election_round_voter_round_fk')->references(['tenant_id', 'election_id', 'round_number'])->on('governance_election_rounds')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'governance_membership_id'], 'gov_election_round_voter_member_fk')->references(['tenant_id', 'id'])->on('governance_memberships')->restrictOnDelete();
         });
 
         Schema::create('governance_election_challenges', function (Blueprint $table): void {
@@ -90,6 +95,7 @@ return new class extends Migration
             $table->timestamp('submitted_at');
             $table->timestamps();
             $table->index(['tenant_id', 'election_id', 'status'], 'gov_election_challenge_status_idx');
+            $table->foreign(['tenant_id', 'election_id'], 'gov_election_challenge_election_fk')->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
         });
     }
 
