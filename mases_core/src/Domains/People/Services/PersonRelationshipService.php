@@ -25,8 +25,20 @@ final class PersonRelationshipService
             // when two authorized requests create inverse relationships concurrently.
             $lockIds = [(int) $person->getKey(), (int) $related->getKey()];
             sort($lockIds, SORT_NUMERIC);
-            foreach ($lockIds as $lockId) {
-                Person::query()->whereKey($lockId)->lockForUpdate()->firstOrFail();
+            $lockedPeople = Person::query()->whereIn('id', $lockIds)
+                ->where('status', 'active')->orderBy('id')->lockForUpdate()->get();
+            if ($lockedPeople->count() !== count($lockIds)) {
+                abort(404, 'An active Person record was not found.');
+            }
+
+            // Re-check both grants inside this transaction. The HTTP layer's
+            // earlier visibility check is not sufficient if access is revoked
+            // between request authorization and persistence.
+            $activeGrants = DB::table('person_tenant_accesses')
+                ->where('tenant_id', $tenantId)->whereIn('person_id', $lockIds)
+                ->where('status', 'active')->orderBy('person_id')->lockForUpdate()->get();
+            if ($activeGrants->pluck('person_id')->map(static fn ($id): int => (int) $id)->unique()->count() !== count($lockIds)) {
+                abort(404, 'Active Person tenant access was not found.');
             }
 
             $duplicate = PersonRelationship::query()
