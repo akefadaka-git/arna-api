@@ -65,7 +65,9 @@ Write-Host "Syntax checked $($phpFiles.Count) PHP files."
 
 Write-Host ''
 Write-Host '=== Laravel route registration (local only) ===' -ForegroundColor Cyan
-Invoke-Checked 'php' @('artisan', 'route:list', '--path=api/people', '--except-vendor')
+# Do not use --except-vendor here: Laravel reflects unrelated registered controllers
+# while applying that filter, which can block this People-only acceptance check.
+Invoke-Checked 'php' @('artisan', 'route:list', '--path=api/people')
 Write-Host ''
 Write-Host '=== People feature acceptance tests ===' -ForegroundColor Cyan
 if (-not (Test-Path $TestsPath)) { throw "Missing People test directory: $TestsPath" }
