@@ -9,6 +9,17 @@ function Invoke-Checked([string] $Exe,[string[]] $Args) {
  & $Exe @Args
  if ($LASTEXITCODE -ne 0) { throw "Command failed ($LASTEXITCODE): $Exe $($Args -join ' ')" }
 }
+function Read-DotEnv([string] $File) {
+ $values=@{}
+ foreach($line in Get-Content -LiteralPath $File) {
+  if($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$') {
+   $value=$Matches[2].Trim()
+   if($value.Length -ge 2 -and (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'")))) { $value=$value.Substring(1,$value.Length-2) }
+   $values[$Matches[1]]=$value
+  }
+ }
+ return $values
+}
 $Repo = (Resolve-Path -LiteralPath $RepositoryPath).Path
 Set-Location -LiteralPath $Repo
 if (-not (Test-Path '.git') -or -not (Test-Path 'artisan') -or -not (Test-Path 'composer.json')) { throw 'RepositoryPath must point to an existing ARNA API Laravel Git checkout.' }
@@ -40,18 +51,22 @@ if (-not (Test-Path $TestsPath)) { throw "Missing People test directory: $TestsP
 Invoke-Checked 'php' @('artisan','test',$TestsPath,'--stop-on-failure')
 
 if ($RunMySql) {
- Write-Host ''; Write-Host '=== MySQL test safety check ===' -ForegroundColor Cyan
+ Write-Host ''; Write-Host '=== Disposable MySQL migration and acceptance gate ===' -ForegroundColor Cyan
  $testingEnv = Join-Path $Repo '.env.testing'
  if (-not (Test-Path $testingEnv)) { throw 'Create and review .env.testing first; MySQL mode will not use .env.' }
- $lines = Get-Content -LiteralPath $testingEnv
- $connection = (($lines | Where-Object { $_ -match '^DB_CONNECTION=' } | Select-Object -First 1) -replace '^DB_CONNECTION=','').Trim('"', "'", ' ')
- $database = (($lines | Where-Object { $_ -match '^DB_DATABASE=' } | Select-Object -First 1) -replace '^DB_DATABASE=','').Trim('"', "'", ' ')
- if ($connection -ne 'mysql') { throw "DB_CONNECTION in .env.testing is '$connection', not mysql." }
+ $envValues=Read-DotEnv $testingEnv
+ if ($envValues['DB_CONNECTION'] -ne 'mysql') { throw 'DB_CONNECTION in .env.testing must be mysql.' }
+ $database=[string]$envValues['DB_DATABASE']
  if ($database -notmatch '^arna.*(test|testing|disposable)') { throw "Database '$database' is not named like a dedicated ARNA test database. Refusing MySQL mode." }
- Write-Host "Configured .env.testing database: $database"
- Write-Host 'No database is created/dropped; migrate:fresh and db:wipe are never run.'
- $confirmation = Read-Host "Type the exact database name '$database' to run MySQL-mode tests"
+ if (-not $envValues['DB_HOST'] -or -not $envValues['DB_USERNAME']) { throw '.env.testing must define DB_HOST and DB_USERNAME.' }
+ Write-Host "Target database name: $database"
+ Write-Host 'Provision this as an EMPTY disposable schema before continuing. This script does not create/drop databases and never runs migrate:fresh or db:wipe.'
+ $confirmation = Read-Host "Type the exact database name '$database' to run the clean-install migration gate"
  if ($confirmation -cne $database) { throw 'Database confirmation mismatch; MySQL mode cancelled.' }
+ foreach($key in @('DB_CONNECTION','DB_HOST','DB_PORT','DB_DATABASE','DB_USERNAME','DB_PASSWORD')) {
+  if($envValues.ContainsKey($key)) { [Environment]::SetEnvironmentVariable($key,$envValues[$key],'Process') }
+ }
+ Invoke-Checked 'php' @('artisan','migrate','--env=testing','--database=mysql','--force')
  Invoke-Checked 'php' @('artisan','test',$TestsPath,'--stop-on-failure','--env=testing')
-} else { Write-Host 'MySQL mode skipped. Use -RunMySql only after a dedicated disposable test database is configured in .env.testing.' -ForegroundColor Yellow }
+} else { Write-Host 'MySQL clean-install mode skipped. Use -RunMySql only with a manually provisioned empty disposable schema in .env.testing.' -ForegroundColor Yellow }
 Write-Host ''; Write-Host 'Completed local checks. No GitHub Actions workflow was triggered.' -ForegroundColor Green
