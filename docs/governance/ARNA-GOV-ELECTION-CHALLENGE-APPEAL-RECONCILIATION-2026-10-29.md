@@ -7,14 +7,13 @@
 
 ## Finding
 
-The destination repository was reviewed for an authoritative constitution/articles/bylaw/resolution source and a specific election challenge or appeal clause. The inspected repository contains governance control drafts and policy/authority matrices, but the available materials do not identify an approved, source-verifiable clause that sets an election challenge or appeal deadline.
+The signed/stamped 17-page Library scan `የማሌ_ዓርና_አክሲዮን_ማኅበር_መተዳደሪያ_ደንብ.pdf` was inspected visually. Pages 1–8 are the bylaws; pages 9–17 are the memorandum/articles pages in the same scan.
 
-The following repository documents are **not** a substitute for the governing instrument:
-- `docs/governance/ARNA-GOV-MAT-PSC-001-AM.md` states that it records the current authority evidence and does not itself create legal authority; it says the company's constitutional documents, bylaws, applicable law, and properly approved resolutions take precedence.
-- `docs/governance/ARNA-GOV-POL-PSC-001-AM.md` identifies itself as a draft and says it is not binding until the competent corporate body approves and publishes it.
-- `docs/PHASE_2_SHAREHOLDER_CHARTER.md` is explicitly identified by the matrix as a scaffold, not approved.
+**Relevant election clause located:** Bylaw **Article 12(4)** (scan page 4) states that director elections are conducted by secret ballot and describes the directors' term. It does **not** define an election-result challenge/appeal process, filing deadline, appeal authority, extensions, or a certification hold. Bylaw Article 24(4) concerns objections to the appointment of liquidators during dissolution; it is not an election-dispute clause and is not applicable to this workflow.
 
-No exact article/section/clause number, approved resolution identifier, effective date, or quoted deadline can therefore be reconciled from the available source evidence. This is an evidence gap, not a finding that no such rule exists outside the repository.
+The repository's authority matrix `docs/governance/ARNA-GOV-MAT-PSC-001-AM.md` explicitly records the signed/stamped bylaw PDF as a Library source and cautions that clause-level interpretation must be conservative. The policy draft `docs/governance/ARNA-GOV-POL-PSC-001-AM.md` is not an adopted rule. The Shareholder Charter `docs/PHASE_2_SHAREHOLDER_CHARTER.md` is marked DRAFT / NOT APPROVED; its related decision register treats election-dispute resolution as a bylaw-dependent question, not an approved deadline.
+
+**Reconciliation outcome:** Article 12(4) is the exact relevant election-method clause located, but no applicable challenge/appeal deadline or process clause is visible in the scanned governing instrument reviewed. No approved resolution containing that deadline was found in the repository materials reviewed. This is a bounded source finding, not a legal opinion that no other instrument or applicable statutory rule exists.
 
 ## Owner policy already approved
 
@@ -38,4 +37,4 @@ The Owner selected **bylaw-defined** for the challenge/appeal window. This recor
 
 ## Gate
 
-**PARTIAL / BLOCKED:** Owner policy is known; the company-specific deadline clause is not evidenced. Source-only implementation now requires a bylaw citation, controlled source-evidence reference, and independent verification. Production readiness and certification remain blocked until the governing source is reconciled.
+**PARTIAL / BLOCKED:** Article 12(4) confirms secret ballot but does not supply a challenge/appeal deadline. No approved deadline clause was found in the scanned instrument or repository resolution materials. Source-only implementation requires the exact applicable approved instrument/clause, controlled evidence reference, and independent verification. Production certification remains blocked until that source gap is resolved.
