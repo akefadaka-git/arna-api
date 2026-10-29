@@ -72,6 +72,9 @@ final class DocumentIssuanceService
         if ($file === null) {
             throw new ModelNotFoundException('The requested file does not exist in the active tenant.');
         }
+        if ($file->status !== 'published') {
+            throw new UnprocessableEntityHttpException('Only a published file version can be issued as an official document.');
+        }
 
         $now = new DateTimeImmutable('now', new DateTimeZone('Africa/Addis_Ababa'));
         $ecYear = (int) $this->ethiopianCalendar->toEthiopian($now)['year'];
@@ -92,9 +95,12 @@ final class DocumentIssuanceService
             'metadata' => $metadata,
             'ec_year' => $ecYear,
         ];
-        $requestHash = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $hashPayload = $payload;
+        unset($hashPayload['ec_year'], $hashPayload['file_version']);
+        $requestHash = hash('sha256', json_encode($hashPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
-        return DB::transaction(function () use ($tenantId, $actor, $idempotencyKey, $requestHash, $payload, $now): Document {
+        try {
+            return DB::transaction(function () use ($tenantId, $actor, $idempotencyKey, $requestHash, $payload, $now): Document {
             $existing = Document::query()
                 ->where('tenant_id', $tenantId)
                 ->where('idempotency_key', $idempotencyKey)
@@ -188,7 +194,26 @@ final class DocumentIssuanceService
             $this->appendLifecycleEvent($document, $actor, 'issued', null, $now);
 
             return $document;
-        }, 3);
+            }, 3);
+        } catch (QueryException $exception) {
+            // A concurrent retry can race the initial idempotency lookup. The
+            // unique tenant/key constraint is authoritative; resolve the winner
+            // after rollback instead of leaking a duplicate-key 500 response.
+            $existing = Document::query()
+                ->where('tenant_id', $tenantId)
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($existing !== null) {
+                if (!hash_equals((string) $existing->request_hash, $requestHash)) {
+                    throw new ConflictHttpException('Idempotency-Key was already used for a different issuance request.');
+                }
+
+                return $existing;
+            }
+
+            throw $exception;
+        }
     }
 
     public function findForCurrentTenant(int $documentId, User $actor): Document
