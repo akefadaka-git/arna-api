@@ -38,6 +38,7 @@ final class FinanceControlAccountOwnershipRegistryTest extends TestCase
             $this->assertNotEmpty($policy['required_evidence'] ?? []);
             $this->assertNotEmpty($policy['contributing_domains'] ?? []);
             $this->assertSame('ROLE_DESIGNATED_PERSON_PENDING', $policy['designation_status']);
+            $this->assertSame('Owner-authorized functional role designation; named person pending', $policy['designation_basis']);
             $this->assertNull($policy['named_accountable_person']);
             $this->assertSame(
                 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED',

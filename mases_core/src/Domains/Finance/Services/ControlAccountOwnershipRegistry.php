@@ -90,6 +90,7 @@ final class ControlAccountOwnershipRegistry
                 'frequency',
                 'independent_reviewer_role',
                 'designation_status',
+                'designation_basis',
                 'adapter_activation',
             ] as $field) {
                 if (!isset($policy[$field]) || trim((string) $policy[$field]) === '') {
