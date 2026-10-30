@@ -19,6 +19,11 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class OrganizationAssignmentService
 {
+    public function __construct(
+        private readonly OrganizationAuditService $audit,
+    ) {
+    }
+
     /** @param array<string, mixed> $filters */
     public function paginateForUnit(int $tenantId, int $unitId, array $filters): LengthAwarePaginator
     {
@@ -74,7 +79,7 @@ final class OrganizationAssignmentService
                 'updated_by' => $actor->getAuthIdentifier(),
             ]);
 
-            app(OrganizationAuditService::class)->record(
+            $this->audit->record(
                 $tenantId, $request, 'assignment', (int) $assignment->id,
                 'created', $data['reason'], null, $assignment->toArray()
             );
@@ -158,5 +163,4 @@ final class OrganizationAssignmentService
 
         return 'active';
     }
-
 }
