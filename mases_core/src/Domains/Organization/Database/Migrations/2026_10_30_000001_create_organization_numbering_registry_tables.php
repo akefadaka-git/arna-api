@@ -35,7 +35,7 @@ return new class extends Migration
             $table->char('department_code', 1);
             $table->char('bb_code', 2);
             $table->foreignId('organization_unit_id');
-            $table->unsignedBigInteger('legal_entity_id')->nullable();
+            $table->unsignedBigInteger('legal_entity_id');
             $table->string('status', 16)->default('active');
             $table->date('effective_from');
             $table->date('effective_until')->nullable();
