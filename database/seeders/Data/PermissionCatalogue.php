@@ -166,7 +166,6 @@ final class PermissionCatalogue
         ['slug' => 'permission.update', 'name_am' => 'ፈቃድ ማዘመን',        'name_en' => 'Update Permission',  'category' => 'permission', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'permission.delete', 'name_am' => 'ፈቃድ መሰረዝ',        'name_en' => 'Delete Permission',  'category' => 'permission', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'app.portal.access',   'name_am' => 'ፖርታል መድረስ',               'name_en' => 'Access Portal',   'category' => 'app_access', 'scope' => 'application', 'is_system' => false],
-        ['slug' => 'app.finance.access',  'name_am' => 'ፋይናንስ መድረስ',              'name_en' => 'Access Finance',  'category' => 'app_access', 'scope' => 'application', 'is_system' => false],
         ['slug' => 'app.hr.access',       'name_am' => 'የሰው ሀብት መድረስ',           'name_en' => 'Access HR',       'category' => 'app_access', 'scope' => 'application', 'is_system' => false],
         ['slug' => 'app.admin.access',    'name_am' => 'አስተዳደር መድረስ',              'name_en' => 'Access Admin',    'category' => 'app_access', 'scope' => 'application', 'is_system' => true],
         ['slug' => 'app.arna.access',     'name_am' => 'ዓርና መድረስ',                 'name_en' => 'Access ARNA',     'category' => 'app_access', 'scope' => 'application', 'is_system' => false],
