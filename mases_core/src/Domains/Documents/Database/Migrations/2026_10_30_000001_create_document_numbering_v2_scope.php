@@ -35,6 +35,12 @@ return new class extends Migration
         Schema::table('documents', function (Blueprint $table): void {
             $table->char('bb_code', 2)->nullable()->after('organization_code');
             $table->char('document_type_number', 2)->nullable()->after('document_type_code');
+            $table->dropForeign(['legal_entity_id']);
+            $table->dropForeign(['organization_unit_id']);
+            $table->foreign(['tenant_id', 'legal_entity_id'], 'documents_entity_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('legal_entities')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'organization_unit_id'], 'documents_unit_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('organization_units')->restrictOnDelete();
             $table->unique(
                 ['tenant_id', 'legal_entity_id', 'organization_unit_id', 'document_type_number', 'ec_year', 'sequence_number'],
                 'documents_number_v2_scope_unique'
@@ -46,6 +52,10 @@ return new class extends Migration
     {
         Schema::table('documents', function (Blueprint $table): void {
             $table->dropUnique('documents_number_v2_scope_unique');
+            $table->dropForeign('documents_entity_tenant_fk');
+            $table->dropForeign('documents_unit_tenant_fk');
+            $table->foreignId('legal_entity_id')->constrained('legal_entities')->restrictOnDelete();
+            $table->foreignId('organization_unit_id')->constrained('organization_units')->restrictOnDelete();
             $table->dropColumn(['bb_code', 'document_type_number']);
         });
         Schema::dropIfExists('document_number_counters_v2');
