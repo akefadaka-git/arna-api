@@ -91,7 +91,7 @@ final class OrganizationRequestRules
         return [
             'person_id' => ['required', 'integer', 'min:1'],
             // These are Organization placement classifications, not Governance authority grants.
-            'assignment_type' => ['required', Rule::in(['member', 'primary', 'acting', 'delegated', 'support'])],
+            'assignment_type' => ['required', Rule::in(['primary', 'acting', 'delegated', 'support'])],
             'title_am' => ['nullable', 'string', 'max:160'],
             'title_en' => ['nullable', 'string', 'max:160'],
             'starts_on' => ['required', 'date'],
