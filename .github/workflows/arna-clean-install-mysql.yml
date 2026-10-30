@@ -173,6 +173,15 @@ jobs:
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationDomainTest.php
 
+      - name: Run Organization assignment filter and permission seeder contracts
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: |
+          php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationAssignmentFilterContractTest.php
+          php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationSeederContractTest.php
+
       - name: Confirm test database is empty
         shell: bash
         run: |
