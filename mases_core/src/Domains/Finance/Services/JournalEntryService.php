@@ -361,6 +361,7 @@ final class JournalEntryService
                 ->where('legal_entity_id', $entry->legal_entity_id)
                 ->where('journal_entry_id', $entry->id)
                 ->orderBy('line_number')
+                ->lockForUpdate()
                 ->get();
 
             $accountIds = $lines->pluck('account_id')->map(static fn ($id): int => (int) $id)->unique()->values();
