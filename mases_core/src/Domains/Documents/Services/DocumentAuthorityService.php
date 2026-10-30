@@ -193,7 +193,10 @@ final class DocumentAuthorityService
                 ->where('governance_body_id', $bodyId)
                 ->where('governance_position_id', $positionId)
                 ->where('status', 'active'))
-            ->with(['substantiveOccupancy' => fn ($query) => $query->when($lockRows, fn ($locked) => $locked->lockForUpdate())])
+            ->with([
+                'seat' => fn ($query) => $query->when($lockRows, fn ($locked) => $locked->lockForUpdate()),
+                'substantiveOccupancy' => fn ($query) => $query->when($lockRows, fn ($locked) => $locked->lockForUpdate()),
+            ])
             ->when($lockRows, fn ($query) => $query->lockForUpdate())
             ->get();
 
