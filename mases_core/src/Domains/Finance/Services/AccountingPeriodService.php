@@ -27,8 +27,8 @@ final class AccountingPeriodService
         $startsOn = trim((string) ($data['starts_on'] ?? ''));
         $endsOn = trim((string) ($data['ends_on'] ?? ''));
         $startDate = \\DateTimeImmutable::createFromFormat('!Y-m-d', $startsOn);
-        $endDate = \\DateTimeImmutable::createFromFormat('!Y-m-d', $endsOn);
         $startErrors = \\DateTimeImmutable::getLastErrors();
+        $endDate = \\DateTimeImmutable::createFromFormat('!Y-m-d', $endsOn);
         $endErrors = \\DateTimeImmutable::getLastErrors();
 
         if (!$startDate || !$endDate
