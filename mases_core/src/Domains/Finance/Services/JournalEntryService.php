@@ -9,6 +9,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use MaaleArna\MASES\Core\Domains\Finance\Enums\CashFlowActivity;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalEntryType;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 use MaaleArna\MASES\Core\Domains\Finance\Events\JournalDraftCreated;
@@ -159,8 +160,37 @@ final class JournalEntryService
                     }
 
                     $cashFlowActivity = $line['cash_flow_activity'] ?? null;
-                    if ($cashFlowActivity !== null && !(bool) $account->is_cash_equivalent) {
-                        throw ValidationException::withMessages(["lines.{$index}.cash_flow_activity" => 'Cash-flow activity may only be assigned to an account approved as a cash equivalent.']);
+                    $classificationNote = $line['cash_flow_classification_note'] ?? null;
+                    if ($classificationNote !== null && !is_string($classificationNote)) {
+                        throw ValidationException::withMessages([
+                            "lines.{$index}.cash_flow_classification_note" => 'The cash-flow classification note must be text.',
+                        ]);
+                    }
+                    $classificationNote = $classificationNote === null ? null : trim($classificationNote);
+
+                    if ($cashFlowActivity !== null) {
+                        $cashFlowActivity = is_string($cashFlowActivity) ? trim($cashFlowActivity) : '';
+                        if (CashFlowActivity::tryFrom($cashFlowActivity) === null) {
+                            throw ValidationException::withMessages([
+                                "lines.{$index}.cash_flow_activity" => 'Cash-flow activity must be operating, investing, or financing.',
+                            ]);
+                        }
+                        if (!(bool) $account->is_cash_equivalent) {
+                            throw ValidationException::withMessages([
+                                "lines.{$index}.cash_flow_activity" => 'Cash-flow activity may only be assigned to an account approved as a cash equivalent.',
+                            ]);
+                        }
+                        if ($classificationNote === null || $classificationNote === '') {
+                            throw ValidationException::withMessages([
+                                "lines.{$index}.cash_flow_classification_note" => 'A classification evidence note is required when assigning cash-flow activity.',
+                            ]);
+                        }
+                    }
+
+                    if ($classificationNote !== null && mb_strlen($classificationNote, 'UTF-8') > 1000) {
+                        throw ValidationException::withMessages([
+                            "lines.{$index}.cash_flow_classification_note" => 'The cash-flow classification note may not exceed 1000 characters.',
+                        ]);
                     }
 
                     JournalLine::query()->create([
@@ -173,7 +203,7 @@ final class JournalEntryService
                         'debit_amount' => $debit,
                         'credit_amount' => $credit,
                         'cash_flow_activity' => $cashFlowActivity,
-                        'cash_flow_classification_note' => isset($line['cash_flow_classification_note']) ? trim((string) $line['cash_flow_classification_note']) : null,
+                        'cash_flow_classification_note' => $classificationNote,
                     ]);
                 }
 

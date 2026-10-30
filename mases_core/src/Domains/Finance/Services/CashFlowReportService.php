@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 
+use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\CashFlowReportContract;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\CashFlowActivity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
@@ -23,6 +25,8 @@ final class CashFlowReportService implements CashFlowReportContract
 {
     public function cashFlow(int $tenantId, int $legalEntityId, string $from, string $to): array
     {
+        self::assertValidDateRange($from, $to);
+
         $entity = LegalEntity::query()
             ->where('tenant_id', $tenantId)
             ->findOrFail($legalEntityId);
@@ -145,6 +149,30 @@ final class CashFlowReportService implements CashFlowReportContract
                 'Cash-flow classifications and cash-equivalent account flags require controlled authorization and reconciliation.',
             ],
         ];
+    }
+
+    private static function assertValidDateRange(string $from, string $to): void
+    {
+        foreach (['from' => $from, 'to' => $to] as $field => $value) {
+            $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+            $errors = DateTimeImmutable::getLastErrors();
+
+            if (
+                $date === false
+                || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))
+                || $date->format('Y-m-d') !== $value
+            ) {
+                throw ValidationException::withMessages([
+                    $field => 'The date must be a valid ISO calendar date in YYYY-MM-DD format.',
+                ]);
+            }
+        }
+
+        if ($from > $to) {
+            throw ValidationException::withMessages([
+                'from' => 'The start date must be on or before the end date.',
+            ]);
+        }
     }
 
     /** @return array{inflows:string,outflows:string,net_movement:string,movement_count:int} */
