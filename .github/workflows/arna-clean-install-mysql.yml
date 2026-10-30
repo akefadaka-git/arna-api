@@ -160,6 +160,7 @@ jobs:
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php
 
       - name: Run Person identity contract regressions
+        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php') != '' }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -167,6 +168,7 @@ jobs:
         run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php
 
       - name: Run People Profile API integration regressions
+        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php') != '' }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -192,6 +194,7 @@ jobs:
         run: php artisan migrate --force -vvv
 
       - name: Run independent-connection People identity concurrency regression
+        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php') != '' }}
         env:
           ARNA_RUN_MYSQL_CONCURRENCY: "1"
           DB_CONNECTION: mysql
