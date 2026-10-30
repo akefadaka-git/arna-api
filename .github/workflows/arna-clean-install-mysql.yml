@@ -21,6 +21,7 @@ on:
       - "tests/Unit/DemoSeederGuardTest.php"
       - "tests/Concerns/LoanDatabaseMigrations.php"
       - "mases_core/src/Domains/People/**"
+      - "mases_core/src/Authorization/**"
       - "mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php"
       - "mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
