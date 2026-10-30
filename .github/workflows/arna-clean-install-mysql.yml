@@ -24,10 +24,9 @@ on:
       - "database/seeders/**"
       - "tests/Unit/DemoSeederGuardTest.php"
       - "tests/Concerns/LoanDatabaseMigrations.php"
-      - "mases_core/src/Domains/People/**"
-      - "mases_core/src/Authorization/**"
-      - "mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php"
-      - "mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
+      - "tests/Feature/PersonIdentityContractTest.php"
+      - "tests/Feature/PersonApiIntegrationTest.php"
+      - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
       - "tests/Feature/OrganizationDomainTest.php"
       - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
@@ -35,6 +34,7 @@ on:
       - "app/Http/Controllers/PersonController.php"
       - "routes/api.php"
       - "mases_core/src/Domains/People/**"
+      - "mases_core/src/Authorization/**"
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
@@ -95,13 +95,10 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_SHA: ${{ inputs.target_sha }}
           TRIGGER_SHA: ${{ github.sha }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
             expected_sha="${INPUT_SHA}"
-          elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
-            expected_sha="${PR_HEAD_SHA}"
           else
             expected_sha="${TRIGGER_SHA}"
           fi
