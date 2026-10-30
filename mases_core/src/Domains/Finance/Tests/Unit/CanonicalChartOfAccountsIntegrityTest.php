@@ -98,6 +98,15 @@ final class CanonicalChartOfAccountsIntegrityTest extends TestCase
         (new CanonicalChartOfAccountsValidator())->validate($register);
     }
 
+    public function test_rejects_duplicate_account_codes(): void
+    {
+        $register = $this->canonicalRegister();
+        $register[1][0] = $register[0][0];
+
+        $this->expectException(LogicException::class);
+        (new CanonicalChartOfAccountsValidator())->validate($register);
+    }
+
     public function test_rejects_missing_canonical_account_rows(): void
     {
         $register = $this->canonicalRegister();
