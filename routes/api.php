@@ -513,7 +513,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         ->name('api.launcher');
 
     // -------------------------------------------------------------------------
-
+    // -------------------------------------------------------------------------
     // File Management
     // -------------------------------------------------------------------------
 
@@ -563,32 +563,27 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
 
 
 /**
- * Financial & Accounting domain — all endpoints require resolved tenant membership
- * plus explicit finance permission. Legal entity IDs are always tenant-scoped.
+ * Organization domain — tenant membership is necessary but not sufficient;
+ * each operation also checks an explicit domain permission and tenant boundary.
  */
 Route::middleware(['auth:sanctum', 'tenant.membership'])
-    ->prefix('finance')
-    ->name('api.finance.')
+    ->prefix('organization')
+    ->name('api.organization.')
     ->group(static function (): void {
-        $controller = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\FinanceController::class;
+        $controller = \MaaleArna\MASES\Core\Domains\Organization\Http\Controllers\OrganizationController::class;
 
-        Route::get('/entities', [$controller, 'entities'])->middleware('auth.permission:finance.entity.view')->name('entities.index');
-        Route::post('/entities', [$controller, 'createEntity'])->middleware('auth.permission:finance.entity.manage')->name('entities.store');
-
-        Route::get('/accounts', [$controller, 'accounts'])->middleware('auth.permission:finance.account.view')->name('accounts.index');
-        Route::post('/accounts', [$controller, 'createAccount'])->middleware('auth.permission:finance.account.manage')->name('accounts.store');
-
-        Route::get('/periods', [$controller, 'periods'])->middleware('auth.permission:finance.period.view')->name('periods.index');
-        Route::post('/periods', [$controller, 'createPeriod'])->middleware('auth.permission:finance.period.manage')->name('periods.store');
-        Route::post('/periods/{periodId}/close', [$controller, 'closePeriod'])->whereNumber('periodId')->middleware('auth.permission:finance.period.manage')->name('periods.close');
-
-        Route::get('/journals', [$controller, 'journals'])->middleware('auth.permission:finance.journal.view')->name('journals.index');
-        Route::post('/journals', [$controller, 'createJournal'])->middleware('auth.permission:finance.journal.create')->name('journals.store');
-        Route::post('/journals/{journalId}/post', [$controller, 'postJournal'])->whereNumber('journalId')->middleware('auth.permission:finance.journal.post')->name('journals.post');
-        Route::post('/journals/{journalId}/reverse', [$controller, 'reverseJournal'])->whereNumber('journalId')->middleware('auth.permission:finance.journal.reverse')->name('journals.reverse');
-
-        Route::get('/trial-balance', [$controller, 'trialBalance'])->middleware('auth.permission:finance.report.view')->name('reports.trial-balance');
+        Route::get('/units', [$controller, 'index'])->name('units.index');
+        Route::post('/units', [$controller, 'store'])->name('units.store');
+        Route::get('/units/{id}', [$controller, 'show'])->whereNumber('id')->name('units.show');
+        Route::put('/units/{id}', [$controller, 'update'])->whereNumber('id')->name('units.update');
+        Route::delete('/units/{id}', [$controller, 'archive'])->whereNumber('id')->name('units.archive');
+        Route::get('/units/{id}/assignments', [$controller, 'assignments'])->whereNumber('id')->name('units.assignments.index');
+        Route::post('/units/{id}/assignments', [$controller, 'assign'])->whereNumber('id')->name('units.assignments.store');
+        Route::patch('/assignments/{id}', [$controller, 'updateAssignment'])->whereNumber('id')->name('assignments.update');
     });
+
+
+
 
 // =============================================================================
 // 5. Fallback – Delegate to the canonical error renderer
