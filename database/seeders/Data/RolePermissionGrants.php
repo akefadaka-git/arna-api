@@ -53,7 +53,7 @@ namespace Database\Seeders\Data;
  *
  *          · The change preserves the role hierarchy: super_admin
  *            remains the only role with universal access (its ['*']
- *            wildcard resolves to all 53 permissions), and the four
+ *            wildcard resolves to all 54 permissions), and the four
  *            end-user applications remain exclusive to the roles
  *            whose purpose they serve (tenant_admin for the tenant-
  *            scoped grants, and the end-user roles for their own).
@@ -235,6 +235,7 @@ final class RolePermissionGrants
             'finance.account.view', 'finance.account.manage',
             'finance.period.view', 'finance.period.manage',
             'finance.journal.view', 'finance.journal.create',
+            'finance.journal.cancel',
             'finance.journal.post', 'finance.journal.reverse',
             'finance.report.view',
         ],
