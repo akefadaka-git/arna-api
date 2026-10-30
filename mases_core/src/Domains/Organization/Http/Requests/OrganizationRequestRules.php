@@ -111,32 +111,10 @@ final class OrganizationRequestRules
     }
 
     /** @return array<string, array<int, mixed>> */
-    public static function registerBranchNumber(): array
-    {
-        return [
-            'organization_unit_id' => ['required', 'integer', 'min:1'],
-            'branch_code' => ['required', 'string', 'regex:/^[1-9]$/'],
-            'reason' => ['required', 'string', 'min:5', 'max:2000'],
-        ];
-    }
-
-    /** @return array<string, array<int, mixed>> */
-    public static function registerDepartmentNumber(): array
-    {
-        return [
-            'organization_unit_id' => ['required', 'integer', 'min:1'],
-            'legal_entity_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
-            'branch_code' => ['required', 'string', 'regex:/^[1-9]$/'],
-            'department_code' => ['required', 'string', 'regex:/^[1-9]$/'],
-            'reason' => ['required', 'string', 'min:5', 'max:2000'],
-        ];
-    }
-
-    /** @return array<string, array<int, mixed>> */
     public static function auditEvents(): array
     {
         return [
-            'subject_type' => ['sometimes', Rule::in(['unit', 'assignment'])],
+            'subject_type' => ['sometimes', Rule::in(['unit', 'assignment', 'branch_number_code', 'department_number_code'])],
             'subject_id' => ['sometimes', 'integer', 'min:1'],
             'action' => ['sometimes', 'string', 'max:48'],
             'from' => ['sometimes', 'date'],
