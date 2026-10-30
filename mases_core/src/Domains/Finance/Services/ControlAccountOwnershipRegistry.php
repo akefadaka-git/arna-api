@@ -100,7 +100,7 @@ final class ControlAccountOwnershipRegistry
                 'designation_status',
                 'adapter_activation',
             ] as $field) {
-                if (!isset($policy[$field]) || trim((string) $policy[$field]) === '') {
+                if (!isset($policy[$field]) || !is_string($policy[$field]) || trim($policy[$field]) === '') {
                     throw new LogicException("Control account {$code} is missing required field {$field}.");
                 }
             }
@@ -124,13 +124,15 @@ final class ControlAccountOwnershipRegistry
             }
 
             foreach (['contributing_domains', 'required_evidence'] as $field) {
-                if (!isset($policy[$field]) || !is_array($policy[$field]) || $policy[$field] === []) {
+                if (!isset($policy[$field]) || !is_array($policy[$field]) || !array_is_list($policy[$field]) || $policy[$field] === []) {
                     throw new LogicException("Control account {$code} requires a non-empty {$field} list.");
                 }
+                $seenItems = [];
                 foreach ($policy[$field] as $item) {
-                    if (!is_string($item) || trim($item) === '') {
-                        throw new LogicException("Control account {$code} has an invalid {$field} item.");
+                    if (!is_string($item) || trim($item) === '' || isset($seenItems[$item])) {
+                        throw new LogicException("Control account {$code} has an invalid or duplicate {$field} item.");
                     }
+                    $seenItems[$item] = true;
                 }
             }
 
