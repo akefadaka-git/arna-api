@@ -7,7 +7,7 @@ namespace Database\Seeders\Data;
 /**
  * PermissionCatalogue
  *
- * The platform's fifty-three permissions — the atomic capabilities
+ * The platform's fifty-four permissions — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -136,7 +136,7 @@ namespace Database\Seeders\Data;
 final class PermissionCatalogue
 {
     /**
-     * The fifty-three platform permissions, in source order.
+     * The fifty-four platform permissions, in source order.
      *
      * Each row is an associative array with the six keys documented
      * in the class docblock. The order below is preserved verbatim
@@ -197,6 +197,7 @@ final class PermissionCatalogue
         ['slug' => 'finance.period.manage', 'name_am' => 'የሂሳብ ጊዜዎችን ማስተዳደር', 'name_en' => 'Manage Accounting Periods', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.view', 'name_am' => 'የመዝገብ ማስታወሻዎችን ማየት', 'name_en' => 'View Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.create', 'name_am' => 'የመዝገብ ማስታወሻ መፍጠር', 'name_en' => 'Create Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.journal.cancel', 'name_am' => 'የሂሳብ ረቂቅ ማስታወሻዎችን መሰረዝ', 'name_en' => 'Cancel Draft Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.post', 'name_am' => 'የመዝገብ ማስታወሻ መለጠፍ', 'name_en' => 'Post Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.reverse', 'name_am' => 'የመዝገብ ማስታወሻ መቀልበስ', 'name_en' => 'Reverse Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.report.view', 'name_am' => 'የፋይናንስ ሪፖርቶችን ማየት', 'name_en' => 'View Financial Reports', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
