@@ -35,6 +35,10 @@ return new class extends Migration
         Schema::table('documents', function (Blueprint $table): void {
             $table->char('bb_code', 2)->nullable()->after('organization_code');
             $table->char('document_type_number', 2)->nullable()->after('document_type_code');
+            $table->unsignedBigInteger('replaces_document_id')->nullable()->after('canonical_number');
+            $table->unique(['tenant_id', 'id'], 'documents_tenant_id_unique');
+            $table->foreign(['tenant_id', 'replaces_document_id'], 'documents_replaces_same_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
             $table->dropForeign(['legal_entity_id']);
             $table->dropForeign(['organization_unit_id']);
             $table->foreign(['tenant_id', 'legal_entity_id'], 'documents_entity_tenant_fk')
@@ -52,6 +56,9 @@ return new class extends Migration
     {
         Schema::table('documents', function (Blueprint $table): void {
             $table->dropUnique('documents_number_v2_scope_unique');
+            $table->dropForeign('documents_replaces_same_tenant_fk');
+            $table->dropUnique('documents_tenant_id_unique');
+            $table->dropColumn('replaces_document_id');
             $table->dropForeign('documents_entity_tenant_fk');
             $table->dropForeign('documents_unit_tenant_fk');
             $table->foreignId('legal_entity_id')->constrained('legal_entities')->restrictOnDelete();
