@@ -15,6 +15,7 @@ final class SubledgerPostingInstruction
         public readonly string $effectiveDate,
         public readonly string $description,
         public readonly string $idempotencyKey,
+        public readonly string $sourceEventId,
         public readonly string $sourceEventVersion,
         public readonly array $lines,
         public readonly string $currency = 'ETB',
@@ -23,12 +24,14 @@ final class SubledgerPostingInstruction
             trim($journalNumber) === ''
             || trim($description) === ''
             || trim($idempotencyKey) === ''
+            || trim($sourceEventId) === ''
+            || mb_strlen($sourceEventId) > 128
             || trim($sourceEventVersion) === ''
             || mb_strlen($sourceEventVersion) > 64
             || count($lines) < 2
         ) {
             throw new \InvalidArgumentException(
-                'Subledger instructions require a journal number, description, idempotency key, source event version, and at least two lines.'
+                'Subledger instructions require a journal number, description, idempotency key, source event ID, source event version, and at least two lines.'
             );
         }
     }
@@ -44,6 +47,7 @@ final class SubledgerPostingInstruction
             'currency' => $this->currency,
             'source_type' => $sourceType,
             'source_id' => $sourceId,
+            'source_event_id' => $this->sourceEventId,
             'source_event_version' => $this->sourceEventVersion,
         ];
     }
