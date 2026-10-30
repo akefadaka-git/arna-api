@@ -63,8 +63,8 @@ return new class extends Migration
             $table->dropColumn('replaces_document_id');
             $table->dropForeign('documents_entity_tenant_fk');
             $table->dropForeign('documents_unit_tenant_fk');
-            $table->foreignId('legal_entity_id')->constrained('legal_entities')->restrictOnDelete();
-            $table->foreignId('organization_unit_id')->constrained('organization_units')->restrictOnDelete();
+            $table->foreign('legal_entity_id')->references('id')->on('legal_entities')->restrictOnDelete();
+            $table->foreign('organization_unit_id')->references('id')->on('organization_units')->restrictOnDelete();
             $table->dropColumn(['bb_code', 'document_type_number']);
         });
         Schema::dropIfExists('document_number_counters_v2');
