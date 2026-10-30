@@ -32,7 +32,7 @@ A public submission is never assigned an approved or published state from client
 - `GET /api/public/content/{publicId}` — published record by opaque UUID only.
 - `POST /api/public/content/submissions` — anonymous or authenticated submission; 5 requests per 10 minutes per source.
 
-Submission fields: `content_type`, `title`, `body`, `author_name`, optional `author_email`, and accepted `consent`. The server stores consent time. A non-empty honeypot field is silently discarded without creating a record.
+Submission fields: `content_type`, `title`, `body`, `author_name`, required `author_email`, and accepted `consent`. The server stores consent time. The reviewer identity check compares both the authenticated submitter ID and the contributor contact email with the reviewer account. A guest-provided email is a contact identifier, not cryptographic proof of identity; a later verified-contributor flow is required if the business needs stronger identity assurance for anonymous authors. A non-empty honeypot field is silently discarded without creating a record.
 
 Public resources do not expose author email, submitter identity, reviewer identity, internal status, review notes, or internal numeric IDs.
 
