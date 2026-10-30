@@ -1,0 +1,59 @@
+name: ARNA Finance locked dependency security refresh
+
+on:
+  push:
+    branches:
+      - feat/finance-gl-integrity-phase1
+    paths:
+      - ".github/workflows/finance-dependency-refresh.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  refresh-security-dependencies:
+    name: Refresh and audit vulnerable Composer packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact branch commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Prepare Laravel environment file
+        run: touch .env
+
+      - name: Refresh affected vulnerable packages within declared constraints
+        run: composer update league/commonmark symfony/mime --with-dependencies --no-interaction --no-progress
+
+      - name: Audit refreshed lock file
+        run: composer audit --locked
+
+      - name: Capture refreshed package versions
+        run: |
+          {
+            echo "Source commit: ${GITHUB_SHA}"
+            composer show league/commonmark symfony/mime --locked
+            sha256sum composer.lock
+          } > finance-dependency-refresh-evidence.txt
+
+      - name: Upload refreshed Composer lock and audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-composer-security-refresh-${{ github.run_id }}
+          path: |
+            composer.lock
+            finance-dependency-refresh-evidence.txt
+          if-no-files-found: warn
+          retention-days: 7
