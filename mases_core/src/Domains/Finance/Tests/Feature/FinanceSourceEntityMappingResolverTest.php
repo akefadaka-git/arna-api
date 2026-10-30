@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace MaaleArna\MASES\Core\Domains\Finance\Tests\Feature;
 
 use MaaleArna\MASES\Core\Auth\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;

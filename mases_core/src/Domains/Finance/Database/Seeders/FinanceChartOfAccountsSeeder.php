@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Database\Seeders;
+namespace MaaleArna\MASES\Core\Domains\Finance\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +38,7 @@ final class FinanceChartOfAccountsSeeder extends Seeder
             }
         }
 
-        $register = require base_path('config/finance/chart_of_accounts_v1.php');
+        $register = require dirname(__DIR__, 2) . '/Config/chart_of_accounts_v1.php';
         $this->validateRegister($register);
         $entities = DB::table('legal_entities')->where('status', 'active')->orderBy('tenant_id')->orderBy('id')->get();
         if ($entities->isEmpty()) {
