@@ -80,6 +80,7 @@ No code in this branch represents a professional tax opinion. Production tax cal
 | FIN-1.03 | 1 — GL integrity | Verify concurrent duplicate requests and period close/post race behavior on MySQL | NOT RUN |
 | FIN-1.04 | 1 — GL integrity | Verify tenant/entity isolation for all reads, writes, account references, periods, reversals, and reports | PARTIAL — composite constraints and scoped queries exist; adversarial tests not run |
 | FIN-1.05 | 1 — GL integrity | Confirm journal numbering uniqueness, date/period validation, and database precision boundaries | PARTIAL — source and constraints exist; full boundary verification pending |
+| FIN-1.06 | 1 — GL integrity | Revalidate legal-entity active status and every journal-line account's active/postable status inside the locked posting transaction, not only when the draft is created | SOURCE GAP — current `post()` path locks journal and period and rechecks balance, but does not revalidate account/entity status |
 | FIN-2.01 | 2 — CoA | Verify all 79 accounts, parent hierarchy, type/normal-balance consistency, and posting eligibility | SOURCE PRESENT — tests added, NOT RUN |
 | FIN-2.02 | 2 — CoA | Verify all 36 control-account ownership mappings and fail-closed seeder preflight | SOURCE PRESENT — tests added, NOT RUN |
 | FIN-2.03 | 2 — CoA | Preserve opt-in seeder, no overwrite of non-system accounts, and no opening-balance creation | SOURCE PRESENT — execution NOT RUN |
