@@ -44,7 +44,8 @@ final class DocumentAuthorityService
         string $organizationCode,
         string $departmentCode,
         string $roleCode,
-        string $typeCode
+        string $typeCode,
+        bool $lockRows = false
     ): array {
         if ($tenantId < 1 || (int) $this->tenantContext->getTenantId() !== $tenantId) {
             throw new AuthorizationException('A matching server-validated tenant context is required.');
@@ -62,6 +63,7 @@ final class DocumentAuthorityService
             ->where('tenant_id', $tenantId)
             ->whereKey($legalEntityId)
             ->where('status', 'active')
+            ->when($lockRows, fn ($query) => $query->lockForUpdate())
             ->first();
         if (!$entity) {
             throw (new ModelNotFoundException())->setModel(LegalEntity::class, [$legalEntityId]);
@@ -79,6 +81,7 @@ final class DocumentAuthorityService
             ->where('code', $departmentCode)
             ->where('status', 'active')
             ->whereNull('deleted_at')
+            ->when($lockRows, fn ($query) => $query->lockForUpdate())
             ->first();
         if (!$unit) {
             throw ValidationException::withMessages(['department_code' => ['Department code must identify an active Organization unit belonging to the selected legal entity and tenant.']]);
@@ -94,6 +97,7 @@ final class DocumentAuthorityService
             ->where('code', $roleCode)
             ->where('is_active', true)
             ->whereNull('deleted_at')
+            ->when($lockRows, fn ($query) => $query->lockForUpdate())
             ->limit(2)
             ->get();
         if ($positions->count() !== 1) {
@@ -105,13 +109,14 @@ final class DocumentAuthorityService
             ->where('tenant_id', $tenantId)
             ->whereKey($position->governance_body_id)
             ->where('is_active', true)
+            ->when($lockRows, fn ($query) => $query->lockForUpdate())
             ->first();
         if (!$body) {
             throw ValidationException::withMessages(['issuing_role_code' => ['Issuing role must belong to an active Governance body in the validated tenant.']]);
         }
 
         $action = DocumentTypeRegistry::authorityAction($typeCode);
-        if (!$this->hasSubstantiveOrExplicitActingAuthority($actor, $tenantId, (int) $body->id, (int) $position->id, $action)) {
+        if (!$this->hasSubstantiveOrExplicitActingAuthority($actor, $tenantId, (int) $body->id, (int) $position->id, $action, $lockRows)) {
             throw new AuthorizationException('No effective document-type-specific Governance authority grant or explicitly scoped acting assignment authorizes this issuance.');
         }
 
@@ -132,13 +137,15 @@ final class DocumentAuthorityService
         int $tenantId,
         int $bodyId,
         int $positionId,
-        string $action
+        string $action,
+        bool $lockRows = false
     ): bool {
         $today = CarbonImmutable::today()->toDateString();
         $actorPerson = Person::query()
             ->where('user_id', $actor->getKey())
             ->where('status', 'active')
             ->whereNull('deleted_at')
+            ->when($lockRows, fn ($query) => $query->lockForUpdate())
             ->first();
 
         if (!$actorPerson) {
@@ -149,7 +156,8 @@ final class DocumentAuthorityService
             ->where('person_id', $actorPerson->id)
             ->where('tenant_id', $tenantId)
             ->where('status', 'active')
-            ->exists();
+            ->when($lockRows, fn ($query) => $query->lockForUpdate())
+            ->first();
         if (!$hasActiveTenantAccess) {
             return false;
         }
@@ -164,9 +172,10 @@ final class DocumentAuthorityService
             ->where('status', 'active')
             ->whereDate('start_date', '<=', $today)
             ->where(fn ($query) => $query->whereNull('end_date')->orWhereDate('end_date', '>=', $today))
-            ->exists();
+            ->when($lockRows, fn ($query) => $query->lockForUpdate())
+            ->first() !== null;
 
-        if ($directMembership && $this->hasGrantForPerson($tenantId, $bodyId, $positionId, (int) $actorPerson->id, $action, $today)) {
+        if ($directMembership && $this->hasGrantForPerson($tenantId, $bodyId, $positionId, (int) $actorPerson->id, $action, $today, $lockRows)) {
             return true;
         }
 
@@ -184,7 +193,8 @@ final class DocumentAuthorityService
                 ->where('governance_body_id', $bodyId)
                 ->where('governance_position_id', $positionId)
                 ->where('status', 'active'))
-            ->with('substantiveOccupancy')
+            ->with(['substantiveOccupancy' => fn ($query) => $query->when($lockRows, fn ($locked) => $locked->lockForUpdate())])
+            ->when($lockRows, fn ($query) => $query->lockForUpdate())
             ->get();
 
         foreach ($assignments as $assignment) {
@@ -197,6 +207,7 @@ final class DocumentAuthorityService
                 ->whereKey($occupancy->person_id)
                 ->where('status', 'active')
                 ->whereNull('deleted_at')
+                ->when($lockRows, fn ($query) => $query->lockForUpdate())
                 ->first();
             if (!$incumbent || !$incumbent->user_id) {
                 continue;
@@ -206,7 +217,8 @@ final class DocumentAuthorityService
                 ->where('person_id', $incumbent->id)
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'active')
-                ->exists();
+                ->when($lockRows, fn ($query) => $query->lockForUpdate())
+                ->first();
             if (!$incumbentAccess) {
                 continue;
             }
@@ -220,12 +232,13 @@ final class DocumentAuthorityService
                 ->where('status', 'active')
                 ->whereDate('start_date', '<=', $today)
                 ->where(fn ($query) => $query->whereNull('end_date')->orWhereDate('end_date', '>=', $today))
-                ->exists();
+                ->when($lockRows, fn ($query) => $query->lockForUpdate())
+                ->first() !== null;
             if (!$incumbentMembership) {
                 continue;
             }
 
-            if ($this->hasGrantForPerson($tenantId, $bodyId, $positionId, (int) $incumbent->id, $action, $today)) {
+            if ($this->hasGrantForPerson($tenantId, $bodyId, $positionId, (int) $incumbent->id, $action, $today, $lockRows)) {
                 return true;
             }
         }
@@ -239,7 +252,8 @@ final class DocumentAuthorityService
         int $positionId,
         int $personId,
         string $action,
-        string $today
+        string $today,
+        bool $lockRows = false
     ): bool {
         return GovernanceAuthorityGrant::query()
             ->where('tenant_id', $tenantId)
@@ -250,6 +264,7 @@ final class DocumentAuthorityService
             ->whereNull('revoked_at')
             ->whereDate('effective_from', '<=', $today)
             ->where(fn ($query) => $query->whereNull('effective_until')->orWhereDate('effective_until', '>=', $today))
-            ->exists();
+            ->when($lockRows, fn ($query) => $query->lockForUpdate())
+            ->first() !== null;
     }
 }
