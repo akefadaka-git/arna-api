@@ -118,6 +118,9 @@ jobs:
           ref: ${{ steps.target.outputs.expected_sha }}
           persist-credentials: false
 
+      - name: Create runner-local environment file for Laravel tests
+        run: touch .env
+
       - name: Verify checked-out SHA
         shell: bash
         env:
