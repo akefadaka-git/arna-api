@@ -21,6 +21,10 @@ final class OrganizationNumberingRegistryService
     {
     }
 
+    public function __construct(private readonly OrganizationAuditService $audit)
+    {
+    }
+
     public function registerBranch(
         int $tenantId,
         int $organizationUnitId,
