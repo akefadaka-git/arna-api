@@ -1,397 +1,377 @@
-# የዓርና የሰነድ ቁጥር አሰጣጥ እና መዝገብ አስተዳደር የአሠራር መመሪያ
-## ARNA Document Numbering & Registration Operations Manual v1.0
+# የዓርና ሰነዶች ቁጥር አሰጣጥ፣ ምዝገባና መዝገብ አስተዳደር የአሠራር መመሪያ
 
-**Document class:** Controlled internal operations manual  
-**Policy authority:** ARNA Owner and formally delegated governance authority  
-**Language:** Amharic-first; English labels are explanatory  
-**Status:** Documentation only; implementation and operational activation pending  
-**Related standard:** [ARNA Amharic Document Numbering Standard v1.0](../architecture/arna-amharic-document-numbering-standard-v1.md)
+**የሰነድ ምድብ፦** ቁጥጥር የሚደረግበት የውስጥ አሠራር መመሪያ  
+**የፖሊሲ ባለሥልጣን፦** የዓርና ባለቤት (Owner) እና በይፋ የተወከለ የአስተዳደር አካል  
+**ቋንቋ፦** አማርኛ ዋና ቋንቋ ነው፤ የእንግሊዝኛ ቃላት በቴክኒክ አስፈላጊነት ብቻ ይጠቀሳሉ።  
+**ሁኔታ፦** የሰነድ መመሪያ ብቻ፤ የሶፍትዌር ትግበራና የሥራ ላይ ማዋል ገና አልተፈቀደም/አልተረጋገጠም።  
+**ተያያዥ መስፈርት፦** [የዓርና የአማርኛ ሰነድ ቁጥር አሰጣጥ መስፈርት v1.0](../architecture/arna-amharic-document-numbering-standard-v1.md)
 
-> **Important:** This manual defines the intended operating procedure. It does not establish that the new number format, registries, screens, permissions, QR verification or reports are implemented. Do not use it to issue production numbers until implementation is separately approved and verified.
+> **አስፈላጊ ማስጠንቀቂያ፦** ይህ መመሪያ የታሰበውን የሥራ ሂደት ይገልጻል። አዲሱ የቁጥር ቅርጸት፣ መዝገቦች፣ ማያ ገጾች፣ ፈቃዶች፣ QR ማረጋገጫ ወይም ሪፖርቶች ተተግብረዋል ማለት አይደለም። የተለየ የትግበራ ፈቃድና ማረጋገጫ እስኪኖር ድረስ ለኦፊሴላዊ የሥራ ሰነድ ቁጥር አሰጣጥ አይጠቀሙበት።
 
-## 1. Purpose and authority
+## 1. ዓላማ፣ ሥልጣንና የተፈጻሚነት ወሰን
 
-This manual establishes controls for creating, registering, numbering, issuing, receiving, tracking, correcting, voiding, revoking, archiving and auditing ARNA-controlled documents.
+ይህ መመሪያ በዓርና የሚቆጣጠሩ ሰነዶችን መፍጠር፣ መመዝገብ፣ ቁጥር መስጠት፣ ማውጣት፣ መቀበል፣ መከታተል፣ ማረም፣ መሰረዝ፣ ተፈጻሚነት ማቋረጥ፣ በሌላ ሰነድ መተካት፣ ማህደር ማድረግና ኦዲት ማድረግ የሚመለከቱ ቁጥጥሮችን ይወስናል።
 
-Principles:
-1. One authoritative number per officially issued ARNA document.
-2. Amharic-first presentation and numeric variable segments.
-3. Number assignment only at successful official issuance.
-4. Independent counters by tenant, legal entity, issuing unit, document type and full Ethiopian Calendar year.
-5. No number reuse, deletion, silent replacement or retrospective renumbering.
-6. Separation of duties among creator, reviewer, approver, issuer and records custodian as required by the approved authority matrix.
-7. Tenant isolation and least-privilege access at every operation.
-8. Append-only evidence for issuance and lifecycle decisions.
-9. Incoming sender references remain separate from ARNA-assigned references.
-10. Applicable laws, regulator requirements, tax rules, court rules, financial controls and agreements prevail where they impose additional requirements.
+የመሠረታዊ መርሆች፦
+1. በይፋ ለተሰጠ እያንዳንዱ የዓርና ሰነድ አንድ ብቻ ትክክለኛ መለያ ቁጥር ይኖረዋል።
+2. በሰነዱ ላይ አማርኛ ዋና ይሆናል፤ በቁጥሩ ውስጥ የተወሰኑ የቁጥር ክፍሎች ይጠቀማሉ።
+3. ቁጥር የሚመደበው ሰነዱ በትክክል በይፋ ሲወጣ ብቻ ነው።
+4. ቆጣሪው በተከራይ (tenant)፣ በሕጋዊ ድርጅት፣ በሰነድ አውጪ ክፍል፣ በሰነድ ዓይነትና በሙሉ የኢትዮጵያ ዓመት ይለያያል።
+5. የተሰጠ ቁጥር አይመለስም፣ አይደመሰስም፣ በዝምታ አይተካም፣ ወደ ኋላ ተመልሶ አይቀየርም።
+6. በተፈቀደው የሥልጣን ሰንጠረዥ መሠረት ፈጣሪ፣ ገምጋሚ፣ አጽዳቂ፣ አውጪና የመዝገብ ጠባቂ ተግባራት ይለያያሉ።
+7. በሁሉም እርምጃዎች የተከራይ መለያ መለያየትና በትንሹ የሚያስፈልግ ፈቃድ ይጠበቃል።
+8. የሰነድ ማውጣትና የሕይወት ዑደት ውሳኔዎች ሊለወጡ በማይችሉ የክስተት መዝገቦች ይመዘገባሉ።
+9. ከውጭ የተላከ ሰነድ የላኪ ቁጥር ከዓርና የራሱ ቁጥር ይለያል።
+10. ተፈጻሚ የሆኑ ሕጎች፣ የተቆጣጣሪ መመሪያዎች፣ የግብር፣ የፍርድ ቤት፣ የፋይናንስና የውል ግዴታዎች ተጨማሪ መስፈርት ካስቀመጡ ይበልጣሉ።
 
-This is an ARNA internal standard. It does not claim that the exact ARNA syntax is prescribed by Ethiopian national legislation or is a government-wide format. Legal or regulatory compliance requires review against the current authoritative instrument applicable to the record class and entity.
+ይህ የዓርና የውስጥ መስፈርት ነው። በኢትዮጵያ ሕግ ወይም በመንግሥት ደረጃ የተደነገገ የሰነድ ቁጥር ቅርጸት ነው ብሎ አያቀርብም። የሕግ ተገዢነት ለማረጋገጥ በሰነዱ ዓይነትና በሕጋዊ ድርጅቱ ላይ የሚመለከተውን ወቅታዊ ሕግ በባለሙያ ማስገምገም ያስፈልጋል።
 
-## 2. Numbering standard at a glance
+## 2. የቁጥር አሰጣጥ መስፈርት በአጭሩ
 
-Canonical format: **ዓርና/BB/TT/SSSS/YY**
+**መደበኛ ቅርጸት፦** `ዓርና/BB/TT/SSSS/YY`  
+**ምሳሌ፦** `ዓርና/11/03/0001/19`
 
-Example: **ዓርና/11/03/0001/19**
-
-| Part | Rule | Meaning |
+| ክፍል | መስፈርት | ትርጉም |
 |---|---|---|
-| ዓርና | Fixed Amharic literal | ARNA identity |
-| BB | Exactly two digits | First digit branch; second digit department |
-| TT | Exactly two digits | Controlled document-type code |
-| SSSS | Exactly four digits | Sequence, 0001–9999 |
-| YY | Exactly two digits | Last two digits of full Ethiopian year |
-
-Slash is the only segment delimiter. The canonical identifier must not contain spaces, Latin letters, alternative punctuation or localized digit substitutions. Amharic labels and explanatory text are used on the document. The canonical ID remains stable across screen, PDF, print, search, export and verification.
-
-The full Ethiopian year (for example, 2019) is stored separately. The visible suffix 19 is not sufficient by itself to identify the century or full date.
-
-## 3. Manual A — Branch and department registration
-
-**Owner:** Organization domain.
-
-The Organization domain is the source of truth for branches, departments and organizational-unit identity. Documents consumes validated registry identifiers and snapshots; it does not create a parallel organization catalogue.
-
-The approved BB segment has exactly two digits:
-- Position 1: branch number 1–9.
-- Position 2: department number 1–9 within that branch.
-
-Examples: 11, 12, 21, 23.
-
-Assignment procedure:
-1. An authorized Organization administrator proposes a branch or department.
-2. Record its official Amharic name, parent branch, legal entity, tenant, effective date, status and accountable manager.
-3. Validate that the code is unused and resolves to exactly one unit.
-4. Obtain authorized approval.
-5. Record the code, effective dates and immutable history.
-6. Permit issuance only while the unit and code are active.
-
-Do not infer codes from names, accept caller-supplied free text, reuse retired codes, silently change historical snapshots, or issue under inactive/ambiguous units.
-
-**Capacity:** The fixed design permits nine branches and nine departments per branch. Zero is invalid. Exceeding capacity requires an Owner-approved, versioned format revision. Never silently widen BB.
-
-## 4. Manual B — Document-type catalogue administration
-
-**Owner:** Documents domain.
-
-The TT segment is a controlled numeric code, not a free-form label. Each catalogue entry must define:
-- Two-digit code;
-- Amharic name and optional secondary-language name;
-- Definition, purpose and inclusion/exclusion rules;
-- Permitted direction: incoming registration, outgoing issuance, or both;
-- Required metadata and attachments;
-- Creator, reviewer, approver and issuer authority actions;
-- Approval and publication requirements;
-- Confidentiality defaults and permitted levels;
-- Retention category and archival trigger;
-- External legal/financial numbering implications;
-- Effective dates, status, owner and approval history.
-
-Procedure for a new type:
-1. Submit a documented request.
-2. Check for an equivalent existing type.
-3. Define its authority matrix, lifecycle, retention and regulatory implications.
-4. Obtain Owner/governance approval.
-5. Assign an unused numeric code.
-6. Activate on a stated effective date.
-7. Preserve the code permanently for historical interpretation.
+| ዓርና | ቋሚ የአማርኛ ጽሑፍ | የዓርና መለያ |
+| BB | በትክክል ሁለት አሃዞች | የመጀመሪያው የቅርንጫፍ፣ ሁለተኛው የመምሪያ ኮድ |
+| TT | በትክክል ሁለት አሃዞች | የተቆጣጠረ የሰነድ ዓይነት ኮድ |
+| SSSS | በትክክል አራት አሃዞች | ተከታታይ ቁጥር፣ 0001–9999 |
+| YY | በትክክል ሁለት አሃዞች | ከሙሉ የኢትዮጵያ ዓመት የመጨረሻዎቹ ሁለት አሃዞች |
+
+ሰረዝ (/) ብቻ የክፍል መለያ ነው። በመደበኛ መለያ ቁጥሩ ውስጥ ክፍተት፣ የላቲን ፊደል፣ ሌላ ሥርዓተ-ነጥብ ወይም የተለየ የአሃዝ ስብስብ አይጨመርም። የሰነዱ ርዕስና ማብራሪያ በአማርኛ ይቀርባሉ። መለያው በማያ ገጽ፣ PDF፣ ህትመት፣ ፍለጋ፣ ወደ ውጭ በማውጣትና በማረጋገጫ ላይ አንድ ዓይነት ይቆያል።
+
+ሙሉ የኢትዮጵያ ዓመት (ለምሳሌ 2019) በተለየ መስክ ይቀመጣል። በቁጥሩ ያለው 19 ብቻውን ዘመኑን ወይም ሙሉ ቀኑን ለመለየት በቂ አይደለም።
+
+## 3. መመሪያ A — የቅርንጫፍና የመምሪያ ምዝገባ
+
+**ተጠያቂ ዘርፍ፦** ድርጅታዊ አወቃቀር (Organization)።
+
+የቅርንጫፎች፣ የመምሪያዎችና የድርጅታዊ ክፍሎች መለያ ዋና ምንጭ የOrganization ዘርፍ ነው። Documents ዘርፍ የተረጋገጡ የመዝገብ መለያዎችን ይጠቀማል፤ ተደጋጋሚ የድርጅት ዝርዝር አይፈጥርም።
+
+የBB ክፍል በትክክል ሁለት አሃዞች አሉት፦
+- የመጀመሪያው አሃዝ፦ የቅርንጫፍ ቁጥር 1–9።
+- ሁለተኛው አሃዝ፦ በዚያ ቅርንጫፍ ውስጥ የመምሪያ ቁጥር 1–9።
+- ምሳሌዎች፦ 11፣ 12፣ 21፣ 23።
+
+የምዝገባ ሂደት፦
+1. ፈቃድ ያለው የOrganization አስተዳዳሪ አዲስ ቅርንጫፍ ወይም መምሪያ ያቀርባል።
+2. ኦፊሴላዊ የአማርኛ ስም፣ ወላጅ ቅርንጫፍ፣ ሕጋዊ ድርጅት፣ ተከራይ፣ የሥራ መጀመሪያ ቀን፣ ሁኔታና ተጠያቂ ኃላፊ ይመዘገባሉ።
+3. ኮዱ ቀድሞ እንዳልተጠቀመ እና ከአንድ ክፍል ጋር ብቻ እንደሚያያዝ ይረጋገጣል።
+4. ተገቢው ሥልጣን ያለው አካል ያጸድቃል።
+5. ኮዱ፣ የሥራ ቀናትና የማይለወጥ ታሪክ ይመዘገባሉ።
+6. ክፍሉና ኮዱ ንቁ ሲሆኑ ብቻ ቁጥር ማውጣት ይፈቀዳል።
+
+ኮድን ከስም መገመት፣ በተጠቃሚ የተጻፈ ነፃ ጽሑፍ መቀበል፣ የተቋረጠ ኮድን እንደገና መጠቀም፣ የታሪክ መረጃን በዝምታ መቀየር ወይም በተዘጋ/ግልጽ ባልሆነ ክፍል ስም ሰነድ ማውጣት ክልክል ነው።
+
+**የአቅም ገደብ፦** ይህ ቋሚ ንድፍ 9 ቅርንጫፎችንና በእያንዳንዱ ቅርንጫፍ 9 መምሪያዎችን ይደግፋል። ዜሮ አይፈቀድም። ከዚህ አቅም በላይ ለመሄድ ባለቤቱ ያጸደቀው በስሪት የተቆጣጠረ የቅርጸት ለውጥ ያስፈልጋል። BB በዝምታ አይሰፋም።
+
+## 4. መመሪያ B — የሰነድ ዓይነት ዝርዝር አስተዳደር
+
+**ተጠያቂ ዘርፍ፦** ሰነዶች (Documents)።
+
+TT በቁጥር የሚገለጽ ቁጥጥር ያለው ኮድ ነው፤ በፈለጉት ጽሑፍ የሚተካ መለያ አይደለም። እያንዳንዱ የሰነድ ዓይነት የሚከተሉትን መረጃዎች ይኖሩታል፦
+- በሁለት አሃዝ የተጻፈ ኮድ፤
+- የአማርኛ ስምና ካስፈለገ ሁለተኛ ቋንቋ ስም፤
+- ትርጉም፣ ዓላማና የሚካተቱ/የማይካተቱ ጉዳዮች፤
+- የሰነድ አቅጣጫ፦ ገቢ፣ ወጪ ወይም ሁለቱም፤
+- አስፈላጊ መረጃዎችና አባሪዎች፤
+- የፈጣሪ፣ ገምጋሚ፣ አጽዳቂና አውጪ ሥልጣን፤
+- የማጽደቅና የማሳተም መስፈርቶች፤
+- የምስጢራዊነት መደበኛ ደረጃና የተፈቀዱ ደረጃዎች፤
+- የማቆያ ምድብና የማህደር መጀመሪያ ሁኔታ፤
+- የውጭ ሕጋዊ/ፋይናንስ ቁጥር ግዴታዎች፤
+- የሥራ ቀናት፣ ሁኔታ፣ ባለቤትና የማጽደቅ ታሪክ።
+
+አዲስ ዓይነት ለመጨመር፦
+1. በጽሑፍ ጥያቄ ያቅርቡ።
+2. ተመሳሳይ ዓይነት ቀድሞ መኖሩን ያረጋግጡ።
+3. የሥልጣን ሰንጠረዥ፣ የሕይወት ዑደት፣ የማቆያ ጊዜና የቁጥጥር ተፅዕኖ ይወስኑ።
+4. የባለቤት/አስተዳደር ፈቃድ ያግኙ።
+5. ገና ያልተጠቀመ የቁጥር ኮድ ይመድቡ።
+6. የሥራ መጀመሪያ ቀን ይወስኑና ያንቁ።
+7. ለታሪካዊ ትርጓሜ ኮዱን ለዘላለም ያቆዩ።
 
-A used code must never be reassigned. Retired types remain resolvable for historical records. Code 03 in the sample number is illustrative; it is not an approved type mapping until the controlled catalogue is approved.
+አንድ ጊዜ የተጠቀመ ኮድ እንደገና አይመደብም። የተቋረጡ ዓይነቶች ለታሪካዊ መዝገቦች ሊፈቱ ይችላሉ። በምሳሌው ያለው 03 የሰነድ ዓይነት ኮድ ምሳሌ ብቻ ነው፤ በተቆጣጠረው ዝርዝር እስኪጸድቅ ድረስ የተወሰነ ዓይነት አይወክልም።
 
-## 5. Manual C — Number allocation and counter management
+## 5. መመሪያ C — ቁጥር መመደብና ቆጣሪ አስተዳደር
 
-The independent counter scope is exactly:
-- Tenant;
-- Legal entity;
-- Issuing Organization unit (BB);
-- Document type (TT);
-- Full Ethiopian Calendar year.
+የተለየ ቆጣሪ የሚከተሉትን ወሰኖች ይጠቀማል፦
+- ተከራይ፤
+- ሕጋዊ ድርጅት፤
+- ሰነድ አውጪ ድርጅታዊ ክፍል (BB)፤
+- የሰነድ ዓይነት (TT)፤
+- ሙሉ የኢትዮጵያ ዓመት።
+
+የGovernance የሥልጣን ቦታና የግለሰብ አውጪ መረጃ የሥልጣን መረጃ ነው፤ የቆጣሪ ወሰን አይደለም። የቦታ ተያዥ ወይም ተወካይ መቀየር የክፍሉን/ዓይነቱን/ዓመቱን ተከታታይ ቁጥር አያስጀምርም።
 
-Governance position and individual issuer are authority metadata, not counter dimensions. A change of incumbent or acting issuer does not reset the unit/type/year sequence.
+የቆጣሪ መርሆች፦
+- በአዲስ ወሰን የመጀመሪያው ቁጥር 0001 ነው።
+- በተሳካ እያንዳንዱ ኦፊሴላዊ ማውጣት አንድ ይጨምራል።
+- ከፍተኛው 9999 ነው።
+- ቁጥር መመደብ፣ የሰነድ መፍጠርና የማውጣት ክስተት መመዝገብ በአንድ የውሂብ ግብይት (transaction) ውስጥ በአንድነት ይፈጸማሉ።
+- ልዩ የወሰን ቁልፍና በውሂብ ጎታ ደረጃ የተረጋገጠ የተወዳዳሪነት ቁጥጥር ያስፈልጋል።
+- ያልተጠበቀ `MAX(sequence)+1` ስሌት አይፈቀድም።
+- ግብይቱ ከተሳካ በስተቀር ሰነድ፣ ክስተትና ቆጣሪ እርምጃ በአንድነት ይመለሳሉ።
+- 9999 ሲደርስ አሰጣጥ ይቆማል፤ ወደ 0000 መመለስ፣ መቁረጥ ወይም ቁጥር መድገም አይፈቀድም።
 
-Counter rules:
-- First issued number in a new scope is 0001.
-- Each successful issuance advances by one.
-- 9999 is the maximum.
-- Counter allocation is atomic with document creation and issuance-event persistence.
-- A unique scope key and proven database concurrency control are required.
-- Never calculate a sequence using an unprotected MAX(sequence)+1.
-- A failed transaction rolls back document, event and counter advancement together.
-- At 9999, issuance fails closed; no wraparound, truncation or reuse.
+እያንዳንዱ የማውጣት ጥያቄ ከተከራዩ ጋር የተያያዘ የድግግሞሽ መከላከያ ቁልፍ (idempotency key) ይፈልጋል፦
+- ተመሳሳይ ቁልፍና ተመሳሳይ መደበኛ ይዘት፦ ቀድሞ የተመዘገበውን ውጤት ይመልሳል።
+- ተመሳሳይ ቁልፍና የተለየ ይዘት፦ ግጭት በማሳየት ይከለክላል።
+- ድጋሚ መላክ ለአንድ የተሳካ ጥያቄ ሁለተኛ ቁጥር እንዲመደብ አያደርግም።
 
-Every issue command requires a tenant-scoped idempotency key:
-- Same key and same canonical payload: return the original persisted issuance.
-- Same key and different payload: reject as conflict.
-- Retry must never allocate a second number for one successful request.
+የኤሌክትሮኒክ ቆጣሪው ንቁ ሲሆን የግል ስፕሬድሺት ወይም የወረቀት መዝገብ በተናጠል ኦፊሴላዊ ቁጥር መመደብ አይችልም። በሥራ መቋረጥ ጊዜ በድንገተኛ ሂደት የሚመዘገብ ጊዜያዊ መለያ ኦፊሴላዊ የዓርና ቁጥር አይደለም። ቀድሞ የተያዙ የቁጥር ቡድኖች ለብቻቸው የባለቤት ፈቃድ፣ ጠባቂነት፣ ማስታረቅና ያልተጠቀሙ ቁጥሮች አያያዝ የሚያካትት ንድፍ ይፈልጋሉ።
 
-No manual spreadsheet or paper register may independently allocate official numbers while the electronic counter is active. During an outage, provisional references may be recorded only under the contingency procedure; they are not official ARNA numbers. Preallocated number blocks require a separate Owner-approved design with custody, reconciliation and unused-number controls.
+## 6. መመሪያ D — ወጪ ሰነድ በይፋ ማውጣት
 
-## 6. Manual D — Outgoing document issuance
+ከማውጣት በፊት የሚከተሉትን ያረጋግጡ፦
+- ትክክለኛ ተከራይና ሕጋዊ ድርጅት፤
+- ንቁና ትክክለኛ ሰነድ አውጪ ክፍል፤
+- ንቁ የሰነድ ዓይነትና ተፈጻሚ የሆነ ቀን፤
+- ትክክለኛ የመጨረሻ ፋይል/ስሪትና የተከራይ ባለቤትነት፤
+- የሚያስፈልጉ ማጽደቆችና የሥራ መለያየት፤
+- ለዚያ ዓይነት የGovernance ሥልጣንና ከተከራዩ ጋር የተያያዘ ፈቃድ፤
+- ተቀባይ፣ ርዕስ፣ ቀን፣ አባሪና የምስጢራዊነት መረጃ፤
+- ተጨማሪ የFinance፣ የግብር፣ የሕግ ወይም የተቆጣጣሪ መለያ ቁጥር ካለ በተለየ መስክ።
 
-Before issue, verify:
-- Correct tenant and legal entity;
-- Active and correct issuing unit;
-- Active document type and valid effective date;
-- Correct final file/version and tenant ownership;
-- Required approvals and separation-of-duties checks;
-- Current type-specific Governance authority and tenant-scoped permission;
-- Required recipient, subject, date, attachments and confidentiality metadata;
-- Any applicable Finance, tax, legal or regulator identifier separately recorded.
+የማውጣት ሂደት፦
+1. ጸሐፊው ያለ ኦፊሴላዊ ቁጥር ረቂቅ ያዘጋጃል።
+2. ረቂቁ ለግምገማ ይላካል።
+3. ገምጋሚው ይዘት፣ ምድብ፣ ተቀባይ፣ ድርጅት፣ ሥልጣንና አባሪዎችን ይፈትሻል።
+4. አስፈላጊው አጽዳቂ/አጽዳቂዎች ትክክለኛውን የተላከ ስሪት ያጸድቃሉ።
+5. ሥልጣን ያለው አውጪ የማውጣት ትእዛዝ ይፈጽማል።
+6. አገልጋዩ በ`Africa/Addis_Ababa` የሰዓት ዞን አንድ የማውጣት ጊዜ ይይዛል።
+7. በተፈቀደው የኢትዮጵያ ቀን አቆጣጠር አገልግሎት ሙሉ ዓመቱን ያስላል።
+8. በግብይቱ ውስጥ ተከራይ፣ ድርጅት፣ ክፍል፣ ዓይነት፣ አውጪና ሥልጣን እንደገና ያረጋግጣል።
+9. ትክክለኛውን ቆጣሪ በአንድነት ያሳድጋል።
+10. `ዓርና/BB/TT/SSSS/YY` ይፈጥራል፤ ሙሉ የተዋቀረ መረጃና የማይለወጥ የሰነድ UUID ያስቀምጣል።
+11. ሰነድ፣ ቆጣሪና የማውጣት ክስተት በአንድነት ይጸድቃሉ።
+12. ስርዓቱ ቁጥሩንና ኦፊሴላዊ የማውጣት ጊዜን ይመልሳል።
+13. በመጨረሻው ሰነድ ላይ የአማርኛ ቁጥር መለያና ሙሉ የኢትዮጵያ ቀን ይታያሉ።
+14. የመላክና የመድረስ ማስረጃ በተለየ ይመዘገባል።
 
-Issuance procedure:
-1. Author creates a draft without an official number.
-2. Draft is submitted for review.
-3. Reviewer checks content, classification, recipient, entity, authority and attachments.
-4. Required approver(s) approve the exact submitted version.
-5. Authorized issuer invokes the issue action.
-6. Server captures one issuance timestamp in Africa/Addis_Ababa.
-7. Server derives the full Ethiopian year using the approved calendar service.
-8. Server revalidates tenant, entity, unit, type, issuer and authority inside the transaction.
-9. Server atomically advances the correct counter.
-10. Server formats ዓርና/BB/TT/SSSS/YY and stores the full structured values and immutable document UUID.
-11. Document, counter advancement and issuance event commit atomically.
-12. System returns the number and official issue timestamp.
-13. Final rendered document shows the Amharic number label and full Ethiopian date.
-14. Dispatch and delivery evidence is recorded separately.
+ማንኛውም ማረጋገጫ ካልተሳካ ቁጥር አይሰጥም። የጸደቀ ነገር ግን ገና ያልወጣ ሰነድ እንደተሰጠ መቅረብ የለበትም።
 
-If any check fails, no number is issued. An approved but not yet issued document must not be represented as issued.
+## 7. መመሪያ E — ገቢ ደብዳቤና የውጭ ግንኙነት ምዝገባ
 
-## 7. Manual E — Incoming correspondence registration
+ገቢ ደብዳቤ በዓርና የተሰጠ ወጪ ደብዳቤ አይደለም። የላኪው ማጣቀሻ ቁጥር በተቀበለበት ቅርጽ በትክክል ይጠበቃል።
 
-Incoming correspondence is not an ARNA-issued letter. Preserve the sender's reference exactly as received.
+በመቀበያ ጊዜ፦
+1. የተቀበለበትን ቀንና ሰዓት በኢትዮጵያ የአካባቢ ሰዓትና ቀን አቆጣጠር ይመዝግቡ።
+2. ላኪ፣ የላኪ ድርጅት፣ ተቀባይ ቢሮ፣ ርዕስ፣ የመጣበት መንገድና ተቀባይ ሠራተኛ ይመዝግቡ።
+3. የላኪውን ቁጥር ሥርዓተ-ነጥቡንና ቋንቋውን ጨምሮ በትክክል ይጠብቁ።
+4. የተቀበለውን ዋና ሰነድ፣ ፖስታ ወይም የማድረስ ማስረጃ ካስፈለገ ይጠብቁ።
+5. የውስጥ ገቢ ምዝገባ መለያ ቁጥር በተለየ የጸደቀ ሂደት ብቻ ይመድቡ።
+6. ሰነዱን ወደ ኃላፊው ክፍል ያስተላልፉ፤ የኃላፊነትና የጠባቂነት ታሪክ ይመዝግቡ።
+7. የምስጢራዊነት፣ የመዳረሻና የማቆያ ምድብ ይተግብሩ።
 
-At intake:
-1. Record received date/time using Ethiopia local time and Ethiopian-calendar display.
-2. Record sender, sender organization, recipient office, subject, channel and received-by officer.
-3. Capture sender reference exactly, including punctuation and language.
-4. Preserve the received original, envelope or delivery evidence where applicable.
-5. Assign an internal incoming-registration reference only through a separately approved incoming-register procedure.
-6. Route to the responsible unit and record custody/assignment history.
-7. Apply confidentiality, access and retention classification.
+የላኪውን ቁጥር በወጪ የዓርና ቁጥር መስክ አያስገቡ፤ ወደ ዓርና ቅርጸትም አይቀይሩት። የገቢ ቁጥር ቅርጸት ካልጸደቀ/ካልተተገበረ የተለየ የመዝገብ UUID ይጠቀሙ፤ የራስዎን ቅርጸት አትፍጠሩ።
 
-Do not place the sender's number in the outgoing ARNA-issued-number field or rewrite it to fit ARNA syntax. If the incoming-reference format is not approved/implemented, retain a separate internal record ID; do not invent a number pattern.
+ለገቢ ሰነድ የሚሰጥ ምላሽ አዲስ ወጪ ሰነድ ነው፤ የራሱን የዓርና ቁጥር ይቀበላል፣ ከገቢው መዝገብ ጋርም ይገናኛል።
 
-A response is a new outgoing document and receives its own ARNA number linked to the incoming record.
+## 8. መመሪያ F — የውስጥ ማስታወሻና ቁጥጥር ያለው መዝገብ
 
-## 8. Manual F — Internal memoranda and controlled records
+በይፋ የሚወጡ መደበኛ የውስጥ ሰነዶች በይፋ ሲወጡ ተመሳሳይ መደበኛ ቁጥር ይቀበላሉ። መዝገቡን የሚያስተዳድረው አውጪ ክፍል ነው፤ TT የጸደቀውን የሰነድ ምድብ ይወክላል።
 
-Formal internal documents receive the same canonical ARNA number at official issuance. The issuing unit owns the record; TT identifies its approved category.
+ረቂቅ ማስታወሻዎች፣ የሥራ ቅጂዎች፣ የውይይት መልዕክቶችና መደበኛ ያልሆኑ ፋይሎች በተፈቀደ የመዝገብ ምድብ ካልተጠየቀ በስተቀር ኦፊሴላዊ ቁጥር አይቀበሉም። ጸሐፊዎች በራሳቸው የዓይነት ኮድ መምረጥ አይችሉም።
 
-Draft notes, working copies, chat messages and informal files do not receive official numbers unless an approved records classification requires registration. Authors cannot choose an arbitrary type code.
+## 9. መመሪያ G — ማስተካከያ፣ ማሰረዝ፣ ተፈጻሚነት ማቋረጥና በሌላ ሰነድ መተካት
 
-## 9. Manual G — Corrections, voids, revocations and supersession
+**ከማውጣት በፊት፦** የረቂቅ ለውጦች በረቂቅ ፈቃድና በስሪት ቁጥጥር ይከናወናሉ። ኦፊሴላዊ ቁጥር ገና አልተመደበም።
 
-**Before issuance:** Draft edits follow draft permissions and version controls. No official number has yet been allocated.
+**ከማውጣት በኋላ፦** የተሰጠውን ሰነድ በላዩ ላይ አትጻፉ፤ ቁጥሩንም አትቀይሩ። በተፈቀደው የሰነድ ዓይነት መመሪያ መሠረት የተቆጣጠረ የተሻሻለ ስሪት ወይም አዲስ የተያያዘ ሰነድ ይፍጠሩ። የመጀመሪያውን ቁጥር፣ ጊዜ፣ ፋይል/ስሪት፣ የማስተካከያ ምክንያት፣ ጠያቂ፣ ማጽደቆች፣ አዲስ መለያና ግንኙነቶች ይጠብቁ።
 
-**After issuance:** Never overwrite the issued artifact or mutate its number. Create a controlled corrected/amended version or a new linked document under the applicable type policy. Preserve original number, timestamp, file/version, correction reason, requester, approvals, new record identity and relationships.
+**ማሰረዝ (Void)፦** የተሰጠ መዝገብ ከዚያ በኋላ ላይመረኮዝበት የሚወስን ቁጥጥር ያለው ውሳኔ ነው። ሥልጣን ያለው ምክንያትና ማጽደቅ ያስፈልጋል። ቁጥሩ ለዘላለም ተይዞ ይቆያል።
 
-**Void:** A controlled declaration that an issued record should no longer be relied upon. Requires authorized reason and approval. The number remains permanently reserved.
+**ተፈጻሚነት ማቋረጥ (Revoke)፦** የሰነዱን ቀጣይ ተፈጻሚነት ያቋርጣል። መዝገቡን አይሰርዝም፣ ቁጥሩን አይመልስም፣ የማውጣት ታሪክንም አያጠፋም። ምክንያት፣ ተፈጻሚ ጊዜ፣ አድራጊና ሥልጣን ይመዘገባሉ።
 
-**Revoke:** Withdraws continuing validity/effect. It does not delete the record, recycle the number or erase issuance history. Record reason, effective timestamp, actor and authority.
+**በሌላ ሰነድ መተካት (Supersede)፦** ተተኪው አዲስ መዝገብና አዲስ ቁጥር ይኖረዋል። የቀድሞውና የአዲሱ ሰነድ ግንኙነት በሁለቱም አቅጣጫ ይመዘገባል። ሁለቱንም አትጻፉባቸው።
 
-**Supersede:** Replacement is a new record with a new number. Link old and new records in both directions. Do not overwrite either.
+**ከማውጣት በፊት መሰረዝ፦** በሂደት ላይ ያለ ረቂቅ ወይም ጥያቄ በሂደት ደንብ መሠረት ሊሰረዝ ይችላል። ቁጥር ስላልተመደበ ቁጥር አይበላሽም፤ የስረዛ ክስተት ግን ይመዘገባል።
 
-**Cancel before issuance:** A draft/pending request may be cancelled under workflow rules. Since no official number was allocated, no number is consumed. Preserve the cancellation event.
+## 10. መመሪያ H — የኢትዮጵያ ቀን አቆጣጠርና ሰዓት
 
-## 10. Manual H — Ethiopian Calendar and time
+- አገልጋዩ አንድ ትክክለኛ የማውጣት ጊዜ ይይዛል።
+- የሥራ ሰዓት ዞን `Africa/Addis_Ababa` ነው።
+- የተፈቀደው የኢትዮጵያ ቀን አቆጣጠር አገልግሎት ሙሉ ዓመትና ቀን ያስላል።
+- ተጠቃሚው ትክክለኛውን ዓመት አያስገባም፣ አይቀይርም።
+- የሰዓት ዞን ያለው ጊዜና ሙሉ የኢትዮጵያ ዓመት/ቀን ይቀመጣሉ።
+- በሰነዱ ላይ ሙሉ የኢትዮጵያ ቀን ይታያል፤ በቁጥሩ የመጨረሻ ሁለት አሃዞች ብቻ ይታያሉ።
+- የኢትዮጵያን ዓመት ከግሪጎሪያን ዓመት ቋሚ ቁጥር በመቀነስ አያስሉ።
+- የዓመት ድንበር ላይ ለሚወጣ ሰነድ ተመሳሳይ የተያዘ ጊዜ ለማሳያና ለቆጣሪ ወሰን ይጠቀማል።
+- ከሥራ ላይ ማዋል በፊት የአዲስ ዓመትና የዘለለ ዓመት (leap year) ባህሪ ይረጋገጥ።
 
-- Server captures one authoritative issuance instant.
-- Business time zone is Africa/Addis_Ababa.
-- Approved Ethiopian Calendar service derives the full Ethiopian year/date.
-- Client cannot submit or override the authoritative year.
-- Store a timezone-aware timestamp and full Ethiopian year/date fields.
-- Display the full Ethiopian date on the document; the number suffix displays only the final two year digits.
-- Never derive the Ethiopian year by subtracting a fixed number from Gregorian year.
-- Year-boundary issuance uses the same captured instant for display and counter scope.
-- Verify Ethiopian New Year and leap-year behavior before activation.
+## 11. መመሪያ I — ሥልጣን፣ መዳረሻና የሥራ መለያየት
 
-## 11. Manual I — Authority, access and separation of duties
+በሰነዱ ላይ ያለው ቁጥር ራሱ ሥልጣን አይሰጥም።
 
-The visible number does not confer authority.
+- Finance የሕጋዊ ድርጅት መለያን ይቆጣጠራል።
+- Organization የቅርንጫፍና የመምሪያ ክፍሎችን ይቆጣጠራል።
+- Governance የሥልጣን ቦታዎችን፣ የሥልጣን ፈቃዶችንና ተወካይነቶችን ይቆጣጠራል።
+- Documents የሰነድ ዓይነት ዝርዝርን፣ ቆጣሪዎችንና የማውጣት ሂደትን ይቆጣጠራል።
+- የPlatform መለያና ደህንነት የተከራይ አባልነትንና RBAC ፈቃድ ምዘናን ይቆጣጠራል።
 
-- Finance owns legal-entity identity.
-- Organization owns branch/department units.
-- Governance owns positions, grants and acting assignments.
-- Documents owns type catalogue, counters and issuance lifecycle.
-- Platform identity/security owns tenant membership and RBAC evaluation.
+የተከራይ መረጃ ከጎደለ፣ የመዝገብ ግንኙነት ግልጽ ካልሆነ፣ ክፍሉ ንቁ ካልሆነ፣ ፈቃድ ከተሰረዘ፣ ተወካይነት ካበቃ ወይም ድርጅቱ ካልተዛመደ ስርዓቱ ማውጣትን ይከለክላል (fail closed)። ተወካይ አውጪ ለትክክለኛው የሰነድ ተግባር ግልጽ፣ በጊዜ የተገደበ ሥልጣን ሊኖረው ይገባል፤ በግምት የሚወረስ ሥልጣን የለም።
 
-Fail closed for missing tenant context, ambiguous registry matches, inactive units, revoked grants, expired acting assignments or mismatched entity. Acting issuers require explicit effective authority for the exact document action; no implicit inheritance.
+የሚከተሉት ፈቃዶች በተለያየ መልኩ ይተዳደራሉ፦ መፍጠር/ማስተካከል፣ ማቅረብ፣ መገምገም፣ ማጽደቅ፣ ማውጣት፣ ማየት፣ ገቢ ምዝገባ፣ ማሰረዝ፣ ተፈጻሚነት ማቋረጥ፣ ማተም፣ የዓይነት ዝርዝር ማስተዳደርና ኦዲት/ወደ ውጭ ማውጣት። ከፍተኛ አደጋ ያላቸው እርምጃዎች ምክንያትና ተጨማሪ የኦዲት መዝገብ ይፈልጋሉ። የአስተዳዳሪነት ሚና ብቻውን የሰነድ ማውጣት ሥልጣን አይሰጥም።
+
+## 12. መመሪያ J — ምስጢራዊነት፣ ህትመትና QR ማረጋገጫ
 
-Permissions should be distinct for create/edit, submit, review, approve, issue, view, incoming registration, void, revoke, publish, catalogue administration and audit/export. High-risk actions require reason capture and append-only audit. An administrator role alone does not confer issuing authority.
+- ለሕዝብ የሚታይ መሆን በተለየ ፈቃድ ይወሰናል፤ ከማውጣት/ማጽደቅ በራሱ አይከተልም።
+- የግል/የተገደበ ሰነድ በመለያ በገባ መንገድ ብቻ ይደረስበታል፤ የተከራይ አባልነትና ወቅታዊ ፈቃድ እንደገና ይፈተሻሉ።
+- የሕዝብ QR ማረጋገጫ የተፈቀደውን አነስተኛ መረጃ ብቻ ያሳያል።
+- QR ውስጥ የጥሬ ማከማቻ መንገድ፣ የግል ፋይል አገናኝ፣ የመግቢያ ምስጢር ወይም ስሱ የግል መረጃ አይካተትም።
+- የተፈረመ URL የአገናኝ/ጥያቄ ትክክለኛነትን ይጠብቃል፤ ሕጋዊ ደራሲነትን ወይም በሕግ የታወቀ ዲጂታል ፊርማን አያረጋግጥም።
+- ማረጋገጫ የአሁኑን የህትመትና የስረዛ ሁኔታ ይፈትሻል፤ ያረጀ የተሸሸገ ሁኔታ አይታመንም።
+- የፋይል ቢት ትክክለኛነት ለማረጋገጥ ለትክክለኛው የተሰጠ ስሪት በአገልጋዩ የተሰላ SHA-256 ያስፈልጋል።
+- QR ማረጋገጫና የሕዝብ ማውረድ በተለያየ ፈቃድ፣ የጥያቄ ገደብና የኦዲት መዝገብ ይቆጣጠራሉ።
+- የግል QR ወደ መግቢያ ሊያመራ ይችላል፤ ከመግባት በኋላም ፈቃድ መኖሩ መረጋገጥ አለበት።
 
-Separation-of-duties requirements are defined per type. The approved matrix should prevent an author from approving their own document where required. Emergency exceptions require explicit approval, reason and audit.
+የሕዝብ ማረጋገጫ፣ QR ማመንጨት፣ የምስጢራዊ ፊርማ ሥርዓትና SHA-256 ማረጋገጫ በተለየ መልኩ እስኪተገበሩና እስኪረጋገጡ ድረስ እንዳሉ አይቀርቡ።
 
-## 12. Manual J — Confidentiality, publication and QR verification
+## 13. መመሪያ K — ማቆያ፣ ማህደር፣ ሕጋዊ ማገድና ማስወገድ
+
+ይህ መመሪያ ዝቅተኛ ቁጥጥሮችን ይወስናል፤ የማቆያ ዓመታትን አይወስንም። ትክክለኛ ጊዜዎች በዓርና የማቆያ መርሐ-ግብር መጽደቅና ከተፈጻሚ የኢትዮጵያ ሕግ፣ የግብር፣ የሥራ፣ የኩባንያ፣ የፋይናንስ፣ የፍርድ ቤትና የዘርፍ መስፈርቶች ጋር መጣጣም አለባቸው።
 
-- Public visibility is opt-in and separate from issuance/approval.
-- Private/restricted documents resolve through authenticated routes and re-check tenant membership and current permissions.
-- Public QR verification discloses only an approved minimal verification projection.
-- QR codes never encode raw storage paths, private file URLs, credentials or sensitive personal data.
-- A signed URL protects URL/query integrity; it does not prove legal authorship or constitute a legally recognized digital signature.
-- Verification checks current publication and revocation state, not stale cached status.
-- Strong byte integrity requires a server-controlled SHA-256 digest for the exact issued file version.
-- QR verification and public download are independently permissioned, rate-limited and audited.
-- Private QR may lead to login, but authorization is still required after authentication.
+ዝቅተኛ ቁጥጥሮች፦
+1. የተሰጠ ሰነድ፣ ቁጥሩ፣ የመጨረሻ ፋይል/ስሪቱና የሕይወት ዑደት ታሪኩ አብረው ይጠበቃሉ።
+2. በሰነድ ዓይነት የማቆያ ምድብና የመጀመሪያ ቀን ይመደባሉ።
+3. መዝገቦች ሊነበቡ፣ ሊፈለጉና ወደ ውጭ ሊወጡ በሚችል ሁኔታ ይቆያሉ።
+4. ዋናና የተሻሻሉ ስሪቶች ይገናኛሉ።
+5. ክስ፣ ምርመራ፣ ኦዲት፣ ክርክር ወይም የተቆጣጣሪ ጥያቄ ሲጠበቅ/ሲደርስ ሕጋዊ ማገድ ይደረጋል።
+6. ሕጋዊ ማገድ ሲኖር መደበኛ ማጥፋት ይቆማል።
+7. ማስወገድ የሚፈቀደው በሥልጣን ማጽደቅ፣ በመርሐ-ግብር ብቁነትና በማጥፋት ማረጋገጫ ብቻ ነው።
+8. በመደበኛ ሥራ የተሰጡ ሰነዶች በቋሚነት አይደመሰሱም።
+9. የመረጃ ጠቋሚና የኦዲት ታሪክ በጸደቀው መርሐ-ግብር መሠረት ይጠበቃሉ።
+10. የማህደር ማስተላለፍ፣ ጠባቂነት፣ መዳረሻና የተፈቀደ ማስወገድ ይመዘገባሉ።
 
-Public verification, QR rendering, cryptographic signatures and SHA-256 verification must not be represented as available until separately implemented and verified.
-
-## 13. Manual K — Retention, archive, legal hold and disposal
-
-This manual defines minimum controls, not retention durations. Exact periods must be approved in an ARNA retention schedule and reconciled with applicable Ethiopian legal, tax, employment, corporate, financial, court and sector requirements.
-
-Minimum controls:
-1. Preserve issued record, number, final file/version and lifecycle history together.
-2. Assign retention category and trigger date by document type.
-3. Keep records readable, searchable and exportable.
-4. Link original and amended versions.
-5. Apply legal hold when litigation, investigation, audit, dispute or regulatory inquiry is anticipated or notified.
-6. Suspend routine destruction while legal hold is active.
-7. Require authorized approval, schedule eligibility and destruction certificate before permitted disposal.
-8. Do not hard-delete issued records through ordinary operations.
-9. Preserve metadata and audit history according to the approved schedule.
-10. Record archive transfer, custody, access and authorized disposal.
+የማቆያ ጊዜም ሆነ የማስወገድ ሥልጣን በዚህ መመሪያ አይፈጠርም። ማስወገድ ከመከፈቱ በፊት መርሐ-ግብሩና ተጠያቂ ጠባቂው መጽደቅ አለባቸው።
 
-No retention duration or disposal authority is invented here. The schedule and accountable custodian must be approved before disposal is enabled.
+## 14. መመሪያ L — መዝገቦች፣ ፍለጋ፣ ሪፖርትና ማስታረቅ
 
-## 14. Manual L — Registers, search, reports and reconciliation
+በፈቃድ የተገደቡ መዝገቦች ቢያንስ የሚከተሉትን ይሸፍናሉ፦
+- የተሰጡ ወጪ ሰነዶች፤
+- ገቢ ደብዳቤዎች፤
+- የውስጥ ቁጥጥር ያላቸው ሰነዶች፤
+- ረቂቅ/ማጽደቅ የሚጠብቁ ሰነዶች፤
+- የተሰረዙ፣ ተፈጻሚነታቸው የተቋረጠና በሌላ የተተኩ መዝገቦች፤
+- የቆጣሪ ወሰኖችና አጠቃቀም፤
+- የሰነድ ዓይነት ዝርዝርና የድርጅት ኮድ ታሪክ፤
+- የመዳረሻ፣ የማረጋገጫና የሕይወት ዑደት ኦዲት ክስተቶች።
 
-Permission-filtered registers should cover:
-- Issued outgoing documents;
-- Incoming correspondence;
-- Internal controlled documents;
-- Draft/pending issuance;
-- Voided, revoked and superseded records;
-- Counter scopes and utilization;
-- Type catalogue and organization-code history;
-- Access, verification and lifecycle audit events.
+ፍለጋ በትክክለኛ ቁጥር፣ ሙሉ የኢትዮጵያ ዓመት፣ ክፍል፣ ዓይነት፣ ርዕስ፣ ላኪ/ተቀባይ፣ አውጪ፣ ሁኔታ፣ ሕጋዊ ድርጅትና የቀን ክልል ሊደግፍ ይገባል፤ ሁሉም በተጠቃሚው ፈቃድ ወሰን ውስጥ ብቻ።
 
-Search should support exact number, full E.C. year, unit, type, subject, sender/recipient, issuer, status, legal entity and date range, subject to authorization.
+ወቅታዊ ማስታረቅ የሚከተሉትን ያረጋግጣል፦
+- እያንዳንዱ የተሰጠ ሰነድ አንድ መደበኛ ቁጥርና የማውጣት ክስተት አለው።
+- የቆጣሪ ዋጋዎች ከተጸደቁ መመደቦችና ከተያዙ የተሰረዙ/ተፈጻሚነታቸው ከተቋረጠ ቁጥሮች ጋር ይስማማሉ።
+- በአንድ ተከራይ ውስጥ የተደጋገመ ቁጥር የለም።
+- ቁጥር በዝምታ አይመለስም፤ ክፍተትም በራስ ፈቃድ አይሞላም።
+- ሙሉ የኢትዮጵያ ዓመት ከተያዘው ጊዜ ጋር ይስማማል።
+- እያንዳንዱ ቁጥር ወደ አንድ የማይለወጥ መዝገብ ይመራል።
+- የተቋረጡ ኮዶች ለታሪክ ሊፈቱ ይችላሉ።
+- ያልተፈቀደ/በእጅ የተመደበ ቁጥር ይመረመራል።
 
-Periodic reconciliation verifies:
-- Every issued document has one canonical number and issuance event.
-- Counter values agree with committed allocations and retained void/revoked numbers.
-- No duplicate exists within a tenant.
-- No number is silently reused or gap-filled.
-- Full E.C. year matches the captured timestamp.
-- Every number resolves to one immutable record.
-- Retired codes remain resolvable for history.
-- Unauthorized/manual allocations are investigated.
+ሪፖርቶች የተመደቡ ተከታታይ ቁጥሮችን ከአሁን በኋላ ንቁ ከሆኑ ሰነዶች ይለያሉ። የተሰረዙና ተፈጻሚነታቸው የተቋረጠ ሰነዶች በቁጥር ታሪክ ውስጥ ይቆያሉ።
 
-Reports distinguish sequence values allocated from documents currently active. Voided and revoked records remain part of issued-number history.
+## 15. መመሪያ M — የአገልግሎት መቋረጥና የሥራ ቀጣይነት
 
-## 15. Manual M — Outage and business continuity
+በአገልግሎት መቋረጥ ጊዜ፦
+1. ኦፊሴላዊ ቁጥር አትፍጠሩ፤ ቁጥጥሮችንም አትዞሩ።
+2. የተመደበ የመዝገብ ኃላፊ የመቋረጥ መለያ፣ መጀመሪያ ጊዜ፣ የተጎዱ ክፍሎች፣ ፈቃድ ሰጪና ጠባቂ ያለበት የመቋረጥ መዝገብ ይከፍታል።
+3. ጊዜያዊ መዝገቦች “ጊዜያዊ” ተብለው ይለያሉ፤ እንደ የመጨረሻ የዓርና ቁጥር አይቀርቡም።
+4. ስርዓቱ ከተመለሰ በኋላ መዝገቦችን በተቀበሉበት/በተሰጡበት ቅደም ተከተል ያስታርቁ።
+5. መድረኩ በመደበኛ ቁጥጥር ቀጣዩን ትክክለኛ ቁጥር ይመድባል።
+6. ጊዜያዊ መለያዎችን እንደ ተያያዥ ማጣቀሻ ያቆዩ።
+7. ሁለተኛ ፈቃድ ያለው ኃላፊ ማስታረቁን ይገምግማል።
+8. ቀድሞ የታተሙ ቅጾች ወይም የተያዙ ቁጥር ቡድኖች ለብቻቸው የባለቤት ፈቃድ፣ ጠባቂነት፣ አካላዊ ደህንነት፣ ማስታረቅና ያልተጠቀሙ ቁጥሮች አያያዝ የሚያካትት ሂደት ይፈልጋሉ።
 
-During an outage:
-1. Do not invent official numbers or bypass controls.
-2. Designated records manager opens an outage log with outage ID, start time, affected units, authorizing officer and custodian.
-3. Provisional records are marked provisional and are not represented as final ARNA numbers.
-4. After restoration, reconcile entries in receipt/issuance order.
-5. Platform allocates the next valid official number under normal controls.
-6. Retain provisional outage references as cross-references.
-7. A second authorized officer reviews reconciliation.
-8. Pre-numbered stock or reserved sequence blocks require a separate Owner-approved procedure covering custody, physical security, reconciliation and unused-number disposition.
+## 16. መመሪያ N — ኦዲት፣ ክስተቶችና ልዩ ፈቃዶች
 
-## 16. Manual N — Audit, incidents and exceptions
+እንደ አግባብነቱ የሚከተሉት ይመዘገባሉ፦
+- ተከራይ፣ ሕጋዊ ድርጅት፣ የሰነድ UUIDና መደበኛ ቁጥር፤
+- የቀድሞና አዲስ ሁኔታ፤
+- ሙሉ የኢትዮጵያ ዓመትና የማውጣት ጊዜ፤
+- የአድራጊ መለያና የሥልጣን ማስረጃ፤
+- እርምጃ፣ ምክንያትና የጥያቄ/ግንኙነት መለያ፤
+- የቆጣሪ ወሰንና ተከታታይ ቁጥር፤
+- የመዝገብ ምንጭ መለያዎችና በማውጣት ጊዜ የተያዙ ቅጂዎች፤
+- የፋይል/ስሪት መለያና ካለ የትክክለኛነት ማረጋገጫ፤
+- የማጽደቅ፣ የመላክ፣ የመቀበል፣ የማሰረዝ፣ የማቋረጥና የመተካት ማጣቀሻዎች።
 
-Capture, as applicable:
-- Tenant, legal entity, document UUID and canonical number;
-- Previous/new state;
-- Full E.C. year and issuance timestamp;
-- Actor identity and authority evidence;
-- Action, reason and request/correlation ID;
-- Counter scope and sequence;
-- Source registry IDs and issuance-time snapshots;
-- File/version identity and integrity digest if implemented;
-- Approval, dispatch, receipt, void, revocation and supersession references.
+የኦዲት መዝገቦች በመደበኛ ተጠቃሚ አይታረሙም። ማስተካከያ አዲስ ክስተት ይፈጥራል፤ የቀድሞ ክስተትን አይቀይርም።
 
-Audit records are append-only to ordinary users. Corrections are new events, not edits to old events.
+የተደጋገመ ቁጥር፣ ያልተፈቀደ ማውጣት፣ የቆጣሪ ማታለል፣ የተሳሳተ ተከራይ መረጃ መጋለጥ፣ የተሰጠ ፋይል መቀየር ወይም የኦዲት ታሪክ መጥፋት የመዝገብ/ደህንነት ክስተት ነው። አስፈላጊ ከሆነ የተጎዳውን የማውጣት ወሰን ያቁሙ፣ ማስረጃ ይጠብቁ፣ ተጠያቂ ኃላፊዎችን ያሳውቁና የክስተት ምላሽ ይከተሉ። ክስተትን ለመደበቅ ቆጣሪ አትቀይሩ፣ መዝገብም እንደገና ቁጥር አትስጡ።
 
-Suspected duplicate numbers, unauthorized issuance, counter tampering, wrong-tenant disclosure, altered issued artifacts or missing audit history are records/security incidents. Suspend affected issuance scope where necessary, preserve evidence, notify accountable officers and follow incident response. Never edit counters or renumber records to conceal an incident.
+ልዩ ፈቃድ የተጣሰውን ደንብ፣ የንግድ/ሕጋዊ ምክንያት፣ የተጎዳውን ወሰን፣ አደጋና የማካካሻ ቁጥጥር፣ የተሰየመ አጽዳቂ፣ የሥራ ጊዜ/ማብቂያ፣ የኦዲት ማጣቀሻና ከኋላ ማስታረቅ መያዝ አለበት። ቁጥር መድገም፣ በዝምታ መቀየር፣ ተከራይ መሻገር ወይም ኦዲት ማጥፋት በልዩ ፈቃድ አይፈቀድም።
 
-Exceptions must identify the rule, business/legal reason, affected scope, risk and compensating controls, named approver, effective period/expiry, audit reference and post-exception reconciliation. No exception may permit number reuse, silent mutation, cross-tenant access or audit deletion.
+## 17. መመሪያ O — የህትመት ቅርጽና አያያዝ
 
-## 17. Manual O — Printed layout and handling
+ኦፊሴላዊ ወጪ ሰነድ ቢያንስ የሚከተሉትን ያሳያል፦
+- የጸደቀ የአማርኛ የደብዳቤ ራስጌና የድርጅት መለያ፤
+- `ቁጥር፦` የሚል የአማርኛ መለያ ከመደበኛ ቁጥሩ ጋር፤
+- ሙሉ የኢትዮጵያ ቀን፤
+- የተቀባይ ስም/ድርጅትና አድራሻ፤
+- ርዕስ፣ ይዘት፣ አባሪዎች፤
+- የፈራሚ/አውጪ ስምና የሥልጣን ማብራሪያ፤
+- የምስጢራዊነት ምልክት ካለ፤
+- የሰነድ ስሪትና የማረጋገጫ መረጃ ካለ።
 
-Official outgoing documents should show:
-- Approved Amharic letterhead and organizational identity;
-- ቁጥር፦ followed by the canonical number;
-- Full Ethiopian-calendar date;
-- ለ፦ recipient, ከ፦ issuing office and ጉዳዩ፦ subject;
-- Authorized signatory and role/position;
-- Required attachments and page numbering;
-- QR mark only where an authoritative verification URL is supplied and the route is correctly configured.
+ቁጥሩ በሚነበብ መጠን ይታይ፤ በህትመት፣ ቅጂ፣ ማስታወሻና ዲጂታል ፋይል ላይ አንድ ዓይነት ይሁን። QR ወይም ሌላ የማረጋገጫ አካል በእውነት ካልተፈጠረ ተፈጥሯል ብሎ አይታተም። የተሰጠውን የመጨረሻ ፋይል ያልተፈቀደ ሰው እንዳይቀይር ይጠብቁ።
 
-The number must be legible and identical on every page, copy, scan, export and system record. Reprinting does not allocate a new number. Duplicate/certified-copy marking is separate from changing the original record.
+## 18. መመሪያ P — አስፈላጊ ቅጾችና የቁጥጥር መዝገቦች
 
-## 18. Manual P — Required forms and controlled registers
+የሚከተሉት ቅጾች በተቆጣጠረ የሰነድ አያያዝ ስርዓት መጽደቅና ስሪት መያዝ አለባቸው፦
 
-Required templates before production activation:
-1. Branch/department code request: name, parent, entity, tenant, proposed code, justification, effective date, owner and approval.
-2. Document-type registration request: numeric code, Amharic title, definition, authority matrix, lifecycle, confidentiality, retention and regulatory implications.
-3. Outgoing issuance checklist: completeness, approvals, authority, unit/type validity, final version, recipient, timestamp and result.
-4. Incoming correspondence register: received timestamp/date, sender, sender reference, recipient unit, subject, channel, received-by, evidence and routing.
-5. Void/revocation request: number, reason, evidence, effective date, authority, approval and event ID.
-6. Correction/supersession register: original number, replacement number, reason, relationship and approvals.
-7. Outage provisional register: outage ID, provisional reference, date/time, unit, custodian, record description and final official number.
-8. Counter reconciliation report: scope, full E.C. year, last sequence, counts, anomalies, reviewer and resolution.
-9. Retention/legal-hold register: class, trigger, schedule, hold basis, custodian, release authority and disposal decision.
-10. Exception register: deviation, risk, approval, expiry and closure evidence.
+1. **የቅርንጫፍ/መምሪያ ኮድ ጥያቄ፦** የክፍል ስም፣ ወላጅ ክፍል፣ ሕጋዊ ድርጅት፣ ተከራይ፣ የታቀደ ኮድ፣ የሥራ ቀን፣ አጽዳቂ።
+2. **የሰነድ ዓይነት ጥያቄ፦** የታቀደ ስም/ኮድ፣ ዓላማ፣ የሚያስፈልጉ መረጃዎች፣ ሥልጣን፣ ምስጢራዊነት፣ ማቆያ፣ ሕጋዊ ተፅዕኖ።
+3. **የወጪ ሰነድ ማውጣት መዝገብ፦** ቁጥር፣ ሙሉ ዓመት፣ ዓይነት፣ ክፍል፣ ርዕስ፣ ተቀባይ፣ አውጪ፣ ማጽደቅ፣ ጊዜ።
+4. **የገቢ ደብዳቤ መዝገብ፦** የላኪ ቁጥር በትክክል፣ የመጣበት ቀን፣ ላኪ፣ ተቀባይ ክፍል፣ ርዕስ፣ የውስጥ መለያ፣ ማስተላለፍ።
+5. **የማስተካከያ/ስረዛ/ማቋረጥ ጥያቄ፦** የመጀመሪያ ቁጥር፣ ምክንያት፣ ማስረጃ፣ የታቀደ እርምጃ፣ ሥልጣንና ውሳኔ።
+6. **የመቋረጥ ጊዜ መዝገብ፦** የመቋረጥ መለያ፣ ጊዜ፣ ጊዜያዊ ማጣቀሻዎች፣ ተጠቃሚዎች፣ ማስታረቅና የሁለተኛ ገምጋሚ ፊርማ።
+7. **የወርሃዊ ማስታረቅ ዝርዝር፦** የቆጣሪ ወሰኖች፣ የተመደቡ ቁጥሮች፣ የተሰረዙ/የተቋረጡ መዝገቦች፣ የተገኙ ልዩነቶች፣ የማስተካከያ እርምጃ።
+8. **የማህደርና የማስወገድ ፈቃድ፦** ምድብ፣ የማቆያ መርሐ-ግብር፣ ሕጋዊ ማገድ ሁኔታ፣ አጽዳቂ፣ የማስወገድ ማስረጃ።
 
-Templates must live in the approved workflow or controlled document repository. A spreadsheet is not an authoritative numbering engine.
+## 19. ሚናዎችና ተጠያቂነት
 
-## 19. Roles and accountability
-
-| Role | Accountability |
+| ሚና | ዋና ኃላፊነት |
 |---|---|
-| Owner | Approves policy, format revisions, material exceptions and production activation |
-| Documents policy administrator | Maintains standard, type catalogue and numbering controls |
-| Organization administrator | Maintains branch/department registry and code history |
-| Finance administrator | Maintains legal-entity registry and financial identifier controls |
-| Governance authority | Approves positions, grants, acting assignments and issuing authority |
-| Author | Prepares accurate draft and evidence |
-| Reviewer | Checks content, classification and completeness |
-| Approver | Approves exact revision under the approved matrix |
-| Issuer | Executes authorized issuance; does not choose number |
-| Incoming registrar | Records received correspondence and sender reference |
-| Records manager/custodian | Maintains registers, retention, archive and custody |
-| Auditor/security officer | Reviews logs, counter reconciliation, access and incidents |
+| የዓርና ባለቤት | የቁጥር ፖሊሲ፣ የቅርጸት ለውጥ፣ የአደጋ ተቀባይነትና የመጨረሻ ፈቃድ |
+| የGovernance ኃላፊ | የሥልጣን ቦታዎች፣ የውክልና ማስረጃና የአጽዳቂ ሰንጠረዥ |
+| የOrganization ኃላፊ | የቅርንጫፍ/መምሪያ ኮድ ዝርዝርና ታሪክ |
+| የDocuments ኃላፊ | የሰነድ ዓይነት፣ ቆጣሪ፣ ማውጣትና የሕይወት ዑደት |
+| የFinance ኃላፊ | የሕጋዊ ድርጅት መለያና የፋይናንስ መዝገቦች |
+| የመዝገብ ጠባቂ | ምዝገባ፣ ማህደር፣ ማቆያ፣ ማስታረቅና የመዳረሻ ቁጥጥር |
+| ጸሐፊ/ፈጣሪ | ትክክለኛ ረቂቅና የሚያስፈልጉ አባሪዎች ማቅረብ |
+| ገምጋሚ/አጽዳቂ | ይዘት፣ ሥልጣን፣ ምድብና የሥራ መለያየት ማረጋገጥ |
+| ኦዲተር | የማይለወጥ ማስረጃንና የቁጥጥር ተገዢነትን በተፈቀደ መዳረሻ መገምገም |
 
-Multiple roles may be held by one person only where the approved authority matrix permits and separation-of-duties controls remain effective.
+አንድ ሰው ብዙ ሚናዎችን መያዝ የሚችለው በተፈቀደው የሥልጣን ሰንጠረዥ እና በተገቢው የሥራ መለያየት ቁጥጥር ብቻ ነው።
 
-## 20. Readiness checklist
+## 20. የሥራ ላይ ማዋል ቅድመ-ሁኔታዎች
 
-- [ ] Owner approves this manual and related standard.
-- [ ] Applicable Ethiopian legal/regulatory and sector requirements are reviewed by a qualified accountable reviewer.
-- [ ] Branch/department codes and capacity are reconciled with Organization.
-- [ ] Numeric type catalogue and Amharic labels are approved.
-- [ ] Approval/issuing authority matrix is approved by Governance.
-- [ ] Incoming registration reference procedure is separately approved.
-- [ ] Counter scope matches tenant + legal entity + unit + type + full E.C. year.
-- [ ] Formatter, parser, constraints, idempotency and counter transaction align.
-- [ ] Calendar conversion and New Year boundary behavior are verified.
-- [ ] Void, revoke, correction and supersession controls are verified.
-- [ ] Tenant isolation, access, audit, QR/public/private verification and file integrity are verified where in scope.
-- [ ] Retention schedule, legal hold and disposal authorities are approved.
-- [ ] Registers, reports, outage procedure and reconciliation are operational.
-- [ ] Roles are assigned and staff training completed.
-- [ ] Runtime verification is complete on the exact candidate commit.
-- [ ] Separate Owner approval is recorded before production activation.
+የሚከተሉት ሁሉ ከመሟላታቸው በፊት ኦፊሴላዊ ቁጥር አሰጣጥ አይጀምርም፦
+- የቅርንጫፍ/መምሪያ ዝርዝርና ኮዶች ተፈትሸው ጸድቀዋል።
+- የሰነድ ዓይነት ዝርዝርና TT ኮዶች ጸድቀዋል።
+- የሕጋዊ ድርጅት መለያዎች ተረጋግጠዋል።
+- የሥልጣን፣ የውክልናና የሥራ መለያየት ሰንጠረዥ ጸድቋል።
+- የኢትዮጵያ ቀን አቆጣጠር አገልግሎትና የዓመት ድንበር ባህሪ ተረጋግጠዋል።
+- የቆጣሪ ግብይት፣ የልዩ ወሰን ቁልፍ፣ የተወዳዳሪነት መከላከያና idempotency ተፈትነዋል።
+- የተከራይ መለያየትና የፈቃድ ቁጥጥር በእውነተኛ የውሂብ ጎታ ሁኔታ ተረጋግጠዋል።
+- የሰነድ/ፋይል ስሪት ቋሚነትና የኦዲት መዝገብ ተረጋግጠዋል።
+- የማቆያ፣ የማህደርና የሕጋዊ ማገድ መርሐ-ግብር ጸድቋል።
+- የአገልግሎት መቋረጥና መመለስ ሂደት ተለማምዷል።
+- የሕግ/ዘርፍ ግዴታዎች በባለሙያ ተገምግመዋል።
+- የባለቤት የጽሑፍ ፈቃድ ተሰጥቷል።
 
-## 21. Document hierarchy and conflict resolution
+## 21. የሰነድ ቁጥጥርና የማሻሻያ ታሪክ
 
-Hierarchy:
-1. Applicable Ethiopian law and binding regulator requirements;
-2. ARNA Owner-approved policy and domain authority decisions;
-3. ARNA Amharic Document Numbering Standard v1.0;
-4. This operations manual and controlled forms;
-5. Domain technical contracts and implementation notes;
-6. Local work instructions.
+**የሰነድ ስሪት፦** 1.0  
+**የሰነድ ባለቤት፦** የዓርና የDocuments ዘርፍ  
+**የፖሊሲ ፈቃድ፦** የዓርና ባለቤት/በይፋ የተወከለ አካል  
+**የሚቀጥለው ግምገማ፦** ከመተግበር በፊትና በተወሰነ የሰነድ ቁጥጥር ዑደት መሠረት።
 
-If ARNA documents conflict, stop the affected operation and refer the conflict to the Owner/policy authority. The v1.0 format is the target for future implementation. It does not retroactively alter issued numbers or prove that source code has changed.
+| ስሪት | ለውጥ | የፈቃድ ሁኔታ |
+|---|---|---|
+| 1.0 | የዓርና የሰነድ ቁጥር አሰጣጥና መዝገብ አስተዳደር መሠረታዊ መመሪያ | የንድፍ ሰነድ፤ የሥራ ላይ ማዋል ፈቃድ አይደለም |
 
-## 22. Revision history
-
-| Version | Date | Change | Status |
-|---|---|---|---|
-| 1.0 | 2026-10-30 | Initial numbering and registration operations manual | Documentation only; implementation pending |
-
-**Implementation status:** NOT IMPLEMENTED / NOT RUNTIME VERIFIED.
+**የመጨረሻ ማስታወሻ፦** ይህ መመሪያ የሰነድ አስተዳደር መስፈርትን ይገልጻል። የሶፍትዌር ትግበራ፣ የውሂብ ጎታ ለውጥ፣ የCI ማረጋገጫ፣ የQR አገልግሎት፣ ህትመትና የሥራ ላይ ማዋል በተለየ ፈቃድና ማስረጃ ይወሰናሉ።
