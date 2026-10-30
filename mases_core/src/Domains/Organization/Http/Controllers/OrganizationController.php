@@ -181,7 +181,7 @@ final class OrganizationController extends Controller
         $record = DB::transaction(function () use ($tenantId, $data, $request, $actor) {
             $created = $this->numberingRegistry->registerDepartment(
                 $tenantId, (int) $data['organization_unit_id'],
-                isset($data['legal_entity_id']) ? (int) $data['legal_entity_id'] : null,
+                (int) $data['legal_entity_id'],
                 $data['branch_code'], $data['department_code'], $data['reason'],
                 (int) $actor->getAuthIdentifier()
             );
