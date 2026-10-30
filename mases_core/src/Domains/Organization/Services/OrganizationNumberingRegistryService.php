@@ -141,24 +141,23 @@ final class OrganizationNumberingRegistryService
         }, 3);
     }
 
-    public function retireBranch(int $tenantId, string $branchCode, string $reason, ?int $actorId = null): object
+    public function retireBranch(int $tenantId, int $branchCodeId, string $reason, ?int $actorId = null): object
     {
-        $branchCode = trim($branchCode);
         $reason = trim($reason);
-        if ($tenantId < 1 || !preg_match('/^[1-9]$/', $branchCode) || mb_strlen($reason) < 5) {
+        if ($tenantId < 1 || $branchCodeId < 1 || mb_strlen($reason) < 5) {
             throw ValidationException::withMessages(['reason' => ['A valid branch code and retirement reason are required.']]);
         }
 
-        return DB::transaction(function () use ($tenantId, $branchCode, $reason, $actorId): object {
+        return DB::transaction(function () use ($tenantId, $branchCodeId, $reason, $actorId): object {
             DB::table('tenants')->where('id', $tenantId)->lockForUpdate()->first()
                 ?? throw new ConflictHttpException('Tenant not found.');
             $branch = DB::table('organization_branch_number_codes')->where('tenant_id', $tenantId)
-                ->where('branch_code', $branchCode)->lockForUpdate()->first();
+                ->where('id', $branchCodeId)->lockForUpdate()->first();
             if (!$branch || $branch->status !== 'active' || $branch->effective_until !== null) {
                 throw new ConflictHttpException('Only an active branch code can be retired.');
             }
             $activeDepartments = DB::table('organization_department_number_codes')->where('tenant_id', $tenantId)
-                ->where('branch_code', $branchCode)->where('status', 'active')->whereNull('effective_until')->exists();
+                ->where('branch_code', $branch->branch_code)->where('status', 'active')->whereNull('effective_until')->exists();
             if ($activeDepartments) {
                 throw new ConflictHttpException('Retire all active department codes before retiring this branch.');
             }
@@ -177,19 +176,18 @@ final class OrganizationNumberingRegistryService
         }, 3);
     }
 
-    public function retireDepartment(int $tenantId, string $bbCode, string $reason, ?int $actorId = null): object
+    public function retireDepartment(int $tenantId, int $departmentCodeId, string $reason, ?int $actorId = null): object
     {
-        $bbCode = trim($bbCode);
         $reason = trim($reason);
-        if ($tenantId < 1 || !preg_match('/^[1-9]{2}$/', $bbCode) || mb_strlen($reason) < 5) {
+        if ($tenantId < 1 || $departmentCodeId < 1 || mb_strlen($reason) < 5) {
             throw ValidationException::withMessages(['reason' => ['A valid BB code and retirement reason are required.']]);
         }
 
-        return DB::transaction(function () use ($tenantId, $bbCode, $reason, $actorId): object {
+        return DB::transaction(function () use ($tenantId, $departmentCodeId, $reason, $actorId): object {
             DB::table('tenants')->where('id', $tenantId)->lockForUpdate()->first()
                 ?? throw new ConflictHttpException('Tenant not found.');
             $department = DB::table('organization_department_number_codes')->where('tenant_id', $tenantId)
-                ->where('bb_code', $bbCode)->lockForUpdate()->first();
+                ->where('id', $departmentCodeId)->lockForUpdate()->first();
             if (!$department || $department->status !== 'active' || $department->effective_until !== null) {
                 throw new ConflictHttpException('Only an active department code can be retired.');
             }
