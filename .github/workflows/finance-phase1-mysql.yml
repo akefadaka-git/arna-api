@@ -120,6 +120,12 @@ jobs:
       - name: Run Finance General Ledger feature regressions on MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/FinanceGeneralLedgerTest.php
 
+      - name: Run bounded multi-process MySQL concurrency protocol
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          php mases_core/src/Domains/Finance/Tests/Support/mysql-concurrency-harness.php 2>&1 | tee finance-phase1-concurrency-evidence.txt
+
       - name: Capture exact-commit and migration evidence
         if: always()
         shell: bash
@@ -137,6 +143,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: finance-phase1-mysql-evidence-${{ github.run_id }}
-          path: finance-phase1-mysql-evidence.txt
+          path: |
+            finance-phase1-mysql-evidence.txt
+            finance-phase1-concurrency-evidence.txt
           if-no-files-found: warn
           retention-days: 14
