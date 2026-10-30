@@ -16,6 +16,7 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Domains\Documents\Models\Document;
+use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentNumberFormatter;
 use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
@@ -26,6 +27,7 @@ final class DocumentIssuanceService
         private readonly TenantContextService $tenantContext,
         private readonly EthiopianCalendar $ethiopianCalendar,
         private readonly DocumentAuthorityService $documentAuthority,
+        private readonly DocumentNumberFormatter $numberFormatter,
     ) {
     }
 
@@ -172,22 +174,27 @@ final class DocumentIssuanceService
                 }
             }
 
+            // The printed number omits legal-entity and internal registry IDs.
+            // Therefore its counter scope must use exactly the visible code
+            // segments so two entities cannot allocate the same printed number.
             $scope = [
                 'tenant_id' => $tenantId,
-                'legal_entity_id' => $payload['legal_entity_id'],
-                'organization_unit_id' => $payload['organization_unit_id'],
-                'governance_position_id' => $payload['governance_position_id'],
                 'document_type_code' => $payload['document_type_code'],
+                'department_code' => $payload['department_code'],
+                'issuing_role_code' => $payload['issuing_role_code'],
                 'ec_year' => $payload['ec_year'],
             ];
 
             // insertOrIgnore creates the unique scope row safely under concurrency;
             // the subsequent row lock serializes allocation for this exact scope.
             DB::table('document_number_counters')->insertOrIgnore($scope + [
-                'organization_code' => $payload['organization_code'],
+                // AR is the fixed printed prefix; the document itself retains
+                // the authoritative legal-entity code snapshot.
+                'organization_code' => DocumentNumberFormatter::PREFIX,
+                'legal_entity_id' => $payload['legal_entity_id'],
+                'organization_unit_id' => $payload['organization_unit_id'],
                 'governance_body_id' => $payload['governance_body_id'],
-                'department_code' => $payload['department_code'],
-                'issuing_role_code' => $payload['issuing_role_code'],
+                'governance_position_id' => $payload['governance_position_id'],
                 'next_sequence' => 1,
                 'is_active' => true,
                 'created_at' => $now,
@@ -203,16 +210,13 @@ final class DocumentIssuanceService
                 throw new ConflictHttpException('The numbering scope is unavailable or disabled.');
             }
 
-            if (!hash_equals((string) $counter->organization_code, $payload['organization_code'])
-                || !hash_equals((string) $counter->department_code, $payload['department_code'])
-                || !hash_equals((string) $counter->issuing_role_code, $payload['issuing_role_code'])
-                || (int) $counter->governance_body_id !== $payload['governance_body_id']) {
-                throw new ConflictHttpException('A canonical code or Governance scope changed within an existing numbering scope; an explicit migration of the numbering scope is required.');
+            if (!hash_equals((string) $counter->organization_code, DocumentNumberFormatter::PREFIX)) {
+                throw new ConflictHttpException('The numbering counter has an incompatible printed-prefix snapshot.');
             }
 
             $sequence = (int) $counter->next_sequence;
-            if ($sequence < 1 || $sequence > 999999) {
-                throw new ConflictHttpException('The numbering scope has exhausted its six-digit sequence.');
+            if ($sequence < 1 || $sequence > DocumentNumberFormatter::MAX_SEQUENCE) {
+                throw new ConflictHttpException('The numbering scope has exhausted its four-digit sequence.');
             }
 
             DB::table('document_number_counters')->where('id', $counter->id)->update([
@@ -220,9 +224,7 @@ final class DocumentIssuanceService
                 'updated_at' => $now,
             ]);
 
-            $number = sprintf(
-                '%s-%s-%s-%s-%06d-EC%04d',
-                $payload['organization_code'],
+            $number = $this->numberFormatter->format(
                 $payload['document_type_code'],
                 $payload['department_code'],
                 $payload['issuing_role_code'],
