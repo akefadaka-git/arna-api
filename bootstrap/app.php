@@ -693,7 +693,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // Preserve incoming sender references byte-for-byte. These are external
         // identifiers and must not be trimmed or converted from '' to null.
         $middleware->trimStrings(except: ['sender_reference']);
-        $middleware->convertEmptyStringsToNull(except: ['sender_reference']);
+        $middleware->convertEmptyStringsToNull(except: [
+            // Skip whole-request conversion only for incoming registrations;
+            // the controller normalizes optional fields while preserving the
+            // sender's external reference exactly, including an empty string.
+            static fn (\\Illuminate\\Http\\Request $request): bool => $request->is('api/documents/incoming'),
+        ]);
 
         $middleware->statefulApi();
 

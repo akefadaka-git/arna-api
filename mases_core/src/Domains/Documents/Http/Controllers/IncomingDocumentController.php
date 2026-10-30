@@ -20,6 +20,18 @@ final class IncomingDocumentController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // The incoming route bypasses global empty-string conversion so that
+        // sender_reference can distinguish '' from null. Normalize the other
+        // optional scalar fields here, retaining the platform's usual API
+        // semantics without altering the external sender reference.
+        $input = $request->all();
+        foreach (['sender_name', 'received_at', 'notes'] as $field) {
+            if (array_key_exists($field, $input) && $input[$field] === '') {
+                $input[$field] = null;
+            }
+        }
+        $request->replace($input);
+
         $validated = $request->validate([
             'legal_entity_id' => ['required', 'integer', 'min:1'],
             'bb_code' => ['required', 'string', 'regex:/^[1-9]{2}$/'],
@@ -28,7 +40,7 @@ final class IncomingDocumentController extends Controller
             'sender_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             // Laravel string validation does not trim the supplied value.
             'sender_reference' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'received_at' => ['sometimes', 'date'],
+            'received_at' => ['sometimes', 'nullable', 'date'],
             'notes' => ['sometimes', 'nullable', 'string'],
             'metadata' => ['sometimes', 'array'],
         ]);
