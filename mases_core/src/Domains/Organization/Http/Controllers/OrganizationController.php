@@ -7,7 +7,6 @@ namespace MaaleArna\MASES\Core\Domains\Organization\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\Organization\Http\Requests\OrganizationRequestRules;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
@@ -154,19 +153,17 @@ final class OrganizationController extends Controller
     public function registerBranchNumber(Request $request): JsonResponse
     {
         $actor = $request->user();
-        abort_unless($actor instanceof User && $this->unitPolicy->create($actor), 403, 'Organization numbering administration is not authorized.');
-        $data = $request->validate(OrganizationRequestRules::registerBranchNumber());
+        abort_unless($actor instanceof User && $this->unitPolicy->manageNumbering($actor), 403, 'Organization numbering administration is not authorized.');
         $tenantId = $this->tenantId();
+        $data = $request->validate(OrganizationRequestRules::registerBranchNumber($tenantId));
 
-        $record = DB::transaction(function () use ($tenantId, $data, $request, $actor) {
-            $created = $this->numberingRegistry->registerBranch(
-                $tenantId, (int) $data['organization_unit_id'], $data['branch_code'],
-                $data['reason'], (int) $actor->getAuthIdentifier()
-            );
-            $this->auditService->record($tenantId, $request, 'branch_number_code', (int) $created->id,
-                'registered', $data['reason'], null, (array) $created);
-            return $created;
-        }, 3);
+        $record = $this->numberingRegistry->registerBranch(
+            $tenantId,
+            (int) $data['organization_unit_id'],
+            $data['branch_code'],
+            $data['reason'],
+            (int) $actor->getAuthIdentifier()
+        );
 
         return response()->json(['success' => true, 'data' => $record], 201);
     }
@@ -174,21 +171,19 @@ final class OrganizationController extends Controller
     public function registerDepartmentNumber(Request $request): JsonResponse
     {
         $actor = $request->user();
-        abort_unless($actor instanceof User && $this->unitPolicy->create($actor), 403, 'Organization numbering administration is not authorized.');
-        $data = $request->validate(OrganizationRequestRules::registerDepartmentNumber());
+        abort_unless($actor instanceof User && $this->unitPolicy->manageNumbering($actor), 403, 'Organization numbering administration is not authorized.');
         $tenantId = $this->tenantId();
+        $data = $request->validate(OrganizationRequestRules::registerDepartmentNumber($tenantId));
 
-        $record = DB::transaction(function () use ($tenantId, $data, $request, $actor) {
-            $created = $this->numberingRegistry->registerDepartment(
-                $tenantId, (int) $data['organization_unit_id'],
-                (int) $data['legal_entity_id'],
-                $data['branch_code'], $data['department_code'], $data['reason'],
-                (int) $actor->getAuthIdentifier()
-            );
-            $this->auditService->record($tenantId, $request, 'department_number_code', (int) $created->id,
-                'registered', $data['reason'], null, (array) $created);
-            return $created;
-        }, 3);
+        $record = $this->numberingRegistry->registerDepartment(
+            $tenantId,
+            (int) $data['organization_unit_id'],
+            (int) $data['legal_entity_id'],
+            $data['branch_code'],
+            $data['department_code'],
+            $data['reason'],
+            (int) $actor->getAuthIdentifier()
+        );
 
         return response()->json(['success' => true, 'data' => $record], 201);
     }
@@ -196,17 +191,15 @@ final class OrganizationController extends Controller
     public function retireBranchNumber(Request $request, int $id): JsonResponse
     {
         $actor = $request->user();
-        abort_unless($actor instanceof User && $this->unitPolicy->create($actor), 403, 'Organization numbering administration is not authorized.');
+        abort_unless($actor instanceof User && $this->unitPolicy->manageNumbering($actor), 403, 'Organization numbering administration is not authorized.');
         $data = $request->validate(OrganizationRequestRules::retireNumberCode());
-        $tenantId = $this->tenantId();
-        $record = DB::transaction(function () use ($tenantId, $id, $data, $request) {
-            $before = (array) DB::table('organization_branch_number_codes')
-                ->where('tenant_id', $tenantId)->where('id', $id)->first();
-            $retired = $this->numberingRegistry->retireBranch($tenantId, $id, $data['reason']);
-            $this->auditService->record($tenantId, $request, 'branch_number_code', $id,
-                'retired', $data['reason'], $before, (array) $retired);
-            return $retired;
-        }, 3);
+
+        $record = $this->numberingRegistry->retireBranch(
+            $this->tenantId(),
+            $id,
+            $data['reason'],
+            (int) $actor->getAuthIdentifier()
+        );
 
         return response()->json(['success' => true, 'data' => $record]);
     }
@@ -214,17 +207,15 @@ final class OrganizationController extends Controller
     public function retireDepartmentNumber(Request $request, int $id): JsonResponse
     {
         $actor = $request->user();
-        abort_unless($actor instanceof User && $this->unitPolicy->create($actor), 403, 'Organization numbering administration is not authorized.');
+        abort_unless($actor instanceof User && $this->unitPolicy->manageNumbering($actor), 403, 'Organization numbering administration is not authorized.');
         $data = $request->validate(OrganizationRequestRules::retireNumberCode());
-        $tenantId = $this->tenantId();
-        $record = DB::transaction(function () use ($tenantId, $id, $data, $request) {
-            $before = (array) DB::table('organization_department_number_codes')
-                ->where('tenant_id', $tenantId)->where('id', $id)->first();
-            $retired = $this->numberingRegistry->retireDepartment($tenantId, $id, $data['reason']);
-            $this->auditService->record($tenantId, $request, 'department_number_code', $id,
-                'retired', $data['reason'], $before, (array) $retired);
-            return $retired;
-        }, 3);
+
+        $record = $this->numberingRegistry->retireDepartment(
+            $this->tenantId(),
+            $id,
+            $data['reason'],
+            (int) $actor->getAuthIdentifier()
+        );
 
         return response()->json(['success' => true, 'data' => $record]);
     }
