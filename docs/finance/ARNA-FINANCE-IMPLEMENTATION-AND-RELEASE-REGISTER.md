@@ -112,13 +112,13 @@ Implementation branch: `feat/finance-gl-integrity-phase1`, based on the reviewed
 - A repeated source identity with a changed canonical payload returns HTTP 409.
 - Unique-index races are reconciled after transaction rollback by re-reading the idempotency key and source identity; matching hashes return the persisted journal, changed hashes conflict.
 - `SubledgerPostingInstruction` now requires and forwards the source event version.
-- MySQL posted-journal immutability trigger now includes source event version and hash.
+- MySQL insert guard requires complete external source identity; source type/ID/version/hash are immutable after draft creation, and the posted-journal immutability trigger also protects version and hash.
 - Existing legacy rows are not assigned invented event versions; their nullable version is preserved. External event replay for historical unversioned rows remains a migration/reconciliation concern and must not be guessed.
 
 ### FIN-1.06 — posting-time entity/account revalidation
 
 - Posting now locks and revalidates the tenant-scoped legal entity and confirms active status and base-currency consistency.
-- Posting now loads all journal lines, locks referenced account rows in deterministic ID order, and verifies same tenant/entity ownership, active status, and posting eligibility.
+- Posting now locks journal lines and referenced account rows in deterministic ID order, and verifies same tenant/entity ownership, active status, and posting eligibility.
 - Cash-flow classified lines are rejected if the account is no longer designated as a cash equivalent.
 - Validation occurs inside the same posting transaction before the journal status transition and synchronous audit event.
 
