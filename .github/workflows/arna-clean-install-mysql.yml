@@ -449,6 +449,47 @@ jobs:
               }
             }
 
+            // This exact integration base exists only to stack PR #53 on the
+            // Organization and File Management dependencies. Remove it only
+            // after Documents is merged to the default branch and no open PR
+            // still references it.
+            const integrationBranch = 'integration/organization-filemanagement-foundation';
+            const expectedIntegrationHead = '1c6bc2575e852c6a4716a00f2182f0a620c0934c';
+            const documentsPR = await github.rest.pulls.get({ owner, repo, pull_number: 53 });
+            if (documentsPR.data.merged_at && documentsPR.data.base.ref === defaultBranch) {
+              const openPRs = await github.paginate(github.rest.pulls.list, {
+                owner, repo, state: 'open', per_page: 100
+              });
+              const stillReferenced = openPRs.some(pr =>
+                pr.base.ref === integrationBranch || pr.head.ref === integrationBranch
+              );
+              if (stillReferenced) {
+                core.warning(`Keep ${integrationBranch}: an open PR still references it.`);
+              } else {
+                try {
+                  const currentIntegration = await github.rest.repos.getBranch({
+                    owner, repo, branch: integrationBranch
+                  });
+                  if (currentIntegration.data.commit.sha !== expectedIntegrationHead) {
+                    core.warning(`Keep ${integrationBranch}: it advanced from its reviewed integration head.`);
+                  } else {
+                    await github.rest.git.deleteRef({
+                      owner, repo, ref: `heads/${integrationBranch}`
+                    });
+                    core.notice(`Deleted temporary integration branch ${integrationBranch} after PR #53 merged.`);
+                  }
+                } catch (error) {
+                  if (error.status === 404) {
+                    core.info(`Temporary integration branch ${integrationBranch} is already absent.`);
+                  } else if (error.status === 422 || error.status === 403) {
+                    core.warning(`Could not delete temporary integration branch: ${error.message}`);
+                  } else {
+                    throw error;
+                  }
+                }
+              }
+            }
+
   organization-source-lint:
     name: Organization domain PHP syntax verification
     runs-on: ubuntu-latest
