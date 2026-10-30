@@ -6,6 +6,7 @@ on:
       - feat/finance-gl-integrity-phase1
     paths:
       - ".github/workflows/finance-phase1-mysql.yml"
+      - ".github/workflows/finance-dependency-refresh.yml"
       - "mases_core/src/Domains/Finance/**"
       - "bootstrap/providers.php"
       - "composer.json"
