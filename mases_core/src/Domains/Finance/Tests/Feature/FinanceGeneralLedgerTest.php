@@ -959,6 +959,81 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
+    public function test_posting_revalidates_external_source_eligibility_after_draft_creation(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        $resolver = new class implements JournalSourceReferenceResolver {
+            public bool $approved = true;
+            public int $calls = 0;
+
+            public function supports(JournalSourceType $sourceType): bool
+            {
+                return $sourceType === JournalSourceType::SHAREHOLDER;
+            }
+
+            public function assertValid(
+                JournalSourceType $sourceType,
+                string $sourceId,
+                int $tenantId,
+                int $legalEntityId,
+            ): void {
+                $this->calls++;
+                if (!$this->approved) {
+                    throw ValidationException::withMessages([
+                        'source_id' => 'The originating source mapping has been revoked.',
+                    ]);
+                }
+            }
+        };
+
+        $this->app->instance(
+            JournalSourceReferenceResolverRegistry::class,
+            new JournalSourceReferenceResolverRegistry([$resolver]),
+        );
+
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-SOURCE-REVALIDATE',
+            'effective_date' => '2026-10-10',
+            'description' => 'Posting must revalidate source eligibility',
+            'currency' => 'ETB',
+            'source_type' => JournalSourceType::SHAREHOLDER->value,
+            'source_id' => 'shareholder-revalidation-1',
+            'source_event_id' => 'shareholder-event-revalidation-1',
+            'source_event_version' => '1',
+            'idempotency_key' => 'source-revalidation-key',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+        ]);
+
+        $this->assertSame(1, $resolver->calls);
+        $resolver->approved = false;
+
+        try {
+            $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('Posting must fail when the originating source mapping is no longer approved.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_id', $exception->errors());
+        }
+
+        $this->assertSame(2, $resolver->calls);
+        $this->assertDatabaseHas('journal_entries', [
+            'id' => $draft->id,
+            'status' => JournalEntry::DRAFT,
+            'posted_by' => null,
+            'posted_at' => null,
+        ]);
+        $this->assertDatabaseMissing('finance_audit_entries', [
+            'event_type' => 'finance.journal.posted',
+            'subject_type' => 'journal_entry',
+            'subject_id' => $draft->id,
+        ]);
+    }
+
+    #[Test]
     public function test_source_resolver_registry_rejects_ambiguous_resolvers(): void
     {
         $resolver = new class implements JournalSourceReferenceResolver {

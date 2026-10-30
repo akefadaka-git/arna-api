@@ -388,6 +388,22 @@ final class JournalEntryService
                 ]);
             }
 
+            // Revalidate the originating business record and its approved
+            // tenant/legal-entity mapping at posting time. A source mapping
+            // revoked after draft creation must not leave a postable draft.
+            $sourceType = JournalSourceType::tryFrom((string) $entry->source_type);
+            if ($sourceType === null) {
+                throw ValidationException::withMessages([
+                    'source_type' => 'The journal source type is invalid and cannot be posted.',
+                ]);
+            }
+            $this->sourceReferenceResolvers->assertValid(
+                $sourceType,
+                $entry->source_id === null ? null : (string) $entry->source_id,
+                $tenantId,
+                (int) $entity->id,
+            );
+
             $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
                 ->where('legal_entity_id', $entry->legal_entity_id)
                 ->lockForUpdate()->findOrFail($entry->accounting_period_id);
