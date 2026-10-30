@@ -164,6 +164,52 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
+    public function test_database_enforces_source_event_version_uniqueness(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $resolver = new class implements JournalSourceReferenceResolver {
+            public function supports(JournalSourceType $sourceType): bool
+            {
+                return $sourceType === JournalSourceType::LOAN;
+            }
+
+            public function assertValid(JournalSourceType $sourceType, string $sourceId, int $tenantId, int $legalEntityId): void
+            {
+                // The fixture represents an already-authorized source record and mapping.
+            }
+        };
+        $service = new JournalEntryService(new JournalSourceReferenceResolverRegistry([$resolver]));
+        $journal = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-SOURCE-UNIQUE-ONE',
+            'effective_date' => '2026-10-01',
+            'description' => 'Source event unique constraint',
+            'currency' => 'ETB',
+            'source_type' => JournalSourceType::LOAN->value,
+            'source_id' => 'loan-event-unique',
+            'source_event_version' => '9',
+            'idempotency_key' => 'source-event-unique-one',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ]);
+
+        $duplicate = $journal->getAttributes();
+        unset($duplicate['id']);
+        $duplicate['journal_number'] = 'JV-SOURCE-UNIQUE-TWO';
+        $duplicate['idempotency_key'] = 'source-event-unique-two';
+        $duplicate['created_at'] = now();
+        $duplicate['updated_at'] = now();
+
+        try {
+            DB::table('journal_entries')->insert($duplicate);
+            $this->fail('The database must reject a duplicate source event identity.');
+        } catch (QueryException $exception) {
+            $this->assertDatabaseCount('journal_entries', 1);
+        }
+    }
+
+    #[Test]
     public function test_same_source_event_version_with_changed_payload_conflicts(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
