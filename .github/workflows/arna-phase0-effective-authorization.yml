@@ -14,6 +14,7 @@ on:
       - "mases_core/src/Tenancy/**"
       - "mases_core/src/Domains/Loan/**"
       - "mases_core/src/Domains/Governance/**"
+      - "mases_core/src/Domains/Finance/Database/Migrations/**"
       - "bootstrap/app.php"
       - "config/auth.php"
       - "composer.json"
