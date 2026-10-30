@@ -35,6 +35,11 @@ final class OrganizationUnitPolicy
         return $this->allows($user, 'organization.unit.manage');
     }
 
+    public function manageNumbering(User $user): bool
+    {
+        return $this->allows($user, 'organization.numbering.manage');
+    }
+
     public function update(User $user, OrganizationUnit $unit): bool
     {
         return $this->sameTenant($unit) && $this->allows($user, 'organization.unit.manage');
