@@ -1,3 +1,5 @@
+> **Policy decision notice (2026-10-30):** The numbering-format and counter-scope decision previously listed as pending in this contract has now been documented in [ARNA Amharic Document Numbering Standard v1.0](arna-amharic-document-numbering-standard-v1.md) and [ARNA Document Numbering Operations Manual v1.0](../operations/arna-document-numbering-operations-manual-v1.md). Future implementation must use **ዓርና/BB/TT/SSSS/YY**, with unit + type + full Ethiopian year sequence scope bounded by tenant and legal entity. The historical numbering decision text below is superseded. Other lifecycle decisions in this contract remain subject to their own Owner approval. Documentation approval does not mean implementation or runtime verification is complete.
+
 # ARNA Document & Records Lifecycle — Implementation Contract
 
 **Status:** Draft implementation contract; Owner decisions required before lifecycle mutations are enabled.
