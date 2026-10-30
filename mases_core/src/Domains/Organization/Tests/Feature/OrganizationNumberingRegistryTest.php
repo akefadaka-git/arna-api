@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Organization\\Tests\\Feature;
+namespace MaaleArna\MASES\Core\Domains\Organization\Tests\Feature;
 
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\DB;
-use MaaleArna\\MASES\\Core\\Domains\\Organization\\Services\\OrganizationNumberingRegistryService;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationNumberingRegistryService;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class OrganizationNumberingRegistryTest extends TestCase
 {
