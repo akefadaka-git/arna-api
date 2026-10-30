@@ -38,7 +38,7 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->foreignId('organization_unit_id');
             $table->foreignId('person_id')->constrained('people')->restrictOnDelete();
-            $table->string('assignment_type', 48)->default('member');
+            $table->string('assignment_type', 48)->default('primary');
             $table->string('title_am', 160)->nullable();
             $table->string('title_en', 160)->nullable();
             $table->date('starts_on');
