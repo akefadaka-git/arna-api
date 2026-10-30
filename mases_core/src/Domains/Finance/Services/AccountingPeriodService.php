@@ -24,6 +24,27 @@ final class AccountingPeriodService
     /** @param array{legal_entity_id:int|string,code:string,starts_on:string,ends_on:string} $data */
     public function create(int $tenantId, array $data, int $actorId): AccountingPeriod
     {
+        $startsOn = trim((string) ($data['starts_on'] ?? ''));
+        $endsOn = trim((string) ($data['ends_on'] ?? ''));
+        $startDate = \\DateTimeImmutable::createFromFormat('!Y-m-d', $startsOn);
+        $endDate = \\DateTimeImmutable::createFromFormat('!Y-m-d', $endsOn);
+        $startErrors = \\DateTimeImmutable::getLastErrors();
+        $endErrors = \\DateTimeImmutable::getLastErrors();
+
+        if (!$startDate || !$endDate
+            || $startDate->format('Y-m-d') !== $startsOn
+            || $endDate->format('Y-m-d') !== $endsOn
+            || ($startErrors !== false && ($startErrors['warning_count'] > 0 || $startErrors['error_count'] > 0))
+            || ($endErrors !== false && ($endErrors['warning_count'] > 0 || $endErrors['error_count'] > 0))
+            || $startDate > $endDate) {
+            throw ValidationException::withMessages([
+                'starts_on' => 'The accounting period must use valid ISO dates and its start date must not be after its end date.',
+            ]);
+        }
+
+        $data['starts_on'] = $startsOn;
+        $data['ends_on'] = $endsOn;
+
         return DB::transaction(function () use ($tenantId, $data, $actorId): AccountingPeriod {
             $entity = LegalEntity::query()
                 ->where('tenant_id', $tenantId)
