@@ -6,6 +6,7 @@ namespace Tests\Unit\Documents;
 
 use InvalidArgumentException;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentNumberFormatter;
+use MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
