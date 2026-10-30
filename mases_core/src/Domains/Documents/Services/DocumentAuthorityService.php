@@ -17,7 +17,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAuthorityGrant;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceSeatOccupancy;
-use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
+use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationNumberingRegistryService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
@@ -31,18 +31,20 @@ final class DocumentAuthorityService
     public function __construct(
         private readonly AuthorizationService $authorization,
         private readonly TenantContextService $tenantContext,
+        private readonly OrganizationNumberingRegistryService $numberingRegistry,
     ) {
     }
 
     /**
-     * @return array{legal_entity_id:int, organization_unit_id:int, governance_body_id:int, governance_position_id:int, organization_code:string, department_code:string, issuing_role_code:string, document_type_code:string}
+     * Resolve BB through Organization and enforce Governance authority separately.
+     *
+     * @return array{legal_entity_id:int, organization_unit_id:int, governance_body_id:int, governance_position_id:int, organization_code:string, bb_code:string, branch_code:string, department_code:string, issuing_role_code:string, document_type_code:string}
      */
     public function assertCanIssue(
         User $actor,
         int $tenantId,
         int $legalEntityId,
-        string $organizationCode,
-        string $departmentCode,
+        string $bbCode,
         string $roleCode,
         string $typeCode,
         bool $lockRows = false
@@ -51,12 +53,9 @@ final class DocumentAuthorityService
             throw new AuthorizationException('A matching server-validated tenant context is required.');
         }
 
-        // Refresh and lock the actor row for the transactional authority pass;
-        // a concurrent account deactivation must wait for issuance to finish.
         $authorityActor = $lockRows
             ? User::query()->whereKey($actor->getKey())->lockForUpdate()->first()
             : $actor;
-
         if (!$authorityActor || !$authorityActor->is_active
             || !$this->authorization->hasPermission('documents.issue', $authorityActor, $tenantId)) {
             throw new AuthorizationException('The actor lacks documents.issue in the validated tenant.');
@@ -77,29 +76,8 @@ final class DocumentAuthorityService
             throw (new ModelNotFoundException())->setModel(LegalEntity::class, [$legalEntityId]);
         }
 
-        $organizationCode = strtoupper(trim($organizationCode));
-        if (!hash_equals(strtoupper((string) $entity->code), $organizationCode)) {
-            throw ValidationException::withMessages(['organization_code' => ['Organization code must match the active Finance legal-entity registry.']]);
-        }
-
-        $departmentCode = strtoupper(trim($departmentCode));
-        $unit = OrganizationUnit::query()
-            ->where('tenant_id', $tenantId)
-            ->where('legal_entity_id', $entity->id)
-            ->where('code', $departmentCode)
-            ->where('status', 'active')
-            ->whereNull('deleted_at')
-            ->when($lockRows, fn ($query) => $query->lockForUpdate())
-            ->first();
-        if (!$unit) {
-            throw ValidationException::withMessages(['department_code' => ['Department code must identify an active Organization unit belonging to the selected legal entity and tenant.']]);
-        }
-
+        $bb = $this->numberingRegistry->resolveForIssuance($tenantId, $legalEntityId, trim($bbCode), $lockRows);
         $roleCode = strtoupper(trim($roleCode));
-        // Governance position codes are unique per body, not tenant-wide.
-        // Until a canonical body-qualified role code is part of the number
-        // contract, reject ambiguous role-code matches rather than choosing
-        // an arbitrary authority scope.
         $positions = GovernancePosition::query()
             ->where('tenant_id', $tenantId)
             ->where('code', $roleCode)
@@ -109,7 +87,7 @@ final class DocumentAuthorityService
             ->limit(2)
             ->get();
         if ($positions->count() !== 1) {
-            throw ValidationException::withMessages(['issuing_role_code' => ['Issuing role code must resolve to exactly one active Governance position in this tenant; ambiguous or missing codes fail closed.']]);
+            throw ValidationException::withMessages(['issuing_role_code' => ['Issuing role code must resolve to exactly one active Governance position in this tenant.']]);
         }
         $position = $positions->first();
 
@@ -120,21 +98,25 @@ final class DocumentAuthorityService
             ->when($lockRows, fn ($query) => $query->lockForUpdate())
             ->first();
         if (!$body) {
-            throw ValidationException::withMessages(['issuing_role_code' => ['Issuing role must belong to an active Governance body in the validated tenant.']]);
+            throw ValidationException::withMessages(['issuing_role_code' => ['Issuing role must belong to an active Governance body in this tenant.']]);
         }
 
         $action = DocumentTypeRegistry::authorityAction($typeCode);
-        if (!$this->hasSubstantiveOrExplicitActingAuthority($actor, $tenantId, (int) $body->id, (int) $position->id, $action, $lockRows)) {
+        if (!$this->hasSubstantiveOrExplicitActingAuthority(
+            $actor, $tenantId, (int) $body->id, (int) $position->id, $action, $lockRows
+        )) {
             throw new AuthorizationException('No effective document-type-specific Governance authority grant or explicitly scoped acting assignment authorizes this issuance.');
         }
 
         return [
             'legal_entity_id' => (int) $entity->id,
-            'organization_unit_id' => (int) $unit->id,
+            'organization_unit_id' => $bb['organization_unit_id'],
             'governance_body_id' => (int) $body->id,
             'governance_position_id' => (int) $position->id,
             'organization_code' => strtoupper((string) $entity->code),
-            'department_code' => strtoupper((string) $unit->code),
+            'bb_code' => $bb['bb_code'],
+            'branch_code' => $bb['branch_code'],
+            'department_code' => $bb['department_code'],
             'issuing_role_code' => strtoupper((string) $position->code),
             'document_type_code' => $typeCode,
         ];
