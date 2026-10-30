@@ -16,24 +16,16 @@ namespace Database\Seeders\Data;
  * =============================================================================
  * Revision history
  * =============================================================================
- * 1.3.0  — platform_admin least-privilege correction:
- *          · Replaced the broad tenant-scope grant with a tenant-scope grant
- *            that explicitly excludes people.sensitive.view.
- *          · platform_admin retains other tenant-scoped capabilities but no
- *            longer inherits sensitive People reads from the scope wildcard.
- *          · tenant_admin retains tenant-scoped sensitive-read access;
- *            super_admin retains the existing universal wildcard grant.
+ * 1.3.0 — People least-privilege correction:
+ *         platform_admin receives tenant permissions except people.sensitive.view.
+ *         tenant_admin retains tenant-scoped sensitive-read access.
  *
- * 1.2.0  — People-domain least-privilege read permissions:
- *          · Added people.view to the manager role for directory/profile reads.
- *          · Added people.view and people.sensitive.view to the tenant-scoped
- *            permission catalogue. tenant_admin receives tenant-scoped grants;
- *            platform_admin excludes people.sensitive.view from that scope.
- *          · No sensitive read permission is granted to manager by default.
+ * 1.2.0 — People directory read:
+ *         manager receives people.view; sensitive reads are not granted by default.
  *
  * 1.0.0  — initial delivery (Unit S-6). Extracted from MasesCoreSeeder
- *          during the seeder refactoring. Twelve roles, three grant-
- *          spec forms ('*', 'scope:{scope}', literal slugs).
+ *          during the seeder refactoring. Twelve roles, four grant-
+ *          spec forms ('*', 'scope:{scope}', scope exclusions, literal slugs).
  *
  * 1.1.0  — platform_admin application access reconciliation (Unit C-1):
  *          · The `platform_admin` grant gains three explicit
@@ -62,7 +54,7 @@ namespace Database\Seeders\Data;
  *            specs are byte-for-byte identical to 1.0.0.
  *
  *          · MINOR version bump. The change is additive to one role's
- *            grant spec; the file's shape, the four grant-spec
+ *            grant spec; the file's shape, the three grant-spec
  *            forms, and every other role's definition are unchanged.
  *
  *          · RE-ISSUED after the launcher-track validation's Layer 3.5
@@ -91,22 +83,28 @@ namespace Database\Seeders\Data;
  *      Used by: super_admin.
  *
  *   2. 'scope:{scope}' — the scope grant. Matches every permission
- *      whose `scope` field equals the named scope. Supported scopes
- *      are global, tenant, and application.
+ *                        in the catalogue whose `scope` field equals
+ *                        the named scope. The scope names are the
+ *                        three values defined by PermissionCatalogue:
  *
- *      Used by: platform_admin (scope:global), tenant_admin (scope:tenant).
+ *                          scope:global
+ *                          scope:tenant
+ *                          scope:application
+ *
+ *      Used by: platform_admin (scope:global, scope:tenant),
+ *               tenant_admin (scope:tenant).
  *
  *   3. 'scope:{scope}-except:{slug}[,{slug}]' — matches every permission
  *      in the named scope except the listed permission slugs. Exclusions
- *      are applied only to this scope entry; other explicit grants still
- *      apply. This lets broad administrative roles retain scoped access
- *      without inheriting a sensitive capability by default.
+ *      apply only to this scope entry; explicit grants remain additive.
  *
  *      Used by: platform_admin (scope:tenant-except:people.sensitive.view).
  *
  *   4. A literal permission slug — the exact grant. Matches the one
  *      permission whose slug equals the string. Every slug used below
  *      is defined in PermissionCatalogue; unknown slugs are skipped.
+ *
+ *      Used by: every role except super_admin.
  *
  * =============================================================================
  * The form is a map, keyed by role slug
@@ -141,7 +139,8 @@ namespace Database\Seeders\Data;
  *                                        plus explicit access to all
  *                                        seven applications
  *
- *   manager         — a hand-picked list: profile, user list, read-only
+ *   manager         — a hand-picked list: profile, user list, people.view,
+ *                     read-only
  *                                       files, and three application
  *                                       accesses (finance, hr, portal)
  *
