@@ -20,9 +20,11 @@ final class OrganizationAuditService
         ?array $before,
         ?array $after,
     ): OrganizationAuditEvent {
+        $actorId = $request->user()?->getAuthIdentifier();
+
         return $this->recordSystem(
             $tenantId,
-            $request->user()?->getAuthIdentifier(),
+            $actorId === null ? null : (int) $actorId,
             $subjectType,
             $subjectId,
             $action,
