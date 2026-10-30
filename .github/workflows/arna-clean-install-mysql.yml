@@ -235,12 +235,7 @@ jobs:
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
-          expected_migrations="$(
-            {
-              find database/migrations -maxdepth 1 -type f -name '*.php' -printf '%f\n'
-              find mases_core/src -type f -path '*/Database/Migrations/*.php' -printf '%f\n'
-            } | sort -u | wc -l
-          )"
+          expected_migrations="$(find database/migrations mases_core/src -type f -name '*.php' \( -path 'database/migrations/*' -o -path '*/Database/Migrations/*' \) -printf '%f\n' | sort -u | wc -l)"
           expected_migrations="$(printf '%s' "${expected_migrations}" | tr -d '[:space:]')"
           echo "Applied migration records: ${applied}"
           echo "Registered unique migration files: ${expected_migrations}"
@@ -280,12 +275,7 @@ jobs:
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
-          expected_migrations="$(
-            {
-              find database/migrations -maxdepth 1 -type f -name '*.php' -printf '%f\n'
-              find mases_core/src -type f -path '*/Database/Migrations/*.php' -printf '%f\n'
-            } | sort -u | wc -l
-          )"
+          expected_migrations="$(find database/migrations mases_core/src -type f -name '*.php' \( -path 'database/migrations/*' -o -path '*/Database/Migrations/*' \) -printf '%f\n' | sort -u | wc -l)"
           expected_migrations="$(printf '%s' "${expected_migrations}" | tr -d '[:space:]')"
           echo "Applied migration records after migrate:fresh --seed: ${applied}"
           echo "Registered unique migration files: ${expected_migrations}"
@@ -299,12 +289,7 @@ jobs:
         run: |
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
-          expected_migrations="$(
-            {
-              find database/migrations -maxdepth 1 -type f -name '*.php' -printf '%f\n'
-              find mases_core/src -type f -path '*/Database/Migrations/*.php' -printf '%f\n'
-            } | sort -u | wc -l
-          )"
+          expected_migrations="$(find database/migrations mases_core/src -type f -name '*.php' \( -path 'database/migrations/*' -o -path '*/Database/Migrations/*' \) -printf '%f\n' | sort -u | wc -l)"
           expected_migrations="$(printf '%s' "${expected_migrations}" | tr -d '[:space:]')"
           echo "Applied migration records after second run: ${applied}"
           echo "Registered unique migration files: ${expected_migrations}"
