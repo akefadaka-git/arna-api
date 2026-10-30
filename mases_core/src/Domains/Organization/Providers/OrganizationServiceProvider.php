@@ -21,7 +21,6 @@ final class OrganizationServiceProvider extends ServiceProvider
     {
         $this->app->singleton(OrganizationNumberingRegistryService::class);
         $this->mergeConfigFrom(self::CONFIG_PATH, 'organization');
-        $this->app->singleton(OrganizationNumberingRegistryService::class);
     }
 
     public function boot(): void
