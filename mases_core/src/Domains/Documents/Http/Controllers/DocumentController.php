@@ -26,7 +26,7 @@ final class DocumentController extends Controller
         $validated = $request->validate([
             'legal_entity_id' => ['required', 'integer', 'min:1'],
             'bb_code' => ['required', 'string', 'regex:/^[1-9][1-9]$/'],
-            'document_type_code' => ['required', 'string', Rule::in(DocumentTypeRegistry::CODES)],
+            'document_type_code' => ['required', 'string', Rule::in(array_merge(DocumentTypeRegistry::CODES, array_values(DocumentTypeRegistry::TYPES)))],
 
             'issuing_role_code' => ['required', 'string', 'regex:/^[A-Z0-9_]{2,32}$/'],
             'title' => ['required', 'string', 'min:1', 'max:255'],
