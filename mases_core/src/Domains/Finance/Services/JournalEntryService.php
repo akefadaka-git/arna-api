@@ -67,16 +67,28 @@ final class JournalEntryService
         }
         $header['source_type'] = $sourceType->value;
         $header['source_id'] = $sourceId === '' ? null : $sourceId;
+        $sourceEventId = trim((string) ($header['source_event_id'] ?? ''));
         $sourceEventVersion = trim((string) ($header['source_event_version'] ?? ''));
-        if ($sourceType->requiresSourceReference() && ($sourceEventVersion === '' || mb_strlen($sourceEventVersion) > 64)) {
+        if ($sourceType->requiresSourceReference()) {
+            if ($sourceEventId === '' || mb_strlen($sourceEventId) > 128) {
+                throw ValidationException::withMessages([
+                    'source_event_id' => 'An immutable originating source event ID of at most 128 characters is required.',
+                ]);
+            }
+            if ($sourceEventVersion === '' || mb_strlen($sourceEventVersion) > 64) {
+                throw ValidationException::withMessages([
+                    'source_event_version' => 'An originating source event version of at most 64 characters is required.',
+                ]);
+            }
+        } elseif ($sourceEventId !== '' || $sourceEventVersion !== '') {
             throw ValidationException::withMessages([
-                'source_event_version' => 'An originating source event version of at most 64 characters is required.',
+                'source_event_id' => 'Source event IDs and versions are only accepted for external business sources.',
             ]);
         }
-        if (!$sourceType->requiresSourceReference() && $sourceEventVersion !== '') {
-            throw ValidationException::withMessages([
-                'source_event_version' => 'Source event versions are only accepted for external business sources.',
-            ]);
+        if ($sourceEventId === '') {
+            unset($header['source_event_id']);
+        } else {
+            $header['source_event_id'] = $sourceEventId;
         }
         if ($sourceEventVersion === '') {
             unset($header['source_event_version']);
@@ -140,7 +152,7 @@ final class JournalEntryService
                         ->where('tenant_id', $tenantId)
                         ->where('legal_entity_id', $entity->id)
                         ->where('source_type', $sourceType->value)
-                        ->where('source_id', $sourceId)
+                        ->where('source_event_id', $sourceEventId)
                         ->where('source_event_version', $sourceEventVersion)
                         ->first();
 
@@ -173,6 +185,7 @@ final class JournalEntryService
                     'description' => trim((string) ($header['description'] ?? '')),
                     'source_type' => $header['source_type'] ?? null,
                     'source_id' => isset($header['source_id']) ? (string) $header['source_id'] : null,
+                    'source_event_id' => $header['source_event_id'] ?? null,
                     'source_event_version' => $header['source_event_version'] ?? null,
                     'source_event_hash' => $sourceEventHash,
                     'idempotency_key' => $key,
@@ -245,13 +258,13 @@ final class JournalEntryService
                 }
 
                 $sourceType = JournalSourceType::tryFrom((string) ($header['source_type'] ?? ''));
-                $sourceId = trim((string) ($header['source_id'] ?? ''));
+                $sourceEventId = trim((string) ($header['source_event_id'] ?? ''));
                 $sourceVersion = trim((string) ($header['source_event_version'] ?? ''));
-                if ($sourceType?->requiresSourceReference() && $sourceId !== '' && $sourceVersion !== '') {
+                if ($sourceType?->requiresSourceReference() && $sourceEventId !== '' && $sourceVersion !== '') {
                     $sourceExisting = JournalEntry::query()->where('tenant_id', $tenantId)
                         ->where('legal_entity_id', $entityId)
                         ->where('source_type', $sourceType->value)
-                        ->where('source_id', $sourceId)
+                        ->where('source_event_id', $sourceEventId)
                         ->where('source_event_version', $sourceVersion)
                         ->first();
                     if ($sourceExisting) {
