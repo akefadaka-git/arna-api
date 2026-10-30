@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use MaaleArna\MASES\Core\Domains\Finance\Services\CanonicalChartOfAccountsValidator;
 use MaaleArna\MASES\Core\Domains\Finance\Services\ControlAccountOwnershipRegistry;
 use RuntimeException;
 
@@ -109,4 +110,4 @@ final class FinanceChartOfAccountsSeeder extends Seeder
         }
     }
 
-}\n
+}
