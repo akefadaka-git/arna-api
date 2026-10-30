@@ -1,0 +1,51 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('document_number_counters_v2', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->foreignId('legal_entity_id')->constrained('legal_entities')->restrictOnDelete();
+            $table->foreignId('organization_unit_id');
+            $table->char('bb_code', 2);
+            $table->char('document_type_number', 2);
+            $table->unsignedSmallInteger('ec_year');
+            $table->unsignedInteger('next_sequence')->default(1);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+            $table->unique(
+                ['tenant_id', 'legal_entity_id', 'organization_unit_id', 'document_type_number', 'ec_year'],
+                'doc_counter_v2_scope_unique'
+            );
+            $table->foreign(['tenant_id', 'organization_unit_id'], 'doc_counter_v2_unit_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('organization_units')->restrictOnDelete();
+            $table->index(['tenant_id', 'is_active'], 'doc_counter_v2_tenant_active_idx');
+        });
+
+        Schema::table('documents', function (Blueprint $table): void {
+            $table->char('bb_code', 2)->nullable()->after('organization_code');
+            $table->char('document_type_number', 2)->nullable()->after('document_type_code');
+            $table->unique(
+                ['tenant_id', 'legal_entity_id', 'organization_unit_id', 'document_type_number', 'ec_year', 'sequence_number'],
+                'documents_number_v2_scope_unique'
+            );
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('documents', function (Blueprint $table): void {
+            $table->dropUnique('documents_number_v2_scope_unique');
+            $table->dropColumn(['bb_code', 'document_type_number']);
+        });
+        Schema::dropIfExists('document_number_counters_v2');
+    }
+};
