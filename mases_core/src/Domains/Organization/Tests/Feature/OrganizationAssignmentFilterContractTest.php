@@ -38,4 +38,28 @@ final class OrganizationAssignmentFilterContractTest extends TestCase
         ], OrganizationRequestRules::listAssignments());
         $this->assertFalse($invalidPageSize->passes(), 'Pagination must remain bounded.');
     }
+
+    #[Test]
+    public function assignment_classifications_match_the_app_contract_and_reject_legacy_member_value(): void
+    {
+        foreach (['primary', 'acting', 'delegated', 'support'] as $type) {
+            $validator = Validator::make([
+                'person_id' => 1,
+                'assignment_type' => $type,
+                'starts_on' => '2026-10-30',
+                'reason' => 'Validate assignment classification',
+            ], OrganizationRequestRules::storeAssignment());
+
+            $this->assertTrue($validator->passes(), "The {$type} assignment type must be accepted.");
+        }
+
+        $legacy = Validator::make([
+            'person_id' => 1,
+            'assignment_type' => 'member',
+            'starts_on' => '2026-10-30',
+            'reason' => 'Reject unlisted assignment classification',
+        ], OrganizationRequestRules::storeAssignment());
+
+        $this->assertFalse($legacy->passes(), 'Legacy or unsupported assignment classifications must be rejected.');
+    }
 }
