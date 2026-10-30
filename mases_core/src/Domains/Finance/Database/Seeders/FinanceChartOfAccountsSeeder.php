@@ -8,6 +8,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\Finance\Services\CanonicalChartOfAccountsValidator;
+use MaaleArna\MASES\Core\Domains\Finance\Services\CanonicalChartOfAccountsSeederPreflight;
 use MaaleArna\MASES\Core\Domains\Finance\Services\ControlAccountOwnershipRegistry;
 use RuntimeException;
 
@@ -52,25 +53,46 @@ final class FinanceChartOfAccountsSeeder extends Seeder
         // enforces that reconciliation adapters remain blocked until approval.
         app(ControlAccountOwnershipRegistry::class)->validateAgainstChart($register);
 
-        $entities = DB::table('legal_entities')->where('status', 'active')->orderBy('tenant_id')->orderBy('id')->get();
-        if ($entities->isEmpty()) {
-            throw new RuntimeException('ARNA CoA v1.0.0 found no active legal entities; no accounts were seeded.');
-        }
+        DB::transaction(function () use ($register): void {
+            // Lock all active entities and all existing account rows, then
+            // preflight every entity before the first canonical account write.
+            $entities = DB::table('legal_entities')
+                ->where('status', 'active')
+                ->orderBy('tenant_id')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
 
-        foreach ($entities as $entity) {
-            DB::transaction(function () use ($entity, $register): void {
-                $existing = DB::table('ledger_accounts')
+            if ($entities->isEmpty()) {
+                throw new RuntimeException('ARNA CoA v1.0.0 found no active legal entities; no accounts were seeded.');
+            }
+
+            $existingByEntity = [];
+            foreach ($entities as $entity) {
+                $existingByEntity[(string) $entity->id] = DB::table('ledger_accounts')
                     ->where('tenant_id', $entity->tenant_id)
                     ->where('legal_entity_id', $entity->id)
-                    ->get()->keyBy('code');
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->all();
+            }
 
+            app(CanonicalChartOfAccountsSeederPreflight::class)->validate(
+                $register,
+                $entities->all(),
+                $existingByEntity
+            );
+
+            // The complete multi-entity preflight passed. Writes remain inside
+            // this one transaction, so a later entity failure rolls everything back.
+            foreach ($entities as $entity) {
+                $existing = collect($existingByEntity[(string) $entity->id])->keyBy('code');
                 $ids = [];
+
                 foreach ($register as $row) {
                     $code = $row[0];
                     $found = $existing->get($code);
-                    if ($found && !(bool)($found->is_system_account ?? false)) {
-                        throw new RuntimeException("CoA code {$code} already exists as a non-system account for legal entity {$entity->id}; refusing overwrite.");
-                    }
                     $ids[$code] = $found->id ?? null;
                 }
 
@@ -95,19 +117,21 @@ final class FinanceChartOfAccountsSeeder extends Seeder
                         'is_system_account' => true,
                         'updated_at' => now(),
                     ];
+
                     if ($ids[$code] === null) {
                         $values['created_at'] = now();
                         $ids[$code] = DB::table('ledger_accounts')->insertGetId($values);
                     } else {
-                        DB::table('ledger_accounts')->where('id', $ids[$code])
+                        DB::table('ledger_accounts')
+                            ->where('id', $ids[$code])
                             ->where('tenant_id', $entity->tenant_id)
                             ->where('legal_entity_id', $entity->id)
                             ->where('is_system_account', true)
                             ->update($values);
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
 }
