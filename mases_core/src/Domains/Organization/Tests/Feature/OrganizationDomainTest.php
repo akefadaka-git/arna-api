@@ -2,15 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace MaaleArna\MASES\Core\Domains\Organization\Tests\Feature;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAuditEvent;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationHierarchyPolicy;
+use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAssignmentService;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
@@ -193,7 +196,7 @@ final class OrganizationDomainTest extends TestCase
 
         $todayAtMidnight = now()->startOfDay()->toIso8601String();
         $response = $this->withHeaders($headers)->postJson('/api/organization/units/'.$unitId.'/assignments', [
-            'person_id' => $person->id, 'assignment_type' => 'member',
+            'person_id' => $person->id, 'assignment_type' => 'primary',
             'starts_on' => $todayAtMidnight,
             'reason' => 'Verify calendar date boundary',
         ]);
@@ -331,6 +334,85 @@ final class OrganizationDomainTest extends TestCase
     }
 
 
+
+    #[Test]
+    public function database_rejects_assignment_when_person_has_no_access_record_for_that_tenant(): void
+    {
+        $tenantA = Tenant::factory()->create(['is_active' => true]);
+        $tenantB = Tenant::factory()->create(['is_active' => true]);
+        $person = Person::query()->create(['first_name_en' => 'Cross', 'father_name_en' => 'Tenant']);
+        PersonTenantAccess::query()->create([
+            'person_id' => $person->id,
+            'tenant_id' => $tenantB->id,
+            'status' => 'active',
+        ]);
+        $unitId = DB::table('organization_units')->insertGetId([
+            'tenant_id' => $tenantA->id,
+            'parent_id' => null,
+            'code' => 'TENANT-A',
+            'unit_type' => 'company',
+            'name_en' => 'Tenant A',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            DB::table('organization_assignments')->insert([
+                'tenant_id' => $tenantA->id,
+                'organization_unit_id' => $unitId,
+                'person_id' => $person->id,
+                'assignment_type' => 'primary',
+                'starts_on' => now()->toDateString(),
+                'status' => 'active',
+                'lifecycle_reason' => 'Cross-tenant integrity regression',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->fail('Database must reject an assignment without a matching person/tenant access pair.');
+        } catch (QueryException) {
+            $this->assertDatabaseMissing('organization_assignments', [
+                'tenant_id' => $tenantA->id,
+                'person_id' => $person->id,
+            ]);
+        }
+    }
+
+    #[Test]
+    public function revoked_people_access_preserves_assignment_history_without_exposing_person_profile(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $person = Person::query()->create(['first_name_en' => 'Historical', 'father_name_en' => 'Person']);
+        $access = PersonTenantAccess::query()->create([
+            'person_id' => $person->id,
+            'tenant_id' => $tenant->id,
+            'status' => 'active',
+        ]);
+        $unit = OrganizationUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'HISTORY',
+            'unit_type' => 'company',
+            'name_en' => 'History Unit',
+            'status' => 'active',
+        ]);
+        $assignment = OrganizationAssignment::query()->create([
+            'tenant_id' => $tenant->id,
+            'organization_unit_id' => $unit->id,
+            'person_id' => $person->id,
+            'assignment_type' => 'primary',
+            'starts_on' => now()->toDateString(),
+            'status' => 'active',
+            'lifecycle_reason' => 'Historical assignment fixture',
+        ]);
+
+        $access->update(['status' => 'revoked']);
+        $page = app(OrganizationAssignmentService::class)->paginateForUnit((int) $tenant->id, (int) $unit->id, []);
+
+        $this->assertSame(1, $page->total());
+        $this->assertSame($assignment->id, $page->items()[0]->id);
+        $this->assertNull($page->items()[0]->person);
+    }
+
     private function memberWithPermissions(Tenant $tenant, array $permissionSlugs): User
     {
         $user = User::factory()->create();
@@ -368,7 +450,7 @@ final class OrganizationDomainTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $role = Role::query()->firstOrCreate(['slug' => 'organization-test-manager-'.$tenant->id], ['name_en' => 'Organization Test Manager', 'scope' => 'tenant', 'tenant_id' => $tenant->id]);
-        foreach (['organization.unit.view', 'organization.unit.manage', 'organization.assignment.view', 'organization.assignment.manage'] as $slug) {
+        foreach (['organization.unit.view', 'organization.unit.manage', 'organization.numbering.manage', 'organization.assignment.view', 'organization.assignment.manage'] as $slug) {
             $permission = Permission::query()->firstOrCreate(['slug' => $slug], ['name_en' => $slug, 'scope' => 'tenant', 'tenant_id' => $tenant->id, 'category' => 'organization']);
             DB::table('role_has_permissions')->updateOrInsert([
                 'role_id' => $role->id, 'permission_id' => $permission->id,

@@ -25,14 +25,19 @@ on:
       - "tests/Feature/PersonApiIntegrationTest.php"
       - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
-      - "tests/Feature/OrganizationDomainTest.php"
-      - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/**"
+      - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationDomainTest.php"
+      - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
+      - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationAuditMySqlImmutabilityTest.php"
+      - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationAssignmentFilterContractTest.php"
+      - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationSeederContractTest.php"
+      - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationNumberingRegistryTest.php"
       - "app/Http/Controllers/PersonController.php"
       - "app/Http/Controllers/PublicContentController.php"
       - "mases_core/src/Domains/PublicContent/**"
       - "tests/Feature/PublicContentModerationTest.php"
       - "routes/console.php"
+      - "routes/api.php"
       - "routes/api.php"
       - "mases_core/src/Domains/People/**"
       - "mases_core/src/Auth/Models/User.php"
@@ -183,12 +188,22 @@ jobs:
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/PersonApiIntegrationTest.php
 
-      - name: Run Organization domain tenant and lifecycle regressions
+      - name: Run Organization domain-contained lifecycle regressions
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact tests/Feature/OrganizationDomainTest.php
+        run: php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationDomainTest.php
+
+      - name: Run Organization assignment, seeder, and numbering contracts
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: |
+          php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationAssignmentFilterContractTest.php
+          php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationSeederContractTest.php
+          php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationNumberingRegistryTest.php
 
       - name: Run public content moderation lifecycle regressions
         env:
@@ -234,7 +249,7 @@ jobs:
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php
 
-      - name: Run Organization hierarchy concurrent mutation regression
+      - name: Run Organization domain hierarchy concurrency regression
         env:
           ARNA_RUN_MYSQL_CONCURRENCY: "1"
           DB_CONNECTION: mysql
@@ -243,20 +258,31 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php
+        run: php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php
+
+      - name: Verify Organization audit events are immutable on MySQL
+        env:
+          ARNA_RUN_MYSQL_AUDIT_IMMUTABILITY: "1"
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationAuditMySqlImmutabilityTest.php
 
       - name: Verify expected core and domain tables
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments person_document_links organization_units organization_assignments organization_audit_events organization_branch_number_codes organization_department_number_codes public_contents public_content_email_verifications legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 69
+          test "${applied}" -eq 70
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -286,12 +312,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates; do
+          for table in organization_units organization_assignments organization_audit_events organization_branch_number_codes organization_department_number_codes public_contents public_content_email_verifications legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 69
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 70
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -302,7 +328,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 69
+          test "${applied}" -eq 70
 
       - name: Upload migration status evidence
         if: always()
@@ -422,3 +448,30 @@ jobs:
                 throw error;
               }
             }
+  organization-source-lint:
+    name: Organization domain PHP syntax verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact pull request head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+
+      - name: Lint every Organization PHP source, migration, seeder, and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' files < <(find mases_core/src/Domains/Organization -type f -name '*.php' -print0)
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            php -l "${file}"
+          done
+

@@ -511,7 +511,7 @@ declare(strict_types=1);
  *        registration order (Core → Localization → Auth → Shareholder
  *        → Policy → Wallet → Loan → Governance).
  *
- *   11. (FUTURE) Phase 2D and 2F domain providers
+ *   10. (FUTURE) Phase 2D and 2F domain providers
  *      - Transfers/Dividends/Meetings/Voting/Elections (Phase 2D) and
  *        Communications (Phase 2F). Each added under a small CR as its
  *        first test file lands.
@@ -654,11 +654,17 @@ return [
      * Registers Finance services, translations, domain configuration, Finance-owned
      * migrations, and the Finance API routes from the domain directory.
      */
+    /*
+     * Organization domain — owns its route definitions, configuration,
+     * migrations, permission catalogue, and domain tests.
+     */
+    MaaleArna\MASES\Core\Domains\Organization\Providers\OrganizationServiceProvider::class,
+
     MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
-     * 11. Future Domain Providers (Phase 2D and 2F)
+     * 10. Future Domain Providers (Phase 2D and 2F)
      * -------------------------------------------------------------------------
      *
      * Phase 2D (Transfers/Dividends/Meetings/Voting/Elections) and
