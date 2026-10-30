@@ -56,7 +56,7 @@ final class DocumentIssuanceService
             : null;
         $title = trim((string) ($input['title'] ?? ''));
 
-        if (!$legalEntityId || !$fileId || $title === '' || mb_strlen($title) > 255) {
+        if (!$legalEntityId || !$fileId || $replacementId === false || $title === '' || mb_strlen($title) > 255) {
             throw new UnprocessableEntityHttpException('Legal entity, file, and a title of 1–255 characters are required.');
         }
 
