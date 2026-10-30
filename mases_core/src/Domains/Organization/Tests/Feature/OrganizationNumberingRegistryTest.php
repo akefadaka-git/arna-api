@@ -62,8 +62,18 @@ final class OrganizationNumberingRegistryTest extends TestCase
         $this->assertDatabaseHas('organization_audit_events', [
             'tenant_id' => $tenant->id, 'subject_type' => 'department_number_code', 'action' => 'retired',
         ]);
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\ConflictHttpException::class);
-        $service->retireDepartment((int) $tenant->id, '11', 'Attempt duplicate retirement');
+        try {
+            $service->retireDepartment((int) $tenant->id, '11', 'Attempt duplicate retirement');
+            $this->fail('A retired BB code cannot be retired again.');
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException) {
+            $this->assertTrue(true);
+        }
+
+        $retiredBranch = $service->retireBranch((int) $tenant->id, '1', 'Branch permanently closed');
+        $this->assertSame('retired', $retiredBranch->status);
+        $this->assertDatabaseHas('organization_audit_events', [
+            'tenant_id' => $tenant->id, 'subject_type' => 'branch_number_code', 'action' => 'retired',
+        ]);
     }
 
     #[Test]
