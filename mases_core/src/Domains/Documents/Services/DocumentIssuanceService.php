@@ -51,6 +51,9 @@ final class DocumentIssuanceService
 
         $legalEntityId = filter_var($input['legal_entity_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
         $fileId = filter_var($input['file_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $replacementId = isset($input['replaces_document_id'])
+            ? filter_var($input['replaces_document_id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])
+            : null;
         $title = trim((string) ($input['title'] ?? ''));
 
         if (!$legalEntityId || !$fileId || $title === '' || mb_strlen($title) > 255) {
@@ -95,6 +98,7 @@ final class DocumentIssuanceService
             'bb_code' => $registry['bb_code'],
             'document_type_number' => \MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry::numericCode($registry['document_type_code']),
             'document_type_code' => $registry['document_type_code'],
+            'replaces_document_id' => $replacementId === false ? null : $replacementId,
             'department_code' => $registry['department_code'],
             'issuing_role_code' => $registry['issuing_role_code'],
             'title' => $title,
@@ -175,6 +179,26 @@ final class DocumentIssuanceService
                 }
             }
 
+            // Replacement issuance is serialized on the original record.
+            // Only a voided/revoked document can be replaced, and only once.
+            if ($payload['replaces_document_id'] !== null) {
+                $original = Document::query()
+                    ->where('tenant_id', $tenantId)
+                    ->whereKey($payload['replaces_document_id'])
+                    ->lockForUpdate()
+                    ->first();
+                if (!$original || !in_array($original->status, ['voided', 'revoked'], true)) {
+                    throw new ConflictHttpException('A replacement must reference a voided or revoked document in the same tenant.');
+                }
+                $alreadyReplaced = Document::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('replaces_document_id', $original->getKey())
+                    ->exists();
+                if ($alreadyReplaced) {
+                    throw new ConflictHttpException('The original document already has a replacement.');
+                }
+            }
+
             // The printed number omits legal-entity and internal registry IDs.
             // Therefore its counter scope must use exactly the visible code
             // segments so two entities cannot allocate the same printed number.
@@ -238,6 +262,7 @@ final class DocumentIssuanceService
                 'ec_year' => $payload['ec_year'],
                 'sequence_number' => $sequence,
                 'canonical_number' => $number,
+                'replaces_document_id' => $payload['replaces_document_id'],
                 'title' => $payload['title'],
                 'file_id' => $payload['file_id'],
                 'file_version' => $payload['file_version'],
@@ -337,7 +362,10 @@ final class DocumentIssuanceService
             'event_type' => $eventType,
             'actor_user_id' => $actor->getAuthIdentifier(),
             'reason' => $reason,
-            'metadata' => json_encode(['canonical_number' => $document->canonical_number], JSON_THROW_ON_ERROR),
+            'metadata' => json_encode([
+                'canonical_number' => $document->canonical_number,
+                'replaces_document_id' => $document->replaces_document_id,
+            ], JSON_THROW_ON_ERROR),
             'occurred_at' => $occurredAt,
             'created_at' => $occurredAt,
             'updated_at' => $occurredAt,
