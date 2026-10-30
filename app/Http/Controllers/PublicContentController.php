@@ -165,7 +165,7 @@ final class PublicContentController extends Controller
             'title' => ['required', 'string', 'min:5', 'max:200'],
             'body' => ['required', 'string', 'min:20', 'max:50000'],
             'author_name' => ['required', 'string', 'min:2', 'max:160'],
-            'author_email' => ['nullable', 'email:rfc', 'max:254'],
+            'author_email' => ['required', 'email:rfc', 'max:254'],
         ])->validate();
 
         $item = DB::transaction(function () use ($request, $id, $validated): PublicContent {
@@ -173,7 +173,15 @@ final class PublicContentController extends Controller
             if ($item->version !== (int) $validated['expected_version']) {
                 throw new ConflictHttpException('The content changed after it was loaded. Refresh before editing.');
             }
-            $old = ['status' => $item->status, 'version' => $item->version];
+            $old = [
+                'status' => $item->status,
+                'version' => $item->version,
+                'content_type' => $item->content_type,
+                'title' => $item->title,
+                'body_sha256' => hash('sha256', $item->body),
+                'author_name' => $item->author_name,
+                'author_email' => $item->author_email,
+            ];
             $item->fill(collect($validated)->except('expected_version')->all());
             $item->version++;
             $item->status = 'pending_review';
@@ -185,7 +193,13 @@ final class PublicContentController extends Controller
             $item->save();
 
             $this->audit($request, 'public_content.edited_requeued', $item, $old, [
-                'status' => $item->status, 'version' => $item->version,
+                'status' => $item->status,
+                'version' => $item->version,
+                'content_type' => $item->content_type,
+                'title' => $item->title,
+                'body_sha256' => hash('sha256', $item->body),
+                'author_name' => $item->author_name,
+                'author_email' => $item->author_email,
             ]);
             return $item;
         });
