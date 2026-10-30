@@ -114,6 +114,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             'subject_type' => 'journal_entry',
             'subject_id' => $draft->id,
         ]);
+        $this->assertDatabaseCount('finance_audit_entries', 1);
     }
 
     #[Test]
@@ -156,6 +157,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             'id' => $original->id, 'status' => JournalEntry::POSTED, 'reversed_at' => null,
         ]);
         $this->assertDatabaseCount('journal_entries', 1);
+        $this->assertDatabaseCount('finance_audit_entries', 2);
         $this->assertDatabaseMissing('finance_audit_entries', [
             'event_type' => 'finance.journal.reversed',
             'subject_type' => 'journal_entry',
