@@ -163,7 +163,8 @@ final class OrganizationController extends Controller
         $data = $request->validate(OrganizationRequestRules::listAssignments());
         $items = OrganizationAssignment::query()->where('tenant_id', $tenantId)
             ->where('organization_unit_id', $unit->id)
-            ->whereHas('person.tenantAccesses', fn ($q) => $q->where('tenant_id', $tenantId)->where('status', 'active'))
+            // Assignment history is Organization-owned and remains visible after People access revocation.
+            // The composite FK guarantees the historical link was valid for this tenant when created.
             ->when(isset($data['status']), fn ($q) => $q->where('status', $data['status']))
             ->when(isset($data['person_id']), fn ($q) => $q->where('person_id', $data['person_id']))
             ->when(isset($data['effective_on']), function ($q) use ($data): void {
