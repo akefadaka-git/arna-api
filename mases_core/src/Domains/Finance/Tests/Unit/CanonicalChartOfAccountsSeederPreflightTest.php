@@ -45,4 +45,51 @@ final class CanonicalChartOfAccountsSeederPreflightTest extends TestCase
         (new CanonicalChartOfAccountsSeederPreflight())->validate([['1110']], $entities, $existing);
         self::assertTrue(true);
     }
+
+    public function test_duplicate_existing_canonical_codes_are_rejected(): void
+    {
+        $entities = [(object) ['id' => 10, 'tenant_id' => 1]];
+        $existing = [
+            '10' => [
+                (object) ['tenant_id' => 1, 'legal_entity_id' => 10, 'code' => '1110', 'is_system_account' => true],
+                (object) ['tenant_id' => 1, 'legal_entity_id' => 10, 'code' => '1110', 'is_system_account' => true],
+            ],
+        ];
+
+        $this->expectException(LogicException::class);
+        (new CanonicalChartOfAccountsSeederPreflight())->validate([['1110']], $entities, $existing);
+    }
+
+    public function test_existing_rows_must_match_the_entity_tenant_boundary(): void
+    {
+        $entities = [(object) ['id' => 10, 'tenant_id' => 1]];
+        $existing = [
+            '10' => [(object) [
+                'tenant_id' => 2,
+                'legal_entity_id' => 10,
+                'code' => '9900',
+                'is_system_account' => false,
+            ]],
+        ];
+
+        $this->expectException(LogicException::class);
+        (new CanonicalChartOfAccountsSeederPreflight())->validate([['1110']], $entities, $existing);
+    }
+
+    public function test_noncanonical_tenant_owned_accounts_are_not_touched_by_preflight(): void
+    {
+        $entities = [(object) ['id' => 10, 'tenant_id' => 1]];
+        $existing = [
+            '10' => [(object) [
+                'tenant_id' => 1,
+                'legal_entity_id' => 10,
+                'code' => '9900',
+                'is_system_account' => false,
+            ]],
+        ];
+
+        (new CanonicalChartOfAccountsSeederPreflight())->validate([['1110']], $entities, $existing);
+        self::assertTrue(true);
+    }
+
 }
