@@ -23,7 +23,7 @@ final class FinancePermissionCatalogueTest extends TestCase
         $financeSlugs = array_column(FinancePermissionCatalogue::ROWS, 'slug');
         $platformSlugs = array_column(PermissionCatalogue::ROWS, 'slug');
 
-        $this->assertCount(12, $financeSlugs);
+        $this->assertCount(13, $financeSlugs);
         $this->assertCount(count($financeSlugs), array_unique($financeSlugs));
 
         foreach ($financeSlugs as $slug) {
