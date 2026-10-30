@@ -205,8 +205,9 @@ final class RolePermissionGrants
         ],
         'tenant_admin'    => [
             'scope:tenant',
-            // Organization tenant permissions are included through scope:tenant;
-            // domain-specific grant policy remains owned by Organization.
+            // No Organization literals are duplicated here: tenant_admin receives
+            // tenant-scoped grants through this generic scope grant. The
+            // Organization domain seeder validates its required permissions.
             'app.portal.access', 'app.finance.access', 'app.hr.access',
             'app.admin.access', 'app.arna.access', 'app.app.access', 'app.launcher.access',
         ],
