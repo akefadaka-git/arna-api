@@ -78,8 +78,8 @@ No code in this branch represents a professional tax opinion. Production tax cal
 | FIN-1.01 | 1 — GL integrity | Enforce source-event uniqueness by tenant + legal entity + source domain + immutable event ID + version, with canonical payload hash | IMPLEMENTED IN SOURCE — nullable legacy-compatible `source_event_id`, `source_event_version`, and `source_event_hash`; external sources require an aggregate `source_id` plus immutable event ID and version; unique tenant/entity/type/event-ID/version index; canonical payload hash excludes request idempotency key; same event/payload returns persisted journal; changed payload conflicts. Tests added; NOT RUN |
 | FIN-1.02 | 1 — GL integrity | Prove atomic posting, audit persistence, posted-header/line immutability, and reversal linkage | IMPLEMENTED IN SOURCE — audit listener enforces same active transaction connection; posting/reversal audit-failure rollback tests added; MySQL + SQLite database triggers protect posted headers and line insert/update/delete. Tests and migration NOT RUN |
 | FIN-1.03 | 1 — GL integrity | Verify concurrent duplicate requests, period close/post, and direct line insert/post races on MySQL | SOURCE LOCKS PRESENT; BOUNDED VERIFICATION DESIGN DOCUMENTED — three two-connection barrier-controlled scenarios and assertions specified below. NOT EXECUTED; MySQL concurrency tests NOT RUN |
-| FIN-1.04 | 1 — GL integrity | Verify tenant/entity isolation for all reads, writes, account references, periods, reversals, and reports | PARTIAL — composite constraints and scoped queries exist; adversarial tests not run |
-| FIN-1.05 | 1 — GL integrity | Confirm journal numbering uniqueness, date/period validation, and database precision boundaries | PARTIAL — source and constraints exist; full boundary verification pending |
+| FIN-1.04 | 1 — GL integrity | Verify tenant/entity isolation for all reads, writes, account references, periods, reversals, and reports | PARTIAL — composite tenant/entity foreign keys, tenant/entity-scoped service lookups, and report joins are present; adversarial cross-tenant account/post/reversal regression test added; NOT RUN |
+| FIN-1.05 | 1 — GL integrity | Confirm journal numbering uniqueness, date/period validation, and database precision boundaries | PARTIAL — service now validates ISO dates, ordered period boundaries, journal-number length/non-emptiness, description storage length, and DECIMAL(20,4) amount bounds; boundary tests added; database/runtime verification NOT RUN |
 | FIN-1.06 | 1 — GL integrity | Revalidate legal-entity active status and every journal-line account's active/postable status inside the locked posting transaction, not only when the draft is created | IMPLEMENTED IN SOURCE — posting locks and rechecks the tenant-scoped legal entity, period, and sorted same-entity account rows; rejects inactive/non-postable accounts and cash-flow classification after cash-equivalent status changes. Tests added; NOT RUN |
 | FIN-2.01 | 2 — CoA | Verify all 79 accounts, parent hierarchy, type/normal-balance consistency, and posting eligibility | SOURCE PRESENT — tests added, NOT RUN |
 | FIN-2.02 | 2 — CoA | Verify all 36 control-account ownership mappings and fail-closed seeder preflight | SOURCE PRESENT — tests added, NOT RUN |
@@ -315,3 +315,26 @@ The source-level lock paths and this verification protocol are documented. No da
 ## 9. Next gate
 
 Proceed with Phase 1 core GL integrity, beginning with source-event idempotency identity and database uniqueness, then posting/audit atomicity, immutable posted records, reversal correctness, and period concurrency. Keep all adapters disabled until source audits and ownership controls are complete. Run only destination GitHub verification that is separately within the approved verification gate; do not run local repository tests. Do not merge or deploy until the Owner separately authorizes those actions.
+
+
+## 6E. Phase 1 hardening increment — FIN-1.04 and FIN-1.05
+
+### FIN-1.04 — tenant and legal-entity isolation
+
+- Re-reviewed the ledger foundation migration: legal entities, accounts, accounting periods, journal headers, journal lines, and reversal references use tenant/entity composite foreign keys where the relationship crosses a legal-entity boundary.
+- Re-reviewed journal creation/posting/reversal service paths: tenant and legal-entity constraints are included in entity/account/period/original-journal lookups.
+- Re-reviewed trial-balance and income-statement joins: tenant and legal-entity keys are included in the ledger-account, journal-line, and journal-header join predicates.
+- Added an adversarial feature test for a cross-tenant account reference, cross-tenant posting attempt, and cross-tenant reversal attempt. This test is source-only and has NOT RUN.
+- Remaining acceptance: complete adversarial coverage of direct database writes, period/account references, all report endpoints, and authorization routes; execute the test suite on the exact commit.
+
+### FIN-1.05 — journal numbering, dates, and precision boundaries
+
+- Accounting-period creation now validates strict ISO `YYYY-MM-DD` dates, rejects impossible calendar dates, and rejects a start date later than its end date before opening a transaction.
+- Journal draft creation now requires a non-empty journal number of at most 64 characters, validates a strict ISO effective date, and caps descriptions at the database's 500-character storage limit before computing idempotency fingerprints.
+- The existing decimal parser continues to accept at most 16 integer digits and 4 fractional digits, matching the `DECIMAL(20,4)` ledger columns without PHP float conversion.
+- Added feature tests for invalid/inverted period dates, blank/overlength journal numbers, invalid effective dates, overlength descriptions, and decimal integer/fraction overflow. Tests have NOT RUN.
+- Database uniqueness still enforces tenant + legal entity + journal number. MySQL/SQLite constraint behavior, exact maximum-value persistence, migration compatibility, and all boundary tests remain NOT VERIFIED.
+
+### Evidence boundary
+
+These are source changes and test additions only. They do not close FIN-1.04 or FIN-1.05. FIN-1.03's bounded MySQL concurrency protocol remains unexecuted. No local test, CI workflow, migration, database operation, or deployment was run in this increment.
