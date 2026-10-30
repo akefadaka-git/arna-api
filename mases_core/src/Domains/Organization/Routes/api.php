@@ -24,3 +24,6 @@ Route::patch('/assignments/{id}', [OrganizationController::class, 'updateAssignm
 
 Route::post('/numbering/branches', [OrganizationController::class, 'registerBranchNumber'])->name('numbering.branches.store');
 Route::post('/numbering/departments', [OrganizationController::class, 'registerDepartmentNumber'])->name('numbering.departments.store');
+
+Route::post('/numbering/branches/{id}/retire', [OrganizationController::class, 'retireBranchNumber'])->whereNumber('id')->name('numbering.branches.retire');
+Route::post('/numbering/departments/{id}/retire', [OrganizationController::class, 'retireDepartmentNumber'])->whereNumber('id')->name('numbering.departments.retire');
