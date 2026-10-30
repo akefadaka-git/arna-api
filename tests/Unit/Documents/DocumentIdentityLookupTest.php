@@ -7,7 +7,9 @@ namespace Tests\Unit\Documents;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use MaaleArna\MASES\Core\Contracts\Documents\DocumentIdentityLookup;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentIdentityLookupService;
+use MaaleArna\MASES\Core\Domains\FileManagement\Http\Controllers\FileController;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -49,6 +51,16 @@ final class DocumentIdentityLookupTest extends TestCase
         DB::purge('document_identity_lookup_test');
         config(['database.default' => $this->originalDatabaseConnection]);
         parent::tearDown();
+    }
+
+    #[Test]
+    public function it_binds_the_lookup_contract_for_file_management_consumers(): void
+    {
+        $lookup = app(DocumentIdentityLookup::class);
+        $controller = app(FileController::class);
+
+        $this->assertInstanceOf(DocumentIdentityLookupService::class, $lookup);
+        $this->assertInstanceOf(FileController::class, $controller);
     }
 
     #[Test]
