@@ -978,15 +978,11 @@ final class PersonApiIntegrationTest extends TestCase
             'domain' => 'people-test-'.$tenant->getKey().'.example.test',
             'is_active' => true,
         ]);
-        $permission = Permission::query()->create([
-            'name_en' => 'Application People Manager',
-            'slug' => 'people.manage',
-            'category' => 'user',
+        $permission = Permission::query()->where('slug', 'people.manage')->firstOrFail();
+        $permission->update([
             'scope' => 'application',
             'tenant_id' => null,
             'application_id' => $application->getKey(),
-            'is_active' => true,
-            'is_system' => false,
         ]);
         $role = Role::query()->create([
             'name_en' => 'Application People Manager',
