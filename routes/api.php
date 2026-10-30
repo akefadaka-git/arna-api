@@ -685,6 +685,9 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
         Route::post('/journals/{journalId}/reverse', [$controller, 'reverseJournal'])->whereNumber('journalId')->middleware('auth.permission:finance.journal.reverse')->name('journals.reverse');
 
         Route::get('/trial-balance', [$controller, 'trialBalance'])->middleware('auth.permission:finance.report.view')->name('reports.trial-balance');
+        Route::get('/income-statement', [$controller, 'incomeStatement'])->middleware('auth.permission:finance.report.view')->name('reports.income-statement');
+        Route::get('/balance-sheet', [$controller, 'balanceSheet'])->middleware('auth.permission:finance.report.view')->name('reports.balance-sheet');
+        Route::get('/cash-flow', [$controller, 'cashFlow'])->middleware('auth.permission:finance.report.view')->name('reports.cash-flow');
     });
 
 // =============================================================================

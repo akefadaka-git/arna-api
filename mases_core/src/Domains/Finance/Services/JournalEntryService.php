@@ -158,6 +158,11 @@ final class JournalEntryService
                         throw ValidationException::withMessages(["lines.{$index}" => 'Each journal line must have exactly one positive debit or credit amount.']);
                     }
 
+                    $cashFlowActivity = $line['cash_flow_activity'] ?? null;
+                    if ($cashFlowActivity !== null && !(bool) $account->is_cash_equivalent) {
+                        throw ValidationException::withMessages(["lines.{$index}.cash_flow_activity" => 'Cash-flow activity may only be assigned to an account approved as a cash equivalent.']);
+                    }
+
                     JournalLine::query()->create([
                         'tenant_id' => $tenantId,
                         'legal_entity_id' => $entity->id,
@@ -167,6 +172,8 @@ final class JournalEntryService
                         'description' => isset($line['description']) ? trim((string) $line['description']) : null,
                         'debit_amount' => $debit,
                         'credit_amount' => $credit,
+                        'cash_flow_activity' => $cashFlowActivity,
+                        'cash_flow_classification_note' => isset($line['cash_flow_classification_note']) ? trim((string) $line['cash_flow_classification_note']) : null,
                     ]);
                 }
 
@@ -317,6 +324,8 @@ final class JournalEntryService
                 'debit_amount' => $line->credit_amount,
                 'credit_amount' => $line->debit_amount,
                 'description' => $line->description,
+                'cash_flow_activity' => $line->cash_flow_activity,
+                'cash_flow_classification_note' => $line->cash_flow_classification_note,
             ])->all();
 
             // A retried request after a successful reversal returns the already

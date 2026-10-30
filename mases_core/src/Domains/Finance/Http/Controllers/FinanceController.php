@@ -26,6 +26,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\CashFlowReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\SourceLegalEntityMappingService;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
@@ -47,6 +48,7 @@ final class FinanceController extends Controller
         private readonly LedgerAccountService $ledgerAccountService,
         private readonly JournalEntryService $journals,
         private readonly FinancialReportService $financialReports,
+        private readonly CashFlowReportService $cashFlowReports,
         private readonly LedgerAccountRepository $ledgerAccounts,
         private readonly AccountingPeriodRepository $accountingPeriods,
         private readonly AccountingPeriodService $accountingPeriodService,
@@ -254,6 +256,59 @@ final class FinanceController extends Controller
             $data['journal_number'], $data['effective_date'], $data['reason'],
         );
         return response()->json(['success' => true, 'data' => $journal], 201);
+    }
+
+    public function incomeStatement(Request $request): JsonResponse
+    {
+        Gate::authorize('viewReport', JournalEntry::class);
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer', 'min:1'],
+            'from' => ['required', 'date'],
+            'to' => ['required', 'date', 'after_or_equal:from'],
+        ]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+        $report = $this->financialReports->incomeStatement(
+            $this->tenantId(), (int) $entity->id, (string) $data['from'], (string) $data['to'],
+        );
+
+        return response()->json(['success' => true, 'data' => [
+            'legal_entity_id' => (int) $entity->id,
+            ...$report,
+        ]]);
+    }
+
+    public function balanceSheet(Request $request): JsonResponse
+    {
+        Gate::authorize('viewReport', JournalEntry::class);
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer', 'min:1'],
+            'as_of' => ['required', 'date'],
+        ]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+        $report = $this->financialReports->balanceSheet(
+            $this->tenantId(), (int) $entity->id, (string) $data['as_of'],
+        );
+
+        return response()->json(['success' => true, 'data' => [
+            'legal_entity_id' => (int) $entity->id,
+            ...$report,
+        ]]);
+    }
+
+    public function cashFlow(Request $request): JsonResponse
+    {
+        Gate::authorize('viewReport', JournalEntry::class);
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer', 'min:1'],
+            'from' => ['required', 'date'],
+            'to' => ['required', 'date', 'after_or_equal:from'],
+        ]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+        $report = $this->cashFlowReports->cashFlow(
+            $this->tenantId(), (int) $entity->id, (string) $data['from'], (string) $data['to'],
+        );
+
+        return response()->json(['success' => true, 'data' => $report]);
     }
 
     public function trialBalance(Request $request): JsonResponse
