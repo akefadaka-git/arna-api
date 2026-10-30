@@ -296,6 +296,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             'currency' => 'ETB',
             'source_type' => JournalSourceType::LOAN->value,
             'source_id' => 'loan-event-100',
+            'source_event_id' => 'loan-event-100-v3',
             'source_event_version' => '3',
             'idempotency_key' => 'loan-event-request-one',
         ];
@@ -608,7 +609,7 @@ final class FinanceGeneralLedgerTest extends TestCase
         $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
             'legal_entity_id' => $entity->id,
             'journal_number' => 'CANCEL-001',
-            'effective_date' => '2026-01-15',
+            'effective_date' => '2026-10-15',
             'currency' => 'ETB',
             'idempotency_key' => 'cancel-draft-test',
             'description' => 'Draft to cancel',
@@ -791,6 +792,8 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'currency' => 'ETB',
                 'source_type' => JournalSourceType::SHAREHOLDER->value,
                 'source_id' => 'shareholder-123',
+                'source_event_id' => 'shareholder-event-123',
+                'source_event_version' => '1',
                 'idempotency_key' => 'source-fail-closed',
             ], [
                 ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
@@ -838,6 +841,8 @@ final class FinanceGeneralLedgerTest extends TestCase
             'currency' => 'ETB',
             'source_type' => JournalSourceType::SHAREHOLDER->value,
             'source_id' => 'shareholder-456',
+            'source_event_id' => 'shareholder-event-456',
+            'source_event_version' => '1',
             'idempotency_key' => 'source-resolver-integrated',
         ], [
             ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
@@ -998,8 +1003,8 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'Must not cross tenant boundary'
             );
             $this->fail('A tenant must not reverse another tenant\'s journal.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('journal', $exception->errors());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $exception) {
+            $this->assertSame(JournalEntry::class, $exception->getModel());
         }
 
         $this->assertDatabaseCount('journal_entries', 1);

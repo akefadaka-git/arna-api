@@ -103,6 +103,9 @@ jobs:
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      - name: Prepare hermetic Laravel environment file
+        run: touch .env
+
       - name: Verify clean MySQL database before migration
         shell: bash
         run: |

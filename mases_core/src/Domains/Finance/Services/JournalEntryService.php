@@ -133,7 +133,7 @@ final class JournalEntryService
         }
 
         try {
-            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType, $sourceEventVersion, $sourceEventHash): JournalEntry {
+            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType, $sourceEventId, $sourceEventVersion, $sourceEventHash): JournalEntry {
                 if (count($lines) < 2) {
                     throw ValidationException::withMessages(['lines' => 'A journal must contain at least two lines.']);
                 }
