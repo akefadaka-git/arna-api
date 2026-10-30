@@ -20,7 +20,7 @@ on:
       - "database/seeders/**"
       - "tests/Unit/DemoSeederGuardTest.php"
       - "tests/Concerns/LoanDatabaseMigrations.php"
-      - "mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php"
+      - "mases_core/src/Domains/People/**"
       - "mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php"
       - "mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
