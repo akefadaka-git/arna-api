@@ -9,7 +9,8 @@
 - **ORG-D2 — Legal entity:** Organization may reference a legal-entity identifier but does not become the authority for accounting registration, posting, or consolidation policy. Finance remains authoritative for accounting behavior.
 - **ORG-D3 — Taxonomy:** Initial structural types are `company`, `division`, `branch`, `department`, and `team`. Parent-child compatibility must be validated in a central policy, not scattered through controllers. A company is a root; division is under company; branch is under company or division; department is under company, division, or branch; team is under department. This taxonomy must be configurable through a reviewed policy change, not user-supplied arbitrary types.
 - **ORG-D4 — Assignments:** A person may hold multiple concurrent organizational assignments. Each assignment is explicit, effective-dated, status-bearing, and linked to the canonical People domain. Assignments do not create user accounts or imply employment, ownership, governance authority, or permissions.
-- **ORG-D4a — Assignment query contract:** Assignment lists may be filtered by lifecycle status (`scheduled`, `active`, `ended`, `cancelled`), canonical `person_id`, and `effective_on`. Effective-date filtering is inclusive at both ends (`starts_on <= effective_on` and `ends_on IS NULL OR ends_on >= effective_on`); all filters remain constrained to the resolved tenant, requested unit, and an active tenant access for the person.
+- **ORG-D4a — Assignment query contract:** Assignment lists may be filtered by lifecycle status (`scheduled`, `active`, `ended`, `cancelled`), canonical `person_id`, and `effective_on`. Effective-date filtering is inclusive at both ends (`starts_on <= effective_on` and `ends_on IS NULL OR ends_on >= effective_on`); all assignment rows remain constrained to the resolved tenant and requested unit. Creation requires active People tenant access; revocation preserves the Organization assignment record but removes the revoked person's profile fields from the assignment response.
+- **ORG-D4b — Assignment classifications:** Creation accepts exactly `primary`, `acting`, `delegated`, and `support`, matching the app contract. These are operational placement classifications only; `acting` and `delegated` do not create or imply Governance authority.
 - **ORG-D5 — Hierarchy/lifecycle:** Reject self-parenting, cycles, cross-tenant parents, invalid parent-type combinations, and unsafe mutations that strand active descendants or assignments. Deactivation is reasoned and audited; referenced units are not destructively deleted.
 - **ORG-D6 — Governance:** Governance remains authoritative for governance bodies, positions, terms, appointments, memberships, seats, occupancies, acting assignments, and authority grants. Links to organizational units must be explicit.
 - **ORG-D7 — Access:** Unit membership is not authorization. Every endpoint requires authenticated tenant membership plus explicit action-level authorization; unresolved or conflicting tenant context fails closed.
@@ -39,13 +40,10 @@
 The Owner has authorized implementation. This document records the bounded decisions; it does **not** itself establish production readiness. Production acceptance remains pending until implementation, automated verification, and review evidence are attached to the implementation pull request.
 
 
-## Cross-repository API boundary review — 2026-10-28
+## Cross-repository integration boundary — updated 2026-10-30
 
-**Purpose:** Record whether PR #25 changes a contract already consumed by the ARNA app, without silently expanding this API-only implementation into a frontend feature.
-
-- API candidate at review start: `akefadaka-git/arna-api` PR #25, head `66e46b823e025a7bb41fa62ec98e481caf80dfa3`; remediation is being added to the same PR branch.
-- App baseline inspected: `akefadaka-git/arna-app` `main` at `7b04286d4a20b3587249eed8b90281699492b4c7`.
-- Read-only inspected app files: `src/core/api/client.ts`, `src/router/routes-workspace.ts`, `src/features/people/api.ts`, and `src/features/governance/api.ts`; inspected the feature-directory listing.
-- The inspected API client, workspace router, People API module, and Governance API module contain no Organization endpoint or `/api/organization` contract reference; the feature-directory listing has no Organization feature directory.
-- **Disposition:** The current Organization API is not yet an app-consumed contract in the inspected app baseline. Frontend Organization UI/API integration is explicitly deferred; no app files are changed by PR #25. Do not describe this as cross-repository app acceptance, and do not infer frontend readiness from the API checks.
-- **Release boundary:** Before an Organization frontend consumer is introduced or shipped, add typed API contracts for the unit and assignment endpoints, permission-aware UI behavior, Amharic-first labels, error handling, and app type-check/build verification against the exact API candidate SHA. That future integration requires its own bounded change and acceptance evidence.
+- The Organization app consumer exists in `akefadaka-git/arna-app` PR #6 under `src/features/organization/`; the previous PR #25 assessment is obsolete.
+- API PR #49 is the active API implementation candidate. App PR #6 remains a separate, open, unmerged consumer candidate.
+- The App feature owns Organization views and typed API contracts. Shared router/navigation files remain composition points only.
+- App assignment type values are `primary`, `acting`, `delegated`, and `support`; the API accepts the same closed set.
+- App runtime, type-check, build, and live API integration have not been verified by this implementation pass.
