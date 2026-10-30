@@ -108,6 +108,22 @@ final class PublicContentModerationTest extends TestCase
         ]);
     }
 
+    public function test_reviewer_cannot_moderate_anonymous_submission_using_their_account_email(): void
+    {
+        $reviewer = $this->reviewer();
+        Sanctum::actingAs($reviewer);
+        $item = PublicContent::create($this->payload(['author_email' => $reviewer->email]));
+
+        $this->postJson('/api/admin/public-content/' . $item->id . '/approve', [
+            'expected_version' => 1,
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('public_contents', [
+            'id' => $item->id,
+            'status' => 'pending_review',
+        ]);
+    }
+
     public function test_reviewer_must_approve_before_publish_and_actions_are_audited(): void
     {
         $reviewer = $this->reviewer();
