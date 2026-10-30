@@ -97,6 +97,10 @@ final class PublicContentModerationTest extends TestCase
         $this->postJson('/api/admin/public-content/' . $item->id . '/approve', [
             'expected_version' => 1,
         ])->assertForbidden();
+        $this->postJson('/api/admin/public-content/' . $item->id . '/reject', [
+            'expected_version' => 1,
+            'reason' => 'Cannot self-review.',
+        ])->assertForbidden();
 
         $this->assertDatabaseHas('public_contents', [
             'id' => $item->id,
