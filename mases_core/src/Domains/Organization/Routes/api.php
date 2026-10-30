@@ -21,3 +21,6 @@ Route::delete('/units/{id}', [OrganizationController::class, 'archive'])->whereN
 Route::get('/units/{id}/assignments', [OrganizationController::class, 'assignments'])->whereNumber('id')->name('units.assignments.index');
 Route::post('/units/{id}/assignments', [OrganizationController::class, 'assign'])->whereNumber('id')->name('units.assignments.store');
 Route::patch('/assignments/{id}', [OrganizationController::class, 'updateAssignment'])->whereNumber('id')->name('assignments.update');
+
+Route::post('/numbering/branches', [OrganizationController::class, 'registerBranchNumber'])->name('numbering.branches.store');
+Route::post('/numbering/departments', [OrganizationController::class, 'registerDepartmentNumber'])->name('numbering.departments.store');
