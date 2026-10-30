@@ -60,8 +60,8 @@ final class JournalEntryService
         }
 
         $effectiveDate = trim((string) ($header['effective_date'] ?? ''));
-        $parsedEffectiveDate = \\DateTimeImmutable::createFromFormat('!Y-m-d', $effectiveDate);
-        $dateErrors = \\DateTimeImmutable::getLastErrors();
+        $parsedEffectiveDate = \DateTimeImmutable::createFromFormat('!Y-m-d', $effectiveDate);
+        $dateErrors = \DateTimeImmutable::getLastErrors();
         if (!$parsedEffectiveDate
             || $parsedEffectiveDate->format('Y-m-d') !== $effectiveDate
             || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0))) {
