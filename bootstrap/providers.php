@@ -656,6 +656,8 @@ return [
      */
     MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
 
+    MaaleArna\MASES\Core\Domains\Organization\Providers\OrganizationServiceProvider::class,
+
     /*
      * -------------------------------------------------------------------------
      * 11. Future Domain Providers (Phase 2D and 2F)

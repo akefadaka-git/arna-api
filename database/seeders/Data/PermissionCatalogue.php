@@ -47,7 +47,7 @@ namespace Database\Seeders\Data;
  *
  *   category    — the permission's functional group. One of:
  *                 'user', 'role', 'permission', 'app_access',
- *                 'file', 'tenant', 'test'.
+ *                 'file', 'tenant', 'test', 'organization'.
  *
  *   scope       — the permission's scope of applicability. One of:
  *                 'global'      — platform-wide, not tied to a tenant.
@@ -200,5 +200,6 @@ final class PermissionCatalogue
         ['slug' => 'finance.journal.post', 'name_am' => 'የመዝገብ ማስታወሻ መለጠፍ', 'name_en' => 'Post Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.reverse', 'name_am' => 'የመዝገብ ማስታወሻ መቀልበስ', 'name_en' => 'Reverse Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.report.view', 'name_am' => 'የፋይናንስ ሪፖርቶችን ማየት', 'name_en' => 'View Financial Reports', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
+        ...\MaaleArna\MASES\Core\Domains\Organization\Support\OrganizationPermissionCatalogue::ROWS,
     ];
 }
