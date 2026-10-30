@@ -1,0 +1,55 @@
+name: Sync People integration branch with main
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: sync-people-main-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync-people-branch:
+    if: >-
+      ${{ github.event.pull_request.head.ref == 'feat/people-domain-phase-2-api'
+          && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the exact People branch head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Merge current main into the People branch
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          actual_head="$(git rev-parse HEAD)"
+          if [[ "$actual_head" != "$EXPECTED_HEAD" ]]; then
+            echo "::error::Branch advanced during sync setup; expected $EXPECTED_HEAD, got $actual_head."
+            exit 1
+          fi
+
+          git fetch origin main
+          main_head="$(git rev-parse origin/main)"
+          echo "People branch head: $actual_head"
+          echo "Current main head: $main_head"
+
+          if git merge-base --is-ancestor "$main_head" HEAD; then
+            echo "People branch already contains current main."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit "$main_head"
+          git push origin HEAD:refs/heads/feat/people-domain-phase-2-api
