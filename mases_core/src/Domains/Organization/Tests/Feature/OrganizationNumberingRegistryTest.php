@@ -56,6 +56,13 @@ final class OrganizationNumberingRegistryTest extends TestCase
             'tenant_id' => $tenant->id, 'subject_type' => 'department_number_code', 'action' => 'registered',
         ]);
 
+        try {
+            $service->retireBranch((int) $tenant->id, '1', 'Cannot retire with active department');
+            $this->fail('A branch with an active department code cannot be retired.');
+        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException) {
+            $this->assertTrue(true);
+        }
+
         $retired = $service->retireDepartment((int) $tenant->id, '11', 'Department permanently closed');
         $this->assertSame('retired', $retired->status);
         $this->assertNotNull($retired->effective_until);
