@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Data;
 
+use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatalogue;
+
 /**
  * PermissionCatalogue
  *
@@ -164,7 +166,6 @@ final class PermissionCatalogue
         ['slug' => 'permission.update', 'name_am' => 'ፈቃድ ማዘመን',        'name_en' => 'Update Permission',  'category' => 'permission', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'permission.delete', 'name_am' => 'ፈቃድ መሰረዝ',        'name_en' => 'Delete Permission',  'category' => 'permission', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'app.portal.access',   'name_am' => 'ፖርታል መድረስ',               'name_en' => 'Access Portal',   'category' => 'app_access', 'scope' => 'application', 'is_system' => false],
-        ['slug' => 'app.finance.access',  'name_am' => 'ፋይናንስ መድረስ',              'name_en' => 'Access Finance',  'category' => 'app_access', 'scope' => 'application', 'is_system' => false],
         ['slug' => 'app.hr.access',       'name_am' => 'የሰው ሀብት መድረስ',           'name_en' => 'Access HR',       'category' => 'app_access', 'scope' => 'application', 'is_system' => false],
         ['slug' => 'app.admin.access',    'name_am' => 'አስተዳደር መድረስ',              'name_en' => 'Access Admin',    'category' => 'app_access', 'scope' => 'application', 'is_system' => true],
         ['slug' => 'app.arna.access',     'name_am' => 'ዓርና መድረስ',                 'name_en' => 'Access ARNA',     'category' => 'app_access', 'scope' => 'application', 'is_system' => false],
@@ -187,18 +188,7 @@ final class PermissionCatalogue
         ['slug' => 'people.manage', 'name_am' => 'የሰው መገለጫዎችን ማስተዳደር', 'name_en' => 'Manage People Profiles', 'category' => 'user', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'people.account-link.manage', 'name_am' => 'የሰው መገለጫና መለያ ግንኙነትን ማስተዳደር', 'name_en' => 'Manage Global Person Account Links', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'people.tenant-access.manage', 'name_am' => 'የሰው መገለጫን በቴናንት መካከል መፍቀድ', 'name_en' => 'Manage Global Person Tenant Access', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
-        ['slug' => 'finance.entity.view', 'name_am' => 'የሕጋዊ አካላትን ማየት', 'name_en' => 'View Legal Entities', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.entity.manage', 'name_am' => 'ሕጋዊ አካላትን ማስተዳደር', 'name_en' => 'Manage Legal Entities', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.account.view', 'name_am' => 'የሂሳብ መዝገብ ማየት', 'name_en' => 'View Chart of Accounts', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.account.manage', 'name_am' => 'የሂሳብ መዝገብ ማስተዳደር', 'name_en' => 'Manage Chart of Accounts', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.period.view', 'name_am' => 'የሂሳብ ጊዜዎችን ማየት', 'name_en' => 'View Accounting Periods', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.period.manage', 'name_am' => 'የሂሳብ ጊዜዎችን ማስተዳደር', 'name_en' => 'Manage Accounting Periods', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.journal.view', 'name_am' => 'የመዝገብ ማስታወሻዎችን ማየት', 'name_en' => 'View Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.journal.create', 'name_am' => 'የመዝገብ ማስታወሻ መፍጠር', 'name_en' => 'Create Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.journal.cancel', 'name_am' => 'የሂሳብ ረቂቅ ማስታወሻዎችን መሰረዝ', 'name_en' => 'Cancel Draft Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.journal.post', 'name_am' => 'የመዝገብ ማስታወሻ መለጠፍ', 'name_en' => 'Post Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.journal.reverse', 'name_am' => 'የመዝገብ ማስታወሻ መቀልበስ', 'name_en' => 'Reverse Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-        ['slug' => 'finance.report.view', 'name_am' => 'የፋይናንስ ሪፖርቶችን ማየት', 'name_en' => 'View Financial Reports', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
+        ...FinancePermissionCatalogue::ROWS,
             ['slug' => 'public-content.review', 'name_am' => 'ይፋዊ ይዘት መገምገምና ማተም', 'name_en' => 'Review and publish public content', 'category' => 'public_content', 'scope' => 'global', 'is_system' => false],
 ];
 }
