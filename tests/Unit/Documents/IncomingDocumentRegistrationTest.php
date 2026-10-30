@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Documents;
 
+use Database\Seeders\Data\PermissionCatalogue;
 use MaaleArna\MASES\Core\Domains\Documents\Models\Document;
 use MaaleArna\MASES\Core\Domains\Documents\Models\IncomingDocumentRegistration;
 use PHPUnit\Framework\Attributes\Test;
