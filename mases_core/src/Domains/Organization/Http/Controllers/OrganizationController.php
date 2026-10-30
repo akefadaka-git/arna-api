@@ -12,13 +12,11 @@ use Illuminate\Support\Carbon;
 use MaaleArna\MASES\Core\Domains\Organization\Http\Requests\OrganizationRequestRules;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
-use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAuditEvent;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationAssignmentPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAssignmentService;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAuditService;
-use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationHierarchyService;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationUnitService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
@@ -31,7 +29,6 @@ final class OrganizationController extends Controller
         private readonly TenantContextService $tenantContext,
         private readonly OrganizationUnitPolicy $unitPolicy,
         private readonly OrganizationAssignmentPolicy $assignmentPolicy,
-        private readonly OrganizationHierarchyService $hierarchyService,
         private readonly OrganizationUnitService $unitService,
         private readonly OrganizationAssignmentService $assignmentService,
         private readonly OrganizationAuditService $auditService,
