@@ -184,6 +184,12 @@ Route::get('/public/content/{publicId}', [PublicContentController::class, 'publi
     ->whereUuid('publicId')
     ->middleware('throttle:60,1')
     ->name('api.public.content.show');
+Route::post('/public/content/verification-challenges', [PublicContentController::class, 'requestContributorVerification'])
+    ->middleware('throttle:3,15')
+    ->name('api.public.content.verification.request');
+Route::post('/public/content/verification-challenges/verify', [PublicContentController::class, 'verifyContributorEmail'])
+    ->middleware('throttle:5,10')
+    ->name('api.public.content.verification.verify');
 Route::post('/public/content/submissions', [PublicContentController::class, 'submit'])
     ->middleware('throttle:5,10')
     ->name('api.public.content.submit');
