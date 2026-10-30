@@ -59,7 +59,7 @@ final class OrganizationNumberingRegistryTest extends TestCase
         try {
             $service->retireBranch((int) $tenant->id, '1', 'Cannot retire with active department');
             $this->fail('A branch with an active department code cannot be retired.');
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException) {
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException) {
             $this->assertTrue(true);
         }
 
