@@ -199,5 +199,6 @@ final class PermissionCatalogue
         ['slug' => 'finance.journal.post', 'name_am' => 'የመዝገብ ማስታወሻ መለጠፍ', 'name_en' => 'Post Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.reverse', 'name_am' => 'የመዝገብ ማስታወሻ መቀልበስ', 'name_en' => 'Reverse Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.report.view', 'name_am' => 'የፋይናንስ ሪፖርቶችን ማየት', 'name_en' => 'View Financial Reports', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
-    ];
+            ['slug' => 'public-content.review', 'name_am' => 'ይፋዊ ይዘት መገምገምና ማተም', 'name_en' => 'Review and publish public content', 'category' => 'public_content', 'scope' => 'global', 'is_system' => false],
+];
 }

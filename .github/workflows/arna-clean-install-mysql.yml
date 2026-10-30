@@ -28,6 +28,10 @@ on:
       - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/**"
       - "app/Http/Controllers/PersonController.php"
+      - "app/Http/Controllers/PublicContentController.php"
+      - "mases_core/src/Domains/PublicContent/**"
+      - "tests/Feature/PublicContentModerationTest.php"
+      - "routes/console.php"
       - "routes/api.php"
       - "mases_core/src/Domains/People/**"
       - "mases_core/src/Auth/Models/User.php"
@@ -182,6 +186,13 @@ jobs:
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/OrganizationDomainTest.php
 
+      - name: Run public content moderation lifecycle regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/PublicContentModerationTest.php
+
       - name: Confirm test database is empty
         shell: bash
         run: |
@@ -231,14 +242,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments person_document_links organization_units organization_assignments organization_audit_events; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 67
+          test "${applied}" -eq 69
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -268,12 +279,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in organization_units organization_assignments organization_audit_events; do
+          for table in organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 67
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 69
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -284,7 +295,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 67
+          test "${applied}" -eq 69
 
       - name: Upload migration status evidence
         if: always()
