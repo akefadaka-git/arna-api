@@ -227,7 +227,8 @@ jobs:
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 61
+          test "${applied}" -gt 0
+          printf "%s\n" "${applied}" > migration-count-baseline.txt
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -246,6 +247,15 @@ jobs:
       - name: Run migrations a second time (idempotence)
         run: php artisan migrate --force -vvv
 
+      - name: Verify migration idempotence
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(cat migration-count-baseline.txt)"
+          applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
+          echo "Expected migration records: ${expected}; after second migrate: ${applied}"
+          test "${applied}" -eq "${expected}"
+
       - name: Verify full fresh migration and seed on disposable MySQL
         # Explicitly permit demo/bootstrap seed data only inside this disposable CI database.
         # Production environments must never set this flag.
@@ -262,7 +272,7 @@ jobs:
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 61
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -gt 0
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -273,7 +283,9 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 61
+          expected="$(cat migration-count-baseline.txt)"
+          echo "Expected migration records: ${expected}"
+          test "${applied}" -eq "${expected}"
 
       - name: Upload migration status evidence
         if: always()

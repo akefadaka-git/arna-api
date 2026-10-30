@@ -78,7 +78,7 @@ for label, uri in public_endpoints.items():
             "Route exists but effective middleware lacks throttle; apply an explicit route limit or document a verified upstream control.")
 
 # Every effective file-management route must inherit Sanctum and tenant membership.
-file_routes = [r for r in routes if norm_uri(r.get("uri")).startswith("api/files/")]
+file_routes = [r for r in routes if (norm_uri(r.get("uri")) == "api/files" or norm_uri(r.get("uri")).startswith("api/files/"))]
 finding("file-routes-discovered", bool(file_routes),
         f"Discovered {len(file_routes)} effective api/files routes.")
 for route in file_routes:
