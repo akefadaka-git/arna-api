@@ -83,6 +83,8 @@ Counter scope በትክክል እነዚህን ያካትታል፦
 
 የውጭ ላኪ የሰነድ ቁጥር/reference በትክክል እንደተቀበለው ይጠበቃል። ይህ የውጭ ማጣቀሻ ከARNA የውስጥ incoming registration ID የተለየ ነው። የውጭ ማጣቀሻን በARNA የሚወጣ ቁጥር መተካት አይፈቀድም።
 
+የIncoming registration workflow በDocuments domain ውስጥ የተለየ registration record ይፈጥራል። `incoming_registration_id` በserver የሚፈጠር UUID ነው፤ የላኪው `sender_reference` በትክክል ይጠበቃል እና በidempotency hash፣ API projection እና registration event ውስጥ ይሸከማል። Incoming registration የoutgoing canonical number ወይም counter አይመድብም። ፈቃዶች `documents.receive` እና `documents.incoming.view` ናቸው፤ file attachment በተመሳሳይ tenant ውስጥ ያለ published file እና `file.view` ፈቃድ ይፈልጋል። Registration record እና audit/lifecycle event በአንድ transaction ይፈጠራሉ።
+
 ## 9. የቁጥር ቋሚነት እና ማሳያ
 
 አንድ canonical document number በscreen፣ PDF፣ print፣ search፣ export እና verification ሁሉ ተመሳሳይ መሆን አለበት። የሚታየው ቁጥር ከተመዘገበው canonical value በተለየ መንገድ እንደገና መፍጠር የለበትም።
