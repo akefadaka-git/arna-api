@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
 use MaaleArna\MASES\Core\Domains\Organization\Http\Requests\OrganizationRequestRules;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
@@ -18,10 +17,7 @@ use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAssignmentService;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAuditService;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationUnitService;
-use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class OrganizationController extends Controller
 {
@@ -119,29 +115,9 @@ final class OrganizationController extends Controller
         $unit = $this->unit($id);
         abort_unless($unit->status === 'active', 409, 'Assignments can only be made to active units.');
         $data = $request->validate(OrganizationRequestRules::storeAssignment());
-        $assignment = DB::transaction(function () use ($unit, $data, $request): OrganizationAssignment {
-            $tenantId = $this->tenantId();
-            $lockedUnit = OrganizationUnit::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($unit->id);
-            abort_unless($lockedUnit->status === 'active', 409, 'Assignments can only be made to active units.');
-            $access = \MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess::query()
-                ->where('person_id', $data['person_id'])->where('tenant_id', $tenantId)
-                ->where('status', 'active')->lockForUpdate()->first();
-            $person = $access ? Person::query()->whereKey($data['person_id'])->first() : null;
-            if (!$person) {
-                throw new NotFoundHttpException('Person is not available in the resolved tenant.');
-            }
-            $item = OrganizationAssignment::query()->create([
-                'tenant_id' => $tenantId, 'organization_unit_id' => $lockedUnit->id, 'person_id' => $person->id,
-                'assignment_type' => $data['assignment_type'], 'title_am' => $data['title_am'] ?? null,
-                'title_en' => $data['title_en'] ?? null, 'starts_on' => $data['starts_on'],
-                'ends_on' => $data['ends_on'] ?? null,
-                'status' => $this->initialAssignmentStatus($data['starts_on'], $data['ends_on'] ?? null),
-                'lifecycle_reason' => $data['reason'], 'created_by' => $request->user()->getAuthIdentifier(),
-                'updated_by' => $request->user()->getAuthIdentifier(),
-            ]);
-            $this->audit($tenantId, $request, 'assignment', $item->id, 'created', $data['reason'], null, $item->toArray());
-            return $item;
-        });
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
+        $assignment = $this->assignmentService->create($this->tenantId(), (int) $unit->id, $data, $actor, $request);
         return response()->json(['success' => true, 'data' => $assignment], 201);
     }
 
@@ -167,45 +143,10 @@ final class OrganizationController extends Controller
         $item = OrganizationAssignment::query()->where('tenant_id', $this->tenantId())->findOrFail($id);
         abort_unless($this->assignmentPolicy->update($request->user(), (int) $item->tenant_id), 403, 'Assignment update is not authorized.');
         $data = $request->validate(OrganizationRequestRules::updateAssignment());
-        DB::transaction(function () use ($item, $data, $request): void {
-            $locked = OrganizationAssignment::query()->where('tenant_id', $this->tenantId())->lockForUpdate()->findOrFail($item->id);
-            $before = $locked->toArray();
-            if (array_key_exists('ends_on', $data) && $data['ends_on'] !== null
-                && Carbon::parse($data['ends_on'])->toDateString() < $locked->starts_on->toDateString()) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'ends_on' => 'The end date must be on or after the persisted start date.',
-                ]);
-            }
-            $effectiveEnd = array_key_exists('ends_on', $data)
-                ? $data['ends_on']
-                : $locked->ends_on?->toDateString();
-            $today = now()->toDateString();
-            if (array_key_exists('status', $data) && $data['status'] === 'active'
-                && ($locked->starts_on->toDateString() > $today || ($effectiveEnd !== null && $effectiveEnd < $today))) {
-                throw new ConflictHttpException('An assignment outside its effective date interval cannot be activated.');
-            }
-            if ($effectiveEnd !== null && $effectiveEnd < $today
-                && ($data['status'] ?? $locked->status) !== 'ended') {
-                throw new ConflictHttpException('An assignment ending before today must be marked ended.');
-            }
-            if (array_key_exists('status', $data)) {
-                $allowedTransitions = [
-                    'scheduled' => ['active', 'cancelled'],
-                    'active' => ['ended', 'cancelled'],
-                    'ended' => [],
-                    'cancelled' => [],
-                ];
-                if (!in_array($data['status'], $allowedTransitions[$locked->status] ?? [], true)) {
-                    throw new ConflictHttpException('The assignment status transition is not allowed.');
-                }
-            }
-            $locked->fill(array_intersect_key($data, array_flip(['ends_on', 'status'])));
-            $locked->lifecycle_reason = $data['reason'];
-            $locked->updated_by = $request->user()->getAuthIdentifier();
-            $locked->save();
-            $this->audit($this->tenantId(), $request, 'assignment', $locked->id, 'updated', $data['reason'], $before, $locked->fresh()->toArray());
-        });
-        return response()->json(['success' => true, 'data' => $item->fresh()]);
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
+        $updated = $this->assignmentService->update($this->tenantId(), (int) $item->id, $data, $actor, $request);
+        return response()->json(['success' => true, 'data' => $updated]);
     }
 
     private function authorizeUnitList(?User $user): void
