@@ -51,11 +51,13 @@ final class PublicContentController extends Controller
             'body' => ['required', 'string', 'min:20', 'max:50000'],
             'author_name' => ['required', 'string', 'min:2', 'max:160'],
             'author_email' => ['nullable', 'email:rfc', 'max:254'],
+            'consent' => ['required', 'accepted'],
         ])->validate();
 
         $user = $request->user();
         $item = PublicContent::create([
-            ...$validated,
+            ...array_diff_key($validated, ['consent' => true]),
+            'consented_at' => now(),
             'submitted_by' => $user?->id,
         ]);
 
