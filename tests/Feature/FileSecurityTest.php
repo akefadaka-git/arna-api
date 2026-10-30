@@ -618,4 +618,28 @@ final class FileSecurityTest extends TestCase
         $this->assertTrue($published->is_public);
     }
 
+
+    #[Test]
+    public function public_download_allows_only_a_published_public_record(): void
+    {
+        Storage::fake('local');
+        $tenant = Tenant::factory()->create();
+        $path = 'tenant_' . $tenant->id . '/published.pdf';
+        Storage::disk('local')->put($path, 'published file contents');
+
+        $file = File::create([
+            'tenant_id' => $tenant->id,
+            'original_name' => 'published.pdf',
+            'name' => 'published.pdf',
+            'size' => 25,
+            'path' => $path,
+            'disk' => 'local',
+            'status' => 'published',
+            'is_public' => true,
+            'version' => 1,
+        ]);
+
+        $this->get('/api/public/files/' . $file->id . '/download')->assertOk();
+    }
+
 }
