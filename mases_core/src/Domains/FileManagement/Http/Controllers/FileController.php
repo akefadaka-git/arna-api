@@ -34,12 +34,12 @@ class FileController extends Controller
 
     private FileService $fileService;
     private AuthorizationService $authorizationService;
-    private ?DocumentIdentityLookup $documentIdentityLookup;
+    private DocumentIdentityLookup $documentIdentityLookup;
 
     public function __construct(
         FileService $fileService,
         AuthorizationService $authorizationService,
-        ?DocumentIdentityLookup $documentIdentityLookup = null
+        DocumentIdentityLookup $documentIdentityLookup
     ) {
         $this->fileService = $fileService;
         $this->authorizationService = $authorizationService;
@@ -554,7 +554,7 @@ class FileController extends Controller
      */
     private function documentIdentityFor(File $file): ?array
     {
-        if ($this->documentIdentityLookup === null || $file->tenant_id === null) {
+        if ($file->tenant_id === null) {
             return null;
         }
 
@@ -570,8 +570,8 @@ class FileController extends Controller
      */
     private function formatFileCollection($files): array
     {
-        $tenantId = mases_tenant_id();
-        $identities = ($this->documentIdentityLookup !== null && $tenantId !== null)
+        $tenantId = $files->first()?->tenant_id ?? mases_tenant_id();
+        $identities = $tenantId !== null
             ? $this->documentIdentityLookup->findForFiles($files->pluck('id')->all(), $tenantId)
             : [];
 
