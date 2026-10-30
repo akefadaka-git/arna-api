@@ -332,7 +332,7 @@ Proceed with Phase 1 core GL integrity, beginning with source-event idempotency 
 - Accounting-period creation now validates strict ISO `YYYY-MM-DD` dates, rejects impossible calendar dates, and rejects a start date later than its end date before opening a transaction.
 - Journal draft creation now requires a non-empty journal number of at most 64 characters, validates a strict ISO effective date, and caps descriptions at the database's 500-character storage limit before computing idempotency fingerprints.
 - The existing decimal parser continues to accept at most 16 integer digits and 4 fractional digits, matching the `DECIMAL(20,4)` ledger columns without PHP float conversion.
-- Added feature tests for invalid/inverted period dates, blank/overlength journal numbers, invalid effective dates, overlength descriptions, and decimal integer/fraction overflow. Tests have NOT RUN.
+- Added feature tests for invalid/inverted period dates, blank/overlength journal numbers, invalid effective dates, overlength descriptions, decimal integer/fraction overflow, and tenant/entity-scoped journal-number uniqueness. Tests have NOT RUN.
 - Database uniqueness still enforces tenant + legal entity + journal number. MySQL/SQLite constraint behavior, exact maximum-value persistence, migration compatibility, and all boundary tests remain NOT VERIFIED.
 
 ### Evidence boundary
