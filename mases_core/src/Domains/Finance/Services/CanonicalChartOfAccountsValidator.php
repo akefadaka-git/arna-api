@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 
 use LogicException;
 
@@ -18,9 +18,9 @@ final class CanonicalChartOfAccountsValidator
 
     /** Contra-balance accounts are explicit exceptions to their type's usual normal balance. */
     private const CONTRA_NORMAL_BALANCES = [
-        '1220' => 'credit', // Expected credit loss allowance (contra-asset)
-        '1410' => 'credit', // Accumulated depreciation (contra-asset)
-        '3600' => 'debit',  // Declared shareholder distributions (contra-equity)
+        '1220' => ['type' => 'asset', 'normal' => 'credit'],
+        '1410' => ['type' => 'asset', 'normal' => 'credit'],
+        '3600' => ['type' => 'equity', 'normal' => 'debit'],
     ];
 
     private const TYPE_NORMAL_BALANCE = [
@@ -35,9 +35,7 @@ final class CanonicalChartOfAccountsValidator
         'taxable', 'non_taxable', 'exempt', 'zero_rated', 'out_of_scope', 'undetermined',
     ];
 
-    /**
-     * @param list<array<int, mixed>> $register
-     */
+    /** @param list<array<int, mixed>> $register */
     public function validate(array $register): void
     {
         if (count($register) !== self::EXPECTED_ACCOUNT_COUNT) {
@@ -73,10 +71,12 @@ final class CanonicalChartOfAccountsValidator
                 throw new LogicException("CoA account {$code} has an invalid domain or tax-routing category.");
             }
 
-            $expectedNormal = self::CONTRA_NORMAL_BALANCES[$code] ?? self::TYPE_NORMAL_BALANCE[$type];
-            if ($normal !== $expectedNormal) {
+            $contra = self::CONTRA_NORMAL_BALANCES[$code] ?? null;
+            $expectedType = $contra['type'] ?? null;
+            $expectedNormal = $contra['normal'] ?? self::TYPE_NORMAL_BALANCE[$type];
+            if (($expectedType !== null && $type !== $expectedType) || $normal !== $expectedNormal) {
                 throw new LogicException(
-                    "CoA account {$code} has normal balance {$normal}; expected {$expectedNormal} for {$type}."
+                    "CoA account {$code} has an inconsistent account type/normal-balance combination."
                 );
             }
 
@@ -97,18 +97,12 @@ final class CanonicalChartOfAccountsValidator
                 }
             }
 
-            $accounts[$code] = [
-                'type' => $type,
-                'posting' => $posting,
-            ];
+            $accounts[$code] = ['type' => $type, 'posting' => $posting];
         }
 
-        foreach (self::CONTRA_NORMAL_BALANCES as $code => $normal) {
+        foreach (self::CONTRA_NORMAL_BALANCES as $code => $contra) {
             if (!isset($accounts[$code])) {
-                throw new LogicException("Required contra-balance exception {$code} is missing from the canonical CoA.");
-            }
-            if ($register[array_search($code, array_column($register, 0), true)][5] !== $normal) {
-                throw new LogicException("Contra-balance exception {$code} must retain normal balance {$normal}.");
+                throw new LogicException("Required contra-balance account {$code} is missing from the canonical CoA.");
             }
         }
     }
