@@ -68,3 +68,15 @@
 ይህ ውል v1.0 በOwner ጸድቋል። የቁጥር ቅርጸትን፣ የBB አሃዞችን ወይም የልዩነት ደንቦችን የሚቀይር ለውጥ የOwner ግልጽ ፈቃድና አዲስ የversion ቁጥር ይፈልጋል።
 
 **የትግበራ ማስታወሻ:** ይህ ሰነድ የፖሊሲ ፈቃድን ይመዘግባል፤ በራሱ የsource code፣ migration፣ database ወይም runtime ትግበራ ተጠናቋል ማለት አይደለም።
+
+
+## Implementation status — 2026-10-30
+
+- OrganizationNumberingRegistryService is registered as an Organization-owned singleton for internal domain integration.
+- Branch registration requires an active Organization unit of type branch; department registration requires an active department directly under the registered branch and an active legal entity belonging to the same tenant.
+- Department codes must be retired before their branch code can be retired. Retired codes remain reserved and cannot be reallocated.
+- Registration and retirement write append-only Organization audit events with actor, reason, before/after state, and timestamp.
+- Department-to-legal-entity persistence uses a composite (tenant_id, legal_entity_id) foreign key to Finance's (tenant_id, id) key. Issuance resolution checks the tenant, active legal entity, active branch code, active department code, and active Organization unit.
+- Numbering endpoints require the separate tenant-scoped organization.numbering.manage permission. The Documents domain must consume the service and must not write directly to registry tables.
+- Contract tests cover singleton registration, HTTP authorization, audit/retirement ordering, and cross-tenant legal-entity rejection. The workflow includes those tests and an independent Organization PHP syntax job.
+- Runtime acceptance remains pending until exact-head checks pass. A prior clean-install run failed in the unrelated Finance/Loan SQLite stage before Organization tests and MySQL migration verification ran; the Finance-owned duplicate journal_type migration issue is outside this Organization change set.
