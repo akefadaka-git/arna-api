@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit\\Documents;
+namespace Tests\Unit\Documents;
 
 use InvalidArgumentException;
-use MaaleArna\\MASES\\Core\\Domains\\Documents\\Services\\DocumentNumberFormatter;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentNumberFormatter;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class DocumentNumberFormatterTest extends TestCase
 {
