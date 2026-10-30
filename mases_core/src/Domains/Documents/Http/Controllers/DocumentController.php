@@ -86,6 +86,7 @@ final class DocumentController extends Controller
             'id' => $document->getKey(),
             'uuid' => $document->uuid,
             'canonical_number' => $document->canonical_number,
+            'display_number' => $document->display_number,
             'replaces_document_id' => $document->replaces_document_id,
             'bb_code' => $document->bb_code,
             'document_type_number' => $document->document_type_number,
