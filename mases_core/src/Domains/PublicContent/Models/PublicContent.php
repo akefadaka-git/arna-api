@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\MASES\Core\Domains\PublicContent\Models;
+namespace MaaleArna\\MASES\\Core\\Domains\\PublicContent\\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Illuminate\\Database\\Eloquent\\Model;
+use Illuminate\\Support\\Str;
 
 final class PublicContent extends Model
 {
@@ -18,7 +18,8 @@ final class PublicContent extends Model
     protected $table = 'public_contents';
 
     protected $fillable = [
-        'content_type', 'title', 'body', 'author_name', 'author_email', 'consented_at',
+        'content_type', 'title', 'body', 'author_name', 'author_email',
+        'author_email_verified_at', 'contributor_verification_id', 'consented_at',
         'submitted_by', 'status', 'version', 'reviewed_by', 'reviewed_at',
         'review_note', 'scheduled_at', 'published_at',
     ];
@@ -26,6 +27,7 @@ final class PublicContent extends Model
     protected $casts = [
         'reviewed_at' => 'datetime',
         'consented_at' => 'datetime',
+        'author_email_verified_at' => 'datetime',
         'scheduled_at' => 'datetime',
         'published_at' => 'datetime',
         'version' => 'integer',
