@@ -78,7 +78,11 @@ final class JournalEntryService
                 'source_event_version' => 'Source event versions are only accepted for external business sources.',
             ]);
         }
-        $header['source_event_version'] = $sourceEventVersion === '' ? null : $sourceEventVersion;
+        if ($sourceEventVersion === '') {
+            unset($header['source_event_version']);
+        } else {
+            $header['source_event_version'] = $sourceEventVersion;
+        }
 
         try {
             return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType, $sourceEventVersion): JournalEntry {
