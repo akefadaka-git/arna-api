@@ -77,7 +77,7 @@ No code in this branch represents a professional tax opinion. Production tax cal
 |---|---|---|---|
 | FIN-1.01 | 1 — GL integrity | Enforce source-event uniqueness by tenant + legal entity + source domain + immutable event ID + version, with canonical payload hash | IMPLEMENTED IN SOURCE — nullable legacy-compatible `source_event_id`, `source_event_version`, and `source_event_hash`; external sources require an aggregate `source_id` plus immutable event ID and version; unique tenant/entity/type/event-ID/version index; canonical payload hash excludes request idempotency key; same event/payload returns persisted journal; changed payload conflicts. Tests added; NOT RUN |
 | FIN-1.02 | 1 — GL integrity | Prove atomic posting, audit persistence, posted-header/line immutability, and reversal linkage | IMPLEMENTED IN SOURCE — audit listener enforces same active transaction connection; posting/reversal audit-failure rollback tests added; MySQL + SQLite database triggers protect posted headers and line insert/update/delete. Tests and migration NOT RUN |
-| FIN-1.03 | 1 — GL integrity | Verify concurrent duplicate requests and period close/post race behavior on MySQL | SOURCE LOCKS PRESENT — tenant/entity-scoped idempotency and unique database constraints; legal-entity and period row locks serialize draft creation, posting, and close; journal-line trigger locks parent row. MySQL concurrency tests NOT RUN |
+| FIN-1.03 | 1 — GL integrity | Verify concurrent duplicate requests, period close/post, and direct line insert/post races on MySQL | SOURCE LOCKS PRESENT; BOUNDED VERIFICATION DESIGN DOCUMENTED — three two-connection barrier-controlled scenarios and assertions specified below. NOT EXECUTED; MySQL concurrency tests NOT RUN |
 | FIN-1.04 | 1 — GL integrity | Verify tenant/entity isolation for all reads, writes, account references, periods, reversals, and reports | PARTIAL — composite constraints and scoped queries exist; adversarial tests not run |
 | FIN-1.05 | 1 — GL integrity | Confirm journal numbering uniqueness, date/period validation, and database precision boundaries | PARTIAL — source and constraints exist; full boundary verification pending |
 | FIN-1.06 | 1 — GL integrity | Revalidate legal-entity active status and every journal-line account's active/postable status inside the locked posting transaction, not only when the draft is created | IMPLEMENTED IN SOURCE — posting locks and rechecks the tenant-scoped legal entity, period, and sorted same-entity account rows; rejects inactive/non-postable accounts and cash-flow classification after cash-equivalent status changes. Tests added; NOT RUN |
@@ -157,6 +157,131 @@ The listener, migration, and regression-test source are committed on the Phase 1
 ### Verification boundary
 
 This is a source-level concurrency assessment, not proof of simultaneous execution behavior. No MySQL parallel-session test, deadlock/retry test, workflow, local test, or database migration was run. FIN-1.03 remains **PARTIAL / NOT RUNTIME VERIFIED** until those tests execute against the supported MySQL version and isolation configuration.
+
+
+## 6D. FIN-1.03 — bounded MySQL concurrency verification design
+
+### Scope and execution boundary
+
+This plan covers exactly three races:
+
+1. Two concurrent submissions using the same tenant, legal entity, idempotency key, and identical payload.
+2. Accounting-period closure racing with posting an existing draft journal.
+3. A direct SQL journal-line insert racing with posting the parent draft journal.
+
+The plan is a design artifact only. It does not authorize execution, database access, migration execution, test runs, workflow runs, retries, or deployment. All scenarios require a disposable, isolated MySQL test database on the same supported MySQL major/minor version and transaction isolation configuration intended for deployment. Use two independently established database connections (A and B), not two Laravel transactions sharing one connection. Disable test-harness outer transactions for these scenarios; each worker must commit or roll back its own transaction so the competing connection can observe committed state.
+
+Use explicit process barriers/latches and bounded lock-wait timeouts. Do not coordinate with arbitrary sleeps. Record MySQL version, storage engine, isolation level, connection IDs, transaction start/commit/rollback timestamps, SQLSTATE/error code, and the final row counts/state. Do not allow automatic retry logic to conceal the first-attempt result; record retries separately if the application contract later requires them.
+
+### Scenario 1 — duplicate idempotency submissions
+
+**Fixture:** One active tenant, one active legal entity, one open accounting period, two valid posting accounts, and one balanced draft payload. Both workers submit the exact same payload, including the same idempotency key, using separate connections.
+
+**Controlled schedule:**
+
+1. Worker A begins the service operation and acquires the tenant-scoped legal-entity lock.
+2. A signals the coordinator that it holds the lock, then pauses before the transaction commits.
+3. Worker B begins the same service operation on connection B and attempts to acquire the same legal-entity lock. The coordinator confirms B is waiting using bounded lock-wait/Performance Schema evidence; do not infer this from elapsed time.
+4. Release A; A completes draft creation and commits.
+5. B resumes, re-reads the idempotency identity within its transaction, and returns the persisted journal rather than inserting a second journal.
+
+**Assertions:**
+
+- Both calls return the same journal primary key and the same persisted request fingerprint.
+- Exactly one journal header exists for the tenant/legal-entity/idempotency-key tuple.
+- Exactly the expected journal-line count exists; no duplicate lines were inserted.
+- No second journal-created audit record exists for the losing/replayed request.
+- Both calls produce the documented successful replay result; no raw unique-constraint exception escapes.
+- A follow-up request using the same idempotency key but a different canonical payload returns HTTP 409 and does not alter the original journal.
+
+**Failure conditions:** duplicate journal or line rows, differing returned journal IDs, missing persisted journal after both calls, leaked unique-constraint exception, or changed-payload replay accepted.
+
+### Scenario 2 — accounting-period close versus journal posting
+
+**Fixture:** One open accounting period and one balanced draft journal belonging to that period. Use separate connections for the close and post operations.
+
+Run both lock-order permutations, with barriers proving which transaction acquired the period row first.
+
+**Schedule A — posting acquires the period lock first:**
+
+1. Posting worker locks the journal and then the accounting-period row.
+2. Pause posting while it holds the period lock and before commit.
+3. Close worker begins and is confirmed waiting for the same period row.
+4. Release posting; it validates the open period, posts the journal, writes its audit record, and commits.
+5. Close worker resumes, sees no remaining draft journal in that period, and may close the period.
+
+**Expected result A:** posting succeeds; close succeeds after posting commits; journal remains posted; period ends closed; posting audit exists exactly once.
+
+**Schedule B — close acquires the period lock first:**
+
+1. Close worker locks the accounting-period row.
+2. Pause close before its draft-journal check/commit boundary, while retaining the lock.
+3. Posting worker begins, locks the target journal, and is confirmed waiting for the accounting-period row.
+4. Release close; close sees the existing draft and rejects closure under the current contract, then rolls back/releases the period lock.
+5. Posting resumes, sees the still-open period, and may post successfully.
+
+**Expected result B:** close is rejected because a draft exists; period remains open; posting succeeds; journal is posted; posting audit exists exactly once.
+
+**Assertions for both schedules:**
+
+- No committed state has a closed period containing an unposted draft journal.
+- No successful posting occurs after the period has become closed.
+- The final period and journal states match one of the two serialized outcomes above.
+- Audit rows agree with committed state; failed close attempts leave no close audit row.
+- No deadlock or lock timeout occurs under the controlled schedule. If one does occur, preserve the complete deadlock/lock-wait evidence and classify the scenario as failed; do not silently retry.
+
+### Scenario 3 — direct journal-line insert versus posting
+
+**Fixture:** One balanced draft journal with two lines. A direct SQL worker attempts to append a third line whose debit/credit amount would make the journal unbalanced. The insert is issued through the database connection so Eloquent/model events cannot provide the protection.
+
+Run both lock-order permutations against the MySQL immutability trigger.
+
+**Schedule A — direct line insert acquires the parent journal lock first:**
+
+1. Worker A begins a transaction and attempts the direct insert. The trigger's locking read acquires the parent journal row while its status is draft.
+2. A pauses before commit, retaining the parent lock.
+3. Posting worker B begins and is confirmed waiting for that journal row.
+4. Release A; the extra line commits.
+5. B resumes, locks the journal and its lines, revalidates the complete line set, and must reject posting because the added line makes the journal unbalanced.
+
+**Expected result A:** direct insert commits while the journal is draft; posting fails balance validation; journal remains draft; all three lines remain visible; no posting audit row exists.
+
+**Schedule B — posting acquires the parent journal lock first:**
+
+1. Posting worker A locks the journal and its lines, validates the balanced two-line journal, and pauses before commit.
+2. Direct SQL worker B attempts the insert and is confirmed waiting at the trigger's parent-row locking read.
+3. Release A; posting changes the journal status to posted and commits.
+4. B resumes; the trigger re-reads the parent status and rejects the insert.
+
+**Expected result B:** posting succeeds; journal remains posted with exactly its original two lines; direct insert fails with the expected database trigger error; one posting audit row exists.
+
+**Assertions for both schedules:**
+
+- A committed posted journal never acquires an additional line after posting.
+- If the direct insert wins first, posting revalidates and rejects the resulting unbalanced journal.
+- If posting wins first, the direct insert is rejected by the database trigger.
+- No line is moved between journal entries.
+- The final line count, journal status, balance, and audit count agree with the expected outcome.
+
+### Bounded run matrix and evidence
+
+For each of the three scenarios, execute the two controlled lock-order permutations once as a deterministic smoke test, then repeat each permutation 10 times in the disposable MySQL environment. This is a bounded race check, not a statistical proof of correctness. Stop on the first unexpected state, deadlock, lock timeout, duplicate row, or audit mismatch and preserve the failing database diagnostics rather than continuing retries.
+
+Capture for every run:
+
+- exact application commit SHA and migration version;
+- MySQL version, storage engine, isolation level, and connection IDs;
+- barrier order and lock-acquisition evidence;
+- each worker's returned value or exception, SQLSTATE, and transaction outcome;
+- before/after journal, line, period, idempotency, and audit row snapshots;
+- deadlock/lock-wait diagnostics when applicable;
+- pass/fail per assertion and a concise run summary.
+
+**Acceptance rule:** FIN-1.03 cannot be marked verified until all six lock-order permutations pass their 10 bounded repetitions, the final database state and audit assertions pass on every run, and the supported MySQL environment/version is recorded. A source review or SQLite test is not a substitute for this MySQL evidence.
+
+### Current status
+
+The source-level lock paths and this verification protocol are documented. No database connection, migration, test, workflow, or concurrency run has been performed. FIN-1.03 remains **DESIGN DOCUMENTED / NOT EXECUTED / NOT RUNTIME VERIFIED**.
 
 ## 7. Safety and release boundaries
 
