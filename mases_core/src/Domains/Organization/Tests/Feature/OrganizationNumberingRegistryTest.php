@@ -99,21 +99,25 @@ final class OrganizationNumberingRegistryTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $unitA = DB::table('organization_units')->insertGetId([
-            'tenant_id' => $tenantA->id,
-            'parent_id' => null,
-            'legal_entity_id' => null,
-            'code' => 'TENANT-A-HQ',
-            'unit_type' => 'company',
-            'name_en' => 'Tenant A headquarters',
-            'status' => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
+        $companyA = DB::table('organization_units')->insertGetId([
+            'tenant_id' => $tenantA->id, 'parent_id' => null, 'legal_entity_id' => null,
+            'code' => 'TENANT-A-HQ', 'unit_type' => 'company', 'name_en' => 'Tenant A headquarters',
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $branchA = DB::table('organization_units')->insertGetId([
+            'tenant_id' => $tenantA->id, 'parent_id' => $companyA, 'legal_entity_id' => null,
+            'code' => 'TENANT-A-BRANCH', 'unit_type' => 'branch', 'name_en' => 'Tenant A branch',
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $departmentA = DB::table('organization_units')->insertGetId([
+            'tenant_id' => $tenantA->id, 'parent_id' => $branchA, 'legal_entity_id' => null,
+            'code' => 'TENANT-A-DEPT', 'unit_type' => 'department', 'name_en' => 'Tenant A department',
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
         ]);
 
         DB::table('organization_branch_number_codes')->insert([
             'tenant_id' => $tenantA->id,
-            'organization_unit_id' => $unitA,
+            'organization_unit_id' => $branchA,
             'branch_code' => '1',
             'status' => 'active',
             'effective_from' => now()->toDateString(),
@@ -128,7 +132,7 @@ final class OrganizationNumberingRegistryTest extends TestCase
                 'branch_code' => '1',
                 'department_code' => '1',
                 'bb_code' => '11',
-                'organization_unit_id' => $unitA,
+                'organization_unit_id' => $departmentA,
                 'legal_entity_id' => $entityB,
                 'status' => 'active',
                 'effective_from' => now()->toDateString(),
