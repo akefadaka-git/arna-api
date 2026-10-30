@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Documents\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class Document extends Model
 {
