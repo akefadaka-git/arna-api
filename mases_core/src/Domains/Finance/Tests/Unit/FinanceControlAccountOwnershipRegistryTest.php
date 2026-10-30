@@ -80,4 +80,49 @@ final class FinanceControlAccountOwnershipRegistryTest extends TestCase
         $this->expectException(LogicException::class);
         $registry->validateAgainstChart($chart);
     }
+
+    #[Test]
+    public function account_metadata_must_match_the_canonical_chart(): void
+    {
+        $policies = config('finance.control_account_ownership_v1');
+        $policies['1110']['account_name_en'] = 'Different account';
+        config(['finance.control_account_ownership_v1' => $policies]);
+
+        $this->expectException(LogicException::class);
+        (new ControlAccountOwnershipRegistry())->validateAgainstChart(config('finance.chart_of_accounts_v1'));
+    }
+
+    #[Test]
+    public function accountable_and_independent_reviewer_roles_must_be_distinct(): void
+    {
+        $policies = config('finance.control_account_ownership_v1');
+        $policies['1110']['independent_reviewer_role'] = $policies['1110']['accountable_role'];
+        config(['finance.control_account_ownership_v1' => $policies]);
+
+        $this->expectException(LogicException::class);
+        (new ControlAccountOwnershipRegistry())->validateAgainstChart(config('finance.chart_of_accounts_v1'));
+    }
+
+    #[Test]
+    public function pending_designation_cannot_name_a_person_or_enable_an_adapter(): void
+    {
+        $policies = config('finance.control_account_ownership_v1');
+        $policies['1110']['named_accountable_person'] = 'Not approved';
+        config(['finance.control_account_ownership_v1' => $policies]);
+
+        $this->expectException(LogicException::class);
+        (new ControlAccountOwnershipRegistry())->validateAgainstChart(config('finance.chart_of_accounts_v1'));
+    }
+
+    #[Test]
+    public function unapproved_designation_status_is_rejected(): void
+    {
+        $policies = config('finance.control_account_ownership_v1');
+        $policies['1110']['designation_status'] = 'OWNER_DESIGNATED';
+        config(['finance.control_account_ownership_v1' => $policies]);
+
+        $this->expectException(LogicException::class);
+        (new ControlAccountOwnershipRegistry())->validateAgainstChart(config('finance.chart_of_accounts_v1'));
+    }
+
 }
