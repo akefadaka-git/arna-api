@@ -47,7 +47,7 @@ namespace Database\Seeders\Data;
  *
  *   category    — the permission's functional group. One of:
  *                 'user', 'role', 'permission', 'app_access',
- *                 'file', 'tenant', 'test', 'document'.
+ *                 'file', 'tenant', 'test', 'document', 'organization'.
  *
  *   scope       — the permission's scope of applicability. One of:
  *                 'global'      — platform-wide, not tied to a tenant.
@@ -205,5 +205,6 @@ final class PermissionCatalogue
         ['slug' => 'documents.revoke', 'name_am' => 'ሰነድ ተፈጻሚነት ማቋረጥ', 'name_en' => 'Revoke Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'documents.receive', 'name_am' => 'የሚመጡ ሰነዶችን መመዝገብ', 'name_en' => 'Register Incoming Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'documents.incoming.view', 'name_am' => 'የሚመጡ ሰነዶችን ማየት', 'name_en' => 'View Incoming Document Registrations', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
+        ...\MaaleArna\MASES\Core\Domains\Organization\Support\OrganizationPermissionCatalogue::ROWS,
     ];
 }
