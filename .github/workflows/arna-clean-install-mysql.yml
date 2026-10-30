@@ -12,6 +12,7 @@ on:
       - "database/migrations/**"
       - "mases_core/src/**/Database/Migrations/**"
       - "mases_core/src/**/Providers/**"
+      - "mases_core/src/Domains/Finance/**"
       - "bootstrap/providers.php"
       - "composer.json"
       - "composer.lock"
@@ -158,6 +159,13 @@ jobs:
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php
+
+      - name: Run Finance domain regressions with hermetic SQLite
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests
 
       - name: Run Person identity contract regressions
         env:
