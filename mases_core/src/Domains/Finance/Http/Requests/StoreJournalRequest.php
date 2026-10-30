@@ -25,6 +25,7 @@ final class StoreJournalRequest extends FormRequest
             'description' => ['required', 'string', 'max:500'],
             'source_type' => ['nullable', 'string', 'max:64'],
             'source_id' => ['nullable', 'string', 'max:128'],
+            'source_event_id' => ['nullable', 'string', 'max:128', 'required_if:source_type,shareholder,wallet,loan,procurement,accounts_payable,accounts_receivable,bank,payroll,tax'],
             'source_event_version' => ['nullable', 'string', 'max:64', 'required_if:source_type,shareholder,wallet,loan,procurement,accounts_payable,accounts_receivable,bank,payroll,tax'],
             'idempotency_key' => ['required', 'string', 'max:128'],
             'lines' => ['required', 'array', 'min:2', 'max:200'],
