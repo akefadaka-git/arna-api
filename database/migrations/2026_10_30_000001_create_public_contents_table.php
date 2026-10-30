@@ -18,6 +18,8 @@ return new class extends Migration
             $table->longText('body');
             $table->string('author_name', 160);
             $table->string('author_email', 254)->nullable();
+            $table->timestamp('author_email_verified_at')->nullable();
+            $table->uuid('contributor_verification_id')->nullable();
             $table->timestamp('consented_at')->nullable();
             $table->foreignId('submitted_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('status', 32)->default('pending_review');
