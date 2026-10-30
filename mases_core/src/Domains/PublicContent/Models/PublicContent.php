@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\PublicContent\\Models;
+namespace MaaleArna\MASES\Core\Domains\PublicContent\Models;
 
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Support\\Str;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 final class PublicContent extends Model
 {
