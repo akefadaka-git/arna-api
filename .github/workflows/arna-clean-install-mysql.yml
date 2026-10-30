@@ -21,8 +21,8 @@ on:
       - "tests/Unit/DemoSeederGuardTest.php"
       - "tests/Concerns/LoanDatabaseMigrations.php"
       - "tests/Feature/PersonIdentityContractTest.php"
-      - "mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php"
-      - "mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
+      - "tests/Feature/PersonApiIntegrationTest.php"
+      - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
       - "tests/Feature/OrganizationDomainTest.php"
       - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
@@ -171,7 +171,7 @@ jobs:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php
+        run: php artisan test --compact tests/Feature/PersonApiIntegrationTest.php
 
       - name: Run Organization domain tenant and lifecycle regressions
         env:
@@ -200,7 +200,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php
+        run: php artisan test --compact tests/Feature/PersonIdentityMySqlConcurrencyTest.php
 
       - name: Run independent-connection Governance invariant concurrency regression
         env:
