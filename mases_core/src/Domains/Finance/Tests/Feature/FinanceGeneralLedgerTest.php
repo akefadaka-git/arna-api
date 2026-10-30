@@ -1072,7 +1072,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             $service->reverse((int) $tenant->id, (int) $user->id, (int) $original->id,
                 'JV-RETRY-REVERSAL-2', '2026-10-03', 'Changed reversal request');
             $this->fail('Changed retry input must be rejected.');
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException $exception) {
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException $exception) {
             $this->assertNotSame('', $exception->getMessage());
         }
 
@@ -1107,7 +1107,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             'Approved reversal for reporting regression',
         );
 
-        $rows = app(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\TrialBalanceService::class)
+        $rows = app(\MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService::class)
             ->forEntity((int) $tenant->id, (int) $entity->id, '2026-10-02');
         $cashRow = $rows->firstWhere('id', $cash->id);
         $equityRow = $rows->firstWhere('id', $equity->id);
