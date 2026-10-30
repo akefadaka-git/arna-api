@@ -7,7 +7,6 @@ namespace MaaleArna\MASES\Core\Domains\Organization\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\Organization\Http\Requests\OrganizationRequestRules;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
@@ -165,46 +164,6 @@ final class OrganizationController extends Controller
         return OrganizationUnit::query()->where('tenant_id', $this->tenantId())->findOrFail($id);
     }
 
-    private function initialAssignmentStatus(string $startsOn, ?string $endsOn): string
-    {
-        // The request validator accepts date-time strings as well as date-only values.
-        // Compare normalized calendar dates so a timestamp at today's midnight is not
-        // incorrectly classified as future merely because its string is longer.
-        $startDate = \Illuminate\Support\Carbon::parse($startsOn)->toDateString();
-        $endDate = $endsOn !== null
-            ? \Illuminate\Support\Carbon::parse($endsOn)->toDateString()
-            : null;
-        $today = now()->toDateString();
-
-        if ($startDate > $today) {
-            return 'scheduled';
-        }
-        if ($endDate !== null && $endDate < $today) {
-            return 'ended';
-        }
-        return 'active';
-    }
-
-    private function assertParentType(string $type, ?OrganizationUnit $parent): void
-    {
-        $this->hierarchyPolicy->assertParentType($type, $parent);
-    }
-
-    private function assertNoCycle(OrganizationUnit $unit, ?OrganizationUnit $parent): void
-    {
-        $seen = [];
-        while ($parent !== null) {
-            if ((int) $parent->id === (int) $unit->id || isset($seen[$parent->id])) {
-                throw new ConflictHttpException('Organization hierarchy cycle detected.');
-            }
-            $seen[$parent->id] = true;
-            if (count($seen) > 100) {
-                throw new ConflictHttpException('Organization hierarchy exceeds the maximum depth.');
-            }
-            $parent = $parent->parent()->where('tenant_id', $this->tenantId())->first();
-        }
-    }
-
     private function assertName(array $data): void
     {
         if (blank($data['name_am'] ?? null) && blank($data['name_en'] ?? null)) {
@@ -212,8 +171,5 @@ final class OrganizationController extends Controller
         }
     }
 
-    private function audit(int $tenantId, Request $request, string $type, int $id, string $action, string $reason, ?array $before, ?array $after): void
-    {
-        $this->auditService->record($tenantId, $request, $type, $id, $action, $reason, $before, $after);
-    }
+
 }
