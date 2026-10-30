@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentAuthorityService;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentIssuanceService;
+use MaaleArna\MASES\Core\Domains\Documents\Services\IncomingDocumentRegistrationService;
 
 final class DocumentsServiceProvider extends ServiceProvider
 {
@@ -15,6 +16,7 @@ final class DocumentsServiceProvider extends ServiceProvider
     {
         $this->app->singleton(DocumentAuthorityService::class);
         $this->app->singleton(DocumentIssuanceService::class);
+        $this->app->singleton(IncomingDocumentRegistrationService::class);
     }
 
     public function boot(): void
