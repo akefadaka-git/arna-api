@@ -21,7 +21,7 @@ on:
       - "tests/Unit/DemoSeederGuardTest.php"
       - "tests/Concerns/LoanDatabaseMigrations.php"
       - "tests/Feature/PersonIdentityContractTest.php"
-      - "tests/Feature/PersonApiIntegrationTest.php"
+      - "mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php"
       - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
       - "tests/Feature/OrganizationDomainTest.php"
@@ -90,10 +90,13 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_SHA: ${{ inputs.target_sha }}
           TRIGGER_SHA: ${{ github.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
             expected_sha="${INPUT_SHA}"
+          elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            expected_sha="${PR_HEAD_SHA}"
           else
             expected_sha="${TRIGGER_SHA}"
           fi
@@ -163,7 +166,7 @@ jobs:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact tests/Feature/PersonApiIntegrationTest.php
+        run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php
 
       - name: Run Organization domain tenant and lifecycle regressions
         env:
