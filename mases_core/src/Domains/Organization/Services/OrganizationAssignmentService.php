@@ -26,7 +26,7 @@ final class OrganizationAssignmentService
                         $dates->whereNull('ends_on')->orWhereDate('ends_on', '>=', $effectiveOn);
                     });
             })
-            ->with(['person:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en'])
+            ->with(['person' => fn ($person) => $person->whereHas('tenantAccesses', fn ($access) => $access->where('tenant_id', $tenantId)->where('status', 'active'))])
             ->orderByDesc('starts_on')
             ->orderByDesc('id')
             ->paginate(min(max((int) ($filters['per_page'] ?? 25), 1), 100));
