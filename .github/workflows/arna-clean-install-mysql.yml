@@ -25,8 +25,6 @@ on:
       - "tests/Feature/PersonApiIntegrationTest.php"
       - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
-      - "tests/Feature/OrganizationDomainTest.php"
-      - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/**"
       - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationDomainTest.php"
       - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
@@ -190,13 +188,6 @@ jobs:
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/PersonApiIntegrationTest.php
 
-      - name: Run Organization domain tenant and lifecycle regressions
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ":memory:"
-          DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact tests/Feature/OrganizationDomainTest.php
-
       - name: Run Organization domain-contained lifecycle regressions
         env:
           DB_CONNECTION: sqlite
@@ -257,17 +248,6 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php
-
-      - name: Run Organization hierarchy concurrent mutation regression
-        env:
-          ARNA_RUN_MYSQL_CONCURRENCY: "1"
-          DB_CONNECTION: mysql
-          DB_DATABASE: arna_migration_test
-          DB_HOST: 127.0.0.1
-          DB_PORT: "3306"
-          DB_USERNAME: root
-          DB_PASSWORD: root
-        run: php artisan test --compact tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php
 
       - name: Run Organization domain hierarchy concurrency regression
         env:
