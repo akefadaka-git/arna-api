@@ -138,7 +138,7 @@ final class OrganizationAssignmentService
             $locked->save();
             $updated = $locked->fresh();
 
-            app(OrganizationAuditService::class)->record(
+            $this->audit->record(
                 $tenantId, $request, 'assignment', (int) $locked->id,
                 'updated', $data['reason'], $before, $updated->toArray()
             );
