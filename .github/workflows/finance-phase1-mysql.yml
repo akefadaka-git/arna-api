@@ -103,6 +103,9 @@ jobs:
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      - name: Audit locked Composer dependencies
+        run: composer audit --locked
+
       - name: Prepare hermetic Laravel environment file
         run: touch .env
 
@@ -133,6 +136,35 @@ jobs:
           echo "Finance InnoDB tables verified: ${engines}/6"
           echo "Finance integrity triggers verified: ${triggers}/13"
           echo "Journal uniqueness indexes verified: ${indexes}/3"
+
+      - name: Verify Finance API authentication and permission middleware
+        shell: bash
+        run: |
+          set -euo pipefail
+          php artisan route:list --path=finance --json > /tmp/finance-routes.json
+          php -r '
+          $routes = json_decode(file_get_contents("/tmp/finance-routes.json"), true, 512, JSON_THROW_ON_ERROR);
+          $routes = array_values(array_filter($routes, static fn (array $route): bool => str_contains((string) ($route["uri"] ?? ""), "finance/")));
+          if (count($routes) !== 20) {
+              fwrite(STDERR, "Expected 20 registered Finance API routes; found ".count($routes)."\n");
+              exit(1);
+          }
+          foreach ($routes as $route) {
+              $middleware = $route["middleware"] ?? [];
+              $middleware = is_array($middleware) ? $middleware : [(string) $middleware];
+              foreach (["auth:sanctum", "tenant.membership"] as $required) {
+                  if (!in_array($required, $middleware, true)) {
+                      fwrite(STDERR, "Missing {$required} on ".($route["uri"] ?? "unknown route")."\n");
+                      exit(1);
+                  }
+              }
+              if (!preg_grep("/^auth\\.permission:/", $middleware)) {
+                  fwrite(STDERR, "Missing explicit Finance permission middleware on ".($route["uri"] ?? "unknown route")."\n");
+                  exit(1);
+              }
+          }
+          echo "Finance API route protection verified: ".count($routes)."/20 routes\n";
+          '
 
       - name: Run all Finance domain tests on MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests

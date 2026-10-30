@@ -26,6 +26,8 @@ Before deploying any Finance schema or enabling live posting:
 
 - Confirm the target is a supported MySQL 8.0 release and all Finance ledger tables use InnoDB.
 - Confirm the application runtime satisfies PHP 8.3 and the locked Composer platform requirements.
+- Run `composer audit --locked` against the release lock file and resolve or formally disposition every advisory before release.
+- Verify all 20 Finance API routes carry Sanctum authentication, tenant-membership middleware, and an explicit Finance permission.
 - Confirm the application database principal has the privileges needed to create the required triggers during migration. Do not grant routine application traffic privileges to alter schema or triggers.
 - Confirm the production connection uses the intended database, tenant resolution fails closed, and all Finance routes execute under the expected authentication, tenant, and permission middleware.
 - Confirm transaction isolation, connection pooling, lock-wait timeout, deadlock monitoring, and backup retention meet the organization's operational policy.
@@ -76,6 +78,8 @@ These are deliberate controls, not defects to bypass through configuration or di
 Production release requires all of the following evidence, recorded against the exact release SHA:
 
 - [ ] Independent source review and approved PR.
+- [ ] Locked Composer dependency audit has no unresolved advisories.
+- [ ] All 20 Finance API routes pass authentication, tenant-membership, and permission-middleware verification.
 - [ ] Full Finance tests and exact-commit MySQL migration verification pass.
 - [ ] All 60 controlled MySQL concurrency races pass on the target-compatible MySQL version and isolation level.
 - [ ] Tenant, legal-entity, permission, and direct-database adversarial checks pass.
