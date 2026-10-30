@@ -21,10 +21,6 @@ final class OrganizationNumberingRegistryService
     {
     }
 
-    public function __construct(private readonly OrganizationAuditService $audit)
-    {
-    }
-
     public function registerBranch(
         int $tenantId,
         int $organizationUnitId,
@@ -110,12 +106,10 @@ final class OrganizationNumberingRegistryService
                 throw ValidationException::withMessages(['organization_unit_id' => ['An active department directly under the registered branch is required.']]);
             }
 
-            {
-                $entityExists = DB::table('legal_entities')->where('tenant_id', $tenantId)
-                    ->where('id', $legalEntityId)->where('status', 'active')->exists();
-                if (!$entityExists || (int) $unit->legal_entity_id !== $legalEntityId) {
-                    throw ValidationException::withMessages(['legal_entity_id' => ['The department and an active legal entity must belong to this tenant.']]);
-                }
+            $entityExists = DB::table('legal_entities')->where('tenant_id', $tenantId)
+                ->where('id', $legalEntityId)->where('status', 'active')->exists();
+            if (!$entityExists || (int) $unit->legal_entity_id !== $legalEntityId) {
+                throw ValidationException::withMessages(['legal_entity_id' => ['The department and an active legal entity must belong to this tenant.']]);
             }
 
             $bbCode = $branchCode . $departmentCode;
