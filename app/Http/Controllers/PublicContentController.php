@@ -37,6 +37,14 @@ final class PublicContentController extends Controller
 
     public function submit(Request $request): JsonResponse
     {
+        // Quietly accept but discard automated honeypot submissions.
+        if (is_string($request->input('website')) && trim($request->input('website')) !== '') {
+            return response()->json([
+                'success' => true,
+                'data' => ['reference' => null, 'status' => 'received'],
+            ], 202);
+        }
+
         $validated = Validator::make($request->all(), [
             'content_type' => ['required', 'string', 'in:news,article,announcement,press_release'],
             'title' => ['required', 'string', 'min:5', 'max:200'],
