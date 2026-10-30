@@ -84,8 +84,15 @@ final class JournalEntryService
             $header['source_event_version'] = $sourceEventVersion;
         }
 
+        $sourceEventHash = null;
+        if ($sourceType->requiresSourceReference()) {
+            $sourcePayload = ['header' => $header, 'lines' => $lines];
+            unset($sourcePayload['header']['idempotency_key']);
+            $sourceEventHash = hash('sha256', json_encode($this->canonicalize($sourcePayload), JSON_THROW_ON_ERROR));
+        }
+
         try {
-            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType, $sourceEventVersion): JournalEntry {
+            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType, $sourceEventVersion, $sourceEventHash): JournalEntry {
                 if (count($lines) < 2) {
                     throw ValidationException::withMessages(['lines' => 'A journal must contain at least two lines.']);
                 }
@@ -138,7 +145,7 @@ final class JournalEntryService
                         ->first();
 
                     if ($sourceExisting) {
-                        if (hash_equals((string) $sourceExisting->request_hash, $requestHash)) {
+                        if ($sourceEventHash !== null && hash_equals((string) $sourceExisting->source_event_hash, $sourceEventHash)) {
                             return $sourceExisting->load('lines');
                         }
                         throw new ConflictHttpException('This source event version is already bound to a different journal payload.');
@@ -167,6 +174,7 @@ final class JournalEntryService
                     'source_type' => $header['source_type'] ?? null,
                     'source_id' => isset($header['source_id']) ? (string) $header['source_id'] : null,
                     'source_event_version' => $header['source_event_version'] ?? null,
+                    'source_event_hash' => $sourceEventHash,
                     'idempotency_key' => $key,
                     'request_hash' => $requestHash,
                     'created_by' => $actorId,
@@ -247,11 +255,10 @@ final class JournalEntryService
                         ->where('source_event_version', $sourceVersion)
                         ->first();
                     if ($sourceExisting) {
-                        $requestHash = hash('sha256', json_encode(
-                            $this->canonicalize(['header' => $header, 'lines' => $lines]),
-                            JSON_THROW_ON_ERROR
-                        ));
-                        if (hash_equals((string) $sourceExisting->request_hash, $requestHash)) {
+                        $sourcePayload = ['header' => $header, 'lines' => $lines];
+                        unset($sourcePayload['header']['idempotency_key']);
+                        $sourceEventHash = hash('sha256', json_encode($this->canonicalize($sourcePayload), JSON_THROW_ON_ERROR));
+                        if (hash_equals((string) $sourceExisting->source_event_hash, $sourceEventHash)) {
                             return $sourceExisting->load('lines');
                         }
                         throw new ConflictHttpException('This source event version is already bound to a different journal payload.', 0, $exception);
