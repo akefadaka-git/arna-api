@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use LogicException;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
@@ -53,7 +54,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $ownershipDefaults = require __DIR__ . '/../Config/control_account_ownership_v1.php';
         $ownershipOverrides = $this->app['config']->get('finance.control_account_ownership_v1', []);
         if (!is_array($ownershipDefaults) || !is_array($ownershipOverrides)) {
-            throw new \\LogicException('Finance control-account ownership configuration must be an array.');
+            throw new LogicException('Finance control-account ownership configuration must be an array.');
         }
         $this->app['config']->set(
             'finance.control_account_ownership_v1',
