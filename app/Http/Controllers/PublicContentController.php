@@ -105,8 +105,8 @@ final class PublicContentController extends Controller
                 throw new ConflictHttpException('The content changed after it was loaded. Refresh before reviewing.');
             }
 
-            if (in_array($decision, ['approve', 'publish'], true) && $item->submitted_by === $actor->id) {
-                abort(403, 'Authors cannot approve or publish their own submissions.');
+            if ($item->submitted_by === $actor->id) {
+                abort(403, 'Authors cannot review or publish their own submissions.');
             }
 
             $old = ['status' => $item->status, 'version' => $item->version];
