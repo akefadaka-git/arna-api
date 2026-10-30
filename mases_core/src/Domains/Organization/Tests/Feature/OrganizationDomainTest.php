@@ -450,7 +450,7 @@ final class OrganizationDomainTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $role = Role::query()->firstOrCreate(['slug' => 'organization-test-manager-'.$tenant->id], ['name_en' => 'Organization Test Manager', 'scope' => 'tenant', 'tenant_id' => $tenant->id]);
-        foreach (['organization.unit.view', 'organization.unit.manage', 'organization.assignment.view', 'organization.assignment.manage'] as $slug) {
+        foreach (['organization.unit.view', 'organization.unit.manage', 'organization.numbering.manage', 'organization.assignment.view', 'organization.assignment.manage'] as $slug) {
             $permission = Permission::query()->firstOrCreate(['slug' => $slug], ['name_en' => $slug, 'scope' => 'tenant', 'tenant_id' => $tenant->id, 'category' => 'organization']);
             DB::table('role_has_permissions')->updateOrInsert([
                 'role_id' => $role->id, 'permission_id' => $permission->id,
