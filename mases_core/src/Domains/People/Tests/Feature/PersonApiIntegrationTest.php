@@ -1061,6 +1061,7 @@ final class PersonApiIntegrationTest extends TestCase
     public function application_scoped_role_cannot_grant_global_account_link_permission(): void
     {
         [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
         $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
 
         $created = $this->withHeaders($headers)->postJson('/api/people', [
