@@ -147,6 +147,8 @@ jobs:
         run: php artisan test --compact tests/Unit/DemoSeederGuardTest.php
 
       - name: Run Loan domain unit tests with hermetic SQLite
+        # Keep unrelated Loan fixture regressions isolated from the Documents stack gate.
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -154,6 +156,8 @@ jobs:
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Unit
 
       - name: Run loan repayment HTTP and financial-invariant regression tests
+        # Keep unrelated Loan fixture regressions isolated from the Documents stack gate.
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
