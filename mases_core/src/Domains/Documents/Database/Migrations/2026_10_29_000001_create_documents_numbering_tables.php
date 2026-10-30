@@ -27,7 +27,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(
-                ['tenant_id', 'legal_entity_id', 'organization_unit_id', 'governance_position_id', 'document_type_code', 'ec_year'],
+                ['tenant_id', 'document_type_code', 'department_code', 'issuing_role_code', 'ec_year'],
                 'doc_counter_scope_unique'
             );
             $table->index(['tenant_id', 'is_active'], 'doc_counter_tenant_active_idx');
@@ -70,7 +70,7 @@ return new class extends Migration
                 ->references('id')->on('files')->restrictOnDelete();
             $table->unique(['tenant_id', 'idempotency_key'], 'documents_idempotency_unique');
             $table->unique(
-                ['tenant_id', 'legal_entity_id', 'organization_unit_id', 'governance_position_id', 'document_type_code', 'ec_year', 'sequence_number'],
+                ['tenant_id', 'document_type_code', 'department_code', 'issuing_role_code', 'ec_year', 'sequence_number'],
                 'documents_number_scope_unique'
             );
             $table->index(['tenant_id', 'status', 'issued_at'], 'documents_tenant_status_issued_idx');
