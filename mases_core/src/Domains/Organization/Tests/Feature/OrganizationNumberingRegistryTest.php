@@ -26,6 +26,42 @@ final class OrganizationNumberingRegistryTest extends TestCase
     }
 
     #[Test]
+    public function branch_and_department_registration_is_audited_and_retirement_preserves_the_code(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $branchUnit = DB::table('organization_units')->insertGetId([
+            'tenant_id' => $tenant->id, 'parent_id' => null, 'code' => 'BRANCH-1',
+            'unit_type' => 'branch', 'name_en' => 'Branch 1', 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $departmentUnit = DB::table('organization_units')->insertGetId([
+            'tenant_id' => $tenant->id, 'parent_id' => $branchUnit, 'code' => 'DEPT-1',
+            'unit_type' => 'department', 'name_en' => 'Department 1', 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $service = app(OrganizationNumberingRegistryService::class);
+        $service->registerBranch((int) $tenant->id, $branchUnit, '1', 'Register branch one');
+        $service->registerDepartment((int) $tenant->id, $departmentUnit, null, '1', '1', 'Register department one');
+
+        $this->assertDatabaseHas('organization_audit_events', [
+            'tenant_id' => $tenant->id, 'subject_type' => 'branch_number_code', 'action' => 'registered',
+        ]);
+        $this->assertDatabaseHas('organization_audit_events', [
+            'tenant_id' => $tenant->id, 'subject_type' => 'department_number_code', 'action' => 'registered',
+        ]);
+
+        $retired = $service->retireDepartment((int) $tenant->id, '11', 'Department permanently closed');
+        $this->assertSame('retired', $retired->status);
+        $this->assertNotNull($retired->effective_until);
+        $this->assertDatabaseHas('organization_audit_events', [
+            'tenant_id' => $tenant->id, 'subject_type' => 'department_number_code', 'action' => 'retired',
+        ]);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\ConflictHttpException::class);
+        $service->retireDepartment((int) $tenant->id, '11', 'Attempt duplicate retirement');
+    }
+
+    #[Test]
     public function department_code_cannot_reference_a_legal_entity_from_another_tenant(): void
     {
         $tenantA = Tenant::factory()->create(['is_active' => true]);
