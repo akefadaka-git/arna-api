@@ -51,10 +51,22 @@ return new class extends Migration
                 'documents_number_v2_scope_unique'
             );
         });
+
+        Schema::table('document_lifecycle_events', function (Blueprint $table): void {
+            $table->dropForeign('document_lifecycle_document_fk');
+            $table->foreign(['tenant_id', 'document_id'], 'document_lifecycle_document_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
+        });
     }
 
     public function down(): void
     {
+        Schema::table('document_lifecycle_events', function (Blueprint $table): void {
+            $table->dropForeign('document_lifecycle_document_tenant_fk');
+            $table->foreign('document_id', 'document_lifecycle_document_fk')
+                ->references('id')->on('documents')->restrictOnDelete();
+        });
+
         Schema::table('documents', function (Blueprint $table): void {
             $table->dropUnique('documents_number_v2_scope_unique');
             $table->dropForeign('documents_replaces_same_tenant_fk');
