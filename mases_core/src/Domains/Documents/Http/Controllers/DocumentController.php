@@ -31,6 +31,7 @@ final class DocumentController extends Controller
             'issuing_role_code' => ['required', 'string', 'regex:/^[A-Z0-9_]{2,32}$/'],
             'title' => ['required', 'string', 'min:1', 'max:255'],
             'file_id' => ['required', 'integer', 'min:1'],
+            'replaces_document_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'metadata' => ['sometimes', 'array'],
         ]);
 
@@ -85,6 +86,7 @@ final class DocumentController extends Controller
             'id' => $document->getKey(),
             'uuid' => $document->uuid,
             'canonical_number' => $document->canonical_number,
+            'replaces_document_id' => $document->replaces_document_id,
             'bb_code' => $document->bb_code,
             'document_type_number' => $document->document_type_number,
             'document_type_code' => $document->document_type_code,
