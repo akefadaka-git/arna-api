@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Organization\Tests\Feature;
 
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
@@ -12,6 +13,8 @@ use Tests\TestCase;
 
 final class OrganizationAuditMySqlImmutabilityTest extends TestCase
 {
+    use RefreshDatabase;
+
     #[Test]
     public function mysql_rejects_update_and_delete_of_organization_audit_events(): void
     {
