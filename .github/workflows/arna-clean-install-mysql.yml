@@ -99,7 +99,7 @@ jobs:
           elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
             expected_sha="${{ github.event.pull_request.head.sha }}"
           elif [[ "${EVENT_NAME}" == "push" ]]; then
-            target_override="$(printf '%s' "${HEAD_COMMIT_MESSAGE}" | sed -nE 's/.*\\[clean-install-target:([0-9a-fA-F]{40})\\].*/\\1/p' | head -n 1)"
+            target_override="$(printf '%s' "\${HEAD_COMMIT_MESSAGE}" | sed -nE 's/.*\[clean-install-target:([0-9a-fA-F]{40})\].*/\1/p' | head -n 1)"
             expected_sha="${target_override:-${TRIGGER_SHA}}"
           else
             expected_sha="${TRIGGER_SHA}"
@@ -163,14 +163,14 @@ jobs:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact tests/Feature/PersonIdentityContractTest.php
+        run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php
 
       - name: Run People Profile API integration regressions
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact tests/Feature/PersonApiIntegrationTest.php
+        run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php
 
       - name: Run Organization domain tenant and lifecycle regressions
         env:
@@ -209,7 +209,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact tests/Feature/PersonIdentityMySqlConcurrencyTest.php
+        run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php
 
       - name: Run independent-connection Governance invariant concurrency regression
         env:
