@@ -25,6 +25,6 @@ The PHPUnit `Domain` suite already recursively discovers tests under `mases_core
 
 The canonical CoA seeder remains opt-in and is not called by `DatabaseSeeder`. Its class is:
 
-`MaaleArna\\MASES\\Core\\Domains\\Finance\\Database\\Seeders\\FinanceChartOfAccountsSeeder`
+`MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceChartOfAccountsSeeder`
 
 Do not run it against production or enable it in the default seed flow without separate Owner approval.
