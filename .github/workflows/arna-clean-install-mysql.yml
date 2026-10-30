@@ -415,3 +415,30 @@ jobs:
                 throw error;
               }
             }
+
+  organization-source-lint:
+    name: Organization domain PHP syntax verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact pull request head
+        uses: actions/checkout@v4
+        with:
+          ref: \${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+
+      - name: Lint every Organization PHP source, migration, seeder, and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' files < <(find mases_core/src/Domains/Organization -type f -name '*.php' -print0)
+          test "\${#files[@]}" -gt 0
+          for file in "\${files[@]}"; do
+            php -l "\${file}"
+          done
