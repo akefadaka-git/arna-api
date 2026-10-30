@@ -67,6 +67,18 @@ final class JournalEntryService
         }
         $header['source_type'] = $sourceType->value;
         $header['source_id'] = $sourceId === '' ? null : $sourceId;
+        $sourceEventVersion = trim((string) ($header['source_event_version'] ?? ''));
+        if ($sourceType->requiresSourceReference() && ($sourceEventVersion === '' || mb_strlen($sourceEventVersion) > 64)) {
+            throw ValidationException::withMessages([
+                'source_event_version' => 'An originating source event version of at most 64 characters is required.',
+            ]);
+        }
+        if (!$sourceType->requiresSourceReference() && $sourceEventVersion !== '') {
+            throw ValidationException::withMessages([
+                'source_event_version' => 'Source event versions are only accepted for external business sources.',
+            ]);
+        }
+        $header['source_event_version'] = $sourceEventVersion === '' ? null : $sourceEventVersion;
 
         try {
             return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType): JournalEntry {
@@ -112,6 +124,23 @@ final class JournalEntryService
                     throw new ConflictHttpException('Idempotency key was already used for a different journal payload.');
                 }
 
+                if ($sourceType->requiresSourceReference()) {
+                    $sourceExisting = JournalEntry::query()
+                        ->where('tenant_id', $tenantId)
+                        ->where('legal_entity_id', $entity->id)
+                        ->where('source_type', $sourceType->value)
+                        ->where('source_id', $sourceId)
+                        ->where('source_event_version', $sourceEventVersion)
+                        ->first();
+
+                    if ($sourceExisting) {
+                        if (hash_equals((string) $sourceExisting->request_hash, $requestHash)) {
+                            return $sourceExisting->load('lines');
+                        }
+                        throw new ConflictHttpException('This source event version is already bound to a different journal payload.');
+                    }
+                }
+
                 $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
                     ->where('legal_entity_id', $entity->id)
                     ->where('starts_on', '<=', $date)->where('ends_on', '>=', $date)
@@ -133,6 +162,7 @@ final class JournalEntryService
                     'description' => trim((string) ($header['description'] ?? '')),
                     'source_type' => $header['source_type'] ?? null,
                     'source_id' => isset($header['source_id']) ? (string) $header['source_id'] : null,
+                    'source_event_version' => $header['source_event_version'] ?? null,
                     'idempotency_key' => $key,
                     'request_hash' => $requestHash,
                     'created_by' => $actorId,
@@ -200,6 +230,28 @@ final class JournalEntryService
                         return $existing->load('lines');
                     }
                     throw new ConflictHttpException('Idempotency key was already used for a different journal payload.', 0, $exception);
+                }
+
+                $sourceType = JournalSourceType::tryFrom((string) ($header['source_type'] ?? ''));
+                $sourceId = trim((string) ($header['source_id'] ?? ''));
+                $sourceVersion = trim((string) ($header['source_event_version'] ?? ''));
+                if ($sourceType?->requiresSourceReference() && $sourceId !== '' && $sourceVersion !== '') {
+                    $sourceExisting = JournalEntry::query()->where('tenant_id', $tenantId)
+                        ->where('legal_entity_id', $entityId)
+                        ->where('source_type', $sourceType->value)
+                        ->where('source_id', $sourceId)
+                        ->where('source_event_version', $sourceVersion)
+                        ->first();
+                    if ($sourceExisting) {
+                        $requestHash = hash('sha256', json_encode(
+                            $this->canonicalize(['header' => $header, 'lines' => $lines]),
+                            JSON_THROW_ON_ERROR
+                        ));
+                        if (hash_equals((string) $sourceExisting->request_hash, $requestHash)) {
+                            return $sourceExisting->load('lines');
+                        }
+                        throw new ConflictHttpException('This source event version is already bound to a different journal payload.', 0, $exception);
+                    }
                 }
             }
 
@@ -271,6 +323,18 @@ final class JournalEntryService
                 throw ValidationException::withMessages(['journal_type' => 'This journal type is not permitted through the ordinary posting workflow.']);
             }
 
+            $entity = LegalEntity::query()
+                ->where('tenant_id', $tenantId)
+                ->whereKey($entry->legal_entity_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$entity || $entity->status !== 'active' || $entity->base_currency !== $entry->currency) {
+                throw ValidationException::withMessages([
+                    'legal_entity' => 'The legal entity must remain active and its base currency must match before posting.',
+                ]);
+            }
+
             $period = AccountingPeriod::query()->where('tenant_id', $tenantId)
                 ->where('legal_entity_id', $entry->legal_entity_id)
                 ->lockForUpdate()->findOrFail($entry->accounting_period_id);
@@ -279,6 +343,43 @@ final class JournalEntryService
                 || $entry->effective_date->lt($period->starts_on)
                 || $entry->effective_date->gt($period->ends_on)) {
                 throw ValidationException::withMessages(['accounting_period' => 'The accounting period is not open for this journal date.']);
+            }
+
+            $lines = JournalLine::query()
+                ->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $entry->legal_entity_id)
+                ->where('journal_entry_id', $entry->id)
+                ->orderBy('line_number')
+                ->get();
+
+            $accountIds = $lines->pluck('account_id')->map(static fn ($id): int => (int) $id)->unique()->values();
+            $accounts = LedgerAccount::query()
+                ->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', $entry->legal_entity_id)
+                ->whereIn('id', $accountIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            if ($accounts->count() !== $accountIds->count()) {
+                throw ValidationException::withMessages([
+                    'lines' => 'Every journal line must reference an account in the same tenant and legal entity.',
+                ]);
+            }
+
+            foreach ($lines as $index => $line) {
+                $account = $accounts->get((int) $line->account_id);
+                if (!$account || $account->status !== 'active' || !(bool) $account->is_posting_allowed) {
+                    throw ValidationException::withMessages([
+                        "lines.{$index}.account_id" => 'The account must remain active and postable when the journal is posted.',
+                    ]);
+                }
+                if ($line->cash_flow_activity !== null && !(bool) $account->is_cash_equivalent) {
+                    throw ValidationException::withMessages([
+                        "lines.{$index}.cash_flow_activity" => 'The account is no longer approved as a cash equivalent.',
+                    ]);
+                }
             }
 
             $this->assertBalanced($entry);
