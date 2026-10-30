@@ -384,6 +384,14 @@ jobs:
                 core.info(`Skip protected/long-lived branch ${branch} from PR #${pr.number}.`);
                 continue;
               }
+
+              // Owner-managed integration branches are retained after merge.
+              // Branch deletion requires separate explicit Owner authorization.
+              const ownerRetainedBranches = new Set(['feat/people-domain-phase-2-api']);
+              if (ownerRetainedBranches.has(branch)) {
+                core.info(`Skip Owner-retained source branch ${branch}; deletion requires separate authorization.`);
+                continue;
+              }
               let current;
               try {
                 current = await github.rest.repos.getBranch({ owner, repo, branch });
