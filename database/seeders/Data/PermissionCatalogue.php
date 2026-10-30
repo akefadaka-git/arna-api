@@ -47,7 +47,7 @@ namespace Database\Seeders\Data;
  *
  *   category    — the permission's functional group. One of:
  *                 'user', 'role', 'permission', 'app_access',
- *                 'file', 'tenant', 'test'.
+ *                 'file', 'tenant', 'test', 'document'.
  *
  *   scope       — the permission's scope of applicability. One of:
  *                 'global'      — platform-wide, not tied to a tenant.
@@ -199,6 +199,10 @@ final class PermissionCatalogue
         ['slug' => 'finance.journal.post', 'name_am' => 'የመዝገብ ማስታወሻ መለጠፍ', 'name_en' => 'Post Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.reverse', 'name_am' => 'የመዝገብ ማስታወሻ መቀልበስ', 'name_en' => 'Reverse Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.report.view', 'name_am' => 'የፋይናንስ ሪፖርቶችን ማየት', 'name_en' => 'View Financial Reports', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'documents.issue', 'name_am' => 'ኦፊሴላዊ ሰነድ ማውጣት', 'name_en' => 'Issue Official Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'documents.view', 'name_am' => 'ሰነዶችን ማየት', 'name_en' => 'View Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'documents.void', 'name_am' => 'ሰነድ ማሰረዝ', 'name_en' => 'Void Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'documents.revoke', 'name_am' => 'ሰነድ ተፈጻሚነት ማቋረጥ', 'name_en' => 'Revoke Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'documents.receive', 'name_am' => 'የሚመጡ ሰነዶችን መመዝገብ', 'name_en' => 'Register Incoming Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'documents.incoming.view', 'name_am' => 'የሚመጡ ሰነዶችን ማየት', 'name_en' => 'View Incoming Document Registrations', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
     ];
