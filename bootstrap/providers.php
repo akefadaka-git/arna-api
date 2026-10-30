@@ -506,12 +506,21 @@ declare(strict_types=1);
  *        services depend on Wallet-domain singletons.
  *
  *   9. MaaleArna\MASES\Core\Domains\Governance\Providers\GovernanceServiceProvider
- *      - Runs after LoanServiceProvider. Governance has no dependency
- *        on Wallet or Loan; the placement reflects the chronological
- *        registration order (Core → Localization → Auth → Shareholder
- *        → Policy → Wallet → Loan → Governance).
+ *      - Runs after LoanServiceProvider and before the domain consumers
+ *        that rely on canonical Person identities.
  *
- *   10. (FUTURE) Phase 2D and 2F domain providers
+ *   10. MaaleArna\MASES\Core\Domains\People\Providers\PeopleServiceProvider
+ *       - Registers canonical Person identity, contacts, relationships,
+ *         participation, and the People API.
+ *
+ *   11. MaaleArna\MASES\Core\Domains\Organization\Providers\OrganizationServiceProvider
+ *       - Registers Organization structure, assignments, configuration,
+ *         migrations, and API routes.
+ *
+ *   12. MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider
+ *       - Registers Finance configuration, services, migrations, and routes.
+ *
+ *   13. (FUTURE) Phase 2D and 2F domain providers
  *      - Transfers/Dividends/Meetings/Voting/Elections (Phase 2D) and
  *        Communications (Phase 2F). Each added under a small CR as its
  *        first test file lands.
@@ -646,15 +655,39 @@ return [
      */
     MaaleArna\MASES\Core\Domains\Governance\Providers\GovernanceServiceProvider::class,
 
-    // Canonical People profile domain.
+    /*
+     * -------------------------------------------------------------------------
+     * 10. People Domain Provider
+     * -------------------------------------------------------------------------
+     *
+     * Registers canonical Person identity, contact, relationship, and
+     * participation services, migrations, policies, and API routes.
+     */
     MaaleArna\MASES\Core\Domains\People\Providers\PeopleServiceProvider::class,
 
-    // Organization domain routes, configuration, and migrations.
+    /*
+     * -------------------------------------------------------------------------
+     * 11. Organization Domain Provider
+     * -------------------------------------------------------------------------
+     *
+     * Registers Organization-owned configuration, migrations, services,
+     * and API routes. People remains the canonical identity domain.
+     */
     MaaleArna\MASES\Core\Domains\Organization\Providers\OrganizationServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
-     * 10. Future Domain Providers (Phase 2D and 2F)
+     * 12. Finance Domain Provider
+     * -------------------------------------------------------------------------
+     *
+     * Registers Finance services, translations, domain configuration, Finance-owned
+     * migrations, and the Finance API routes from the domain directory.
+     */
+    MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
+
+    /*
+     * -------------------------------------------------------------------------
+     * 11. Future Domain Providers (Phase 2D and 2F)
      * -------------------------------------------------------------------------
      *
      * Phase 2D (Transfers/Dividends/Meetings/Voting/Elections) and
