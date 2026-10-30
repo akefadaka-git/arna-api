@@ -189,7 +189,7 @@ final class PermissionCatalogue
         ['slug' => 'people.account-link.manage', 'name_am' => 'የሰው መገለጫና መለያ ግንኙነትን ማስተዳደር', 'name_en' => 'Manage Global Person Account Links', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'people.tenant-access.manage', 'name_am' => 'የሰው መገለጫን በቴናንት መካከል መፍቀድ', 'name_en' => 'Manage Global Person Tenant Access', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
         ...FinancePermissionCatalogue::ROWS,
-        ...\\MaaleArna\\MASES\\Core\\Domains\\Organization\\Support\\OrganizationPermissionCatalogue::ROWS,
+        ...\MaaleArna\MASES\Core\Domains\Organization\Support\OrganizationPermissionCatalogue::ROWS,
             ['slug' => 'public-content.review', 'name_am' => 'ይፋዊ ይዘት መገምገምና ማተም', 'name_en' => 'Review and publish public content', 'category' => 'public_content', 'scope' => 'global', 'is_system' => false],
 ];
 }
