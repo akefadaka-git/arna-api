@@ -15,10 +15,10 @@ use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAuditEvent;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationAssignmentPolicy;
-use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationHierarchyPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAssignmentService;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAuditService;
+use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationHierarchyService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -30,7 +30,7 @@ final class OrganizationController extends Controller
         private readonly TenantContextService $tenantContext,
         private readonly OrganizationUnitPolicy $unitPolicy,
         private readonly OrganizationAssignmentPolicy $assignmentPolicy,
-        private readonly OrganizationHierarchyPolicy $hierarchyPolicy,
+        private readonly OrganizationHierarchyService $hierarchyService,
         private readonly OrganizationAssignmentService $assignmentService,
         private readonly OrganizationAuditService $auditService,
     ) {
@@ -61,9 +61,9 @@ final class OrganizationController extends Controller
         $this->assertName($data);
 
         $unit = DB::transaction(function () use ($data, $tenantId, $request): OrganizationUnit {
-            $this->lockTenantHierarchy($tenantId);
-            $parent = $this->resolveParent($tenantId, $data['parent_id'] ?? null);
-            $this->assertParentType($data['unit_type'], $parent);
+            $this->hierarchyService->lockTenant($tenantId);
+            $parent = $this->hierarchyService->resolveParent($tenantId, $data['parent_id'] ?? null);
+            $this->hierarchyService->assertParentType($data['unit_type'], $parent);
             $unit = OrganizationUnit::query()->create([
                 'tenant_id' => $tenantId, 'parent_id' => $parent?->id,
                 'legal_entity_id' => $data['legal_entity_id'] ?? null,
@@ -103,14 +103,14 @@ final class OrganizationController extends Controller
             $locked = OrganizationUnit::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($unit->id);
             $before = $locked->toArray();
             $parentId = array_key_exists('parent_id', $data) ? $data['parent_id'] : $locked->parent_id;
-            $parent = $this->resolveParent($tenantId, $parentId);
+            $parent = $this->hierarchyService->resolveParent($tenantId, $parentId);
             if ($parent && (int) $parent->id === (int) $locked->id) {
                 throw new ConflictHttpException('An organization unit cannot parent itself.');
             }
-            $this->assertNoCycle($locked, $parent);
+            $this->hierarchyService->assertNoCycle($locked, $parent, $tenantId);
             $type = $data['unit_type'] ?? $locked->unit_type;
-            $this->assertParentType($type, $parent);
-            $this->assertSubtreeCompatible($locked, $type, $tenantId);
+            $this->hierarchyService->assertParentType($type, $parent);
+            $this->hierarchyService->assertSubtreeCompatible($locked, $type, $tenantId);
 
             $nextStatus = $data['status'] ?? $locked->status;
             if ($nextStatus === 'inactive' && $locked->status !== 'inactive'
@@ -278,54 +278,6 @@ final class OrganizationController extends Controller
     private function unit(int $id): OrganizationUnit
     {
         return OrganizationUnit::query()->where('tenant_id', $this->tenantId())->findOrFail($id);
-    }
-
-    private function lockTenantHierarchy(int $tenantId): void
-    {
-        // Every hierarchy-changing transaction locks the tenant row first.
-        $tenant = DB::table('tenants')->where('id', $tenantId)->lockForUpdate()->first();
-        if (!$tenant) {
-            throw new NotFoundHttpException('Resolved tenant no longer exists.');
-        }
-    }
-
-    private function resolveParent(int $tenantId, mixed $parentId): ?OrganizationUnit
-    {
-        if ($parentId === null) {
-            return null;
-        }
-        $parent = OrganizationUnit::query()->where('tenant_id', $tenantId)->whereNull('deleted_at')->find($parentId);
-        if (!$parent) {
-            throw new NotFoundHttpException('Parent unit was not found in the resolved tenant.');
-        }
-        if ($parent->status !== 'active') {
-            throw new ConflictHttpException('An inactive organization unit cannot be a parent.');
-        }
-        return $parent;
-    }
-
-    private function assertSubtreeCompatible(OrganizationUnit $unit, string $newType, int $tenantId): void
-    {
-        $virtualParent = clone $unit;
-        $virtualParent->unit_type = $newType;
-        $this->assertDescendantsCompatible($virtualParent, $tenantId, [(int) $unit->id => true], 0);
-    }
-
-    private function assertDescendantsCompatible(OrganizationUnit $parent, int $tenantId, array $seen, int $depth): void
-    {
-        if ($depth > 100) {
-            throw new ConflictHttpException('Organization hierarchy exceeds the maximum depth.');
-        }
-        $children = OrganizationUnit::query()->where('tenant_id', $tenantId)->where('parent_id', $parent->id)->get();
-        foreach ($children as $child) {
-            if (isset($seen[(int) $child->id])) {
-                throw new ConflictHttpException('Organization hierarchy cycle detected.');
-            }
-            $this->assertParentType((string) $child->unit_type, $parent);
-            $nextSeen = $seen;
-            $nextSeen[(int) $child->id] = true;
-            $this->assertDescendantsCompatible($child, $tenantId, $nextSeen, $depth + 1);
-        }
     }
 
     private function initialAssignmentStatus(string $startsOn, ?string $endsOn): string
