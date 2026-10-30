@@ -10,6 +10,7 @@ use Database\Seeders\Data\TenantProfile;
 use Database\Seeders\Support\UserPivotCleaner;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareholderNumberReconciler;
+use MaaleArna\MASES\Core\Domains\Organization\Database\Seeders\OrganizationDomainSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -338,6 +339,9 @@ final class MasesCoreSeeder extends Seeder
          * dependency.
          */
         (new RolePermissionSeeder())->seed($roles, $permissions);
+
+        // Organization validates its domain-owned permissions and tenant-admin scope.
+        (new OrganizationDomainSeeder())->seed($tenant, $permissions, $roles);
 
         /*
          * Step 7 — bootstrap admins.
