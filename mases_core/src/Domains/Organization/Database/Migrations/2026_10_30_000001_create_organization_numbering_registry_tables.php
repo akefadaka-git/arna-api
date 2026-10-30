@@ -21,9 +21,8 @@ return new class extends Migration
             $table->text('lifecycle_reason');
             $table->foreignId('created_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->timestamps();
-            $table->unique(['tenant_id', 'branch_code'], 'org_branch_number_code_unique');
+            $table->unique(['tenant_id', 'branch_code'], 'org_branch_number_tenant_code_unique');
             $table->unique(['tenant_id', 'organization_unit_id'], 'org_branch_number_unit_unique');
-            $table->unique(['tenant_id', 'branch_code'], 'org_branch_number_tenant_code_ref_unique');
             $table->foreign(['tenant_id', 'organization_unit_id'], 'org_branch_number_unit_tenant_fk')
                 ->references(['tenant_id', 'id'])->on('organization_units')->restrictOnDelete();
             $table->index(['tenant_id', 'status'], 'org_branch_number_status_idx');
