@@ -155,12 +155,7 @@ final class AuthorizationMiddleware
         $applicationSlug = $this->resolveApplicationSlug($request);
 
         $allowed = match ($type) {
-            'permission' => $this->authService->hasPermission(
-                permissionSlug:  $value,
-                user:            $user,
-                tenantId:        $tenantId,
-                applicationSlug: $applicationSlug,
-            ),
+            'permission' => $this->hasAnyPermission($value, $user, $tenantId, $applicationSlug),
             'role' => $this->authService->hasRole(
                 roleSlug:        $value,
                 user:            $user,
@@ -201,6 +196,36 @@ final class AuthorizationMiddleware
             'AUTH_' . strtoupper($type) . '_DENIED',
             403
         );
+    }
+
+    /**
+     * Permission middleware accepts a pipe-delimited OR expression.
+     * Every candidate is still evaluated by the canonical, scope-aware
+     * AuthorizationService; an empty candidate list fails closed.
+     */
+    private function hasAnyPermission(
+        string $expression,
+        \MaaleArna\MASES\Core\Auth\Models\User $user,
+        int|string|null $tenantId,
+        ?string $applicationSlug
+    ): bool {
+        $permissions = array_values(array_filter(
+            array_map('trim', explode('|', $expression)),
+            static fn (string $permission): bool => $permission !== ''
+        ));
+
+        foreach ($permissions as $permission) {
+            if ($this->authService->hasPermission(
+                permissionSlug: $permission,
+                user: $user,
+                tenantId: $tenantId,
+                applicationSlug: $applicationSlug,
+            )) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // =========================================================================
