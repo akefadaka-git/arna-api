@@ -30,6 +30,11 @@ final class OrganizationUnitPolicy
         return $this->allows($user, 'organization.audit.view');
     }
 
+    public function manageNumbering(User $user): bool
+    {
+        return $this->allows($user, 'organization.numbering.manage');
+    }
+
     public function create(User $user): bool
     {
         return $this->allows($user, 'organization.unit.manage');
