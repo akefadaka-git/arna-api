@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Data;
 
+use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRoleCatalogue;
+
 /**
  * RoleCatalogue
  *
@@ -177,12 +179,7 @@ final class RoleCatalogue
             'description_en' => 'Manager-level access within a tenant.',
             'scope' => 'tenant', 'tenant_bound' => true, 'application_slug' => null,
         ],
-        'finance_manager' => [
-            'slug' => 'finance_manager', 'name_am' => 'የፋይናንስ ሥራ አስኪያጅ', 'name_en' => 'Finance Manager',
-            'description_am' => 'በፋይናንስ አፕሊኬሽን ላይ ሙሉ መዳረሻ ያለው',
-            'description_en' => 'Full access to finance application.',
-            'scope' => 'application', 'tenant_bound' => true, 'application_slug' => 'finance',
-        ],
+        ...FinanceRoleCatalogue::ROWS,
         'hr_manager' => [
             'slug' => 'hr_manager', 'name_am' => 'የሰው ሀብት ሥራ አስኪያጅ', 'name_en' => 'HR Manager',
             'description_am' => 'በሰው ሀብት አስተዳደር ላይ ሙሉ መዳረሻ ያለው',
@@ -211,12 +208,6 @@ final class RoleCatalogue
             'slug' => 'secretary', 'name_am' => 'የቦርድ ፀሐፊ', 'name_en' => 'Board Secretary',
             'description_am' => 'የቦርድ ፀሐፊ — ሰነዶችን የሚያዘጋጅና የስብሰባ ማስታወሻ የሚይዝ',
             'description_en' => 'Board Secretary — prepares documents and keeps meeting minutes.',
-            'scope' => 'tenant', 'tenant_bound' => true, 'application_slug' => null,
-        ],
-        'cashier' => [
-            'slug' => 'cashier', 'name_am' => 'ገንዘብ ያዥ', 'name_en' => 'Cashier',
-            'description_am' => 'የቦርድ ገንዘብ ያዥ — የገንዘብ ፍሰትን የሚያስተዳድር',
-            'description_en' => 'Board Cashier — manages cash flow.',
             'scope' => 'tenant', 'tenant_bound' => true, 'application_slug' => null,
         ],
         'ceo' => [

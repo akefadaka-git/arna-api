@@ -7,6 +7,8 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use MaaleArna\MASES\Core\Domains\Finance\Services\CanonicalChartOfAccountsValidator;
+use MaaleArna\MASES\Core\Domains\Finance\Services\CanonicalChartOfAccountsSeederPreflight;
 use MaaleArna\MASES\Core\Domains\Finance\Services\ControlAccountOwnershipRegistry;
 use RuntimeException;
 
@@ -45,31 +47,52 @@ final class FinanceChartOfAccountsSeeder extends Seeder
         }
 
         $register = config('finance.chart_of_accounts_v1', []);
-        $this->validateRegister($register);
+        app(CanonicalChartOfAccountsValidator::class)->validate($register);
         // Validate control-account ownership before the first database write.
         // Pending personnel designation is allowed for seeding, but the registry
         // enforces that reconciliation adapters remain blocked until approval.
         app(ControlAccountOwnershipRegistry::class)->validateAgainstChart($register);
 
-        $entities = DB::table('legal_entities')->where('status', 'active')->orderBy('tenant_id')->orderBy('id')->get();
-        if ($entities->isEmpty()) {
-            throw new RuntimeException('ARNA CoA v1.0.0 found no active legal entities; no accounts were seeded.');
-        }
+        DB::transaction(function () use ($register): void {
+            // Lock all active entities and all existing account rows, then
+            // preflight every entity before the first canonical account write.
+            $entities = DB::table('legal_entities')
+                ->where('status', 'active')
+                ->orderBy('tenant_id')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
 
-        foreach ($entities as $entity) {
-            DB::transaction(function () use ($entity, $register): void {
-                $existing = DB::table('ledger_accounts')
+            if ($entities->isEmpty()) {
+                throw new RuntimeException('ARNA CoA v1.0.0 found no active legal entities; no accounts were seeded.');
+            }
+
+            $existingByEntity = [];
+            foreach ($entities as $entity) {
+                $existingByEntity[(string) $entity->id] = DB::table('ledger_accounts')
                     ->where('tenant_id', $entity->tenant_id)
                     ->where('legal_entity_id', $entity->id)
-                    ->get()->keyBy('code');
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->all();
+            }
 
+            app(CanonicalChartOfAccountsSeederPreflight::class)->validate(
+                $register,
+                $entities->all(),
+                $existingByEntity
+            );
+
+            // The complete multi-entity preflight passed. Writes remain inside
+            // this one transaction, so a later entity failure rolls everything back.
+            foreach ($entities as $entity) {
+                $existing = collect($existingByEntity[(string) $entity->id])->keyBy('code');
                 $ids = [];
+
                 foreach ($register as $row) {
                     $code = $row[0];
                     $found = $existing->get($code);
-                    if ($found && !(bool)($found->is_system_account ?? false)) {
-                        throw new RuntimeException("CoA code {$code} already exists as a non-system account for legal entity {$entity->id}; refusing overwrite.");
-                    }
                     $ids[$code] = $found->id ?? null;
                 }
 
@@ -94,52 +117,21 @@ final class FinanceChartOfAccountsSeeder extends Seeder
                         'is_system_account' => true,
                         'updated_at' => now(),
                     ];
+
                     if ($ids[$code] === null) {
                         $values['created_at'] = now();
                         $ids[$code] = DB::table('ledger_accounts')->insertGetId($values);
                     } else {
-                        DB::table('ledger_accounts')->where('id', $ids[$code])
+                        DB::table('ledger_accounts')
+                            ->where('id', $ids[$code])
                             ->where('tenant_id', $entity->tenant_id)
                             ->where('legal_entity_id', $entity->id)
                             ->where('is_system_account', true)
                             ->update($values);
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
-    private function validateRegister(array $register): void
-    {
-        $codes = [];
-        foreach ($register as $row) {
-            if (!is_array($row) || count($row) !== 10) {
-                throw new RuntimeException('Every CoA register row must contain exactly 10 fields.');
-            }
-
-            [$code, $parent, $en, $am, $type, $normal, $posting, $control, $domain, $tax] = $row;
-            if (!is_string($code) || !preg_match('/^[0-9]{4}$/', $code) || isset($codes[$code])) {
-                throw new RuntimeException('Invalid or duplicate canonical CoA code: ' . (is_scalar($code) ? (string) $code : gettype($code)));
-            }
-            if ($parent !== null && (!is_string($parent) || !isset($codes[$parent]))) {
-                throw new RuntimeException("Parent code for {$code} must be a preceding canonical account.");
-            }
-            if (!is_string($en) || trim($en) === '' || !is_string($am) || trim($am) === ''
-                || !is_string($domain) || trim($domain) === ''
-                || !in_array($type, ['asset', 'liability', 'equity', 'revenue', 'expense'], true)
-                || !in_array($normal, ['debit', 'credit'], true)
-                || !in_array($tax, ['taxable', 'non_taxable', 'exempt', 'zero_rated', 'out_of_scope', 'undetermined'], true)
-                || !is_bool($posting) || !is_bool($control)) {
-                throw new RuntimeException("Invalid required field, type, normal balance, posting/control flag, domain, or tax category for CoA code {$code}.");
-            }
-            if (!$posting && $control) {
-                throw new RuntimeException("Non-posting CoA code {$code} cannot be a control account.");
-            }
-            if ($control && trim($domain) === '') {
-                throw new RuntimeException("Control account {$code} must declare a domain owner.");
-            }
-
-            $codes[$code] = true;
-        }
-    }
 }

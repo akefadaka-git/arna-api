@@ -78,6 +78,14 @@ final class ControlAccountOwnershipRegistry
             );
         }
 
+        $chartByCode = [];
+        foreach ($chart as $row) {
+            if (!is_array($row) || count($row) !== 10 || !is_string($row[0] ?? null)) {
+                throw new LogicException('Canonical chart contains a malformed row.');
+            }
+            $chartByCode[$row[0]] = $row;
+        }
+
         foreach ($policies as $code => $policy) {
             if (!is_array($policy)) {
                 throw new LogicException("Control account {$code} has a malformed ownership policy.");
@@ -92,19 +100,39 @@ final class ControlAccountOwnershipRegistry
                 'designation_status',
                 'adapter_activation',
             ] as $field) {
-                if (!isset($policy[$field]) || trim((string) $policy[$field]) === '') {
+                if (!isset($policy[$field]) || !is_string($policy[$field]) || trim($policy[$field]) === '') {
                     throw new LogicException("Control account {$code} is missing required field {$field}.");
                 }
             }
 
+            $account = $chartByCode[$code] ?? null;
+            if (!is_array($account) || ($account[7] ?? false) !== true
+                || $policy['account_name_en'] !== $account[2]
+                || $policy['account_type'] !== $account[4]) {
+                throw new LogicException("Control account {$code} name/type does not match the canonical chart.");
+            }
+            if ($policy['accountable_role'] === $policy['independent_reviewer_role']) {
+                throw new LogicException("Control account {$code} accountable and independent reviewer roles must differ.");
+            }
+            if (($policy['designation_status'] ?? null) !== 'PENDING_OWNER_DESIGNATION'
+                || !array_key_exists('named_accountable_person', $policy)
+                || $policy['named_accountable_person'] !== null) {
+                throw new LogicException("Control account {$code} must remain pending formal Owner designation with no named person.");
+            }
+            if (($policy['adapter_activation'] ?? null) !== 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED') {
+                throw new LogicException("Control account {$code} adapter must remain blocked pending approval.");
+            }
+
             foreach (['contributing_domains', 'required_evidence'] as $field) {
-                if (!isset($policy[$field]) || !is_array($policy[$field]) || $policy[$field] === []) {
+                if (!isset($policy[$field]) || !is_array($policy[$field]) || !array_is_list($policy[$field]) || $policy[$field] === []) {
                     throw new LogicException("Control account {$code} requires a non-empty {$field} list.");
                 }
+                $seenItems = [];
                 foreach ($policy[$field] as $item) {
-                    if (!is_string($item) || trim($item) === '') {
-                        throw new LogicException("Control account {$code} has an invalid {$field} item.");
+                    if (!is_string($item) || trim($item) === '' || isset($seenItems[$item])) {
+                        throw new LogicException("Control account {$code} has an invalid or duplicate {$field} item.");
                     }
+                    $seenItems[$item] = true;
                 }
             }
 
