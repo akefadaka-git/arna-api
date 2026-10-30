@@ -1595,6 +1595,42 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertDatabaseCount('journal_lines', 0);
     }
 
+    #[Test]
+    public function test_journal_number_is_unique_within_a_tenant_and_legal_entity(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $header = [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-UNIQUE-NUMBER',
+            'effective_date' => '2026-10-10',
+            'description' => 'Journal number uniqueness',
+            'currency' => 'ETB',
+            'idempotency_key' => 'unique-number-first',
+        ];
+        $lines = [
+            ['account_id' => $cash->id, 'debit_amount' => '5.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '5.0000'],
+        ];
+
+        $first = $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+        $header['idempotency_key'] = 'unique-number-second';
+
+        try {
+            $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+            $this->fail('A journal number cannot be reused within the same tenant and legal entity.');
+        } catch (QueryException) {
+            $this->assertSame(1, JournalEntry::query()
+                ->where('tenant_id', $tenant->id)
+                ->where('legal_entity_id', $entity->id)
+                ->where('journal_number', 'JV-UNIQUE-NUMBER')
+                ->count());
+            $this->assertSame(2, DB::table('journal_lines')
+                ->where('journal_entry_id', $first->id)
+                ->count());
+        }
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
