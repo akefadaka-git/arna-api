@@ -235,6 +235,36 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
+    public function test_posting_revalidates_account_posting_permission(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-ACCOUNT-NONPOSTABLE',
+            'effective_date' => '2026-10-01',
+            'description' => 'Account posting permission revalidation',
+            'currency' => 'ETB',
+            'idempotency_key' => 'account-nonpostable-posting',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ]);
+
+        $cash->is_posting_allowed = false;
+        $cash->save();
+
+        try {
+            $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('Posting must reject an account made non-postable after draft creation.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('lines.0.account_id', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+    }
+
+    #[Test]
     public function test_posting_revalidates_legal_entity_active_state(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
