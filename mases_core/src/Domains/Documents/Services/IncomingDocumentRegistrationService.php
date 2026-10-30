@@ -61,13 +61,40 @@ final class IncomingDocumentRegistrationService
             throw new UnprocessableEntityHttpException('Incoming document metadata must be an object.');
         }
 
-        $requestHash = null;
+        $hashPayload = [
+            'legal_entity_id' => (int) $legalEntityId,
+            'bb_code' => $bbCode,
+            'file_id' => (int) $fileId,
+            'subject' => $subject,
+            'sender_name' => $senderName,
+            'sender_reference' => $senderReference,
+            'notes' => $notes,
+            'received_at' => $receivedAt->toIso8601String(),
+            'metadata' => $metadata,
+        ];
+        $requestHash = hash('sha256', json_encode($hashPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
         try {
             return DB::transaction(function () use (
                 $tenantId, $actor, $idempotencyKey, $legalEntityId, $fileId, $bbCode,
-                $subject, $senderReference, $senderName, $notes, $receivedAt, $metadata, &$requestHash
+                $subject, $senderReference, $senderName, $notes, $receivedAt, $metadata, $requestHash
             ): IncomingDocumentRegistration {
                 $this->authorize('documents.receive', $actor, $tenantId);
+
+                // Resolve the persisted idempotent result before consulting mutable
+                // Organization/File state. A retry must return its original record.
+                $existing = IncomingDocumentRegistration::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('idempotency_key', $idempotencyKey)
+                    ->lockForUpdate()
+                    ->first();
+                if ($existing !== null) {
+                    if (!hash_equals((string) $existing->request_hash, $requestHash)) {
+                        throw new ConflictHttpException('Idempotency-Key was already used for a different incoming registration.');
+                    }
+                    return $existing;
+                }
+
                 $registry = $this->numberingRegistry->resolveForIssuance(
                     (int) $tenantId, (int) $legalEntityId, $bbCode, true
                 );
@@ -87,32 +114,6 @@ final class IncomingDocumentRegistrationService
                     ->first(['id', 'version', 'status']);
                 if ($file === null || $file->status !== 'published') {
                     throw new UnprocessableEntityHttpException('The attached file must be a published, non-deleted file in the active tenant.');
-                }
-
-                $hashPayload = [
-                    'legal_entity_id' => (int) $registry['legal_entity_id'],
-                    'organization_unit_id' => (int) $registry['organization_unit_id'],
-                    'bb_code' => (string) $registry['bb_code'],
-                    'file_id' => (int) $fileId,
-                    'subject' => $subject,
-                    'sender_name' => $senderName,
-                    'sender_reference' => $senderReference,
-                    'notes' => $notes,
-                    'received_at' => $receivedAt->toIso8601String(),
-                    'metadata' => $metadata,
-                ];
-                $requestHash = hash('sha256', json_encode($hashPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-
-                $existing = IncomingDocumentRegistration::query()
-                    ->where('tenant_id', $tenantId)
-                    ->where('idempotency_key', $idempotencyKey)
-                    ->lockForUpdate()
-                    ->first();
-                if ($existing !== null) {
-                    if (!hash_equals((string) $existing->request_hash, $requestHash)) {
-                        throw new ConflictHttpException('Idempotency-Key was already used for a different incoming registration.');
-                    }
-                    return $existing;
                 }
 
                 $now = CarbonImmutable::now('Africa/Addis_Ababa');
@@ -162,7 +163,7 @@ final class IncomingDocumentRegistrationService
                 ->where('idempotency_key', $idempotencyKey)
                 ->first();
             if ($existing !== null) {
-                if ($requestHash === null || !hash_equals((string) $existing->request_hash, $requestHash)) {
+                if (!hash_equals((string) $existing->request_hash, $requestHash)) {
                     throw new ConflictHttpException('Idempotency-Key was already used for a different incoming registration.');
                 }
                 return $existing;
