@@ -107,7 +107,8 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'description' => 'External source without version',
                 'currency' => 'ETB',
                 'source_type' => JournalSourceType::LOAN->value,
-                'source_id' => 'loan-event-100',
+                'source_id' => 'loan-aggregate-100',
+                'source_event_id' => 'loan-event-100',
                 'idempotency_key' => 'source-version-required',
             ], [
                 ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
@@ -186,7 +187,8 @@ final class FinanceGeneralLedgerTest extends TestCase
             'description' => 'Source event unique constraint',
             'currency' => 'ETB',
             'source_type' => JournalSourceType::LOAN->value,
-            'source_id' => 'loan-event-unique',
+            'source_id' => 'loan-aggregate-unique',
+            'source_event_id' => 'loan-event-unique',
             'source_event_version' => '9',
             'idempotency_key' => 'source-event-unique-one',
         ], [
@@ -232,7 +234,8 @@ final class FinanceGeneralLedgerTest extends TestCase
             'description' => 'Loan event version 4',
             'currency' => 'ETB',
             'source_type' => JournalSourceType::LOAN->value,
-            'source_id' => 'loan-event-200',
+            'source_id' => 'loan-aggregate-200',
+            'source_event_id' => 'loan-event-200',
             'source_event_version' => '4',
             'idempotency_key' => 'loan-event-conflict-one',
         ];
