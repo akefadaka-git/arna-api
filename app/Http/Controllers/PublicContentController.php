@@ -49,6 +49,22 @@ final class PublicContentController extends Controller
         ])->validate();
 
         $email = mb_strtolower(trim($validated['email']));
+        $recentChallenges = DB::table('public_content_email_verifications')
+            ->where('email', $email)
+            ->where('created_at', '>=', now()->subMinutes(15))
+            ->count();
+        if ($recentChallenges >= 3) {
+            return response()->json([
+                'success' => false,
+                'error' => ['message' => 'Too many verification requests. Please try again later.'],
+            ], 429);
+        }
+
+        DB::table('public_content_email_verifications')
+            ->where('expires_at', '<', now()->subDay())
+            ->whereNotNull('consumed_at')
+            ->delete();
+
         $challengeId = (string) Str::uuid();
         $code = (string) random_int(100000, 999999);
 
