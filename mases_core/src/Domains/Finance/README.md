@@ -4,7 +4,9 @@ This directory is the ownership boundary for Finance application code and its do
 
 ## Structure
 
-- `Config/` — canonical chart of accounts and control-account ownership configuration.
+The platform application, role, permission and role-grant registries compose Finance-owned definitions from this domain; they do not duplicate Finance data.
+
+- `Config/` — Finance application metadata, canonical chart of accounts and control-account ownership configuration.
 - `Contracts/`, `Enums/`, `Events/`, `Http/`, `Listeners/`, `Models/`, `Policies/`, `Providers/`, `Repositories/`, `Resources/`, `Services/`, `Support/` — Finance application capabilities.
 - `Database/Migrations/` — Finance schema changes, loaded by `FinanceServiceProvider`.
 - `Database/Seeders/` — Finance-owned seeders. The chart-of-accounts seeder is deliberately not added to the global `DatabaseSeeder`; invoke it explicitly only after the required Owner approval.
