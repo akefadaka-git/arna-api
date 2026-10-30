@@ -621,51 +621,50 @@ final class PersonIdentityService
             return false;
         }
 
-        $directGlobal = $actor->permissions()
-            ->where('slug', $slug)
-            ->where('scope', 'global')
-            ->whereNull('permissions.tenant_id')
-            ->whereNull('permissions.application_id')
-            ->where('is_active', true)
-            ->exists();
+        // Direct grants are global by definition. They must never satisfy a
+        // tenant-scoped People operation.
+        if ($tenantId === null) {
+            $directGlobal = $actor->permissions()
+                ->where('slug', $slug)
+                ->where('scope', 'global')
+                ->whereNull('permissions.tenant_id')
+                ->whereNull('permissions.application_id')
+                ->where('is_active', true)
+                ->exists();
 
-        $viaRole = $actor->roles()
+            if ($directGlobal) {
+                return true;
+            }
+        }
+
+        // A tenant operation requires a role explicitly assigned to that
+        // tenant and a tenant-scoped permission. Platform roles cannot
+        // confer tenant authority merely because they contain a permission
+        // catalogue row whose scope is tenant.
+        return $actor->roles()
             ->where('is_active', true)
             ->whereNull('application_id')
-            ->where(function ($query) use ($tenantId): void {
-                $query->where(function ($platform): void {
-                    $platform->where('scope', 'platform')->whereNull('tenant_id');
-                });
-
-                if ($tenantId !== null) {
-                    $query->orWhere(function ($tenant) use ($tenantId): void {
-                        $tenant->where('scope', 'tenant')->where('tenant_id', $tenantId);
-                    });
-                }
-            })
+            ->when(
+                $tenantId === null,
+                static fn ($roles) => $roles->where('scope', 'platform')->whereNull('tenant_id'),
+                static fn ($roles) => $roles->where('scope', 'tenant')->where('tenant_id', $tenantId)
+            )
             ->whereHas('permissions', function ($query) use ($slug, $tenantId): void {
                 $query->where('slug', $slug)
                     ->where('is_active', true)
                     ->whereNull('application_id')
-                    ->where(function ($scope) use ($tenantId): void {
-                        if ($tenantId === null) {
-                            $scope->where('scope', 'global')->whereNull('tenant_id');
-                            return;
-                        }
-
-                        $scope->where(function ($global): void {
-                            $global->where('scope', 'global')->whereNull('tenant_id');
-                        })->orWhere(function ($tenant) use ($tenantId): void {
-                            $tenant->where('scope', 'tenant')
-                                ->where(function ($tenantScope) use ($tenantId): void {
-                                    $tenantScope->whereNull('tenant_id')->orWhere('tenant_id', $tenantId);
-                                });
-                        });
-                    });
+                    ->when(
+                        $tenantId === null,
+                        static fn ($permissions) => $permissions->where('scope', 'global')->whereNull('tenant_id'),
+                        static fn ($permissions) => $permissions
+                            ->where('scope', 'tenant')
+                            ->where(function ($tenantScope) use ($tenantId): void {
+                                $tenantScope->whereNull('tenant_id')
+                                    ->orWhere('tenant_id', $tenantId);
+                            })
+                    );
             })
             ->exists();
-
-        return $directGlobal || $viaRole;
     }
 
     private function assertSensitiveReadPermission(int $tenantId, User $actor): void
