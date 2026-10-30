@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Organization\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\Organization\Http\Requests\OrganizationRequestRules;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
@@ -16,6 +17,7 @@ use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAssignmentService;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAuditService;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationUnitService;
+use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationNumberingRegistryService;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
 final class OrganizationController extends Controller
@@ -27,6 +29,7 @@ final class OrganizationController extends Controller
         private readonly OrganizationUnitService $unitService,
         private readonly OrganizationAssignmentService $assignmentService,
         private readonly OrganizationAuditService $auditService,
+        private readonly OrganizationNumberingRegistryService $numberingRegistry,
     ) {
     }
 
@@ -146,6 +149,48 @@ final class OrganizationController extends Controller
         abort_unless($actor instanceof User, 401);
         $updated = $this->assignmentService->update($this->tenantId(), (int) $item->id, $data, $actor, $request);
         return response()->json(['success' => true, 'data' => $updated]);
+    }
+
+    public function registerBranchNumber(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        abort_unless($actor instanceof User && $this->unitPolicy->create($actor), 403, 'Organization numbering administration is not authorized.');
+        $data = $request->validate(OrganizationRequestRules::registerBranchNumber());
+        $tenantId = $this->tenantId();
+
+        $record = DB::transaction(function () use ($tenantId, $data, $request, $actor) {
+            $created = $this->numberingRegistry->registerBranch(
+                $tenantId, (int) $data['organization_unit_id'], $data['branch_code'],
+                $data['reason'], (int) $actor->getAuthIdentifier()
+            );
+            $this->auditService->record($tenantId, $request, 'branch_number_code', (int) $created->id,
+                'registered', $data['reason'], null, (array) $created);
+            return $created;
+        }, 3);
+
+        return response()->json(['success' => true, 'data' => $record], 201);
+    }
+
+    public function registerDepartmentNumber(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        abort_unless($actor instanceof User && $this->unitPolicy->create($actor), 403, 'Organization numbering administration is not authorized.');
+        $data = $request->validate(OrganizationRequestRules::registerDepartmentNumber());
+        $tenantId = $this->tenantId();
+
+        $record = DB::transaction(function () use ($tenantId, $data, $request, $actor) {
+            $created = $this->numberingRegistry->registerDepartment(
+                $tenantId, (int) $data['organization_unit_id'],
+                isset($data['legal_entity_id']) ? (int) $data['legal_entity_id'] : null,
+                $data['branch_code'], $data['department_code'], $data['reason'],
+                (int) $actor->getAuthIdentifier()
+            );
+            $this->auditService->record($tenantId, $request, 'department_number_code', (int) $created->id,
+                'registered', $data['reason'], null, (array) $created);
+            return $created;
+        }, 3);
+
+        return response()->json(['success' => true, 'data' => $record], 201);
     }
 
     private function authorizeUnitList(?User $user): void
