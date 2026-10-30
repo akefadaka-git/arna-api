@@ -81,7 +81,7 @@ final class JournalEntryService
         $header['source_event_version'] = $sourceEventVersion === '' ? null : $sourceEventVersion;
 
         try {
-            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType): JournalEntry {
+            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType, $sourceEventVersion): JournalEntry {
                 if (count($lines) < 2) {
                     throw ValidationException::withMessages(['lines' => 'A journal must contain at least two lines.']);
                 }
