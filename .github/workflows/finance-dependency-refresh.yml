@@ -8,7 +8,7 @@ on:
       - ".github/workflows/finance-dependency-refresh.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh-security-dependencies:
@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
@@ -43,9 +43,25 @@ jobs:
         run: |
           {
             echo "Source commit: ${GITHUB_SHA}"
-            composer show league/commonmark symfony/mime --locked
+            composer show league/commonmark --locked
+            composer show symfony/mime --locked
             sha256sum composer.lock
           } > finance-dependency-refresh-evidence.txt
+
+      - name: Commit the audited lock-file refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- composer.json
+          git add composer.lock
+          if git diff --cached --quiet; then
+            echo "Composer lock already contains the audited versions; no commit required."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore(deps): patch Composer security advisories"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
 
       - name: Upload refreshed Composer lock and audit evidence
         if: always()
