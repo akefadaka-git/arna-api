@@ -3,23 +3,24 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
+/**
+ * The journal_type column is part of the canonical journal_entries definition
+ * in 2026_10_28_000003_create_financial_ledger_foundation.php.
+ *
+ * This historical follow-up is intentionally retained as a no-op so existing
+ * migration ledgers remain compatible without attempting to add the column a
+ * second time on fresh installations.
+ */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('journal_entries', function (Blueprint $table): void {
-            // Existing rows remain valid and are classified as standard journals.
-            $table->string('journal_type', 24)->default('standard')->after('journal_number');
-        });
+        // Owned by the financial ledger foundation migration.
     }
 
     public function down(): void
     {
-        Schema::table('journal_entries', function (Blueprint $table): void {
-            $table->dropColumn('journal_type');
-        });
+        // Do not drop a column owned by the financial ledger foundation migration.
     }
 };
