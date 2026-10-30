@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Hash;
-use Illuminate\\Support\\Str;
-use MaaleArna\\MASES\\Core\\Audit\\Models\\AuditLog;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Permission;
-use MaaleArna\\MASES\\Core\\Domains\\PublicContent\\Models\\PublicContent;
-use Laravel\\Sanctum\\Sanctum;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use MaaleArna\MASES\Core\Audit\Models\AuditLog;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\PublicContent;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 final class PublicContentModerationTest extends TestCase
 {
@@ -22,7 +22,7 @@ final class PublicContentModerationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        \\Illuminate\\Support\\Facades\\Mail::shouldReceive('raw')->zeroOrMoreTimes()->andReturnNull();
+        \Illuminate\Support\Facades\Mail::shouldReceive('raw')->zeroOrMoreTimes()->andReturnNull();
     }
 
     private function payload(array $overrides = []): array
