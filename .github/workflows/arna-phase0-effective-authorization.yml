@@ -1,50 +1,66 @@
-name: ARNA Phase 0 effective authorization audit
+name: ARNA Phase 0 exact-revision security verification
 
 on:
   push:
-    branches: [audit/phase0-effective-authorization-main]
+    branches:
+      - fix/phase0-exact-sha-verification
     paths:
       - ".github/workflows/arna-phase0-effective-authorization.yml"
       - "scripts/phase0-authorization-audit.py"
       - "routes/**"
       - "app/Http/Controllers/**"
-      - "mases_core/src/Domains/**"
+      - "mases_core/src/Auth/**"
       - "mases_core/src/Authorization/**"
       - "mases_core/src/Tenancy/**"
+      - "mases_core/src/Domains/Loan/**"
+      - "mases_core/src/Domains/Governance/**"
       - "bootstrap/app.php"
       - "config/auth.php"
       - "composer.json"
       - "composer.lock"
-      - "tests/**"
+      - "phpunit.xml"
+      - "tests/Feature/**"
+      - "tests/Unit/**"
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - ".github/workflows/arna-phase0-effective-authorization.yml"
       - "scripts/phase0-authorization-audit.py"
       - "routes/**"
       - "app/Http/Controllers/**"
-      - "mases_core/src/Domains/**"
+      - "mases_core/src/Auth/**"
       - "mases_core/src/Authorization/**"
       - "mases_core/src/Tenancy/**"
+      - "mases_core/src/Domains/Loan/**"
+      - "mases_core/src/Domains/Governance/**"
       - "bootstrap/app.php"
       - "config/auth.php"
       - "composer.json"
       - "composer.lock"
-      - "tests/**"
+      - "phpunit.xml"
+      - "tests/Feature/**"
+      - "tests/Unit/**"
   workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Exact commit SHA or branch to verify"
+        required: true
+        type: string
+        default: "main"
 
 permissions:
   contents: read
 
 concurrency:
-  group: arna-phase0-effective-authorization-${{ github.ref }}
+  group: arna-phase0-exact-${{ github.event.pull_request.head.sha || inputs.target_ref || github.sha }}
   cancel-in-progress: false
 
 jobs:
-  effective-authorization-audit:
-    name: Runtime routes and bounded authorization contracts
+  phase0-exact-revision:
+    name: Exact-SHA runtime authorization and tenant regression
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     env:
       APP_ENV: testing
       APP_DEBUG: "false"
@@ -56,11 +72,29 @@ jobs:
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
       LOG_CHANNEL: null
+      TARGET_REF: ${{ github.event.pull_request.head.sha || inputs.target_ref || github.sha }}
     steps:
-      - name: Check out proposed revision
+      - name: Check out requested exact revision
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.TARGET_REF }}
           persist-credentials: false
+
+      - name: Verify checked-out revision
+        id: revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          requested_ref="${TARGET_REF}"
+          echo "Requested ref: ${requested_ref}"
+          echo "Checked-out SHA: ${actual_sha}"
+          git rev-parse --verify "${requested_ref}^{commit}" >/dev/null
+          if [[ "${requested_ref}" =~ ^[0-9a-fA-F]{40}$ ]] && [[ "${actual_sha}" != "${requested_ref}" ]]; then
+            echo "::error::Checked-out SHA does not match the requested SHA."
+            exit 1
+          fi
+          echo "tested_sha=${actual_sha}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
@@ -75,39 +109,76 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Validate and install locked dependencies
+      - name: Validate Composer and install locked dependencies
         run: |
+          set -euo pipefail
           composer validate --no-check-publish
           composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Create isolated CI environment and clear cached config
+      - name: Prepare isolated SQLite test environment
         run: |
+          set -euo pipefail
+          mkdir -p build
           : > .env
           php artisan config:clear
           php artisan route:clear
+          php -v | tee build/php-version.txt
+          composer --version | tee build/composer-version.txt
 
-      - name: Generate effective runtime route table
+      - name: Lint Phase 0 audit and security test sources
         run: |
-          mkdir -p build
+          set -euo pipefail
+          python -m py_compile scripts/phase0-authorization-audit.py
+          php -l app/Http/Controllers/FileController.php
+          php -l mases_core/src/Auth/Models/User.php
+          php -l mases_core/src/Authorization/Services/AuthorizationService.php
+          php -l mases_core/src/Tenancy/Middleware/TenantMembershipMiddleware.php
+          php -l tests/Feature/Phase0PublicEndpointRateLimitTest.php
+          php -l tests/Feature/Phase0AuthorizationDenialTest.php
+          php -l tests/Feature/AuthProviderModelContractTest.php
+
+      - name: Generate effective Laravel runtime route table
+        run: |
+          set -euo pipefail
           php artisan route:list --json --except-vendor > build/phase0-route-list.json
           php -r '$r=json_decode(file_get_contents("build/phase0-route-list.json"), true); if (!is_array($r)) { fwrite(STDERR, "Invalid route:list JSON\\n"); exit(2); } echo "Effective runtime routes: ".count($r)."\\n";'
           php artisan route:list --path=api --except-vendor
 
-      - name: Audit effective middleware and bounded authorization contracts
-        id: audit
-        run: python scripts/phase0-authorization-audit.py build/phase0-route-list.json build/phase0-authorization-report.json
-
-      - name: Run Phase 0 HTTP and canonical User model regression tests
+      - name: Audit effective middleware and authorization contracts
         run: |
-          php artisan test --compact tests/Feature/Phase0PublicEndpointRateLimitTest.php tests/Feature/Phase0AuthorizationDenialTest.php tests/Feature/AuthProviderModelContractTest.php
+          set -euo pipefail
+          python scripts/phase0-authorization-audit.py build/phase0-route-list.json build/phase0-authorization-report.json | tee build/phase0-authorization-audit.txt
 
-      - name: Upload route table and audit report
+      - name: Run Phase 0, identity, tenant and authorization regressions
+        run: |
+          set -euo pipefail
+          php artisan test --compact --stop-on-failure \
+            tests/Feature/Phase0PublicEndpointRateLimitTest.php \
+            tests/Feature/Phase0AuthorizationDenialTest.php \
+            tests/Feature/AuthProviderModelContractTest.php \
+            tests/Unit/TenantResolverTest.php \
+            tests/Unit/ExplicitTenantContextAuthorizationTest.php \
+            tests/Unit/UserPermissionScopeTest.php \
+            tests/Feature/AuthenticationLifecycleTest.php \
+            tests/Feature/C09/TenantResolutionTest.php \
+            tests/Feature/TenantMembershipLifecycleTest.php \
+            tests/Feature/TenantMembershipTest.php \
+            tests/Feature/TenantIsolationTest.php \
+            tests/Feature/TenantRequiredRouteTest.php \
+            tests/Feature/LoginThrottlingTest.php \
+            tests/Feature/RbacAuthorizationTest.php 2>&1 | tee build/phase0-test-results.txt
+
+      - name: Upload exact-revision verification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: arna-phase0-effective-authorization-evidence
+          name: arna-phase0-evidence-${{ steps.revision.outputs.tested_sha || github.sha }}
           path: |
             build/phase0-route-list.json
             build/phase0-authorization-report.json
+            build/phase0-authorization-audit.txt
+            build/phase0-test-results.txt
+            build/php-version.txt
+            build/composer-version.txt
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 30
