@@ -193,7 +193,7 @@ final class OrganizationDomainTest extends TestCase
 
         $todayAtMidnight = now()->startOfDay()->toIso8601String();
         $response = $this->withHeaders($headers)->postJson('/api/organization/units/'.$unitId.'/assignments', [
-            'person_id' => $person->id, 'assignment_type' => 'member',
+            'person_id' => $person->id, 'assignment_type' => 'primary',
             'starts_on' => $todayAtMidnight,
             'reason' => 'Verify calendar date boundary',
         ]);
