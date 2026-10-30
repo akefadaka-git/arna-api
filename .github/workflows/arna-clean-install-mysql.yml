@@ -235,6 +235,7 @@ jobs:
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
+          # Derive expected count from unique migration basenames in root and domain-owned migration roots.
           expected_migrations="$(find database/migrations mases_core/src -type f -name '*.php' \( -path 'database/migrations/*' -o -path '*/Database/Migrations/*' \) -printf '%f\n' | sort -u | wc -l)"
           expected_migrations="$(printf '%s' "${expected_migrations}" | tr -d '[:space:]')"
           echo "Applied migration records: ${applied}"
@@ -275,6 +276,7 @@ jobs:
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
+          # Derive expected count from unique migration basenames in root and domain-owned migration roots.
           expected_migrations="$(find database/migrations mases_core/src -type f -name '*.php' \( -path 'database/migrations/*' -o -path '*/Database/Migrations/*' \) -printf '%f\n' | sort -u | wc -l)"
           expected_migrations="$(printf '%s' "${expected_migrations}" | tr -d '[:space:]')"
           echo "Applied migration records after migrate:fresh --seed: ${applied}"
@@ -289,6 +291,7 @@ jobs:
         run: |
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
+          # Derive expected count from unique migration basenames in root and domain-owned migration roots.
           expected_migrations="$(find database/migrations mases_core/src -type f -name '*.php' \( -path 'database/migrations/*' -o -path '*/Database/Migrations/*' \) -printf '%f\n' | sort -u | wc -l)"
           expected_migrations="$(printf '%s' "${expected_migrations}" | tr -d '[:space:]')"
           echo "Applied migration records after second run: ${applied}"
