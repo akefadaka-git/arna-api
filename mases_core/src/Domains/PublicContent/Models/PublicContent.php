@@ -18,13 +18,14 @@ final class PublicContent extends Model
     protected $table = 'public_contents';
 
     protected $fillable = [
-        'content_type', 'title', 'body', 'author_name', 'author_email',
+        'content_type', 'title', 'body', 'author_name', 'author_email', 'consented_at',
         'submitted_by', 'status', 'version', 'reviewed_by', 'reviewed_at',
         'review_note', 'scheduled_at', 'published_at',
     ];
 
     protected $casts = [
         'reviewed_at' => 'datetime',
+        'consented_at' => 'datetime',
         'scheduled_at' => 'datetime',
         'published_at' => 'datetime',
         'version' => 'integer',
