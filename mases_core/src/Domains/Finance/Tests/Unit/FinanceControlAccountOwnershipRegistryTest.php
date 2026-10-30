@@ -66,7 +66,7 @@ final class FinanceControlAccountOwnershipRegistryTest extends TestCase
     public function incomplete_or_inconsistent_policy_coverage_is_rejected(): void
     {
         $registry = new ControlAccountOwnershipRegistry();
-        $chart = require base_path('config/finance/chart_of_accounts_v1.php');
+        $chart = config('finance.chart_of_accounts_v1', []);
         $chart[] = $chart[0];
         $this->expectException(LogicException::class);
         $registry->validateAgainstChart($chart);

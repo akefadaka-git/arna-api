@@ -46,7 +46,19 @@ final class FinanceServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../Config/chart_of_accounts_v1.php', 'finance.chart_of_accounts_v1');
-        $this->mergeConfigFrom(__DIR__ . '/../Config/control_account_ownership_v1.php', 'finance.control_account_ownership_v1');
+        // Control-account codes are numeric strings (for example, "1110").
+        // Laravel's mergeConfigFrom uses array_merge, which reindexes numeric
+        // keys and destroys the account-code lookup. array_replace preserves
+        // those keys while allowing complete per-account application overrides.
+        $ownershipDefaults = require __DIR__ . '/../Config/control_account_ownership_v1.php';
+        $ownershipOverrides = $this->app['config']->get('finance.control_account_ownership_v1', []);
+        if (!is_array($ownershipDefaults) || !is_array($ownershipOverrides)) {
+            throw new \\LogicException('Finance control-account ownership configuration must be an array.');
+        }
+        $this->app['config']->set(
+            'finance.control_account_ownership_v1',
+            array_replace($ownershipDefaults, $ownershipOverrides),
+        );
         $this->app->singleton(LegalEntityRepository::class);
         $this->app->singleton(JournalEntryRepository::class);
         $this->app->singleton(AccountingPeriodRepository::class);
