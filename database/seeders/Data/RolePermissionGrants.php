@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Data;
 
+use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
+
 /**
  * RolePermissionGrants
  *
@@ -205,29 +207,17 @@ final class RolePermissionGrants
         ],
         'tenant_admin'    => [
             'scope:tenant',
-            // No Organization literals are duplicated here: tenant_admin receives
-            // tenant-scoped grants through this generic scope grant. The
-            // Organization domain seeder validates its required permissions.
-            'app.portal.access', 'app.finance.access', 'app.hr.access',
+            // Organization owns its tenant-scoped grants. The generic scope
+            // grant includes them without duplicating domain permission slugs here.
+            'app.portal.access', ...FinanceRolePermissionGrants::MAP['tenant_admin'], 'app.hr.access',
             'app.admin.access', 'app.arna.access', 'app.app.access', 'app.launcher.access',
         ],
         'manager'         => [
             'user.profile.view', 'user.list',
             'file.list', 'file.view', 'file.download',
-            'app.finance.access', 'app.hr.access', 'app.portal.access',
+            ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
         ],
-        'finance_manager' => [
-            'app.finance.access',
-            'file.upload', 'file.download', 'file.view', 'file.list',
-            'user.profile.view',
-            'finance.entity.view',
-            'finance.account.view', 'finance.account.manage',
-            'finance.period.view', 'finance.period.manage',
-            'finance.journal.view', 'finance.journal.create',
-            'finance.journal.cancel',
-            'finance.journal.post', 'finance.journal.reverse',
-            'finance.report.view',
-        ],
+        'finance_manager' => FinanceRolePermissionGrants::MAP['finance_manager'],
         'hr_manager'      => [
             'app.hr.access',
             'file.upload', 'file.download', 'file.view', 'file.list',
@@ -238,12 +228,12 @@ final class RolePermissionGrants
             'file.view', 'file.list', 'file.download',
         ],
         'board'           => [
-            'app.portal.access', 'app.finance.access',
+            'app.portal.access', ...FinanceRolePermissionGrants::MAP['board'],
             'user.profile.view',
             'file.view', 'file.list', 'file.download',
         ],
         'president'       => [
-            'app.portal.access', 'app.finance.access', 'app.admin.access',
+            'app.portal.access', ...FinanceRolePermissionGrants::MAP['president'], 'app.admin.access',
             'user.profile.view', 'user.list',
             'file.view', 'file.list', 'file.download',
             'role.list', 'permission.list',
@@ -252,12 +242,9 @@ final class RolePermissionGrants
             'app.portal.access', 'user.profile.view',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
-        'cashier'         => [
-            'app.finance.access', 'user.profile.view',
-            'file.view', 'file.list', 'file.download', 'file.upload',
-        ],
+        'cashier'         => FinanceRolePermissionGrants::MAP['cashier'],
         'ceo'             => [
-            'app.portal.access', 'app.finance.access', 'app.hr.access', 'app.admin.access',
+            'app.portal.access', ...FinanceRolePermissionGrants::MAP['ceo'], 'app.hr.access', 'app.admin.access',
             'user.profile.view', 'user.list', 'user.create', 'user.update',
             'role.list', 'permission.list',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
