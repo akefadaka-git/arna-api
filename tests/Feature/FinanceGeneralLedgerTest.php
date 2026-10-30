@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
@@ -23,6 +24,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Policies\AccountingPeriodPolicy;
 use MaaleArna\MASES\Core\Domains\Finance\Policies\JournalEntryPolicy;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalEntryType;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
+use MaaleArna\MASES\Core\Domains\Finance\Events\JournalPosted;
+use MaaleArna\MASES\Core\Domains\Finance\Events\JournalReversed;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
@@ -30,6 +33,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Contracts\JournalSourceReferenceResolve
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use RuntimeException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -70,6 +74,150 @@ final class FinanceGeneralLedgerTest extends TestCase
             'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.posted',
             'subject_type' => 'journal_entry', 'subject_id' => $draft->id,
         ]);
+    }
+
+
+    #[Test]
+    public function test_posting_audit_failure_rolls_back_the_journal_status(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-AUDIT-ROLLBACK',
+            'effective_date' => '2026-10-01',
+            'description' => 'Posting audit rollback',
+            'currency' => 'ETB',
+            'idempotency_key' => 'posting-audit-rollback',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+        ]);
+
+        Event::listen(JournalPosted::class, static function (): void {
+            throw new RuntimeException('Simulated audit pipeline failure.');
+        });
+
+        try {
+            $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('A posting audit failure must abort the posting transaction.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Simulated audit pipeline failure.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('journal_entries', [
+            'id' => $draft->id, 'status' => JournalEntry::DRAFT,
+            'posted_by' => null, 'posted_at' => null,
+        ]);
+        $this->assertDatabaseMissing('finance_audit_entries', [
+            'event_type' => 'finance.journal.posted',
+            'subject_type' => 'journal_entry',
+            'subject_id' => $draft->id,
+        ]);
+    }
+
+    #[Test]
+    public function test_reversal_audit_failure_rolls_back_original_and_reversal_journals(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $original = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-REVERSAL-AUDIT-ROLLBACK',
+            'effective_date' => '2026-10-01',
+            'description' => 'Original journal for reversal audit failure',
+            'currency' => 'ETB',
+            'idempotency_key' => 'reversal-audit-original',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '25.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '25.0000'],
+        ]);
+        $service->post((int) $tenant->id, (int) $user->id, (int) $original->id);
+
+        Event::listen(JournalReversed::class, static function (): void {
+            throw new RuntimeException('Simulated reversal audit failure.');
+        });
+
+        try {
+            $service->reverse(
+                (int) $tenant->id,
+                (int) $user->id,
+                (int) $original->id,
+                'JV-REVERSAL-AUDIT-ROLLBACK-1',
+                '2026-10-02',
+                'Atomicity regression test',
+            );
+            $this->fail('A reversal audit failure must abort the complete reversal transaction.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Simulated reversal audit failure.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('journal_entries', [
+            'id' => $original->id, 'status' => JournalEntry::POSTED, 'reversed_at' => null,
+        ]);
+        $this->assertDatabaseCount('journal_entries', 1);
+        $this->assertDatabaseMissing('finance_audit_entries', [
+            'event_type' => 'finance.journal.reversed',
+            'subject_type' => 'journal_entry',
+            'subject_id' => $original->id,
+        ]);
+    }
+
+    #[Test]
+    public function test_posted_journal_header_and_lines_reject_direct_database_mutations(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $posted = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-DIRECT-IMMUTABILITY',
+            'effective_date' => '2026-10-01',
+            'description' => 'Direct database immutability',
+            'currency' => 'ETB',
+            'idempotency_key' => 'direct-database-immutability',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '12.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '12.0000'],
+        ]);
+        $service->post((int) $tenant->id, (int) $user->id, (int) $posted->id);
+
+        try {
+            DB::table('journal_entries')->where('id', $posted->id)->update(['description' => 'tampered']);
+            $this->fail('Direct SQL must not mutate a posted journal header.');
+        } catch (QueryException) {
+            $this->assertDatabaseHas('journal_entries', [
+                'id' => $posted->id,
+                'description' => 'Direct database immutability',
+                'status' => JournalEntry::POSTED,
+            ]);
+        }
+
+        $line = DB::table('journal_lines')->where('journal_entry_id', $posted->id)->first();
+        try {
+            DB::table('journal_lines')->where('id', $line->id)->update(['description' => 'tampered']);
+            $this->fail('Direct SQL must not mutate a posted journal line.');
+        } catch (QueryException) {
+            $this->assertDatabaseMissing('journal_lines', ['id' => $line->id, 'description' => 'tampered']);
+        }
+
+        try {
+            DB::table('journal_lines')->where('id', $line->id)->delete();
+            $this->fail('Direct SQL must not delete a posted journal line.');
+        } catch (QueryException) {
+            $this->assertDatabaseHas('journal_lines', ['id' => $line->id]);
+        }
+
+        $newLine = (array) $line;
+        unset($newLine['id']);
+        $newLine['line_number'] = 99;
+        $newLine['created_at'] = now();
+        $newLine['updated_at'] = now();
+        try {
+            DB::table('journal_lines')->insert($newLine);
+            $this->fail('Direct SQL must not append a line to a posted journal.');
+        } catch (QueryException) {
+            $this->assertSame(2, DB::table('journal_lines')->where('journal_entry_id', $posted->id)->count());
+        }
     }
 
     #[Test]
