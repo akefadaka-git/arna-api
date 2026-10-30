@@ -424,7 +424,7 @@ jobs:
       - name: Check out exact pull request head
         uses: actions/checkout@v4
         with:
-          ref: \${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Set up PHP 8.3
@@ -438,7 +438,7 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -d '' files < <(find mases_core/src/Domains/Organization -type f -name '*.php' -print0)
-          test "\${#files[@]}" -gt 0
-          for file in "\${files[@]}"; do
-            php -l "\${file}"
+          test "${#files[@]}" -gt 0
+          for file in "${files[@]}"; do
+            php -l "${file}"
           done
