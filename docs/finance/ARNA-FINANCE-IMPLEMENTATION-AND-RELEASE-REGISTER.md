@@ -75,12 +75,12 @@ No code in this branch represents a professional tax opinion. Production tax cal
 
 | ID | Phase | Required work | Status / acceptance evidence |
 |---|---|---|---|
-| FIN-1.01 | 1 — GL integrity | Enforce source-event uniqueness by tenant + legal entity + source domain + immutable event ID + version, with canonical payload hash | PARTIAL — current journal key/hash path exists; source tuple uniqueness not yet proven |
+| FIN-1.01 | 1 — GL integrity | Enforce source-event uniqueness by tenant + legal entity + source domain + immutable event ID + version, with canonical payload hash | IMPLEMENTED IN SOURCE — nullable legacy-compatible `source_event_version`, required for external sources; unique tenant/entity/type/source/version index; canonical `source_event_hash` excludes request idempotency key; same event/payload returns persisted journal; changed payload conflicts. Tests added; NOT RUN |
 | FIN-1.02 | 1 — GL integrity | Prove atomic posting, audit persistence, posted-header/line immutability, and reversal linkage | PARTIAL — transaction/service source exists; exact runtime and model-guard behavior unverified |
 | FIN-1.03 | 1 — GL integrity | Verify concurrent duplicate requests and period close/post race behavior on MySQL | NOT RUN |
 | FIN-1.04 | 1 — GL integrity | Verify tenant/entity isolation for all reads, writes, account references, periods, reversals, and reports | PARTIAL — composite constraints and scoped queries exist; adversarial tests not run |
 | FIN-1.05 | 1 — GL integrity | Confirm journal numbering uniqueness, date/period validation, and database precision boundaries | PARTIAL — source and constraints exist; full boundary verification pending |
-| FIN-1.06 | 1 — GL integrity | Revalidate legal-entity active status and every journal-line account's active/postable status inside the locked posting transaction, not only when the draft is created | SOURCE GAP — current `post()` path locks journal and period and rechecks balance, but does not revalidate account/entity status |
+| FIN-1.06 | 1 — GL integrity | Revalidate legal-entity active status and every journal-line account's active/postable status inside the locked posting transaction, not only when the draft is created | IMPLEMENTED IN SOURCE — posting locks and rechecks the tenant-scoped legal entity, period, and sorted same-entity account rows; rejects inactive/non-postable accounts and cash-flow classification after cash-equivalent status changes. Tests added; NOT RUN |
 | FIN-2.01 | 2 — CoA | Verify all 79 accounts, parent hierarchy, type/normal-balance consistency, and posting eligibility | SOURCE PRESENT — tests added, NOT RUN |
 | FIN-2.02 | 2 — CoA | Verify all 36 control-account ownership mappings and fail-closed seeder preflight | SOURCE PRESENT — tests added, NOT RUN |
 | FIN-2.03 | 2 — CoA | Preserve opt-in seeder, no overwrite of non-system accounts, and no opening-balance creation | SOURCE PRESENT — execution NOT RUN |
@@ -99,6 +99,32 @@ No code in this branch represents a professional tax opinion. Production tax cal
 | FIN-6.02 | 6 — Tax/statutory | Implement transaction-level tax only after approved tax codes and policy | DEFERRED per Owner direction |
 | FIN-7.01 | 7 — Verification | Exact-head automated tests, migrations/rollback, MySQL concurrency, authorization, isolation, and report reconciliation | NOT RUN / NOT VERIFIED |
 | FIN-7.02 | 7 — Release | Pilot, cutover balances, operational acceptance, production migration, and deployment | NOT STARTED; separate authorization required |
+
+## 6A. Phase 1 implementation log — FIN-1.01 and FIN-1.06
+
+Implementation branch: `feat/finance-gl-integrity-phase1`, based on the reviewed PR #43 head before Phase 1 changes.
+
+### FIN-1.01 — versioned source-event idempotency
+
+- Added `source_event_version` and `source_event_hash` to `journal_entries`.
+- Added database uniqueness on `tenant_id + legal_entity_id + source_type + source_id + source_event_version`. Nullable versions preserve legacy/manual rows; new external-source journals must supply a non-empty version.
+- The canonical source-event fingerprint excludes the request idempotency key, so a retry of the same source event and payload can return the original journal even if the caller uses a different request key.
+- A repeated source identity with a changed canonical payload returns HTTP 409.
+- Unique-index races are reconciled after transaction rollback by re-reading the idempotency key and source identity; matching hashes return the persisted journal, changed hashes conflict.
+- `SubledgerPostingInstruction` now requires and forwards the source event version.
+- MySQL posted-journal immutability trigger now includes source event version and hash.
+- Existing legacy rows are not assigned invented event versions; their nullable version is preserved. External event replay for historical unversioned rows remains a migration/reconciliation concern and must not be guessed.
+
+### FIN-1.06 — posting-time entity/account revalidation
+
+- Posting now locks and revalidates the tenant-scoped legal entity and confirms active status and base-currency consistency.
+- Posting now loads all journal lines, locks referenced account rows in deterministic ID order, and verifies same tenant/entity ownership, active status, and posting eligibility.
+- Cash-flow classified lines are rejected if the account is no longer designated as a cash equivalent.
+- Validation occurs inside the same posting transaction before the journal status transition and synchronous audit event.
+
+### Evidence boundary
+
+The source changes and regression tests are committed on the Phase 1 branch. No local tests, CI, migration execution, MySQL trigger execution, or database concurrency tests were run. Therefore both items are **IMPLEMENTED IN SOURCE / NOT RUNTIME VERIFIED**, not closed for production acceptance.
 
 ## 7. Safety and release boundaries
 
