@@ -19,6 +19,7 @@ use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAssignmentService;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAuditService;
 use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationHierarchyService;
+use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationUnitService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -31,6 +32,7 @@ final class OrganizationController extends Controller
         private readonly OrganizationUnitPolicy $unitPolicy,
         private readonly OrganizationAssignmentPolicy $assignmentPolicy,
         private readonly OrganizationHierarchyService $hierarchyService,
+        private readonly OrganizationUnitService $unitService,
         private readonly OrganizationAssignmentService $assignmentService,
         private readonly OrganizationAuditService $auditService,
     ) {
@@ -60,22 +62,9 @@ final class OrganizationController extends Controller
         $data = $request->validate(OrganizationRequestRules::storeUnit($tenantId));
         $this->assertName($data);
 
-        $unit = DB::transaction(function () use ($data, $tenantId, $request): OrganizationUnit {
-            $this->hierarchyService->lockTenant($tenantId);
-            $parent = $this->hierarchyService->resolveParent($tenantId, $data['parent_id'] ?? null);
-            $this->hierarchyService->assertParentType($data['unit_type'], $parent);
-            $unit = OrganizationUnit::query()->create([
-                'tenant_id' => $tenantId, 'parent_id' => $parent?->id,
-                'legal_entity_id' => $data['legal_entity_id'] ?? null,
-                'code' => strtoupper($data['code']), 'unit_type' => $data['unit_type'],
-                'name_am' => $data['name_am'] ?? null, 'name_en' => $data['name_en'] ?? null,
-                'status' => 'active', 'lifecycle_reason' => $data['reason'],
-                'created_by' => $request->user()->getAuthIdentifier(),
-                'updated_by' => $request->user()->getAuthIdentifier(),
-            ]);
-            $this->audit($tenantId, $request, 'unit', $unit->id, 'created', $data['reason'], null, $unit->toArray());
-            return $unit;
-        });
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
+        $unit = $this->unitService->create($tenantId, $data, $actor, $request);
 
         return response()->json(['success' => true, 'data' => $unit], 201);
     }
@@ -98,38 +87,9 @@ final class OrganizationController extends Controller
         $this->assertName(array_merge($unit->only(['name_am', 'name_en']), $data));
         $tenantId = $this->tenantId();
 
-        $updated = DB::transaction(function () use ($unit, $data, $tenantId, $request): OrganizationUnit {
-            $this->lockTenantHierarchy($tenantId);
-            $locked = OrganizationUnit::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($unit->id);
-            $before = $locked->toArray();
-            $parentId = array_key_exists('parent_id', $data) ? $data['parent_id'] : $locked->parent_id;
-            $parent = $this->hierarchyService->resolveParent($tenantId, $parentId);
-            if ($parent && (int) $parent->id === (int) $locked->id) {
-                throw new ConflictHttpException('An organization unit cannot parent itself.');
-            }
-            $this->hierarchyService->assertNoCycle($locked, $parent, $tenantId);
-            $type = $data['unit_type'] ?? $locked->unit_type;
-            $this->hierarchyService->assertParentType($type, $parent);
-            $this->hierarchyService->assertSubtreeCompatible($locked, $type, $tenantId);
-
-            $nextStatus = $data['status'] ?? $locked->status;
-            if ($nextStatus === 'inactive' && $locked->status !== 'inactive'
-                && ($locked->children()->whereNull('deleted_at')->exists()
-                    || $locked->assignments()->whereNull('deleted_at')->where('status', 'active')->exists())) {
-                throw new ConflictHttpException('Units with active children or assignments cannot be deactivated.');
-            }
-
-            $changes = array_intersect_key($data, array_flip(['unit_type', 'name_am', 'name_en', 'status']));
-            if (array_key_exists('code', $data)) {
-                $changes['code'] = strtoupper($data['code']);
-            }
-            $changes['parent_id'] = $parent?->id;
-            $changes['lifecycle_reason'] = $data['reason'];
-            $changes['updated_by'] = $request->user()->getAuthIdentifier();
-            $locked->fill($changes)->save();
-            $this->audit($tenantId, $request, 'unit', $locked->id, 'updated', $data['reason'], $before, $locked->fresh()->toArray());
-            return $locked->fresh();
-        });
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
+        $updated = $this->unitService->update($tenantId, (int) $unit->id, $data, $actor, $request);
 
         return response()->json(['success' => true, 'data' => $updated]);
     }
@@ -139,22 +99,9 @@ final class OrganizationController extends Controller
         $unit = $this->unit($id);
         abort_unless($this->unitPolicy->delete($request->user(), $unit), 403, 'Organization unit archive is not authorized.');
         $data = $request->validate(OrganizationRequestRules::archiveUnit());
-        DB::transaction(function () use ($unit, $request, $data): void {
-            $tenantId = $this->tenantId();
-            $this->lockTenantHierarchy($tenantId);
-            $locked = OrganizationUnit::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($unit->id);
-            if ($locked->children()->whereNull('deleted_at')->exists()
-                || $locked->assignments()->whereNull('deleted_at')->where('status', 'active')->exists()) {
-                throw new ConflictHttpException('Units with active children or assignments cannot be archived.');
-            }
-            $before = $locked->toArray();
-            $locked->status = 'inactive';
-            $locked->lifecycle_reason = $data['reason'];
-            $locked->updated_by = $request->user()->getAuthIdentifier();
-            $locked->save();
-            $locked->delete();
-            $this->audit($tenantId, $request, 'unit', $locked->id, 'archived', $data['reason'], $before, $locked->toArray());
-        });
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
+        $this->unitService->archive($this->tenantId(), (int) $unit->id, $data, $actor, $request);
         return response()->json(['success' => true, 'data' => ['id' => $id, 'status' => 'archived']]);
     }
 
