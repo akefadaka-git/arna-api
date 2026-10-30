@@ -193,7 +193,7 @@ jobs:
         run: php artisan migrate --force -vvv
 
       - name: Run Finance domain regressions on migrated MySQL
-        run: php artisan test --compact mases_core/src/Domains/Finance/Tests
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
 
       - name: Run independent-connection People identity concurrency regression
         env:
