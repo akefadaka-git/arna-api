@@ -165,10 +165,11 @@ finding("file-service-publication-auth:update",
         "Service update requires publication authority for publication transitions."
         if "file.publish" in service_update and "authorizeAction" in service_update else
         "Service update does not enforce the separate publication permission.")
+upload_defaults_to_draft = re.search(r"['\"]status['\"]\s*=>\s*['\"]draft['\"]", service_upload) is not None
 finding("file-upload-default-state",
-        "'status' => 'draft'" in service_upload,
-        "New uploads default to draft." if "'status' => 'draft'" in service_upload else
-        "New uploads do not visibly default to draft.")
+        upload_defaults_to_draft,
+        "New uploads default to draft." if upload_defaults_to_draft else
+        "New uploads do not default to draft in the File Management service.")
 
 # For each runtime Loan/Governance controller action, require either an explicit
 # route permission/role/application middleware or a controller-level policy /
