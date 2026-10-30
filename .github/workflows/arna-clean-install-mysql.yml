@@ -2,7 +2,11 @@ name: ARNA clean-install MySQL verification
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/people-permission-visibility]
+    paths:
+      - ".github/workflows/arna-clean-install-mysql.yml"
+      - "mases_core/src/Domains/People/**"
+      - "mases_core/src/Authorization/**"
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
