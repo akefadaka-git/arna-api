@@ -71,7 +71,6 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->foreignId('legal_entity_id');
             $table->foreignId('accounting_period_id');
-            $table->string('journal_type', 24)->default('standard');
             $table->string('journal_number', 64);
             $table->date('effective_date');
             $table->string('status', 16)->default('draft');
