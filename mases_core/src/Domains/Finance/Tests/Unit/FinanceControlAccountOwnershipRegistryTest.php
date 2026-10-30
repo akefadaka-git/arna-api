@@ -67,7 +67,16 @@ final class FinanceControlAccountOwnershipRegistryTest extends TestCase
     {
         $registry = new ControlAccountOwnershipRegistry();
         $chart = config('finance.chart_of_accounts_v1', []);
-        $chart[] = $chart[0];
+        $controlAccount = null;
+        foreach ($chart as $row) {
+            if (($row[7] ?? false) === true) {
+                $controlAccount = $row;
+                break;
+            }
+        }
+        $this->assertNotNull($controlAccount);
+        $chart[] = $controlAccount;
+
         $this->expectException(LogicException::class);
         $registry->validateAgainstChart($chart);
     }
