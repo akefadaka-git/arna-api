@@ -205,10 +205,8 @@ final class RolePermissionGrants
         ],
         'tenant_admin'    => [
             'scope:tenant',
-            // Keep Organization's required grants explicit in the canonical matrix.
-            'organization.unit.view', 'organization.unit.manage',
-            'organization.assignment.view', 'organization.assignment.manage',
-            'organization.audit.view',
+            // Organization tenant permissions are included through scope:tenant;
+            // domain-specific grant policy remains owned by Organization.
             'app.portal.access', 'app.finance.access', 'app.hr.access',
             'app.admin.access', 'app.arna.access', 'app.app.access', 'app.launcher.access',
         ],
