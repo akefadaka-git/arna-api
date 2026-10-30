@@ -1526,7 +1526,7 @@ final class FinanceGeneralLedgerTest extends TestCase
         try {
             $service->post((int) $tenantB->id, (int) $userA->id, (int) $draft->id);
             $this->fail('A different tenant must not post another tenant journal.');
-        } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
             $this->assertDatabaseHas('journal_entries', [
                 'id' => $draft->id,
                 'tenant_id' => $tenantA->id,
@@ -1545,7 +1545,7 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'Cross-tenant reversal must fail',
             );
             $this->fail('A different tenant must not reverse another tenant journal.');
-        } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
             $this->assertDatabaseHas('journal_entries', [
                 'id' => $posted->id,
                 'tenant_id' => $tenantA->id,
