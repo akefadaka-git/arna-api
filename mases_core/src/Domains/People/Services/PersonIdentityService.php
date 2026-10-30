@@ -8,6 +8,7 @@ use DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Exceptions\FileException;
 use MaaleArna\MASES\Core\Files\Models\File;
 use MaaleArna\MASES\Core\Files\Services\FileService;
@@ -507,22 +508,7 @@ final class PersonIdentityService
 
     private function assertGlobalTenantAccessPermission(User $actor): void
     {
-        $direct = $actor->permissions()
-            ->where('slug', 'people.tenant-access.manage')
-            ->where('scope', 'global')
-            ->where('is_active', true)
-            ->exists();
-
-        $viaRole = $actor->roles()
-            ->whereNull('tenant_id')
-            ->whereHas('permissions', function ($query): void {
-                $query->where('slug', 'people.tenant-access.manage')
-                    ->where('scope', 'global')
-                    ->where('is_active', true);
-            })
-            ->exists();
-
-        if (! $direct && ! $viaRole) {
+        if (! $this->hasScopedPermission('people.tenant-access.manage', $actor, null)) {
             throw new DomainException('The global people.tenant-access.manage permission is required.');
         }
     }
@@ -621,28 +607,74 @@ final class PersonIdentityService
      * operators; a tenant-scoped people.sensitive.view grant is never accepted
      * as a global or cross-tenant direct user grant.
      */
-    private function assertSensitiveReadPermission(int $tenantId, User $actor): void
+    /**
+     * Use the canonical AuthorizationService decision, then enforce the
+     * People domain's stricter grant-shape contract. The canonical service
+     * applies active-role and tenant checks; the second query prevents an
+     * application-scoped role/permission from being treated as platform or
+     * tenant authority when no application slug is supplied to that service.
+     */
+    private function hasScopedPermission(string $slug, User $actor, ?int $tenantId): bool
     {
-        $directGlobalManage = $actor->permissions()
-            ->where('slug', 'people.manage')
+        $authorizationTenantId = $tenantId ?? mases_tenant_id();
+        if (! app(AuthorizationService::class)->hasPermission($slug, $actor, $authorizationTenantId)) {
+            return false;
+        }
+
+        $directGlobal = $actor->permissions()
+            ->where('slug', $slug)
             ->where('scope', 'global')
             ->whereNull('permissions.tenant_id')
+            ->whereNull('permissions.application_id')
             ->where('is_active', true)
             ->exists();
 
-        $viaTenantRole = $actor->roles()
-            ->where('tenant_id', $tenantId)
-            ->whereHas('permissions', function ($query): void {
-                // Permission definitions are shared catalogue rows; the role
-                // supplies the tenant boundary for this sensitive read.
-                $query->whereIn('slug', ['people.sensitive.view', 'people.manage'])
-                    ->whereIn('scope', ['tenant', 'global'])
-                    ->whereNull('permissions.tenant_id')
-                    ->where('is_active', true);
+        $viaRole = $actor->roles()
+            ->where('is_active', true)
+            ->whereNull('application_id')
+            ->where(function ($query) use ($tenantId): void {
+                $query->where(function ($platform): void {
+                    $platform->where('scope', 'platform')->whereNull('tenant_id');
+                });
+
+                if ($tenantId !== null) {
+                    $query->orWhere(function ($tenant) use ($tenantId): void {
+                        $tenant->where('scope', 'tenant')->where('tenant_id', $tenantId);
+                    });
+                }
+            })
+            ->whereHas('permissions', function ($query) use ($slug, $tenantId): void {
+                $query->where('slug', $slug)
+                    ->where('is_active', true)
+                    ->whereNull('application_id')
+                    ->where(function ($scope) use ($tenantId): void {
+                        if ($tenantId === null) {
+                            $scope->where('scope', 'global')->whereNull('tenant_id');
+                            return;
+                        }
+
+                        $scope->where(function ($global): void {
+                            $global->where('scope', 'global')->whereNull('tenant_id');
+                        })->orWhere(function ($tenant) use ($tenantId): void {
+                            $tenant->where('scope', 'tenant')
+                                ->where(function ($tenantScope) use ($tenantId): void {
+                                    $tenantScope->whereNull('tenant_id')->orWhere('tenant_id', $tenantId);
+                                });
+                        });
+                    });
             })
             ->exists();
 
-        if (! $directGlobalManage && ! $viaTenantRole) {
+        return $directGlobal || $viaRole;
+    }
+
+    private function assertSensitiveReadPermission(int $tenantId, User $actor): void
+    {
+        if (
+            ! $this->hasScopedPermission('people.manage', $actor, null)
+            && ! $this->hasScopedPermission('people.sensitive.view', $actor, $tenantId)
+            && ! $this->hasScopedPermission('people.manage', $actor, $tenantId)
+        ) {
             throw new DomainException(
                 'The tenant-scoped people.sensitive.view or people.manage permission is required to list Person documents.'
             );
@@ -651,56 +683,19 @@ final class PersonIdentityService
 
     private function assertManagePermission(int $tenantId, User $actor): void
     {
-        // Direct user grants have no tenant dimension in the current pivot.
-        // Accept them only for a genuinely global permission; tenant-scoped
-        // people.manage must flow through a role scoped to this tenant.
-        $direct = $actor->permissions()
-            ->where('slug', 'people.manage')
-            ->where('scope', 'global')
-            ->whereNull('permissions.tenant_id')
-            ->where('is_active', true)
-            ->exists();
-
-        $viaRole = $actor->roles()
-            ->where('tenant_id', $tenantId)
-            ->whereHas('permissions', function ($query) use ($tenantId): void {
-                // Permission definitions are shared catalogue rows with a
-                // null tenant_id; the assigned Role carries the tenant scope.
-                $query->where('slug', 'people.manage')
-                    ->whereIn('scope', ['global', 'tenant'])
-                    ->whereNull('permissions.tenant_id')
-                    ->where('is_active', true);
-            })
-            ->exists();
-
-        if (! $direct && ! $viaRole) {
+        if (! $this->hasScopedPermission('people.manage', $actor, $tenantId)) {
             throw new DomainException('The tenant-scoped people.manage permission is required for identity operations.');
         }
     }
 
     private function assertGlobalAccountLinkPermission(User $actor): void
     {
-        $direct = $actor->permissions()
-            ->where('slug', 'people.account-link.manage')
-            ->where('scope', 'global')
-            ->where('is_active', true)
-            ->exists();
-
-        $viaRole = $actor->roles()
-            ->whereNull('tenant_id')
-            ->whereHas('permissions', function ($query): void {
-                $query->where('slug', 'people.account-link.manage')
-                    ->where('scope', 'global')
-                    ->where('is_active', true);
-            })
-            ->exists();
-
-        if (! $direct && ! $viaRole) {
+        if (! $this->hasScopedPermission('people.account-link.manage', $actor, null)) {
             throw new DomainException('The global people.account-link.manage permission is required for account linking changes.');
         }
     }
 
-    private function assertTenantAccess(int $tenantId, User $user): void
+        private function assertTenantAccess(int $tenantId, User $user): void
     {
         $activeTenant = Tenant::query()->whereKey($tenantId)->where('is_active', true)->exists();
         $membership = DB::table('tenant_memberships')->where('tenant_id', $tenantId)
