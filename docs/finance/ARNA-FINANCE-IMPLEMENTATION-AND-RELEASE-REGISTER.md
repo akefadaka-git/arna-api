@@ -1,7 +1,7 @@
 # ARNA Finance & Accounting — Implementation and Release Register
 
 **Register version:** 1.1.0  
-**Status:** Phase 0 architecture baseline CLOSED; Finance Phase 1 engineering implementation and exact-commit verification COMPLETE; production release remains gated. Phase 2 scope sequencing requires Owner confirmation because the current register and earlier roadmap use different Phase 2 definitions.  
+**Status:** Phase 0 architecture baseline CLOSED; Finance Phase 1 engineering implementation and exact-commit verification COMPLETE; macro Phase 2 roadmap confirmed by Owner and implementation IN PROGRESS at FIN-2.01; production release remains gated. See [ARNA Finance Phased Implementation Roadmap](ARNA-FINANCE-PHASED-IMPLEMENTATION-ROADMAP.md).  
 **Chart of accounts:** v1.0.0; 79 canonical accounts.  
 **Owner direction:** continue code generation; external Ethiopian tax/accounting review deferred for now.  
 **Canonical architecture:** [ARNA Finance General Ledger Architecture Contract](../architecture/financial-accounting-domain-contract.md), v1.1.0.
@@ -81,9 +81,9 @@ No code in this branch represents a professional tax opinion. Production tax cal
 | FIN-1.04 | 1 — GL integrity | Verify tenant/entity isolation for all reads, writes, account references, periods, reversals, and reports | VERIFIED — adversarial tenant/entity regressions passed; all 20 Finance API routes verified for authentication, tenant membership, and explicit Finance permission middleware. |
 | FIN-1.05 | 1 — GL integrity | Confirm journal numbering uniqueness, date/period validation, and database precision boundaries | VERIFIED — date, period, journal number, description, decimal precision, and tenant/entity uniqueness regressions passed in the exact-commit Finance suite. |
 | FIN-1.06 | 1 — GL integrity | Revalidate legal-entity active status and every journal-line account's active/postable status inside the locked posting transaction, not only when the draft is created | VERIFIED — posting-time entity, account, cash-equivalent, and external source-mapping revalidation regressions passed. |
-| FIN-2.01 | 2 — CoA | Verify all 79 accounts, parent hierarchy, type/normal-balance consistency, and posting eligibility | SOURCE PRESENT — tests added, NOT RUN |
-| FIN-2.02 | 2 — CoA | Verify all 36 control-account ownership mappings and fail-closed seeder preflight | SOURCE PRESENT — tests added, NOT RUN |
-| FIN-2.03 | 2 — CoA | Preserve opt-in seeder, no overwrite of non-system accounts, and no opening-balance creation | SOURCE PRESENT — execution NOT RUN |
+| FIN-2.01 | 2 — CoA | Verify all 79 accounts, parent hierarchy, type/normal-balance consistency, and posting eligibility | IMPLEMENTED IN SOURCE — canonical validator and domain-owned regression tests committed on feat/finance-phase2-coa-integrity; remote exact-commit verification NOT RUN |
+| FIN-2.02 | 2 — CoA | Verify all 36 control-account ownership mappings and fail-closed seeder preflight | SOURCE PRESENT — ownership registry and seeder preflight exist; complete 36-entry validation and runtime evidence PENDING |
+| FIN-2.03 | 2 — CoA | Preserve opt-in seeder, no overwrite of non-system accounts, and no opening-balance creation | SOURCE PRESENT — opt-in behavior, non-system overwrite refusal and no-opening-balance behavior present; seeder execution NOT RUN |
 | FIN-3.01 | 3 — Reporting | Verify trial balance and account activity against posted journal-line totals | NOT VERIFIED |
 | FIN-3.02 | 3 — Reporting | Verify income statement and balance sheet totals, date boundaries, reversed journals, and negative balances | SOURCE/TESTS PRESENT — NOT RUN |
 | FIN-3.03 | 3 — Reporting | Verify cash-flow classification, undetermined movements, reversal netting, and report permissions | SOURCE/TESTS PRESENT — NOT RUN |
@@ -165,4 +165,4 @@ The documentation closure update is separate from the verified source SHA above;
 
 ## 9. Next gate
 
-Phase 1 engineering is closed. Before coding Phase 2, resolve the phase-numbering discrepancy: this repository register defines FIN-2 as CoA validation, control-account ownership verification, and opt-in seeder safeguards; an earlier Finance roadmap defines Phase 2 as budgeting, expenses, fixed assets, tax, reconciliation, and financial controls. Do not combine or silently renumber these scopes. The next implementation branch must preserve the verified Phase 1 source SHA as its base and retain the no-local-tests, no-production-DB, no-merge, and no-deployment boundaries until separately authorized.
+Phase 1 engineering is closed. Owner-confirmed macro Phase 2 is governed by [ARNA-FINANCE-PHASED-IMPLEMENTATION-ROADMAP.md](ARNA-FINANCE-PHASED-IMPLEMENTATION-ROADMAP.md): CoA/control-account governance, budgeting, expenses, fixed assets, tax, reconciliation and financial controls. FIN-2.01 through FIN-2.03 are prerequisite CoA engineering gates within that macro phase, not a replacement for its functional scope. Implementation is proceeding on feat/finance-phase2-coa-integrity from the Phase 1 closure baseline. Preserve the no-local-tests, no-production-DB, no-merge and no-deployment boundaries.
