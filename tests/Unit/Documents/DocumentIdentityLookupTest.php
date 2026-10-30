@@ -13,11 +13,24 @@ use Tests\TestCase;
 
 final class DocumentIdentityLookupTest extends TestCase
 {
+    private string $originalDatabaseConnection;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        Schema::dropIfExists('documents');
+        $this->originalDatabaseConnection = (string) config('database.default');
+        config([
+            'database.connections.document_identity_lookup_test' => [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
+                'foreign_key_constraints' => true,
+            ],
+            'database.default' => 'document_identity_lookup_test',
+        ]);
+        DB::purge('document_identity_lookup_test');
+
         Schema::create('documents', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -33,7 +46,8 @@ final class DocumentIdentityLookupTest extends TestCase
 
     protected function tearDown(): void
     {
-        Schema::dropIfExists('documents');
+        DB::purge('document_identity_lookup_test');
+        config(['database.default' => $this->originalDatabaseConnection]);
         parent::tearDown();
     }
 
