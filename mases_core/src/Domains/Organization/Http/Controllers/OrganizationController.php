@@ -17,6 +17,8 @@ use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationAssignmentPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationHierarchyPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
+use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAssignmentService;
+use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationAuditService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -29,6 +31,8 @@ final class OrganizationController extends Controller
         private readonly OrganizationUnitPolicy $unitPolicy,
         private readonly OrganizationAssignmentPolicy $assignmentPolicy,
         private readonly OrganizationHierarchyPolicy $hierarchyPolicy,
+        private readonly OrganizationAssignmentService $assignmentService,
+        private readonly OrganizationAuditService $auditService,
     ) {
     }
 
@@ -161,22 +165,7 @@ final class OrganizationController extends Controller
         abort_unless($this->unitPolicy->view($request->user(), $unit), 403, 'Organization unit access is not authorized.');
         $tenantId = $this->tenantId();
         $data = $request->validate(OrganizationRequestRules::listAssignments());
-        $items = OrganizationAssignment::query()->where('tenant_id', $tenantId)
-            ->where('organization_unit_id', $unit->id)
-            // Assignment history is Organization-owned and remains visible after People access revocation.
-            // The composite FK guarantees the historical link was valid for this tenant when created.
-            ->when(isset($data['status']), fn ($q) => $q->where('status', $data['status']))
-            ->when(isset($data['person_id']), fn ($q) => $q->where('person_id', $data['person_id']))
-            ->when(isset($data['effective_on']), function ($q) use ($data): void {
-                $effectiveOn = Carbon::parse($data['effective_on'])->toDateString();
-                $q->whereDate('starts_on', '<=', $effectiveOn)
-                    ->where(function ($dates) use ($effectiveOn): void {
-                        $dates->whereNull('ends_on')->orWhereDate('ends_on', '>=', $effectiveOn);
-                    });
-            })
-            ->with(['person:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en'])
-            ->orderByDesc('starts_on')->orderByDesc('id')
-            ->paginate(min(max($request->integer('per_page', 25), 1), 100));
+        $items = $this->assignmentService->paginateForUnit($tenantId, (int) $unit->id, $data);
         return response()->json(['success' => true, 'data' => $items]);
     }
 
@@ -224,15 +213,7 @@ final class OrganizationController extends Controller
         $tenantId = $this->tenantId();
         $data = $request->validate(OrganizationRequestRules::auditEvents());
 
-        $events = OrganizationAuditEvent::query()
-            ->where('tenant_id', $tenantId)
-            ->when(isset($data['subject_type']), fn ($q) => $q->where('subject_type', $data['subject_type']))
-            ->when(isset($data['subject_id']), fn ($q) => $q->where('subject_id', $data['subject_id']))
-            ->when(isset($data['action']), fn ($q) => $q->where('action', $data['action']))
-            ->when(isset($data['from']), fn ($q) => $q->whereDate('created_at', '>=', $data['from']))
-            ->when(isset($data['to']), fn ($q) => $q->whereDate('created_at', '<=', $data['to']))
-            ->orderByDesc('created_at')->orderByDesc('id')
-            ->paginate((int) ($data['per_page'] ?? 25));
+        $events = $this->auditService->paginateForTenant($tenantId, $data);
 
         return response()->json(['success' => true, 'data' => $events]);
     }
@@ -396,11 +377,6 @@ final class OrganizationController extends Controller
 
     private function audit(int $tenantId, Request $request, string $type, int $id, string $action, string $reason, ?array $before, ?array $after): void
     {
-        OrganizationAuditEvent::query()->create([
-            'tenant_id' => $tenantId, 'actor_user_id' => $request->user()?->getAuthIdentifier(),
-            'subject_type' => $type, 'subject_id' => $id, 'action' => $action, 'reason' => $reason,
-            'before_state' => $before, 'after_state' => $after,
-            'request_id' => $request->header('X-Request-ID'), 'created_at' => now(),
-        ]);
+        $this->auditService->record($tenantId, $request, $type, $id, $action, $reason, $before, $after);
     }
 }
