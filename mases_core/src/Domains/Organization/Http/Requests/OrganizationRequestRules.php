@@ -111,6 +111,45 @@ final class OrganizationRequestRules
     }
 
     /** @return array<string, array<int, mixed>> */
+    public static function registerBranchNumber(int $tenantId): array
+    {
+        return [
+            'organization_unit_id' => [
+                'required', 'integer', 'min:1',
+                Rule::exists('organization_units', 'id')->where(
+                    static fn ($query) => $query->where('tenant_id', $tenantId)
+                        ->where('unit_type', 'branch')->where('status', 'active')->whereNull('deleted_at')
+                ),
+            ],
+            'branch_code' => ['required', 'string', 'regex:/^[1-9]$/'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ];
+    }
+
+    /** @return array<string, array<int, mixed>> */
+    public static function registerDepartmentNumber(int $tenantId): array
+    {
+        return [
+            'organization_unit_id' => [
+                'required', 'integer', 'min:1',
+                Rule::exists('organization_units', 'id')->where(
+                    static fn ($query) => $query->where('tenant_id', $tenantId)
+                        ->where('unit_type', 'department')->where('status', 'active')->whereNull('deleted_at')
+                ),
+            ],
+            'legal_entity_id' => [
+                'required', 'integer', 'min:1',
+                Rule::exists('legal_entities', 'id')->where(
+                    static fn ($query) => $query->where('tenant_id', $tenantId)->where('status', 'active')
+                ),
+            ],
+            'branch_code' => ['required', 'string', 'regex:/^[1-9]$/'],
+            'department_code' => ['required', 'string', 'regex:/^[1-9]$/'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ];
+    }
+
+    /** @return array<string, array<int, mixed>> */
     public static function retireNumberCode(): array
     {
         return ['reason' => ['required', 'string', 'min:5', 'max:2000']];
