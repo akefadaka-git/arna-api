@@ -30,6 +30,19 @@ final class DocumentNumberFormatterTest extends TestCase
     }
 
     #[Test]
+    public function it_preserves_the_owner_approved_numeric_tt_registry_and_legacy_aliases(): void
+    {
+        $this->assertSame([
+            'LET' => '01', 'MEM' => '02', 'LEG' => '03', 'INV' => '04',
+            'CER' => '05', 'RES' => '06', 'CIR' => '07', 'RPT' => '08',
+            'CON' => '09', 'NOT' => '10', 'POL' => '11',
+        ], DocumentTypeRegistry::TYPES);
+        $this->assertSame('LET', DocumentTypeRegistry::legacyCode('01'));
+        $this->assertSame('01', DocumentTypeRegistry::numericCode('LET'));
+        $this->assertSame('documents.issue.LET', DocumentTypeRegistry::authorityAction('01'));
+    }
+
+    #[Test]
     public function it_rejects_unsupported_document_types(): void
     {
         $this->expectException(InvalidArgumentException::class);
