@@ -151,6 +151,7 @@ final class DocumentIssuanceService
                 $payload['department_code'],
                 $payload['issuing_role_code'],
                 $payload['document_type_code'],
+                lockRows: true,
             );
 
             $registrySnapshot = [
