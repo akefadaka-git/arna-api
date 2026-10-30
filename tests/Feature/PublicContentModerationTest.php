@@ -24,6 +24,7 @@ final class PublicContentModerationTest extends TestCase
             'body' => str_repeat('This is a proposed public update. ', 3),
             'author_name' => 'Community Contributor',
             'author_email' => 'writer@example.com',
+            'consent' => true,
         ], $overrides);
     }
 
