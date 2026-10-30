@@ -161,6 +161,26 @@ final class PublicContentModerationTest extends TestCase
         ]);
     }
 
+    public function test_due_scheduled_content_is_published_and_audited_by_scheduler(): void
+    {
+        $item = PublicContent::create($this->payload());
+        $item->status = 'scheduled';
+        $item->scheduled_at = now()->subMinute();
+        $item->save();
+
+        $this->artisan('public-content:publish-scheduled')->assertSuccessful();
+
+        $this->assertDatabaseHas('public_contents', [
+            'id' => $item->id,
+            'status' => 'published',
+            'scheduled_at' => null,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'public_content.scheduled_publish',
+            'resource_id' => (string) $item->id,
+        ]);
+    }
+
     public function test_admin_queue_requires_the_dedicated_permission(): void
     {
         $ordinaryUser = User::factory()->create(['is_active' => true]);
