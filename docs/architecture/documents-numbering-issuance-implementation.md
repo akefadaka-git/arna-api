@@ -1,3 +1,5 @@
+> **Numbering policy alignment notice (2026-10-30):** The target ARNA policy is now defined in [ARNA Amharic Document Numbering Standard v1.0](arna-amharic-document-numbering-standard-v1.md). Its canonical format is `ዓርና/BB/TT/SSSS/YY`, with one branch digit + one department digit, a numeric document-type code, a four-digit unit/type/year sequence, and a two-digit display of the Ethiopian year. The sequence scope is tenant + legal entity + issuing unit + document type + full Ethiopian year; Governance position/issuer is authority metadata, not a counter dimension. **This is a documented target design only.** The implementation described below still records the prior format and prior position-inclusive scope until a separately authorized code change is made. Do not treat this implementation note as evidence that v1.0 is implemented or runtime-verified.
+
 # Documents Domain: Numbering Ledger and Issuance Lifecycle
 
 **Status:** Governed source implementation; runtime and migration behavior are not verified.
