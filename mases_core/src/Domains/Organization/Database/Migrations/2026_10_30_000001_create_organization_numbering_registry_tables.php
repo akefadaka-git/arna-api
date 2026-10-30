@@ -35,7 +35,7 @@ return new class extends Migration
             $table->char('department_code', 1);
             $table->char('bb_code', 2);
             $table->foreignId('organization_unit_id');
-            $table->foreignId('legal_entity_id')->nullable()->constrained('legal_entities')->restrictOnDelete();
+            $table->unsignedBigInteger('legal_entity_id')->nullable();
             $table->string('status', 16)->default('active');
             $table->date('effective_from');
             $table->date('effective_until')->nullable();
@@ -49,6 +49,8 @@ return new class extends Migration
                 ->references(['tenant_id', 'branch_code'])->on('organization_branch_number_codes')->restrictOnDelete();
             $table->foreign(['tenant_id', 'organization_unit_id'], 'org_department_unit_tenant_fk')
                 ->references(['tenant_id', 'id'])->on('organization_units')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'legal_entity_id'], 'org_department_entity_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('legal_entities')->restrictOnDelete();
             $table->index(['tenant_id', 'legal_entity_id', 'status'], 'org_department_entity_status_idx');
         });
     }
