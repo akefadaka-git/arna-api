@@ -164,7 +164,7 @@ jobs:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php
+        run: php artisan test --compact tests/Feature/PersonIdentityContractTest.php
 
       - name: Run People Profile API integration regressions
         env:

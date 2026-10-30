@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Database\\Seeders;
+namespace MaaleArna\MASES\Core\Domains\Finance\Database\Seeders;
 
 /**
  * Canonical Finance-owned authorization capabilities.

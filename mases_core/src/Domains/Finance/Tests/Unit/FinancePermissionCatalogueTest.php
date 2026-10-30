@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Tests\\Unit;
+namespace MaaleArna\MASES\Core\Domains\Finance\Tests\Unit;
 
-use Database\\Seeders\\Data\\PermissionCatalogue;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Database\\Seeders\\FinancePermissionCatalogue;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Database\Seeders\Data\PermissionCatalogue;
+use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatalogue;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class FinancePermissionCatalogueTest extends TestCase
 {
