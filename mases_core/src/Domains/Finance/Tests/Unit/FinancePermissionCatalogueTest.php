@@ -5,6 +5,12 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Finance\Tests\Unit;
 
 use Database\Seeders\Data\PermissionCatalogue;
+use Database\Seeders\Data\ApplicationRegistry;
+use Database\Seeders\Data\RoleCatalogue;
+use Database\Seeders\Data\RolePermissionGrants;
+use MaaleArna\MASES\Core\Domains\Finance\Config\FinanceApplicationCatalogue;
+use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRoleCatalogue;
+use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
 use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatalogue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
