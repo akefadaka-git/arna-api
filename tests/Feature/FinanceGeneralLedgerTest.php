@@ -95,6 +95,176 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
+    public function test_external_source_requires_a_versioned_event_identity(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-SOURCE-VERSION-REQUIRED',
+                'effective_date' => '2026-10-01',
+                'description' => 'External source without version',
+                'currency' => 'ETB',
+                'source_type' => JournalSourceType::LOAN->value,
+                'source_id' => 'loan-event-100',
+                'idempotency_key' => 'source-version-required',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('External source journals must include an immutable source event version.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_event_version', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'source-version-required']);
+    }
+
+    #[Test]
+    public function test_same_source_event_version_and_payload_returns_original_journal_even_with_new_request_key(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $resolver = new class implements JournalSourceReferenceResolver {
+            public function supports(JournalSourceType $sourceType): bool
+            {
+                return $sourceType === JournalSourceType::LOAN;
+            }
+
+            public function assertValid(JournalSourceType $sourceType, string $sourceId, int $tenantId, int $legalEntityId): void
+            {
+                // The fixture represents an already-authorized source record and mapping.
+            }
+        };
+        $service = new JournalEntryService(new JournalSourceReferenceResolverRegistry([$resolver]));
+        $header = [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-SOURCE-EVENT-100',
+            'effective_date' => '2026-10-01',
+            'description' => 'Loan event version 3',
+            'currency' => 'ETB',
+            'source_type' => JournalSourceType::LOAN->value,
+            'source_id' => 'loan-event-100',
+            'source_event_version' => '3',
+            'idempotency_key' => 'loan-event-request-one',
+        ];
+        $lines = [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ];
+
+        $first = $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+        $header['idempotency_key'] = 'loan-event-request-retry';
+        $second = $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame('3', $second->source_event_version);
+        $this->assertNotNull($second->source_event_hash);
+        $this->assertDatabaseCount('journal_entries', 1);
+    }
+
+    #[Test]
+    public function test_same_source_event_version_with_changed_payload_conflicts(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $resolver = new class implements JournalSourceReferenceResolver {
+            public function supports(JournalSourceType $sourceType): bool
+            {
+                return $sourceType === JournalSourceType::LOAN;
+            }
+
+            public function assertValid(JournalSourceType $sourceType, string $sourceId, int $tenantId, int $legalEntityId): void
+            {
+                // The fixture represents an already-authorized source record and mapping.
+            }
+        };
+        $service = new JournalEntryService(new JournalSourceReferenceResolverRegistry([$resolver]));
+        $header = [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-SOURCE-EVENT-CONFLICT',
+            'effective_date' => '2026-10-01',
+            'description' => 'Loan event version 4',
+            'currency' => 'ETB',
+            'source_type' => JournalSourceType::LOAN->value,
+            'source_id' => 'loan-event-200',
+            'source_event_version' => '4',
+            'idempotency_key' => 'loan-event-conflict-one',
+        ];
+        $lines = [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ];
+        $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+
+        $header['idempotency_key'] = 'loan-event-conflict-two';
+        $lines[0]['debit_amount'] = '11';
+        $lines[1]['credit_amount'] = '11';
+
+        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException::class);
+        $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+    }
+
+    #[Test]
+    public function test_posting_revalidates_account_active_and_postable_state(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-ACCOUNT-REVALIDATION',
+            'effective_date' => '2026-10-01',
+            'description' => 'Account revalidation at posting',
+            'currency' => 'ETB',
+            'idempotency_key' => 'account-revalidation-posting',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ]);
+
+        $cash->status = 'inactive';
+        $cash->save();
+
+        try {
+            $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('Posting must reject an account made inactive after draft creation.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('lines.0.account_id', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+    }
+
+    #[Test]
+    public function test_posting_revalidates_legal_entity_active_state(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-ENTITY-REVALIDATION',
+            'effective_date' => '2026-10-01',
+            'description' => 'Legal entity revalidation at posting',
+            'currency' => 'ETB',
+            'idempotency_key' => 'entity-revalidation-posting',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ]);
+
+        $entity->status = 'inactive';
+        $entity->save();
+
+        try {
+            $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('Posting must reject a legal entity made inactive after draft creation.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('legal_entity', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+    }
+
+    #[Test]
     public function test_unbalanced_journal_is_rejected_before_a_draft_is_persisted(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
