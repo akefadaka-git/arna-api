@@ -148,7 +148,7 @@ jobs:
 
       - name: Run Loan domain unit tests with hermetic SQLite
         # Keep unrelated Loan fixture regressions isolated from the Documents stack gate.
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
+        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php') != '' && (github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation') }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -157,7 +157,7 @@ jobs:
 
       - name: Run loan repayment HTTP and financial-invariant regression tests
         # Keep unrelated Loan fixture regressions isolated from the Documents stack gate.
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
+        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php') != '' && (github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation') }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -165,9 +165,8 @@ jobs:
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php
 
       - name: Run Person identity contract regressions
-        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php') != '' }}
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
+        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php') != '' && (github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation') }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -175,7 +174,6 @@ jobs:
         run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php
 
       - name: Run People Profile API integration regressions
-        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php') != '' }}
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
@@ -224,7 +222,6 @@ jobs:
         run: php artisan migrate --force -vvv
 
       - name: Run independent-connection People identity concurrency regression
-        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php') != '' }}
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
