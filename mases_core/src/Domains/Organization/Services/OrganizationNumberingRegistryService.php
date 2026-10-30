@@ -71,7 +71,7 @@ final class OrganizationNumberingRegistryService
     public function registerDepartment(
         int $tenantId,
         int $organizationUnitId,
-        ?int $legalEntityId,
+        int $legalEntityId,
         string $branchCode,
         string $departmentCode,
         string $reason,
@@ -106,7 +106,7 @@ final class OrganizationNumberingRegistryService
                 throw ValidationException::withMessages(['organization_unit_id' => ['An active department directly under the registered branch is required.']]);
             }
 
-            if ($legalEntityId !== null) {
+            {
                 $entityExists = DB::table('legal_entities')->where('tenant_id', $tenantId)
                     ->where('id', $legalEntityId)->where('status', 'active')->exists();
                 if (!$entityExists || (int) $unit->legal_entity_id !== $legalEntityId) {
