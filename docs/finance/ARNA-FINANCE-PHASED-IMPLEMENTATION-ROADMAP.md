@@ -201,7 +201,8 @@ A work package is COMPLETE / VERIFIED only when its acceptance criteria have evi
 - Phase 1: COMPLETE / VERIFIED — exact source SHA 87fdb65612b1b792b4751d3ad6539b123fd079a8; workflow 40999880593.
 - Phase 2: IN PROGRESS — FIN-2.01 structural validator and regression tests added on feat/finance-phase2-coa-integrity.
 - FIN-2.01 runtime tests: NOT RUN — Owner's no-local-tests instruction remains in force; remote exact-commit verification is required.
-- FIN-2.02 and FIN-2.03: NOT STARTED.
+- FIN-2.02: SOURCE PRESENT — ownership registry exists; complete 36-entry verification and runtime evidence PENDING.
+- FIN-2.03: SOURCE PRESENT — opt-in/no-overwrite/no-opening-balance seeder safeguards exist; full preflight verification and seeder execution NOT RUN.
 - Budget, expenses, fixed assets, tax, reconciliation and financial controls: NOT STARTED.
 - Production DB, seeder execution, opening balances, merge and deployment: NOT AUTHORIZED / NOT PERFORMED.
 
