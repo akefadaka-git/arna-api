@@ -111,6 +111,12 @@ final class OrganizationRequestRules
     }
 
     /** @return array<string, array<int, mixed>> */
+    public static function retireNumberCode(): array
+    {
+        return ['reason' => ['required', 'string', 'min:5', 'max:2000']];
+    }
+
+    /** @return array<string, array<int, mixed>> */
     public static function auditEvents(): array
     {
         return [
