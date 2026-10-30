@@ -435,8 +435,13 @@ final class AuthorizationService
             if ($applicationId !== null) {
                 return (clone $roles)
                     ->where('scope', 'application')
-                    ->whereNull('tenant_id')
                     ->where('application_id', $applicationId)
+                    ->where(function ($roleTenant) use ($tenantId): void {
+                        $roleTenant->whereNull('tenant_id');
+                        if ($tenantId !== null) {
+                            $roleTenant->orWhere('tenant_id', $tenantId);
+                        }
+                    })
                     ->whereHas('permissions', function ($query) use ($permissionSlug, $applicationId): void {
                         $query->where('slug', $permissionSlug)
                             ->where('is_active', true)
