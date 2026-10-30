@@ -29,8 +29,13 @@ final class OrganizationNumberingRegistryTest extends TestCase
     public function branch_and_department_registration_is_audited_and_retirement_preserves_the_code(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
+        $companyUnit = DB::table('organization_units')->insertGetId([
+            'tenant_id' => $tenant->id, 'parent_id' => null, 'code' => 'HQ',
+            'unit_type' => 'company', 'name_en' => 'Head Office', 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $branchUnit = DB::table('organization_units')->insertGetId([
-            'tenant_id' => $tenant->id, 'parent_id' => null, 'code' => 'BRANCH-1',
+            'tenant_id' => $tenant->id, 'parent_id' => $companyUnit, 'code' => 'BRANCH-1',
             'unit_type' => 'branch', 'name_en' => 'Branch 1', 'status' => 'active',
             'created_at' => now(), 'updated_at' => now(),
         ]);
