@@ -61,8 +61,7 @@ final class DocumentIssuanceService
             $actor,
             (int) $tenantId,
             (int) $legalEntityId,
-            (string) ($input['organization_code'] ?? ''),
-            (string) ($input['department_code'] ?? ''),
+            (string) ($input['bb_code'] ?? ''),
             (string) ($input['issuing_role_code'] ?? ''),
             (string) ($input['document_type_code'] ?? ''),
         );
@@ -93,6 +92,8 @@ final class DocumentIssuanceService
             'governance_body_id' => $registry['governance_body_id'],
             'governance_position_id' => $registry['governance_position_id'],
             'organization_code' => $registry['organization_code'],
+            'bb_code' => $registry['bb_code'],
+            'document_type_number' => \MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry::numericCode($registry['document_type_code']),
             'document_type_code' => $registry['document_type_code'],
             'department_code' => $registry['department_code'],
             'issuing_role_code' => $registry['issuing_role_code'],
@@ -149,8 +150,7 @@ final class DocumentIssuanceService
                 $actor,
                 (int) $tenantId,
                 (int) $payload['legal_entity_id'],
-                $payload['organization_code'],
-                $payload['department_code'],
+                $payload['bb_code'],
                 $payload['issuing_role_code'],
                 $payload['document_type_code'],
                 lockRows: true,
@@ -162,6 +162,7 @@ final class DocumentIssuanceService
                 'governance_body_id' => 'governance_body_id',
                 'governance_position_id' => 'governance_position_id',
                 'organization_code' => 'organization_code',
+                'bb_code' => 'bb_code',
                 'department_code' => 'department_code',
                 'issuing_role_code' => 'issuing_role_code',
                 'document_type_code' => 'document_type_code',
@@ -179,29 +180,23 @@ final class DocumentIssuanceService
             // segments so two entities cannot allocate the same printed number.
             $scope = [
                 'tenant_id' => $tenantId,
-                'document_type_code' => $payload['document_type_code'],
-                'department_code' => $payload['department_code'],
-                'issuing_role_code' => $payload['issuing_role_code'],
+                'legal_entity_id' => $payload['legal_entity_id'],
+                'organization_unit_id' => $payload['organization_unit_id'],
+                'document_type_number' => $payload['document_type_number'],
                 'ec_year' => $payload['ec_year'],
             ];
 
             // insertOrIgnore creates the unique scope row safely under concurrency;
             // the subsequent row lock serializes allocation for this exact scope.
-            DB::table('document_number_counters')->insertOrIgnore($scope + [
-                // AR is the fixed printed prefix; the document itself retains
-                // the authoritative legal-entity code snapshot.
-                'organization_code' => DocumentNumberFormatter::PREFIX,
-                'legal_entity_id' => $payload['legal_entity_id'],
-                'organization_unit_id' => $payload['organization_unit_id'],
-                'governance_body_id' => $payload['governance_body_id'],
-                'governance_position_id' => $payload['governance_position_id'],
+            DB::table('document_number_counters_v2')->insertOrIgnore($scope + [
+                'bb_code' => $payload['bb_code'],
                 'next_sequence' => 1,
                 'is_active' => true,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
 
-            $counter = DB::table('document_number_counters')
+            $counter = DB::table('document_number_counters_v2')
                 ->where($scope)
                 ->lockForUpdate()
                 ->first();
@@ -210,24 +205,19 @@ final class DocumentIssuanceService
                 throw new ConflictHttpException('The numbering scope is unavailable or disabled.');
             }
 
-            if (!hash_equals((string) $counter->organization_code, DocumentNumberFormatter::PREFIX)) {
-                throw new ConflictHttpException('The numbering counter has an incompatible printed-prefix snapshot.');
-            }
-
             $sequence = (int) $counter->next_sequence;
             if ($sequence < 1 || $sequence > DocumentNumberFormatter::MAX_SEQUENCE) {
                 throw new ConflictHttpException('The numbering scope has exhausted its four-digit sequence.');
             }
 
-            DB::table('document_number_counters')->where('id', $counter->id)->update([
+            DB::table('document_number_counters_v2')->where('id', $counter->id)->update([
                 'next_sequence' => $sequence + 1,
                 'updated_at' => $now,
             ]);
 
             $number = $this->numberFormatter->format(
-                $payload['document_type_code'],
-                $payload['department_code'],
-                $payload['issuing_role_code'],
+                $payload['bb_code'],
+                $payload['document_type_number'],
                 $sequence,
                 $payload['ec_year'],
             );
@@ -240,6 +230,8 @@ final class DocumentIssuanceService
                 'governance_body_id' => $payload['governance_body_id'],
                 'governance_position_id' => $payload['governance_position_id'],
                 'organization_code' => $payload['organization_code'],
+                'bb_code' => $payload['bb_code'],
+                'document_type_number' => $payload['document_type_number'],
                 'document_type_code' => $payload['document_type_code'],
                 'department_code' => $payload['department_code'],
                 'issuing_role_code' => $payload['issuing_role_code'],
