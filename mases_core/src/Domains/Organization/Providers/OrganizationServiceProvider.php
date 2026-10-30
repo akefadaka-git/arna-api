@@ -19,7 +19,7 @@ final class OrganizationServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        $this->app->singleton(\\MaaleArna\\MASES\\Core\\Domains\\Organization\\Services\\OrganizationNumberingRegistryService::class);
+        $this->app->singleton(OrganizationNumberingRegistryService::class);
         $this->mergeConfigFrom(self::CONFIG_PATH, 'organization');
         $this->app->singleton(OrganizationNumberingRegistryService::class);
     }
