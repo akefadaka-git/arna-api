@@ -61,10 +61,11 @@ final class IncomingDocumentRegistrationService
             throw new UnprocessableEntityHttpException('Incoming document metadata must be an object.');
         }
 
+        $requestHash = null;
         try {
             return DB::transaction(function () use (
                 $tenantId, $actor, $idempotencyKey, $legalEntityId, $fileId, $bbCode,
-                $subject, $senderReference, $senderName, $notes, $receivedAt, $metadata
+                $subject, $senderReference, $senderName, $notes, $receivedAt, $metadata, &$requestHash
             ): IncomingDocumentRegistration {
                 $this->authorize('documents.receive', $actor, $tenantId);
                 $registry = $this->numberingRegistry->resolveForIssuance(
@@ -161,7 +162,7 @@ final class IncomingDocumentRegistrationService
                 ->where('idempotency_key', $idempotencyKey)
                 ->first();
             if ($existing !== null) {
-                if (!hash_equals((string) $existing->request_hash, $requestHash ?? '')) {
+                if ($requestHash === null || !hash_equals((string) $existing->request_hash, $requestHash)) {
                     throw new ConflictHttpException('Idempotency-Key was already used for a different incoming registration.');
                 }
                 return $existing;
