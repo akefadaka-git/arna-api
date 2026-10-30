@@ -16,24 +16,26 @@
 
 ## 2. Number format
 
-### Recommended canonical number
+### Approved printed number
 
-`[ORG]-[TYP]-[DP]-[RL]-[NNNNNN]-EC[YYYY]`
+`AR-[TYP]-[DP]-[RL]-[NNNN]/[YY]`
 
-Example: `ARNA-LET-HQ-CEO-000042-EC2019`
+Example: `AR-LET-HQ-CEO-0042/19`
+
+`AR` is the fixed ARNA platform prefix. The full E.C. year remains stored as a four-digit integer in the document record; `/YY` is only its two-digit printed suffix. The two-digit suffix is intentionally a compact display convention, not a replacement for the full year in records, reports, or audit evidence.
 
 | Segment | Meaning | Rule |
 |---|---|---|
-| `ORG` | Issuing legal entity / tenant short code | Required where a tenant contains multiple legal entities; registered, immutable code |
+| `AR` | Fixed ARNA platform prefix | Literal prefix; it is not a per-entity code |
 | `TYP` | Document type | Required controlled code, e.g. LET, MEM, LEG, INV, CER |
 | `DP` | Department or branch | Required controlled code; HQ is allowed only as an explicit registered code |
 | `RL` | Issuing authority role | Snapshot of the authorized issuing role/office at issuance, not a live lookup |
-| `NNNNNN` | Sequence | Six decimal digits, zero-padded; allocated atomically |
-| `ECYYYY` | Ethiopian Calendar year | Full four-digit E.C. year avoids century ambiguity |
+| `NNNN` | Sequence | Four decimal digits, zero-padded; allocated atomically; range 0001–9999 |
+| `YY` | Ethiopian Calendar year suffix | Final two digits of the full E.C. year; the full year remains authoritative in storage |
 
-The compact form requested for printed headers can be supported as a display alias: `[TYP]-[DP]-[RL]-[NNNN]-[YY]`, e.g. `LET-HQ-CEO-0042-19`. The compact alias is not the canonical uniqueness key because it omits legal entity and abbreviates the year. Do not use it as the only machine identity.
+The approved printed number is also the canonical number returned by the API. The database retains the legal-entity ID/code snapshot, department and issuing-position IDs, and the full E.C. year as separate authoritative fields. Because the printed form uses a two-digit year, it is not independently sufficient to establish the century; use the stored full E.C. year and immutable document UUID for authoritative records. A future century rollover requires a governed numbering-format revision before a duplicate printed number can arise.
 
-Allowed code characters: uppercase ASCII letters and digits. Hyphens are separators and are not permitted inside codes. Codes are assigned through governed registries; do not derive codes from free-text department or role names.
+Allowed code characters: uppercase ASCII letters, digits, and the existing registry underscore convention. Hyphens and slashes are separators and are not permitted inside codes. Codes are assigned through governed registries; do not derive codes from free-text department or role names.
 
 ## 3. Document type registry
 
@@ -59,14 +61,14 @@ Do not treat a document type as approved merely because a code exists. Each type
 
 The sequence is scoped by:
 
-`tenant_id + legal_entity_id + type_code + department_code + issuing_role_code + ec_year`
+`tenant_id + type_code + department_code + issuing_role_code + full_ec_year`
 
 Recommended storage:
 
 - `documents`: immutable document UUID, canonical number, type, tenant/legal entity, department, issuing-role snapshot, E.C. year, sequence, linked FileManagement file/version, workflow status, issued/revoked timestamps, and audit references.
-- `document_number_counters`: one row per numbering scope, with the next sequence and a unique constraint across the full scope tuple.
+- `document_number_counters`: one row per printed-number scope, with the next sequence and a unique constraint on tenant, type code, department code, issuing-role code, and full E.C. year. Legal-entity and internal registry IDs remain on each document for audit but do not split a printed-number counter.
 - A database unique constraint on the canonical number and a unique constraint on the counter scope.
-- Allocate the counter and create the issued document in one database transaction. Lock the counter row (`SELECT ... FOR UPDATE` or the database-equivalent), increment it, insert the document, and commit together.
+- Allocate the counter and create the issued document in one database transaction. Lock the counter row (`SELECT ... FOR UPDATE` or the database-equivalent), increment it, insert the document, and commit together. The four-digit sequence fails closed after 9999.
 - Never compute a sequence using `MAX(sequence) + 1`; that races under concurrent requests.
 - Do not allocate a permanent number during draft creation. Allocate at the authorized issue transition. If a failure occurs before commit, the transaction rolls back. After successful issue, voided/cancelled numbers remain consumed and are never recycled.
 - Idempotency key on the issue command prevents a client retry from issuing a second number.
