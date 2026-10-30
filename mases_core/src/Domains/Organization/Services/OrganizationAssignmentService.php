@@ -8,8 +8,8 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use MaaleArna\MASES\Core\Auth\Models\User;
 use Illuminate\Support\Carbon;
+use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
@@ -45,6 +45,7 @@ final class OrganizationAssignmentService
             ->orderByDesc('id')
             ->paginate(min(max((int) ($filters['per_page'] ?? 25), 1), 100));
     }
+
     /** @param array<string, mixed> $data */
     public function create(int $tenantId, int $unitId, array $data, User $actor, Request $request): OrganizationAssignment
     {
@@ -59,7 +60,9 @@ final class OrganizationAssignmentService
                 ->lockForUpdate()
                 ->first();
 
-            $person = $access ? Person::query()->whereKey($data['person_id'])->first() : null;
+            $person = $access
+                ? Person::query()->whereKey($data['person_id'])->where('status', 'active')->first()
+                : null;
             if (!$person) {
                 throw new NotFoundHttpException('Person is not available in the resolved tenant.');
             }
