@@ -13,7 +13,7 @@ return new class extends Migration
         Schema::create('document_number_counters_v2', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
-            $table->foreignId('legal_entity_id')->constrained('legal_entities')->restrictOnDelete();
+            $table->unsignedBigInteger('legal_entity_id');
             $table->foreignId('organization_unit_id');
             $table->char('bb_code', 2);
             $table->char('document_type_number', 2);
@@ -25,6 +25,8 @@ return new class extends Migration
                 ['tenant_id', 'legal_entity_id', 'organization_unit_id', 'document_type_number', 'ec_year'],
                 'doc_counter_v2_scope_unique'
             );
+            $table->foreign(['tenant_id', 'legal_entity_id'], 'doc_counter_v2_entity_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('legal_entities')->restrictOnDelete();
             $table->foreign(['tenant_id', 'organization_unit_id'], 'doc_counter_v2_unit_tenant_fk')
                 ->references(['tenant_id', 'id'])->on('organization_units')->restrictOnDelete();
             $table->index(['tenant_id', 'is_active'], 'doc_counter_v2_tenant_active_idx');
