@@ -203,7 +203,7 @@ final class PublicContentController extends Controller
             'new_values' => $new,
             'ip_address' => $request->ip(),
             'user_agent' => substr((string) $request->userAgent(), 0, 1000),
-            'request_id' => $request->header('X-Request-ID'),
+            'request_id' => $request->header('X-Request-ID') ? substr((string) $request->header('X-Request-ID'), 0, 64) : null,
             'metadata' => ['public_id' => $item->public_id],
         ]);
     }
