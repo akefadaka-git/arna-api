@@ -67,12 +67,20 @@ class FileController extends Controller
             throw FileException::authRequired();
         }
 
-        // Authorise: require 'file.upload' permission.
+        // Upload and publication are distinct permissions. A public-visibility
+        // request cannot be used to bypass the publication authority boundary.
         $this->authorizationService->requirePermission(
             user: $user,
             permissionSlug: 'file.upload',
             tenantId: mases_tenant_id()
         );
+        if (($validated['is_public'] ?? false) === true || ($validated['is_public'] ?? null) === 1 || ($validated['is_public'] ?? null) === '1') {
+            $this->authorizationService->requirePermission(
+                user: $user,
+                permissionSlug: 'file.publish',
+                tenantId: mases_tenant_id()
+            );
+        }
 
         $file = $this->fileService->upload(
             uploadedFile: $uploadedFile,
@@ -180,7 +188,7 @@ class FileController extends Controller
             throw FileException::notFound((string) $id);
         }
 
-        if (!$file->is_public) {
+        if (!$file->is_public || $file->status !== 'published') {
             if (!$user) {
                 throw FileException::authRequired();
             }
@@ -206,7 +214,7 @@ class FileController extends Controller
             throw FileException::notFound((string) $id);
         }
 
-        if (!$file->is_public) {
+        if (!$file->is_public || $file->status !== 'published') {
             if (!$user) {
                 throw FileException::authRequired();
             }
@@ -250,6 +258,16 @@ class FileController extends Controller
             permissionSlug: 'file.update',
             tenantId: $file->tenant_id
         );
+        $publicationRequested =
+            (($validated['status'] ?? null) === 'published')
+            || in_array($validated['is_public'] ?? false, [true, 1, '1'], true);
+        if ($publicationRequested) {
+            $this->authorizationService->requirePermission(
+                user: $user,
+                permissionSlug: 'file.publish',
+                tenantId: $file->tenant_id
+            );
+        }
 
         $newFile = $request->file('file') ?? null;
         $updatedFile = $this->fileService->update($file, $validated, $newFile, $user);
