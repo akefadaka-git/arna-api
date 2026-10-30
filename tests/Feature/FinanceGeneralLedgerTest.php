@@ -1554,6 +1554,47 @@ final class FinanceGeneralLedgerTest extends TestCase
         }
     }
 
+    #[Test]
+    public function test_journal_amounts_cannot_exceed_decimal_20_4_storage_precision(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $baseHeader = [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-PRECISION-BOUNDARY',
+            'effective_date' => '2026-10-10',
+            'description' => 'Decimal precision boundary',
+            'currency' => 'ETB',
+            'idempotency_key' => 'precision-boundary',
+        ];
+
+        foreach ([
+            ['value' => '10000000000000000.0000', 'suffix' => 'integer-overflow'],
+            ['value' => '1.00000', 'suffix' => 'fraction-overflow'],
+        ] as $case) {
+            try {
+                $service->createDraft(
+                    (int) $tenant->id,
+                    (int) $user->id,
+                    array_merge($baseHeader, [
+                        'journal_number' => 'JV-PRECISION-'.$case['suffix'],
+                        'idempotency_key' => 'precision-'.$case['suffix'],
+                    ]),
+                    [
+                        ['account_id' => $cash->id, 'debit_amount' => $case['value'], 'credit_amount' => '0'],
+                        ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '1.0000'],
+                    ],
+                );
+                $this->fail('Amounts outside DECIMAL(20,4) must be rejected before database persistence.');
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('lines.0.debit_amount', $exception->errors());
+            }
+        }
+
+        $this->assertDatabaseCount('journal_entries', 0);
+        $this->assertDatabaseCount('journal_lines', 0);
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
