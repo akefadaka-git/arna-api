@@ -105,7 +105,9 @@ final class PublicContentController extends Controller
                 throw new ConflictHttpException('The content changed after it was loaded. Refresh before reviewing.');
             }
 
-            if ($item->submitted_by === $actor->id) {
+            $authorEmail = $item->author_email === null ? '' : mb_strtolower(trim($item->author_email));
+            $reviewerEmail = mb_strtolower(trim((string) $actor->email));
+            if ($item->submitted_by === $actor->id || ($authorEmail !== '' && $reviewerEmail !== '' && hash_equals($authorEmail, $reviewerEmail))) {
                 abort(403, 'Authors cannot review or publish their own submissions.');
             }
 
