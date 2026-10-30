@@ -208,7 +208,7 @@ A work package is COMPLETE / VERIFIED only when its acceptance criteria have evi
 
 ## 8. Immediate next actions
 
-1. Obtain independent source review of PR #58, including the FIN-2.02 ownership registry and FIN-2.03 all-entity seeder preflight/transaction boundary.
-2. Obtain independent review of the verified CoA seeder transaction boundary and ownership registry before closing PR #58.
-3. Keep the opt-in seeder disabled and preserve the no-opening-balance invariant.
-4. Start each functional Phase 2 work package with its own A1/A2 assessment and decision register before broad implementation.
+1. Obtain independent source review of PR #58, including the Finance-domain registry composition, FIN-2.02 ownership registry and FIN-2.03 all-entity seeder transaction boundary.
+2. Keep the opt-in seeder disabled in default bootstrap and preserve the no-opening-balance invariant.
+3. Start P2-B budgeting with its own A1/A2 assessment, business rules, approval boundaries and acceptance tests.
+4. Keep macro Phase 2 open until P2-B through P2-H and cross-domain reconciliation criteria are independently verified.
