@@ -1425,6 +1425,51 @@ final class FinanceGeneralLedgerTest extends TestCase
         }
     }
 
+    #[Test]
+    public function test_journal_draft_rejects_invalid_header_date_number_and_description_boundaries(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $baseHeader = [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-BOUNDARY-VALID',
+            'effective_date' => '2026-10-10',
+            'description' => 'Boundary validation',
+            'currency' => 'ETB',
+            'idempotency_key' => 'journal-boundary-valid',
+        ];
+        $lines = [
+            ['account_id' => $cash->id, 'debit_amount' => '1.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '1.0000'],
+        ];
+
+        $invalidHeaders = [
+            ['journal_number' => ''],
+            ['journal_number' => str_repeat('J', 65)],
+            ['effective_date' => '2026-02-30'],
+            ['effective_date' => '10/10/2026'],
+            ['description' => str_repeat('D', 501)],
+        ];
+
+        foreach ($invalidHeaders as $index => $overrides) {
+            try {
+                $service->createDraft(
+                    (int) $tenant->id,
+                    (int) $user->id,
+                    array_merge($baseHeader, $overrides, ['idempotency_key' => 'journal-boundary-'.$index]),
+                    $lines,
+                );
+                $this->fail('Journal header values outside the storage contract must be rejected.');
+            } catch (ValidationException $exception) {
+                $expectedField = array_key_first($overrides);
+                $this->assertArrayHasKey($expectedField, $exception->errors());
+            }
+        }
+
+        $this->assertDatabaseCount('journal_entries', 0);
+        $this->assertDatabaseCount('journal_lines', 0);
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
