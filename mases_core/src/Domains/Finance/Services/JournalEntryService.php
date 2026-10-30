@@ -52,6 +52,35 @@ final class JournalEntryService
         // requests produce the same idempotency fingerprint.
         $header['journal_type'] = $journalType->value;
 
+        $journalNumber = trim((string) ($header['journal_number'] ?? ''));
+        if ($journalNumber === '' || mb_strlen($journalNumber) > 64) {
+            throw ValidationException::withMessages([
+                'journal_number' => 'A journal number between 1 and 64 characters is required.',
+            ]);
+        }
+
+        $effectiveDate = trim((string) ($header['effective_date'] ?? ''));
+        $parsedEffectiveDate = \\DateTimeImmutable::createFromFormat('!Y-m-d', $effectiveDate);
+        $dateErrors = \\DateTimeImmutable::getLastErrors();
+        if (!$parsedEffectiveDate
+            || $parsedEffectiveDate->format('Y-m-d') !== $effectiveDate
+            || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0))) {
+            throw ValidationException::withMessages([
+                'effective_date' => 'The effective date must be a valid ISO date in YYYY-MM-DD format.',
+            ]);
+        }
+
+        $description = trim((string) ($header['description'] ?? ''));
+        if (mb_strlen($description) > 500) {
+            throw ValidationException::withMessages([
+                'description' => 'The journal description cannot exceed 500 characters.',
+            ]);
+        }
+
+        $header['journal_number'] = $journalNumber;
+        $header['effective_date'] = $effectiveDate;
+        $header['description'] = $description;
+
         $sourceValue = trim((string) ($header['source_type'] ?? JournalSourceType::MANUAL->value));
         $sourceType = JournalSourceType::tryFrom($sourceValue);
         if ($sourceType === null) {
