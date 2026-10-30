@@ -117,8 +117,25 @@ jobs:
       - name: Run all registered migrations on disposable MySQL 8.0
         run: php artisan migrate --force -vvv
 
-      - name: Run Finance General Ledger feature regressions on MySQL
-        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/FinanceGeneralLedgerTest.php
+      - name: Validate concurrency harness PHP syntax
+        run: php -l mases_core/src/Domains/Finance/Tests/Support/mysql-concurrency-harness.php
+
+      - name: Verify Finance InnoDB tables and integrity triggers
+        shell: bash
+        run: |
+          set -euo pipefail
+          engines="$(mysql -h 127.0.0.1 -uroot -proot arna_finance_phase1_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('legal_entities','ledger_accounts','accounting_periods','journal_entries','journal_lines','finance_audit_entries') AND engine = 'InnoDB'")"
+          test "${engines}" -eq 6
+          triggers="$(mysql -h 127.0.0.1 -uroot -proot arna_finance_phase1_test -Nse "SELECT COUNT(DISTINCT trigger_name) FROM information_schema.triggers WHERE trigger_schema = DATABASE() AND trigger_name IN ('finance_audit_entries_immutable_update','finance_audit_entries_immutable_delete','journal_entries_immutable_update','journal_entries_validate_source_identity_insert','journal_entries_validate_post','journal_entries_immutable_delete','journal_lines_insert_draft_only','journal_lines_update_draft_only','journal_lines_delete_draft_only','journal_lines_immutable_insert','journal_lines_immutable_update','journal_lines_immutable_delete','journal_entries_validate_cash_flow')")"
+          test "${triggers}" -eq 13
+          indexes="$(mysql -h 127.0.0.1 -uroot -proot arna_finance_phase1_test -Nse "SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'journal_entries' AND non_unique = 0 AND index_name IN ('journal_entries_entity_number_unique','journal_entries_idempotency_unique','journal_entries_source_event_version_unique')")"
+          test "${indexes}" -eq 3
+          echo "Finance InnoDB tables verified: ${engines}/6"
+          echo "Finance integrity triggers verified: ${triggers}/13"
+          echo "Journal uniqueness indexes verified: ${indexes}/3"
+
+      - name: Run all Finance domain tests on MySQL
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests
 
       - name: Run bounded multi-process MySQL concurrency protocol
         timeout-minutes: 20
@@ -135,6 +152,10 @@ jobs:
             echo "Actual SHA: $(git rev-parse HEAD)"
             php --version
             mysql --version
+            mysql -h 127.0.0.1 -uroot -proot arna_finance_phase1_test -e "SELECT VERSION() AS mysql_version, @@transaction_isolation AS transaction_isolation"
+            mysql -h 127.0.0.1 -uroot -proot arna_finance_phase1_test -e "SELECT TABLE_NAME, ENGINE FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('legal_entities','ledger_accounts','accounting_periods','journal_entries','journal_lines','finance_audit_entries') ORDER BY TABLE_NAME"
+            mysql -h 127.0.0.1 -uroot -proot arna_finance_phase1_test -e "SELECT TRIGGER_NAME, EVENT_OBJECT_TABLE, ACTION_TIMING, EVENT_MANIPULATION FROM information_schema.triggers WHERE trigger_schema = DATABASE() ORDER BY EVENT_OBJECT_TABLE, TRIGGER_NAME"
+            mysql -h 127.0.0.1 -uroot -proot arna_finance_phase1_test -e "SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS COLUMNS_IN_INDEX FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name IN ('journal_entries','journal_lines') GROUP BY TABLE_NAME, INDEX_NAME, NON_UNIQUE ORDER BY TABLE_NAME, INDEX_NAME"
             php artisan migrate:status 2>&1 || true
           } > finance-phase1-mysql-evidence.txt
 

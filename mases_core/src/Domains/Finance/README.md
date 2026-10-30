@@ -28,3 +28,8 @@ The canonical CoA seeder remains opt-in and is not called by `DatabaseSeeder`. I
 `MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceChartOfAccountsSeeder`
 
 Do not run it against production or enable it in the default seed flow without separate Owner approval.
+
+
+## Production-readiness gate
+
+See [Finance Phase 1 production-readiness and go-live checklist](PRODUCTION-READINESS.md) for the tested invariants, operational prerequisites, explicit disabled capabilities, and release gates. A passing disposable-MySQL CI run is not a production deployment approval.

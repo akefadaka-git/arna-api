@@ -223,6 +223,107 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
+    public function test_database_posting_guard_rejects_cash_flow_classification_on_a_non_cash_account(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $draft = app(JournalEntryService::class)->createDraft(
+            (int) $tenant->id,
+            (int) $user->id,
+            [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-DB-CASH-FLOW-GUARD',
+                'effective_date' => '2026-10-10',
+                'description' => 'Database-level cash flow guard',
+                'currency' => 'ETB',
+                'idempotency_key' => 'db-cash-flow-guard',
+            ],
+            [
+                ['account_id' => $cash->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+            ],
+        );
+
+        DB::table('journal_lines')
+            ->where('journal_entry_id', $draft->id)
+            ->where('line_number', 1)
+            ->update(['cash_flow_activity' => 'operating']);
+
+        try {
+            DB::table('journal_entries')->where('id', $draft->id)->update([
+                'status' => JournalEntry::POSTED,
+                'posted_by' => $user->id,
+                'posted_at' => now(),
+            ]);
+            $this->fail('Database posting must reject cash-flow classifications on non-cash-equivalent accounts.');
+        } catch (QueryException) {
+            $this->assertDatabaseHas('journal_entries', [
+                'id' => $draft->id,
+                'status' => JournalEntry::DRAFT,
+                'posted_by' => null,
+                'posted_at' => null,
+            ]);
+        }
+    }
+
+    #[Test]
+    public function test_database_foreign_keys_reject_cross_tenant_journal_line_accounts(): void
+    {
+        [$tenantA, $userA, $entityA, $periodA, $cashA, $equityA] = $this->ledgerFixture();
+        $tenantB = Tenant::factory()->create(['is_active' => true]);
+        $entityB = LegalEntity::query()->create([
+            'tenant_id' => $tenantB->id,
+            'code' => 'CROSS-TENANT-DB',
+            'name_en' => 'Cross-tenant database target',
+            'base_currency' => 'ETB',
+            'status' => 'active',
+        ]);
+        $accountB = LedgerAccount::query()->create([
+            'tenant_id' => $tenantB->id,
+            'legal_entity_id' => $entityB->id,
+            'code' => 'CROSS-TENANT-CASH',
+            'name_en' => 'Cross-tenant account',
+            'account_type' => 'asset',
+            'normal_balance' => 'debit',
+            'is_posting_allowed' => true,
+            'status' => 'active',
+        ]);
+        $draft = app(JournalEntryService::class)->createDraft(
+            (int) $tenantA->id,
+            (int) $userA->id,
+            [
+                'legal_entity_id' => $entityA->id,
+                'journal_number' => 'JV-DB-CROSS-TENANT-LINE',
+                'effective_date' => '2026-10-10',
+                'description' => 'Cross-tenant database foreign key',
+                'currency' => 'ETB',
+                'idempotency_key' => 'db-cross-tenant-line',
+            ],
+            [
+                ['account_id' => $cashA->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+                ['account_id' => $equityA->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+            ],
+        );
+
+        try {
+            DB::table('journal_lines')->insert([
+                'tenant_id' => $tenantA->id,
+                'legal_entity_id' => $entityA->id,
+                'journal_entry_id' => $draft->id,
+                'account_id' => $accountB->id,
+                'line_number' => 3,
+                'description' => 'Forbidden cross-tenant account reference',
+                'debit_amount' => '1.0000',
+                'credit_amount' => '0.0000',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->fail('The composite journal-line account foreign key must reject a cross-tenant account.');
+        } catch (QueryException) {
+            $this->assertSame(2, DB::table('journal_lines')->where('journal_entry_id', $draft->id)->count());
+        }
+    }
+
+    #[Test]
     public function test_identical_idempotency_request_returns_the_persisted_journal(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
