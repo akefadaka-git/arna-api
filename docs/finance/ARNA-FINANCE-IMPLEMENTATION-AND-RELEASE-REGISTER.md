@@ -76,7 +76,7 @@ No code in this branch represents a professional tax opinion. Production tax cal
 | ID | Phase | Required work | Status / acceptance evidence |
 |---|---|---|---|
 | FIN-1.01 | 1 — GL integrity | Enforce source-event uniqueness by tenant + legal entity + source domain + immutable event ID + version, with canonical payload hash | IMPLEMENTED IN SOURCE — nullable legacy-compatible `source_event_id`, `source_event_version`, and `source_event_hash`; external sources require an aggregate `source_id` plus immutable event ID and version; unique tenant/entity/type/event-ID/version index; canonical payload hash excludes request idempotency key; same event/payload returns persisted journal; changed payload conflicts. Tests added; NOT RUN |
-| FIN-1.02 | 1 — GL integrity | Prove atomic posting, audit persistence, posted-header/line immutability, and reversal linkage | PARTIAL — transaction/service source exists; exact runtime and model-guard behavior unverified |
+| FIN-1.02 | 1 — GL integrity | Prove atomic posting, audit persistence, posted-header/line immutability, and reversal linkage | IMPLEMENTED IN SOURCE — audit listener enforces same active transaction connection; posting/reversal audit-failure rollback tests added; MySQL + SQLite database triggers protect posted headers and line insert/update/delete. Tests and migration NOT RUN |
 | FIN-1.03 | 1 — GL integrity | Verify concurrent duplicate requests and period close/post race behavior on MySQL | NOT RUN |
 | FIN-1.04 | 1 — GL integrity | Verify tenant/entity isolation for all reads, writes, account references, periods, reversals, and reports | PARTIAL — composite constraints and scoped queries exist; adversarial tests not run |
 | FIN-1.05 | 1 — GL integrity | Confirm journal numbering uniqueness, date/period validation, and database precision boundaries | PARTIAL — source and constraints exist; full boundary verification pending |
@@ -125,6 +125,22 @@ Implementation branch: `feat/finance-gl-integrity-phase1`, based on the reviewed
 ### Evidence boundary
 
 The source changes and regression tests are committed on the Phase 1 branch. No local tests, CI, migration execution, MySQL trigger execution, or database concurrency tests were run. Therefore both items are **IMPLEMENTED IN SOURCE / NOT RUNTIME VERIFIED**, not closed for production acceptance.
+
+
+## 6B. Phase 1 implementation log — FIN-1.02
+
+### Atomic posting and audit persistence
+
+- The journal lifecycle audit listener remains synchronous and now fails closed unless the journal model, audit model, and active transaction resolve to the same connection and the connection has an active transaction.
+- Journal posting persists the posted state and its audit row within the same transaction. An audit exception propagates and aborts the transaction.
+- Reversal continues to run as one outer transaction, including reversal draft creation, reversal posting, original-journal state transition, and both posting/reversal audit writes. A failure in the final reversal audit therefore rolls back the reversal journal, its posting audit, and the original journal's reversed state.
+- Added regression tests for posting-audit failure rollback, reversal-audit failure rollback, and direct database attempts to update a posted header or insert/update/delete posted journal lines.
+- Added database immutability triggers for journal-line insert/update/delete on MySQL and SQLite. SQLite also receives posted-header and permitted posted-to-reversed transition guards so the direct-SQL regression coverage exercises database enforcement in the feature-test driver.
+- Draft journal lines remain mutable only while the parent journal is in draft; posted, reversed, and cancelled journal lines are immutable at the database boundary.
+
+### Evidence boundary
+
+The listener, migration, and regression-test source are committed on the Phase 1 branch. This is IMPLEMENTED IN SOURCE / NOT RUNTIME VERIFIED. No tests, migration execution, MySQL trigger execution, or CI workflows were run. MySQL production schema compatibility and actual transaction rollback behavior remain unverified until an authorized runtime environment is available.
 
 ## 7. Safety and release boundaries
 
