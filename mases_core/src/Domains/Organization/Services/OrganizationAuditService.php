@@ -20,16 +20,40 @@ final class OrganizationAuditService
         ?array $before,
         ?array $after,
     ): OrganizationAuditEvent {
+        return $this->recordSystem(
+            $tenantId,
+            $request->user()?->getAuthIdentifier(),
+            $subjectType,
+            $subjectId,
+            $action,
+            $reason,
+            $before,
+            $after,
+            $request->header('X-Request-ID'),
+        );
+    }
+
+    public function recordSystem(
+        int $tenantId,
+        ?int $actorId,
+        string $subjectType,
+        int $subjectId,
+        string $action,
+        string $reason,
+        ?array $before,
+        ?array $after,
+        ?string $requestId = null,
+    ): OrganizationAuditEvent {
         return OrganizationAuditEvent::query()->create([
             'tenant_id' => $tenantId,
-            'actor_user_id' => $request->user()?->getAuthIdentifier(),
+            'actor_user_id' => $actorId,
             'subject_type' => $subjectType,
             'subject_id' => $subjectId,
             'action' => $action,
             'reason' => $reason,
             'before_state' => $before,
             'after_state' => $after,
-            'request_id' => $request->header('X-Request-ID'),
+            'request_id' => $requestId,
             'created_at' => now(),
         ]);
     }
