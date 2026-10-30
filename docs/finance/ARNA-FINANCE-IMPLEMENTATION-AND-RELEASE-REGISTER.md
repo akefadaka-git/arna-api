@@ -8,7 +8,7 @@
 
 ## 1. Phase 0 — architecture baseline
 
-<badge>Phase 0 CLOSED — architecture baseline only</badge>
+**Phase 0: CLOSED — architecture baseline only.**
 
 Phase 0 is closed for architecture and technical-contract purposes. The canonical contract now defines:
 
