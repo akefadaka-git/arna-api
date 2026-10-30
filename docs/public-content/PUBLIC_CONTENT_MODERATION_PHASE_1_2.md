@@ -30,9 +30,11 @@ A public submission is never assigned an approved or published state from client
 
 - `GET /api/public/content` — published records only; optional `type` and bounded `per_page`.
 - `GET /api/public/content/{publicId}` — published record by opaque UUID only.
-- `POST /api/public/content/submissions` — anonymous or authenticated submission; 5 requests per 10 minutes per source.
+- `POST /api/public/content/verification-challenges` — sends a six-digit email code; 3 requests per 15 minutes per source.
+- `POST /api/public/content/verification-challenges/verify` — validates the code and returns a one-time submission proof; 5 requests per 10 minutes per source.
+- `POST /api/public/content/submissions` — accepts a guest submission only with a verified, unexpired, unused proof; 5 requests per 10 minutes per source.
 
-Submission fields: `content_type`, `title`, `body`, `author_name`, required `author_email`, and accepted `consent`. The server stores consent time. The reviewer identity check compares both the authenticated submitter ID and the contributor contact email with the reviewer account. A guest-provided email is a contact identifier, not cryptographic proof of identity; a later verified-contributor flow is required if the business needs stronger identity assurance for anonymous authors. A non-empty honeypot field is silently discarded without creating a record.
+Submission fields: `content_type`, `title`, `body`, `author_name`, and accepted `consent`. A guest first requests an email challenge, verifies the six-digit code, then submits the returned opaque proof with the challenge UUID. Codes expire after 15 minutes, allow at most five attempts, and are stored only as password hashes. The proof is also stored hashed, is single-use, and is consumed atomically with submission creation. The contributor email is taken from the verified challenge, never from the submission payload. Authenticated contributors must have a verified account email; the server binds the submission to that account email and user ID. Verified contributor email and authenticated submitter ID are immutable through editorial edits. The reviewer identity check compares the verified contributor email and submitter ID with the reviewer account. A non-empty honeypot field is silently discarded without creating a record.
 
 Public resources do not expose author email, submitter identity, reviewer identity, internal status, review notes, or internal numeric IDs.
 
@@ -48,7 +50,7 @@ All routes require `auth:sanctum` and the global permission `public-content.revi
 - `POST /api/admin/public-content/{id}/publish` — requires prior approval; optional future `scheduled_at`.
 - `POST /api/admin/public-content/{id}/unpublish`
 
-Every decision and edit requires `expected_version`. A stale version returns HTTP 409. Rejection and change requests require a reason. The backend blocks moderation when the submitter account or contributor contact email matches the reviewer account. Guest email is not independently verified in this phase, so it is a contact identifier rather than cryptographic identity proof.
+Every decision and edit requires `expected_version`. A stale version returns HTTP 409. Rejection and change requests require a reason. The backend blocks moderation when the submitter account or verified contributor email matches the reviewer account. Guest email ownership is verified by a short-lived, one-time code before the submission is accepted.
 
 ## Authorization provisioning
 
