@@ -1,3 +1,5 @@
+> **Policy alignment notice (2026-10-30):** The numbering format and counter-scope sections in this earlier contract are superseded for future implementation by [ARNA Amharic Document Numbering Standard v1.0](arna-amharic-document-numbering-standard-v1.md) and the [ARNA Document Numbering Operations Manual v1.0](../operations/arna-document-numbering-operations-manual-v1.md). The target number is **ዓርና/BB/TT/SSSS/YY**. The counter scope is tenant + legal entity + issuing unit + document type + full Ethiopian year; issuing Governance position/role is authority metadata, not a counter dimension. The older format and position-inclusive counter scope below are historical design material and must not be used as the target contract. QR and verification guidance remains subject to separate implementation and verification. This notice does not claim the target numbering format is implemented.
+
 # Document Numbering and QR Verification Contract
 
 **Status:** Contract plus source implementation in draft PR #53; runtime behavior remains unverified.
