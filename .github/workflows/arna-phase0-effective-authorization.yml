@@ -71,13 +71,13 @@ jobs:
       CACHE_STORE: array
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
-      LOG_CHANNEL: null
+      LOG_CHANNEL: "null"
       TARGET_REF: ${{ github.event.pull_request.head.sha || inputs.target_ref || github.sha }}
     steps:
       - name: Check out requested exact revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.TARGET_REF }}
+          ref: ${{ github.event.pull_request.head.sha || inputs.target_ref || github.sha }}
           persist-credentials: false
 
       - name: Verify checked-out revision
