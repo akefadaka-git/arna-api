@@ -235,7 +235,7 @@ jobs:
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
-          expected_migrations="$("
+          expected_migrations="$(
             {
               find database/migrations -maxdepth 1 -type f -name '*.php' -printf '%f\n'
               find mases_core/src -type f -path '*/Database/Migrations/*.php' -printf '%f\n'
@@ -280,7 +280,7 @@ jobs:
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
-          expected_migrations="$("
+          expected_migrations="$(
             {
               find database/migrations -maxdepth 1 -type f -name '*.php' -printf '%f\n'
               find mases_core/src -type f -path '*/Database/Migrations/*.php' -printf '%f\n'
@@ -299,7 +299,7 @@ jobs:
         run: |
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
-          expected_migrations="$("
+          expected_migrations="$(
             {
               find database/migrations -maxdepth 1 -type f -name '*.php' -printf '%f\n'
               find mases_core/src -type f -path '*/Database/Migrations/*.php' -printf '%f\n'
