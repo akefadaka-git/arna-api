@@ -171,7 +171,7 @@ jobs:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact tests/Feature/OrganizationDomainTest.php
+        run: php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationDomainTest.php
 
       - name: Confirm test database is empty
         shell: bash
@@ -215,7 +215,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php
+        run: php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php
 
       - name: Verify expected core and domain tables
         shell: bash
