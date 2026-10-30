@@ -326,21 +326,15 @@ final class AuthorizationService
             return false;
         }
 
-        // A caller-supplied tenant is a scope selector, not authority to
-        // switch away from the trusted request tenant. Validate it before
-        // resolving permissions or consulting the permission cache.
         if ($tenantId !== null && !$this->explicitTenantMatchesTrustedContext($tenantId)) {
             return false;
         }
 
-        $tenantId      = $tenantId ?? mases_tenant_id();
+        $tenantId = $tenantId ?? mases_tenant_id();
         $applicationId = $applicationSlug
             ? $this->resolveApplicationId($applicationSlug)
             : null;
 
-        // Build the fully-qualified cache key for this specific check.
-        // Every dimension of the check appears in the key, so different
-        // contexts (same user, different tenant) never collide.
         $cacheKey = sprintf(
             'auth:permission:%d:%s:%s:%s',
             $user->id,
@@ -349,14 +343,6 @@ final class AuthorizationService
             $applicationId ?: 'null'
         );
 
-        // Register the key BEFORE the remember() call. Two reasons:
-        //   1. If the closure throws (e.g. DB error), the key was still
-        //      tracked, so an invalidation later will still attempt to
-        //      remove it — harmless if it never got written.
-        //   2. The registry is consulted by addUserCacheKey() to decide
-        //      whether a write is needed; registering first means the very
-        //      first check on a cold cache performs one write, subsequent
-        //      checks on the same key perform zero writes.
         $this->addUserCacheKey($user, $cacheKey);
 
         return $this->cache->remember($cacheKey, self::CACHE_DURATION, function () use (
@@ -364,76 +350,109 @@ final class AuthorizationService
             $permissionSlug,
             $tenantId,
             $applicationId
-        ) {
-            // ------------------------------------------------------------
-            // Path A — direct permissions.
-            // A user may hold a permission without it being attached to
-            // any of their roles. Check the direct pivot first.
-            // ------------------------------------------------------------
-            $hasDirect = $user->permissions()
+        ): bool {
+            // Direct grants are still subject to the permission's declared
+            // scope. A tenant selector cannot turn a global or application
+            // permission into a tenant permission (or vice versa).
+            $direct = $user->permissions()
                 ->where('slug', $permissionSlug)
                 ->where('is_active', true)
-                ->when(
-                    $tenantId !== null,
-                    function ($query) use ($tenantId) {
-                        $query->where(function ($q) use ($tenantId) {
-                            $q->where('tenant_id', $tenantId)
-                                ->orWhereNull('tenant_id');
-                        });
-                    },
-                    fn ($query) => $query->whereNull('tenant_id')
-                )
-                ->when($applicationId !== null, function ($query) use ($applicationId) {
-                    $query->where(function ($q) use ($applicationId) {
-                        $q->where('application_id', $applicationId)
-                            ->orWhereNull('application_id');
+                ->where(function ($scope) use ($tenantId, $applicationId): void {
+                    $scope->where(function ($global): void {
+                        $global->where('scope', 'global')
+                            ->whereNull('tenant_id')
+                            ->whereNull('application_id');
                     });
+
+                    if ($tenantId !== null) {
+                        $scope->orWhere(function ($tenant) use ($tenantId): void {
+                            $tenant->where('scope', 'tenant')
+                                ->whereNull('application_id')
+                                ->where(function ($tenantScope) use ($tenantId): void {
+                                    $tenantScope->whereNull('tenant_id')
+                                        ->orWhere('tenant_id', $tenantId);
+                                });
+                        });
+                    }
+
+                    if ($applicationId !== null) {
+                        $scope->orWhere(function ($application) use ($applicationId): void {
+                            $application->where('scope', 'application')
+                                ->whereNull('tenant_id')
+                                ->where('application_id', $applicationId);
+                        });
+                    }
                 })
                 ->exists();
 
-            if ($hasDirect) {
+            if ($direct) {
                 return true;
             }
 
-            // ------------------------------------------------------------
-            // Path B — permissions inherited via roles.
-            // For every role the user holds, check if any of its attached
-            // permissions matches the requested slug, subject to the same
-            // tenant and application scoping rules as Path A.
-            // ------------------------------------------------------------
-            return $user->roles()
-                ->where('is_active', true)
-                ->whereHas('permissions', function ($query) use ($permissionSlug, $tenantId) {
+            // Role and permission scopes must agree:
+            // platform -> global, tenant -> this tenant, application -> this app.
+            $roles = $user->roles()->where('is_active', true);
+
+            $platformGrant = (clone $roles)
+                ->where('scope', 'platform')
+                ->whereNull('tenant_id')
+                ->whereNull('application_id')
+                ->whereHas('permissions', function ($query) use ($permissionSlug): void {
                     $query->where('slug', $permissionSlug)
                         ->where('is_active', true)
-                        ->when(
-                            $tenantId !== null,
-                            function ($permissionQuery) use ($tenantId) {
-                                $permissionQuery->where(function ($q) use ($tenantId) {
-                                    $q->where('tenant_id', $tenantId)
-                                        ->orWhereNull('tenant_id');
-                                });
-                            },
-                            fn ($permissionQuery) => $permissionQuery->whereNull('tenant_id')
-                        );
-                })
-                ->when(
-                    $tenantId !== null,
-                    function ($query) use ($tenantId) {
-                        $query->where(function ($q) use ($tenantId) {
-                            $q->where('tenant_id', $tenantId)
-                                ->orWhereNull('tenant_id');
-                        });
-                    },
-                    fn ($query) => $query->whereNull('tenant_id')
-                )
-                ->when($applicationId !== null, function ($query) use ($applicationId) {
-                    $query->where(function ($q) use ($applicationId) {
-                        $q->where('application_id', $applicationId)
-                            ->orWhereNull('application_id');
-                    });
+                        ->where('scope', 'global')
+                        ->whereNull('tenant_id')
+                        ->whereNull('application_id');
                 })
                 ->exists();
+
+            if ($platformGrant) {
+                return true;
+            }
+
+            if ($tenantId !== null) {
+                $tenantGrant = (clone $roles)
+                    ->where('scope', 'tenant')
+                    ->where('tenant_id', $tenantId)
+                    ->whereNull('application_id')
+                    ->whereHas('permissions', function ($query) use ($permissionSlug, $tenantId): void {
+                        $query->where('slug', $permissionSlug)
+                            ->where('is_active', true)
+                            ->where('scope', 'tenant')
+                            ->whereNull('application_id')
+                            ->where(function ($tenantScope) use ($tenantId): void {
+                                $tenantScope->whereNull('tenant_id')
+                                    ->orWhere('tenant_id', $tenantId);
+                            });
+                    })
+                    ->exists();
+
+                if ($tenantGrant) {
+                    return true;
+                }
+            }
+
+            if ($applicationId !== null) {
+                return (clone $roles)
+                    ->where('scope', 'application')
+                    ->where('application_id', $applicationId)
+                    ->where(function ($roleTenant) use ($tenantId): void {
+                        $roleTenant->whereNull('tenant_id');
+                        if ($tenantId !== null) {
+                            $roleTenant->orWhere('tenant_id', $tenantId);
+                        }
+                    })
+                    ->whereHas('permissions', function ($query) use ($permissionSlug, $applicationId): void {
+                        $query->where('slug', $permissionSlug)
+                            ->where('is_active', true)
+                            ->where('scope', 'application')
+                            ->whereNull('tenant_id')
+                            ->where('application_id', $applicationId);
+                    })
+                    ->exists();
+            }
+
+            return false;
         });
     }
 

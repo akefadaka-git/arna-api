@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Files\Models\File;
@@ -948,6 +949,171 @@ final class PersonApiIntegrationTest extends TestCase
             'tenant_id' => $tenant->getKey(),
             'employee_number' => 'PEOPLE-REVOKE-GUARD-001',
             'person_id' => $person->getKey(),
+        ]);
+    }
+
+    #[Test]
+    public function inactive_people_role_cannot_authorize_person_creation(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        $actor->roles()->firstOrFail()->update(['is_active' => false]);
+
+        Sanctum::actingAs($actor);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->getKey())
+            ->postJson('/api/people', ['first_name_en' => 'Denied Inactive Role'])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('people', ['first_name_en' => 'Denied Inactive Role']);
+    }
+
+    #[Test]
+    public function application_scoped_people_role_cannot_authorize_tenant_person_creation(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        $actor->roles()->firstOrFail()->update(['is_active' => false]);
+
+        $application = PlatformApplication::query()->create([
+            'slug' => 'people-test-application-'.$tenant->getKey(),
+            'name_en' => 'People Test Application',
+            'domain' => 'people-test-'.$tenant->getKey().'.example.test',
+            'is_active' => true,
+        ]);
+        $permission = Permission::query()->where('slug', 'people.manage')->firstOrFail();
+        $permission->update([
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $application->getKey(),
+        ]);
+        $role = Role::query()->create([
+            'name_en' => 'Application People Manager',
+            'slug' => 'application-people-manager-'.$tenant->getKey(),
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $application->getKey(),
+            'is_active' => true,
+        ]);
+        $role->permissions()->attach($permission->getKey(), ['assigned_at' => now()]);
+        $actor->roles()->attach($role->getKey(), ['assigned_at' => now()]);
+
+        Sanctum::actingAs($actor);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->getKey())
+            ->postJson('/api/people', ['first_name_en' => 'Denied Application Role'])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('people', ['first_name_en' => 'Denied Application Role']);
+    }
+
+    #[Test]
+    public function relationship_reads_and_deactivation_responses_hide_related_person_after_tenant_access_revocation(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $personResponse = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Visible Relationship Owner',
+        ])->assertCreated();
+        $relatedResponse = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Private Related Person',
+        ])->assertCreated();
+
+        $person = Person::query()->where('public_id', $personResponse->json('data.public_id'))->firstOrFail();
+        $related = Person::query()->where('public_id', $relatedResponse->json('data.public_id'))->firstOrFail();
+        $created = $this->withHeaders($headers)->postJson(
+            '/api/people/'.$person->public_id.'/person-relationships',
+            [
+                'related_public_id' => $related->public_id,
+                'relationship_type' => 'guardian',
+                'reason' => 'Confirmed relationship before access revocation',
+            ]
+        )->assertCreated()->assertJsonPath('data.related_name_en', 'Private Related Person');
+        $relationshipId = $created->json('data.id');
+
+        DB::table('person_tenant_accesses')
+            ->where('tenant_id', $tenant->getKey())
+            ->where('person_id', $related->getKey())
+            ->update(['status' => 'revoked', 'updated_at' => now()]);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/people/'.$person->public_id.'/person-relationships')
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonMissing(['related_name_en' => 'Private Related Person'])
+            ->assertJsonMissing(['related_public_id' => $related->public_id]);
+
+        $this->withHeaders($headers)
+            ->postJson('/api/people/'.$person->public_id.'/person-relationships/'.$relationshipId.'/deactivate', [
+                'reason' => 'Deactivate after related access was revoked',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'inactive')
+            ->assertJsonPath('data.related_public_id', null)
+            ->assertJsonPath('data.related_name_en', null)
+            ->assertJsonPath('data.related_name_am', null);
+
+        $this->assertDatabaseHas('person_relationships', [
+            'id' => $relationshipId,
+            'status' => 'inactive',
+        ]);
+    }
+
+    #[Test]
+    public function application_scoped_role_cannot_grant_global_account_link_permission(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        Sanctum::actingAs($actor);
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Account Link Permission Boundary',
+        ])->assertCreated();
+        $person = Person::query()->where('public_id', $created->json('data.public_id'))->firstOrFail();
+
+        $target = User::factory()->create(['is_active' => true]);
+        $target->tenants()->attach($tenant->getKey(), [
+            'joined_at' => now(),
+            'status' => 'active',
+        ]);
+
+        $actor->roles()->firstOrFail()->update(['is_active' => false]);
+        $application = PlatformApplication::query()->create([
+            'slug' => 'people-account-link-test-'.$tenant->getKey(),
+            'name_en' => 'People Account Link Test',
+            'domain' => 'people-account-link-'.$tenant->getKey().'.example.test',
+            'is_active' => true,
+        ]);
+        $permission = Permission::query()->create([
+            'name_en' => 'Application Account Link Manager',
+            'slug' => 'people.account-link.manage',
+            'category' => 'user',
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $application->getKey(),
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $role = Role::query()->create([
+            'name_en' => 'Application Account Link Manager',
+            'slug' => 'application-account-link-manager-'.$tenant->getKey(),
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $application->getKey(),
+            'is_active' => true,
+        ]);
+        $role->permissions()->attach($permission->getKey(), ['assigned_at' => now()]);
+        $actor->roles()->attach($role->getKey(), ['assigned_at' => now()]);
+
+        Sanctum::actingAs($actor);
+        $this->withHeaders($headers)
+            ->postJson('/api/people/'.$person->public_id.'/account', [
+                'user_id' => $target->getKey(),
+                'reason' => 'Link the account to the canonical Person',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('people', [
+            'id' => $person->getKey(),
+            'user_id' => null,
         ]);
     }
 
