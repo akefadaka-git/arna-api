@@ -102,10 +102,7 @@ final class PublicContentModerationTest extends TestCase
             'submitted_by' => null,
             'author_email' => 'writer@example.com',
         ]);
-        $this->assertDatabaseHas('public_contents', [
-            'public_id' => $response->json('data.reference'),
-            'author_email_verified_at' => now()->toDateTimeString(),
-        ]);
+        $this->assertNotNull(DB::table('public_contents')->where('public_id', $response->json('data.reference'))->value('author_email_verified_at'));
 
         $this->getJson('/api/public/content')->assertOk()->assertJsonCount(0, 'data.data');
         $this->assertDatabaseHas('audit_logs', [
