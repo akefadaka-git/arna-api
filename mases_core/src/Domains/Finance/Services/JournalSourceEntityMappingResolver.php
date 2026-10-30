@@ -52,7 +52,11 @@ final class JournalSourceEntityMappingResolver implements JournalSourceReference
             $this->rejectReference();
         }
 
-        $mappingExists = JournalSourceEntityMapping::query()
+        // Caller validation runs inside the journal-create or journal-post
+        // transaction. Lock the approved mapping through that transaction so a
+        // concurrent revocation/reassignment cannot race between validation
+        // and the journal state transition.
+        $mapping = JournalSourceEntityMapping::query()
             ->where('tenant_id', $tenantId)
             ->where('legal_entity_id', $legalEntityId)
             ->where('source_type', $sourceType->value)
@@ -65,9 +69,10 @@ final class JournalSourceEntityMappingResolver implements JournalSourceReference
                     ->whereKey($legalEntityId)
                     ->where('status', 'active');
             })
-            ->exists();
+            ->lockForUpdate()
+            ->first();
 
-        if (!$mappingExists) {
+        if ($mapping === null) {
             $this->rejectReference();
         }
     }
