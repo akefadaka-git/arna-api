@@ -193,6 +193,42 @@ final class OrganizationController extends Controller
         return response()->json(['success' => true, 'data' => $record], 201);
     }
 
+    public function retireBranchNumber(Request $request, int $id): JsonResponse
+    {
+        $actor = $request->user();
+        abort_unless($actor instanceof User && $this->unitPolicy->create($actor), 403, 'Organization numbering administration is not authorized.');
+        $data = $request->validate(OrganizationRequestRules::retireNumberCode());
+        $tenantId = $this->tenantId();
+        $record = DB::transaction(function () use ($tenantId, $id, $data, $request) {
+            $before = (array) DB::table('organization_branch_number_codes')
+                ->where('tenant_id', $tenantId)->where('id', $id)->first();
+            $retired = $this->numberingRegistry->retireBranch($tenantId, $id, $data['reason']);
+            $this->auditService->record($tenantId, $request, 'branch_number_code', $id,
+                'retired', $data['reason'], $before, (array) $retired);
+            return $retired;
+        }, 3);
+
+        return response()->json(['success' => true, 'data' => $record]);
+    }
+
+    public function retireDepartmentNumber(Request $request, int $id): JsonResponse
+    {
+        $actor = $request->user();
+        abort_unless($actor instanceof User && $this->unitPolicy->create($actor), 403, 'Organization numbering administration is not authorized.');
+        $data = $request->validate(OrganizationRequestRules::retireNumberCode());
+        $tenantId = $this->tenantId();
+        $record = DB::transaction(function () use ($tenantId, $id, $data, $request) {
+            $before = (array) DB::table('organization_department_number_codes')
+                ->where('tenant_id', $tenantId)->where('id', $id)->first();
+            $retired = $this->numberingRegistry->retireDepartment($tenantId, $id, $data['reason']);
+            $this->auditService->record($tenantId, $request, 'department_number_code', $id,
+                'retired', $data['reason'], $before, (array) $retired);
+            return $retired;
+        }, 3);
+
+        return response()->json(['success' => true, 'data' => $record]);
+    }
+
     private function authorizeUnitList(?User $user): void
     {
         abort_unless($user && $this->unitPolicy->viewAny($user), 403, 'Organization unit listing is not authorized.');
