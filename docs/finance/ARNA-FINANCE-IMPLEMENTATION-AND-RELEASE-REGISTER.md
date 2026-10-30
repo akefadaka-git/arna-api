@@ -75,7 +75,7 @@ No code in this branch represents a professional tax opinion. Production tax cal
 
 | ID | Phase | Required work | Status / acceptance evidence |
 |---|---|---|---|
-| FIN-1.01 | 1 — GL integrity | Enforce source-event uniqueness by tenant + legal entity + source domain + immutable event ID + version, with canonical payload hash | IMPLEMENTED IN SOURCE — nullable legacy-compatible `source_event_version`, required for external sources; unique tenant/entity/type/source/version index; canonical `source_event_hash` excludes request idempotency key; same event/payload returns persisted journal; changed payload conflicts. Tests added; NOT RUN |
+| FIN-1.01 | 1 — GL integrity | Enforce source-event uniqueness by tenant + legal entity + source domain + immutable event ID + version, with canonical payload hash | IMPLEMENTED IN SOURCE — nullable legacy-compatible `source_event_id`, `source_event_version`, and `source_event_hash`; external sources require an aggregate `source_id` plus immutable event ID and version; unique tenant/entity/type/event-ID/version index; canonical payload hash excludes request idempotency key; same event/payload returns persisted journal; changed payload conflicts. Tests added; NOT RUN |
 | FIN-1.02 | 1 — GL integrity | Prove atomic posting, audit persistence, posted-header/line immutability, and reversal linkage | PARTIAL — transaction/service source exists; exact runtime and model-guard behavior unverified |
 | FIN-1.03 | 1 — GL integrity | Verify concurrent duplicate requests and period close/post race behavior on MySQL | NOT RUN |
 | FIN-1.04 | 1 — GL integrity | Verify tenant/entity isolation for all reads, writes, account references, periods, reversals, and reports | PARTIAL — composite constraints and scoped queries exist; adversarial tests not run |
@@ -106,12 +106,12 @@ Implementation branch: `feat/finance-gl-integrity-phase1`, based on the reviewed
 
 ### FIN-1.01 — versioned source-event idempotency
 
-- Added `source_event_version` and `source_event_hash` to `journal_entries`.
-- Added database uniqueness on `tenant_id + legal_entity_id + source_type + source_id + source_event_version`. Nullable versions preserve legacy/manual rows; new external-source journals must supply a non-empty version.
+- Added `source_event_id`, `source_event_version`, and `source_event_hash` to `journal_entries`. `source_id` continues to identify the owning aggregate/business record; `source_event_id` identifies the individual immutable event within that aggregate.
+- Added database uniqueness on `tenant_id + legal_entity_id + source_type + source_event_id + source_event_version`. Nullable versions preserve legacy/manual rows; new external-source journals must supply a non-empty version.
 - The canonical source-event fingerprint excludes the request idempotency key, so a retry of the same source event and payload can return the original journal even if the caller uses a different request key.
 - A repeated source identity with a changed canonical payload returns HTTP 409.
 - Unique-index races are reconciled after transaction rollback by re-reading the idempotency key and source identity; matching hashes return the persisted journal, changed hashes conflict.
-- `SubledgerPostingInstruction` now requires and forwards the source event version.
+- `SubledgerPostingInstruction` now requires and forwards the immutable source event ID and version; the adapter must derive both from the owning domain's authoritative event record.
 - MySQL insert guard requires complete external source identity; source type/ID/version/hash are immutable after draft creation, and the posted-journal immutability trigger also protects version and hash.
 - Existing legacy rows are not assigned invented event versions; their nullable version is preserved. External event replay for historical unversioned rows remains a migration/reconciliation concern and must not be guessed.
 
