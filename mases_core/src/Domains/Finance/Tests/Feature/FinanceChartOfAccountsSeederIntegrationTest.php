@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace MaaleArna\MASES\Core\Domains\Finance\Tests\Feature;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use LogicException;
