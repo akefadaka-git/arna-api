@@ -15,7 +15,7 @@ final class FinanceControlAccountOwnershipRegistryTest extends TestCase
     #[Test]
     public function every_canonical_control_account_has_a_complete_fail_closed_policy(): void
     {
-        $chart = require base_path('config/finance/chart_of_accounts_v1.php');
+        $chart = config('finance.chart_of_accounts_v1', []);
         $registry = new ControlAccountOwnershipRegistry();
 
         $registry->validateAgainstChart($chart);

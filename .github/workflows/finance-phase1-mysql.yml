@@ -6,9 +6,8 @@ on:
       - feat/finance-gl-integrity-phase1
     paths:
       - ".github/workflows/finance-phase1-mysql.yml"
-      - "database/migrations/**"
       - "mases_core/src/Domains/Finance/**"
-      - "tests/Feature/FinanceGeneralLedgerTest.php"
+      - "bootstrap/providers.php"
       - "composer.json"
       - "composer.lock"
       - "phpunit.xml"
@@ -116,7 +115,7 @@ jobs:
         run: php artisan migrate --force -vvv
 
       - name: Run Finance General Ledger feature regressions on MySQL
-        run: php artisan test --compact tests/Feature/FinanceGeneralLedgerTest.php
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/FinanceGeneralLedgerTest.php
 
       - name: Capture exact-commit and migration evidence
         if: always()

@@ -15,7 +15,7 @@ final class FinanceChartOfAccountsRegisterTest extends TestCase
 {
     private function register(): array
     {
-        return require base_path('config/finance/chart_of_accounts_v1.php');
+        return config('finance.chart_of_accounts_v1', []);
     }
 
     #[Test]

@@ -18,7 +18,7 @@ final class ControlAccountOwnershipRegistry
     /** @return array<string, array<string, mixed>> */
     public function all(): array
     {
-        $policies = require base_path('config/finance/control_account_ownership_v1.php');
+        $policies = config('finance.control_account_ownership_v1', []);
         if (!is_array($policies)) {
             throw new LogicException('Finance control-account ownership configuration must return an array.');
         }

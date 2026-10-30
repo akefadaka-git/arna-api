@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Database\Seeders;
+namespace MaaleArna\MASES\Core\Domains\Finance\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -44,7 +44,7 @@ final class FinanceChartOfAccountsSeeder extends Seeder
             }
         }
 
-        $register = require base_path('config/finance/chart_of_accounts_v1.php');
+        $register = config('finance.chart_of_accounts_v1', []);
         $this->validateRegister($register);
         // Validate control-account ownership before the first database write.
         // Pending personnel designation is allowed for seeding, but the registry

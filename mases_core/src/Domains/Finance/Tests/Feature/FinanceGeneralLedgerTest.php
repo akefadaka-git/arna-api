@@ -399,7 +399,7 @@ final class FinanceGeneralLedgerTest extends TestCase
         $lines[0]['debit_amount'] = '11';
         $lines[1]['credit_amount'] = '11';
 
-        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\ConflictHttpException::class);
         $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
     }
 

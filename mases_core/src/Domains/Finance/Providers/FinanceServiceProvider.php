@@ -45,6 +45,8 @@ final class FinanceServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->mergeConfigFrom(__DIR__ . '/../Config/chart_of_accounts_v1.php', 'finance.chart_of_accounts_v1');
+        $this->mergeConfigFrom(__DIR__ . '/../Config/control_account_ownership_v1.php', 'finance.control_account_ownership_v1');
         $this->app->singleton(LegalEntityRepository::class);
         $this->app->singleton(JournalEntryRepository::class);
         $this->app->singleton(AccountingPeriodRepository::class);
@@ -61,6 +63,7 @@ final class FinanceServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
         $this->loadTranslationsFrom(__DIR__ . '/../Resources/lang', 'finance');
         Gate::policy(LegalEntity::class, LegalEntityPolicy::class);
         Gate::policy(LedgerAccount::class, LedgerAccountPolicy::class);
