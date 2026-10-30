@@ -50,7 +50,15 @@ final class DocumentAuthorityService
         if ($tenantId < 1 || (int) $this->tenantContext->getTenantId() !== $tenantId) {
             throw new AuthorizationException('A matching server-validated tenant context is required.');
         }
-        if (!$actor->is_active || !$this->authorization->hasPermission('documents.issue', $actor, $tenantId)) {
+
+        // Refresh and lock the actor row for the transactional authority pass;
+        // a concurrent account deactivation must wait for issuance to finish.
+        $authorityActor = $lockRows
+            ? User::query()->whereKey($actor->getKey())->lockForUpdate()->first()
+            : $actor;
+
+        if (!$authorityActor || !$authorityActor->is_active
+            || !$this->authorization->hasPermission('documents.issue', $authorityActor, $tenantId)) {
             throw new AuthorizationException('The actor lacks documents.issue in the validated tenant.');
         }
 
