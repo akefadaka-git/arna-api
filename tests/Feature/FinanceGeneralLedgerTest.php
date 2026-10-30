@@ -1470,6 +1470,90 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertDatabaseCount('journal_lines', 0);
     }
 
+    #[Test]
+    public function test_journal_creation_posting_and_reversal_are_isolated_by_tenant_and_legal_entity(): void
+    {
+        [$tenantA, $userA, $entityA, $periodA, $cashA, $equityA] = $this->ledgerFixture();
+        $tenantB = Tenant::factory()->create(['is_active' => true]);
+        $entityB = LegalEntity::query()->create([
+            'tenant_id' => $tenantB->id,
+            'code' => 'OTHER',
+            'name_en' => 'Other Legal Entity',
+            'base_currency' => 'ETB',
+            'status' => 'active',
+        ]);
+        $accountB = LedgerAccount::query()->create([
+            'tenant_id' => $tenantB->id,
+            'legal_entity_id' => $entityB->id,
+            'code' => 'OTHER-CASH',
+            'name_en' => 'Other Cash',
+            'account_type' => 'asset',
+            'normal_balance' => 'debit',
+            'is_posting_allowed' => true,
+            'status' => 'active',
+        ]);
+
+        $service = app(JournalEntryService::class);
+        try {
+            $service->createDraft((int) $tenantA->id, (int) $userA->id, [
+                'legal_entity_id' => $entityA->id,
+                'journal_number' => 'JV-CROSS-TENANT-ACCOUNT',
+                'effective_date' => '2026-10-10',
+                'description' => 'Cross-tenant account rejection',
+                'currency' => 'ETB',
+                'idempotency_key' => 'cross-tenant-account-rejection',
+            ], [
+                ['account_id' => $accountB->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+                ['account_id' => $equityA->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+            ]);
+            $this->fail('A journal must not reference an account owned by another tenant/entity.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('lines.0.account_id', $exception->errors());
+        }
+
+        $draft = $service->createDraft((int) $tenantA->id, (int) $userA->id, [
+            'legal_entity_id' => $entityA->id,
+            'journal_number' => 'JV-TENANT-OWNED',
+            'effective_date' => '2026-10-10',
+            'description' => 'Tenant ownership boundary',
+            'currency' => 'ETB',
+            'idempotency_key' => 'tenant-owned-journal',
+        ], [
+            ['account_id' => $cashA->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+            ['account_id' => $equityA->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+        ]);
+
+        try {
+            $service->post((int) $tenantB->id, (int) $userA->id, (int) $draft->id);
+            $this->fail('A different tenant must not post another tenant journal.');
+        } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException) {
+            $this->assertDatabaseHas('journal_entries', [
+                'id' => $draft->id,
+                'tenant_id' => $tenantA->id,
+                'status' => JournalEntry::DRAFT,
+            ]);
+        }
+
+        $posted = $service->post((int) $tenantA->id, (int) $userA->id, (int) $draft->id);
+        try {
+            $service->reverse(
+                (int) $tenantB->id,
+                (int) $userA->id,
+                (int) $posted->id,
+                'JV-CROSS-TENANT-REVERSAL',
+                '2026-10-10',
+                'Cross-tenant reversal must fail',
+            );
+            $this->fail('A different tenant must not reverse another tenant journal.');
+        } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException) {
+            $this->assertDatabaseHas('journal_entries', [
+                'id' => $posted->id,
+                'tenant_id' => $tenantA->id,
+                'status' => JournalEntry::POSTED,
+            ]);
+        }
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
