@@ -48,7 +48,7 @@ All routes require `auth:sanctum` and the global permission `public-content.revi
 - `POST /api/admin/public-content/{id}/publish` — requires prior approval; optional future `scheduled_at`.
 - `POST /api/admin/public-content/{id}/unpublish`
 
-Every decision and edit requires `expected_version`. A stale version returns HTTP 409. Rejection and change requests require a reason. An authenticated submitter cannot approve or publish their own record; the backend enforces this independently of the UI.
+Every decision and edit requires `expected_version`. A stale version returns HTTP 409. Rejection and change requests require a reason. The backend blocks moderation when the submitter account or contributor contact email matches the reviewer account. Guest email is not independently verified in this phase, so it is a contact identifier rather than cryptographic identity proof.
 
 ## Authorization provisioning
 
@@ -58,7 +58,7 @@ The permission is provisioned by the existing PermissionSeeder / RolePermissionS
 
 ## Audit
 
-Submission, approval, rejection, request-changes, publication, unpublication, scheduled publication, and material edits append records to the existing `audit_logs` table. Audit metadata records the public UUID; review decisions record old/new status and version. The domain does not mutate or delete audit rows.
+Submission, approval, rejection, request-changes, publication, unpublication, scheduled publication, and material edits append records to the existing `audit_logs` table. Audit metadata records the public UUID; review decisions record old/new status and version; material edits also record changed metadata and before/after body hashes without duplicating full body text. The domain does not mutate or delete audit rows.
 
 ## Scheduling
 
