@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Hash;
-use Illuminate\\Support\\Facades\\Mail;
-use Illuminate\\Support\\Facades\\Validator;
-use Illuminate\\Support\\Str;
-use MaaleArna\\MASES\\Core\\Audit\\Models\\AuditLog;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Domains\\PublicContent\\Models\\PublicContent;
-use Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use MaaleArna\MASES\Core\Audit\Models\AuditLog;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\PublicContent;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 final class PublicContentController extends Controller
 {
@@ -72,7 +72,7 @@ final class PublicContentController extends Controller
                     $message->to($email)->subject('ARNA contributor email verification');
                 },
             );
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             DB::table('public_content_email_verifications')->where('id', $challengeId)->delete();
             report($exception);
 
