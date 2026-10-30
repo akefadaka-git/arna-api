@@ -51,6 +51,10 @@ return new class extends Migration
             $table->softDeletes();
             $table->foreign(['tenant_id', 'organization_unit_id'], 'organization_assignments_unit_tenant_fk')
                 ->references(['tenant_id', 'id'])->on('organization_units')->restrictOnDelete();
+            // A composite FK guarantees the person has a tenant-access record for this same tenant.
+            // Access revocation changes lifecycle state; it does not erase historical assignments.
+            $table->foreign(['person_id', 'tenant_id'], 'organization_assignments_person_tenant_access_fk')
+                ->references(['person_id', 'tenant_id'])->on('person_tenant_accesses')->restrictOnDelete();
             $table->index(['tenant_id', 'person_id', 'status'], 'organization_assignments_person_status_index');
             $table->index(['organization_unit_id', 'starts_on', 'ends_on'], 'organization_assignments_dates_index');
         });
