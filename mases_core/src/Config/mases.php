@@ -77,12 +77,7 @@ return [
             'domain' => 'portal.maalearna.com.et',
             'description' => 'Shareholder information and engagement portal.',
         ],
-        [
-            'slug' => 'finance',
-            'name' => 'Finance',
-            'domain' => 'finance.maalearna.com.et',
-            'description' => 'Financial management and reporting.',
-        ],
+        ...\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Config\\FinanceApplicationCatalogue::legacyConfigRows(),
         [
             'slug' => 'hr',
             'name' => 'Human Resources',

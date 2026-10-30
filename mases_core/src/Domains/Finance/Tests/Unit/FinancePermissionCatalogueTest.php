@@ -28,4 +28,25 @@ final class FinancePermissionCatalogueTest extends TestCase
             );
         }
     }
+    
+    #[Test]
+    public function platform_application_and_role_registries_compose_finance_owned_definitions(): void
+    {
+        $this->assertSame(FinanceApplicationCatalogue::ROWS['finance'], ApplicationRegistry::ROWS['finance']);
+
+        foreach (FinanceRoleCatalogue::ROWS as $slug => $definition) {
+            $this->assertSame($definition, RoleCatalogue::ROWS[$slug] ?? null);
+        }
+
+        foreach (FinanceRolePermissionGrants::MAP as $role => $financeGrants) {
+            $actual = RolePermissionGrants::MAP[$role] ?? [];
+            foreach ($financeGrants as $grant) {
+                $this->assertSame(
+                    1,
+                    count(array_filter($actual, static fn (string $candidate): bool => $candidate === $grant)),
+                    "Expected Finance grant [{$grant}] exactly once for role [{$role}].",
+                );
+            }
+        }
+    }
 }
