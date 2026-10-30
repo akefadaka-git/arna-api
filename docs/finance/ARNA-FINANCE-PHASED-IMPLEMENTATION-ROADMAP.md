@@ -47,7 +47,7 @@ Production release remains separately gated.
 | FIN-2.03 | Harden opt-in CoA seeder behavior | Seeder remains outside DatabaseSeeder; schema and ownership preflight completes before writes; existing tenant-owned non-system accounts are never overwritten; no opening balances are created |
 
 Dependency: Phase 1 ledger foundation and canonical CoA v1.0.0.  
-Current execution: FIN-2.01 COMPLETE / VERIFIED; FIN-2.02 COMPLETE / VERIFIED; FIN-2.03 source implementation and preflight unit coverage are verified, but seeder orchestration/runtime execution remains NOT RUN.
+Current execution: FIN-2.01 COMPLETE / VERIFIED; FIN-2.02 COMPLETE / VERIFIED; FIN-2.03 COMPLETE / VERIFIED by isolated disposable-MySQL seeder orchestration tests; production seeding remains disabled.
 
 ### P2-B — Budget management
 
@@ -199,16 +199,16 @@ A work package is COMPLETE / VERIFIED only when its acceptance criteria have evi
 ## 7. Current execution record — 2026-10-30
 
 - Phase 1: COMPLETE / VERIFIED — exact source SHA 87fdb65612b1b792b4751d3ad6539b123fd079a8; workflow 40999880593.
-- Phase 2: IN PROGRESS — CoA governance prerequisites FIN-2.01 and FIN-2.02 are COMPLETE / VERIFIED; FIN-2.03 implementation is present with exact-commit CI coverage, while seeder orchestration/runtime execution remains NOT RUN.
+- Phase 2: IN PROGRESS — CoA governance prerequisites FIN-2.01, FIN-2.02 and FIN-2.03 are COMPLETE / VERIFIED; functional work packages P2-B through P2-H remain separate implementation and acceptance work.
 - FIN-2.01: COMPLETE / VERIFIED — exact source SHA `6abddc1e5cb69c7bc9194036248dc3c84c2545c2`; workflow `41011399270` passed 74 Finance tests (1,855 assertions), clean MySQL migrations, Composer audit and 60/60 concurrency races.
 - FIN-2.02: COMPLETE / VERIFIED — exact source SHA `59d83659c95d0a8f43353705abbe46753bf6539d`; all 36 canonical control-account codes match one-to-one with the registry; names/types match; pending personnel designation and blocked adapters are enforced; reviewer roles are distinct; workflow `41012012049` passed 83 Finance tests (1,864 assertions).
-- FIN-2.03: IMPLEMENTED / PARTIAL — seeder now locks all active legal entities and existing ledger rows, validates every entity before any write, and writes all entities in one transaction; preflight unit tests pass in workflow `41012012049`. The seeder remains opt-in and was NOT executed; production/real database seeding and opening-balance creation were NOT performed. Full seeder orchestration integration evidence remains outstanding.
+- FIN-2.03: COMPLETE / VERIFIED — exact head `093a86873a1afe9c2b769d05940ee34280062018`; workflow `41017940857` passed 87 Finance tests (1,926 assertions), clean MySQL migrations, Composer audit and 60/60 controlled MySQL races. Disposable-MySQL integration tests seeded two active legal entities (79 canonical accounts each), verified repeat-run ID stability, rejected a later-entity tenant-owned collision before any canonical writes, and confirmed no opening journals. The seeder remains opt-in and is not called by `DatabaseSeeder`; production seeding and opening-balance creation were NOT performed.
 - Budget, expenses, fixed assets, tax, reconciliation and financial controls: NOT STARTED.
 - Production DB, seeder execution, opening balances, merge and deployment: NOT AUTHORIZED / NOT PERFORMED.
 
 ## 8. Immediate next actions
 
 1. Obtain independent source review of PR #58, including the FIN-2.02 ownership registry and FIN-2.03 all-entity seeder preflight/transaction boundary.
-2. Add or obtain isolated seeder-orchestration verification without running the seeder against any real or production database.
+2. Obtain independent review of the verified CoA seeder transaction boundary and ownership registry before closing PR #58.
 3. Keep the opt-in seeder disabled and preserve the no-opening-balance invariant.
 4. Start each functional Phase 2 work package with its own A1/A2 assessment and decision register before broad implementation.
