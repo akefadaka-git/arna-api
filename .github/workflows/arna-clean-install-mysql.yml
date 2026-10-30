@@ -28,6 +28,10 @@ on:
       - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/**"
       - "app/Http/Controllers/PersonController.php"
+      - "app/Http/Controllers/PublicContentController.php"
+      - "mases_core/src/Domains/PublicContent/**"
+      - "tests/Feature/PublicContentModerationTest.php"
+      - "routes/console.php"
       - "routes/api.php"
       - "mases_core/src/Domains/People/**"
       - "mases_core/src/Auth/Models/User.php"
@@ -181,6 +185,13 @@ jobs:
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/OrganizationDomainTest.php
+
+      - name: Run public content moderation lifecycle regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/PublicContentModerationTest.php
 
       - name: Confirm test database is empty
         shell: bash
