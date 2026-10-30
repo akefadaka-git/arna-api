@@ -690,6 +690,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // bearer tokens are accepted, making the entire `stateful` array
         // in config/sanctum.php inert.
         // ---------------------------------------------------------------------
+        // Preserve incoming sender references byte-for-byte. These are external
+        // identifiers and must not be trimmed or converted from '' to null.
+        $middleware->trimStrings(except: ['sender_reference']);
+        $middleware->convertEmptyStringsToNull(except: ['sender_reference']);
+
         $middleware->statefulApi();
 
         // ---------------------------------------------------------------------
