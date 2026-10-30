@@ -77,7 +77,7 @@ No code in this branch represents a professional tax opinion. Production tax cal
 |---|---|---|---|
 | FIN-1.01 | 1 — GL integrity | Enforce source-event uniqueness by tenant + legal entity + source domain + immutable event ID + version, with canonical payload hash | IMPLEMENTED IN SOURCE — nullable legacy-compatible `source_event_id`, `source_event_version`, and `source_event_hash`; external sources require an aggregate `source_id` plus immutable event ID and version; unique tenant/entity/type/event-ID/version index; canonical payload hash excludes request idempotency key; same event/payload returns persisted journal; changed payload conflicts. Tests added; NOT RUN |
 | FIN-1.02 | 1 — GL integrity | Prove atomic posting, audit persistence, posted-header/line immutability, and reversal linkage | IMPLEMENTED IN SOURCE — audit listener enforces same active transaction connection; posting/reversal audit-failure rollback tests added; MySQL + SQLite database triggers protect posted headers and line insert/update/delete. Tests and migration NOT RUN |
-| FIN-1.03 | 1 — GL integrity | Verify concurrent duplicate requests and period close/post race behavior on MySQL | NOT RUN |
+| FIN-1.03 | 1 — GL integrity | Verify concurrent duplicate requests and period close/post race behavior on MySQL | SOURCE LOCKS PRESENT — tenant/entity-scoped idempotency and unique database constraints; legal-entity and period row locks serialize draft creation, posting, and close; journal-line trigger locks parent row. MySQL concurrency tests NOT RUN |
 | FIN-1.04 | 1 — GL integrity | Verify tenant/entity isolation for all reads, writes, account references, periods, reversals, and reports | PARTIAL — composite constraints and scoped queries exist; adversarial tests not run |
 | FIN-1.05 | 1 — GL integrity | Confirm journal numbering uniqueness, date/period validation, and database precision boundaries | PARTIAL — source and constraints exist; full boundary verification pending |
 | FIN-1.06 | 1 — GL integrity | Revalidate legal-entity active status and every journal-line account's active/postable status inside the locked posting transaction, not only when the draft is created | IMPLEMENTED IN SOURCE — posting locks and rechecks the tenant-scoped legal entity, period, and sorted same-entity account rows; rejects inactive/non-postable accounts and cash-flow classification after cash-equivalent status changes. Tests added; NOT RUN |
@@ -141,6 +141,22 @@ The source changes and regression tests are committed on the Phase 1 branch. No 
 ### Evidence boundary
 
 The listener, migration, and regression-test source are committed on the Phase 1 branch. This is IMPLEMENTED IN SOURCE / NOT RUNTIME VERIFIED. No tests, migration execution, MySQL trigger execution, or CI workflows were run. MySQL production schema compatibility and actual transaction rollback behavior remain unverified until an authorized runtime environment is available.
+
+
+## 6C. Phase 1 concurrency review — FIN-1.03
+
+### Source-level protections confirmed
+
+- Draft creation serializes on the tenant-scoped legal-entity row, then locks the matching open accounting-period row before journal and line creation.
+- The database enforces uniqueness for tenant + legal entity + journal number and tenant + legal entity + idempotency key. FIN-1.01 adds tenant + legal entity + source type + immutable source event ID + version uniqueness.
+- Duplicate idempotency/source-event insert races are handled only after the failed transaction rolls back; the service re-reads the persisted identity, returns the original matching journal, and conflicts on a changed payload.
+- Posting locks the journal, legal entity, accounting period, journal lines, and account rows. It revalidates period-open state after acquiring the period lock.
+- Period closure locks the same accounting-period row and refuses closure while any draft journal remains. This serializes close against both draft creation and posting: whichever transaction acquires the period lock first determines the valid outcome.
+- The FIN-1.02 journal-line database triggers now take a locking read on the parent journal before insert/update/delete, aligning direct line writes with the posting transaction's parent-row lock. Moving a line between journal entries is rejected.
+
+### Verification boundary
+
+This is a source-level concurrency assessment, not proof of simultaneous execution behavior. No MySQL parallel-session test, deadlock/retry test, workflow, local test, or database migration was run. FIN-1.03 remains **PARTIAL / NOT RUNTIME VERIFIED** until those tests execute against the supported MySQL version and isolation configuration.
 
 ## 7. Safety and release boundaries
 
