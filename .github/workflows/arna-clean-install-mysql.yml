@@ -165,6 +165,8 @@ jobs:
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php
 
       - name: Run Person identity contract regressions
+        # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -172,6 +174,8 @@ jobs:
         run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php
 
       - name: Run People Profile API integration regressions
+        # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -214,6 +218,8 @@ jobs:
         run: php artisan migrate --force -vvv
 
       - name: Run independent-connection People identity concurrency regression
+        # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
           ARNA_RUN_MYSQL_CONCURRENCY: "1"
           DB_CONNECTION: mysql
@@ -225,6 +231,8 @@ jobs:
         run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php
 
       - name: Run independent-connection Governance invariant concurrency regression
+        # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
           ARNA_RUN_MYSQL_CONCURRENCY: "1"
           DB_CONNECTION: mysql
@@ -274,6 +282,8 @@ jobs:
           test "${foreign_keys}" -gt 0
 
       - name: Run shareholder seed numbering regression tests
+        # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         # Keep framework regression tests hermetic. The MySQL clean-install
         # migration checks above and below independently verify the real MySQL
         # schema; this test suite uses the SQLite in-memory connection declared
