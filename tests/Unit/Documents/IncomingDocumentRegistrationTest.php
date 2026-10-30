@@ -26,6 +26,23 @@ final class IncomingDocumentRegistrationTest extends TestCase
     }
 
     #[Test]
+    public function document_workflow_permissions_are_present_in_the_seed_catalogue(): void
+    {
+        $slugs = array_column(PermissionCatalogue::ROWS, 'slug');
+
+        foreach ([
+            'documents.issue',
+            'documents.view',
+            'documents.void',
+            'documents.revoke',
+            'documents.receive',
+            'documents.incoming.view',
+        ] as $permission) {
+            $this->assertContains($permission, $slugs);
+        }
+    }
+
+    #[Test]
     public function document_display_number_is_the_persisted_canonical_value(): void
     {
         $canonical = 'ዓርና/12/01/0042/19';
