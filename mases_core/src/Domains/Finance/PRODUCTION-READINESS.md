@@ -33,6 +33,8 @@ Before deploying any Finance schema or enabling live posting:
 - Confirm transaction isolation, connection pooling, lock-wait timeout, deadlock monitoring, and backup retention meet the organization's operational policy.
 - Do not point the disposable CI harness at a production or shared environment. It creates test tenants and journals and is restricted to an isolated test database.
 
+**Dependency audit evidence (2026-10-30):** the refreshed lock file pins `league/commonmark 2.10.4` and `symfony/mime 7.4.22`. The isolated Composer audit completed with **no security vulnerability advisories found**. The Finance release workflow repeats `composer audit --locked` against the committed lock file.
+
 ## 3. Migration and recovery gate
 
 1. Take a verified, restorable database backup and record its timestamp and recovery point.
