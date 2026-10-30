@@ -11,6 +11,7 @@ use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationAssignmentPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
+use MaaleArna\MASES\Core\Domains\Organization\Services\OrganizationNumberingRegistryService;
 
 final class OrganizationServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,7 @@ final class OrganizationServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(self::CONFIG_PATH, 'organization');
+        $this->app->singleton(OrganizationNumberingRegistryService::class);
     }
 
     public function boot(): void
