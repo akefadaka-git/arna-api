@@ -1057,6 +1057,65 @@ final class PersonApiIntegrationTest extends TestCase
         ]);
     }
 
+    #[Test]
+    public function application_scoped_role_cannot_grant_global_account_link_permission(): void
+    {
+        [$tenant, $actor] = $this->tenantPeopleManager();
+        $headers = ['X-Tenant-ID' => (string) $tenant->getKey()];
+
+        $created = $this->withHeaders($headers)->postJson('/api/people', [
+            'first_name_en' => 'Account Link Permission Boundary',
+        ])->assertCreated();
+        $person = Person::query()->where('public_id', $created->json('data.public_id'))->firstOrFail();
+
+        $target = User::factory()->create(['is_active' => true]);
+        $target->tenants()->attach($tenant->getKey(), [
+            'joined_at' => now(),
+            'status' => 'active',
+        ]);
+
+        $actor->roles()->firstOrFail()->update(['is_active' => false]);
+        $application = PlatformApplication::query()->create([
+            'slug' => 'people-account-link-test-'.$tenant->getKey(),
+            'name_en' => 'People Account Link Test',
+            'domain' => 'people-account-link-'.$tenant->getKey().'.example.test',
+            'is_active' => true,
+        ]);
+        $permission = Permission::query()->create([
+            'name_en' => 'Application Account Link Manager',
+            'slug' => 'people.account-link.manage',
+            'category' => 'user',
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $application->getKey(),
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $role = Role::query()->create([
+            'name_en' => 'Application Account Link Manager',
+            'slug' => 'application-account-link-manager-'.$tenant->getKey(),
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $application->getKey(),
+            'is_active' => true,
+        ]);
+        $role->permissions()->attach($permission->getKey(), ['assigned_at' => now()]);
+        $actor->roles()->attach($role->getKey(), ['assigned_at' => now()]);
+
+        Sanctum::actingAs($actor);
+        $this->withHeaders($headers)
+            ->postJson('/api/people/'.$person->public_id.'/account', [
+                'user_id' => $target->getKey(),
+                'reason' => 'Link the account to the canonical Person',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('people', [
+            'id' => $person->getKey(),
+            'user_id' => null,
+        ]);
+    }
+
     /** @return array{0: Tenant, 1: User} */
     private function tenantPeopleManager(): array
     {
