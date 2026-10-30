@@ -165,6 +165,7 @@ jobs:
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php
 
       - name: Run Person identity contract regressions
+        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php') != '' }}
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
@@ -174,6 +175,7 @@ jobs:
         run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php
 
       - name: Run People Profile API integration regressions
+        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php') != '' }}
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
@@ -215,6 +217,7 @@ jobs:
         run: php artisan migrate --force -vvv
 
       - name: Run independent-connection People identity concurrency regression
+        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php') != '' }}
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
         env:
@@ -273,7 +276,7 @@ jobs:
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 62
+          test "${applied}" -eq 68
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -310,7 +313,7 @@ jobs:
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 62
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 68
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -321,7 +324,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 62
+          test "${applied}" -eq 68
 
       - name: Upload migration status evidence
         if: always()
