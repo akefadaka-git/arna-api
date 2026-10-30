@@ -25,4 +25,20 @@ final class Document extends Model
             'replaces_document_id' => 'integer',
         ];
     }
+    public function replaces(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'replaces_document_id');
+    }
+
+    public function replacements(): HasMany
+    {
+        return $this->hasMany(self::class, 'replaces_document_id');
+    }
+
+    /** Always expose the persisted canonical value; never reconstruct it. */
+    public function getDisplayNumberAttribute(): string
+    {
+        return (string) $this->canonical_number;
+    }
+
 }
