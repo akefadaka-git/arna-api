@@ -1398,6 +1398,33 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertFalse($report['summary']['has_unclassified_movements']);
     }
 
+    #[Test]
+    public function test_accounting_period_creation_rejects_invalid_or_inverted_date_ranges(): void
+    {
+        [$tenant, $user, $entity] = $this->ledgerFixture();
+
+        foreach ([
+            ['starts_on' => '2026-02-30', 'ends_on' => '2026-03-31', 'code' => 'INVALID-DATE'],
+            ['starts_on' => '2026-12-31', 'ends_on' => '2026-01-01', 'code' => 'INVERTED-DATE'],
+        ] as $periodData) {
+            try {
+                app(AccountingPeriodService::class)->create((int) $tenant->id, [
+                    'legal_entity_id' => $entity->id,
+                    ...$periodData,
+                ], (int) $user->id);
+                $this->fail('Invalid or inverted accounting-period dates must be rejected.');
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('starts_on', $exception->errors());
+            }
+
+            $this->assertDatabaseMissing('accounting_periods', [
+                'tenant_id' => $tenant->id,
+                'legal_entity_id' => $entity->id,
+                'code' => $periodData['code'],
+            ]);
+        }
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
