@@ -21,7 +21,7 @@ final class JournalEntry extends Model
     protected $fillable = [
         'tenant_id', 'legal_entity_id', 'accounting_period_id', 'journal_number',
         'journal_type', 'effective_date', 'status', 'currency', 'description', 'source_type',
-        'source_id', 'source_event_version', 'idempotency_key', 'request_hash', 'created_by', 'posted_by', 'posted_at',
+        'source_id', 'source_event_version', 'source_event_hash', 'idempotency_key', 'request_hash', 'created_by', 'posted_by', 'posted_at',
         'reversal_of_id', 'reversed_at', 'cancelled_by', 'cancelled_at', 'cancellation_reason',
     ];
 
