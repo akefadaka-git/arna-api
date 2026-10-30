@@ -22,6 +22,7 @@ final class Document extends Model
             'ec_year' => 'integer',
             'sequence_number' => 'integer',
             'file_version' => 'integer',
+            'replaces_document_id' => 'integer',
         ];
     }
 }
