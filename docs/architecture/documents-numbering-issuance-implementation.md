@@ -1,49 +1,47 @@
-> **Numbering policy alignment notice (2026-10-30):** The target ARNA policy is now defined in [ARNA Amharic Document Numbering Standard v1.0](arna-amharic-document-numbering-standard-v1.md). Its canonical format is `ዓርና/BB/TT/SSSS/YY`, with one branch digit + one department digit, a numeric document-type code, a four-digit unit/type/year sequence, and a two-digit display of the Ethiopian year. The sequence scope is tenant + legal entity + issuing unit + document type + full Ethiopian year; Governance position/issuer is authority metadata, not a counter dimension. **This is a documented target design only.** The implementation described below still records the prior format and prior position-inclusive scope until a separately authorized code change is made. Do not treat this implementation note as evidence that v1.0 is implemented or runtime-verified.
+# የDocuments ዘርፍ፦ የቁጥር መዝገብና የሰነድ ማውጣት የትግበራ ማስታወሻ
 
-# Documents Domain: Numbering Ledger and Issuance Lifecycle
+> **የቁጥር ፖሊሲ ማስተካከያ፦** የዓርና የታለመው ፖሊሲ በ[የዓርና የአማርኛ ሰነድ ቁጥር አሰጣጥ መስፈርት v1.0](arna-amharic-document-numbering-standard-v1.md) ተወስኗል። መደበኛ ቅርጸቱ `ዓርና/BB/TT/SSSS/YY` ነው፤ BB አንድ የቅርንጫፍና አንድ የመምሪያ አሃዝ፣ TT የሰነድ ዓይነት ኮድ፣ SSSS አራት አሃዝ ተከታታይ ቁጥር፣ YY የኢትዮጵያ ዓመት የመጨረሻ ሁለት አሃዞች ነው። ቆጣሪው በተከራይ + ሕጋዊ ድርጅት + አውጪ ክፍል + ሰነድ ዓይነት + ሙሉ የኢትዮጵያ ዓመት ይለያያል። የGovernance የሥልጣን ቦታ/አውጪ የሥልጣን መረጃ ነው፤ የቆጣሪ ክፍል አይደለም። **ይህ የታለመ የንድፍ ውሳኔ ብቻ ነው።** ከታች የተገለጸው የኮድ ትግበራ እስካሁን የቀድሞውን ቅርጸትና የቦታ የተካተተበትን የቆጣሪ ወሰን ይይዛል፤ የተለየ የኮድ ለውጥ እስኪፈቀድና እስኪተገበር ድረስ ይህ ማስታወሻ አዲሱ ፖሊሲ ተተግብሯል ወይም በሩጫ ተረጋግጧል የሚል ማስረጃ አይደለም።
 
-**Status:** Governed source implementation; runtime and migration behavior are not verified.
-**Domain boundary:** Documents owns canonical document identity, numbering, issue/void/revoke lifecycle, and the lifecycle-event record. FileManagement owns binary storage and file versions. Finance owns legal-entity identity. Organization owns units and department codes. Governance owns positions, authority grants, and acting assignments.
+**ሁኔታ፦** የምንጭ ኮድ ትግበራ መግለጫ፤ የሩጫና የማዛወር ባህሪ አልተረጋገጠም።  
+**የዘርፍ ድንበር፦** Documents የሰነድ መለያን፣ ቁጥር አሰጣጥን፣ ማውጣት/ማሰረዝ/ማቋረጥንና የሕይወት ዑደት ክስተትን ይቆጣጠራል። FileManagement ባይነሪ ማከማቻንና የፋይል ስሪቶችን ይቆጣጠራል። Finance የሕጋዊ ድርጅትን፣ Organization ድርጅታዊ ክፍሎችን፣ Governance የሥልጣን ቦታዎችን፣ የሥልጣን ፈቃዶችንና ተወካይነቶችን ይቆጣጠራሉ።
 
-## Canonical number
+## 1. የመደበኛ ቁጥር
 
-\`[ORG]-[TYP]-[DP]-[RL]-[NNNNNN]-EC[YYYY]\`
+የታለመው መለያ፦ `ዓርና/BB/TT/SSSS/YY`  
+ምሳሌ፦ `ዓርና/11/03/0001/19`።
 
-Example only: \`ARNA-LET-HQ-CEO-000042-EC2019\`.
+የሙሉ ዓመት መረጃ በተለየ ይቀመጣል። የማውጣት ጊዜ በ`Africa/Addis_Ababa` ይያዛል፤ ሙሉ የኢትዮጵያ ዓመት በተፈቀደው የቀን አቆጣጠር አገልግሎት ይወሰናል።
 
-The number uses registered codes rather than caller-defined labels:
-- \`ORG\` is the active Finance \`legal_entities.code\`.
-- \`DP\` is an active \`organization_units.code\` in the same tenant and legal entity.
-- \`RL\` is an active \`governance_positions.code\` belonging to an active Governance body in the same tenant.
-- \`TYP\` is defined by the Documents \`DocumentTypeRegistry\`; each type has a separate authority action \`documents.issue.{TYP}\`.
-- Number segments reject hyphens so delimiter-based canonical numbers remain unambiguous. Existing registered codes with unsupported characters must be corrected through their owning domain before issuance.
+## 2. የመዝገብ ምንጭና የማውጣት ሥልጣን
 
-Sequence scope is tenant + legal entity + Organization unit + Governance position + document type + Ethiopian Calendar year. The year is derived server-side from the captured Addis Ababa issuance timestamp using the platform Ethiopian Calendar service. The counter row snapshots the canonical codes; changing a code mid-scope fails closed and requires an explicit numbering-scope migration. Sequence allocation uses a unique scope row and row locking in the same transaction as the document and issuance event. The six-digit sequence limit fails closed.
+Documents የሌሎች ዘርፎችን ዋና ዝርዝር አይደግምም፦
+- Finance `LegalEntity`፦ ሕጋዊ ድርጅቱ ንቁና ከተከራዩ ጋር የተያያዘ መሆን አለበት።
+- Organization `OrganizationUnit`፦ ክፍሉ ንቁ፣ ያልተሰረዘ፣ ከተከራዩ ጋር የተያያዘና ከተመረጠው ሕጋዊ ድርጅት ጋር የተገናኘ መሆን አለበት።
+- Governance `GovernancePosition` እና `GovernanceBody`፦ የቦታና አካሉ ሁኔታ ንቁና ከተከራዩ ጋር የተያያዘ መሆን አለበት።
+- Documents `DocumentTypeRegistry`፦ የሰነድ ዓይነት ኮዶች አንድ የተቆጣጠረ ዝርዝር ውስጥ ይኖራሉ።
+- Governance `GovernanceAuthorityGrant`፦ ንቁ፣ ያልተሰረዘና ለትክክለኛው `documents.issue.{TYP}` ተግባር የተሰጠ ፈቃድ ያስፈልጋል።
+- ተወካይነት ግልጽ መሆን አለበት፤ ለትክክለኛው ተግባር፣ ለትክክለኛው ጊዜና ለትክክለኛው ቦታ የተመዘገበ ሥልጣን ይፈለጋል። ዋናው የቦታ ተያዥም ተመሳሳይ የሥራ ዓይነት ውጤታማ ፈቃድ ሊኖረው ይገባል።
+- ጠያቂው ከተከራዩ ጋር የተያያዘ `documents.issue` RBAC ፈቃድ፣ ንቁ የPerson መለያና ንቁ የተከራይ መዳረሻ ሊኖረው ይገባል።
 
-## Authoritative registry and issuing authority
+የአውጪ ሚና ከGovernance የሥልጣን ቦታ ኮድ ጋር ይያያዛል። የሥራ ርዕስ ጽሑፍ ወይም የOrganization ምደባ ብቻውን ሥልጣን አይሰጥም። የመዝገብ ግንኙነት ካልተገኘ፣ ፈቃድ ከጎደለ፣ ከተሰረዘ/ካበቃ ወይም ተከራይ ካልተዛመደ ማውጣት ይከለከላል። በዚህ ለውጥ ነባሪ ፈቃዶች አይፈጠሩም።
 
-The Documents domain does not duplicate the owning domains' registries:
-- Finance \`LegalEntity\`: entity must be active and belong to the resolved tenant.
-- Organization \`OrganizationUnit\`: unit must be active, non-deleted, belong to the resolved tenant, and reference the selected legal entity.
-- Governance \`GovernancePosition\` and \`GovernanceBody\`: position and body must be active and belong to the resolved tenant.
-- Documents \`DocumentTypeRegistry\`: single code catalogue for the supported document types.
-- Governance \`GovernanceAuthorityGrant\`: a current, unrevoked grant must match the exact \`documents.issue.{TYP}\` action and position.
-- Acting authority is explicit, never inherited: an active acting assignment must name the exact action, cover the current date, and match the acting person's seat and position; the substantive incumbent must hold the same effective type-specific grant.
-- The caller must also hold the tenant-scoped \`documents.issue\` RBAC permission and an active canonical Person identity with active tenant access.
+## 3. የማውጣት ሂደትና የሕይወት ዑደት
 
-The issuing role is deliberately mapped to a Governance position code; a title string or Organization assignment alone cannot grant authority. Missing registry matches, missing grants, expired/revoked authority, or tenant mismatch fail closed. No default grants are seeded by this change.
+- የተረጋጋ `Idempotency-Key` ያስፈልጋል። ተመሳሳይ ቁልፍና ተመሳሳይ መደበኛ ይዘት የተመዘገበውን ውጤት ይመልሳል፤ የተለየ ይዘት ግጭት ይፈጥራል።
+- የቆጣሪ ማሳደግ፣ የሰነድ መመዝገብና የማውጣት ክስተት መጨመር በአንድ የውሂብ ግብይት ይፈጸማሉ።
+- ከቁጥር መመደብ በፊት የሥልጣንና የFinance/Organization/Governance መዝገቦች በዚያው ግብይት ውስጥ እንደገና ይፈተሻሉ። የተቀየረ የመዝገብ ቅጂ ካለ ስርዓቱ ይከለክላል።
+- በተገኙ የሕጋዊ ድርጅት፣ Organization ክፍል፣ Governance ቦታ/አካል፣ የአድራጊ Userና Person መዝገቦች፣ የተከራይ መዳረሻ፣ ቀጥተኛ/ዋና አባልነት፣ የዓይነት ፈቃዶችና ተወካይነት/የመቀመጫ መዝገቦች ላይ `SELECT ... FOR UPDATE` ይፈጸማል። እነዚህ መቆለፊያዎች እስከ ቆጣሪ ማሳደግ፣ ሰነድ መጨመርና የሕይወት ዑደት ክስተት መመዝገብ ድረስ ይቆያሉ።
+- ማዕከላዊው `AuthorizationService::hasPermission('documents.issue', ...)` ምርመራ ከcache የሚመጣ ሲሆን በRBAC role/permission pivot መረጃ ላይ የrow-lock ውል አያቀርብም። ስለዚህ ይህ አተገባበር በመዝገብና Governance ማስረጃ ላይ ያለውን የrow-level ውድድር ይዘጋል፤ በRBAC ፈቃድ/ሚና መሰረዝ ላይ ግን በአንድ ጊዜ የሚፈጠር የመቆለፊያ ሥርዓት አያረጋግጥም። ይህ ግልጽ የምርት ማረጋገጫ/ንድፍ ገደብ ሆኖ ይቆያል።
+- የተሰጡ ቁጥሮች ቋሚ ናቸው። ማሰረዝና ተፈጻሚነት ማቋረጥ ቁጥሩን ይጠብቃሉ፣ አዲስ የሕይወት ዑደት ክስተትም ይጨምራሉ።
+- የተሰጠ ሰነድ ብቻ ወደ ማሰረዝ/ማቋረጥ ሁኔታ ሊሸጋገር ይችላል።
+- `documents.view`፣ `documents.void`ና `documents.revoke` የተለያዩ RBAC ፈቃዶች ናቸው። ንባብና ለውጥ ከተከራይ ጋር የተገደቡ ናቸው።
+- የውሂብ መዋቅሩ ከFinance፣ Organization፣ Governance፣ tenant/userና FileManagement ዋና ሰንጠረዦች ጋር ይገናኛል። ከተከራይ ጋር የተገደበ የቁጥር ልዩነት የተለያዩ ተከራዮች ቁጥር እንዳይጋጭ ይከላከላል።
 
-## Issuance and lifecycle
+## 4. የምርት ላይ ማዋል የቀሩ መስፈርቶች
 
-- A stable \`Idempotency-Key\` is required. The key is unique per tenant; same canonical payload returns the persisted issue, while a different payload conflicts.
-- Counter advancement, document insertion, and issuance lifecycle event insertion are one database transaction.
-- Authority and authoritative Finance/Organization/Governance registry records are resolved again inside that transaction immediately before counter allocation; a changed registry snapshot fails closed rather than issuing against stale preflight data.
-- The transactional authority pass uses `SELECT ... FOR UPDATE` on the matched legal entity, Organization unit, Governance position/body, actor User and Person records, and incumbent Person records, tenant-access rows, direct/incumbent membership rows, matching type-specific authority grants, and applicable acting-assignment, seat, and substantive-occupancy rows. These locks are held through counter allocation, document insertion, and lifecycle-event insertion, so revocation/deactivation updates to those same rows must wait for issuance to commit or roll back.
-- The central `AuthorizationService::hasPermission('documents.issue', ...)` check remains cache-backed and does not expose a row-locking contract for the underlying RBAC role/permission pivots. Therefore this change closes the row-level race for canonical domain registries and Governance authority evidence, but does not establish a serialized lock protocol for concurrent RBAC permission/role revocation. That remains an explicit production verification/design gate.
-- Issued numbers are permanent. Void and revoke retain the number and append a lifecycle event; only an \`issued\` document may transition.
-- \`documents.view\`, \`documents.void\`, and \`documents.revoke\` remain separate RBAC permissions. Reads and mutations are tenant-scoped.
-- The database schema references canonical legal entities, Organization units, Governance bodies/positions, users, tenants, and FileManagement file records. Tenant-scoped canonical-number uniqueness prevents unrelated tenants from colliding.
-
-## Remaining production gates
-
-Public document verification, QR-image rendering, and SHA-256 verification of the exact linked file bytes are not implemented. The issuing-authority integration is source-complete but has not been runtime-verified. The migration assumes the existing Finance, Organization, Governance, tenant/user, and FileManagement tables are discovered before the Documents migration. No migration was executed; tests and GitHub Actions were NOT RUN; database operations, deployment, and merge were NOT performed. Keep the PR draft until these runtime gates can be verified and the Owner approves the authority policy and registry-code conventions.
+- የሕዝብ ሰነድ ማረጋገጫ፣ QR ምስል ማመንጨትና ለትክክለኛው የተያያዘ ፋይል SHA-256 ማረጋገጫ ገና አልተተገበሩም።
+- የማውጣት ሥልጣን ግንኙነት በምንጭ ኮድ ደረጃ ተጠናቋል፤ በሩጫ ግን አልተረጋገጠም።
+- የማዛወር ፋይሉ ከDocuments ማዛወር በፊት ያሉት Finance፣ Organization፣ Governance፣ tenant/userና FileManagement ሰንጠረዦች መፈጠራቸውን ይጠብቃል።
+- ማንኛውም የውሂብ ጎታ ማዛወር አልተፈጸመም፤ ሙከራዎችና GitHub Actions **አልተካሄዱም (NOT RUN)**።
+- የውሂብ ጎታ ሥራ፣ ማሰማራትና ማዋሃድ **አልተፈጸሙም**።
+- የሩጫ መስፈርቶች እስኪረጋገጡና የባለቤት የሥልጣን ፖሊሲ/የመዝገብ ኮድ ስምምነቶች እስኪጸድቁ ድረስ PR በDraft ሁኔታ ይቆይ።
