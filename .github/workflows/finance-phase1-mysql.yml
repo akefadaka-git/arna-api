@@ -152,15 +152,30 @@ jobs:
           foreach ($routes as $route) {
               $middleware = $route["middleware"] ?? [];
               $middleware = is_array($middleware) ? $middleware : [(string) $middleware];
-              foreach (["auth:sanctum", "tenant.membership"] as $required) {
-                  if (!in_array($required, $middleware, true)) {
-                      fwrite(STDERR, "Missing {$required} on ".($route["uri"] ?? "unknown route")."\n");
+              $hasAuthentication = (bool) array_filter(
+                  $middleware,
+                  static fn (string $item): bool => $item === "auth:sanctum"
+                      || (str_contains($item, "Authenticate:sanctum")),
+              );
+              $hasTenantMembership = (bool) array_filter(
+                  $middleware,
+                  static fn (string $item): bool => $item === "tenant.membership"
+                      || str_contains($item, "TenantMembershipMiddleware"),
+              );
+              $hasFinancePermission = (bool) array_filter(
+                  $middleware,
+                  static fn (string $item): bool => str_starts_with($item, "auth.permission:")
+                      || (str_contains($item, "AuthorizationMiddleware:") && str_contains($item, "finance.")),
+              );
+              foreach ([
+                  "authentication" => $hasAuthentication,
+                  "tenant membership" => $hasTenantMembership,
+                  "explicit Finance permission" => $hasFinancePermission,
+              ] as $control => $present) {
+                  if (!$present) {
+                      fwrite(STDERR, "Missing {$control} on ".($route["uri"] ?? "unknown route")."; middleware=".json_encode($middleware)."\n");
                       exit(1);
                   }
-              }
-              if (!preg_grep("/^auth\\.permission:/", $middleware)) {
-                  fwrite(STDERR, "Missing explicit Finance permission middleware on ".($route["uri"] ?? "unknown route")."\n");
-                  exit(1);
               }
           }
           echo "Finance API route protection verified: ".count($routes)."/20 routes\n";
