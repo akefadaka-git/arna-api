@@ -18,6 +18,7 @@ final class OrganizationPermissionSeeder
     private const REQUIRED_SLUGS = [
         'organization.unit.view',
         'organization.unit.manage',
+        'organization.numbering.manage',
         'organization.assignment.view',
         'organization.assignment.manage',
         'organization.audit.view',
