@@ -10,8 +10,10 @@ documentation.
 - `Contracts/`, `Enums/`, `Events/`, `Listeners/`: domain contracts and lifecycle.
 - `Database/Migrations/`: Finance migrations; original timestamped filenames are
   retained so migration-history identifiers remain stable.
-- `Database/Seeders/`: explicit Finance seeders; the chart-of-accounts seeder
-  is not automatically invoked.
+- `Database/Seeders/`: Finance-owned permission catalogue and explicit Finance
+  seeders; the chart-of-accounts seeder is not automatically invoked.
+- The platform permission catalogue composes Finance permission rows from this
+  domain-owned source; it does not duplicate Finance permission definitions.
 - `Documentation/`: accounting contract, CoA specification, and consolidation/FX boundaries.
 - `Http/`, `Models/`, `Policies/`, `Repositories/`, `Services/`,
   `Support/`: application layer and domain logic.
