@@ -60,7 +60,7 @@ final class CanonicalChartOfAccountsValidator
             if (!is_string($nameEn) || trim($nameEn) === '' || !is_string($nameAm) || trim($nameAm) === '') {
                 throw new LogicException("CoA account {$code} requires non-empty English and Amharic names.");
             }
-            if (!isset(self::TYPE_NORMAL_BALANCE[$type]) || !is_string($normal)
+            if (!is_string($type) || !isset(self::TYPE_NORMAL_BALANCE[$type]) || !is_string($normal)
                 || !in_array($normal, ['debit', 'credit'], true)) {
                 throw new LogicException("CoA account {$code} has an unsupported account type or normal balance.");
             }
