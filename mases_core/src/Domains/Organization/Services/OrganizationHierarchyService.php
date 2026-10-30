@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Organization\Services;
 
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationHierarchyPolicy;
