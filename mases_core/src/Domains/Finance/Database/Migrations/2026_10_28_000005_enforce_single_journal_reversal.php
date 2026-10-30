@@ -6,7 +6,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use RuntimeException;
 
 return new class extends Migration
 {
@@ -24,7 +23,7 @@ return new class extends Migration
             ->exists();
 
         if ($duplicateExists) {
-            throw new RuntimeException(
+            throw new \RuntimeException(
                 'Cannot enforce single journal reversal: duplicate reversal_of_id references already exist. '
                 . 'Reconcile these journals before retrying this migration.'
             );
