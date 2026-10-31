@@ -654,9 +654,10 @@ return [
      * Registers Finance services, translations, domain configuration, Finance-owned
      * migrations, and the Finance API routes from the domain directory.
      */
-    MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
+    MaaleArna\MASES\Core\Domains\Documents\Providers\DocumentsServiceProvider::class,
 
     MaaleArna\MASES\Core\Domains\Organization\Providers\OrganizationServiceProvider::class,
+    MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Audit\Traits\LogsAudit;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\MASES\Core\Contracts\Documents\DocumentIdentityLookup;
 use MaaleArna\MASES\Core\Exceptions\FileException;
 use MaaleArna\MASES\Core\Domains\FileManagement\Models\File;
 use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
@@ -33,11 +34,16 @@ class FileController extends Controller
 
     private FileService $fileService;
     private AuthorizationService $authorizationService;
+    private DocumentIdentityLookup $documentIdentityLookup;
 
-    public function __construct(FileService $fileService, AuthorizationService $authorizationService)
-    {
+    public function __construct(
+        FileService $fileService,
+        AuthorizationService $authorizationService,
+        DocumentIdentityLookup $documentIdentityLookup
+    ) {
         $this->fileService = $fileService;
         $this->authorizationService = $authorizationService;
+        $this->documentIdentityLookup = $documentIdentityLookup;
     }
 
     /**
@@ -227,7 +233,7 @@ class FileController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $this->formatFileResponse($file),
+            'data'    => $this->formatFileResponse($file, $this->documentIdentityFor($file)),
         ]);
     }
 
@@ -275,7 +281,7 @@ class FileController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'File updated successfully.',
-            'data'    => $this->formatFileResponse($updatedFile),
+            'data'    => $this->formatFileResponse($updatedFile, $this->documentIdentityFor($updatedFile)),
         ]);
     }
 
@@ -378,7 +384,7 @@ class FileController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $files->map(fn (File $file) => $this->formatFileResponse($file))->values(),
+            'data'    => $this->formatFileCollection($files),
         ]);
     }
 
@@ -407,7 +413,7 @@ class FileController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $versions->map(fn (File $version) => $this->formatFileResponse($version))->values(),
+            'data'    => $this->formatFileCollection($versions),
         ]);
     }
 
@@ -446,7 +452,7 @@ class FileController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $this->formatFileResponse($latest),
+            'data'    => $this->formatFileResponse($latest, $this->documentIdentityFor($latest)),
         ]);
     }
 
@@ -482,14 +488,17 @@ class FileController extends Controller
             throw FileException::notFound((string) $id);
         }
 
+        $identity = $this->documentIdentityFor($file);
+
         return response()->json([
             'success' => true,
             'data' => [
                 'file_id' => (string) $file->id,
-                // Official document numbers/types must come from the Documents domain,
-                // never from caller-controlled file metadata.
-                'document_number' => null,
-                'document_type' => null,
+                'canonical_number' => $identity['canonical_number'] ?? null,
+                'document_number' => $identity['canonical_number'] ?? null,
+                'document_type' => $identity['document_type_code'] ?? null,
+                'document_type_number' => $identity['document_type_number'] ?? null,
+                'document_status' => $identity['status'] ?? null,
                 'file_name' => $file->original_name,
                 'version' => $file->version,
                 'published' => $file->status === 'published',
@@ -517,13 +526,17 @@ class FileController extends Controller
             throw FileException::notFound((string) $id);
         }
 
+        $identity = $this->documentIdentityFor($file);
+
         return response()->json([
             'success' => true,
             'data' => [
                 'file_id' => (string) $file->id,
-                // Official document identity is supplied only by the Documents domain.
-                'document_number' => null,
-                'document_type' => null,
+                'canonical_number' => $identity['canonical_number'] ?? null,
+                'document_number' => $identity['canonical_number'] ?? null,
+                'document_type' => $identity['document_type_code'] ?? null,
+                'document_type_number' => $identity['document_type_number'] ?? null,
+                'document_status' => $identity['status'] ?? null,
                 'file_name' => $file->original_name,
                 'version' => $file->version,
                 'published' => true,
@@ -534,12 +547,47 @@ class FileController extends Controller
     }
 
     /**
+     * Resolve the Documents-owned identity without reconstructing it from file
+     * metadata, current Organization assignments, or issuance dates.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function documentIdentityFor(File $file): ?array
+    {
+        if ($file->tenant_id === null) {
+            return null;
+        }
+
+        return $this->documentIdentityLookup->findForFile($file->id, $file->tenant_id);
+    }
+
+    /**
+     * Format a collection with one tenant-scoped identity lookup, avoiding
+     * per-file queries for list and version-history responses.
+     *
+     * @param \Illuminate\Support\Collection<int, File> $files
+     * @return array<int, array<string, mixed>>
+     */
+    private function formatFileCollection($files): array
+    {
+        $tenantId = $files->first()?->tenant_id ?? mases_tenant_id();
+        $identities = $tenantId !== null
+            ? $this->documentIdentityLookup->findForFiles($files->pluck('id')->all(), $tenantId)
+            : [];
+
+        return $files->map(fn (File $file) => $this->formatFileResponse(
+            $file,
+            $identities[(string) $file->id] ?? null
+        ))->values()->all();
+    }
+
+    /**
      * Format a file instance for API response.
      *
      * @param File $file
      * @return array<string, mixed>
      */
-    private function formatFileResponse(File $file): array
+    private function formatFileResponse(File $file, ?array $documentIdentity = null): array
     {
         return [
             'id'            => $file->id,
@@ -553,6 +601,12 @@ class FileController extends Controller
             'status'        => $file->status,
             'is_public'     => $file->is_public,
             'metadata'      => $file->metadata,
+            'canonical_number' => $documentIdentity['canonical_number'] ?? null,
+            'document_number' => $documentIdentity['canonical_number'] ?? null,
+            'document_type' => $documentIdentity['document_type_code'] ?? null,
+            'document_type_number' => $documentIdentity['document_type_number'] ?? null,
+            'document_status' => $documentIdentity['status'] ?? null,
+            'document_uuid' => $documentIdentity['uuid'] ?? null,
             'user_id'       => $file->user_id,
             'tenant_id'     => $file->tenant_id,
             'created_at'    => $file->created_at?->toIso8601String(),

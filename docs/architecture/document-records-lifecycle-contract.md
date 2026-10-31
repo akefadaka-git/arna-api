@@ -1,99 +1,103 @@
-# ARNA Document & Records Lifecycle — Implementation Contract
+# የዓርና ሰነድና መዝገብ የሕይወት ዑደት — የትግበራ ውል
 
-**Status:** Draft implementation contract; Owner decisions required before lifecycle mutations are enabled.
-**Repository baseline:** `akefadaka-git/arna-api` main at `ccb2292e1c3374568cc3c3da923c6c103dcbab09`.
-**Implementation branch:** `feat/document-records-lifecycle-approval`.
-**Scope:** Tenant-scoped formal document records, approval history, controlled publication, and links to the existing centralized file store. This is not a second file-storage subsystem.
+> **የፖሊሲ ውሳኔ ማስታወሻ፦** ቀድሞ በዚህ ውል ውስጥ በጥያቄ ላይ የነበረው የቁጥር ቅርጸትና የቆጣሪ ወሰን አሁን በ[የዓርና የአማርኛ ሰነድ ቁጥር አሰጣጥ መስፈርት v1.0](arna-amharic-document-numbering-standard-v1.md) እና [የሰነድ ቁጥር አሰጣጥ የአሠራር መመሪያ](../operations/arna-document-numbering-operations-manual-v1.md) ተወስኗል። የተፈቀደው `ዓርና/BB/TT/SSSS/YY` ነው፤ ቆጣሪውም በተከራይ፣ በሕጋዊ ድርጅት፣ በአውጪ ክፍል፣ በሰነድ ዓይነትና በሙሉ የኢትዮጵያ ዓመት ይለያያል። ከታች ያለው የቀድሞ የቁጥር ውይይት በዚህ ውሳኔ ተተክቷል። ሌሎች የሰነድ ሕይወት ዑደት ውሳኔዎች ግን የተለየ የባለቤት ፈቃድ ይፈልጋሉ። የሰነድ ፈቃድ መኖሩ የሶፍትዌር ትግበራ ወይም የሩጫ ማረጋገጫ ተጠናቋል ማለት አይደለም።
 
-## 1. Existing capability confirmed
+**ሁኔታ፦** ረቂቅ የትግበራ ውል፤ የሕይወት ዑደት ለውጦች ከመከፈታቸው በፊት የባለቤት ውሳኔዎች ያስፈልጋሉ።  
+**የወሰን መሠረት፦** `akefadaka-git/arna-api` ዋና ቅርንጫፍ በተመረመረበት ጊዜ የነበረው መሠረት።  
+**የተግባር ወሰን፦** ከተከራይ ጋር የተያያዙ መደበኛ ሰነዶች፣ የማጽደቅ ታሪክ፣ ቁጥጥር ያለው ህትመትና ከተማከለው የፋይል ማከማቻ ጋር ግንኙነት። ይህ ሁለተኛ የፋይል ማከማቻ ስርዓት አይደለም።
 
-The current API already provides:
-- Central `files` metadata with tenant/user ownership, storage disk/path, MIME type, byte size, localized display names, status, public/private flag, soft deletion, and parent/version relationships.
-- File upload, list, metadata read/update, download, soft delete, restore, force-delete, version history, and latest-version routes under authenticated tenant membership.
-- File authorization and audit hooks, plus a `FileSecurityTest` suite covering baseline file/tenant security.
-- Person-to-file association through `person_document_links`.
+## 1. በአሁኑ ምንጭ የተረጋገጡ ችሎታዎች
 
-The current file layer is a storage/metadata service, not a formal records-management workflow. A file's `published` default does not establish review or approval. The file table does not itself represent document type, official document number, approval authority, approval decisions, publication authorization, retention policy, or an immutable business lifecycle history.
+የአሁኑ API የሚከተሉትን ያቀርባል፦
+- የተከራይ/ተጠቃሚ ባለቤትነት፣ የማከማቻ ዲስክ/መንገድ፣ MIME ዓይነት፣ የባይት መጠን፣ የተተረጎሙ የማሳያ ስሞች፣ ሁኔታ፣ የሕዝብ/የግል ምልክት፣ ለስላሳ ስረዛና የወላጅ/ስሪት ግንኙነት ያለው የ`files` መረጃ።
+- በተረጋገጠ የተከራይ አባልነት ስር የፋይል መጫን፣ ዝርዝር ማየት፣ መረጃ ማንበብ/ማስተካከል፣ ማውረድ፣ ለስላሳ ስረዛ፣ መመለስ፣ ቋሚ ስረዛ፣ የስሪት ታሪክና የቅርብ ስሪት መንገዶች።
+- የፋይል ፈቃድና የኦዲት መንጠቆዎች፣ እንዲሁም መሠረታዊ የፋይል/ተከራይ ደህንነትን የሚፈትሽ `FileSecurityTest` ስብስብ።
+- በ`person_document_links` የሰው-ወደ-ፋይል ግንኙነት።
 
-## 2. Required boundary
+አሁን ያለው የፋይል ንብርብር የማከማቻና የመረጃ አገልግሎት ነው፤ ሙሉ የሰነድ መዝገብ ሂደት አይደለም። የፋይል `published` መደበኛ እሴት የግምገማ ወይም የማጽደቅ ማስረጃ አይደለም። የፋይል ሰንጠረዥ ብቻውን የሰነድ ዓይነት፣ ኦፊሴላዊ ቁጥር፣ የማጽደቅ ሥልጣን፣ የውሳኔ ታሪክ፣ የህትመት ፈቃድ፣ የማቆያ ፖሊሲ ወይም የማይለወጥ የንግድ ሕይወት ዑደት አይወክልም።
 
-- `files` remains the canonical binary-storage and version metadata layer.
-- A formal document record references a file; it does not copy file bytes or create a second storage path.
-- Every document record and approval action is tenant-scoped using validated tenant context. Missing tenant context fails closed.
-- Every state-changing action requires an explicit server-side permission and a reason where stated below.
-- The frontend may hide actions based on permissions but never grants authority.
-- Approval and publication must be separate transitions. A successful upload is not approval, and approval is not automatically public publication.
-- Existing People and Governance links remain associations to the same file/document records; neither domain creates an independent document store.
-- No production migrations, backfills, deployments, merges, or public releases are included.
+## 2. የዘርፍ ድንበርና አስፈላጊ ቁጥጥሮች
 
-## 3. Proposed lifecycle (requires Owner confirmation)
+- `files` የባይነሪ ፋይል ማከማቻና የስሪት መረጃ ዋና ምንጭ ሆኖ ይቆያል።
+- መደበኛ የሰነድ መዝገብ ወደ ፋይል ይጠቁማል፤ የፋይሉን ባይት አይቀዳም፣ ሁለተኛ የማከማቻ መንገድም አይፈጥርም።
+- እያንዳንዱ መዝገብና የማጽደቅ እርምጃ በተረጋገጠ የተከራይ አውድ ይገደባል። የተከራይ አውድ ከሌለ ስርዓቱ ይከለክላል።
+- ሁሉም ሁኔታ የሚቀይር እርምጃ ግልጽ የአገልጋይ ፈቃድና ከተጠየቀ ምክንያት ይፈልጋል።
+- የፊት ገጽ እርምጃዎችን በፈቃድ መሠረት ሊደብቅ ይችላል፤ ሥልጣን ግን አይሰጥም።
+- ማጽደቅና ማተም የተለያዩ የሕይወት ዑደት ሽግግሮች ናቸው። ፋይል መጫን ማጽደቅ አይደለም፤ ማጽደቅም በራሱ ለሕዝብ ማተም አይደለም።
+- Peopleና Governance ነባር ግንኙነቶች ወደ ተመሳሳይ ፋይል/ሰነድ መዝገብ ይጠቁማሉ፤ የተለየ የሰነድ ማከማቻ አይፈጥሩም።
+- የምርት ውሂብ ጎታ ማዛወር፣ የቀድሞ መረጃ ማስተላለፍ፣ ማሰማራት፣ ማዋሃድ ወይም ለሕዝብ ማቅረብ በዚህ ወሰን ውስጥ አይደሉም።
+
+## 3. የታቀደ የሕይወት ዑደት — የባለቤት ማረጋገጫ ይፈልጋል
 
 `draft → in_review → approved → published → archived`
 
-Rejection path: `in_review → rejected → draft` after the author makes corrections and resubmits.
-Cancellation/archive must be reasoned and audited. Published/approved records must not be hard-deleted through ordinary workflow operations.
+የመከልከል መንገድ፦ `in_review → rejected → draft`። ደራሲው ካስተካከለና እንደገና ካቀረበ ብቻ ወደ ግምገማ ይመለሳል። ስረዛ/ማህደር ምክንያትና ኦዲት ይፈልጋሉ። የታተሙ/የጸደቁ መዝገቦች በመደበኛ ሂደት በቋሚነት አይደመሰሱም።
 
-Proposed controls:
-1. Only an authorized creator/editor can modify a draft.
-2. Submit-for-review freezes the submitted revision; edits after submission require a controlled return-to-draft transition.
-3. An approver cannot approve a document they authored or last substantively edited (separation of duties).
-4. Approval records capture tenant, document, exact file/version, actor, action, reason, and timestamp.
-5. Publishing requires a separate `document.record.publish` permission and may only occur after approval.
-6. Public visibility is opt-in and only permitted after approval plus publication; confidential/restricted records cannot be made public.
-7. Each transition is transactional and writes an append-only decision record.
-8. Any future multi-step approval route must be explicitly configured by document type and authority; no implicit role or organizational hierarchy inference.
+የታቀዱ ቁጥጥሮች፦
+1. ፈቃድ ያለው ፈጣሪ/አርታኢ ረቂቅን ብቻ ይቀይራል።
+2. ለግምገማ ሲላክ የተላከው ስሪት ይቆለፋል፤ ለውጥ ከፈለገ በቁጥጥር ወደ ረቂቅ መመለስ ያስፈልጋል።
+3. አጽዳቂ የጻፈውን ወይም በመጨረሻ በይዘት የቀየረውን ሰነድ አያጸድቅም (የሥራ መለያየት)።
+4. የማጽደቅ መዝገብ ተከራይ፣ ሰነድ፣ ትክክለኛ ፋይል/ስሪት፣ አድራጊ፣ እርምጃ፣ ምክንያትና ጊዜ ይይዛል።
+5. ማተም የተለየ `document.record.publish` ፈቃድ ይፈልጋል፤ ከማጽደቅ በኋላ ብቻ ይፈቀዳል።
+6. ለሕዝብ ማሳየት ከማጽደቅና ከህትመት በኋላ ብቻ ይፈቀዳል፤ ምስጢራዊ/የተገደበ ሰነድ ለሕዝብ አይታተምም።
+7. እያንዳንዱ ሽግግር በግብይት ይፈጸማል፤ ሊጨመር የሚችል የውሳኔ መዝገብ ይፈጥራል።
+8. ብዙ ደረጃ ያለው ማጽደቅ በሰነድ ዓይነትና በሥልጣን መሠረት በግልጽ ይዋቀራል፤ ከሚና ወይም ከድርጅታዊ ተዋረድ በግምት አይወሰድም።
 
-## 4. Owner decisions required before production lifecycle activation
+## 4. ከምርት ላይ ማዋል በፊት የባለቤት ውሳኔ የሚፈልጉ ጉዳዮች
 
-1. **Document taxonomy:** confirm initial types (e.g. official letter, announcement, memo, legal instrument, policy, certificate, meeting record, report).
-2. **Approval authority:** define who may approve each type, whether one or multiple sequential approvals are required, and whether acting/delegated authority may approve.
-3. **Separation of duties:** confirm whether self-approval is always prohibited and whether emergency exception handling exists.
-4. **Numbering:** choose tenant-scoped document numbering format and whether numbers are allocated at draft creation or at submission/approval.
-5. **Publication:** identify which types may be public and whether public publication requires a distinct final approver.
-6. **Retention and legal hold:** define retention schedule, archival semantics, legal hold, and whether any record may ever be destroyed.
-7. **Confidentiality levels:** confirm permitted labels and who can access each level.
+1. **የሰነድ ምድብ፦** የመጀመሪያ ዓይነቶችን ማረጋገጥ።
+2. **የማጽደቅ ሥልጣን፦** ለእያንዳንዱ ዓይነት ማን እንደሚያጸድቅ፣ አንድ/ብዙ ተከታታይ ማጽደቆች እንደሚያስፈልጉና የተወከለ ሥልጣን እንደሚፈቀድ መወሰን።
+3. **የሥራ መለያየት፦** ራስን ማጽደቅ ሁልጊዜ እንደሚከለከልና ድንገተኛ ልዩ ሁኔታ እንዳለ መወሰን።
+4. **የቁጥር አሰጣጥ፦** የተፈቀደው ቅርጸት `ዓርና/BB/TT/SSSS/YY` ነው፤ ቁጥር በይፋ ሲወጣ ብቻ ይመደባል።
+5. **ህትመት፦** የትኞቹ ዓይነቶች ለሕዝብ እንደሚታዩና ተጨማሪ አጽዳቂ እንደሚያስፈልግ መወሰን።
+6. **ማቆያና ሕጋዊ ማገድ፦** የማቆያ መርሐ-ግብር፣ ማህደር፣ ሕጋዊ ማገድና ማስወገድ መወሰን።
+7. **የምስጢራዊነት ደረጃ፦** የሚፈቀዱ መለያዎችና ለእያንዳንዱ መዳረሻ መወሰን።
 
-Until those decisions are approved, code may implement persistence and invariant tests, but it must not assume a universal approval matrix or expose a permissive default approver.
+እነዚህ ውሳኔዎች እስኪጸድቁ ድረስ ኮድ የመረጃ ማከማቻንና የመርህ ሙከራዎችን ሊያቀርብ ይችላል፤ ነገር ግን ሁሉን አቀፍ የማጽደቅ ሰንጠረዥ ወይም ቀላል መደበኛ አጽዳቂ መገመት የለበትም።
 
-## 5. Required schema and API contract
+## 5. የውሂብ ጎታና API ውል
 
-Candidate schema:
-- `document_records`: tenant, linked `file_id`, type, localized title, optional document number, confidentiality, lifecycle status, creator/editor, lifecycle timestamps, and optimistic-lock/version field.
-- `document_record_actions`: append-only transition history with actor, prior/new state, reason, linked file version, request ID, and timestamp.
-- A separate approval-route/step table only after the authority matrix is approved. Do not encode approvers in unvalidated JSON or infer them from unrelated domain tables.
+የታቀደ የውሂብ መዋቅር፦
+- `document_records`፦ ተከራይ፣ የተያያዘ `file_id`፣ ዓይነት፣ የተተረጎመ ርዕስ፣ አማራጭ የሰነድ ቁጥር፣ ምስጢራዊነት፣ ሁኔታ፣ ፈጣሪ/አርታኢ፣ የሕይወት ዑደት ጊዜዎችና የስሪት ቁጥጥር መስክ።
+- `document_record_actions`፦ አድራጊ፣ ቀድሞ/አዲስ ሁኔታ፣ ምክንያት፣ የተያያዘ የፋይል ስሪት፣ የጥያቄ መለያና ጊዜ ያለው ሊጨመር ብቻ የሚችል ታሪክ።
+- የተለየ የማጽደቅ መንገድ/ደረጃ ሰንጠረዥ የሚፈጠረው የሥልጣን ሰንጠረዥ ከጸደቀ በኋላ ብቻ ነው። አጽዳቂዎችን በማይረጋገጥ JSON ውስጥ አትደብቁ፤ ከሌሎች ዘርፎች በግምት አትውሰዱ።
 
-Candidate tenant-scoped endpoints:
-- `GET /api/documents` — paginated/filterable list.
-- `POST /api/documents` — create a formal record linked to an existing tenant file.
-- `GET /api/documents/{id}` — record and authorized file metadata.
-- `PATCH /api/documents/{id}` — draft-only metadata edit with optimistic concurrency.
-- `POST /api/documents/{id}/submit` — submit an immutable revision for review.
-- `POST /api/documents/{id}/approve` and `/reject` — only once approval authority is explicitly resolved.
-- `POST /api/documents/{id}/publish` — approved records only, with explicit publication permission.
-- `POST /api/documents/{id}/archive` — reason required, audited, no destructive deletion.
-- `GET /api/documents/{id}/history` — permission-filtered lifecycle history.
+የታቀዱ ከተከራይ ጋር የተያያዙ መንገዶች፦
+- `GET /api/documents` — በገጽ የተከፈለና በመስፈርት የሚፈለግ ዝርዝር።
+- `POST /api/documents` — ከነባር የተከራይ ፋይል ጋር መደበኛ መዝገብ መፍጠር።
+- `GET /api/documents/{id}` — መዝገብና በፈቃድ የተፈቀደ የፋይል መረጃ።
+- `PATCH /api/documents/{id}` — በረቂቅ ላይ ብቻ የመረጃ ማስተካከያ፣ በተመጣጣኝ የስሪት ቁጥጥር።
+- `POST /api/documents/{id}/submit` — የማይለወጥ ስሪት ለግምገማ ማቅረብ።
+- `POST /api/documents/{id}/approve` እና `/reject` — የማጽደቅ ሥልጣን ከተወሰነ በኋላ ብቻ።
+- `POST /api/documents/{id}/publish` — የተጸደቁ ሰነዶች ብቻ፣ ግልጽ የህትመት ፈቃድ ይፈልጋል።
+- `POST /api/documents/{id}/archive` — ምክንያት ያስፈልጋል፤ ኦዲት ይደረጋል፣ አጥፊ ስረዛ አይደለም።
+- `GET /api/documents/{id}/history` — በፈቃድ የተገደበ የሕይወት ዑደት ታሪክ።
 
-## 6. Acceptance tests required
+## 6. አስፈላጊ የተቀባይነት ሙከራዎች
 
-- Tenant A cannot enumerate, read, transition, approve, download, or infer Tenant B records.
-- Missing, inactive, or conflicting tenant context fails closed.
-- A file from another tenant or a soft-deleted file cannot be attached.
-- Draft-only editing and valid lifecycle transitions are enforced server-side.
-- Rejection and archival require a non-trivial reason.
-- Unauthorized actors cannot approve or publish.
-- Self-approval is rejected if Owner confirms separation of duties.
-- Approval targets the exact submitted file version; a version change invalidates stale approval.
-- Concurrent duplicate transitions do not produce duplicate actions or skip states.
-- Every state transition and decision has an immutable audit entry.
-- Public downloads cannot expose drafts, rejected, confidential, or unpublished documents.
-- MySQL migration discovery, rollback safety, tenant isolation, and concurrency behavior are verified on the exact candidate SHA before merge.
+- ተከራይ A የተከራይ B መዝገቦችን መዘርዘር፣ ማንበብ፣ ሁኔታ መቀየር፣ ማጽደቅ፣ ማውረድ ወይም መኖራቸውን መገመት አይችልም።
+- የጎደለ፣ የተዘጋ ወይም የሚጋጭ የተከራይ አውድ ማውጣትን ይከለክላል።
+- ከሌላ ተከራይ የመጣ ወይም ለስላሳ የተሰረዘ ፋይል ከሰነድ ጋር አይያያዝም።
+- የረቂቅ ማስተካከያና የተፈቀዱ የሕይወት ዑደት ሽግግሮች በአገልጋይ ይጠበቃሉ።
+- መከልከልና ማህደር ምክንያት ይፈልጋሉ።
+- ያልተፈቀደ ሰው ማጽደቅ/ማተም አይችልም።
+- የራስ ማጽደቅ ከተከለከለ ይከለከላል።
+- ማጽደቅ ትክክለኛውን የተላከ የፋይል ስሪት ይመለከታል፤ የስሪት ለውጥ የቀድሞ ማጽደቅን ያቋርጣል።
+- በአንድ ጊዜ የሚመጡ ተደጋጋሚ ሽግግሮች ተደጋጋሚ ክስተት አያመነጩም፤ ሁኔታንም አያልፉም።
+- እያንዳንዱ ሽግግር የማይለወጥ የኦዲት መዝገብ አለው።
+- የሕዝብ ማውረድ ረቂቅ፣ የተከለከለ፣ ምስጢራዊ ወይም ያልታተመ ሰነድ አያጋልጥም።
+- የMySQL ማዛወር ማወቅ፣ የመመለሻ ደህንነት፣ የተከራይ መለያየትና የተወዳዳሪነት ባህሪ ከማዋሃድ በፊት በትክክለኛው የሥራ መሠረት ይረጋገጣሉ።
 
-## 7. Current implementation disposition
+## 7. የአሁኑ ትግበራ ሁኔታ
 
-- File storage layer: **EXISTS**.
-- Version metadata and file-level lifecycle labels: **EXISTS**, but not formal approval semantics.
-- Formal document-record entity: **MISSING in inspected source tree**.
-- Document approval/action history: **MISSING in inspected source tree**.
-- Generic notification database/API: **MISSING in inspected source tree**; the app store is explicitly a client-side proposal pending backend endpoints.
-- Accounting general ledger: **MISSING in inspected source paths**; Loan/Wallet are domain subledgers and not a replacement.
-- Production readiness: **NOT VERIFIED**. This contract is not a release approval.
+| አካል | ሁኔታ |
+|---|---|
+| የፋይል ማከማቻ ንብርብር | **አለ (EXISTS)** |
+| የስሪት መረጃና የፋይል ሁኔታ መለያዎች | **አሉ፤ ግን የመደበኛ ማጽደቅ ትርጉም አይደሉም** |
+| መደበኛ የሰነድ መዝገብ አካል | **በተመረመረው ምንጭ ውስጥ የለም (MISSING)** |
+| የሰነድ ማጽደቅ/እርምጃ ታሪክ | **በተመረመረው ምንጭ ውስጥ የለም (MISSING)** |
+| አጠቃላይ የማሳወቂያ የውሂብ ጎታ/API | **በተመረመረው ምንጭ ውስጥ የለም (MISSING)** |
+| የAccounting አጠቃላይ መዝገብ (General Ledger) | **በተመረመሩ የምንጭ መንገዶች ውስጥ የለም (MISSING)** |
+| የምርት ዝግጁነት | **አልተረጋገጠም (NOT VERIFIED)** |
+
+ይህ ውል የምርት ልቀት ፈቃድ አይደለም።

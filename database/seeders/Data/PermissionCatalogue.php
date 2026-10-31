@@ -189,6 +189,12 @@ final class PermissionCatalogue
         ['slug' => 'people.account-link.manage', 'name_am' => 'የሰው መገለጫና መለያ ግንኙነትን ማስተዳደር', 'name_en' => 'Manage Global Person Account Links', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'people.tenant-access.manage', 'name_am' => 'የሰው መገለጫን በቴናንት መካከል መፍቀድ', 'name_en' => 'Manage Global Person Tenant Access', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
         ...FinancePermissionCatalogue::ROWS,
+        ['slug' => 'documents.issue', 'name_am' => 'ኦፊሴላዊ ሰነድ ማውጣት', 'name_en' => 'Issue Official Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'documents.view', 'name_am' => 'ሰነዶችን ማየት', 'name_en' => 'View Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'documents.void', 'name_am' => 'ሰነድ ማሰረዝ', 'name_en' => 'Void Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'documents.revoke', 'name_am' => 'ሰነድ ተፈጻሚነት ማቋረጥ', 'name_en' => 'Revoke Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'documents.receive', 'name_am' => 'የሚመጡ ሰነዶችን መመዝገብ', 'name_en' => 'Register Incoming Documents', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'documents.incoming.view', 'name_am' => 'የሚመጡ ሰነዶችን ማየት', 'name_en' => 'View Incoming Document Registrations', 'category' => 'document', 'scope' => 'tenant', 'is_system' => false],
         ...\MaaleArna\MASES\Core\Domains\Organization\Support\OrganizationPermissionCatalogue::ROWS,
             ['slug' => 'public-content.review', 'name_am' => 'ይፋዊ ይዘት መገምገምና ማተም', 'name_en' => 'Review and publish public content', 'category' => 'public_content', 'scope' => 'global', 'is_system' => false],
 ];
