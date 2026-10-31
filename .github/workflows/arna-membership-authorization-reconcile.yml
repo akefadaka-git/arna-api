@@ -33,6 +33,8 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "app/Http/Controllers/TenantContextController.php"
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "routes/api.php"
       - "database/migrations/**"
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Auth/Services/AuthenticationService.php"
@@ -40,6 +42,7 @@ on:
       - "mases_core/src/Events/AuthorizationFailureEvent.php"
       - "mases_core/src/Tenancy/**"
       - "tests/Feature/AuthenticationLifecycleTest.php"
+      - "tests/Feature/BrowserSessionAuthenticationTest.php"
       - "tests/Feature/C09/TenantResolutionTest.php"
       - "tests/Feature/TenantMembershipLifecycleTest.php"
       - "tests/Feature/TenantMembershipTest.php"
