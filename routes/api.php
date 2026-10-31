@@ -140,9 +140,11 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\FileController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
+use App\Http\Controllers\PublicContentController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -170,6 +172,27 @@ Route::get('/health', static function (): JsonResponse {
     ]);
 })->name('api.health');
 
+
+// -----------------------------------------------------------------------------
+// Public corporate content: only approved and published records are readable.
+// Submissions are always created in pending_review state by the server.
+// -----------------------------------------------------------------------------
+Route::get('/public/content', [PublicContentController::class, 'publicIndex'])
+    ->middleware('throttle:60,1')
+    ->name('api.public.content.index');
+Route::get('/public/content/{publicId}', [PublicContentController::class, 'publicShow'])
+    ->whereUuid('publicId')
+    ->middleware('throttle:60,1')
+    ->name('api.public.content.show');
+Route::post('/public/content/verification-challenges', [PublicContentController::class, 'requestContributorVerification'])
+    ->middleware('throttle:3,15')
+    ->name('api.public.content.verification.request');
+Route::post('/public/content/verification-challenges/verify', [PublicContentController::class, 'verifyContributorEmail'])
+    ->middleware('throttle:5,10')
+    ->name('api.public.content.verification.verify');
+Route::post('/public/content/submissions', [PublicContentController::class, 'submit'])
+    ->middleware('throttle:5,10')
+    ->name('api.public.content.submit');
 
 // -----------------------------------------------------------------------------
 // Public document verification
@@ -462,6 +485,21 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
 });
 
 // =============================================================================
+// Public Content Administration — platform-wide, permission-gated
+// =============================================================================
+Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
+    ->prefix('admin/public-content')
+    ->name('api.admin.public-content.')
+    ->group(static function (): void {
+        Route::get('/', [PublicContentController::class, 'adminIndex'])->name('index');
+        Route::put('/{id}', [PublicContentController::class, 'update'])->whereNumber('id')->name('update');
+        Route::post('/{id}/{decision}', [PublicContentController::class, 'review'])
+            ->whereNumber('id')
+            ->whereIn('decision', ['approve', 'reject', 'request-changes', 'publish', 'unpublish'])
+            ->name('review');
+    });
+
+// =============================================================================
 // 4. Tenant-Scoped Routes – Require authentication AND tenant membership
 // =============================================================================
 //
@@ -583,14 +621,52 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->name('update');
     });
 
+    // File Management
+    // -------------------------------------------------------------------------
 
+    Route::prefix('/files')->name('api.files.')->group(static function (): void {
+
+        /** Upload a file (multipart/form-data). */
+        Route::post('/upload', [FileController::class, 'upload'])
+            ->name('upload');
+
+        /** List files for the current tenant (paginated, filterable). */
+        Route::get('/', [FileController::class, 'index'])
+            ->name('index');
+
+        /** Get file metadata (no content). */
+        Route::get('/{id}', [FileController::class, 'show'])
+            ->name('show');
+
+        /** Download file content (streamed). */
+        Route::get('/{id}/download', [FileController::class, 'download'])
+            ->name('download');
+
+        /** Update file metadata or replace content (creates a new version). */
+        Route::put('/{id}', [FileController::class, 'update'])
+            ->name('update');
+
+        /** Soft delete a file (recoverable). */
+        Route::delete('/{id}', [FileController::class, 'destroy'])
+            ->name('destroy');
+
+        /** Permanently delete a file (hard delete). */
+        Route::delete('/{id}/force', [FileController::class, 'forceDestroy'])
+            ->name('force-destroy');
+
+        /** Restore a soft-deleted file. */
+        Route::post('/{id}/restore', [FileController::class, 'restore'])
+            ->name('restore');
+
+        /** Get version history of a file. */
+        Route::get('/{id}/versions', [FileController::class, 'versions'])
+            ->name('versions');
+
+        /** Get the latest version of a file. */
+        Route::get('/{id}/latest', [FileController::class, 'latestVersion'])
+            ->name('latest');
+    });
 });
-
-
-
-
-
-
 
 // =============================================================================
 // 5. Fallback – Delegate to the canonical error renderer

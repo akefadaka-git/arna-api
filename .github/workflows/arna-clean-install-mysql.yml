@@ -6,12 +6,14 @@ on:
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
-    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, integration/organization-filemanagement-foundation]
+    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, integration/organization-filemanagement-reconciled-2026-10-31, integration/organization-filemanagement-reconciled-2026-10-31]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - "database/migrations/**"
       - "mases_core/src/**/Database/Migrations/**"
       - "mases_core/src/**/Providers/**"
+      - "mases_core/src/Domains/Finance/**"
+      - "mases_core/src/Domains/FileManagement/**"
       - "bootstrap/providers.php"
       - "composer.json"
       - "composer.lock"
@@ -20,17 +22,28 @@ on:
       - "database/seeders/**"
       - "tests/Unit/DemoSeederGuardTest.php"
       - "tests/Concerns/LoanDatabaseMigrations.php"
-      - "mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php"
-      - "mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php"
-      - "mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
+      - "tests/Feature/PersonIdentityContractTest.php"
+      - "tests/Feature/PersonApiIntegrationTest.php"
+      - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
+      - "tests/Feature/PersonIdentityContractTest.php"
+      - "tests/Feature/PersonApiIntegrationTest.php"
+      - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationDomainTest.php"
       - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationAuditMySqlImmutabilityTest.php"
       - "mases_core/src/Domains/Organization/**"
+      - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationAssignmentFilterContractTest.php"
+      - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationSeederContractTest.php"
+      - "mases_core/src/Domains/Organization/Tests/Feature/OrganizationNumberingRegistryTest.php"
       - "mases_core/src/Domains/Documents/**"
       - "tests/Unit/Documents/**"
       - "app/Http/Controllers/PersonController.php"
+      - "app/Http/Controllers/PublicContentController.php"
+      - "mases_core/src/Domains/PublicContent/**"
+      - "tests/Feature/PublicContentModerationTest.php"
+      - "routes/console.php"
+      - "tests/Unit/Documents/**"
       - "routes/api.php"
       - "mases_core/src/Domains/People/**"
       - "mases_core/src/Auth/Models/User.php"
@@ -118,6 +131,9 @@ jobs:
           ref: ${{ steps.target.outputs.expected_sha }}
           persist-credentials: false
 
+      - name: Create runner-local environment file for Laravel tests
+        run: touch .env
+
       - name: Verify checked-out SHA
         shell: bash
         env:
@@ -148,7 +164,7 @@ jobs:
 
       - name: Run Loan domain unit tests with hermetic SQLite
         # Keep unrelated Loan fixture regressions isolated from the Documents stack gate.
-        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php') != '' && (github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation') }}
+        if: ${{ hashFiles('tests/Feature/PersonIdentityContractTest.php') != '' && (github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-reconciled-2026-10-31') }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -157,7 +173,7 @@ jobs:
 
       - name: Run loan repayment HTTP and financial-invariant regression tests
         # Keep unrelated Loan fixture regressions isolated from the Documents stack gate.
-        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php') != '' && (github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation') }}
+        if: ${{ hashFiles('tests/Feature/PersonApiIntegrationTest.php') != '' && (github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-reconciled-2026-10-31') }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -166,25 +182,25 @@ jobs:
 
       - name: Run Person identity contract regressions
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
-        if: ${{ hashFiles('mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php') != '' && (github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation') }}
+        if: ${{ hashFiles('tests/Feature/PersonIdentityMySqlConcurrencyTest.php') != '' && (github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-reconciled-2026-10-31') }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityContractTest.php
+        run: php artisan test --compact tests/Feature/PersonIdentityContractTest.php
 
       - name: Run People Profile API integration regressions
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-reconciled-2026-10-31' }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonApiIntegrationTest.php
+        run: php artisan test --compact tests/Feature/PersonApiIntegrationTest.php
 
       - name: Run Organization domain tenant and lifecycle regressions
         # The legacy SQLite fixture reapplies Finance's journal_type migration; MySQL integration checks below cover this stack.
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-reconciled-2026-10-31' }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -193,7 +209,7 @@ jobs:
 
       - name: Run Organization assignment filter and permission seeder contracts
         # The legacy SQLite fixture reapplies Finance's journal_type migration; MySQL integration checks below cover this stack.
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-reconciled-2026-10-31' }}
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -202,6 +218,20 @@ jobs:
           php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationAssignmentFilterContractTest.php
           php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationSeederContractTest.php
           php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationNumberingRegistryTest.php
+
+      - name: Run public content moderation lifecycle regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/PublicContentModerationTest.php
+
+      - name: Run Documents numbering and incoming registration unit regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Unit/Documents
 
       - name: Confirm test database is empty
         shell: bash
@@ -214,9 +244,12 @@ jobs:
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
 
+      - name: Run Finance domain regressions on migrated MySQL
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
+
       - name: Run independent-connection People identity concurrency regression
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-reconciled-2026-10-31' }}
         env:
           ARNA_RUN_MYSQL_CONCURRENCY: "1"
           DB_CONNECTION: mysql
@@ -225,11 +258,11 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact mases_core/src/Domains/People/Tests/Feature/PersonIdentityMySqlConcurrencyTest.php
+        run: php artisan test --compact tests/Feature/PersonIdentityMySqlConcurrencyTest.php
 
       - name: Run independent-connection Governance invariant concurrency regression
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-reconciled-2026-10-31' }}
         env:
           ARNA_RUN_MYSQL_CONCURRENCY: "1"
           DB_CONNECTION: mysql
@@ -266,21 +299,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments person_document_links organization_units organization_assignments organization_audit_events organization_branch_number_codes organization_department_number_codes; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments person_document_links organization_units organization_assignments organization_audit_events organization_branch_number_codes organization_department_number_codes public_contents public_content_email_verifications legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 68
+          test "${applied}" -eq 70
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
 
       - name: Run shareholder seed numbering regression tests
         # The Documents stack validates Organization + Documents here; unrelated domain suites run on their owning PRs.
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-foundation' }}
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.base.ref != 'integration/organization-filemanagement-reconciled-2026-10-31' }}
         # Keep framework regression tests hermetic. The MySQL clean-install
         # migration checks above and below independently verify the real MySQL
         # schema; this test suite uses the SQLite in-memory connection declared
@@ -305,12 +338,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in organization_units organization_assignments organization_audit_events; do
+          for table in organization_units organization_assignments organization_audit_events organization_branch_number_codes organization_department_number_codes public_contents public_content_email_verifications legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 68
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 70
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -321,7 +354,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 68
+          test "${applied}" -eq 70
 
       - name: Upload migration status evidence
         if: always()
