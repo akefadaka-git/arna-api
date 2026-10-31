@@ -342,7 +342,12 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
         ->name('api.auth.logout');
 
     // Browser SSO logout invalidates the shared Laravel session only.
+    Route::get('/spa/user', [AuthController::class, 'spaCurrentUser'])
+        ->middleware('auth:web')
+        ->name('api.auth.spa.user');
+
     Route::post('/spa/logout', [AuthController::class, 'spaLogout'])
+        ->middleware('auth:web')
         ->name('api.auth.spa.logout');
 
     /**
