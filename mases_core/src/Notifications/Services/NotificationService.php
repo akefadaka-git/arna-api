@@ -12,7 +12,6 @@ use MaaleArna\MASES\Core\Notifications\Models\PlatformNotification;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use InvalidArgumentException;
 
 final class NotificationService
