@@ -468,7 +468,6 @@ final class AuthController extends Controller
                 mfaChallengeToken: $validated['mfa_challenge_token'] ?? null,
                 mfaCode: $validated['mfa_code'] ?? null,
                 issueToken: $issueToken,
-                guard: $issueToken ? 'api' : 'web',
             );
         } catch (\Throwable $e) {
             /*
@@ -632,7 +631,6 @@ final class AuthController extends Controller
             additionalData: $additionalData,
             tenantId:       $validated['tenant_id'] ?? null,
             issueToken:     $issueToken,
-            guard:          $issueToken ? 'api' : 'web',
         );
 
         /*
