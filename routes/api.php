@@ -222,6 +222,12 @@ Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:5,1')
     ->name('api.auth.login');
 
+// First-party browser SPA endpoints use Sanctum's stateful session middleware.
+// They are deliberately separate from bearer-token login and registration.
+Route::post('/spa/login', [AuthController::class, 'spaLogin'])
+    ->middleware('throttle:5,1')
+    ->name('api.auth.spa.login');
+
 /**
  * Register
  *
@@ -231,6 +237,10 @@ Route::post('/login', [AuthController::class, 'login'])
 Route::post('/register', [AuthController::class, 'register'])
     ->middleware('throttle:5,1')
     ->name('api.auth.register');
+
+Route::post('/spa/register', [AuthController::class, 'spaRegister'])
+    ->middleware('throttle:5,1')
+    ->name('api.auth.spa.register');
 
 // -----------------------------------------------------------------------------
 // Password Reset
@@ -330,6 +340,15 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
      */
     Route::post('/logout', [AuthController::class, 'logout'])
         ->name('api.auth.logout');
+
+    // Browser SSO logout invalidates the shared Laravel session only.
+    Route::get('/spa/user', [AuthController::class, 'spaCurrentUser'])
+        ->middleware('auth:web')
+        ->name('api.auth.spa.user');
+
+    Route::post('/spa/logout', [AuthController::class, 'spaLogout'])
+        ->middleware('auth:web')
+        ->name('api.auth.spa.logout');
 
     /**
      * Profile
