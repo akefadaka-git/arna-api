@@ -276,7 +276,9 @@ final class AuthenticationService
         bool $remember = false,
         int|string|null $tenantId = null,
         ?string $mfaChallengeToken = null,
-        ?string $mfaCode = null
+        ?string $mfaCode = null,
+        bool $issueToken = true,
+        string $guard = 'api'
     ): array {
         // ---------------------------------------------------------------------
         // 1. Stateless credential verification.
@@ -450,9 +452,9 @@ final class AuthenticationService
         // ---------------------------------------------------------------------
         // 4. Issue a Sanctum bearer token only after required MFA succeeds.
         // ---------------------------------------------------------------------
-        $token = $user->createToken('auth_token', ['*'])->plainTextToken;
+        $token = $issueToken ? $user->createToken('auth_token', ['*'])->plainTextToken : null;
 
-        Event::dispatch(new Login('api', $user, $remember));
+        Event::dispatch(new Login($guard, $user, $remember));
 
         // ---------------------------------------------------------------------
         // 4. Security event — tenant attribution (v1.9.1).
