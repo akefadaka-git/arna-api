@@ -144,7 +144,7 @@ use App\Http\Controllers\FileController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
-use App\Http\Controllers\PublicContentController;
+use App\Http\Controllers\PublicContentController;\nuse App\Http\Controllers\NotificationController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -549,6 +549,18 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
 
     Route::get('/launcher', [ApplicationController::class, 'index'])
         ->name('api.launcher');
+
+    // Central notification inbox: active tenant membership is enforced by
+    // this enclosing group; the service additionally scopes every record
+    // to the authenticated recipient and resolved tenant.
+    Route::prefix('/notifications')->name('api.notifications.')->group(static function (): void {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');
+        Route::post('/{id}/read', [NotificationController::class, 'markRead'])
+            ->whereUuid('id')
+            ->name('read');
+        Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
+    });
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
