@@ -630,7 +630,6 @@ final class AuthController extends Controller
             password:       $validated['password'],
             additionalData: $additionalData,
             tenantId:       $validated['tenant_id'] ?? null,
-            issueToken:     $issueToken,
         );
 
         /*
@@ -643,6 +642,7 @@ final class AuthController extends Controller
             password: $validated['password'],
             remember: $validated['remember'] ?? false,
             tenantId: $validated['tenant_id'] ?? null,
+            issueToken: $issueToken,
         );
 
         Log::info('User registered and auto-logged-in', [
