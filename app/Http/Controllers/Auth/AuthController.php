@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
@@ -370,6 +371,17 @@ final class AuthController extends Controller
      */
     public function login(Request $request): JsonResponse
     {
+        return $this->authenticate($request, true);
+    }
+
+    /** First-party SPA login: establish a Laravel session without issuing a PAT. */
+    public function spaLogin(Request $request): JsonResponse
+    {
+        return $this->authenticate($request, false);
+    }
+
+    private function authenticate(Request $request, bool $issueToken): JsonResponse
+    {
         $validated = $request->validate([
             // Note: the `email` rule intentionally omits the `email`
             // format check. See the class docblock §"Login identifier".
@@ -455,6 +467,8 @@ final class AuthController extends Controller
                 tenantId: $effectiveTenantId,
                 mfaChallengeToken: $validated['mfa_challenge_token'] ?? null,
                 mfaCode: $validated['mfa_code'] ?? null,
+                issueToken: $issueToken,
+                guard: $issueToken ? 'api' : 'web',
             );
         } catch (\Throwable $e) {
             /*
@@ -499,14 +513,20 @@ final class AuthController extends Controller
             'ip'                => $request->ip(),
         ]);
 
-        return response()->json([
-            'success' => true,
-            'data'    => [
-                'user'       => $result['user']->only(['id', 'name', 'email', 'locale', 'default_tenant_id']),
-                'token'      => $result['token'],
-                'token_type' => 'Bearer',
-            ],
-        ]);
+        if (! $issueToken) {
+            Auth::guard('web')->login($result['user'], (bool) ($validated['remember'] ?? false));
+            $request->session()->regenerate();
+        }
+
+        $data = [
+            'user' => $result['user']->only(['id', 'name', 'email', 'locale', 'default_tenant_id']),
+        ];
+        if ($issueToken) {
+            $data['token'] = $result['token'];
+            $data['token_type'] = 'Bearer';
+        }
+
+        return response()->json(['success' => true, 'data' => $data]);
     }
 
     /**
@@ -533,6 +553,17 @@ final class AuthController extends Controller
      * @throws AuthenticationException   when the email is already taken
      */
     public function register(Request $request): JsonResponse
+    {
+        return $this->registerUser($request, true);
+    }
+
+    /** First-party SPA registration: establish a Laravel session without issuing a PAT. */
+    public function spaRegister(Request $request): JsonResponse
+    {
+        return $this->registerUser($request, false);
+    }
+
+    private function registerUser(Request $request, bool $issueToken): JsonResponse
     {
         $validated = $request->validate([
             // Legacy single-field name. Optional if structured name is given.
@@ -600,6 +631,8 @@ final class AuthController extends Controller
             password:       $validated['password'],
             additionalData: $additionalData,
             tenantId:       $validated['tenant_id'] ?? null,
+            issueToken:     $issueToken,
+            guard:          $issueToken ? 'api' : 'web',
         );
 
         /*
@@ -620,14 +653,23 @@ final class AuthController extends Controller
             'ip'              => $request->ip(),
         ]);
 
+        if (! $issueToken) {
+            Auth::guard('web')->login($result['user'], (bool) ($validated['remember'] ?? false));
+            $request->session()->regenerate();
+        }
+
+        $data = [
+            'user' => $result['user']->only(['id', 'name', 'email', 'locale', 'default_tenant_id']),
+        ];
+        if ($issueToken) {
+            $data['token'] = $result['token'];
+            $data['token_type'] = 'Bearer';
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Registration successful.',
-            'data'    => [
-                'user'       => $result['user']->only(['id', 'name', 'email', 'locale', 'default_tenant_id']),
-                'token'      => $result['token'],
-                'token_type' => 'Bearer',
-            ],
+            'data' => $data,
         ], 201);
     }
 
@@ -741,6 +783,22 @@ final class AuthController extends Controller
      * @param  Request $request
      * @return JsonResponse
      */
+    /** Invalidate the shared browser session without revoking unrelated API tokens. */
+    public function spaLogout(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        Log::info('Browser session logged out', ['user_id' => $user?->id]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully logged out.',
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
