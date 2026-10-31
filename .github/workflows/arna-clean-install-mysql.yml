@@ -40,6 +40,10 @@ on:
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
       - "mases_core/src/Domains/Loan/Tests/Unit/**"
       - "mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php"
+      - "mases_core/src/Notifications/**"
+      - "database/migrations/*create_platform_notifications_table.php"
+      - "app/Http/Controllers/NotificationController.php"
+      - "tests/Feature/CentralNotificationsTest.php"
   workflow_dispatch:
     inputs:
       target_sha:
@@ -211,6 +215,17 @@ jobs:
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
 
+      - name: Run centralized notification tenant-isolation feature tests on MySQL
+        if: ${{ hashFiles('tests/Feature/CentralNotificationsTest.php') != '' }}
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/CentralNotificationsTest.php
+
       - name: Run independent-connection People identity concurrency regression
         if: ${{ hashFiles('tests/Feature/PersonIdentityMySqlConcurrencyTest.php') != '' }}
         env:
@@ -249,14 +264,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 69
+          test "${applied}" -eq 70
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -291,7 +306,7 @@ jobs:
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 69
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 70
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -302,7 +317,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 69
+          test "${applied}" -eq 70
 
       - name: Upload migration status evidence
         if: always()
