@@ -277,8 +277,7 @@ final class AuthenticationService
         int|string|null $tenantId = null,
         ?string $mfaChallengeToken = null,
         ?string $mfaCode = null,
-        bool $issueToken = true,
-        string $guard = 'api'
+        bool $issueToken = true
     ): array {
         // ---------------------------------------------------------------------
         // 1. Stateless credential verification.
