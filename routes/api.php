@@ -143,6 +143,7 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
+use App\Http\Controllers\PublicContentController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -170,6 +171,27 @@ Route::get('/health', static function (): JsonResponse {
     ]);
 })->name('api.health');
 
+
+// -----------------------------------------------------------------------------
+// Public corporate content: only approved and published records are readable.
+// Submissions are always created in pending_review state by the server.
+// -----------------------------------------------------------------------------
+Route::get('/public/content', [PublicContentController::class, 'publicIndex'])
+    ->middleware('throttle:60,1')
+    ->name('api.public.content.index');
+Route::get('/public/content/{publicId}', [PublicContentController::class, 'publicShow'])
+    ->whereUuid('publicId')
+    ->middleware('throttle:60,1')
+    ->name('api.public.content.show');
+Route::post('/public/content/verification-challenges', [PublicContentController::class, 'requestContributorVerification'])
+    ->middleware('throttle:3,15')
+    ->name('api.public.content.verification.request');
+Route::post('/public/content/verification-challenges/verify', [PublicContentController::class, 'verifyContributorEmail'])
+    ->middleware('throttle:5,10')
+    ->name('api.public.content.verification.verify');
+Route::post('/public/content/submissions', [PublicContentController::class, 'submit'])
+    ->middleware('throttle:5,10')
+    ->name('api.public.content.submit');
 
 // -----------------------------------------------------------------------------
 // Public document verification
@@ -460,6 +482,21 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
     Route::get('/tenant-context', [TenantContextController::class, 'show'])
         ->name('api.tenant.context');
 });
+
+// =============================================================================
+// Public Content Administration — platform-wide, permission-gated
+// =============================================================================
+Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
+    ->prefix('admin/public-content')
+    ->name('api.admin.public-content.')
+    ->group(static function (): void {
+        Route::get('/', [PublicContentController::class, 'adminIndex'])->name('index');
+        Route::put('/{id}', [PublicContentController::class, 'update'])->whereNumber('id')->name('update');
+        Route::post('/{id}/{decision}', [PublicContentController::class, 'review'])
+            ->whereNumber('id')
+            ->whereIn('decision', ['approve', 'reject', 'request-changes', 'publish', 'unpublish'])
+            ->name('review');
+    });
 
 // =============================================================================
 // 4. Tenant-Scoped Routes – Require authentication AND tenant membership

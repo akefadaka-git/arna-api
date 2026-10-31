@@ -50,3 +50,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('loan:accrue-interest')->daily();
 Schedule::command('loan:detect-arrears')->daily();
+Schedule::command('public-content:publish-scheduled')->everyMinute()->withoutOverlapping();

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Data;
 
+use MaaleArna\MASES\Core\Domains\Finance\Config\FinanceApplicationCatalogue;
+
 /**
  * ApplicationRegistry
  *
@@ -213,12 +215,7 @@ final class ApplicationRegistry
             'domain' => 'portal.maalearna.com.et', 'is_active' => true,
             'is_frontend_ready' => true, 'icon_key' => 'users', 'category' => 'shareholder', 'display_order' => 10,
         ],
-        'finance' => [
-            'slug' => 'finance', 'name_am' => 'ፋይናንስ', 'name_en' => 'Finance',
-            'description_am' => 'የፋይናንስ አስተዳደርና ሪፖርት', 'description_en' => 'Financial management and reporting.',
-            'domain' => 'finance.maalearna.com.et', 'is_active' => true,
-            'is_frontend_ready' => false, 'icon_key' => 'wallet', 'category' => 'financial', 'display_order' => 20,
-        ],
+        ...FinanceApplicationCatalogue::ROWS,
         'hr' => [
             'slug' => 'hr', 'name_am' => 'የሰው ሀብት አስተዳደር', 'name_en' => 'Human Resources',
             'description_am' => 'የሰው ሀብት አስተዳደር፣ የደመወዝ አስተዳደርና የሰራተኛ መረጃ', 'description_en' => 'HR management, payroll, and personnel.',

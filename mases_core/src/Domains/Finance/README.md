@@ -6,12 +6,14 @@ documentation.
 
 ## Layout
 
-- `Config/`: domain configuration and canonical chart-of-accounts register.
+- `Config/`: domain configuration, Finance application metadata and canonical chart-of-accounts register.
 - `Contracts/`, `Enums/`, `Events/`, `Listeners/`: domain contracts and lifecycle.
 - `Database/Migrations/`: Finance migrations; original timestamped filenames are
   retained so migration-history identifiers remain stable.
-- `Database/Seeders/`: explicit Finance seeders; the chart-of-accounts seeder
-  is not automatically invoked.
+- `Database/Seeders/`: Finance-owned permission, role and role-grant catalogues,
+  plus explicit Finance seeders; the chart-of-accounts seeder is not automatically invoked.
+- Platform application, role, permission and role-grant registries compose Finance
+  entries from these domain-owned sources; they do not duplicate Finance definitions.
 - `Documentation/`: accounting contract, CoA specification, and consolidation/FX boundaries.
 - `Http/`, `Models/`, `Policies/`, `Repositories/`, `Services/`,
   `Support/`: application layer and domain logic.
