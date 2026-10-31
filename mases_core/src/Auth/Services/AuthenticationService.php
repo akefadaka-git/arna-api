@@ -454,7 +454,9 @@ final class AuthenticationService
         // ---------------------------------------------------------------------
         $token = $issueToken ? $user->createToken('auth_token', ['*'])->plainTextToken : null;
 
-        Event::dispatch(new Login($guard, $user, $remember));
+        if ($issueToken) {
+            Event::dispatch(new Login('api', $user, $remember));
+        }
 
         // ---------------------------------------------------------------------
         // 4. Security event — tenant attribution (v1.9.1).
