@@ -821,6 +821,7 @@ final class AuthController extends Controller
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        app('auth')->forgetGuards();
 
         Log::info('Browser session logged out', ['user_id' => $user?->id]);
 
