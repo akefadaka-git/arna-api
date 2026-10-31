@@ -91,8 +91,12 @@ final class IncomingDocumentRegistrationMySqlConcurrencyTest extends TestCase
                 ->get();
             $this->assertCount(1, $rows, 'Concurrent retries must persist exactly one registration.');
             $this->assertSame([201, 201], array_column($responses, 'status'), json_encode($responses));
-            $ids = array_map(static fn (array $response): mixed => $response['body']['data']['incoming_registration_id'] ?? null, $responses);
-            $this->assertSame([$rows[0]->registration_uuid, $rows[0]->registration_uuid], $ids);
+            $ids = array_map(fn (array $response): mixed => $this->nestedValue($response['body'] ?? [], 'incoming_registration_id'), $responses);
+            $this->assertSame(
+                [$rows[0]->registration_uuid, $rows[0]->registration_uuid],
+                $ids,
+                'Both successful responses must expose the same persisted registration UUID. Responses: '.json_encode($responses, JSON_UNESCAPED_UNICODE),
+            );
             $this->assertSame(1, DB::table('incoming_document_events')
                 ->where('tenant_id', $tenant->getKey())
                 ->where('incoming_document_registration_id', $rows[0]->id)
@@ -273,6 +277,23 @@ final class IncomingDocumentRegistrationMySqlConcurrencyTest extends TestCase
             'notes' => 'Automated MySQL integration test',
             'metadata' => ['source' => 'ci', 'kind' => 'incoming'],
         ];
+    }
+
+    private function nestedValue(mixed $value, string $key): mixed
+    {
+        if (!is_array($value)) {
+            return null;
+        }
+        if (array_key_exists($key, $value)) {
+            return $value[$key];
+        }
+        foreach ($value as $child) {
+            $found = $this->nestedValue($child, $key);
+            if ($found !== null) {
+                return $found;
+            }
+        }
+        return null;
     }
 
     private function waitForServer(int $port, string $logPath): void
