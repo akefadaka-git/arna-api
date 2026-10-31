@@ -216,20 +216,6 @@ jobs:
           php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationSeederContractTest.php
           php artisan test --compact mases_core/src/Domains/Organization/Tests/Feature/OrganizationNumberingRegistryTest.php
 
-      - name: Run public content moderation lifecycle regressions
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ":memory:"
-          DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact tests/Feature/PublicContentModerationTest.php
-
-      - name: Run Documents numbering and incoming registration unit regressions
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ":memory:"
-          DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact tests/Unit/Documents
-
       - name: Run Documents numbering and incoming registration unit regressions
         env:
           DB_CONNECTION: sqlite
@@ -247,6 +233,9 @@ jobs:
 
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
+
+      - name: Run public content moderation lifecycle regressions on MySQL
+        run: php artisan test --compact tests/Feature/PublicContentModerationTest.php
 
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
