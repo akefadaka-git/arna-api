@@ -68,7 +68,7 @@ final class BrowserSessionAuthenticationTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 0);
 
         $this->fromFirstPartySpa()
-            ->getJson('/api/user')
+            ->getJson('/api/spa/user')
             ->assertOk()
             ->assertJsonPath('data.id', $this->user->id);
     }
@@ -98,8 +98,18 @@ final class BrowserSessionAuthenticationTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 1);
 
         $this->withHeader('Authorization', 'Bearer '.$apiToken)
+            ->getJson('/api/spa/user')
+            ->assertUnauthorized();
+
+        $this->withHeader('Authorization', 'Bearer '.$apiToken)
+            ->postJson('/api/spa/logout')
+            ->assertUnauthorized();
+
+        $this->withHeader('Authorization', 'Bearer '.$apiToken)
             ->getJson('/api/user')
             ->assertOk();
+
+        $this->assertDatabaseCount('personal_access_tokens', 1);
     }
 
     #[Test]
