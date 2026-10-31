@@ -6,6 +6,8 @@ on:
       - codex/arna-membership-authorization-reconcile
     paths:
       - "app/Http/Controllers/TenantContextController.php"
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "routes/api.php"
       - "database/migrations/**"
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Auth/Services/AuthenticationService.php"
@@ -14,6 +16,7 @@ on:
       - "mases_core/src/Exceptions/AuthorizationFailureEvent.php"
       - "mases_core/src/Tenancy/**"
       - "tests/Feature/AuthenticationLifecycleTest.php"
+      - "tests/Feature/BrowserSessionAuthenticationTest.php"
       - "tests/Feature/C09/TenantResolutionTest.php"
       - "tests/Feature/TenantMembershipLifecycleTest.php"
       - "tests/Feature/TenantMembershipTest.php"
@@ -96,6 +99,9 @@ jobs:
           php -l mases_core/src/Tenancy/Services/TenantMembershipService.php
           php -l database/migrations/2026_10_19_000001_add_status_to_tenant_memberships_table.php
           php -l tests/Feature/AuthenticationLifecycleTest.php
+          php -l tests/Feature/BrowserSessionAuthenticationTest.php
+          php -l app/Http/Controllers/Auth/AuthController.php
+          php -l routes/api.php
           php -l tests/Feature/C09/TenantResolutionTest.php
           php -l tests/Feature/TenantMembershipLifecycleTest.php
           php -l tests/Feature/TenantMembershipTest.php
@@ -130,6 +136,9 @@ jobs:
 
       - name: Run authentication lifecycle regression
         run: vendor/bin/phpunit tests/Feature/AuthenticationLifecycleTest.php
+
+      - name: Run browser session SSO regression
+        run: vendor/bin/phpunit tests/Feature/BrowserSessionAuthenticationTest.php
 
       - name: Run C-09 tenant-resolution regression
         run: vendor/bin/phpunit tests/Feature/C09/TenantResolutionTest.php
