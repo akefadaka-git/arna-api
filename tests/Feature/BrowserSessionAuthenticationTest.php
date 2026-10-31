@@ -133,6 +133,47 @@ final class BrowserSessionAuthenticationTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 
+    #[Test]
+    public function mfa_completion_establishes_a_browser_session_without_issuing_a_personal_access_token(): void
+    {
+        $mfa = new TotpMfaService();
+        $enrollment = $mfa->beginEnrollment($this->user);
+        $mfa->confirmEnrollment($this->user, $this->currentTotp($enrollment['secret']));
+
+        $challenge = $this->fromFirstPartySpa()
+            ->postJson('/api/spa/login', [
+                'email' => $this->user->email,
+                'password' => 'Password123!',
+                'tenant_id' => $this->tenant->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.mfa_required', true);
+
+        $challengeToken = $challenge->json('data.challenge_token');
+        $this->assertIsString($challengeToken);
+
+        $this->fromFirstPartySpa()
+            ->postJson('/api/spa/login', [
+                'email' => $this->user->email,
+                'password' => 'Password123!',
+                'tenant_id' => $this->tenant->id,
+                'mfa_challenge_token' => $challengeToken,
+                'mfa_code' => $this->currentTotp($enrollment['secret']),
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonMissingPath('data.token')
+            ->assertJsonMissingPath('data.token_type');
+
+        $this->assertAuthenticatedAs($this->user, 'web');
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+
+        $this->fromFirstPartySpa()
+            ->getJson('/api/spa/user')
+            ->assertOk()
+            ->assertJsonPath('data.id', $this->user->id);
+    }
+
     private function currentTotp(string $secret): string
     {
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
