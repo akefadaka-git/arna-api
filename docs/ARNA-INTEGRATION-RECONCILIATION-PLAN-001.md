@@ -77,7 +77,7 @@ Files:
 - database/seeders/PermissionSeeder.php
 - mases_core/src/Authorization/Services/AuthorizationService.php
 - mases_core/src/Exceptions/AuthorizationFailureEvent.php (deleted by source PR; do not accept deletion until separately justified)
-- mases_core/src/Files/Services/FileService.php
+- mases_core/src/Domains/FileManagement/Services/FileService.php
 - tests/Unit/AuthorizationServiceTest.php
 - tests/Unit/UserPermissionScopeTest.php
 

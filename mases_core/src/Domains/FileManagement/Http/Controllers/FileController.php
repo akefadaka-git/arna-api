@@ -2,17 +2,19 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Controllers;
+namespace MaaleArna\MASES\Core\Domains\FileManagement\Http\Controllers;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Audit\Traits\LogsAudit;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Exceptions\FileException;
-use MaaleArna\MASES\Core\Files\Models\File;
-use MaaleArna\MASES\Core\Files\Services\FileService;
+use MaaleArna\MASES\Core\Domains\FileManagement\Models\File;
+use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -25,7 +27,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * The audit trail includes request metadata (IP, user agent, request ID)
  * and automatically filters out sensitive data.
  */
-final class FileController extends Controller
+class FileController extends Controller
 {
     use LogsAudit;
 
@@ -50,6 +52,7 @@ final class FileController extends Controller
     {
         $validated = $request->validate([
             'file'          => ['required', 'file', 'max:' . (config('mases.files.max_upload_size', 100) * 1024)],
+            'file_name'     => ['sometimes', 'string', 'max:255'],
             'directory'     => ['sometimes', 'string', 'max:255'],
             'is_public'     => ['sometimes', 'boolean'],
             'metadata'      => ['sometimes', 'array'],
@@ -64,12 +67,20 @@ final class FileController extends Controller
             throw FileException::authRequired();
         }
 
-        // Authorise: require 'file.upload' permission.
+        // Upload and publication are distinct permissions. A public-visibility
+        // request cannot be used to bypass the publication authority boundary.
         $this->authorizationService->requirePermission(
             user: $user,
             permissionSlug: 'file.upload',
             tenantId: mases_tenant_id()
         );
+        if (($validated['is_public'] ?? false) === true || ($validated['is_public'] ?? null) === 1 || ($validated['is_public'] ?? null) === '1') {
+            $this->authorizationService->requirePermission(
+                user: $user,
+                permissionSlug: 'file.publish',
+                tenantId: mases_tenant_id()
+            );
+        }
 
         $file = $this->fileService->upload(
             uploadedFile: $uploadedFile,
@@ -177,7 +188,7 @@ final class FileController extends Controller
             throw FileException::notFound((string) $id);
         }
 
-        if (!$file->is_public) {
+        if (!$file->is_public || $file->status !== 'published') {
             if (!$user) {
                 throw FileException::authRequired();
             }
@@ -203,7 +214,7 @@ final class FileController extends Controller
             throw FileException::notFound((string) $id);
         }
 
-        if (!$file->is_public) {
+        if (!$file->is_public || $file->status !== 'published') {
             if (!$user) {
                 throw FileException::authRequired();
             }
@@ -247,6 +258,16 @@ final class FileController extends Controller
             permissionSlug: 'file.update',
             tenantId: $file->tenant_id
         );
+        $publicationRequested =
+            (($validated['status'] ?? null) === 'published')
+            || in_array($validated['is_public'] ?? false, [true, 1, '1'], true);
+        if ($publicationRequested) {
+            $this->authorizationService->requirePermission(
+                user: $user,
+                permissionSlug: 'file.publish',
+                tenantId: $file->tenant_id
+            );
+        }
 
         $newFile = $request->file('file') ?? null;
         $updatedFile = $this->fileService->update($file, $validated, $newFile, $user);
@@ -341,7 +362,15 @@ final class FileController extends Controller
             tenantId: mases_tenant_id()
         );
 
-        $filters = $request->only(['status', 'is_public', 'user_id', 'mime_type', 'order_by', 'order_direction', 'limit']);
+        $filters = $request->validate([
+            'status'          => ['sometimes', 'string', 'in:draft,published,archived'],
+            'is_public'       => ['sometimes', 'boolean'],
+            'user_id'         => ['sometimes', 'integer', 'min:1'],
+            'mime_type'       => ['sometimes', 'string', 'max:255'],
+            'order_by'        => ['sometimes', 'string', 'in:created_at,updated_at,original_name,size,mime_type,status,version'],
+            'order_direction' => ['sometimes', 'string', 'in:asc,desc'],
+            'limit'           => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
         $files = $this->fileService->getFilesForTenant(
             tenantId: mases_tenant_id(),
             filters: $filters
@@ -422,6 +451,89 @@ final class FileController extends Controller
     }
 
     /**
+     * Download a deliberately public, published file without requiring a login.
+     *
+     * This endpoint is outside tenant.membership middleware by design. Public
+     * visibility is checked against the persisted record on every request;
+     * private, draft, archived, and soft-deleted records are never served here.
+     */
+    public function publicDownload(int|string $id): StreamedResponse
+    {
+        $file = File::query()
+            ->where('is_public', true)
+            ->where('status', 'published')
+            ->find($id);
+
+        if (!$file) {
+            throw FileException::notFound((string) $id);
+        }
+
+        return $this->fileService->download($file, null);
+    }
+
+    /**
+     * Verify a file after normal authenticated tenant and file-view authorization.
+     * Private file details are never returned to unauthenticated callers.
+     */
+    public function verifyAuthenticated(int|string $id): JsonResponse
+    {
+        $file = $this->fileService->find($id);
+        if (!$file) {
+            throw FileException::notFound((string) $id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'file_id' => (string) $file->id,
+                // Official document numbers/types must come from the Documents domain,
+                // never from caller-controlled file metadata.
+                'document_number' => null,
+                'document_type' => null,
+                'file_name' => $file->original_name,
+                'version' => $file->version,
+                'published' => $file->status === 'published',
+                'public' => (bool) $file->is_public,
+                'updated_at' => $file->updated_at?->toIso8601String(),
+                'verification_url' => route('api.files.verify', ['id' => $file->id]),
+            ],
+        ]);
+    }
+
+    /**
+     * Verify a public document through its file-specific signed QR URL.
+     *
+     * This verifies the current publication record and its identity. It is
+     * not a cryptographic signature over the document bytes.
+     */
+    public function publicVerify(int|string $id): JsonResponse
+    {
+        $file = File::query()
+            ->where('is_public', true)
+            ->where('status', 'published')
+            ->find($id);
+
+        if (!$file) {
+            throw FileException::notFound((string) $id);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'file_id' => (string) $file->id,
+                // Official document identity is supplied only by the Documents domain.
+                'document_number' => null,
+                'document_type' => null,
+                'file_name' => $file->original_name,
+                'version' => $file->version,
+                'published' => true,
+                'published_at' => $file->updated_at?->toIso8601String(),
+                'verification_url' => URL::signedRoute('api.files.public.verify', ['id' => $file->id]),
+            ],
+        ]);
+    }
+
+    /**
      * Format a file instance for API response.
      *
      * @param File $file
@@ -436,8 +548,6 @@ final class FileController extends Controller
             'mime_type'     => $file->mime_type,
             'extension'     => $file->extension,
             'size'          => $file->size,
-            'path'          => $file->path,
-            'disk'          => $file->disk,
             'version'       => $file->version,
             'parent_file_id'=> $file->parent_file_id,
             'status'        => $file->status,
@@ -448,6 +558,14 @@ final class FileController extends Controller
             'created_at'    => $file->created_at?->toIso8601String(),
             'updated_at'    => $file->updated_at?->toIso8601String(),
             'deleted_at'    => $file->deleted_at?->toIso8601String(),
+            // Public QR verification is available only after explicit publication.
+            // Private records must use the authenticated application route.
+            'verification_url' => ($file->is_public && $file->status === 'published')
+                ? URL::signedRoute('api.files.public.verify', ['id' => $file->id])
+                : route('api.files.verify', ['id' => $file->id]),
+            'verification_mode' => ($file->is_public && $file->status === 'published')
+                ? 'public_signed'
+                : 'authenticated',
         ];
     }
 }

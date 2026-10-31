@@ -199,7 +199,6 @@ declare(strict_types=1);
  *      → TenantContextService (singleton)
  *      → AuthorizationService (singleton)
  *      → AuditService (singleton)
- *      → FileService (singleton)
  *      → SecurityEventService (singleton)
  *      → EthiopianCalendar (singleton)
  *      → LocalizationService (singleton)
@@ -556,6 +555,7 @@ return [
      * provider that depends on Core services.
      */
     MaaleArna\MASES\Core\Providers\CoreServiceProvider::class,
+    MaaleArna\MASES\Core\Domains\FileManagement\Providers\FileManagementServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------

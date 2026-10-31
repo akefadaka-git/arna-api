@@ -16,7 +16,6 @@ use MaaleArna\MASES\Core\Auth\Events\FailedLogin;
 use MaaleArna\MASES\Core\Authorization\Events\RolePermissionsChanged;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Events\AuthorizationFailureEvent;
-use MaaleArna\MASES\Core\Files\Services\FileService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceEntityMappingResolver;
 use MaaleArna\MASES\Core\Listeners\InvalidateAuthorizationCacheListener;
@@ -241,13 +240,6 @@ final class CoreServiceProvider extends ServiceProvider
         );
 
         // --- Files -----------------------------------------------------------
-
-        $this->app->singleton(
-            FileService::class,
-            static fn($app): FileService => new FileService(
-                $app->make(AuditService::class)
-            )
-        );
 
         // --- Finance source-reference validation ----------------------------
         // The mapping resolver is authoritative for Shareholder, Wallet, and Loan

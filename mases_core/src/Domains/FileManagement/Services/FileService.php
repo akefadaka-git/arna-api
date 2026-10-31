@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\MASES\Core\Files\Services;
+namespace MaaleArna\MASES\Core\Domains\FileManagement\Services;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -12,8 +12,9 @@ use MaaleArna\MASES\Core\Audit\Services\AuditService;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Exceptions\FileException;
-use MaaleArna\MASES\Core\Files\Models\File;
-use Illuminate\Http\Response;
+use MaaleArna\MASES\Core\Domains\FileManagement\Models\File;
+use Symfony\Component\HttpFoundation\HeaderUtils;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * FileService
@@ -97,7 +98,7 @@ use Illuminate\Http\Response;
  *          contract, signature, exception class, audit call, storage
  *          path, and helper in this file is unchanged from v1.0.0.
  *
- * @package MaaleArna\MASES\Core\Files\Services
+ * @package MaaleArna\MASES\Core\Domains\FileManagement\Services
  * @version 1.0.1
  */
 final class FileService
@@ -169,8 +170,27 @@ final class FileService
             }
         }
 
-        // 2. Permission check (require 'file.upload')
+        // 2. Uploading and publishing are separate capabilities. A request to
+        // mark an upload public must also carry publication authority; new files
+        // nevertheless start as drafts and are never public until explicitly published.
         $this->authorizeAction('file.upload', null, $user, $tenantId);
+        if ($isPublic) {
+            $this->authorizeAction('file.publish', null, $user, $tenantId);
+        }
+
+        // A version must reference an existing file in the same tenant, and
+        // creating a version requires update authority on that parent record.
+        $parentFile = null;
+        if ($parentFileId !== null) {
+            $parentFile = File::find($parentFileId);
+            if (!$parentFile) {
+                throw FileException::notFound((string) $parentFileId);
+            }
+            if ((string) $parentFile->tenant_id !== (string) $tenantId) {
+                throw FileException::accessDenied('Parent file does not belong to the same tenant.');
+            }
+            $this->authorizeAction('file.update', $parentFile, $user);
+        }
 
         // 3. Validate the uploaded file
         $this->validateFile($uploadedFile);
@@ -186,35 +206,38 @@ final class FileService
         $path = $this->buildPath($directory, $tenantId, $storedName);
 
         // 5. Store the file using a stream to avoid memory exhaustion
+        $stream = null;
         try {
-            $stream = fopen($uploadedFile->getRealPath(), 'rb');
-            $success = Storage::disk($this->disk)->put($path, $stream);
-            if (is_resource($stream)) {
-                fclose($stream);
+            $realPath = $uploadedFile->getRealPath();
+            if (!is_string($realPath) || $realPath === '') {
+                throw FileException::uploadFailed('The uploaded file could not be opened.');
             }
 
+            $stream = fopen($realPath, 'rb');
+            if (!is_resource($stream)) {
+                throw FileException::uploadFailed('The uploaded file could not be opened.');
+            }
+
+            $success = Storage::disk($this->disk)->put($path, $stream);
             if (!$success) {
                 throw FileException::storageFailed($path);
             }
         } catch (FileException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            throw FileException::uploadFailed($e->getMessage());
-        }
-
-        // 6. Determine version (if this is a new version of an existing file)
-        $version = 1;
-        if ($parentFileId !== null) {
-            $parentFile = File::find($parentFileId);
-            if ($parentFile) {
-                if ((string) $parentFile->tenant_id !== (string) $tenantId) {
-                    // Remove uploaded file to prevent orphan
-                    Storage::disk($this->disk)->delete($path);
-                    throw FileException::accessDenied('Parent file does not belong to the same tenant.');
-                }
-                $version = $parentFile->version + 1;
+            Log::error('File storage write failed.', [
+                'tenant_id' => $tenantId,
+                'exception' => $e::class,
+            ]);
+            throw FileException::uploadFailed('The file could not be stored.');
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
             }
         }
+
+        // 6. Determine version from the already-authorized parent, if supplied.
+        $version = $parentFile !== null ? $parentFile->version + 1 : 1;
 
         // 7. Create the file record
         try {
@@ -230,15 +253,19 @@ final class FileService
                 'disk'           => $this->disk,
                 'version'        => $version,
                 'parent_file_id' => $parentFileId,
-                'status'         => 'published',
+                'status'         => 'draft',
                 'is_public'      => $isPublic,
                 'metadata'       => $metadata,
             ]);
         } catch (\Throwable $e) {
             // Remove the stored file if database insert fails
             Storage::disk($this->disk)->delete($path);
+            Log::error('File metadata persistence failed after storage write.', [
+                'tenant_id' => $tenantId,
+                'exception' => $e::class,
+            ]);
             throw new FileException(
-                'Failed to create file record: ' . $e->getMessage(),
+                'The file record could not be created.',
                 FileException::ERROR_FILE_UPLOAD_FAILED,
                 500,
                 0,
@@ -287,47 +314,30 @@ final class FileService
      * @return Response
      * @throws FileException
      */
-    public function download($file, ?User $user = null): Response
+    public function download($file, ?User $user = null): StreamedResponse
     {
         $file = $this->resolveFile($file);
         $user = $user ?? mases_user();
 
-        // Public files are freely downloadable
-        if (!$file->is_public) {
+        // Only published public files bypass tenant membership and download permission.
+        // Draft or archived records remain protected even if is_public was set previously.
+        if (!$file->is_public || $file->status !== 'published') {
             $this->authorizeAction('file.download', $file, $user);
         }
 
-        // Determine the storage disk and read the file content.
+        // Open a storage stream rather than loading the entire object into PHP memory.
         $disk = Storage::disk($file->disk);
-        $fullPath = null;
+        if (!$disk->exists($file->path)) {
+            throw FileException::notFound((string) $file->id);
+        }
 
-        if (in_array($file->disk, ['local', 'public'], true)) {
-            // Use direct filesystem access for local disks to avoid stream callbacks.
-            $fullPath = $disk->path($file->path);
-            if (!file_exists($fullPath)) {
-                throw FileException::notFound($file->path);
-            }
-            $content = @file_get_contents($fullPath);
-            if ($content === false) {
-                throw new FileException(
-                    'Unable to read file content.',
-                    FileException::ERROR_FILE_NOT_FOUND,
-                    500
-                );
-            }
-        } else {
-            // Fallback to Storage facade for non‑local disks.
-            if (!$disk->exists($file->path)) {
-                throw FileException::notFound($file->path);
-            }
-            $content = $disk->get($file->path);
-            if ($content === false) {
-                throw new FileException(
-                    'Unable to read file content.',
-                    FileException::ERROR_FILE_NOT_FOUND,
-                    500
-                );
-            }
+        $stream = $disk->readStream($file->path);
+        if (!is_resource($stream)) {
+            throw new FileException(
+                'Unable to open file content for reading.',
+                FileException::ERROR_FILE_NOT_FOUND,
+                500
+            );
         }
 
         // Audit (non‑fatal)
@@ -341,13 +351,34 @@ final class FileService
             Log::error('Audit failed during file download: ' . $e->getMessage());
         }
 
-        $headers = [
-            'Content-Type'        => $file->mime_type,
-            'Content-Disposition' => 'attachment; filename="' . $file->original_name . '"',
-            'Content-Length'      => $file->size,
-        ];
+        $downloadName = basename(str_replace(["\r", "\n", "\0"], '', (string) $file->original_name));
+        if ($downloadName === '' || $downloadName === '.' || $downloadName === '..') {
+            $downloadName = 'download';
+        }
+        $fallbackName = preg_replace('/[^A-Za-z0-9._-]/', '_', $downloadName) ?: 'download';
+        $disposition = HeaderUtils::makeDisposition('attachment', $downloadName, $fallbackName);
 
-        return new Response($content, 200, $headers);
+        return response()->streamDownload(
+            static function () use ($stream): void {
+                try {
+                    fpassthru($stream);
+                } finally {
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                }
+            },
+            $downloadName,
+            [
+                'Content-Type' => $file->mime_type ?: 'application/octet-stream',
+                'Content-Disposition' => $disposition,
+                'Content-Length' => (string) $file->size,
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => ($file->is_public && $file->status === 'published')
+                    ? 'public, max-age=300'
+                    : 'private, no-store',
+            ]
+        );
     }
 
     /**
@@ -367,21 +398,46 @@ final class FileService
         $file = $this->resolveFile($file);
         $user = $user ?? mases_user();
 
-        // Permission check for update
+        // Metadata/content maintenance does not confer publication authority.
         $this->authorizeAction('file.update', $file, $user);
+        $publicationRequested =
+            (array_key_exists('status', $data) && $data['status'] === 'published')
+            || (array_key_exists('is_public', $data) && filter_var($data['is_public'], FILTER_VALIDATE_BOOLEAN));
+        if ($publicationRequested) {
+            $this->authorizeAction('file.publish', $file, $user);
+        }
 
         if ($newFile !== null) {
+            // Preserve the existing directory without duplicating the tenant segment.
+            $directory = dirname($file->path);
+            $tenantDirectory = 'tenant_' . $file->tenant_id;
+            if (basename($directory) === $tenantDirectory) {
+                $directory = dirname($directory);
+            }
+            if ($directory === '.' || $directory === DIRECTORY_SEPARATOR) {
+                $directory = null;
+            }
+
             // Creating a new version
             $newVersion = $this->upload(
                 uploadedFile: $newFile,
                 fileName: pathinfo($file->original_name, PATHINFO_FILENAME),
-                directory: dirname($file->path),
+                directory: $directory,
                 isPublic: $data['is_public'] ?? $file->is_public,
                 metadata: $data['metadata'] ?? $file->metadata,
                 user: $user,
                 tenantId: $file->tenant_id,
                 parentFileId: $file->id
             );
+
+            // Apply only explicitly supplied lifecycle fields to the new version.
+            // The publication permission was checked before this branch.
+            foreach (['status', 'is_public'] as $lifecycleField) {
+                if (array_key_exists($lifecycleField, $data)) {
+                    $newVersion->{$lifecycleField} = $data[$lifecycleField];
+                }
+            }
+            $newVersion->save();
 
             // Archive the old version
             $file->status = 'archived';
@@ -473,7 +529,7 @@ final class FileService
         $file = $this->resolveFile($file);
         $user = $user ?? mases_user();
 
-        $this->authorizeAction('file.delete', $file, $user);
+        $this->authorizeAction('file.force_delete', $file, $user);
 
         if (Storage::disk($file->disk)->exists($file->path)) {
             Storage::disk($file->disk)->delete($file->path);
@@ -512,7 +568,7 @@ final class FileService
         $file = $this->resolveFile($file, true);
         $user = $user ?? mases_user();
 
-        $this->authorizeAction('file.delete', $file, $user); // or 'file.restore'
+        $this->authorizeAction('file.restore', $file, $user);
 
         if (!$file->trashed()) {
             throw FileException::notDeleted();
@@ -575,7 +631,8 @@ final class FileService
         $tenantId = $tenantId ?? mases_tenant_id();
         $user = mases_user();
 
-        $this->authorizeAction('file.view', null, $user, $tenantId);
+        // Listing is a distinct capability from viewing a single known file.
+        $this->authorizeAction('file.list', null, $user, $tenantId);
 
         $query = File::where('tenant_id', $tenantId);
 
@@ -592,12 +649,36 @@ final class FileService
             $query->where('mime_type', $filters['mime_type']);
         }
 
-        $orderBy = $filters['order_by'] ?? 'created_at';
-        $orderDirection = $filters['order_direction'] ?? 'desc';
+        // Never pass arbitrary request values into ORDER BY. Column names cannot
+        // be parameter-bound, so enforce the same allowlist here as at the HTTP edge.
+        $allowedOrderColumns = [
+            'created_at',
+            'updated_at',
+            'original_name',
+            'size',
+            'mime_type',
+            'status',
+            'version',
+        ];
+        $requestedOrderBy = (string) ($filters['order_by'] ?? 'created_at');
+        $orderBy = in_array($requestedOrderBy, $allowedOrderColumns, true)
+            ? $requestedOrderBy
+            : 'created_at';
+
+        $requestedDirection = strtolower((string) ($filters['order_direction'] ?? 'desc'));
+        $orderDirection = in_array($requestedDirection, ['asc', 'desc'], true)
+            ? $requestedDirection
+            : 'desc';
+
         $query->orderBy($orderBy, $orderDirection);
 
         if (isset($filters['limit'])) {
-            $query->limit($filters['limit']);
+            $limit = filter_var($filters['limit'], FILTER_VALIDATE_INT);
+            if ($limit !== false && $limit > 0) {
+                $query->limit(min($limit, 100));
+            } else {
+                $query->limit(50);
+            }
         }
 
         return $query->get();
@@ -618,10 +699,8 @@ final class FileService
             return null;
         }
 
-        return File::where('parent_file_id', $fileId)
-            ->orWhere('id', $fileId)
-            ->orderBy('version', 'desc')
-            ->first();
+        $history = $this->getVersionHistory($fileId);
+        return $history->sortByDesc('version')->first();
     }
 
     /**
@@ -639,10 +718,40 @@ final class FileService
             return collect();
         }
 
-        return File::where('parent_file_id', $fileId)
-            ->orWhere('id', $fileId)
-            ->orderBy('version', 'asc')
-            ->get();
+        // Walk to the root, then collect every descendant version in this tenant.
+        $root = $file;
+        $visited = [(string) $root->id => true];
+        while ($root->parent_file_id !== null) {
+            $parent = File::where('tenant_id', $file->tenant_id)->find($root->parent_file_id);
+            if (!$parent || isset($visited[(string) $parent->id])) {
+                break;
+            }
+            $visited[(string) $parent->id] = true;
+            $root = $parent;
+        }
+
+        $versions = collect([$root]);
+        $frontier = [(string) $root->id];
+        while ($frontier !== []) {
+            $children = File::where('tenant_id', $file->tenant_id)
+                ->whereIn('parent_file_id', $frontier)
+                ->whereNotIn('id', array_keys($visited))
+                ->orderBy('version')
+                ->get();
+
+            if ($children->isEmpty()) {
+                break;
+            }
+
+            $frontier = [];
+            foreach ($children as $child) {
+                $visited[(string) $child->id] = true;
+                $frontier[] = (string) $child->id;
+                $versions->push($child);
+            }
+        }
+
+        return $versions->sortBy('version')->values();
     }
 
     /**
@@ -654,16 +763,33 @@ final class FileService
      */
     private function validateFile(UploadedFile $uploadedFile): void
     {
-        $maxSize = (int) config('mases.files.max_upload_size', 100) * 1024 * 1024;
-        $allowedExtensions = config('mases.files.allowed_extensions', []);
+        if (!$uploadedFile->isValid()) {
+            throw FileException::uploadFailed('The uploaded file did not pass PHP upload validation.');
+        }
 
-        if ($uploadedFile->getSize() > $maxSize) {
-            throw FileException::tooLarge($maxSize, $uploadedFile->getSize());
+        $size = (int) $uploadedFile->getSize();
+        $maxSize = max(1, (int) config('mases.files.max_upload_size', 100)) * 1024 * 1024;
+        if ($size <= 0) {
+            throw FileException::uploadFailed('Empty files are not accepted.');
+        }
+        if ($size > $maxSize) {
+            throw FileException::tooLarge($maxSize, $size);
         }
 
         $extension = strtolower($uploadedFile->getClientOriginalExtension());
-        if (!empty($allowedExtensions) && !in_array($extension, $allowedExtensions, true)) {
+        $allowedExtensions = array_map(
+            static fn ($value): string => strtolower(ltrim((string) $value, '.')),
+            (array) config('mases.files.allowed_extensions', [])
+        );
+        if ($extension === '' || ($allowedExtensions !== [] && !in_array($extension, $allowedExtensions, true))) {
             throw FileException::extensionNotAllowed($extension, $allowedExtensions);
+        }
+
+        // Optional defense-in-depth MIME allowlist based on server-detected MIME.
+        $allowedMimeTypes = array_map('strtolower', (array) config('mases.files.allowed_mime_types', []));
+        $detectedMime = strtolower((string) $uploadedFile->getMimeType());
+        if ($allowedMimeTypes !== [] && !in_array($detectedMime, $allowedMimeTypes, true)) {
+            throw FileException::uploadFailed('The detected file type is not allowed.');
         }
     }
 
@@ -678,8 +804,10 @@ final class FileService
     private function generateStoredName(string $baseName, string $extension): string
     {
         $baseName = Str::slug($baseName);
-        $uniqueId = Str::random(16);
-        return $baseName . '_' . $uniqueId . '.' . $extension;
+        $baseName = $baseName !== '' ? $baseName : 'file';
+        $extension = strtolower(ltrim($extension, '.'));
+        $uniqueId = Str::random(32);
+        return $baseName . '_' . $uniqueId . ($extension !== '' ? '.' . $extension : '');
     }
 
     /**
@@ -697,13 +825,19 @@ final class FileService
         $parts = [];
 
         if ($directory) {
-            // Sanitize directory: remove any "../", "..\\", leading/trailing slashes, and null bytes
-            $directory = trim($directory, '/\\');
-            $directory = str_replace(['../', '..\\', "\0"], '', $directory);
-            $directory = preg_replace('/\.\./', '', $directory);
-            $directory = trim($directory, '/\\');
-            if ($directory !== '') {
-                $parts[] = $directory;
+            // Normalize path segments; never preserve absolute or dot-segment paths.
+            $directory = str_replace(["\0", "\\"], ['', '/'], $directory);
+            $segments = explode('/', trim($directory, '/'));
+            $safeSegments = [];
+            foreach ($segments as $segment) {
+                $segment = trim($segment);
+                if ($segment === '' || $segment === '.' || $segment === '..') {
+                    continue;
+                }
+                $safeSegments[] = preg_replace('/[^A-Za-z0-9._-]/', '_', $segment);
+            }
+            if ($safeSegments !== []) {
+                $parts[] = implode('/', $safeSegments);
             }
         }
 
@@ -795,12 +929,15 @@ final class FileService
             throw FileException::authRequired();
         }
 
-        // Check tenant membership if a tenant is involved
-        if ($tenantId !== null) {
-            $isMember = $user->tenants()->where('tenant_id', $tenantId)->exists();
-            if (!$isMember) {
-                throw FileException::accessDenied('User does not belong to this tenant.');
-            }
+        // Fail closed: every non-public file operation must resolve to a tenant.
+        // A global permission is not a substitute for tenant context or membership.
+        if ($tenantId === null || $tenantId === '') {
+            throw FileException::accessDenied('A tenant context is required for this file operation.');
+        }
+
+        $isMember = $user->tenants()->where('tenant_id', $tenantId)->exists();
+        if (!$isMember) {
+            throw FileException::accessDenied('User does not belong to this tenant.');
         }
 
         // Check permission via the platform's single permission

@@ -73,7 +73,7 @@ api.maalearna.com.et/
 │ ├── Exceptions/Handler.php # Legacy handler (superseded by bootstrap renderer)
 │ ├── Http/Controllers/
 │ │ ├── Auth/AuthController.php # Login, register, reset, verify, logout, refresh
-│ │ ├── FileController.php # Tenant-scoped file operations
+│ │ ├── FileController.php # Legacy adapter to FileManagement domain
 │ │ └── TenantContextController.php # Diagnostic tenant-context endpoint
 │ └── Providers/AppServiceProvider.php # Application-level hook
 │
@@ -107,7 +107,7 @@ api.maalearna.com.et/
 │ ├── Config/mases.php # Central platform configuration
 │ ├── Events/AuthorizationFailureEvent # Structured denial signal
 │ ├── Exceptions/ # CoreException hierarchy
-│ ├── Files/ # File model + FileService
+│ ├── Domains/FileManagement/ # File model, service, controller, and routes
 │ ├── Listeners/LogAuthorizationFailure # Persists denials to security_events
 │ ├── Localization/
 │ │ ├── Calendar/ # EthiopianCalendar, EthiopianDate

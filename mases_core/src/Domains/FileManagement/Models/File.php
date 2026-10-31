@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\MASES\Core\Files\Models;
+namespace MaaleArna\MASES\Core\Domains\FileManagement\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -49,7 +49,7 @@ use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
  * @property \Carbon\Carbon $updated_at
  * @property \Carbon\Carbon|null $deleted_at
  *
- * @package MaaleArna\MASES\Core\File\Models
+ * @package MaaleArna\MASES\Core\Domains\FileManagement\Models
  */
 final class File extends Model
 {

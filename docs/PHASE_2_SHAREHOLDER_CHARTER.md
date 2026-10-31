@@ -272,7 +272,7 @@ D166–D177 — renumbered from v0.3.0 D170–D181. All still PENDING.
 | Wallet, Loans, Shareholder are peer domains | Each has its own `domains/<Domain>/` and `mases_core/src/Migrations/<Domain>/`. |
 | Shareholder consumes Wallet | Dividend payments are recorded in the wallet ledger as outbound transactions after external settlement. |
 | Shareholder consumes Loans | Shareholder loans are provisioned through the Loans domain, attributed via polymorphic link. |
-| Wallet consumes Files | Settlement proofs, statements, and receipts stored via `FileService`. |
+| Wallet consumes FileManagement | Settlement proofs, statements, and receipts stored via `FileService`. |
 | Wallet consumes Audit / SecurityEvent | Every payment recording emits audit + security events. |
 | Core must not be modified for Phase 2 | Any Core change requires a separate Phase 1 amendment. |
 

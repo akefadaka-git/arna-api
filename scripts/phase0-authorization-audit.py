@@ -118,7 +118,7 @@ def method_body(source, method):
         i += 1
     return source[start:i-1] if depth == 0 else source[start:]
 
-file_source = read_text(ROOT / "app/Http/Controllers/FileController.php")
+file_source = read_text(ROOT / "mases_core/src/Domains/FileManagement/Http/Controllers/FileController.php")
 file_permissions = {
     "upload": ["file.upload"],
     "destroy": ["file.delete"],
@@ -135,12 +135,41 @@ for method, permissions in file_permissions.items():
     body = method_body(file_source, method)
     # show/download permit public files but require permission for non-public files.
     if method in ("show", "download"):
-        guarded = "if (!$file->is_public)" in body and all(p in body for p in permissions)
+        guarded = "if (!$file->is_public || $file->status !== 'published')" in body and all(p in body for p in permissions)
     else:
         guarded = bool(body) and all(p in body for p in permissions)
     finding(f"file-action-auth:{method}", guarded,
             "Expected action-level permission contract found." if guarded else
             f"Expected permission guard missing for {method}: {', '.join(permissions)}.")
+
+# Publication is a separate capability, not implied by upload/update.
+# Check both controller entry points and the service boundary so callers that
+# bypass HTTP controllers cannot publish through FileService directly.
+for method in ("upload", "update"):
+    body = method_body(file_source, method)
+    guarded = "file.publish" in body and "requirePermission" in body
+    finding(f"file-publication-auth:{method}", guarded,
+            "Separate file.publish authorization is enforced." if guarded else
+            f"Separate file.publish authorization missing from {method}.")
+
+file_service_source = read_text(ROOT / "mases_core/src/Domains/FileManagement/Services/FileService.php")
+service_upload = method_body(file_service_source, "upload")
+service_update = method_body(file_service_source, "update")
+finding("file-service-publication-auth:upload",
+        "file.publish" in service_upload and "authorizeAction" in service_upload,
+        "Service upload requires publication authority when public visibility is requested."
+        if "file.publish" in service_upload and "authorizeAction" in service_upload else
+        "Service upload does not enforce the separate publication permission.")
+finding("file-service-publication-auth:update",
+        "file.publish" in service_update and "authorizeAction" in service_update,
+        "Service update requires publication authority for publication transitions."
+        if "file.publish" in service_update and "authorizeAction" in service_update else
+        "Service update does not enforce the separate publication permission.")
+upload_defaults_to_draft = re.search(r"['\"]status['\"]\s*=>\s*['\"]draft['\"]", service_upload) is not None
+finding("file-upload-default-state",
+        upload_defaults_to_draft,
+        "New uploads default to draft." if upload_defaults_to_draft else
+        "New uploads do not default to draft in the File Management service.")
 
 # For each runtime Loan/Governance controller action, require either an explicit
 # route permission/role/application middleware or a controller-level policy /

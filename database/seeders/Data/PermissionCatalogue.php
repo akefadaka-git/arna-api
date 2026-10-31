@@ -9,7 +9,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
 /**
  * PermissionCatalogue
  *
- * The platform's forty permissions — the atomic capabilities
+ * The platform permission catalogue — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -138,7 +138,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
 final class PermissionCatalogue
 {
     /**
-     * The forty platform permissions, in source order.
+     * The platform permissions, in source order.
      *
      * Each row is an associative array with the six keys documented
      * in the class docblock. The order below is preserved verbatim
@@ -175,6 +175,7 @@ final class PermissionCatalogue
         ['slug' => 'file.download',      'name_am' => 'ፋይል ማውረድ',              'name_en' => 'Download Files',       'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'file.view',          'name_am' => 'ፋይል ማየት',               'name_en' => 'View Files',           'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'file.update',        'name_am' => 'ፋይል ማዘመን',              'name_en' => 'Update Files',         'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'file.publish',       'name_am' => 'ፋይል ማተም/ማሳተም',       'name_en' => 'Publish Files',        'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'file.delete',        'name_am' => 'ፋይል መሰረዝ',              'name_en' => 'Delete Files',         'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'file.force_delete',  'name_am' => 'ፋይልን በግድ መሰረዝ',        'name_en' => 'Force Delete Files',   'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'file.restore',       'name_am' => 'ፋይልን መልሶ ማግኘት',        'name_en' => 'Restore Files',        'category' => 'file', 'scope' => 'tenant', 'is_system' => false],

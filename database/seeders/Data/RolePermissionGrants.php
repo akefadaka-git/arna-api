@@ -40,7 +40,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  *
  *          · The change preserves the role hierarchy: super_admin
  *            remains the only role with universal access (its ['*']
- *            wildcard resolves to all 51 permissions), and the four
+ *            wildcard resolves to all permissions in the catalogue), and the four
  *            end-user applications remain exclusive to the roles
  *            whose purpose they serve (tenant_admin for the tenant-
  *            scoped grants, and the end-user roles for their own).
