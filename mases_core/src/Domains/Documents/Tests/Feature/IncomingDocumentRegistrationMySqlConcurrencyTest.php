@@ -76,12 +76,16 @@ final class IncomingDocumentRegistrationMySqlConcurrencyTest extends TestCase
             $responses = [];
             foreach ($handles as $handle) {
                 $raw = (string) curl_multi_getcontent($handle);
+                // Laravel's JSON response carries a UTF-8 BOM in this runtime.
+                // Strip only that leading marker before decoding the response.
+                $json = preg_replace('/^\\xEF\\xBB\\xBF/', '', $raw) ?? $raw;
+                $body = json_decode($json, true);
                 $responses[] = [
                     'status' => (int) curl_getinfo($handle, CURLINFO_HTTP_CODE),
                     'content_type' => curl_getinfo($handle, CURLINFO_CONTENT_TYPE),
                     'downloaded' => curl_getinfo($handle, CURLINFO_SIZE_DOWNLOAD),
                     'raw' => $raw,
-                    'body' => json_decode($raw, true),
+                    'body' => $body,
                     'json_error' => json_last_error_msg(),
                     'error' => curl_error($handle),
                 ];
