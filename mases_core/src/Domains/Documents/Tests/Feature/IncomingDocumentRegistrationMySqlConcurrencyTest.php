@@ -270,7 +270,6 @@ final class IncomingDocumentRegistrationMySqlConcurrencyTest extends TestCase
             'subject' => 'Incoming registration concurrency test',
             'sender_name' => 'External sender',
             'sender_reference' => '  EXT/ማጣቀሻ-0007  ',
-            'received_at' => '2026-10-31T08:00:00+03:00',
             'notes' => 'Automated MySQL integration test',
             'metadata' => ['source' => 'ci', 'kind' => 'incoming'],
         ];
