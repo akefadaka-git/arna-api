@@ -75,9 +75,14 @@ final class IncomingDocumentRegistrationMySqlConcurrencyTest extends TestCase
 
             $responses = [];
             foreach ($handles as $handle) {
+                $raw = (string) curl_multi_getcontent($handle);
                 $responses[] = [
                     'status' => (int) curl_getinfo($handle, CURLINFO_HTTP_CODE),
-                    'body' => json_decode((string) curl_multi_getcontent($handle), true),
+                    'content_type' => curl_getinfo($handle, CURLINFO_CONTENT_TYPE),
+                    'downloaded' => curl_getinfo($handle, CURLINFO_SIZE_DOWNLOAD),
+                    'raw' => $raw,
+                    'body' => json_decode($raw, true),
+                    'json_error' => json_last_error_msg(),
                     'error' => curl_error($handle),
                 ];
                 curl_multi_remove_handle($multi, $handle);
