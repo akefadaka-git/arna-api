@@ -781,6 +781,39 @@ final class AuthController extends Controller
      * @param  Request $request
      * @return JsonResponse
      */
+    /** Return the current identity through the browser session guard only. */
+    public function spaCurrentUser(Request $request): JsonResponse
+    {
+        $user = Auth::guard('web')->user();
+        if (! $user instanceof CoreUser) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'AUTH_UNAUTHENTICATED', 'message' => 'Authentication required.'],
+            ], 401);
+        }
+
+        $user->loadMissing(['tenants', 'roles.permissions', 'permissions']);
+        $permissionSlugs = $user->permissions
+            ->pluck('slug')
+            ->merge($user->roles->flatMap->permissions->pluck('slug'))
+            ->unique()
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'locale' => $user->locale,
+                'default_tenant_id' => $user->default_tenant_id,
+                'tenants' => $user->tenants->pluck('slug'),
+                'roles' => $user->roles->pluck('slug'),
+                'permissions' => $permissionSlugs,
+            ],
+        ]);
+    }
+
     /** Invalidate the shared browser session without revoking unrelated API tokens. */
     public function spaLogout(Request $request): JsonResponse
     {
