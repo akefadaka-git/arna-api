@@ -158,7 +158,7 @@ final class BrowserSessionAuthenticationTest extends TestCase
                 'password' => 'Password123!',
                 'tenant_id' => $this->tenant->id,
                 'mfa_challenge_token' => $challengeToken,
-                'mfa_code' => $this->currentTotp($enrollment['secret']),
+                'mfa_code' => $this->currentTotp($enrollment['secret'], 1),
             ])
             ->assertOk()
             ->assertJsonPath('success', true)
@@ -174,7 +174,7 @@ final class BrowserSessionAuthenticationTest extends TestCase
             ->assertJsonPath('data.id', $this->user->id);
     }
 
-    private function currentTotp(string $secret): string
+    private function currentTotp(string $secret, int $offsetSteps = 0): string
     {
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
         $buffer = 0;
@@ -189,7 +189,7 @@ final class BrowserSessionAuthenticationTest extends TestCase
             }
         }
 
-        $counter = intdiv(now()->timestamp, 30);
+        $counter = intdiv(now()->timestamp, 30) + $offsetSteps;
         $hash = hash_hmac('sha1', pack('N2', 0, $counter), $key, true);
         $offset = ord($hash[19]) & 0x0f;
         $binary = ((ord($hash[$offset]) & 0x7f) << 24)
