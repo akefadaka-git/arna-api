@@ -189,6 +189,10 @@ final class PermissionCatalogue
         ['slug' => 'people.account-link.manage', 'name_am' => 'የሰው መገለጫና መለያ ግንኙነትን ማስተዳደር', 'name_en' => 'Manage Global Person Account Links', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'people.tenant-access.manage', 'name_am' => 'የሰው መገለጫን በቴናንት መካከል መፍቀድ', 'name_en' => 'Manage Global Person Tenant Access', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
         ...FinancePermissionCatalogue::ROWS,
+            ['slug' => 'calendar.view', 'name_am' => 'ቀን መቁጠሪያ ማየት', 'name_en' => 'View Calendar', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'calendar.create', 'name_am' => 'የቀን መቁጠሪያ መፍጠር', 'name_en' => 'Create Calendar Items', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'calendar.update', 'name_am' => 'ቀን መቁጠሪያ ማዘመን', 'name_en' => 'Manage Calendar', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'calendar.reserve', 'name_am' => 'ሀብት ማስያዝ', 'name_en' => 'Reserve Calendar Resources', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'public-content.review', 'name_am' => 'ይፋዊ ይዘት መገምገምና ማተም', 'name_en' => 'Review and publish public content', 'category' => 'public_content', 'scope' => 'global', 'is_system' => false],
 ];
 }
