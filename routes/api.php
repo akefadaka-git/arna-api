@@ -559,6 +559,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::post('/events', [CalendarController::class, 'storeEvent'])->middleware('auth.permission:calendar.create')->name('events.store');
         Route::put('/events/{id}', [CalendarController::class, 'updateEvent'])->whereUuid('id')->middleware('auth.permission:calendar.update')->name('events.update');
         Route::get('/events/{eventId}/occurrences', [CalendarController::class, 'occurrences'])->whereUuid('eventId')->middleware('auth.permission:calendar.view')->name('events.occurrences');
+        Route::post('/events/{eventId}/occurrences/cancel', [CalendarController::class, 'cancelOccurrence'])->whereUuid('eventId')->middleware('auth.permission:calendar.update')->name('events.occurrences.cancel');
         Route::post('/events/{eventId}/response', [CalendarController::class, 'respond'])->whereUuid('eventId')->name('events.respond');
         Route::get('/resources', [CalendarController::class, 'resources'])->middleware('auth.permission:calendar.view')->name('resources.index');
         Route::post('/resources', [CalendarController::class, 'storeResource'])->middleware('auth.permission:calendar.update')->name('resources.store');
