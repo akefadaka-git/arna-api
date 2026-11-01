@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
@@ -129,6 +131,86 @@ final class CalendarHttpAuthorizationTest extends TestCase
                 'version' => 1,
                 'title' => 'Unauthorized update',
             ])
+            ->assertNotFound();
+    }
+
+    public function test_private_calendar_event_update_is_hidden_from_another_member_over_http(): void
+    {
+        $tenant = $this->tenant();
+        $owner = $this->member($tenant);
+        $actor = $this->member($tenant);
+        $this->grant($actor, $tenant, 'calendar.update');
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($owner, ['name' => 'Private events', 'visibility' => 'private']);
+        $event = $service->createEvent($owner, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Owner-only event',
+            'starts_at' => '2026-11-02T10:00:00+03:00',
+            'ends_at' => '2026-11-02T10:30:00+03:00',
+        ]);
+        Sanctum::actingAs($actor);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->patchJson('/api/calendar/events/'.$event->id, ['version' => 1, 'title' => 'Private overwrite'])
+            ->assertNotFound();
+    }
+
+    public function test_private_calendar_reservation_is_hidden_from_another_member_over_http(): void
+    {
+        $tenant = $this->tenant();
+        $owner = $this->member($tenant);
+        $actor = $this->member($tenant);
+        $this->grant($actor, $tenant, 'calendar.reserve');
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($owner, ['name' => 'Private room schedule', 'visibility' => 'private']);
+        $event = $service->createEvent($owner, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Private room meeting',
+            'starts_at' => '2026-11-02T10:00:00+03:00',
+            'ends_at' => '2026-11-02T10:30:00+03:00',
+        ]);
+        $resourceId = (string) Str::uuid();
+        DB::table('calendar_resources')->insert([
+            'id' => $resourceId,
+            'tenant_id' => $tenant->id,
+            'name' => 'Private room',
+            'resource_type' => 'room',
+            'capacity' => 8,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        Sanctum::actingAs($actor);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/reservations', [
+                'resource_id' => $resourceId,
+                'event_id' => $event->id,
+                'starts_at' => '2026-11-02T10:00:00+03:00',
+                'ends_at' => '2026-11-02T10:30:00+03:00',
+            ])
+            ->assertNotFound();
+    }
+
+    public function test_private_calendar_recurrence_expansion_is_hidden_from_another_member_over_http(): void
+    {
+        $tenant = $this->tenant();
+        $owner = $this->member($tenant);
+        $actor = $this->member($tenant);
+        $this->grant($actor, $tenant, 'calendar.view');
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($owner, ['name' => 'Private recurrence', 'visibility' => 'private']);
+        $event = $service->createEvent($owner, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Private recurring event',
+            'starts_at' => '2026-11-02T10:00:00+03:00',
+            'ends_at' => '2026-11-02T10:30:00+03:00',
+            'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 3],
+        ]);
+        Sanctum::actingAs($actor);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/calendar/events/'.$event->id.'/occurrences?from=2026-11-02T00:00:00%2B03:00&to=2026-11-04T00:00:00%2B03:00')
             ->assertNotFound();
     }
 
