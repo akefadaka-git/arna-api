@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Database\Events\QueryExecuted;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Calendar\Services\CalendarService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 
@@ -121,4 +123,70 @@ final class CalendarLifecycleTest extends TestCase
         $this->expectException(\Symfony\Component\HttpKernel\Exception\BadRequestHttpException::class);
         $service->recurringOccurrences($actor, $event->id, '2026-11-01T00:00:00+03:00', '2027-03-01T00:00:00+03:00');
     }
+    #[Test]
+    public function event_and_reminder_outbox_roll_back_when_audit_persistence_fails(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $actor->tenants()->attach($tenant->id, ['status' => 'active']);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Atomicity']);
+
+        DB::listen(static function (QueryExecuted $query): void {
+            $sql = strtolower(ltrim($query->sql));
+            if (str_starts_with($sql, 'insert') && str_contains($sql, 'calendar_audit_entries')) {
+                throw new RuntimeException('simulated calendar audit persistence failure');
+            }
+        });
+
+        try {
+            $service->createEvent($actor, [
+                'calendar_id' => $calendar->id,
+                'title' => 'Must roll back',
+                'starts_at' => '2026-11-01T10:00:00+03:00',
+                'ends_at' => '2026-11-01T10:30:00+03:00',
+                'attendee_user_ids' => [$actor->id],
+            ]);
+            $this->fail('Expected audit persistence failure.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('simulated calendar audit persistence failure', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('calendar_events')->where('calendar_id', $calendar->id)->count());
+        $this->assertSame(0, DB::table('calendar_reminder_outbox')->where('tenant_id', $tenant->id)->count());
+    }
+
+    #[Test]
+    public function event_creation_rolls_back_when_reminder_outbox_insert_fails(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $actor->tenants()->attach($tenant->id, ['status' => 'active']);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Outbox atomicity']);
+
+        DB::listen(static function (QueryExecuted $query): void {
+            $sql = strtolower(ltrim($query->sql));
+            if (str_starts_with($sql, 'insert') && str_contains($sql, 'calendar_reminder_outbox')) {
+                throw new RuntimeException('simulated reminder outbox persistence failure');
+            }
+        });
+
+        try {
+            $service->createEvent($actor, [
+                'calendar_id' => $calendar->id,
+                'title' => 'Must roll back',
+                'starts_at' => '2026-11-01T10:00:00+03:00',
+                'ends_at' => '2026-11-01T10:30:00+03:00',
+                'attendee_user_ids' => [$actor->id],
+            ]);
+            $this->fail('Expected reminder outbox persistence failure.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('simulated reminder outbox persistence failure', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('calendar_events')->where('calendar_id', $calendar->id)->count());
+        $this->assertSame(0, DB::table('calendar_reminder_outbox')->where('tenant_id', $tenant->id)->count());
+    }
+
 }
