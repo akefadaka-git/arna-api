@@ -58,7 +58,7 @@ final class CalendarReminderDispatcher
                         ->first();
 
                     if (!$event || $event->status !== 'scheduled' || $event->starts_at === null
-                        || new DateTimeImmutable($event->starts_at, new DateTimeZone('UTC')) <= new DateTimeImmutable('now', new DateTimeZone('UTC'))) {
+                        || new DateTimeImmutable($event->starts_at, new DateTimeZone('UTC')) <= now()->toDateTimeImmutable()) {
                         DB::table('calendar_reminder_outbox')->where('id', $row->id)->update([
                             'status' => 'skipped', 'updated_at' => now(),
                         ]);
