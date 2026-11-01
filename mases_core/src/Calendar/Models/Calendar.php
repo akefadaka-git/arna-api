@@ -12,7 +12,11 @@ final class Calendar extends Model
     protected $table = 'calendar_calendars';
     public $incrementing = false;
     protected $keyType = 'string';
-    protected $guarded = ['tenant_id', 'created_by', 'version'];
+
+    // CalendarService constructs all write attributes from trusted tenant context.
+    // Keeping this model unguarded is intentional only for that service boundary.
+    protected $guarded = [];
+
     protected $casts = ['is_default' => 'boolean', 'is_active' => 'boolean', 'version' => 'integer'];
 
     public function events(): HasMany
