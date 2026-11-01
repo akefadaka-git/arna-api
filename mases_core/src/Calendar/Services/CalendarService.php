@@ -186,8 +186,8 @@ final class CalendarService
             $start = new \DateTimeImmutable($data['starts_at']);
             $end = new \DateTimeImmutable($data['ends_at']);
             if ($end <= $start) throw new BadRequestHttpException('Reservation end must be after start.');
-            $eventStart = \\DateTimeImmutable::createFromInterface($event->starts_at);
-            $eventEnd = \\DateTimeImmutable::createFromInterface($event->ends_at);
+            $eventStart = \DateTimeImmutable::createFromInterface($event->starts_at);
+            $eventEnd = \DateTimeImmutable::createFromInterface($event->ends_at);
             if ($event->status !== 'scheduled' || $event->all_day
                 || $start->getTimestamp() < $eventStart->getTimestamp()
                 || $end->getTimestamp() > $eventEnd->getTimestamp()) {
