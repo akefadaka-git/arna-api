@@ -233,7 +233,7 @@ final class RolePermissionGrants
         'president'       => [
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['president'], 'app.admin.access',
             'user.profile.view', 'user.list',
-            'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish', 'communication.view', 'communication.message.send',
+            'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish', 'communication.view', 'communication.message.send', 'communication.conversation.manage',
             'role.list', 'permission.list',
         ],
         'secretary'       => [
