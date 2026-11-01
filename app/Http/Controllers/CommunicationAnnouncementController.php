@@ -74,20 +74,22 @@ final class CommunicationAnnouncementController
         }
 
         $id = (string) Str::uuid();
-        DB::table('communication_announcements')->insert([
-            'id' => $id, 'tenant_id' => $tenantId, 'created_by' => $user->getKey(),
-            'reference' => $data['reference'] ?? null, 'title' => json_encode($data['title'], JSON_THROW_ON_ERROR),
-            'content' => $data['content'], 'content_locale' => $data['content_locale'] ?? 'am',
-            'priority' => $data['priority'] ?? 'normal', 'status' => 'draft',
-            'requires_acknowledgement' => (bool) ($data['requires_acknowledgement'] ?? false),
-            'expires_at' => $data['expires_at'] ?? null, 'created_at' => now(), 'updated_at' => now(),
-        ]);
-        foreach ($recipientIds as $recipientId) {
-            DB::table('communication_announcement_recipients')->insert([
-                'id' => (string) Str::uuid(), 'announcement_id' => $id, 'tenant_id' => $tenantId,
-                'user_id' => $recipientId, 'created_at' => now(), 'updated_at' => now(),
+        DB::transaction(function () use ($id, $tenantId, $user, $data, $recipientIds): void {
+            DB::table('communication_announcements')->insert([
+                'id' => $id, 'tenant_id' => $tenantId, 'created_by' => $user->getKey(),
+                'reference' => $data['reference'] ?? null, 'title' => json_encode($data['title'], JSON_THROW_ON_ERROR),
+                'content' => $data['content'], 'content_locale' => $data['content_locale'] ?? 'am',
+                'priority' => $data['priority'] ?? 'normal', 'status' => 'draft',
+                'requires_acknowledgement' => (bool) ($data['requires_acknowledgement'] ?? false),
+                'expires_at' => $data['expires_at'] ?? null, 'created_at' => now(), 'updated_at' => now(),
             ]);
-        }
+            foreach ($recipientIds as $recipientId) {
+                DB::table('communication_announcement_recipients')->insert([
+                    'id' => (string) Str::uuid(), 'announcement_id' => $id, 'tenant_id' => $tenantId,
+                    'user_id' => $recipientId, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+        });
 
         return response()->json(['success' => true, 'data' => ['id' => $id, 'status' => 'draft']], 201);
     }
