@@ -133,8 +133,15 @@ final class CommunicationAnnouncementController
             ->where('announcement_id', $id)->where('tenant_id', $tenantId)->pluck('user_id')->all();
         if ($recipients === []) abort(422, 'An announcement must have at least one recipient.');
 
-        $users = User::query()->whereIn('id', $recipients)->get();
-        if ($users->count() !== count($recipients)) abort(409, 'A recipient identity is no longer available.');
+        $activeMembershipIds = TenantMembership::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', TenantMembership::STATUS_ACTIVE)
+            ->whereIn('user_id', $recipients)
+            ->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        $users = User::query()->whereIn('id', $recipients)->where('is_active', true)->get();
+        if (count($activeMembershipIds) !== count($recipients) || $users->count() !== count($recipients)) {
+            abort(409, 'Every recipient must remain an active user with active membership at publication time.');
+        }
 
         DB::transaction(function () use ($id, $tenantId, $user, $row, $users): void {
             DB::table('communication_announcements')->where('id', $id)->where('tenant_id', $tenantId)->update([
