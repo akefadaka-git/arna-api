@@ -212,40 +212,40 @@ final class RolePermissionGrants
         ],
         'manager'         => [
             'user.profile.view', 'user.list',
-            'file.list', 'file.view', 'file.download', 'announcement.view',
+            'file.list', 'file.view', 'file.download', 'announcement.view', 'communication.view', 'communication.message.send', 'communication.conversation.manage',
             ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
         ],
-        'finance_manager' => FinanceRolePermissionGrants::MAP['finance_manager'],
+        'finance_manager' => [...FinanceRolePermissionGrants::MAP['finance_manager'], 'communication.view', 'communication.message.send'],
         'hr_manager'      => [
-            'app.hr.access',
+            'app.hr.access', 'communication.view', 'communication.message.send',
             'file.upload', 'file.download', 'file.view', 'file.list',
             'user.profile.view',
         ],
         'shareholder'     => [
-            'app.portal.access', 'user.profile.view',
+            'app.portal.access', 'user.profile.view', 'communication.view', 'communication.message.send',
             'file.view', 'file.list', 'file.download',
         ],
         'board'           => [
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['board'],
-            'user.profile.view',
+            'user.profile.view', 'communication.view', 'communication.message.send',
             'file.view', 'file.list', 'file.download',
         ],
         'president'       => [
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['president'], 'app.admin.access',
             'user.profile.view', 'user.list',
-            'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish',
+            'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish', 'communication.view', 'communication.message.send', 'communication.conversation.manage',
             'role.list', 'permission.list',
         ],
         'secretary'       => [
-            'app.portal.access', 'user.profile.view', 'announcement.view', 'announcement.manage',
+            'app.portal.access', 'user.profile.view', 'announcement.view', 'announcement.manage', 'communication.view', 'communication.message.send', 'communication.conversation.manage',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
-        'cashier'         => FinanceRolePermissionGrants::MAP['cashier'],
+        'cashier'         => [...FinanceRolePermissionGrants::MAP['cashier'], 'communication.view', 'communication.message.send'],
         'ceo'             => [
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['ceo'], 'app.hr.access', 'app.admin.access',
             'user.profile.view', 'user.list', 'user.create', 'user.update',
             'role.list', 'permission.list',
-            'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
+            'file.view', 'file.list', 'file.download', 'file.upload', 'file.update', 'communication.view', 'communication.message.send',
         ],
     ];
 }
