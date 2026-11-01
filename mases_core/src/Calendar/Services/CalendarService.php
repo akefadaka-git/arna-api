@@ -276,8 +276,8 @@ final class CalendarService
             $occurrenceKey = $cursor->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
             $exception = $exceptions->get($occurrenceKey);
             if ($cursor >= $fromDate && (!$exception || $exception->status !== 'cancelled')) {
-                $occurrenceStart = $exception?->override_starts_at ? new \DateTimeImmutable($exception->override_starts_at) : $cursor;
-                $occurrenceEnd = $exception?->override_ends_at ? new \DateTimeImmutable($exception->override_ends_at) : $occurrenceStart->modify("+{$duration} seconds");
+                $occurrenceStart = $exception?->override_starts_at ? new \DateTimeImmutable($exception->override_starts_at, new \DateTimeZone('UTC')) : $cursor;
+                $occurrenceEnd = $exception?->override_ends_at ? new \DateTimeImmutable($exception->override_ends_at, new \DateTimeZone('UTC')) : $occurrenceStart->modify("+{$duration} seconds");
                 $items[] = ['event_id' => $event->id, 'occurrence' => $index,
                     'starts_at' => $occurrenceStart->format(DATE_ATOM), 'ends_at' => $occurrenceEnd->format(DATE_ATOM), 'timezone' => $event->timezone];
             }
