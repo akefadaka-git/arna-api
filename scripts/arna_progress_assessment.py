@@ -50,15 +50,14 @@ def assess_repo(name, now):
     meta = get(f"/repos/{encoded}")
     if "_error" in meta:
         return {"name": name, "error": meta["_error"]}
-    prs = get(f"/repos/{encoded}/pulls?state=all&sort=updated&direction=desc&per_page=100")
-    commits = get(f"/repos/{encoded}/commits?per_page=30")
-    runs = get(f"/repos/{encoded}/actions/runs?per_page=100")
-    if isinstance(prs, dict) and "_error" in prs: prs = []
-    if isinstance(commits, dict) and "_error" in commits: commits = []
-    if isinstance(runs, dict) and "_error" in runs: runs = {"workflow_runs": []}
-    prs = prs if isinstance(prs, list) else []
-    commits = commits if isinstance(commits, list) else []
-    run_items = runs.get("workflow_runs", []) if isinstance(runs, dict) else []
+    prs_raw = get(f"/repos/{encoded}/pulls?state=all&sort=updated&direction=desc&per_page=100")
+    commits_raw = get(f"/repos/{encoded}/commits?per_page=30")
+    runs_raw = get(f"/repos/{encoded}/actions/runs?per_page=100")
+    api_errors = [v["_error"] for v in (prs_raw, commits_raw, runs_raw) if isinstance(v, dict) and v.get("_error")]
+    prs = prs_raw if isinstance(prs_raw, list) else []
+    commits = commits_raw if isinstance(commits_raw, list) else []
+    runs = runs_raw if isinstance(runs_raw, dict) else {}
+    run_items = runs.get("workflow_runs", [])
     cutoff30 = now - dt.timedelta(days=30)
     cutoff14 = now - dt.timedelta(days=14)
     merged30 = [p for p in prs if p.get("merged_at") and (parse_time(p["merged_at"]) or now) >= cutoff30]
@@ -77,7 +76,7 @@ def assess_repo(name, now):
         "cancelled_workflows_14d": len(cancelled14), "in_progress_workflows": len(in_progress),
         "last_commit": last_commit.isoformat() if last_commit else None,
         "commit_age_days": (now - last_commit).days if last_commit else None,
-        "api_errors": [v for v in [prs, commits, runs] if isinstance(v, dict) and v.get("_error")]
+        "api_errors": api_errors
     }
 
 def bullets(items, empty):
