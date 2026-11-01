@@ -73,7 +73,7 @@ final class CalendarService
             $tenantId = $this->tenantId();
             $calendar = Calendar::query()->where('tenant_id', $tenantId)
                 ->whereKey($data['calendar_id'])->lockForUpdate()->first();
-            if (!$calendar) {
+            if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) {
                 throw new NotFoundHttpException('Calendar not found in the active tenant.');
             }
 
@@ -140,6 +140,10 @@ final class CalendarService
         return DB::transaction(function () use ($actor, $id, $data): CalendarEvent {
             $event = CalendarEvent::query()->where('tenant_id', $this->tenantId())->whereKey($id)->lockForUpdate()->first();
             if (!$event) throw new NotFoundHttpException('Calendar event not found.');
+            $calendar = Calendar::query()->where('tenant_id', $this->tenantId())->whereKey($event->calendar_id)->first();
+            if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) {
+                throw new NotFoundHttpException('Calendar event not found.');
+            }
             if ((int) ($data['version'] ?? 0) !== (int) $event->version) {
                 throw new ConflictHttpException('Calendar event version conflict; reload before retrying.');
             }
@@ -161,6 +165,8 @@ final class CalendarService
             if (!$resource) throw new NotFoundHttpException('Resource not found in the active tenant.');
             $event = CalendarEvent::query()->where('tenant_id', $tenantId)->whereKey($data['event_id'])->first();
             if (!$event) throw new NotFoundHttpException('Calendar event not found in the active tenant.');
+            $calendar = Calendar::query()->where('tenant_id', $tenantId)->whereKey($event->calendar_id)->first();
+            if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) throw new NotFoundHttpException('Calendar event not found.');
             foreach (['starts_at', 'ends_at'] as $field) {
                 if (!preg_match('/(?:Z|[+-]\\d{2}:?\\d{2})$/i', $data[$field])) {
                     throw new BadRequestHttpException('Reservation instants must include Z or an explicit UTC offset.');
