@@ -149,7 +149,7 @@ final class CommunicationAnnouncementController
                     'priority' => $row->priority === 'critical' ? 'high' : ($row->priority === 'urgent' ? 'high' : 'normal'),
                     'title' => json_decode($row->title, true, 512, JSON_THROW_ON_ERROR),
                     'body' => ['am' => mb_substr(strip_tags($row->content), 0, 500), 'en' => mb_substr(strip_tags($row->content), 0, 500)],
-                    'action_route_name' => 'announcements.show', 'resource_ref' => ['announcement_id' => $id],
+                    'action_route_name' => 'announcements', 'resource_ref' => ['announcement_id' => $id],
                     'dedupe_key' => 'announcement:'.$id,
                 ],
             );
