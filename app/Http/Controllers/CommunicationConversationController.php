@@ -123,11 +123,10 @@ final class CommunicationConversationController
         $conversation = $this->participantConversation($id, $tenantId, $user);
 
         $participants = DB::table('communication_conversation_participants as p')
-            ->join('users as u', 'u.id', '=', 'p.user_id')
             ->where('p.conversation_id', $id)
             ->where('p.tenant_id', $tenantId)
             ->whereNull('p.left_at')
-            ->select('p.user_id', 'p.role', 'p.joined_at', 'u.name')
+            ->select('p.user_id', 'p.role', 'p.joined_at')
             ->orderBy('p.joined_at')
             ->get();
 
