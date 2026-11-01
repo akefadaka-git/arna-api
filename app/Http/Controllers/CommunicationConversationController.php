@@ -185,7 +185,8 @@ final class CommunicationConversationController
         }
 
         $messageId = (string) Str::uuid();
-        DB::transaction(function () use ($messageId, $id, $tenantId, $user, $data): void {
+        try {
+            DB::transaction(function () use ($messageId, $id, $tenantId, $user, $data): void {
             DB::table('communication_messages')->insert([
                 'id' => $messageId,
                 'conversation_id' => $id,
@@ -224,7 +225,24 @@ final class CommunicationConversationController
                     'dedupe_key' => 'communication:message:'.$messageId,
                 ]);
             }
-        });
+            });
+        } catch (QueryException $exception) {
+            // The unique idempotency index is the concurrency authority. If
+            // another request won the race, return its result only when the
+            // key, conversation and payload are identical.
+            $raced = DB::table('communication_messages')
+                ->where('tenant_id', $tenantId)
+                ->where('sender_id', $user->getKey())
+                ->where('idempotency_key', $data['idempotency_key'])
+                ->first();
+            if ($raced === null) {
+                throw $exception;
+            }
+            if ($raced->conversation_id !== $id || $raced->body !== $data['body']) {
+                abort(409, 'The idempotency key was already used for a different message.');
+            }
+            return response()->json(['success' => true, 'data' => $raced]);
+        }
 
         $message = DB::table('communication_messages')->where('id', $messageId)->first();
         return response()->json(['success' => true, 'data' => $message], 201);
