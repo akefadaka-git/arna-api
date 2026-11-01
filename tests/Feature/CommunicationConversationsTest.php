@@ -51,6 +51,32 @@ final class CommunicationConversationsTest extends TestCase
             ->where('conversation_id', $conversationId)->count());
     }
 
+    public function test_group_creation_requires_conversation_management_permission(): void
+    {
+        [$tenant, $sender] = $this->tenantUser(['communication.message.send']);
+        $recipient = $this->member($tenant);
+
+        $this->tenantRequest($sender, $tenant)->postJson('/api/communication/conversations', [
+            'type' => 'group',
+            'title' => 'Operations Team',
+            'participant_ids' => [$recipient->id],
+        ])->assertForbidden();
+
+        [$tenant, $manager] = $this->tenantUser(['communication.conversation.manage'], $tenant);
+        $response = $this->tenantRequest($manager, $tenant)->postJson('/api/communication/conversations', [
+            'type' => 'group',
+            'title' => 'Operations Team',
+            'participant_ids' => [$recipient->id],
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('communication_conversations', [
+            'id' => $response->json('data.id'),
+            'tenant_id' => $tenant->id,
+            'type' => 'group',
+            'title' => 'Operations Team',
+        ]);
+    }
+
     public function test_foreign_or_inactive_users_cannot_be_added_to_a_conversation(): void
     {
         [$tenant, $sender] = $this->tenantUser(['communication.message.send']);
