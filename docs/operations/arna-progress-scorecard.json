@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "assessment_baseline": "2026-11-01",
+  "method": "Owner-maintained milestone estimates; nightly workflow records these estimates alongside live repository evidence. The workflow does not infer that a commit alone completes a capability.",
+  "overall_planning_weights": {
+    "P0": 10,
+    "P1": 20,
+    "P2": 25,
+    "P3": 15,
+    "P4": 10,
+    "P5": 20
+  },
+  "phases": [
+    {"id":"P0","name":"Security, tenancy and platform foundation","completion":85,"status":"partial","evidence_note":"Central identity, tenant isolation, authorization, MFA and security foundations substantially implemented; final reconciliation and production evidence remain."},
+    {"id":"P1","name":"Public platform and enterprise foundations","completion":65,"status":"partial","evidence_note":"Public site, moderation, notifications and several domain foundations exist; end-to-end integration and production validation remain."},
+    {"id":"P2","name":"Business domain workflows","completion":48,"status":"partial","evidence_note":"Finance, Shareholder, People, Organization, Governance, Documents, Communication and Calendar are at mixed maturity."},
+    {"id":"P3","name":"Unified integration and experience","completion":35,"status":"partial","evidence_note":"Cross-domain workflows, frontend/API contract consistency and unified navigation remain in progress."},
+    {"id":"P4","name":"Intelligence, automation and analytics","completion":20,"status":"partial","evidence_note":"Strategic direction is established; advanced AI, predictive analytics and workflow intelligence are early-stage."},
+    {"id":"P5","name":"Production readiness and operations","completion":25,"status":"partial","evidence_note":"Deployment, monitoring, recovery, performance, security certification and operational readiness remain substantial gaps."}
+  ],
+  "domains": [
+    {"name":"Core identity and authentication","completion":75,"rating":7.5},
+    {"name":"Tenant and security architecture","completion":80,"rating":8.0},
+    {"name":"Governance","completion":45,"rating":5.0},
+    {"name":"Finance and accounting","completion":40,"rating":4.5},
+    {"name":"Shareholder management","completion":55,"rating":5.5},
+    {"name":"People and HR","completion":55,"rating":5.5},
+    {"name":"Organization management","completion":60,"rating":6.0},
+    {"name":"Document management","completion":55,"rating":5.5},
+    {"name":"Communication Hub","completion":55,"rating":5.5},
+    {"name":"Central notifications","completion":70,"rating":7.0},
+    {"name":"Calendar and scheduling","completion":25,"rating":3.0},
+    {"name":"Public corporate website","completion":75,"rating":7.5},
+    {"name":"Admin console","completion":55,"rating":5.5},
+    {"name":"Reporting and analytics","completion":30,"rating":3.5},
+    {"name":"AI and intelligent automation","completion":15,"rating":2.0},
+    {"name":"Deployment and operations","completion":25,"rating":2.5}
+  ],
+  "benchmarks": [
+    {"system":"Odoo","category":"Modular ERP","comparison":"Broad integrated accounting, inventory, sales, HR and business application coverage; ARNA is earlier in functional completeness."},
+    {"system":"ERPNext","category":"Open-source ERP","comparison":"Mature accounting, HR, projects and inventory workflows; ARNA's opportunity is Ethiopian-context and governance integration."},
+    {"system":"SAP S/4HANA","category":"Enterprise ERP","comparison":"Enterprise-scale finance, controls and operations; ARNA is not yet comparable in controls, scale or operational proof."},
+    {"system":"Microsoft Dynamics 365","category":"Enterprise business applications","comparison":"Broad finance, operations, CRM and analytics; ARNA's cross-domain vision is comparable in direction, not maturity."},
+    {"system":"Salesforce","category":"CRM and workflow platform","comparison":"Useful benchmark for extensibility, lifecycle automation and analytics; not a direct functional equivalent to ARNA."},
+    {"system":"Microsoft 365 / Google Workspace","category":"Productivity and collaboration","comparison":"Mature collaboration, communication, documents and calendars; ARNA's opportunity is linking these activities to governed enterprise records."}
+  ],
+  "scoring_guidance": {
+    "verified": "Implemented and supported by current exact-head tests or reproducible operational evidence.",
+    "partial": "Implemented in part, or evidence covers only part of the acceptance criteria.",
+    "missing": "Not implemented or no qualifying implementation evidence.",
+    "unknown": "Cannot be determined from accessible repository evidence.",
+    "owner_update_required": "Change phase/domain percentages only through an Owner-reviewed change to this file, with evidence notes. Nightly automation must not promote scores based solely on commit counts or PR activity."
+  }
+}
