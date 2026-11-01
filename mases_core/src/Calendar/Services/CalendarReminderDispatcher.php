@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Notifications\Services\NotificationService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
 use Throwable;
 
 /**
@@ -69,6 +70,19 @@ final class CalendarReminderDispatcher
                     if (!$tenant || !$recipient) {
                         DB::table('calendar_reminder_outbox')->where('id', $row->id)->update([
                             'status' => 'skipped', 'last_error' => 'Tenant or recipient no longer exists.',
+                            'updated_at' => now(),
+                        ]);
+                        return 'skipped';
+                    }
+
+                    $activeMember = TenantMembership::query()
+                        ->where('tenant_id', $tenant->getKey())
+                        ->where('user_id', $recipient->getKey())
+                        ->where('status', TenantMembership::STATUS_ACTIVE)
+                        ->exists();
+                    if (!$activeMember) {
+                        DB::table('calendar_reminder_outbox')->where('id', $row->id)->update([
+                            'status' => 'skipped', 'last_error' => 'Recipient is no longer an active tenant member.',
                             'updated_at' => now(),
                         ]);
                         return 'skipped';
