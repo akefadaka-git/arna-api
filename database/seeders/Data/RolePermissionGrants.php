@@ -211,6 +211,7 @@ final class RolePermissionGrants
             'app.admin.access', 'app.arna.access', 'app.app.access', 'app.launcher.access',
         ],
         'manager'         => [
+            'calendar.view', 'calendar.create', 'calendar.update',
             'user.profile.view', 'user.list',
             'file.list', 'file.view', 'file.download',
             ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
@@ -222,11 +223,11 @@ final class RolePermissionGrants
             'user.profile.view',
         ],
         'shareholder'     => [
-            'app.portal.access', 'user.profile.view',
+            'calendar.view', 'app.portal.access', 'user.profile.view',
             'file.view', 'file.list', 'file.download',
         ],
         'board'           => [
-            'app.portal.access', ...FinanceRolePermissionGrants::MAP['board'],
+            'calendar.view', 'app.portal.access', ...FinanceRolePermissionGrants::MAP['board'],
             'user.profile.view',
             'file.view', 'file.list', 'file.download',
         ],
@@ -237,12 +238,12 @@ final class RolePermissionGrants
             'role.list', 'permission.list',
         ],
         'secretary'       => [
-            'app.portal.access', 'user.profile.view',
+            'calendar.view', 'calendar.create', 'calendar.update', 'app.portal.access', 'user.profile.view',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
         'cashier'         => FinanceRolePermissionGrants::MAP['cashier'],
         'ceo'             => [
-            'app.portal.access', ...FinanceRolePermissionGrants::MAP['ceo'], 'app.hr.access', 'app.admin.access',
+            'calendar.view', 'calendar.create', 'calendar.update', 'calendar.reserve', 'app.portal.access', ...FinanceRolePermissionGrants::MAP['ceo'], 'app.hr.access', 'app.admin.access',
             'user.profile.view', 'user.list', 'user.create', 'user.update',
             'role.list', 'permission.list',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
