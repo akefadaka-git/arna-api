@@ -49,6 +49,7 @@ on:
       - "mases_core/src/Migrations/*calendar_core_tables.php"
       - "mases_core/src/Migrations/*calendar_lifecycle_tables.php"
       - "tests/Feature/CalendarCoreSecurityTest.php"
+      - "tests/Feature/CalendarHttpAuthorizationTest.php"
       - "tests/Feature/CalendarLifecycleTest.php"
       - "tests/Feature/CalendarReminderDispatcherTest.php"
       - "tests/Unit/CalendarPermissionCatalogueTest.php"
@@ -232,7 +233,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarReservationConcurrencyTest.php tests/Feature/CalendarLifecycleTest.php tests/Feature/CalendarReminderDispatcherTest.php tests/Unit/CalendarPermissionCatalogueTest.php
+        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarHttpAuthorizationTest.php tests/Feature/CalendarReservationConcurrencyTest.php tests/Feature/CalendarLifecycleTest.php tests/Feature/CalendarReminderDispatcherTest.php tests/Unit/CalendarPermissionCatalogueTest.php
 
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
