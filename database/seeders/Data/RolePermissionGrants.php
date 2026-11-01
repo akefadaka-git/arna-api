@@ -212,7 +212,7 @@ final class RolePermissionGrants
         ],
         'manager'         => [
             'user.profile.view', 'user.list',
-            'file.list', 'file.view', 'file.download', 'announcement.view',
+            'file.list', 'file.view', 'file.download', 'announcement.view', 'communication.view', 'communication.message.send',
             ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
         ],
         'finance_manager' => FinanceRolePermissionGrants::MAP['finance_manager'],
@@ -233,11 +233,11 @@ final class RolePermissionGrants
         'president'       => [
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['president'], 'app.admin.access',
             'user.profile.view', 'user.list',
-            'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish',
+            'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish', 'communication.view', 'communication.message.send',
             'role.list', 'permission.list',
         ],
         'secretary'       => [
-            'app.portal.access', 'user.profile.view', 'announcement.view', 'announcement.manage',
+            'app.portal.access', 'user.profile.view', 'announcement.view', 'announcement.manage', 'communication.view', 'communication.message.send',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
         'cashier'         => FinanceRolePermissionGrants::MAP['cashier'],
