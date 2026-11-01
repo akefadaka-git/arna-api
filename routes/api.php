@@ -705,6 +705,34 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
 
 
 
+
+// =============================================================================
+// Calendar Core — tenant-scoped scheduling and coordination
+// =============================================================================
+// Permission catalogue contract: calendar.view, calendar.create,
+// calendar.update, calendar.reserve. These slugs are intentionally fail-closed
+// until reconciled with the canonical permission catalogue and assigned by
+// an authorized administrator. Tenant membership alone grants no mutation.
+Route::middleware(['auth:sanctum', 'tenant.membership'])
+    ->prefix('calendar')
+    ->name('api.calendar.')
+    ->group(static function (): void {
+        $controller = \\MaaleArna\\MASES\\Core\\Calendar\\Http\\Controllers\\CalendarController::class;
+
+        Route::get('/calendars', [$controller, 'calendars'])
+            ->middleware('auth.permission:calendar.view')->name('calendars.index');
+        Route::post('/calendars', [$controller, 'storeCalendar'])
+            ->middleware('auth.permission:calendar.create')->name('calendars.store');
+        Route::get('/events', [$controller, 'events'])
+            ->middleware('auth.permission:calendar.view')->name('events.index');
+        Route::post('/events', [$controller, 'storeEvent'])
+            ->middleware('auth.permission:calendar.create')->name('events.store');
+        Route::patch('/events/{id}', [$controller, 'updateEvent'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('events.update');
+        Route::post('/reservations', [$controller, 'reserve'])
+            ->middleware('auth.permission:calendar.reserve')->name('reservations.store');
+    });
+
 // =============================================================================
 // 5. Fallback – Delegate to the canonical error renderer
 // =============================================================================
