@@ -99,6 +99,13 @@ final class CalendarController
         return response()->json(['success' => true, 'data' => $this->calendar->recurringOccurrences($eventId, $data['from'], $data['to'])]);
     }
 
+    public function cancelOccurrence(Request $request, string $eventId): JsonResponse
+    {
+        $data = $request->validate(['original_starts_at' => ['required', 'date']]);
+        $this->calendar->cancelOccurrence($request->user(), $eventId, $data['original_starts_at']);
+        return response()->json(['success' => true, 'data' => ['cancelled' => true]]);
+    }
+
     public function reserve(Request $request): JsonResponse
     {
         $data = $request->validate([
