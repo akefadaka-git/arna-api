@@ -12,7 +12,7 @@ final class CalendarEvent extends Model
     protected $table = 'calendar_events';
     public $incrementing = false;
     protected $keyType = 'string';
-    protected $guarded = ['id', 'tenant_id', 'created_by', 'version'];
+    protected $guarded = ['tenant_id', 'created_by', 'version'];
     protected $casts = [
         'all_day' => 'boolean',
         'starts_on' => 'date:Y-m-d',
