@@ -106,7 +106,35 @@ final class CommunicationAnnouncementsTest extends TestCase
             ->postJson('/api/announcements', $this->validPayload([$inactiveRecipient->id]))
             ->assertUnprocessable();
 
+        $foreignTenant = Tenant::factory()->create();
+        $foreignRecipient = User::factory()->create();
+        $foreignRecipient->tenants()->attach($foreignTenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        $this->tenantRequest($manager, $tenant)
+            ->postJson('/api/announcements', $this->validPayload([$foreignRecipient->id]))
+            ->assertUnprocessable();
+
         $this->assertSame(0, DB::table('communication_announcements')->count());
+    }
+
+    public function test_draft_and_recipient_inserts_roll_back_as_one_unit(): void
+    {
+        [$tenant, $manager] = $this->tenantUser(['announcement.manage']);
+        $recipient = User::factory()->create();
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+
+        DB::listen(static function (QueryExecuted $query): void {
+            $sql = strtolower(ltrim($query->sql));
+            if (str_starts_with($sql, 'insert') && str_contains($sql, 'communication_announcement_recipients')) {
+                throw new RuntimeException('simulated recipient persistence failure');
+            }
+        });
+
+        $this->tenantRequest($manager, $tenant)
+            ->postJson('/api/announcements', $this->validPayload([$recipient->id]))
+            ->assertServerError();
+
+        $this->assertSame(0, DB::table('communication_announcements')->count());
+        $this->assertSame(0, DB::table('communication_announcement_recipients')->count());
     }
 
     public function test_submitter_cannot_approve_their_own_announcement(): void
