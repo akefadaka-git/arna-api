@@ -80,11 +80,16 @@ final class CalendarReminderDispatcherTest extends TestCase
     public function test_failed_delivery_is_retried_with_backoff_and_then_delivered_idempotently(): void
     {
         [, , $event] = $this->createDueReminder();
-        $failing = Mockery::mock(NotificationService::class);
-        $failing->shouldReceive('publish')->once()->andThrow(new RuntimeException('temporary notification store failure'));
-        app()->instance(NotificationService::class, $failing);
+        $failNotificationInsert = true;
+        DB::listen(static function (QueryExecuted $query) use (&$failNotificationInsert): void {
+            $sql = strtolower(ltrim($query->sql));
+            if ($failNotificationInsert && str_starts_with($sql, 'insert') && str_contains($sql, 'platform_notifications')) {
+                throw new RuntimeException('temporary notification store failure');
+            }
+        });
 
         $first = app(CalendarReminderDispatcher::class)->dispatch();
+        $failNotificationInsert = false;
         $this->assertSame(1, $first['retried']);
         $this->assertDatabaseHas('calendar_reminder_outbox', ['event_id' => $event->id, 'status' => 'pending', 'attempts' => 1]);
 
