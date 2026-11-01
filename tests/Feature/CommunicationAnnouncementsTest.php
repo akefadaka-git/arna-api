@@ -18,7 +18,7 @@ use MaaleArna\MASES\Core\Tenancy\Middleware\TenantMembershipMiddleware;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
 use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
-use Mockery;
+use Illuminate\Database\Events\QueryExecuted;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -213,9 +213,15 @@ final class CommunicationAnnouncementsTest extends TestCase
         $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
         $id = $this->insertAnnouncement($tenant, $author, 'approved', [$recipient->id]);
 
-        $notifications = Mockery::mock(NotificationService::class);
-        $notifications->shouldReceive('publish')->once()->andThrow(new RuntimeException('simulated notification persistence failure'));
-        $this->app->instance(NotificationService::class, $notifications);
+        // Fail after MySQL executes the notification INSERT but before the
+        // nested service transaction can commit. The outer announcement
+        // transaction must roll back both publication and delivery markers.
+        DB::listen(static function (QueryExecuted $query): void {
+            $sql = strtolower(ltrim($query->sql));
+            if (str_starts_with($sql, 'insert') && str_contains($sql, 'platform_notifications')) {
+                throw new RuntimeException('simulated notification persistence failure');
+            }
+        });
 
         $this->tenantRequest($publisher, $tenant)->postJson("/api/announcements/{$id}/publish")
             ->assertServerError();
