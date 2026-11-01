@@ -89,7 +89,7 @@ use RuntimeException;
  *
  *     Data\TenantProfile          (S-2)  1 tenant
  *     Data\ApplicationRegistry    (S-3)  7 applications
- *     Data\PermissionCatalogue    (S-4)  57 permissions (44 core + 13 Finance)
+ *     Data\PermissionCatalogue    (S-4)  59 permissions (46 core + 13 Finance)
  *     Data\RoleCatalogue          (S-5)  12 roles
  *     Data\RolePermissionGrants   (S-6)  12 role-grant entries
  *     Data\BootstrapUsers         (S-7)  2 bootstrap admins
@@ -131,7 +131,7 @@ use RuntimeException;
  *          map keyed by slug.
  *
  *     4. PermissionSeeder::seed($applications): array<string, Permission>
- *          Upsert the 57 permission rows by slug. Resolves each
+ *          Upsert the 59 permission rows by slug. Resolves each
  *          app.{slug}.access permission's application_id from the
  *          applications map. Returns the map keyed by slug.
  *
