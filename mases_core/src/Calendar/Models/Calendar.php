@@ -12,7 +12,7 @@ final class Calendar extends Model
     protected $table = 'calendar_calendars';
     public $incrementing = false;
     protected $keyType = 'string';
-    protected $guarded = ['id', 'tenant_id', 'version'];
+    protected $guarded = ['tenant_id', 'created_by', 'version'];
     protected $casts = ['is_default' => 'boolean', 'is_active' => 'boolean', 'version' => 'integer'];
 
     public function events(): HasMany
