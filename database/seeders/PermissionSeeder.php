@@ -12,7 +12,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 /**
  * PermissionSeeder
  *
- * Seeds the platform's fifty-nine permissions — the atomic
+ * Seeds the platform's sixty permissions — the atomic
  * capabilities the authorization system checks. Runs after
  * ApplicationSeeder and before RoleSeeder.
  *
@@ -20,7 +20,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
  * What this seeder is — and is not
  * =============================================================================
  * This is a DOMAIN SEEDER. Its single responsibility is to write the
- * 59 permission rows and hand the resulting map of persisted models
+ * 60 permission rows and hand the resulting map of persisted models
  * back to the caller. It contains no reference data — that lives in
  * Data\PermissionCatalogue. It contains no other domain's logic — the
  * tenant, applications, roles, and users are seeded by sibling
@@ -55,7 +55,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
  * The applications argument
  * =============================================================================
  * This is the first seeder that takes an argument. The reason is that
- * seven of the 59 permissions are application-scoped:
+ * seven of the 60 permissions are application-scoped:
  *
  *     app.portal.access    — portal
  *     app.finance.access   — finance
