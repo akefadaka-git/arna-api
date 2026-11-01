@@ -14,9 +14,9 @@ final class CalendarController
     {
     }
 
-    public function calendars(): JsonResponse
+    public function calendars(Request $request): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => $this->calendar->calendars(request()->user())]);
+        return response()->json(['success' => true, 'data' => $this->calendar->calendars($request->user())]);
     }
 
     public function storeCalendar(Request $request): JsonResponse
@@ -96,7 +96,7 @@ final class CalendarController
     public function occurrences(Request $request, string $eventId): JsonResponse
     {
         $data = $request->validate(['from' => ['required', 'date'], 'to' => ['required', 'date', 'after_or_equal:from']]);
-        return response()->json(['success' => true, 'data' => $this->calendar->recurringOccurrences($eventId, $data['from'], $data['to'])]);
+        return response()->json(['success' => true, 'data' => $this->calendar->recurringOccurrences($request->user(), $eventId, $data['from'], $data['to'])]);
     }
 
     public function cancelOccurrence(Request $request, string $eventId): JsonResponse
