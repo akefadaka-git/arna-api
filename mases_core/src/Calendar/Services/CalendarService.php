@@ -186,8 +186,11 @@ final class CalendarService
             $start = new \DateTimeImmutable($data['starts_at']);
             $end = new \DateTimeImmutable($data['ends_at']);
             if ($end <= $start) throw new BadRequestHttpException('Reservation end must be after start.');
+            $eventStart = \\DateTimeImmutable::createFromInterface($event->starts_at);
+            $eventEnd = \\DateTimeImmutable::createFromInterface($event->ends_at);
             if ($event->status !== 'scheduled' || $event->all_day
-                || $start < $event->starts_at || $end > $event->ends_at) {
+                || $start->getTimestamp() < $eventStart->getTimestamp()
+                || $end->getTimestamp() > $eventEnd->getTimestamp()) {
                 throw new BadRequestHttpException('Reservation interval must be contained within a scheduled timed event.');
             }
             $overlap = DB::table('calendar_reservations')->where('tenant_id', $tenantId)
@@ -280,7 +283,7 @@ final class CalendarService
                 $occurrenceStart = $exception?->override_starts_at ? new \DateTimeImmutable($exception->override_starts_at, new \DateTimeZone('UTC')) : $cursor;
                 $occurrenceEnd = $exception?->override_ends_at ? new \DateTimeImmutable($exception->override_ends_at, new \DateTimeZone('UTC')) : $occurrenceStart->modify("+{$duration} seconds");
                 $items[] = ['event_id' => $event->id, 'occurrence' => $index,
-                    'starts_at' => $occurrenceStart->format(DATE_ATOM), 'ends_at' => $occurrenceEnd->format(DATE_ATOM), 'timezone' => $event->timezone];
+                    'starts_at' => $occurrenceStart->setTimezone($zone)->format(DATE_ATOM), 'ends_at' => $occurrenceEnd->setTimezone($zone)->format(DATE_ATOM), 'timezone' => $event->timezone];
             }
         }
         return $items;
