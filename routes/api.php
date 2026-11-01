@@ -745,6 +745,20 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
             ->middleware('auth.permission:calendar.create')->name('events.store');
         Route::patch('/events/{id}', [$controller, 'updateEvent'])
             ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('events.update');
+        Route::post('/events/{eventId}/response', [$controller, 'respond'])
+            ->whereUuid('eventId')->middleware('auth.permission:calendar.view')->name('events.respond');
+        Route::get('/events/{eventId}/occurrences', [$controller, 'occurrences'])
+            ->whereUuid('eventId')->middleware('auth.permission:calendar.view')->name('events.occurrences');
+        Route::post('/events/{eventId}/occurrences/cancel', [$controller, 'cancelOccurrence'])
+            ->whereUuid('eventId')->middleware('auth.permission:calendar.update')->name('events.occurrences.cancel');
+        Route::post('/events/{eventId}/occurrences/move', [$controller, 'moveOccurrence'])
+            ->whereUuid('eventId')->middleware('auth.permission:calendar.update')->name('events.occurrences.move');
+        Route::get('/resources', [$controller, 'resources'])
+            ->middleware('auth.permission:calendar.view')->name('resources.index');
+        Route::post('/resources', [$controller, 'storeResource'])
+            ->middleware('auth.permission:calendar.create')->name('resources.store');
+        Route::patch('/resources/{id}', [$controller, 'updateResource'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('resources.update');
         Route::post('/reservations', [$controller, 'reserve'])
             ->middleware('auth.permission:calendar.reserve')->name('reservations.store');
     });
