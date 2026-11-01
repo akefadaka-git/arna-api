@@ -52,14 +52,18 @@ final class CommunicationConversationController
     {
         $tenantId = $this->tenantId();
         $user = $this->user($request);
-        $this->authorize($user, 'communication.message.send', $tenantId);
-
         $data = $request->validate([
             'type' => ['required', 'in:direct,group,department'],
             'title' => ['nullable', 'string', 'max:180'],
             'participant_ids' => ['required', 'array', 'min:1', 'max:100'],
             'participant_ids.*' => ['required', 'integer', 'distinct'],
         ]);
+
+        $this->authorize(
+            $user,
+            $data['type'] === 'direct' ? 'communication.message.send' : 'communication.conversation.manage',
+            $tenantId,
+        );
 
         if ($data['type'] === 'direct' && count($data['participant_ids']) !== 1) {
             abort(422, 'A direct conversation must have exactly one other participant.');
