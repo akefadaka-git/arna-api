@@ -34,12 +34,14 @@ final class CalendarService
         return DB::transaction(function () use ($actor, $data): Calendar {
             $tenantId = $this->tenantId();
             $id = (string) Str::uuid();
-            $calendar = Calendar::query()->create([
+            $calendar = new Calendar();
+            $calendar->forceFill([
                 'id' => $id, 'tenant_id' => $tenantId, 'owner_user_id' => $actor->getKey(),
                 'name' => $data['name'], 'visibility' => $data['visibility'] ?? 'tenant',
                 'timezone' => $data['timezone'] ?? 'Africa/Addis_Ababa',
                 'is_default' => false, 'is_active' => true, 'version' => 1,
             ]);
+            $calendar->save();
             $this->audit($actor, 'calendar', $id, 'created', ['name' => $calendar->name]);
             return $calendar;
         });
@@ -85,7 +87,8 @@ final class CalendarService
             }
 
             $id = (string) Str::uuid();
-            $event = CalendarEvent::query()->create([
+            $event = new CalendarEvent();
+            $event->forceFill([
                 'id' => $id, 'calendar_id' => $calendar->id, 'tenant_id' => $tenantId,
                 'created_by' => $actor->getKey(), 'title' => $data['title'],
                 'description' => $data['description'] ?? null, 'event_type' => $data['event_type'] ?? 'event',
@@ -95,6 +98,7 @@ final class CalendarService
                 'timezone' => $data['timezone'] ?? $calendar->timezone,
                 'status' => 'scheduled', 'recurrence_rule' => $data['recurrence_rule'] ?? null, 'version' => 1,
             ]);
+            $event->save();
 
             foreach (array_unique($data['attendee_user_ids'] ?? []) as $userId) {
                 $active = DB::table('tenant_memberships')->where('tenant_id', $tenantId)
