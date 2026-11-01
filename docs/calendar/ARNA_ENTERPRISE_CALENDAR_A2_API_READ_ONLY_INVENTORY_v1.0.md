@@ -1,6 +1,6 @@
 # ARNA Enterprise Calendar — API A2 Read-only Inventory
 
-**Status:** A2 PARTIAL; read-only source review
+**Status:** A2 CLOSED for bounded source inventory; unresolved contracts remain explicit blockers
 **Repository:** akefadaka-git/arna-api
 **Main SHA:** 717288a68c29a6c4e24c5875cba1190522a5bdd8
 **A1 PR:** #68; proposal commit f8a836908fc8c16c3ac69d27ad34e0bda6a0d334
@@ -72,4 +72,4 @@ Service publish creates notification rows transactionally but does not by itself
 
 This is a bounded source inventory, not a full route/schema audit, test run, runtime inspection or production DB inspection. Absence from inspected domain tree means not found in this inventory, not proof of absence from every historical branch or external service.
 
-**A2 result: PARTIAL.** Major architecture boundaries and key gaps are established. Full legacy call-site audit and source-level inventory of task-like records remain open. No A3 implementation is included.
+**A2 result: CLOSED for bounded source inventory.** Legacy calendar compatibility classes and bootstrap facade alias were identified; task-like Loan/Wallet obligations and Governance action expectations were classified by domain ownership; date-only versus instant examples and timezone behavior were verified. See [the consolidated disposition register and implementation strategy](ARNA_ENTERPRISE_CALENDAR_A2_CONSOLIDATED_DISPOSITION_AND_IMPLEMENTATION_STRATEGY_v1.0.md) for source-to-requirement mapping, unresolved decisions and delivery sequence. Exact endpoint-level permission mapping, runtime verification and A3 compatibility/test work remain future-phase tasks. No A3 implementation is included.
