@@ -269,10 +269,11 @@ final class CalendarService
         $step = max(1, min(365, (int) ($rule['interval'] ?? 1)));
         $limit = max(1, min(500, (int) ($rule['count'] ?? 100)));
         $duration = $end->getTimestamp() - $start->getTimestamp();
-        $cursor = $start;
         $exceptions = DB::table('calendar_recurrence_exceptions')->where('tenant_id', $this->tenantId())->where('event_id', $eventId)->get()->keyBy('original_starts_at');
         $items = [];
-        for ($index = 0; $index < $limit && $cursor <= $toDate; $index++) {
+        for ($index = 0; $index < $limit; $index++) {
+            $cursor = $this->recurrenceOccurrenceAt($start, $frequency, $step, $index);
+            if ($cursor > $toDate) break;
             $occurrenceKey = $cursor->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
             $exception = $exceptions->get($occurrenceKey);
             if ($cursor >= $fromDate && (!$exception || $exception->status !== 'cancelled')) {
@@ -281,13 +282,34 @@ final class CalendarService
                 $items[] = ['event_id' => $event->id, 'occurrence' => $index,
                     'starts_at' => $occurrenceStart->format(DATE_ATOM), 'ends_at' => $occurrenceEnd->format(DATE_ATOM), 'timezone' => $event->timezone];
             }
-            $cursor = match ($frequency) {
-                'daily' => $cursor->modify("+{$step} days"), 'weekly' => $cursor->modify("+{$step} weeks"),
-                'monthly' => $cursor->modify("+{$step} months"), 'yearly' => $cursor->modify("+{$step} years"),
-                default => throw new BadRequestHttpException('Unsupported recurrence frequency.'),
-            };
         }
         return $items;
+    }
+
+    private function recurrenceOccurrenceAt(\\DateTimeImmutable $anchor, string $frequency, int $interval, int $occurrence): \\DateTimeImmutable
+    {
+        $offset = $interval * $occurrence;
+        if ($frequency === 'daily') return $anchor->modify("+{$offset} days");
+        if ($frequency === 'weekly') return $anchor->modify("+{$offset} weeks");
+        if (!in_array($frequency, ['monthly', 'yearly'], true)) {
+            throw new BadRequestHttpException('Unsupported recurrence frequency.');
+        }
+
+        $year = (int) $anchor->format('Y');
+        $month = (int) $anchor->format('n');
+        if ($frequency === 'monthly') {
+            $monthIndex = ($month - 1) + $offset;
+            $year += intdiv($monthIndex, 12);
+            $month = ($monthIndex % 12) + 1;
+        } else {
+            $year += $offset;
+        }
+
+        $firstOfMonth = $anchor->setDate($year, $month, 1);
+        $lastDay = (int) $firstOfMonth->modify('last day of this month')->format('j');
+        $day = min((int) $anchor->format('j'), $lastDay);
+
+        return $firstOfMonth->setDate($year, $month, $day);
     }
 
     public function moveOccurrence(User $actor, string $eventId, string $originalStartsAt, string $newStartsAt, string $newEndsAt): void
