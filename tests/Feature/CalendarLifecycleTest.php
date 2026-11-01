@@ -146,6 +146,50 @@ final class CalendarLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function monthly_and_yearly_recurrence_clamp_short_month_and_leap_day_without_drift(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Temporal edge cases']);
+
+        $monthly = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Month end',
+            'starts_at' => '2027-01-31T10:00:00+03:00',
+            'ends_at' => '2027-01-31T10:30:00+03:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'monthly', 'interval' => 1, 'count' => 4],
+        ]);
+        $monthlyItems = $service->recurringOccurrences(
+            $actor, $monthly->id, '2027-01-01T00:00:00+03:00', '2027-05-01T00:00:00+03:00',
+        );
+        $this->assertSame([
+            '2027-01-31T10:00:00+03:00',
+            '2027-02-28T10:00:00+03:00',
+            '2027-03-31T10:00:00+03:00',
+            '2027-04-30T10:00:00+03:00',
+        ], array_column($monthlyItems, 'starts_at'));
+
+        $yearly = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Leap day',
+            'starts_at' => '2024-02-29T10:00:00+03:00',
+            'ends_at' => '2024-02-29T10:30:00+03:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'yearly', 'interval' => 1, 'count' => 3],
+        ]);
+        $yearlyItems = $service->recurringOccurrences(
+            $actor, $yearly->id, '2024-01-01T00:00:00+03:00', '2027-01-01T00:00:00+03:00',
+        );
+        $this->assertSame([
+            '2024-02-29T10:00:00+03:00',
+            '2025-02-28T10:00:00+03:00',
+            '2026-02-28T10:00:00+03:00',
+        ], array_column($yearlyItems, 'starts_at'));
+    }
+
+    #[Test]
     public function recurrence_expansion_rejects_windows_longer_than_ninety_days(): void
     {
         $tenant = $this->tenant();
