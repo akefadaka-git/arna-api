@@ -147,6 +147,7 @@ use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CommunicationAnnouncementController;
+use App\Http\Controllers\CommunicationConversationController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -573,6 +574,25 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::post('/{id}/approve', [CommunicationAnnouncementController::class, 'approve'])->whereUuid('id')->name('approve');
         Route::post('/{id}/publish', [CommunicationAnnouncementController::class, 'publish'])->whereUuid('id')->name('publish');
         Route::post('/{id}/acknowledge', [CommunicationAnnouncementController::class, 'acknowledge'])->whereUuid('id')->name('acknowledge');
+    });
+
+    // Tenant-scoped direct, group and department messaging. The controller
+    // enforces both the canonical communication permission and active
+    // conversation participation for every resource read or mutation.
+    Route::prefix('/communication')->name('api.communication.')->group(static function (): void {
+        Route::get('/conversations', [CommunicationConversationController::class, 'index'])->name('conversations.index');
+        Route::post('/conversations', [CommunicationConversationController::class, 'store'])
+            ->middleware('throttle:20,1')->name('conversations.store');
+        Route::get('/conversations/{id}', [CommunicationConversationController::class, 'show'])
+            ->whereUuid('id')->name('conversations.show');
+        Route::get('/conversations/{id}/messages', [CommunicationConversationController::class, 'messages'])
+            ->whereUuid('id')->name('messages.index');
+        Route::post('/conversations/{id}/messages', [CommunicationConversationController::class, 'send'])
+            ->whereUuid('id')->middleware('throttle:30,1')->name('messages.store');
+        Route::post('/conversations/{id}/read', [CommunicationConversationController::class, 'markRead'])
+            ->whereUuid('id')->name('conversations.read');
+        Route::post('/messages/{messageId}/delivered', [CommunicationConversationController::class, 'markDelivered'])
+            ->whereUuid('messageId')->name('messages.delivered');
     });
 
     // -------------------------------------------------------------------------
