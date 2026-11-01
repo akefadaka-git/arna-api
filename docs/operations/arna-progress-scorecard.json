@@ -2,18 +2,11 @@
   "schema_version": 1,
   "assessment_baseline": "2026-11-01",
   "method": "Owner-maintained milestone estimates; nightly workflow records these estimates alongside live repository evidence. The workflow does not infer that a commit alone completes a capability.",
-  "overall_planning_weights": {
-    "P0": 10,
-    "P1": 20,
-    "P2": 25,
-    "P3": 15,
-    "P4": 10,
-    "P5": 20
-  },
+  "overall_planning_weights": {"P0":10,"P1":20,"P2":25,"P3":15,"P4":10,"P5":20},
   "phases": [
     {"id":"P0","name":"Security, tenancy and platform foundation","completion":85,"status":"partial","evidence_note":"Central identity, tenant isolation, authorization, MFA and security foundations substantially implemented; final reconciliation and production evidence remain."},
     {"id":"P1","name":"Public platform and enterprise foundations","completion":65,"status":"partial","evidence_note":"Public site, moderation, notifications and several domain foundations exist; App Shell build and responsive contract verification now pass on main; end-to-end integration and production validation remain."},
-    {"id":"P2","name":"Business domain workflows","completion":48,"status":"partial","evidence_note":"Finance, Shareholder, People, Organization, Governance, Documents, Communication and Calendar are at mixed maturity; targeted Communication announcement tests pass on the latest tested head, while full domain acceptance and Calendar exact-head verification remain in progress."},
+    {"id":"P2","name":"Business domain workflows","completion":48,"status":"partial","evidence_note":"Finance, Shareholder, People, Organization, Governance, Documents, Communication and Calendar are at mixed maturity; targeted Communication announcement tests and Calendar Core exact-head MySQL security/concurrency verification now pass, while broader domain acceptance remains."},
     {"id":"P3","name":"Unified integration and experience","completion":35,"status":"partial","evidence_note":"Cross-domain workflows, frontend/API contract consistency and unified navigation remain in progress."},
     {"id":"P4","name":"Intelligence, automation and analytics","completion":20,"status":"partial","evidence_note":"Strategic direction is established; advanced AI, predictive analytics and workflow intelligence are early-stage."},
     {"id":"P5","name":"Production readiness and operations","completion":25,"status":"partial","evidence_note":"Deployment, monitoring, recovery, performance, security certification and operational readiness remain substantial gaps."}
@@ -46,47 +39,47 @@
   ],
   "evidence_observations": [
     {
-      "date": "2026-11-01",
-      "area": "ARNA App Shell and frontend verification",
-      "status": "VERIFIED",
-      "repository": "akefadaka-git/arna-app",
-      "commit": "23b2e65d9c16b03bbb7ccb2f0783c8813e2307da",
-      "workflow_run": "41230971275",
-      "finding": "All 68 failures in the sampled 100-run window were Frontend verification runs on feat/arna-app-shell-phase-2 (32 pull_request and 36 push events). The failing notification assertions used over-escaped regular-expression patterns; the assertions were changed to stable string-presence checks. The merged main head passed the complete frontend workflow.",
-      "completion_adjustment": 0,
-      "reason_no_percentage_change": "A green shell/build workflow verifies this UI slice, not total phase/domain acceptance or production behavior."
+      "date":"2026-11-01",
+      "area":"ARNA App Shell and frontend verification",
+      "status":"VERIFIED",
+      "repository":"akefadaka-git/arna-app",
+      "commit":"23b2e65d9c16b03bbb7ccb2f0783c8813e2307da",
+      "workflow_run":"41230971275",
+      "finding":"All 68 failures in the sampled 100-run window were Frontend verification runs on feat/arna-app-shell-phase-2 (32 pull_request and 36 push events). The failing notification assertions used over-escaped regular-expression patterns; the assertions were changed to stable string-presence checks. The merged main head passed the complete frontend workflow.",
+      "completion_adjustment":0,
+      "reason_no_percentage_change":"A green shell/build workflow verifies this UI slice, not total phase/domain acceptance or production behavior."
     },
     {
-      "date": "2026-11-01",
-      "area": "Communication announcement security, lifecycle and atomicity",
-      "status": "VERIFIED",
-      "repository": "akefadaka-git/arna-api",
-      "commit": "eff1ead3ef90433e1faca7c53ce2cca9f4c8b476",
-      "workflow_runs": ["41265064942", "41265007897"],
-      "finding": "The earlier test failure attempted to mock final NotificationService with Mockery. On the later tested head, the full clean-install MySQL workflow passed and CommunicationAnnouncementsTest reported 10 passed (65 assertions). PR #70 remains open.",
-      "completion_adjustment": 0,
-      "reason_no_percentage_change": "The targeted feature suite passes, but the complete Communication domain acceptance and PR integration are not yet closed."
+      "date":"2026-11-01",
+      "area":"Communication announcement security, lifecycle and atomicity",
+      "status":"VERIFIED",
+      "repository":"akefadaka-git/arna-api",
+      "commit":"eff1ead3ef90433e1faca7c53ce2cca9f4c8b476",
+      "workflow_runs":["41265064942","41265007897"],
+      "finding":"The earlier test failure attempted to mock final NotificationService with Mockery. On the later tested head, the full clean-install MySQL workflow passed and CommunicationAnnouncementsTest reported 10 passed (65 assertions). PR #70 remains open.",
+      "completion_adjustment":0,
+      "reason_no_percentage_change":"The targeted feature suite passes, but the complete Communication domain acceptance and PR integration are not yet closed."
     },
     {
-      "date": "2026-11-01",
-      "area": "Calendar Core tenant isolation, MySQL clean install and concurrency",
-      "status": "PARTIAL",
-      "repository": "akefadaka-git/arna-api",
-      "previous_failed_workflow_runs": ["41264842497", "41265208217", "41265252451"],
-      "verified_commit": "4e68c293d0f93a45bd1a686386adbc38e15ea8a8",
-      "verified_workflow_run": "41266239482",
-      "current_head": "32d2991bb6ca9dd350c61511e6ac26fb164b86e3",
-      "current_head_workflow_run": "41266244260",
-      "finding": "The earlier failures shared a missing tenant_id insert error. The subsequent commit passed the Calendar security/concurrency tests, empty-MySQL migrations, repeat migrations, fresh migration/seed, and remaining clean-install gates. The PR then advanced by one commit changing CalendarEvent guarded-write behavior; the exact-current-head run is still in progress and must pass before Calendar is promoted.",
-      "completion_adjustment": 0,
-      "reason_no_percentage_change": "The current PR head has not completed its exact-head MySQL verification."
+      "date":"2026-11-01",
+      "area":"Calendar Core tenant isolation, MySQL clean install and concurrency",
+      "status":"VERIFIED",
+      "repository":"akefadaka-git/arna-api",
+      "previous_failed_workflow_runs":["41264842497","41265208217","41265252451"],
+      "verified_commit":"32d2991bb6ca9dd350c61511e6ac26fb164b86e3",
+      "verified_workflow_run":"41266244260",
+      "previous_successful_commit":"4e68c293d0f93a45bd1a686386adbc38e15ea8a8",
+      "previous_successful_workflow_run":"41266239482",
+      "finding":"Earlier runs failed because calendar_calendars inserts omitted required tenant_id. The service now supplies tenant_id at the guarded write boundary. The current PR head passed Calendar Core tenant isolation and concurrency tests on migrated MySQL, empty-database migrations, repeat migrations, full fresh migration and seed, no-pending-migrations checks, and evidence uploads.",
+      "completion_adjustment":0,
+      "reason_no_percentage_change":"This verifies the Calendar Core API security/concurrency and database foundation at the exact PR head, but not all Calendar product scope such as full recurrence, user experience, cross-domain scheduling and production operations."
     }
   ],
   "scoring_guidance": {
-    "verified": "Implemented and supported by current exact-head tests or reproducible operational evidence.",
-    "partial": "Implemented in part, or evidence covers only part of the acceptance criteria.",
-    "missing": "Not implemented or no qualifying implementation evidence.",
-    "unknown": "Cannot be determined from accessible repository evidence.",
-    "owner_update_required": "Change phase/domain percentages only through an Owner-reviewed change to this file, with evidence notes. Nightly automation must not promote scores based solely on commit counts or PR activity."
+    "verified":"Implemented and supported by current exact-head tests or reproducible operational evidence.",
+    "partial":"Implemented in part, or evidence covers only part of the acceptance criteria.",
+    "missing":"Not implemented or no qualifying implementation evidence.",
+    "unknown":"Cannot be determined from accessible repository evidence.",
+    "owner_update_required":"Change phase/domain percentages only through an Owner-reviewed change to this file, with evidence notes. Nightly automation must not promote scores based solely on commit counts or PR activity."
   }
 }
