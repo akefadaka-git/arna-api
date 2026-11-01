@@ -60,7 +60,7 @@ Artisan::command('calendar:dispatch-reminders {--limit=100}', function (Calendar
         $result['delivered'], $result['skipped'], $result['retried'], $result['failed'],
     ));
 
-    return $result['failed'] > 0 ? self::FAILURE : self::SUCCESS;
+    return $result['failed'] > 0 ? 1 : 0;
 })->purpose('Dispatch due tenant-scoped Calendar reminder notifications');
 
 Schedule::command('calendar:dispatch-reminders --limit=100')->everyMinute()->withoutOverlapping();
