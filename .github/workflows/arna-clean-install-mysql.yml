@@ -6,7 +6,7 @@ on:
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
-    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/arna-calendar-core-a3]
+    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/arna-calendar-core-a3, feat/arna-calendar-a4-remediation]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - "database/migrations/**"
@@ -42,10 +42,14 @@ on:
       - "mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php"
       - "mases_core/src/Notifications/**"
       - "mases_core/src/Calendar/**"
+      - "database/seeders/Data/PermissionCatalogue.php"
+      - "database/seeders/Data/RolePermissionGrants.php"
+      - "routes/api.php"
       - "mases_core/src/Localization/Calendar/Contracts/**"
       - "mases_core/src/Migrations/*calendar_core_tables.php"
       - "mases_core/src/Migrations/*calendar_lifecycle_tables.php"
       - "tests/Feature/CalendarCoreSecurityTest.php"
+      - "tests/Feature/CalendarLifecycleTest.php"
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
       - "tests/Feature/CentralNotificationsTest.php"
