@@ -146,6 +146,7 @@ use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\CommunicationAnnouncementController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -561,6 +562,17 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->whereUuid('id')
             ->name('read');
         Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
+    });
+
+    // Official announcements remain tenant-scoped. The controller applies
+    // distinct manage, approve and publish permissions and prevents self-approval.
+    Route::prefix('/announcements')->name('api.announcements.')->group(static function (): void {
+        Route::get('/', [CommunicationAnnouncementController::class, 'index'])->name('index');
+        Route::post('/', [CommunicationAnnouncementController::class, 'store'])->name('store');
+        Route::post('/{id}/submit', [CommunicationAnnouncementController::class, 'submit'])->whereUuid('id')->name('submit');
+        Route::post('/{id}/approve', [CommunicationAnnouncementController::class, 'approve'])->whereUuid('id')->name('approve');
+        Route::post('/{id}/publish', [CommunicationAnnouncementController::class, 'publish'])->whereUuid('id')->name('publish');
+        Route::post('/{id}/acknowledge', [CommunicationAnnouncementController::class, 'acknowledge'])->whereUuid('id')->name('acknowledge');
     });
 
     // -------------------------------------------------------------------------
