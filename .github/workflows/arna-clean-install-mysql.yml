@@ -44,6 +44,7 @@ on:
       - "mases_core/src/Calendar/**"
       - "mases_core/src/Localization/Calendar/Contracts/**"
       - "mases_core/src/Migrations/*calendar_core_tables.php"
+      - "mases_core/src/Migrations/*calendar_lifecycle_tables.php"
       - "tests/Feature/CalendarCoreSecurityTest.php"
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
@@ -286,7 +287,7 @@ jobs:
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 71
+          test "${applied}" -eq 72
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -321,7 +322,7 @@ jobs:
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 71
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 72
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -332,7 +333,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 71
+          test "${applied}" -eq 72
 
       - name: Upload migration status evidence
         if: always()
