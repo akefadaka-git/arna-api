@@ -257,8 +257,8 @@ final class CalendarService
         if (!$event) throw new NotFoundHttpException('Calendar event not found.');
         if (!$event->recurrence_rule || $event->all_day) return [$event->toArray()];
         $zone = new \\DateTimeZone($event->timezone);
-        $start = new \\DateTimeImmutable($event->starts_at);
-        $end = new \\DateTimeImmutable($event->ends_at);
+        $start = \\DateTimeImmutable::createFromInterface($event->starts_at)->setTimezone($zone);
+        $end = \\DateTimeImmutable::createFromInterface($event->ends_at)->setTimezone($zone);
         $fromDate = new \\DateTimeImmutable($from, $zone);
         $toDate = new \\DateTimeImmutable($to, $zone);
         if ($toDate > $fromDate->modify('+90 days')) throw new BadRequestHttpException('Expansion window cannot exceed 90 days.');
