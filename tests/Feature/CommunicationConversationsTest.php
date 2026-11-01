@@ -141,6 +141,29 @@ final class CommunicationConversationsTest extends TestCase
             ->value('read_at'));
     }
 
+    public function test_notification_failure_rolls_back_message_and_notification_as_one_unit(): void
+    {
+        [$tenant, $sender] = $this->tenantUser(['communication.message.send', 'communication.view']);
+        $recipient = $this->member($tenant);
+        $conversationId = $this->createConversation($sender, $tenant, $recipient);
+
+        DB::listen(static function (QueryExecuted $query): void {
+            $sql = strtolower(ltrim($query->sql));
+            if (str_starts_with($sql, 'insert') && str_contains($sql, 'platform_notifications')) {
+                throw new RuntimeException('simulated communication notification failure');
+            }
+        });
+
+        $this->tenantRequest($sender, $tenant)
+            ->postJson("/api/communication/conversations/{$conversationId}/messages", [
+                'body' => 'This must roll back with notification failure',
+                'idempotency_key' => 'message-key-fail-0004',
+            ])->assertServerError();
+
+        $this->assertSame(0, DB::table('communication_messages')->count());
+        $this->assertSame(0, PlatformNotification::query()->where('tenant_id', $tenant->id)->count());
+    }
+
     private function tenantUser(array $permissions = [], ?Tenant $tenant = null): array
     {
         $tenant ??= Tenant::factory()->create();
