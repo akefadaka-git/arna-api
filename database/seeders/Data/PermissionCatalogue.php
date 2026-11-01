@@ -49,7 +49,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
  *
  *   category    — the permission's functional group. One of:
  *                 'user', 'role', 'permission', 'app_access',
- *                 'file', 'tenant', 'test'.
+ *                 'file', 'tenant', 'test', 'calendar'.
  *
  *   scope       — the permission's scope of applicability. One of:
  *                 'global'      — platform-wide, not tied to a tenant.
