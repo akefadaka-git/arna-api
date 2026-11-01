@@ -286,7 +286,7 @@ final class CalendarService
         return $items;
     }
 
-    private function recurrenceOccurrenceAt(\\DateTimeImmutable $anchor, string $frequency, int $interval, int $occurrence): \\DateTimeImmutable
+    private function recurrenceOccurrenceAt(\DateTimeImmutable $anchor, string $frequency, int $interval, int $occurrence): \DateTimeImmutable
     {
         $offset = $interval * $occurrence;
         if ($frequency === 'daily') return $anchor->modify("+{$offset} days");
