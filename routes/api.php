@@ -146,6 +146,7 @@ use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\CommunicationAnnouncementController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
