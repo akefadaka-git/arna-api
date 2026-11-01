@@ -12,9 +12,7 @@ final class CalendarEvent extends Model
     protected $table = 'calendar_events';
     public $incrementing = false;
     protected $keyType = 'string';
-
-    // CalendarService constructs tenant_id and created_by from trusted context.
-    protected $guarded = [];
+    protected $guarded = ['*'];
 
     protected $casts = [
         'all_day' => 'boolean',
