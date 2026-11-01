@@ -147,11 +147,23 @@ final class CommunicationConversationController
         $this->authorize($user, 'communication.view', $tenantId);
         $this->participantConversation($id, $tenantId, $user);
 
-        $items = DB::table('communication_messages')
-            ->where('tenant_id', $tenantId)
-            ->where('conversation_id', $id)
-            ->whereNull('deleted_at')
-            ->orderByDesc('created_at')
+        $receiptSummary = DB::table('communication_message_receipts')
+            ->select('message_id')
+            ->selectRaw('COUNT(delivered_at) as delivered_count')
+            ->selectRaw('SUM(CASE WHEN read_at IS NOT NULL THEN 1 ELSE 0 END) as read_count')
+            ->groupBy('message_id');
+
+        $items = DB::table('communication_messages as m')
+            ->leftJoinSub($receiptSummary, 'r', static function ($join): void {
+                $join->on('r.message_id', '=', 'm.id');
+            })
+            ->where('m.tenant_id', $tenantId)
+            ->where('m.conversation_id', $id)
+            ->whereNull('m.deleted_at')
+            ->select('m.*')
+            ->selectRaw('COALESCE(r.delivered_count, 0) as delivered_count')
+            ->selectRaw('COALESCE(r.read_count, 0) as read_count')
+            ->orderByDesc('m.created_at')
             ->paginate(50);
 
         return response()->json(['success' => true, 'data' => [
