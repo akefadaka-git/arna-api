@@ -251,12 +251,12 @@ final class CalendarService
         });
     }
 
-    public function recurringOccurrences(string $eventId, string $from, string $to): array
+    public function recurringOccurrences(User $actor, string $eventId, string $from, string $to): array
     {
         $event = CalendarEvent::query()->where('tenant_id', $this->tenantId())->whereKey($eventId)->first();
         if (!$event) throw new NotFoundHttpException('Calendar event not found.');
         $calendar = Calendar::query()->where('tenant_id', $this->tenantId())->whereKey($event->calendar_id)->first();
-        if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) request()->user()?->getKey())) throw new NotFoundHttpException('Calendar event not found.');
+        if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) throw new NotFoundHttpException('Calendar event not found.');
         if (!$event->recurrence_rule || $event->all_day) return [$event->toArray()];
         $zone = new \DateTimeZone($event->timezone);
         $start = \DateTimeImmutable::createFromInterface($event->starts_at)->setTimezone($zone);
