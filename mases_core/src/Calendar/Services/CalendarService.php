@@ -293,13 +293,13 @@ final class CalendarService
     public function moveOccurrence(User $actor, string $eventId, string $originalStartsAt, string $newStartsAt, string $newEndsAt): void
     {
         foreach ([$originalStartsAt, $newStartsAt, $newEndsAt] as $instant) {
-            if (!preg_match('/(?:Z|[+-]\\d{2}:?\\d{2})$/i', $instant)) {
+            if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $instant)) {
                 throw new BadRequestHttpException('Recurrence override instants require explicit UTC offsets.');
             }
         }
-        $originalUtc = (new \\DateTimeImmutable($originalStartsAt))->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-        $newStart = new \\DateTimeImmutable($newStartsAt);
-        $newEnd = new \\DateTimeImmutable($newEndsAt);
+        $originalUtc = (new \DateTimeImmutable($originalStartsAt))->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        $newStart = new \DateTimeImmutable($newStartsAt);
+        $newEnd = new \DateTimeImmutable($newEndsAt);
         if ($newEnd <= $newStart) throw new BadRequestHttpException('Override end must be after its start.');
 
         DB::transaction(function () use ($actor, $eventId, $originalUtc, $newStart, $newEnd): void {
@@ -313,8 +313,8 @@ final class CalendarService
                 ['event_id' => $eventId, 'original_starts_at' => $originalUtc],
                 [
                     'tenant_id' => $this->tenantId(), 'status' => 'overridden',
-                    'override_starts_at' => $newStart->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
-                    'override_ends_at' => $newEnd->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+                    'override_starts_at' => $newStart->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+                    'override_ends_at' => $newEnd->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
                     'created_by' => $actor->getKey(), 'updated_at' => now(), 'created_at' => now(),
                 ]
             );
