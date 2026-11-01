@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Calendar\\Services\\CalendarService;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Calendar\Services\CalendarService;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
+use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Tests\TestCase;
 
 final class CalendarLifecycleTest extends TestCase
 {
@@ -118,7 +118,7 @@ final class CalendarLifecycleTest extends TestCase
             'recurrence_rule' => ['frequency' => 'weekly', 'count' => 10],
         ]);
 
-        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\BadRequestHttpException::class);
         $service->recurringOccurrences($event->id, '2026-11-01T00:00:00+03:00', '2027-03-01T00:00:00+03:00');
     }
 }
