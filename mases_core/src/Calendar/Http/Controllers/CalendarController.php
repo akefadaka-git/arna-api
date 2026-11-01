@@ -16,7 +16,7 @@ final class CalendarController
 
     public function calendars(): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => $this->calendar->calendars()]);
+        return response()->json(['success' => true, 'data' => $this->calendar->calendars(request()->user())]);
     }
 
     public function storeCalendar(Request $request): JsonResponse
@@ -32,7 +32,7 @@ final class CalendarController
     public function events(Request $request): JsonResponse
     {
         $data = $request->validate(['from' => ['sometimes', 'date'], 'to' => ['sometimes', 'date', 'after_or_equal:from']]);
-        return response()->json(['success' => true, 'data' => $this->calendar->events($data)]);
+        return response()->json(['success' => true, 'data' => $this->calendar->events($request->user(), $data)]);
     }
 
     public function storeEvent(Request $request): JsonResponse
@@ -71,6 +71,32 @@ final class CalendarController
             'status' => ['sometimes', 'in:scheduled,cancelled,completed'],
         ]);
         return response()->json(['success' => true, 'data' => $this->calendar->updateEvent($request->user(), $id, $data)]);
+    }
+
+    public function resources(): JsonResponse { return response()->json(['success' => true, 'data' => $this->calendar->resources()]); }
+
+    public function storeResource(Request $request): JsonResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:160'], 'resource_type' => ['required', 'string', 'max:64'], 'capacity' => ['nullable', 'integer', 'min:1', 'max:100000']]);
+        return response()->json(['success' => true, 'data' => $this->calendar->createResource($request->user(), $data)], 201);
+    }
+
+    public function updateResource(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate(['name' => ['sometimes', 'string', 'max:160'], 'resource_type' => ['sometimes', 'string', 'max:64'], 'capacity' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100000'], 'is_active' => ['sometimes', 'boolean']]);
+        return response()->json(['success' => true, 'data' => $this->calendar->updateResource($request->user(), $id, $data)]);
+    }
+
+    public function respond(Request $request, string $eventId): JsonResponse
+    {
+        $data = $request->validate(['response' => ['required', 'in:accepted,declined,tentative']]);
+        return response()->json(['success' => true, 'data' => $this->calendar->respondToInvitation($request->user(), $eventId, $data['response'])]);
+    }
+
+    public function occurrences(Request $request, string $eventId): JsonResponse
+    {
+        $data = $request->validate(['from' => ['required', 'date'], 'to' => ['required', 'date', 'after_or_equal:from']]);
+        return response()->json(['success' => true, 'data' => $this->calendar->recurringOccurrences($eventId, $data['from'], $data['to'])]);
     }
 
     public function reserve(Request $request): JsonResponse
