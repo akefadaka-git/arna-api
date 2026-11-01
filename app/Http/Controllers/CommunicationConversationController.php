@@ -73,11 +73,14 @@ final class CommunicationConversationController
             ->where('status', TenantMembership::STATUS_ACTIVE)
             ->whereIn('user_id', $participantIds)
             ->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        $activeUserIds = User::query()->whereIn('id', $participantIds)
+            ->where('is_active', true)->pluck('id')->map(fn ($id) => (int) $id)->all();
         sort($memberIds);
+        sort($activeUserIds);
         $expected = $participantIds;
         sort($expected);
-        if ($memberIds !== $expected) {
-            abort(422, 'Every participant must be an active member of the current tenant.');
+        if ($memberIds !== $expected || $activeUserIds !== $expected) {
+            abort(422, 'Every participant must be an active user with active membership in the current tenant.');
         }
 
         $allParticipantIds = array_values(array_unique([...$participantIds, (int) $user->getKey()]));
@@ -196,12 +199,17 @@ final class CommunicationConversationController
             ]);
 
             $recipientIds = DB::table('communication_conversation_participants')
-                ->where('conversation_id', $id)
-                ->where('tenant_id', $tenantId)
-                ->whereNull('left_at')
-                ->where('user_id', '!=', $user->getKey())
-                ->pluck('user_id')->all();
-            $recipients = User::query()->whereIn('id', $recipientIds)->get();
+                ->join('tenant_memberships', function ($join) use ($tenantId): void {
+                    $join->on('tenant_memberships.user_id', '=', 'communication_conversation_participants.user_id')
+                        ->where('tenant_memberships.tenant_id', '=', $tenantId)
+                        ->where('tenant_memberships.status', '=', TenantMembership::STATUS_ACTIVE);
+                })
+                ->where('communication_conversation_participants.conversation_id', $id)
+                ->where('communication_conversation_participants.tenant_id', $tenantId)
+                ->whereNull('communication_conversation_participants.left_at')
+                ->where('communication_conversation_participants.user_id', '!=', $user->getKey())
+                ->pluck('communication_conversation_participants.user_id')->all();
+            $recipients = User::query()->whereIn('id', $recipientIds)->where('is_active', true)->get();
 
             if ($recipients->isNotEmpty()) {
                 $tenant = Tenant::query()->findOrFail($tenantId);
