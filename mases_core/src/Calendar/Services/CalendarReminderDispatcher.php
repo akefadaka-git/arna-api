@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Calendar\\Services;
+namespace MaaleArna\MASES\Core\Calendar\Services;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Str;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Notifications\\Services\\NotificationService;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Notifications\Services\NotificationService;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Throwable;
 
 /**
