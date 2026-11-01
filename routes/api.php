@@ -717,7 +717,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
     ->prefix('calendar')
     ->name('api.calendar.')
     ->group(static function (): void {
-        $controller = \\MaaleArna\\MASES\\Core\\Calendar\\Http\\Controllers\\CalendarController::class;
+        $controller = \MaaleArna\MASES\Core\Calendar\Http\Controllers\CalendarController::class;
 
         Route::get('/calendars', [$controller, 'calendars'])
             ->middleware('auth.permission:calendar.view')->name('calendars.index');
