@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Localization\\Calendar\\Contracts;
+namespace MaaleArna\MASES\Core\Localization\Calendar\Contracts;
 
 use DateTimeImmutable;
 use DateTimeZone;
@@ -11,11 +11,8 @@ use JsonSerializable;
 use Stringable;
 
 /**
- * Gregorian ISO date without a time or timezone.
- *
- * This value object is for all-day events, due dates and other civil dates.
- * It deliberately cannot be converted to an instant without an explicit
- * timezone and time-of-day supplied by the caller.
+ * Gregorian ISO civil date without a time or timezone.
+ * All-day events and due dates must use this type, never UTC midnight.
  */
 final readonly class LocalDate implements JsonSerializable, Stringable
 {
@@ -25,7 +22,7 @@ final readonly class LocalDate implements JsonSerializable, Stringable
 
     public static function fromString(string $value): self
     {
-        if (!preg_match('/^(\\d{4})-(\\d{2})-(\\d{2})$/D', $value, $parts)) {
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $value, $parts)) {
             throw new InvalidArgumentException('Date must use strict YYYY-MM-DD format.');
         }
 
@@ -38,7 +35,7 @@ final readonly class LocalDate implements JsonSerializable, Stringable
 
     public static function fromEthiopianDate(int $year, int $month, int $day): self
     {
-        $ethiopian = \\MaaleArna\\MASES\\Core\\Localization\\Calendar\\EthiopianDate::fromComponents(
+        $ethiopian = \MaaleArna\MASES\Core\Localization\Calendar\EthiopianDate::fromComponents(
             $year,
             $month,
             $day
@@ -53,7 +50,7 @@ final readonly class LocalDate implements JsonSerializable, Stringable
         return $this->value;
     }
 
-    /** Convert to midnight only when a caller explicitly supplies a timezone. */
+    /** Materialize midnight only when the caller explicitly supplies a timezone. */
     public function atStartOfDay(DateTimeZone $timezone): DateTimeImmutable
     {
         return DateTimeImmutable::createFromFormat('!Y-m-d', $this->value, $timezone)
