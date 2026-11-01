@@ -8,10 +8,10 @@ return new class extends Migration {
   Schema::create('calendar_recurrence_exceptions', function (Blueprint $table): void {
    $table->id(); $table->foreignUuid('event_id')->constrained('calendar_events')->cascadeOnDelete();
    $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
-   $table->timestamp('original_starts_at'); $table->string('status',20)->default('cancelled');
-   $table->timestamp('override_starts_at')->nullable(); $table->timestamp('override_ends_at')->nullable();
+   $table->dateTime('original_starts_at'); $table->string('status',20)->default('cancelled');
+   $table->dateTime('override_starts_at')->nullable(); $table->dateTime('override_ends_at')->nullable();
    $table->foreignId('created_by')->constrained('users')->restrictOnDelete(); $table->timestamps();
-   $table->unique(['event_id','original_starts_at']); $table->index(['tenant_id','event_id']);
+   $table->unique(['event_id','original_starts_at'], 'calendar_recur_event_start_unique'); $table->index(['tenant_id','event_id']);
   });
   Schema::create('calendar_reminder_outbox', function (Blueprint $table): void {
    $table->uuid('id')->primary(); $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();

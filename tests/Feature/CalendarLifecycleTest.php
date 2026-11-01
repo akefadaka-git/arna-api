@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Calendar\Services\CalendarService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 
@@ -95,12 +98,102 @@ final class CalendarLifecycleTest extends TestCase
             'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 3],
         ]);
 
-        $before = $service->recurringOccurrences($event->id, '2026-11-01T00:00:00+03:00', '2026-11-04T00:00:00+03:00');
+        $before = $service->recurringOccurrences($actor, $event->id, '2026-11-01T00:00:00+03:00', '2026-11-04T00:00:00+03:00');
         $this->assertCount(3, $before);
 
         $service->cancelOccurrence($actor, $event->id, '2026-11-01T10:00:00+03:00');
-        $after = $service->recurringOccurrences($event->id, '2026-11-01T00:00:00+03:00', '2026-11-04T00:00:00+03:00');
+        $after = $service->recurringOccurrences($actor, $event->id, '2026-11-01T00:00:00+03:00', '2026-11-04T00:00:00+03:00');
         $this->assertCount(2, $after);
+    }
+
+    #[Test]
+    public function recurrence_occurrence_can_be_moved_without_changing_the_series(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Operations']);
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Daily briefing',
+            'starts_at' => '2026-11-01T10:00:00+03:00',
+            'ends_at' => '2026-11-01T10:30:00+03:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 3],
+        ]);
+
+        $service->moveOccurrence(
+            $actor,
+            $event->id,
+            '2026-11-02T10:00:00+03:00',
+            '2026-11-02T12:00:00+03:00',
+            '2026-11-02T12:30:00+03:00',
+        );
+
+        $occurrences = $service->recurringOccurrences(
+            $actor,
+            $event->id,
+            '2026-11-01T00:00:00+03:00',
+            '2026-11-04T00:00:00+03:00',
+        );
+
+        $this->assertCount(3, $occurrences);
+        $this->assertSame('2026-11-02T12:00:00+03:00', $occurrences[1]['starts_at']);
+        $this->assertSame('2026-11-02T12:30:00+03:00', $occurrences[1]['ends_at']);
+        $this->assertDatabaseHas('calendar_recurrence_exceptions', [
+            'event_id' => $event->id,
+            'status' => 'overridden',
+        ]);
+    }
+
+    #[Test]
+    public function monthly_and_yearly_recurrence_clamp_short_month_and_leap_day_without_drift(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Temporal edge cases']);
+
+        $monthly = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Month end',
+            'starts_at' => '2027-01-31T10:00:00+03:00',
+            'ends_at' => '2027-01-31T10:30:00+03:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'monthly', 'interval' => 1, 'count' => 4],
+        ]);
+        $monthlyItems = $service->recurringOccurrences(
+            $actor, $monthly->id, '2027-01-31T00:00:00+03:00', '2027-04-30T23:59:59+03:00',
+        );
+        $this->assertSame([
+            '2027-01-31T10:00:00+03:00',
+            '2027-02-28T10:00:00+03:00',
+            '2027-03-31T10:00:00+03:00',
+            '2027-04-30T10:00:00+03:00',
+        ], array_column($monthlyItems, 'starts_at'));
+
+        $yearly = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Leap day',
+            'starts_at' => '2024-02-29T10:00:00+03:00',
+            'ends_at' => '2024-02-29T10:30:00+03:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'yearly', 'interval' => 1, 'count' => 3],
+        ]);
+        $yearlyItems = [];
+        foreach ([2024, 2025, 2026] as $year) {
+            $yearlyItems = array_merge($yearlyItems, $service->recurringOccurrences(
+                $actor,
+                $yearly->id,
+                sprintf('%04d-02-01T00:00:00+03:00', $year),
+                sprintf('%04d-03-31T23:59:59+03:00', $year),
+            ));
+        }
+        $this->assertSame([
+            '2024-02-29T10:00:00+03:00',
+            '2025-02-28T10:00:00+03:00',
+            '2026-02-28T10:00:00+03:00',
+        ], array_column($yearlyItems, 'starts_at'));
     }
 
     #[Test]
@@ -119,6 +212,72 @@ final class CalendarLifecycleTest extends TestCase
         ]);
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\BadRequestHttpException::class);
-        $service->recurringOccurrences($event->id, '2026-11-01T00:00:00+03:00', '2027-03-01T00:00:00+03:00');
+        $service->recurringOccurrences($actor, $event->id, '2026-11-01T00:00:00+03:00', '2027-03-01T00:00:00+03:00');
     }
+    #[Test]
+    public function event_and_reminder_outbox_roll_back_when_audit_persistence_fails(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $actor->tenants()->attach($tenant->id, ['status' => 'active']);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Atomicity']);
+
+        DB::listen(static function (QueryExecuted $query): void {
+            $sql = strtolower(ltrim($query->sql));
+            if (str_starts_with($sql, 'insert') && str_contains($sql, 'calendar_audit_entries')) {
+                throw new RuntimeException('simulated calendar audit persistence failure');
+            }
+        });
+
+        try {
+            $service->createEvent($actor, [
+                'calendar_id' => $calendar->id,
+                'title' => 'Must roll back',
+                'starts_at' => '2026-11-01T10:00:00+03:00',
+                'ends_at' => '2026-11-01T10:30:00+03:00',
+                'attendee_user_ids' => [$actor->id],
+            ]);
+            $this->fail('Expected audit persistence failure.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('simulated calendar audit persistence failure', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('calendar_events')->where('calendar_id', $calendar->id)->count());
+        $this->assertSame(0, DB::table('calendar_reminder_outbox')->where('tenant_id', $tenant->id)->count());
+    }
+
+    #[Test]
+    public function event_creation_rolls_back_when_reminder_outbox_insert_fails(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $actor->tenants()->attach($tenant->id, ['status' => 'active']);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Outbox atomicity']);
+
+        DB::listen(static function (QueryExecuted $query): void {
+            $sql = strtolower(ltrim($query->sql));
+            if (str_starts_with($sql, 'insert') && str_contains($sql, 'calendar_reminder_outbox')) {
+                throw new RuntimeException('simulated reminder outbox persistence failure');
+            }
+        });
+
+        try {
+            $service->createEvent($actor, [
+                'calendar_id' => $calendar->id,
+                'title' => 'Must roll back',
+                'starts_at' => '2026-11-01T10:00:00+03:00',
+                'ends_at' => '2026-11-01T10:30:00+03:00',
+                'attendee_user_ids' => [$actor->id],
+            ]);
+            $this->fail('Expected reminder outbox persistence failure.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('simulated reminder outbox persistence failure', $exception->getMessage());
+        }
+
+        $this->assertSame(0, DB::table('calendar_events')->where('calendar_id', $calendar->id)->count());
+        $this->assertSame(0, DB::table('calendar_reminder_outbox')->where('tenant_id', $tenant->id)->count());
+    }
+
 }

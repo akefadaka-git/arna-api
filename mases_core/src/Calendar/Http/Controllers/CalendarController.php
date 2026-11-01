@@ -99,6 +99,23 @@ final class CalendarController
         return response()->json(['success' => true, 'data' => $this->calendar->recurringOccurrences($request->user(), $eventId, $data['from'], $data['to'])]);
     }
 
+    public function moveOccurrence(Request $request, string $eventId): JsonResponse
+    {
+        $data = $request->validate([
+            'original_starts_at' => ['required', 'date'],
+            'override_starts_at' => ['required', 'date'],
+            'override_ends_at' => ['required', 'date', 'after:override_starts_at'],
+        ]);
+        $this->calendar->moveOccurrence(
+            $request->user(),
+            $eventId,
+            $data['original_starts_at'],
+            $data['override_starts_at'],
+            $data['override_ends_at'],
+        );
+        return response()->json(['success' => true, 'data' => ['overridden' => true]]);
+    }
+
     public function cancelOccurrence(Request $request, string $eventId): JsonResponse
     {
         $data = $request->validate(['original_starts_at' => ['required', 'date']]);

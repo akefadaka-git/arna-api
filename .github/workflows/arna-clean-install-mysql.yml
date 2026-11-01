@@ -49,7 +49,9 @@ on:
       - "mases_core/src/Migrations/*calendar_core_tables.php"
       - "mases_core/src/Migrations/*calendar_lifecycle_tables.php"
       - "tests/Feature/CalendarCoreSecurityTest.php"
+      - "tests/Feature/CalendarHttpAuthorizationTest.php"
       - "tests/Feature/CalendarLifecycleTest.php"
+      - "tests/Feature/CalendarReminderDispatcherTest.php"
       - "tests/Unit/CalendarPermissionCatalogueTest.php"
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
@@ -231,7 +233,19 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarReservationConcurrencyTest.php tests/Feature/CalendarLifecycleTest.php tests/Unit/CalendarPermissionCatalogueTest.php
+        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarHttpAuthorizationTest.php tests/Feature/CalendarReservationConcurrencyTest.php tests/Feature/CalendarLifecycleTest.php tests/Feature/CalendarReminderDispatcherTest.php tests/Unit/CalendarPermissionCatalogueTest.php
+
+      - name: Verify Calendar reminder dispatcher command registration and empty-outbox behavior
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: |
+          php artisan calendar:dispatch-reminders --limit=10
+          php artisan schedule:list | grep -F "calendar:dispatch-reminders"
 
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
