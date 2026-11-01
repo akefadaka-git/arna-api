@@ -92,6 +92,8 @@ final class CalendarService
                 if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $data['starts_at']) || !preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $data['ends_at'])) {
                     throw new BadRequestHttpException('Timed event instants must include explicit UTC offsets.');
                 }
+                $startInstant = new \DateTimeImmutable($data['starts_at']);
+                $endInstant = new \DateTimeImmutable($data['ends_at']);
             }
 
             $id = (string) Str::uuid();
@@ -102,7 +104,7 @@ final class CalendarService
                 'description' => $data['description'] ?? null, 'event_type' => $data['event_type'] ?? 'event',
                 'all_day' => $allDay, 'starts_on' => $allDay ? $data['starts_on'] : null,
                 'ends_on' => $allDay ? $data['ends_on'] : null,
-                'starts_at' => $allDay ? null : $data['starts_at'], 'ends_at' => $allDay ? null : $data['ends_at'],
+                'starts_at' => $allDay ? null : $startInstant->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'), 'ends_at' => $allDay ? null : $endInstant->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
                 'timezone' => $data['timezone'] ?? $calendar->timezone,
                 'status' => 'scheduled', 'recurrence_rule' => $data['recurrence_rule'] ?? null, 'version' => 1,
             ]);
@@ -119,7 +121,7 @@ final class CalendarService
                     'response' => 'pending',
                 ]);
                 if (!$allDay) {
-                    $deliverAt = (new \DateTimeImmutable($data['starts_at']))->modify('-15 minutes');
+                    $deliverAt = $startInstant->setTimezone(new \DateTimeZone('UTC'))->modify('-15 minutes');
                     $outboxId = (string) Str::uuid();
                     DB::table('calendar_reminder_outbox')->insert([
                         'id' => $outboxId, 'tenant_id' => $tenantId, 'event_id' => $id,
@@ -193,15 +195,17 @@ final class CalendarService
                 || $end->getTimestamp() > $eventEnd->getTimestamp()) {
                 throw new BadRequestHttpException('Reservation interval must be contained within a scheduled timed event.');
             }
+            $startUtc = $start->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+            $endUtc = $end->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
             $overlap = DB::table('calendar_reservations')->where('tenant_id', $tenantId)
                 ->where('resource_id', $resource->id)->where('status', 'confirmed')
-                ->where('starts_at', '<', $data['ends_at'])->where('ends_at', '>', $data['starts_at'])
+                ->where('starts_at', '<', $endUtc)->where('ends_at', '>', $startUtc)
                 ->lockForUpdate()->exists();
             if ($overlap) throw new ConflictHttpException('Resource is already reserved for an overlapping interval.');
             $reservationId = (string) Str::uuid();
             DB::table('calendar_reservations')->insert([
                 'id' => $reservationId, 'tenant_id' => $tenantId, 'resource_id' => $resource->id,
-                'event_id' => $event->id, 'starts_at' => $data['starts_at'], 'ends_at' => $data['ends_at'],
+                'event_id' => $event->id, 'starts_at' => $startUtc, 'ends_at' => $endUtc,
                 'status' => 'confirmed', 'version' => 1, 'created_at' => now(), 'updated_at' => now(),
             ]);
             $this->audit($actor, 'reservation', $reservationId, 'reserved', ['resource_id' => $resource->id, 'event_id' => $event->id]);
