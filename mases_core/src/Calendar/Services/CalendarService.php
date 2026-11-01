@@ -118,6 +118,17 @@ final class CalendarService
                     'event_id' => $id, 'tenant_id' => $tenantId, 'user_id' => $userId,
                     'response' => 'pending',
                 ]);
+                if (!$allDay) {
+                    $deliverAt = (new \\DateTimeImmutable($data['starts_at']))->modify('-15 minutes');
+                    $outboxId = (string) Str::uuid();
+                    DB::table('calendar_reminder_outbox')->insert([
+                        'id' => $outboxId, 'tenant_id' => $tenantId, 'event_id' => $id,
+                        'recipient_user_id' => $userId, 'reminder_type' => 'event_start_15m',
+                        'deliver_at' => $deliverAt->format('Y-m-d H:i:s'), 'status' => 'pending',
+                        'attempts' => 0, 'idempotency_key' => $id.':'.$userId.':event_start_15m',
+                        'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                }
             }
 
             if (!empty($data['links'])) { throw new BadRequestHttpException('Calendar domain links are disabled until an owning-domain authorization adapter is registered.'); }
@@ -168,7 +179,7 @@ final class CalendarService
             $calendar = Calendar::query()->where('tenant_id', $tenantId)->whereKey($event->calendar_id)->first();
             if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) throw new NotFoundHttpException('Calendar event not found.');
             foreach (['starts_at', 'ends_at'] as $field) {
-                if (!preg_match('/(?:Z|[+-]\\d{2}:?\\d{2})$/i', $data[$field])) {
+                if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $data[$field])) {
                     throw new BadRequestHttpException('Reservation instants must include Z or an explicit UTC offset.');
                 }
             }
@@ -257,10 +268,17 @@ final class CalendarService
         $limit = max(1, min(500, (int) ($rule['count'] ?? 100)));
         $duration = $end->getTimestamp() - $start->getTimestamp();
         $cursor = $start;
+        $exceptions = DB::table('calendar_recurrence_exceptions')->where('tenant_id', $this->tenantId())->where('event_id', $eventId)->get()->keyBy('original_starts_at');
         $items = [];
         for ($index = 0; $index < $limit && $cursor <= $toDate; $index++) {
-            if ($cursor >= $fromDate) $items[] = ['event_id' => $event->id, 'occurrence' => $index,
-                'starts_at' => $cursor->format(DATE_ATOM), 'ends_at' => $cursor->modify("+{$duration} seconds")->format(DATE_ATOM), 'timezone' => $event->timezone];
+            $occurrenceKey = $cursor->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+            $exception = $exceptions->get($occurrenceKey);
+            if ($cursor >= $fromDate && (!$exception || $exception->status !== 'cancelled')) {
+                $occurrenceStart = $exception?->override_starts_at ? new \\DateTimeImmutable($exception->override_starts_at) : $cursor;
+                $occurrenceEnd = $exception?->override_ends_at ? new \\DateTimeImmutable($exception->override_ends_at) : $occurrenceStart->modify("+{$duration} seconds");
+                $items[] = ['event_id' => $event->id, 'occurrence' => $index,
+                    'starts_at' => $occurrenceStart->format(DATE_ATOM), 'ends_at' => $occurrenceEnd->format(DATE_ATOM), 'timezone' => $event->timezone];
+            }
             $cursor = match ($frequency) {
                 'daily' => $cursor->modify("+{$step} days"), 'weekly' => $cursor->modify("+{$step} weeks"),
                 'monthly' => $cursor->modify("+{$step} months"), 'yearly' => $cursor->modify("+{$step} years"),
@@ -268,6 +286,23 @@ final class CalendarService
             };
         }
         return $items;
+    }
+
+    public function cancelOccurrence(User $actor, string $eventId, string $originalStartsAt): void
+    {
+        if (!preg_match('/(?:Z|[+-]\\d{2}:?\\d{2})$/i', $originalStartsAt)) throw new BadRequestHttpException('Occurrence instant requires an explicit UTC offset.');
+        DB::transaction(function () use ($actor, $eventId, $originalStartsAt): void {
+            $event = CalendarEvent::query()->where('tenant_id', $this->tenantId())->whereKey($eventId)->lockForUpdate()->first();
+            if (!$event || !$event->recurrence_rule) throw new NotFoundHttpException('Recurring event not found.');
+            $calendar = Calendar::query()->where('tenant_id', $this->tenantId())->whereKey($event->calendar_id)->first();
+            if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) throw new NotFoundHttpException('Recurring event not found.');
+            $utc = (new \\DateTimeImmutable($originalStartsAt))->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+            DB::table('calendar_recurrence_exceptions')->updateOrInsert(
+                ['event_id' => $eventId, 'original_starts_at' => $utc],
+                ['tenant_id' => $this->tenantId(), 'status' => 'cancelled', 'created_by' => $actor->getKey(), 'updated_at' => now(), 'created_at' => now()]
+            );
+            $this->audit($actor, 'recurrence_exception', $eventId.':'.$utc, 'cancelled', ['original_starts_at' => $utc]);
+        });
     }
 
     private function tenantId(): int|string
