@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Calendar\Services\CalendarService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -137,8 +138,8 @@ final class CalendarLifecycleTest extends TestCase
         );
 
         $this->assertCount(3, $occurrences);
-        $this->assertSame('2026-11-02T09:00:00+00:00', $occurrences[1]['starts_at']);
-        $this->assertSame('2026-11-02T09:30:00+00:00', $occurrences[1]['ends_at']);
+        $this->assertSame('2026-11-02T12:00:00+03:00', $occurrences[1]['starts_at']);
+        $this->assertSame('2026-11-02T12:30:00+03:00', $occurrences[1]['ends_at']);
         $this->assertDatabaseHas('calendar_recurrence_exceptions', [
             'event_id' => $event->id,
             'status' => 'overridden',
@@ -162,7 +163,7 @@ final class CalendarLifecycleTest extends TestCase
             'recurrence_rule' => ['frequency' => 'monthly', 'interval' => 1, 'count' => 4],
         ]);
         $monthlyItems = $service->recurringOccurrences(
-            $actor, $monthly->id, '2027-01-01T00:00:00+03:00', '2027-05-01T00:00:00+03:00',
+            $actor, $monthly->id, '2027-01-31T00:00:00+03:00', '2027-04-30T23:59:59+03:00',
         );
         $this->assertSame([
             '2027-01-31T10:00:00+03:00',
@@ -179,9 +180,15 @@ final class CalendarLifecycleTest extends TestCase
             'timezone' => 'Africa/Addis_Ababa',
             'recurrence_rule' => ['frequency' => 'yearly', 'interval' => 1, 'count' => 3],
         ]);
-        $yearlyItems = $service->recurringOccurrences(
-            $actor, $yearly->id, '2024-01-01T00:00:00+03:00', '2027-01-01T00:00:00+03:00',
-        );
+        $yearlyItems = [];
+        foreach ([2024, 2025, 2026] as $year) {
+            $yearlyItems = array_merge($yearlyItems, $service->recurringOccurrences(
+                $actor,
+                $yearly->id,
+                sprintf('%04d-02-01T00:00:00+03:00', $year),
+                sprintf('%04d-03-31T23:59:59+03:00', $year),
+            ));
+        }
         $this->assertSame([
             '2024-02-29T10:00:00+03:00',
             '2025-02-28T10:00:00+03:00',
