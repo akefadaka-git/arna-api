@@ -9,7 +9,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
 /**
  * PermissionCatalogue
  *
- * The platform's forty permissions — the atomic capabilities
+ * The platform's forty-four core permissions plus thirteen Finance permissions (fifty-seven total) — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -138,7 +138,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
 final class PermissionCatalogue
 {
     /**
-     * The forty platform permissions, in source order.
+     * The forty-four core platform permissions, in source order; the Finance catalogue is appended separately.
      *
      * Each row is an associative array with the six keys documented
      * in the class docblock. The order below is preserved verbatim
