@@ -106,6 +106,46 @@ final class CalendarLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function recurrence_occurrence_can_be_moved_without_changing_the_series(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Operations']);
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Daily briefing',
+            'starts_at' => '2026-11-01T10:00:00+03:00',
+            'ends_at' => '2026-11-01T10:30:00+03:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 3],
+        ]);
+
+        $service->moveOccurrence(
+            $actor,
+            $event->id,
+            '2026-11-02T10:00:00+03:00',
+            '2026-11-02T12:00:00+03:00',
+            '2026-11-02T12:30:00+03:00',
+        );
+
+        $occurrences = $service->recurringOccurrences(
+            $actor,
+            $event->id,
+            '2026-11-01T00:00:00+03:00',
+            '2026-11-04T00:00:00+03:00',
+        );
+
+        $this->assertCount(3, $occurrences);
+        $this->assertSame('2026-11-02T09:00:00+00:00', $occurrences[1]['starts_at']);
+        $this->assertSame('2026-11-02T09:30:00+00:00', $occurrences[1]['ends_at']);
+        $this->assertDatabaseHas('calendar_recurrence_exceptions', [
+            'event_id' => $event->id,
+            'status' => 'overridden',
+        ]);
+    }
+
+    #[Test]
     public function recurrence_expansion_rejects_windows_longer_than_ninety_days(): void
     {
         $tenant = $this->tenant();
