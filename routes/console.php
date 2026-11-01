@@ -50,4 +50,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('loan:accrue-interest')->daily();
 Schedule::command('loan:detect-arrears')->daily();
-Schedule::command('public-content:publish-scheduled')->everyMinute()->withoutOverlapping();
+Schedule::command('public-content:publish-scheduled')->everyMinute()->withoutOverlapping();\n\nArtisan::command('calendar:dispatch-reminders {--limit=100}', function (CalendarReminderDispatcher $dispatcher): int {\n    $result = $dispatcher->dispatch((int) $this->option('limit'));\n    $this->info(sprintf(\n        'Calendar reminders: %d delivered, %d skipped, %d retried, %d failed.',\n        $result['delivered'], $result['skipped'], $result['retried'], $result['failed'],\n    ));\n\n    return $result['failed'] > 0 ? self::FAILURE : self::SUCCESS;\n})->purpose('Dispatch due tenant-scoped Calendar reminder notifications');\n\nSchedule::command('calendar:dispatch-reminders --limit=100')->everyMinute()->withoutOverlapping();
