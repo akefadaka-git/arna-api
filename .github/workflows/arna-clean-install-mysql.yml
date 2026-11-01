@@ -230,7 +230,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarReservationConcurrencyTest.php
+        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarReservationConcurrencyTest.php tests/Feature/CalendarLifecycleTest.php
 
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
