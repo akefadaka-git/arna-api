@@ -105,7 +105,7 @@ return new class extends Migration
             $table->json('changes')->nullable();
             $table->string('request_id', 100)->nullable();
             $table->timestamp('created_at')->useCurrent();
-            $table->index(['tenant_id', 'aggregate_type', 'aggregate_id']);
+            $table->index(['tenant_id', 'aggregate_type', 'aggregate_id'], 'cal_audit_tenant_agg_idx');
         });
     }
 
