@@ -24,6 +24,22 @@ final class GovernanceElectionEndpointsTest extends TestCase
         $this->assertSame(30, $committee['dissolution_days_after_results_ratified']);
     }
 
+    public function test_board_election_voting_is_share_weighted_and_holder_type_neutral(): void
+    {
+        $voting = config('governance.election_voting');
+
+        $this->assertTrue($voting['enabled']);
+        $this->assertSame('eligible_share_entitlement', $voting['basis']);
+        $this->assertSame(1, $voting['default_votes_per_share']);
+        $this->assertFalse($voting['one_holder_one_vote']);
+        $this->assertTrue($voting['aggregate_by_registered_holder']);
+        $this->assertTrue($voting['holder_type_neutral']);
+        $this->assertTrue($voting['record_date_snapshot_required']);
+        $this->assertSame('enforce_verified_class_entitlements', $voting['share_class_rights']);
+        $this->assertSame('exclude_from_voting_entitlement', $voting['legally_disqualified_shares']);
+        $this->assertSame('require_verified_operative_articles', $voting['articles_override']);
+    }
+
     public function test_election_collection_requires_authenticated_session(): void
     {
         $this->getJson('/api/governance/elections')->assertUnauthorized();
