@@ -54,7 +54,7 @@ final class ProcessOcrDocument implements ShouldQueue
         $file = $job->file;
         if (!$file || (string) $file->tenant_id !== (string) $job->tenant_id ||
             (int) $file->version !== (int) $job->file_version || $file->deleted_at !== null) {
-            $job->update(['status' => 'failed', 'failure_code' => 'SOURCE_VERSION_INVALID', 'completed_at' => now()]);
+            $job->update(['status' => 'rejected', 'failure_code' => 'SOURCE_VERSION_INVALID', 'completed_at' => now()]);
             OcrProcessingEvent::query()->create(['tenant_id' => $job->tenant_id, 'job_id' => $job->id, 'event' => 'processing.source_invalid']);
             return;
         }
@@ -101,7 +101,9 @@ final class ProcessOcrDocument implements ShouldQueue
             $recognized = $engine->recognize($temporary, (string) $file->mime_type, $job->languages);
             $allText = implode("\n\n", array_column($recognized['pages'], 'text'));
             if (strlen($allText) > (int) config('ocr.max_result_bytes', 10485760)) {
-                throw new RuntimeException('OCR_RESULT_SIZE_LIMIT_EXCEEDED');
+                $job->update(['status' => 'rejected', 'failure_code' => 'OCR_RESULT_SIZE_LIMIT_EXCEEDED', 'completed_at' => now()]);
+                OcrProcessingEvent::query()->create(['tenant_id' => $job->tenant_id, 'job_id' => $job->id, 'event' => 'processing.rejected', 'details' => ['reason' => 'result_size']]);
+                return;
             }
             $confidences = array_values(array_filter(array_column($recognized['pages'], 'confidence'), static fn ($v) => $v !== null));
 
