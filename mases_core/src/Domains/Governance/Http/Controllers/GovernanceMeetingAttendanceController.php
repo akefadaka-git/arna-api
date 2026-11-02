@@ -457,6 +457,153 @@ final class GovernanceMeetingAttendanceController extends Controller
         return response()->json(['success' => true, 'data' => DB::table('governance_penalty_settlements')->where('tenant_id', $tenantId)->find($id)], 201);
     }
 
+    public function requestAttendanceCorrection(Request $request, int $meeting): JsonResponse
+    {
+        $data = $request->validate([
+            'attendance_id' => ['required', 'integer', 'min:1'],
+            'proposed_status' => ['required', 'in:present,late,absent,excused,represented'],
+            'proposed_arrived_at' => ['nullable', 'date'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+        $tenantId = $this->tenantId();
+        $this->meeting($tenantId, $meeting);
+        $id = DB::transaction(function () use ($tenantId, $meeting, $data): int {
+            $attendance = DB::table('governance_meeting_attendance')
+                ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)
+                ->where('id', $data['attendance_id'])->lockForUpdate()->first();
+            if (!$attendance) {
+                throw new NotFoundHttpException('Attendance record was not found.');
+            }
+            if (DB::table('governance_meeting_penalties')->where('tenant_id', $tenantId)->where('attendance_id', $attendance->id)->exists()) {
+                throw new ConflictHttpException('A penalty exists for this attendance. Resolve its dispute before requesting a correction.');
+            }
+            if (DB::table('governance_attendance_corrections')->where('tenant_id', $tenantId)->where('attendance_id', $attendance->id)->where('status', 'pending')->exists()) {
+                throw new ConflictHttpException('A correction request is already pending.');
+            }
+            $id = DB::table('governance_attendance_corrections')->insertGetId([
+                'tenant_id' => $tenantId, 'meeting_id' => $meeting, 'attendance_id' => $attendance->id,
+                'proposed_status' => $data['proposed_status'],
+                'proposed_arrived_at' => isset($data['proposed_arrived_at']) ? CarbonImmutable::parse($data['proposed_arrived_at'])->toDateTimeString() : null,
+                'reason' => $data['reason'], 'status' => 'pending', 'requested_by' => $this->actorId(),
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->activity($tenantId, $meeting, 'attendance.correction_requested', ['correction_id' => $id, 'attendance_id' => $attendance->id]);
+            return $id;
+        });
+        return response()->json(['success' => true, 'data' => DB::table('governance_attendance_corrections')->where('tenant_id', $tenantId)->find($id)], 201);
+    }
+
+    public function reviewAttendanceCorrection(Request $request, int $correction): JsonResponse
+    {
+        $data = $request->validate([
+            'decision' => ['required', 'in:approved,rejected'],
+            'reason' => ['required', 'string', 'min:3', 'max:2000'],
+        ]);
+        $tenantId = $this->tenantId();
+        $result = DB::transaction(function () use ($tenantId, $correction, $data): object {
+            $record = DB::table('governance_attendance_corrections')
+                ->where('tenant_id', $tenantId)->where('id', $correction)->lockForUpdate()->first();
+            if (!$record) {
+                throw new NotFoundHttpException('Correction request was not found.');
+            }
+            if ($record->status !== 'pending') {
+                throw new ConflictHttpException('Correction request has already been reviewed.');
+            }
+            if ((int) $record->requested_by === $this->actorId()) {
+                throw new ConflictHttpException('The correction requester cannot review their own request.');
+            }
+            if ($data['decision'] === 'approved') {
+                $attendance = DB::table('governance_meeting_attendance')
+                    ->where('tenant_id', $tenantId)->where('meeting_id', $record->meeting_id)
+                    ->where('id', $record->attendance_id)->lockForUpdate()->first();
+                if (!$attendance) {
+                    throw new NotFoundHttpException('Original attendance record was not found.');
+                }
+                if (DB::table('governance_meeting_penalties')->where('tenant_id', $tenantId)->where('attendance_id', $attendance->id)->exists()) {
+                    throw new ConflictHttpException('A penalty was created after the correction request. Resolve the penalty first.');
+                }
+                DB::table('governance_meeting_attendance')->where('tenant_id', $tenantId)->where('id', $attendance->id)->update([
+                    'attendance_status' => $record->proposed_status,
+                    'arrived_at' => $record->proposed_arrived_at,
+                    'updated_at' => now(),
+                ]);
+            }
+            DB::table('governance_attendance_corrections')->where('tenant_id', $tenantId)->where('id', $correction)->update([
+                'status' => $data['decision'], 'reviewed_by' => $this->actorId(), 'reviewed_at' => now(),
+                'review_reason' => $data['reason'], 'updated_at' => now(),
+            ]);
+            $this->activity($tenantId, (int) $record->meeting_id, 'attendance.correction_reviewed', [
+                'correction_id' => $correction, 'decision' => $data['decision'], 'review_reason' => $data['reason'],
+            ]);
+            return DB::table('governance_attendance_corrections')->where('tenant_id', $tenantId)->find($correction);
+        });
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
+    public function submitPenaltyDispute(Request $request, int $penalty): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+            'evidence_reference' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $tenantId = $this->tenantId();
+        $id = DB::transaction(function () use ($tenantId, $penalty, $data): int {
+            $record = DB::table('governance_meeting_penalties')
+                ->where('tenant_id', $tenantId)->where('id', $penalty)->lockForUpdate()->first();
+            if (!$record) {
+                throw new NotFoundHttpException('Penalty was not found.');
+            }
+            if (!in_array($record->status, ['assessed', 'disputed'], true)) {
+                throw new ConflictHttpException('Only an assessed, unsettled penalty can be disputed.');
+            }
+            if (DB::table('governance_penalty_settlements')->where('tenant_id', $tenantId)->where('penalty_id', $penalty)->whereIn('status', ['posted', 'settled'])->exists()) {
+                throw new ConflictHttpException('A settled penalty cannot be disputed through this workflow.');
+            }
+            $id = DB::table('governance_penalty_disputes')->insertGetId([
+                'tenant_id' => $tenantId, 'meeting_id' => $record->meeting_id, 'penalty_id' => $penalty,
+                'reason' => $data['reason'], 'evidence_reference' => $data['evidence_reference'] ?? null,
+                'status' => 'pending', 'submitted_by' => $this->actorId(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            DB::table('governance_meeting_penalties')->where('tenant_id', $tenantId)->where('id', $penalty)->update(['status' => 'disputed', 'updated_at' => now()]);
+            $this->activity($tenantId, (int) $record->meeting_id, 'penalty.disputed', ['penalty_id' => $penalty, 'dispute_id' => $id]);
+            return $id;
+        });
+        return response()->json(['success' => true, 'data' => DB::table('governance_penalty_disputes')->where('tenant_id', $tenantId)->find($id)], 201);
+    }
+
+    public function reviewPenaltyDispute(Request $request, int $dispute): JsonResponse
+    {
+        $data = $request->validate([
+            'decision' => ['required', 'in:upheld,waived'],
+            'reason' => ['required', 'string', 'min:3', 'max:2000'],
+        ]);
+        $tenantId = $this->tenantId();
+        $result = DB::transaction(function () use ($tenantId, $dispute, $data): object {
+            $record = DB::table('governance_penalty_disputes')->where('tenant_id', $tenantId)->where('id', $dispute)->lockForUpdate()->first();
+            if (!$record) {
+                throw new NotFoundHttpException('Dispute was not found.');
+            }
+            if ($record->status !== 'pending') {
+                throw new ConflictHttpException('Dispute has already been reviewed.');
+            }
+            if ((int) $record->submitted_by === $this->actorId()) {
+                throw new ConflictHttpException('The person submitting a dispute cannot review it.');
+            }
+            DB::table('governance_penalty_disputes')->where('tenant_id', $tenantId)->where('id', $dispute)->update([
+                'status' => $data['decision'], 'reviewed_by' => $this->actorId(), 'reviewed_at' => now(),
+                'review_reason' => $data['reason'], 'updated_at' => now(),
+            ]);
+            DB::table('governance_meeting_penalties')->where('tenant_id', $tenantId)->where('id', $record->penalty_id)->update([
+                'status' => $data['decision'] === 'waived' ? 'waived' : 'assessed', 'updated_at' => now(),
+            ]);
+            $this->activity($tenantId, (int) $record->meeting_id, 'penalty.dispute_reviewed', [
+                'dispute_id' => $dispute, 'penalty_id' => $record->penalty_id, 'decision' => $data['decision'],
+            ]);
+            return DB::table('governance_penalty_disputes')->where('tenant_id', $tenantId)->find($dispute);
+        });
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
     private function meeting(int $tenantId, int $id): object
     {
         $meeting = DB::table('governance_meetings')->where('tenant_id', $tenantId)->where('id', $id)->first();
