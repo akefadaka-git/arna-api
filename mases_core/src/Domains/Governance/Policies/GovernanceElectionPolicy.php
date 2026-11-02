@@ -55,6 +55,75 @@ final class GovernanceElectionPolicy
             );
     }
 
+    /**
+     * Committee membership, appointment and conflict-of-interest administration.
+     */
+    public function manageCommittee(User $user, GovernanceElection $election): bool
+    {
+        return $this->allowsElectionPermission($user, $election, 'governance.election.committee.manage');
+    }
+
+    /**
+     * Freeze and administer the election-specific shareholder voter register.
+     */
+    public function manageRegister(User $user, GovernanceElection $election): bool
+    {
+        return $this->allowsElectionPermission($user, $election, 'governance.election.register.manage');
+    }
+
+    /**
+     * Review nominations, candidate eligibility and objections.
+     */
+    public function manageNominations(User $user, GovernanceElection $election): bool
+    {
+        return $this->allowsElectionPermission($user, $election, 'governance.election.nomination.manage');
+    }
+
+    /**
+     * Issue and custody physical ballots. Electronic voting is not covered.
+     */
+    public function issuePhysicalBallot(User $user, GovernanceElection $election): bool
+    {
+        return $this->allowsElectionPermission($user, $election, 'governance.election.ballot.issue');
+    }
+
+    /**
+     * Record independent counts and reconciliation evidence.
+     */
+    public function manageCount(User $user, GovernanceElection $election): bool
+    {
+        return $this->allowsElectionPermission($user, $election, 'governance.election.count.manage');
+    }
+
+    /**
+     * Administer complaints and appeals without granting result-certification power.
+     */
+    public function manageComplaints(User $user, GovernanceElection $election): bool
+    {
+        return $this->allowsElectionPermission($user, $election, 'governance.election.complaint.manage');
+    }
+
+    /**
+     * Certify a result only for an explicitly authorized certification role.
+     */
+    public function certify(User $user, GovernanceElection $election): bool
+    {
+        return $this->allowsElectionPermission($user, $election, 'governance.election.certify');
+    }
+
+    private function allowsElectionPermission(User $user, GovernanceElection $election, string $permission): bool
+    {
+        $tenantId = $this->tenantId();
+
+        return $tenantId !== null
+            && (int) $election->tenant_id === $tenantId
+            && $this->authorization->hasPermission(
+                permissionSlug: $permission,
+                user: $user,
+                tenantId: $tenantId,
+            );
+    }
+
     private function tenantId(): ?int
     {
         if (!function_exists('mases_tenant_id')) {
