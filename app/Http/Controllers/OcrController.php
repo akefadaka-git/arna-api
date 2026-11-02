@@ -97,7 +97,7 @@ final class OcrController extends Controller
     {
         $tenantId = $this->tenantId();
         $this->authorize('ocr.job.view', $request->user(), $tenantId);
-        $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->with('result:id,job_id,mean_confidence')->findOrFail($id);
+        $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->with(['result:id,job_id,mean_confidence', 'file:id,original_name,version'])->findOrFail($id);
         $this->logAudit(action: 'ocr.job.viewed', resourceType: 'ocr_job', resourceId: (string) $job->id);
         return response()->json(['success' => true, 'data' => $job]);
     }
