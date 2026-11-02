@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Governance\\Events;
+namespace MaaleArna\MASES\Core\Domains\Governance\Events;
 
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceElection;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 
 final class GovernanceElectionLifecycleChanged
 {
