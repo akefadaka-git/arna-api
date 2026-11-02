@@ -230,6 +230,19 @@ jobs:
           php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
           php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAccountingTest.php
 
+      - name: Lint Finance settlement authorization tests
+        run: php -l mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAuthorizationTest.php
+
+      - name: Run Finance settlement authorization tests on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAuthorizationTest.php
+
       - name: Lint Governance attendance review migration
         run: php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_110000_create_governance_attendance_review_tables.php
 
