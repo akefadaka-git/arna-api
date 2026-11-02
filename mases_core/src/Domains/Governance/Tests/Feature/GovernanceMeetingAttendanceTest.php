@@ -136,6 +136,21 @@ final class GovernanceMeetingAttendanceTest extends TestCase
         ]);
     }
 
+    public function test_arrival_at_or_before_meeting_start_is_not_late(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+        $meetingId = $this->createMeeting('BOARD-ON-TIME');
+        $startsAt = now()->addDays(2)->setTime(9, 0);
+        $response = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meetingId]), [
+                'subject_type' => 'director',
+                'subject_id' => $this->directorMembershipId,
+                'attendance_status' => 'late',
+                'arrived_at' => $startsAt->toDateTimeString(),
+            ]);
+        $response->assertCreated()->assertJsonPath('data.attendance_status', 'present');
+    }
+
     public function test_late_penalty_is_flat_fifty_birr_not_hourly(): void
     {
         Sanctum::actingAs($this->admin, ['*']);
