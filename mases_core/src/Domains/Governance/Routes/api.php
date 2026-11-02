@@ -596,6 +596,10 @@ Route::name('api.governance.')->group(static function (): void {
     // Committee review is additionally protected by the election update policy.
     Route::get('/elections/{governanceElection}/committee/queue', [GovernanceElectionWorkflowController::class, 'committeeQueue'])
         ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.committee.queue');
+    Route::post('/elections/{governanceElection}/committee/members', [GovernanceElectionWorkflowController::class, 'appointCommitteeMember'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.committee.members.store');
+    Route::post('/elections/{governanceElection}/committee/members/{member}/recusal', [GovernanceElectionWorkflowController::class, 'recuseCommitteeMember'])
+        ->whereNumber('governanceElection')->whereNumber('member')->middleware('auth.permission:governance.election.manage')->name('elections.committee.members.recusal');
     Route::post('/elections/{governanceElection}/committee/candidates/{nomination}/decision', [GovernanceElectionWorkflowController::class, 'decideNomination'])
         ->whereNumber('governanceElection')->whereNumber('nomination')->middleware('auth.permission:governance.election.manage')->name('elections.committee.decisions.store');
 
