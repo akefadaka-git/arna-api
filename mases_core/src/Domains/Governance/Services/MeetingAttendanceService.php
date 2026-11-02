@@ -209,7 +209,7 @@ final class MeetingAttendanceService
                 'arrived_at' => $arrivedAt, 'recorded_by' => $this->actorId(),
                 'notes' => $data['notes'] ?? null, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            if ($status === 'late') $this->createPenalty($meetingId, (int) $member->id, 'late', 50.00, 'Late arrival; flat ETB 50 per meeting.');
+            if ($status === 'late') $this->createPenalty($meetingId, (int) $member->id, 'late', '50.00', 'Late arrival; flat ETB 50 per meeting.');
             $attendance = DB::table('governance_meeting_attendance')->where('id', $id)->first();
             $this->audit($meetingId, 'attendance.recorded', 'attendance', $id, null, (array) $attendance);
             return $attendance;
@@ -255,7 +255,7 @@ final class MeetingAttendanceService
                         'tenant_id' => $this->tenantId(), 'meeting_id' => $meetingId, 'membership_id' => $member->id,
                         'status' => 'absent', 'recorded_by' => $this->actorId(), 'created_at' => now(), 'updated_at' => now(),
                     ]);
-                    $this->createPenalty($meetingId, (int) $member->id, 'absence', 300.00, 'Absent without accepted proxy or authorized permission.');
+                    $this->createPenalty($meetingId, (int) $member->id, 'absence', '300.00', 'Absent without accepted proxy or authorized permission.');
                     $this->audit($meetingId, 'attendance.absent', 'attendance', $attendanceId, null, ['status' => 'absent']);
                 }
             }
@@ -266,7 +266,17 @@ final class MeetingAttendanceService
         });
     }
 
-    private function createPenalty(int $meetingId, int $membershipId, string $type, float $amount, string $reason): void
+    private function minorUnits(string|int|float $amount): int
+    {
+        $value = trim((string) $amount);
+        if (!preg_match('/^\\d+(?:\\.\\d{1,2})?$/', $value)) {
+            throw ValidationException::withMessages(['amount' => 'Money amounts must be non-negative ETB values with at most two decimal places.']);
+        }
+        [$whole, $fraction] = array_pad(explode('.', $value, 2), 2, '0');
+        return ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+    }
+
+    private function createPenalty(int $meetingId, int $membershipId, string $type, string $amount, string $reason): void
     {
         $exists = DB::table('governance_meeting_penalties')->where('meeting_id', $meetingId)
             ->where('membership_id', $membershipId)->where('penalty_type', $type)->exists();
@@ -336,11 +346,17 @@ final class MeetingAttendanceService
             if (!$penalty || !in_array($penalty->status, ['assessed', 'partially_paid'], true)) {
                 throw ValidationException::withMessages(['penalty_id' => 'Only an assessed and unpaid penalty can receive payment.']);
             }
-            $paid = (float) DB::table('governance_meeting_penalty_payments')->where('penalty_id', $penaltyId)->sum('amount');
-            $amount = (float) $data['amount'];
-            if ($amount <= 0 || $amount > ((float) $penalty->amount - $paid)) {
-                throw ValidationException::withMessages(['amount' => 'Payment must be positive and cannot exceed the outstanding balance.']);
+            $paidMinor = $this->minorUnits((string) DB::table('governance_meeting_penalty_payments')->where('penalty_id', $penaltyId)->sum('amount'));
+            $reservedMinor = $this->minorUnits((string) DB::table('governance_meeting_dividend_settlement_requests')
+                ->where('penalty_id', $penaltyId)
+                ->whereIn('status', ['pending_finance_legal_review', 'approved', 'reconciled'])
+                ->sum('requested_amount'));
+            $amountMinor = $this->minorUnits((string) $data['amount']);
+            $penaltyMinor = $this->minorUnits((string) $penalty->amount);
+            if ($amountMinor <= 0 || $amountMinor > ($penaltyMinor - $paidMinor - $reservedMinor)) {
+                throw ValidationException::withMessages(['amount' => 'Payment must be positive and cannot exceed the unreserved outstanding balance.']);
             }
+            $amount = number_format($amountMinor / 100, 2, '.', '');
             $id = DB::table('governance_meeting_penalty_payments')->insertGetId([
                 'tenant_id' => $this->tenantId(), 'penalty_id' => $penaltyId, 'amount' => $amount,
                 'currency' => 'ETB', 'payment_method' => $data['payment_method'],
@@ -470,11 +486,11 @@ final class MeetingAttendanceService
             DB::table('governance_meeting_dividend_settlement_requests')->where('id', $settlementId)->update([
                 'status' => 'reconciled', 'finance_reference' => (string) $journal->id, 'updated_at' => now(),
             ]);
-            $paid = (float) DB::table('governance_meeting_penalty_payments')->where('penalty_id', $settlement->linked_penalty_id)->sum('amount');
-            $offset = (float) DB::table('governance_meeting_dividend_settlement_requests')
-                ->where('penalty_id', $settlement->linked_penalty_id)->where('status', 'reconciled')->sum('requested_amount');
+            $paidMinor = $this->minorUnits((string) DB::table('governance_meeting_penalty_payments')->where('penalty_id', $settlement->linked_penalty_id)->sum('amount'));
+            $offsetMinor = $this->minorUnits((string) DB::table('governance_meeting_dividend_settlement_requests')
+                ->where('penalty_id', $settlement->linked_penalty_id)->where('status', 'reconciled')->sum('requested_amount'));
             $penalty = DB::table('governance_meeting_penalties')->where('id', $settlement->linked_penalty_id)->first();
-            $newStatus = ($paid + $offset) >= (float) $penalty->amount ? 'paid' : 'partially_paid';
+            $newStatus = ($paidMinor + $offsetMinor) >= $this->minorUnits((string) $penalty->amount) ? 'paid' : 'partially_paid';
             DB::table('governance_meeting_penalties')->where('id', $settlement->linked_penalty_id)->update(['status' => $newStatus, 'updated_at' => now()]);
             $updated = DB::table('governance_meeting_dividend_settlement_requests')->where('id', $settlementId)->first();
             $this->audit($meetingId, 'dividend_settlement.reconciled', 'dividend_settlement', $settlementId, (array) $settlement, (array) $updated);
@@ -491,15 +507,17 @@ final class MeetingAttendanceService
             if (!$penalty || !in_array($penalty->status, ['assessed', 'partially_paid'], true)) {
                 throw ValidationException::withMessages(['penalty_id' => 'Only an assessed outstanding penalty can be submitted for dividend-settlement review.']);
             }
-            $paid = (float) DB::table('governance_meeting_penalty_payments')->where('penalty_id', $penaltyId)->sum('amount');
-            $reserved = (float) DB::table('governance_meeting_dividend_settlement_requests')
+            $paidMinor = $this->minorUnits((string) DB::table('governance_meeting_penalty_payments')->where('penalty_id', $penaltyId)->sum('amount'));
+            $reservedMinor = $this->minorUnits((string) DB::table('governance_meeting_dividend_settlement_requests')
                 ->where('penalty_id', $penaltyId)
                 ->whereIn('status', ['pending_finance_legal_review', 'approved', 'reconciled'])
-                ->sum('requested_amount');
-            $requested = (float) $data['requested_amount'];
-            if ($requested <= 0 || $requested > ((float) $penalty->amount - $paid - $reserved)) {
+                ->sum('requested_amount'));
+            $requestedMinor = $this->minorUnits((string) $data['requested_amount']);
+            $penaltyMinor = $this->minorUnits((string) $penalty->amount);
+            if ($requestedMinor <= 0 || $requestedMinor > ($penaltyMinor - $paidMinor - $reservedMinor)) {
                 throw ValidationException::withMessages(['requested_amount' => 'Requested set-off cannot exceed the remaining unreserved penalty balance.']);
             }
+            $requested = number_format($requestedMinor / 100, 2, '.', '');
             $id = DB::table('governance_meeting_dividend_settlement_requests')->insertGetId([
                 'tenant_id' => $this->tenantId(), 'penalty_id' => $penaltyId,
                 'shareholder_id' => $data['shareholder_id'], 'dividend_reference' => $data['dividend_reference'],
