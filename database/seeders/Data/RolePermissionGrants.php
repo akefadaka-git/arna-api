@@ -86,8 +86,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  *                          scope:tenant
  *                          scope:application
  *
- *      Used by: platform_admin (scope:global, scope:tenant),
- *               tenant_admin (scope:tenant).
+ *      Used by: platform_admin (scope:global, scope:tenant:exclude:ocr.),
+ *               tenant_admin (scope:tenant:exclude:ocr.).
  *
  *   3. 'scope:{scope}:exclude:{prefix}' — matches the named scope but
  *      excludes permission slugs beginning with the supplied prefix.
