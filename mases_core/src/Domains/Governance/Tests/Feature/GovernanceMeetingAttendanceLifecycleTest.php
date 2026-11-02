@@ -54,6 +54,9 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
         $arrivalResponse = $this->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meeting->id]), [
             'membership_id' => $member->id,
             'arrived_at' => now()->addHour()->toDateTimeString(),
+            'initialed_by_name' => 'Late Member',
+            'signature_method' => 'physical',
+            'signature_reference' => 'REGISTER-PAGE-1',
         ])->assertCreated()->assertJsonPath('data.status', 'late');
         $recordedArrival = \Carbon\CarbonImmutable::parse($arrivalResponse->json('data.arrived_at'));
         $this->assertLessThan(30, abs($recordedArrival->getTimestamp() - now()->getTimestamp()), 'Arrival time must be captured by the API, not supplied by the client.');
@@ -82,6 +85,9 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
         $this->postJson(route('api.governance.meetings.start', ['meeting' => $meeting->id]))->assertOk();
         $this->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meeting->id]), [
             'membership_id' => $present->id,
+            'initialed_by_name' => 'Present Member',
+            'signature_method' => 'physical',
+            'signature_reference' => 'REGISTER-PAGE-1',
         ])->assertCreated();
         $this->postJson(route('api.governance.meetings.absence-authorizations.store', ['meeting' => $meeting->id]), [
             'membership_id' => $excused->id,
@@ -172,6 +178,9 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
         $this->postJson(route('api.governance.meetings.start', ['meeting' => $meeting->id]))->assertOk();
         $this->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meeting->id]), [
             'membership_id' => $member->id,
+            'initialed_by_name' => 'GA Member',
+            'signature_method' => 'physical',
+            'signature_reference' => 'GA-REGISTER-PAGE-1',
         ])->assertUnprocessable()->assertJsonValidationErrors(['membership_id']);
     }
 
@@ -185,6 +194,9 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
         $this->postJson(route('api.governance.meetings.start', ['meeting' => $meeting->id]))->assertOk();
         $this->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meeting->id]), [
             'membership_id' => $member->id,
+            'initialed_by_name' => 'Late Member',
+            'signature_method' => 'physical',
+            'signature_reference' => 'REGISTER-PAGE-2',
         ])->assertCreated();
         $penalty = (int) \Illuminate\Support\Facades\DB::table('governance_meeting_penalties')
             ->where('meeting_id', $meeting->id)->value('id');
