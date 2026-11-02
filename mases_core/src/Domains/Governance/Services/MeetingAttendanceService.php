@@ -134,8 +134,8 @@ final class MeetingAttendanceService
             $meeting = $this->meeting($meetingId, true);
             if ($meeting->status !== 'scheduled') throw ValidationException::withMessages(['meeting_id' => 'Proxy instruments must be received before the meeting starts.']);
             $principal = $this->membership((int) $data['principal_membership_id'], (int) $meeting->governance_body_id);
-            $appointed = CarbonImmutable::parse($data['appointed_at'], $meeting->timezone);
-            $received = now();
+            $appointed = CarbonImmutable::parse($data['appointed_at'], $meeting->timezone)->utc();
+            $received = CarbonImmutable::now('UTC');
             $cutoff = CarbonImmutable::parse($meeting->scheduled_at, $meeting->timezone)
                 ->sub($meeting->meeting_kind === 'ga' ? '3 days' : '3 hours')->utc();
             if ($appointed->gt($received) || $received->gt($cutoff)) {
