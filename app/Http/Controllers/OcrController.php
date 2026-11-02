@@ -13,12 +13,16 @@ use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrCorrection;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingJob;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrResult;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrVerification;
+use MaaleArna\MASES\Core\DocumentIntelligence\Jobs\ProcessOcrDocument;
+use MaaleArna\MASES\Core\Audit\Traits\LogsAudit;
 use MaaleArna\MASES\Core\DocumentIntelligence\Services\OcrSubmissionService;
 use MaaleArna\MASES\Core\Files\Models\File;
 use RuntimeException;
 
 final class OcrController extends Controller
 {
+    use LogsAudit;
+
     public function __construct(
         private readonly AuthorizationService $authorization,
         private readonly OcrSubmissionService $submissions,
@@ -69,6 +73,7 @@ final class OcrController extends Controller
             ]], $conflict ? 409 : 422);
         }
 
+        $this->logAudit(action: 'ocr.job.created', resourceType: 'ocr_job', resourceId: (string) $job->id, newValues: ['file_id' => $job->file_id, 'file_version' => $job->file_version, 'languages' => $job->languages]);
         return response()->json(['success' => true, 'data' => $job], 202);
     }
 
@@ -82,10 +87,11 @@ final class OcrController extends Controller
             $job->update(['status' => 'queued', 'failure_code' => null, 'failure_message' => null, 'completed_at' => null]);
             return $job;
         });
-        \\MaaleArna\\MASES\\Core\\DocumentIntelligence\\Jobs\\ProcessOcrDocument::dispatch($job->id)
+        ProcessOcrDocument::dispatch($job->id)
             ->onConnection((string) config('ocr.connection'))
             ->onQueue((string) config('ocr.queue'))
             ->afterCommit();
+        $this->logAudit(action: 'ocr.job.retried', resourceType: 'ocr_job', resourceId: (string) $job->id);
         return response()->json(['success' => true, 'data' => $job], 202);
     }
 
@@ -145,6 +151,7 @@ final class OcrController extends Controller
             return $record;
         });
 
+        $this->logAudit(action: 'ocr.result.verified', resourceType: 'ocr_result', resourceId: (string) $result->id, newValues: ['decision' => $validated['decision']]);
         return response()->json(['success' => true, 'data' => $verification], 201);
     }
 
@@ -171,6 +178,7 @@ final class OcrController extends Controller
             'corrected_text' => $validated['corrected_text'],
             'reason' => $validated['reason'] ?? null,
         ]);
+        $this->logAudit(action: 'ocr.result.corrected', resourceType: 'ocr_result', resourceId: (string) $result->id, newValues: ['correction_id' => $correction->id, 'page_number' => $correction->page_number]);
         return response()->json(['success' => true, 'data' => $correction], 201);
     }
 
