@@ -32,12 +32,12 @@ final class OcrSubmissionService
         }
 
         $key = hash('sha256', $idempotencyKey);
-        return DB::transaction(function () use ($file, $user, $tenantId, $key, $languages): OcrProcessingJob {
+        $requestHash = hash('sha256', implode('|', [(string) $file->id, (string) $file->version, $languages]));
+        return DB::transaction(function () use ($file, $user, $tenantId, $key, $requestHash, $languages): OcrProcessingJob {
             $existing = OcrProcessingJob::query()
-                ->where('tenant_id', $tenantId)->where('file_id', $file->id)
-                ->where('file_version', $file->version)->where('idempotency_key', $key)->first();
+                ->where('tenant_id', $tenantId)->where('idempotency_key', $key)->first();
             if ($existing) {
-                if ($existing->languages !== $languages) {
+                if (!hash_equals($existing->request_hash, $requestHash)) {
                     throw new RuntimeException('OCR_IDEMPOTENCY_CONFLICT');
                 }
                 return $existing;
@@ -49,6 +49,7 @@ final class OcrSubmissionService
                 'file_version' => $file->version,
                 'requested_by' => $user->id,
                 'idempotency_key' => $key,
+                'request_hash' => $requestHash,
                 'languages' => $languages,
                 'status' => 'queued',
             ]);
