@@ -30,7 +30,7 @@ Route::post('/journals/{journalId}/reverse', [$controller, 'reverseJournal'])->w
 Route::get('/trial-balance', [$controller, 'trialBalance'])->middleware('auth.permission:finance.report.view')->name('reports.trial-balance');
 
 
-$settlementController = \\MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Controllers\\GovernancePenaltySettlementController::class;
+$settlementController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\GovernancePenaltySettlementController::class;
 Route::get('/governance-settlement/account-mappings', [$settlementController, 'accountMappings'])->middleware('auth.permission:finance.account.view')->name('governance-settlement.account-mappings.index');
 Route::post('/governance-settlement/account-mappings', [$settlementController, 'requestAccountMapping'])->middleware('auth.permission:finance.account.manage')->name('governance-settlement.account-mappings.store');
 Route::post('/governance-settlement/account-mappings/{mappingId}/approve', [$settlementController, 'approveAccountMapping'])->whereNumber('mappingId')->middleware('auth.permission:finance.account.manage')->name('governance-settlement.account-mappings.approve');
