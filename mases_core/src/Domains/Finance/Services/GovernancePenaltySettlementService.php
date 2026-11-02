@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
-use Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Enums\\JournalSourceType;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\GovernanceSettlementAccountMapping;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LedgerAccount;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\ShareholderDividendPayable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
+use MaaleArna\MASES\Core\Domains\Finance\Models\GovernanceSettlementAccountMapping;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
+use MaaleArna\MASES\Core\Domains\Finance\Models\ShareholderDividendPayable;
 
 final class GovernancePenaltySettlementService
 {
@@ -77,7 +77,7 @@ final class GovernancePenaltySettlementService
             if ($mapping->status !== GovernanceSettlementAccountMapping::STATUS_APPROVED || (int)$mapping->approved_by === $actorId || trim($reason)==='') {
                 throw ValidationException::withMessages(['mapping'=>'Only an approved mapping may be revoked by an officer other than its approver, with a reason.']);
             }
-            $mapping->forceFill(['status'=>GovernanceSettlementAccountMapping::STATUS_REVOKED,'revoked_by'=>$actorId,'revoked_at'=>now(),'configuration_reason'=>$mapping->configuration_reason."\\nRevocation: ".trim($reason)])->save();
+            $mapping->forceFill(['status'=>GovernanceSettlementAccountMapping::STATUS_REVOKED,'revoked_by'=>$actorId,'revoked_at'=>now(),'configuration_reason'=>$mapping->configuration_reason."\nRevocation: ".trim($reason)])->save();
             return $mapping;
         });
     }
@@ -202,7 +202,7 @@ final class GovernancePenaltySettlementService
 
     private function money(string $v): string
     {
-        $v=trim($v); if(!preg_match('/^\\d{1,16}(?:\\.\\d{1,4})?$/',$v)) throw ValidationException::withMessages(['amount'=>'Invalid decimal amount.']);
+        $v=trim($v); if(!preg_match('/^\d{1,16}(?:\.\d{1,4})?$/',$v)) throw ValidationException::withMessages(['amount'=>'Invalid decimal amount.']);
         [$w,$f]=array_pad(explode('.',$v,2),2,''); return (ltrim($w,'0')?:'0').'.'.str_pad($f,4,'0');
     }
 }
