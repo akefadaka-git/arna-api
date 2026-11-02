@@ -363,10 +363,12 @@ final class MeetingAttendanceService
         $tenantId = $this->tenantId();
         return [
             'payments' => DB::table('governance_meeting_penalty_payments as payments')
-                ->join('governance_meetings as meetings', 'meetings.id', '=', 'payments.penalty_id')
+                ->join('governance_meeting_penalties as penalties', 'penalties.id', '=', 'payments.penalty_id')
+                ->join('governance_meetings as meetings', 'meetings.id', '=', 'penalties.meeting_id')
                 ->where('payments.tenant_id', $tenantId)
                 ->where('payments.finance_reconciliation_status', 'pending')
-                ->select('payments.*')->orderBy('payments.id')->limit(500)->get(),
+                ->select('payments.*', 'meetings.id as meeting_id', 'meetings.finance_legal_entity_id')
+                ->orderBy('payments.id')->limit(500)->get(),
             'dividend_settlements' => DB::table('governance_meeting_dividend_settlement_requests')
                 ->where('tenant_id', $tenantId)
                 ->whereIn('status', ['pending_finance_legal_review', 'approved'])
@@ -461,8 +463,7 @@ final class MeetingAttendanceService
             ]);
             $paid = (float) DB::table('governance_meeting_penalty_payments')->where('penalty_id', $settlement->linked_penalty_id)->sum('amount');
             $offset = (float) DB::table('governance_meeting_dividend_settlement_requests')
-                ->where('penalty_id', $settlement->linked_penalty_id)->where('status', 'reconciled')->sum('requested_amount')
-                + (float) $settlement->requested_amount;
+                ->where('penalty_id', $settlement->linked_penalty_id)->where('status', 'reconciled')->sum('requested_amount');
             $penalty = DB::table('governance_meeting_penalties')->where('id', $settlement->linked_penalty_id)->first();
             $newStatus = ($paid + $offset) >= (float) $penalty->amount ? 'paid' : 'partially_paid';
             DB::table('governance_meeting_penalties')->where('id', $settlement->linked_penalty_id)->update(['status' => $newStatus, 'updated_at' => now()]);
