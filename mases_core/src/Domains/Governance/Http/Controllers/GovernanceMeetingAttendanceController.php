@@ -138,6 +138,18 @@ final class GovernanceMeetingAttendanceController extends Controller
         if (in_array($status, ['present', 'late'], true) && !$arrivedAt) {
             throw ValidationException::withMessages(['arrived_at' => 'Arrival time is required for present or late attendance.']);
         }
+        if ($status === 'represented') {
+            $approvedProxy = DB::table('governance_meeting_proxies')
+                ->where('tenant_id', $tenantId)
+                ->where('meeting_id', $meeting)
+                ->where('principal_type', $data['subject_type'])
+                ->where('principal_id', $data['subject_id'])
+                ->where('status', 'approved')
+                ->exists();
+            if (!$approvedProxy) {
+                throw ValidationException::withMessages(['attendance_status' => 'Represented attendance requires an approved proxy for this principal and meeting.']);
+            }
+        }
 
         try {
             $id = DB::transaction(function () use ($data, $tenantId, $meeting, $status, $arrivedAt): int {
@@ -342,7 +354,7 @@ final class GovernanceMeetingAttendanceController extends Controller
         }
         $paid = (int) DB::table('governance_penalty_settlements')
             ->where('tenant_id', $tenantId)->where('penalty_id', $penalty)
-            ->whereIn('status', ['finance_accepted', 'posted'])->sum('amount_cents');
+            ->whereNotIn('status', ['rejected', 'cancelled'])->sum('amount_cents');
         $remaining = (int) $record->amount_cents - $paid;
         if ($data['amount_cents'] > $remaining) {
             throw ValidationException::withMessages(['amount_cents' => 'Settlement exceeds the assessed outstanding amount.']);
