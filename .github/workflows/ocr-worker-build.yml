@@ -1,0 +1,41 @@
+name: ARNA OCR worker image verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docker/ocr-worker/**'
+      - 'config/ocr.php'
+      - 'composer.json'
+      - 'composer.lock'
+      - 'mases_core/src/DocumentIntelligence/**'
+      - '.github/workflows/ocr-worker-build.yml'
+  push:
+    branches: [feat/arna-ocr-a3-api]
+    paths:
+      - 'docker/ocr-worker/**'
+      - 'config/ocr.php'
+      - 'composer.json'
+      - 'composer.lock'
+      - 'mases_core/src/DocumentIntelligence/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-check-language-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+      - name: Build isolated OCR worker image
+        run: docker build --pull -f docker/ocr-worker/Dockerfile -t arna-ocr-worker:ci .
+      - name: Verify Tesseract and required language models
+        run: |
+          docker run --rm --entrypoint tesseract arna-ocr-worker:ci --list-langs | tee /tmp/ocr-languages.txt
+          grep -qx 'amh' /tmp/ocr-languages.txt
+          grep -qx 'eng' /tmp/ocr-languages.txt
+      - name: Verify PDF renderer binaries
+        run: |
+          docker run --rm --entrypoint /usr/bin/pdftoppm arna-ocr-worker:ci -v
+          docker run --rm --entrypoint /usr/bin/pdfinfo arna-ocr-worker:ci -v
