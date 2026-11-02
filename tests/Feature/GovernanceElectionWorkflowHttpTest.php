@@ -135,7 +135,7 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
         $this->withHeaders($headers)->postJson($decisionUrl, $payload)->assertForbidden();
 
         DB::table('governance_election_committee_members')->insert([
-            'tenant_id' => $tenant->id, 'election_id' => $electionId, 'person_id' => 81001,
+            'tenant_id' => $tenant->id, 'election_id' => $electionId, 'person_id' => 81004,
             'user_id' => $manager->id, 'member_role' => 'committee_member', 'ex_officio' => false,
             'status' => 'active', 'appointed_at' => now(), 'appointment_reference' => 'GA-MIN-TEST',
             'created_at' => now(), 'updated_at' => now(),
