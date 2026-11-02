@@ -106,14 +106,15 @@ final class GovernancePenaltySettlementController extends Controller
         $rows=DB::table('governance_penalty_settlements as s')
             ->join('governance_meeting_penalties as p','p.id','=','s.penalty_id')
             ->join('governance_meetings as m','m.id','=','p.meeting_id')
+            ->leftJoin('journal_source_entity_mappings as sm',function($join){$join->on('sm.tenant_id','=','s.tenant_id')->on('sm.source_id','=','s.id')->where('sm.source_type','=','governance_penalty_settlement')->where('sm.status','=','approved');})
             ->leftJoin('journal_entries as j',function($join){$join->on('j.source_id','=','s.id')->where('j.source_type','=','governance_penalty_settlement');})
             ->leftJoinSub($lineTotals,'jl',function($join){$join->on('jl.journal_entry_id','=','j.id')->on('jl.tenant_id','=','j.tenant_id')->on('jl.legal_entity_id','=','j.legal_entity_id');})
             ->leftJoinSub($journalCounts,'jc',function($join){$join->on('jc.source_id','=','s.id')->on('jc.tenant_id','=','s.tenant_id')->on('jc.legal_entity_id','=','j.legal_entity_id');})
             ->where('s.tenant_id',$tenant)->where('p.tenant_id',$tenant)
             ->whereIn('s.status',['settled','pending_finance','pending_legal_finance_review'])
-            ->select(['s.id as settlement_id','s.penalty_id','s.method','s.amount_cents','s.currency','s.status as settlement_status','s.reference','m.meeting_code','j.id as journal_id','j.journal_number','j.status as journal_status','j.legal_entity_id','jl.debit_total','jl.credit_total','jc.source_journal_count'])
+            ->select(['s.id as settlement_id','s.penalty_id','s.method','s.amount_cents','s.currency','s.status as settlement_status','s.reference','m.meeting_code','j.id as journal_id','j.journal_number','j.status as journal_status','j.legal_entity_id','sm.legal_entity_id as mapped_entity_id','jl.debit_total','jl.credit_total','jc.source_journal_count'])
             ->orderByDesc('s.id')->get()
-            ->filter(fn($r)=>$r->journal_id===null || (int)$r->legal_entity_id===(int)$d['legal_entity_id'])
+            ->filter(fn($r)=>$r->journal_id===null ? (int)($r->mapped_entity_id??0)===(int)$d['legal_entity_id'] : (int)$r->legal_entity_id===(int)$d['legal_entity_id'])
             ->map(function($r){
                 $cents=(int)$r->amount_cents;
                 $expected=intdiv($cents,100).'.'.str_pad((string)($cents%100),2,'0',STR_PAD_LEFT);
