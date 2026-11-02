@@ -820,6 +820,35 @@ return [
         'general_assembly_post_election_review' => true,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Shareholder voting entitlement for Board elections
+    |--------------------------------------------------------------------------
+    |
+    | Voting weight follows eligible share entitlements, not a headcount
+    | of shareholders. Natural persons and legal entities are treated
+    | identically: aggregate the eligible voting shares registered to
+    | each holder at the frozen election record date.
+    |
+    | One vote per eligible share is the default baseline. Verified
+    | share-class rights, legally suspended/disqualified shares, and a
+    | valid provision in the operative Articles may alter the entitlement.
+    | Never infer a one-holder-one-vote cap without that verified authority.
+    |
+    */
+    'election_voting' => [
+        'enabled' => true,
+        'basis' => 'eligible_share_entitlement',
+        'default_votes_per_share' => 1,
+        'one_holder_one_vote' => false,
+        'aggregate_by_registered_holder' => true,
+        'holder_type_neutral' => true,
+        'share_class_rights' => 'enforce_verified_class_entitlements',
+        'legally_disqualified_shares' => 'exclude_from_voting_entitlement',
+        'record_date_snapshot_required' => true,
+        'articles_override' => 'require_verified_operative_articles',
+    ],
+
     'features' => [
         'notifications_enabled'      => (bool) env('MASES_GOVERNANCE_NOTIFICATIONS', false),
         'electronic_voting_enabled'  => false,
