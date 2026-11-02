@@ -151,6 +151,21 @@ final class ProcessOcrDocument implements ShouldQueue
                 });
             });
         } catch (Throwable $exception) {
+            $permanentFailures = [
+                'OCR_PAGE_LIMIT_EXCEEDED',
+                'OCR_PDF_PAGE_COUNT_UNAVAILABLE',
+                'OCR_PDF_RENDER_INCOMPLETE',
+                'OCR_LANGUAGE_NOT_SUPPORTED',
+                'OCR_PROCESS_OUTPUT_LIMIT_EXCEEDED',
+            ];
+            if (in_array($exception->getMessage(), $permanentFailures, true)) {
+                $job->update(['status' => 'rejected', 'failure_code' => $exception->getMessage(), 'completed_at' => now()]);
+                OcrProcessingEvent::query()->create([
+                    'tenant_id' => $job->tenant_id, 'job_id' => $job->id,
+                    'event' => 'processing.rejected', 'details' => ['reason' => $exception->getMessage()],
+                ]);
+                return;
+            }
             $job->update([
                 'status' => 'queued',
                 'failure_code' => substr($exception->getMessage(), 0, 255),
