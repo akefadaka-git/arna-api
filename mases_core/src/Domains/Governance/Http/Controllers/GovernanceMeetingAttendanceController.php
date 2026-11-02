@@ -197,7 +197,10 @@ final class GovernanceMeetingAttendanceController extends Controller
         $data = $request->validate([
             'principal_type' => ['required', 'in:shareholder,director'],
             'principal_id' => ['required', 'integer', 'min:1'],
-            'proxy_user_id' => ['required', 'integer', 'min:1'],
+            'proxy_user_id' => ['nullable', 'integer', 'min:1'],
+            'proxy_name_am' => ['nullable', 'string', 'max:150'],
+            'proxy_name_en' => ['nullable', 'string', 'max:150'],
+            'proxy_reference' => ['nullable', 'string', 'max:100'],
             'instrument_reference' => ['nullable', 'string', 'max:2000'],
         ]);
         $tenantId = $this->tenantId();
@@ -222,7 +225,13 @@ final class GovernanceMeetingAttendanceController extends Controller
             if (!$principalExists) {
                 throw ValidationException::withMessages(['principal_id' => 'Shareholder is not registered in this tenant.']);
             }
+            if (empty($data['proxy_user_id']) && trim((string) ($data['proxy_name_am'] ?? '')) === '' && trim((string) ($data['proxy_name_en'] ?? '')) === '') {
+                throw ValidationException::withMessages(['proxy_name_am' => 'Identify the GA proxy by an ARNA user account or a name. A proxy need not be a shareholder.']);
+            }
         } else {
+            if (empty($data['proxy_user_id'])) {
+                throw ValidationException::withMessages(['proxy_user_id' => 'Board proxy must be another active director with an ARNA user account.']);
+            }
             $principal = DB::table('governance_memberships')
                 ->where('tenant_id', $tenantId)
                 ->where('governance_body_id', $meetingRecord->governance_body_id)
@@ -260,7 +269,10 @@ final class GovernanceMeetingAttendanceController extends Controller
                 'meeting_id' => $meeting,
                 'principal_type' => $data['principal_type'],
                 'principal_id' => $data['principal_id'],
-                'proxy_user_id' => $data['proxy_user_id'],
+                'proxy_user_id' => $data['proxy_user_id'] ?? null,
+                'proxy_name_am' => $data['proxy_name_am'] ?? null,
+                'proxy_name_en' => $data['proxy_name_en'] ?? null,
+                'proxy_reference' => $data['proxy_reference'] ?? null,
                 'submitted_by' => $this->actorId(),
                 'submitted_at' => $submittedAt->toDateTimeString(),
                 'deadline_at' => $deadline->toDateTimeString(),
