@@ -38,7 +38,7 @@ Required runtime configuration:
 
 - `ARNA_OCR_ENABLED=true`
 - `ARNA_OCR_QUEUE=ocr`
-- `ARNA_OCR_QUEUE_CONNECTION=database`
+- `ARNA_OCR_QUEUE_CONNECTION=ocr`
 - `ARNA_OCR_TESSERACT_BINARY=/usr/bin/tesseract`
 - `ARNA_OCR_PDFTOPPM_BINARY=/usr/bin/pdftoppm`
 - `ARNA_OCR_PDFINFO_BINARY=/usr/bin/pdfinfo`
