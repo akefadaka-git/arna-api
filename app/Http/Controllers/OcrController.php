@@ -118,10 +118,13 @@ final class OcrController extends Controller
         $tenantId = $this->tenantId();
         $this->authorize('ocr.result.search', $request->user(), $tenantId);
         $validated = $request->validate(['q' => ['required', 'string', 'min:2', 'max:200']]);
-        $results = OcrResult::query()->where('tenant_id', $tenantId)
-            ->where('full_text', 'like', '%' . addcslashes($validated['q'], '%_\\\\') . '%')
-            ->with('file:id,original_name,version')
-            ->latest()->paginate(20);
+        $query = OcrResult::query()->where('tenant_id', $tenantId);
+        if (DB::getDriverName() === 'mysql') {
+            $query->whereRaw('MATCH(full_text) AGAINST (? IN BOOLEAN MODE)', [$validated['q'] . '*']);
+        } else {
+            $query->where('full_text', 'like', '%' . addcslashes($validated['q'], '%_\\\\') . '%');
+        }
+        $results = $query->with('file:id,original_name,version')->latest()->paginate(20);
         return response()->json(['success' => true, 'data' => $results->items(), 'meta' => [
             'current_page' => $results->currentPage(), 'last_page' => $results->lastPage(),
             'per_page' => $results->perPage(), 'total' => $results->total(),
