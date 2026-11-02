@@ -224,28 +224,33 @@ final class GovernanceMeetingAttendanceController extends Controller
             }
         } else {
             $principal = DB::table('governance_memberships')
-                ->join('governance_positions', 'governance_positions.id', '=', 'governance_memberships.governance_position_id')
-                ->where('governance_memberships.tenant_id', $tenantId)
-                ->where('governance_memberships.governance_body_id', $meetingRecord->governance_body_id)
-                ->where('governance_memberships.id', $data['principal_id'])
-                ->where('governance_memberships.status', 'active')
-                ->where('governance_positions.is_officer', true)
-                ->select('governance_memberships.user_id')
+                ->where('tenant_id', $tenantId)
+                ->where('governance_body_id', $meetingRecord->governance_body_id)
+                ->where('id', $data['principal_id'])
+                ->where('status', 'active')
+                ->select('user_id')
                 ->first();
             if (!$principal || !$principal->user_id) {
                 throw ValidationException::withMessages(['principal_id' => 'Board principal must be an active director with a linked user account.']);
             }
             $proxyIsAnotherDirector = DB::table('governance_memberships')
-                ->join('governance_positions', 'governance_positions.id', '=', 'governance_memberships.governance_position_id')
-                ->where('governance_memberships.tenant_id', $tenantId)
-                ->where('governance_memberships.governance_body_id', $meetingRecord->governance_body_id)
-                ->where('governance_memberships.user_id', $data['proxy_user_id'])
-                ->where('governance_memberships.status', 'active')
-                ->where('governance_positions.is_officer', true)
-                ->where('governance_memberships.user_id', '<>', $principal->user_id)
+                ->where('tenant_id', $tenantId)
+                ->where('governance_body_id', $meetingRecord->governance_body_id)
+                ->where('user_id', $data['proxy_user_id'])
+                ->where('status', 'active')
+                ->where('user_id', '<>', $principal->user_id)
                 ->exists();
             if (!$proxyIsAnotherDirector) {
                 throw ValidationException::withMessages(['proxy_user_id' => 'Board proxy must be another active director; self-proxy and non-director proxies are not allowed.']);
+            }
+            $alreadyHoldsProxy = DB::table('governance_meeting_proxies')
+                ->where('tenant_id', $tenantId)
+                ->where('meeting_id', $meeting)
+                ->where('proxy_user_id', $data['proxy_user_id'])
+                ->whereIn('status', ['submitted', 'approved'])
+                ->exists();
+            if ($alreadyHoldsProxy) {
+                throw ValidationException::withMessages(['proxy_user_id' => 'A director may hold no more than one Board proxy for the same meeting.']);
             }
         }
 
