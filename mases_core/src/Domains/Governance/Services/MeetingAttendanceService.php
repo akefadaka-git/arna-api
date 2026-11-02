@@ -200,7 +200,7 @@ final class MeetingAttendanceService
     {
         return DB::transaction(function () use ($meetingId, $data): object {
             $meeting = $this->meeting($meetingId, true);
-            if ($meeting->status !== 'open') throw ValidationException::withMessages(['meeting_id' => 'Attendance can only be recorded while the meeting is open.']);
+            if (!in_array($meeting->status, ['scheduled', 'open'], true)) throw ValidationException::withMessages(['meeting_id' => 'Attendance can only be recorded before the meeting closes.']);
             $member = $this->membership((int) $data['membership_id'], (int) $meeting->governance_body_id);
             $arrivedAt = CarbonImmutable::now('UTC');
             $proxyId = $data['proxy_id'] ?? null;
@@ -352,6 +352,13 @@ final class MeetingAttendanceService
         return ((int) $whole * 10000) + (int) str_pad($fraction, 4, '0');
     }
 
+    private function decimalFromMinorUnits(int $units): string
+    {
+        $whole = intdiv($units, 10000);
+        $fraction = intdiv($units % 10000, 100);
+        return $whole.'.'.str_pad((string) $fraction, 2, '0', STR_PAD_LEFT);
+    }
+
     private function createPenalty(int $meetingId, int $membershipId, string $type, string $amount, string $reason): void
     {
         $exists = DB::table('governance_meeting_penalties')->where('meeting_id', $meetingId)
@@ -432,7 +439,7 @@ final class MeetingAttendanceService
             if ($amountMinor <= 0 || $amountMinor > ($penaltyMinor - $paidMinor - $reservedMinor)) {
                 throw ValidationException::withMessages(['amount' => 'Payment must be positive and cannot exceed the unreserved outstanding balance.']);
             }
-            $amount = number_format($amountMinor / 10000, 2, '.', '');
+            $amount = $this->decimalFromMinorUnits($amountMinor);
             $id = DB::table('governance_meeting_penalty_payments')->insertGetId([
                 'tenant_id' => $this->tenantId(), 'penalty_id' => $penaltyId, 'amount' => $amount,
                 'currency' => 'ETB', 'payment_method' => $data['payment_method'],
@@ -535,6 +542,11 @@ final class MeetingAttendanceService
             if ((int) $settlement->requested_by === $this->actorId()) {
                 throw ValidationException::withMessages(['decision' => 'The requester cannot approve or reject their own dividend settlement request.']);
             }
+            $linkedPenalty = DB::table('governance_meeting_penalties')->where('tenant_id', $this->tenantId())
+                ->where('id', $settlement->penalty_id)->first();
+            if (!$linkedPenalty || !in_array($linkedPenalty->status, ['assessed', 'partially_paid'], true)) {
+                throw ValidationException::withMessages(['settlement_id' => 'The linked penalty must remain assessed and outstanding for settlement approval.']);
+            }
             if ($data['decision'] === 'approve' && trim((string) ($data['authority_reference'] ?? '')) === '') {
                 throw ValidationException::withMessages(['authority_reference' => 'A valid corporate/legal authority reference is required before approval.']);
             }
@@ -558,6 +570,9 @@ final class MeetingAttendanceService
                 ->join('governance_meeting_penalties as penalties', 'penalties.id', '=', 'settlements.penalty_id')
                 ->where('settlements.tenant_id', $this->tenantId())->where('settlements.id', $settlementId)
                 ->where('penalties.meeting_id', $meetingId)->select('settlements.*', 'penalties.id as linked_penalty_id')->lockForUpdate()->first();
+            if ($settlement && $settlement->status === 'reconciled' && (string) $settlement->finance_reference === (string) $journalId) {
+                return $settlement;
+            }
             if (!$settlement || $settlement->status !== 'approved') {
                 throw ValidationException::withMessages(['settlement_id' => 'Only an approved dividend settlement can be reconciled.']);
             }
@@ -614,7 +629,7 @@ final class MeetingAttendanceService
             if ($requestedMinor <= 0 || $requestedMinor > ($penaltyMinor - $paidMinor - $reservedMinor)) {
                 throw ValidationException::withMessages(['requested_amount' => 'Requested set-off cannot exceed the remaining unreserved penalty balance.']);
             }
-            $requested = number_format($requestedMinor / 10000, 2, '.', '');
+            $requested = $this->decimalFromMinorUnits($requestedMinor);
             $id = DB::table('governance_meeting_dividend_settlement_requests')->insertGetId([
                 'tenant_id' => $this->tenantId(), 'penalty_id' => $penaltyId,
                 'shareholder_id' => $data['shareholder_id'], 'dividend_reference' => $data['dividend_reference'],
