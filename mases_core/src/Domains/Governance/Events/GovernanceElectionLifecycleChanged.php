@@ -13,7 +13,7 @@ final class GovernanceElectionLifecycleChanged
         public readonly GovernanceElection $election,
         public readonly string $action,
         public readonly ?array $before,
-        public readonly int $actorId,
+        public readonly ?int $actorId,
     ) {
     }
 }
