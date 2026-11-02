@@ -33,7 +33,7 @@ final class OcrController extends Controller
         $tenantId = $this->tenantId();
         $this->authorize('ocr.job.view', $request->user(), $tenantId);
         $jobs = OcrProcessingJob::query()->where('tenant_id', $tenantId)
-            ->with('result:id,job_id,mean_confidence')
+            ->with(['result:id,job_id,mean_confidence', 'file:id,original_name,version'])
             ->latest()->paginate(min(max((int) $request->integer('per_page', 20), 1), 100));
 
         return response()->json(['success' => true, 'data' => $jobs->items(), 'meta' => [
