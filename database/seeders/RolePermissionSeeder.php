@@ -69,7 +69,7 @@ use RuntimeException;
  * The grant-spec resolution
  * =============================================================================
  * Each role's grant spec is a list of strings, each of which is one
- * of three forms:
+ * of four forms:
  *
  *   1. '*' — the wildcard. Matches every permission in the
  *            permissions map. The role receives the ids of every
@@ -86,7 +86,10 @@ use RuntimeException;
  *                        'application'). The role receives the ids
  *                        of every matching permission.
  *
- *   3. A literal permission slug — the exact match. The role
+ *   3. 'scope:{scope}:exclude:{prefix}' — matches the named scope
+ *      while excluding permission slugs beginning with the prefix.
+ *
+ *   4. A literal permission slug — the exact match. The role
  *      receives the id of the single permission whose key equals
  *      the string. A slug that does not appear in the permissions
  *      map is silently skipped.
