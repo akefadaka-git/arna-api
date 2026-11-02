@@ -656,6 +656,9 @@ return [
      */
     MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
 
+    // Centralized self-hosted OCR engine and Document Intelligence bindings.
+    MaaleArna\MASES\Core\DocumentIntelligence\Providers\DocumentIntelligenceServiceProvider::class,
+
     /*
      * -------------------------------------------------------------------------
      * 11. Future Domain Providers (Phase 2D and 2F)
