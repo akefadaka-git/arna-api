@@ -67,8 +67,10 @@ final class CommunicationAnnouncementsTest extends TestCase
 
         // Existing platform-wide role policy grants tenant-scoped permissions
         // to platform_admin and tenant_admin; super_admin remains wildcard.
-        $this->assertContains('scope:tenant', $grants['platform_admin']);
-        $this->assertContains('scope:tenant', $grants['tenant_admin']);
+        $this->assertContains('scope:tenant:exclude:ocr.', $grants['platform_admin']);
+        $this->assertContains('scope:tenant:exclude:ocr.', $grants['tenant_admin']);
+        $this->assertNotContains('ocr.result.verify', $grants['platform_admin']);
+        $this->assertNotContains('ocr.result.verify', $grants['tenant_admin']);
         $this->assertSame(['*'], $grants['super_admin']);
     }
 
