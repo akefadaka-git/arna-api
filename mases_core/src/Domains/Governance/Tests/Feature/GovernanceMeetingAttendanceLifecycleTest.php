@@ -51,10 +51,12 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
 
         $this->postJson(route('api.governance.meetings.start', ['meeting' => $meeting->id]))
             ->assertOk();
-        $this->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meeting->id]), [
+        $arrivalResponse = $this->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meeting->id]), [
             'membership_id' => $member->id,
-            'arrived_at' => now()->subHour()->toDateTimeString(),
+            'arrived_at' => now()->addHour()->toDateTimeString(),
         ])->assertCreated()->assertJsonPath('data.status', 'late');
+        $recordedArrival = \Carbon\CarbonImmutable::parse($arrivalResponse->json('data.arrived_at'));
+        $this->assertLessThan(30, abs($recordedArrival->getTimestamp() - now()->getTimestamp()), 'Arrival time must be captured by the API, not supplied by the client.');
 
         $this->assertDatabaseHas('governance_meeting_penalties', [
             'meeting_id' => $meeting->id,
