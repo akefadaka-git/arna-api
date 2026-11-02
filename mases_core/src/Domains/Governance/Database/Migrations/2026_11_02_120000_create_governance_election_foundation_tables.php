@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\\Database\\Migrations\\Migration;
+use Illuminate\\Database\\Schema\\Blueprint;
+use Illuminate\\Support\\Facades\\Schema;
 
 /**
- * A3 foundation only. Legal rules are references, never inferred defaults.
- * Digital voting is intentionally not represented by an enabled workflow.
+ * A3 election foundation. Each voter entitlement is one registered
+ * shareholder/share-class row so class-specific voting rights remain auditable.
+ * Digital voting is intentionally not enabled.
  */
 return new class extends Migration
 {
@@ -64,7 +65,7 @@ return new class extends Migration
             $table->string('entitlement_reference', 160);
             $table->boolean('proxy_authorized')->default(false);
             $table->timestamps();
-            $table->unique(['tenant_id', 'election_id', 'shareholder_id'], 'gov_election_voter_once');
+            $table->unique(['tenant_id', 'election_id', 'shareholder_id', 'share_class_code'], 'gov_elec_voter_class_uq');
         });
 
         Schema::create('governance_election_nominations', function (Blueprint $table): void {
