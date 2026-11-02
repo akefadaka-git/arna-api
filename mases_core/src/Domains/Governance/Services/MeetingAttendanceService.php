@@ -12,9 +12,11 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class MeetingAttendanceService
 {
+    public function __construct(private readonly TenantContextService $tenantContext) {}
+
     private function tenantId(): int
     {
-        $tenantId = (int) (app()->bound('tenant') ? data_get(app('tenant'), 'id', 0) : 0);
+        $tenantId = (int) ($this->tenantContext->getTenantId() ?? 0);
         abort_if($tenantId < 1, 400, 'A tenant context is required.');
         return $tenantId;
     }
