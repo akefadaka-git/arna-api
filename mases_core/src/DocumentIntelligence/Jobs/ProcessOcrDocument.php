@@ -15,6 +15,7 @@ use MaaleArna\MASES\Core\DocumentIntelligence\Contracts\OcrEngineInterface;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrPage;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingJob as OcrJob;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrResult;
+use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingEvent;
 use MaaleArna\MASES\Core\DocumentIntelligence\Events\OcrResultReady;
 use RuntimeException;
 use Throwable;
@@ -36,6 +37,10 @@ final class ProcessOcrDocument implements ShouldQueue
                 return null;
             }
             $locked->update(['status' => 'processing', 'attempts' => $locked->attempts + 1, 'started_at' => now()]);
+            OcrProcessingEvent::query()->create([
+                'tenant_id' => $locked->tenant_id, 'job_id' => $locked->id,
+                'event' => 'processing.started', 'details' => ['attempt' => $locked->attempts],
+            ]);
             return $locked->fresh('file');
         });
         if ($job === null) {
@@ -45,12 +50,14 @@ final class ProcessOcrDocument implements ShouldQueue
         if (!$file || (string) $file->tenant_id !== (string) $job->tenant_id ||
             (int) $file->version !== (int) $job->file_version || $file->deleted_at !== null) {
             $job->update(['status' => 'failed', 'failure_code' => 'SOURCE_VERSION_INVALID', 'completed_at' => now()]);
+            OcrProcessingEvent::query()->create(['tenant_id' => $job->tenant_id, 'job_id' => $job->id, 'event' => 'processing.source_invalid']);
             return;
         }
         if (!in_array($file->mime_type, (array) config('ocr.allowed_mime_types'), true) ||
             !in_array(strtolower((string) $file->extension), (array) config('ocr.allowed_extensions'), true) ||
             (int) $file->size > (int) config('ocr.max_file_bytes')) {
             $job->update(['status' => 'rejected', 'failure_code' => 'SOURCE_FILE_NOT_SUPPORTED', 'completed_at' => now()]);
+            OcrProcessingEvent::query()->create(['tenant_id' => $job->tenant_id, 'job_id' => $job->id, 'event' => 'processing.rejected']);
             return;
         }
 
@@ -108,6 +115,11 @@ final class ProcessOcrDocument implements ShouldQueue
                     ]);
                 }
                 $job->update(['status' => 'awaiting_review', 'completed_at' => now(), 'failure_code' => null, 'failure_message' => null]);
+                OcrProcessingEvent::query()->create([
+                    'tenant_id' => $job->tenant_id, 'job_id' => $job->id,
+                    'event' => 'processing.recognized',
+                    'details' => ['result_id' => $result->id, 'page_count' => count($recognized['pages']), 'engine' => $recognized['engine']],
+                ]);
                 DB::afterCommit(static function () use ($job, $file, $result): void {
                     event(new OcrResultReady((int) $job->tenant_id, (int) $file->id, (int) $result->id));
                 });
@@ -125,7 +137,13 @@ final class ProcessOcrDocument implements ShouldQueue
 
     public function failed(Throwable $exception): void
     {
-        OcrJob::query()->whereKey($this->ocrJobId)->whereNotIn('status', ['completed', 'awaiting_review'])
-            ->update(['status' => 'failed', 'failure_code' => 'QUEUE_ATTEMPTS_EXHAUSTED', 'failure_message' => 'OCR worker exhausted its retry attempts.', 'completed_at' => now()]);
+        $job = OcrJob::query()->find($this->ocrJobId);
+        if ($job) {
+            $job->update(['status' => 'failed', 'failure_code' => 'QUEUE_ATTEMPTS_EXHAUSTED', 'failure_message' => 'OCR worker exhausted its retry attempts.', 'completed_at' => now()]);
+            OcrProcessingEvent::query()->create([
+                'tenant_id' => $job->tenant_id, 'job_id' => $job->id,
+                'event' => 'processing.failed', 'details' => ['exception' => class_basename($exception)],
+            ]);
+        }
     }
 }
