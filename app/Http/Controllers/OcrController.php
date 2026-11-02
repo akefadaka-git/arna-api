@@ -44,6 +44,7 @@ final class OcrController extends Controller
 
     public function submit(Request $request): JsonResponse
     {
+        abort_unless(config('ocr.enabled'), 503, 'OCR processing is not enabled on this environment.');
         $tenantId = $this->tenantId();
         /** @var User $user */
         $user = $request->user();
@@ -51,8 +52,9 @@ final class OcrController extends Controller
         $validated = $request->validate([
             'file_id' => ['required', 'integer', 'min:1'],
             'languages' => ['sometimes', 'string', 'max:32', 'regex:/^(amh|eng)(\+(amh|eng))*$/'],
+            'idempotency_key' => ['sometimes', 'string', 'min:16', 'max:200'],
         ]);
-        $idempotencyKey = (string) $request->header('Idempotency-Key', '');
+        $idempotencyKey = (string) ($validated['idempotency_key'] ?? $request->header('Idempotency-Key', ''));
         if (strlen($idempotencyKey) < 16 || strlen($idempotencyKey) > 200) {
             return response()->json(['success' => false, 'error' => [
                 'code' => 'IDEMPOTENCY_KEY_REQUIRED',
