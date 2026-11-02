@@ -120,6 +120,8 @@ final class GovernanceMeetingAttendanceController extends Controller
             ->whereIn('penalty_id', $record->penalties->pluck('id')->all() ?: [0])
             ->orderBy('id')
             ->get();
+        $record->corrections = DB::table('governance_attendance_corrections')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
+        $record->disputes = DB::table('governance_penalty_disputes')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
 
         return response()->json(['success' => true, 'data' => $record]);
     }
@@ -434,6 +436,9 @@ final class GovernanceMeetingAttendanceController extends Controller
                 ->lockForUpdate()->first();
             if (!$record) {
                 throw new NotFoundHttpException('Penalty was not found.');
+            }
+            if ($record->status !== 'assessed') {
+                throw new ConflictHttpException('Only an assessed, undisputed penalty can enter settlement review.');
             }
             $reserved = (int) DB::table('governance_penalty_settlements')
                 ->where('tenant_id', $tenantId)->where('penalty_id', $penalty)
