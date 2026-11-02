@@ -94,15 +94,35 @@ final class GovernancePenaltySettlementController extends Controller
     {
         $d=$request->validate(['legal_entity_id'=>['required','integer','min:1']]);
         $tenant=$this->tenantId();
+        $lineTotals=DB::table('journal_lines')
+            ->select('tenant_id','legal_entity_id','journal_entry_id')
+            ->selectRaw('SUM(debit_amount) AS debit_total, SUM(credit_amount) AS credit_total')
+            ->groupBy('tenant_id','legal_entity_id','journal_entry_id');
+        $journalCounts=DB::table('journal_entries')
+            ->where('source_type','governance_penalty_settlement')
+            ->select('tenant_id','legal_entity_id','source_id')
+            ->selectRaw('COUNT(*) AS source_journal_count')
+            ->groupBy('tenant_id','legal_entity_id','source_id');
         $rows=DB::table('governance_penalty_settlements as s')
             ->join('governance_meeting_penalties as p','p.id','=','s.penalty_id')
             ->join('governance_meetings as m','m.id','=','p.meeting_id')
             ->leftJoin('journal_entries as j',function($join){$join->on('j.source_id','=','s.id')->where('j.source_type','=','governance_penalty_settlement');})
+            ->leftJoinSub($lineTotals,'jl',function($join){$join->on('jl.journal_entry_id','=','j.id')->on('jl.tenant_id','=','j.tenant_id')->on('jl.legal_entity_id','=','j.legal_entity_id');})
+            ->leftJoinSub($journalCounts,'jc',function($join){$join->on('jc.source_id','=','s.id')->on('jc.tenant_id','=','s.tenant_id')->on('jc.legal_entity_id','=','j.legal_entity_id');})
             ->where('s.tenant_id',$tenant)->where('p.tenant_id',$tenant)
             ->whereIn('s.status',['settled','pending_finance','pending_legal_finance_review'])
-            ->select(['s.id as settlement_id','s.penalty_id','s.method','s.amount_cents','s.currency','s.status as settlement_status','s.reference','m.meeting_code','j.id as journal_id','j.journal_number','j.status as journal_status','j.legal_entity_id'])
+            ->select(['s.id as settlement_id','s.penalty_id','s.method','s.amount_cents','s.currency','s.status as settlement_status','s.reference','m.meeting_code','j.id as journal_id','j.journal_number','j.status as journal_status','j.legal_entity_id','jl.debit_total','jl.credit_total','jc.source_journal_count'])
             ->orderByDesc('s.id')->get()
-            ->filter(fn($r)=>$r->journal_id===null || (int)$r->legal_entity_id===(int)$d['legal_entity_id'])->values();
+            ->filter(fn($r)=>$r->journal_id===null || (int)$r->legal_entity_id===(int)$d['legal_entity_id'])
+            ->map(function($r){
+                $cents=(int)$r->amount_cents;
+                $expected=intdiv($cents,100).'.'.str_pad((string)($cents%100),2,'0',STR_PAD_LEFT);
+                $r->journal_balanced=$r->journal_id!==null && $r->debit_total!==null && bccomp((string)$r->debit_total,(string)$r->credit_total,4)===0;
+                $r->journal_amount_matches=$r->journal_balanced && bccomp((string)$r->debit_total,$expected,4)===0;
+                $r->source_journal_count=(int)($r->source_journal_count??0);
+                $r->reconciliation_status=$r->settlement_status!=='settled'?'PENDING':(($r->journal_status==='posted' && $r->journal_balanced && $r->journal_amount_matches && $r->source_journal_count===2)?'VERIFIED':'UNRESOLVED');
+                return $r;
+            })->values();
         return response()->json(['success'=>true,'data'=>$rows]);
     }
 }
