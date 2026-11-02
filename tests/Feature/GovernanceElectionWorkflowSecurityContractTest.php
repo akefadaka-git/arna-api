@@ -73,8 +73,8 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
     {
         $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
 
-        self::assertStringContainsString("->where('tenant_id', $tenantId)", $controller);
-        self::assertStringContainsString("->where('user_id', $userId)->orWhere('representative_user_id', $userId)", $controller);
+        self::assertStringContainsString("->where('tenant_id', " . '$tenantId' . ')', $controller);
+        self::assertStringContainsString("->where('user_id', " . '$userId' . ")->orWhere('representative_user_id', " . '$userId' . ')', $controller);
         self::assertStringContainsString('$matches->count() !== 1', $controller);
         self::assertStringContainsString('exactly one shareholder identity', $controller);
     }
