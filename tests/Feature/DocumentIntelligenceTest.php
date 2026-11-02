@@ -62,6 +62,24 @@ final class DocumentIntelligenceTest extends TestCase
         Bus::assertDispatchedTimes(ProcessOcrDocument::class, 1);
     }
 
+    public function test_reusing_idempotency_key_for_a_different_request_returns_conflict(): void
+    {
+        [$tenant, $user] = $this->tenantUser(['ocr.job.create']);
+        $firstFile = $this->sourceFile($tenant, $user);
+        $secondFile = $this->sourceFile($tenant, $user);
+        Bus::fake();
+        $key = 'same-tenant-wide-idempotency-key';
+        $this->tenantRequest($user, $tenant)->postJson('/api/ocr/jobs', [
+            'file_id' => $firstFile->id, 'languages' => 'amh+eng', 'idempotency_key' => $key,
+        ])->assertStatus(202);
+
+        $this->tenantRequest($user, $tenant)->postJson('/api/ocr/jobs', [
+            'file_id' => $secondFile->id, 'languages' => 'amh+eng', 'idempotency_key' => $key,
+        ])->assertConflict();
+
+        $this->assertSame(1, OcrProcessingJob::query()->count());
+    }
+
     public function test_ocr_result_cannot_be_read_across_tenant_boundary(): void
     {
         [$tenantA, $reader] = $this->tenantUser(['ocr.result.view']);
@@ -73,6 +91,7 @@ final class DocumentIntelligenceTest extends TestCase
             'file_version' => $file->version,
             'requested_by' => $owner->id,
             'idempotency_key' => hash('sha256', 'foreign-tenant-job-key'),
+            'request_hash' => hash('sha256', 'foreign-request-hash'),
             'languages' => 'amh+eng',
             'status' => 'awaiting_review',
         ]);
@@ -108,6 +127,7 @@ final class DocumentIntelligenceTest extends TestCase
         $job = OcrProcessingJob::query()->create([
             'tenant_id' => $tenant->id, 'file_id' => $file->id, 'file_version' => 1,
             'requested_by' => $reader->id, 'idempotency_key' => hash('sha256', 'status-only-key'),
+            'request_hash' => hash('sha256', 'status-only-request'),
             'languages' => 'amh+eng', 'status' => 'awaiting_review',
         ]);
         $result = OcrResult::query()->create([
@@ -136,6 +156,7 @@ final class DocumentIntelligenceTest extends TestCase
         $job = OcrProcessingJob::query()->create([
             'tenant_id' => $tenant->id, 'file_id' => $file->id, 'file_version' => 1,
             'requested_by' => $reviewer->id, 'idempotency_key' => hash('sha256', 'correction-test-key'),
+            'request_hash' => hash('sha256', 'correction-test-request'),
             'languages' => 'amh+eng', 'status' => 'awaiting_review',
         ]);
         $result = OcrResult::query()->create([
