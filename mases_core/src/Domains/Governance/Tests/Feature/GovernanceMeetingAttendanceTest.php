@@ -141,6 +141,56 @@ final class GovernanceMeetingAttendanceTest extends TestCase
         $this->assertSame(30000, (int) $penalty->json('data.amount_cents'));
     }
 
+    public function test_general_assembly_proxy_can_be_a_non_shareholder_without_an_arna_user_account(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $assembly = GovernanceBody::create([
+            'tenant_id' => $this->tenant->id,
+            'code' => 'MEETING-GA-PROXY',
+            'body_type' => 'assembly',
+            'name_am' => 'ጠቅላላ ጉባኤ',
+            'name_en' => 'General Assembly',
+            'is_active' => true,
+        ]);
+        $shareholderId = (int) DB::table('shareholders')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'shareholder_number' => 'SH-000027',
+            'shareholder_type' => 'individual',
+            'first_name_am' => 'ባለአክሲዮን',
+            'first_name_en' => 'Shareholder',
+            'user_id' => null,
+            'representative_user_id' => null,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $meetingId = (int) DB::table('governance_meetings')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $assembly->id,
+            'meeting_code' => 'GA-EXTERNAL-PROXY',
+            'meeting_kind' => 'general_assembly',
+            'starts_at' => now()->addDays(5)->setTime(9, 0)->toDateTimeString(),
+            'status' => 'scheduled',
+            'created_by' => $this->admin->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.proxies.store', ['meeting' => $meetingId]), [
+                'principal_type' => 'shareholder',
+                'principal_id' => $shareholderId,
+                'proxy_name_am' => 'ውክልና ተወካይ',
+                'proxy_reference' => 'ID-EXTERNAL-01',
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.proxy_user_id', null)
+            ->assertJsonPath('data.proxy_name_am', 'ውክልና ተወካይ')
+            ->assertJsonPath('data.status', 'submitted');
+    }
+
     public function test_caller_without_manage_permission_cannot_record_attendance(): void
     {
         Sanctum::actingAs($this->plainUser, ['*']);
