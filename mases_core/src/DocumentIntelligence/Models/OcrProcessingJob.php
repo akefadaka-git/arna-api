@@ -17,7 +17,7 @@ final class OcrProcessingJob extends Model
 
     protected $fillable = [
         'tenant_id', 'file_id', 'file_version', 'requested_by',
-        'idempotency_key', 'languages', 'status', 'attempts',
+        'idempotency_key', 'request_hash', 'languages', 'status', 'attempts',
         'failure_code', 'failure_message', 'started_at', 'completed_at',
     ];
 
