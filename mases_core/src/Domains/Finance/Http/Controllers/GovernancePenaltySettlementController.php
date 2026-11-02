@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Controllers;
+namespace MaaleArna\MASES\Core\Domains\Finance\Http\Controllers;
 
-use App\\Http\\Controllers\\Controller;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\GovernanceSettlementAccountMapping;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\ShareholderDividendPayable;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\GovernancePenaltySettlementService;
-use MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Finance\Models\GovernanceSettlementAccountMapping;
+use MaaleArna\MASES\Core\Domains\Finance\Models\ShareholderDividendPayable;
+use MaaleArna\MASES\Core\Domains\Finance\Services\GovernancePenaltySettlementService;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
 final class GovernancePenaltySettlementController extends Controller
 {
