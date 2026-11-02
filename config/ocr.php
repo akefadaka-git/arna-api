@@ -13,6 +13,7 @@ return [
     'languages' => ['amh', 'eng'],
     'default_language' => 'amh+eng',
     'max_file_bytes' => (int) env('ARNA_OCR_MAX_FILE_BYTES', 26214400),
+    'max_result_bytes' => (int) env('ARNA_OCR_MAX_RESULT_BYTES', 10485760),
     'max_pages' => (int) env('ARNA_OCR_MAX_PAGES', 100),
     'pdf_dpi' => (int) env('ARNA_OCR_PDF_DPI', 200),
     'timeout_seconds' => (int) env('ARNA_OCR_TIMEOUT_SECONDS', 90),
