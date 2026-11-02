@@ -133,9 +133,12 @@ final class OcrController extends Controller
         $tenantId = $this->tenantId();
         $this->authorize('ocr.result.search', $request->user(), $tenantId);
         $validated = $request->validate(['q' => ['required', 'string', 'min:2', 'max:200']]);
+        preg_match_all('/[\\p{L}\\p{N}]{2,}/u', $validated['q'], $tokens);
+        abort_if($tokens[0] === [], 422, 'Search query must contain at least one word.');
         $query = OcrResult::query()->where('tenant_id', $tenantId);
         if (DB::getDriverName() === 'mysql') {
-            $query->whereRaw('MATCH(full_text) AGAINST (? IN BOOLEAN MODE)', [$validated['q'] . '*']);
+            $booleanQuery = implode(' ', array_map(static fn (string $token): string => '+' . $token . '*', $tokens[0]));
+            $query->whereRaw('MATCH(full_text) AGAINST (? IN BOOLEAN MODE)', [$booleanQuery]);
         } else {
             $query->where('full_text', 'like', '%' . addcslashes($validated['q'], '%_\\\\') . '%');
         }
