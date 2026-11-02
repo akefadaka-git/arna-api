@@ -21,6 +21,8 @@ final class GovernanceMeetingAttendanceTest extends TestCase
     private User $admin;
     private User $plainUser;
     private GovernanceBody $board;
+    private int $directorMembershipId;
+    private int $shareholderId;
 
     protected function setUp(): void
     {
@@ -52,6 +54,45 @@ final class GovernanceMeetingAttendanceTest extends TestCase
             'name_am' => 'የማሌ ዓርና ቦርድ',
             'name_en' => 'Maale Arna Board',
             'is_active' => true,
+        ]);
+
+        $director = $this->createUser('meeting-director');
+        $director->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+        $positionId = (int) DB::table('governance_positions')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $this->board->id,
+            'code' => 'DIRECTOR',
+            'name_am' => 'ዳይሬክተር',
+            'name_en' => 'Director',
+            'is_voting' => true,
+            'is_officer' => true,
+            'sort_order' => 1,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->directorMembershipId = (int) DB::table('governance_memberships')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $this->board->id,
+            'governance_position_id' => $positionId,
+            'user_id' => $director->id,
+            'member_name_am' => 'ዳይሬክተር',
+            'member_name_en' => 'Director',
+            'start_date' => now()->toDateString(),
+            'status' => 'active',
+            'is_ex_officio' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->shareholderId = (int) DB::table('shareholders')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'shareholder_number' => 'SH-000027',
+            'shareholder_type' => 'individual',
+            'first_name_am' => 'ባለአክሲዮን',
+            'first_name_en' => 'Shareholder',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $this->app->instance('tenant', $this->tenant);
@@ -104,7 +145,7 @@ final class GovernanceMeetingAttendanceTest extends TestCase
         $attendance = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
             ->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meetingId]), [
                 'subject_type' => 'director',
-                'subject_id' => 17,
+                'subject_id' => $this->directorMembershipId,
                 'attendance_status' => 'present',
                 'arrived_at' => $startsAt->addMinutes(5)->toDateTimeString(),
             ])->assertCreated()->assertJsonPath('data.attendance_status', 'late');
@@ -123,12 +164,30 @@ final class GovernanceMeetingAttendanceTest extends TestCase
     public function test_absence_penalty_is_three_hundred_birr_and_requires_absent_status(): void
     {
         Sanctum::actingAs($this->admin, ['*']);
-        $meetingId = $this->createMeeting('GA-ABSENT');
+        $assembly = GovernanceBody::create([
+            'tenant_id' => $this->tenant->id,
+            'code' => 'MEETING-GA-ABSENT',
+            'body_type' => 'assembly',
+            'name_am' => 'ጠቅላላ ጉባኤ',
+            'name_en' => 'General Assembly',
+            'is_active' => true,
+        ]);
+        $meetingId = (int) DB::table('governance_meetings')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $assembly->id,
+            'meeting_code' => 'GA-ABSENT',
+            'meeting_kind' => 'general_assembly',
+            'starts_at' => now()->addDays(2)->setTime(9, 0)->toDateTimeString(),
+            'status' => 'scheduled',
+            'created_by' => $this->admin->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $attendance = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
             ->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meetingId]), [
                 'subject_type' => 'shareholder',
-                'subject_id' => 27,
+                'subject_id' => $this->shareholderId,
                 'attendance_status' => 'absent',
             ])->assertCreated();
 
@@ -153,18 +212,7 @@ final class GovernanceMeetingAttendanceTest extends TestCase
             'name_en' => 'General Assembly',
             'is_active' => true,
         ]);
-        $shareholderId = (int) DB::table('shareholders')->insertGetId([
-            'tenant_id' => $this->tenant->id,
-            'shareholder_number' => 'SH-000027',
-            'shareholder_type' => 'individual',
-            'first_name_am' => 'ባለአክሲዮን',
-            'first_name_en' => 'Shareholder',
-            'user_id' => null,
-            'representative_user_id' => null,
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $shareholderId = $this->shareholderId;
         $meetingId = (int) DB::table('governance_meetings')->insertGetId([
             'tenant_id' => $this->tenant->id,
             'governance_body_id' => $assembly->id,
