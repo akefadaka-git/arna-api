@@ -591,6 +591,8 @@ Route::name('api.governance.')->group(static function (): void {
             ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('close');
         Route::post('/{meeting}/penalties/{penalty}/review', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reviewPenalty'])
             ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.review');
+        Route::post('/{meeting}/penalties/{penalty}/dispute', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'disputePenalty'])
+            ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.dispute');
         Route::post('/{meeting}/penalties/{penalty}/payments', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'recordPayment'])
             ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.payments.store');
         Route::post('/{meeting}/penalties/{penalty}/dividend-settlement-requests', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'requestDividendOffset'])
