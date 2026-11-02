@@ -47,7 +47,7 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
         $body = $this->body('board');
         $position = $this->position($body, 'DIRECTOR');
         $member = $this->membership($body, $position, 'Late Member');
-        $meeting = $this->meeting($body, 'board', \\Carbon\\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(5));
+        $meeting = $this->meeting($body, 'board', \Carbon\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(5));
 
         $this->postJson(route('api.governance.meetings.start', ['meeting' => $meeting->id]))
             ->assertOk();
@@ -75,7 +75,7 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
         $present = $this->membership($body, $position, 'Present Member');
         $excused = $this->membership($body, $position, 'Excused Member');
         $absent = $this->membership($body, $position, 'Absent Member');
-        $meeting = $this->meeting($body, 'board', \\Carbon\\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(2));
+        $meeting = $this->meeting($body, 'board', \Carbon\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(2));
 
         $this->postJson(route('api.governance.meetings.start', ['meeting' => $meeting->id]))->assertOk();
         $this->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meeting->id]), [
@@ -109,14 +109,14 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
         $principal = $this->membership($body, $position, 'Principal Director');
         $representative = $this->membership($body, $position, 'Representative Director');
         $secondPrincipal = $this->membership($body, $position, 'Second Principal');
-        $meeting = $this->meeting($body, 'board', \\Carbon\\CarbonImmutable::now('Africa/Addis_Ababa')->addHours(4));
+        $meeting = $this->meeting($body, 'board', \Carbon\CarbonImmutable::now('Africa/Addis_Ababa')->addHours(4));
 
         $first = $this->postJson(route('api.governance.meetings.proxies.store', ['meeting' => $meeting->id]), [
             'principal_membership_id' => $principal->id,
             'representative_membership_id' => $representative->id,
             'representative_name' => 'Representative Director',
             'instrument_reference' => 'BOARD-PROXY-001',
-            'appointed_at' => \\Carbon\\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(10)->toDateTimeString(),
+            'appointed_at' => \Carbon\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(10)->toDateTimeString(),
         ])->assertCreated()->json('data');
 
         $this->postJson(route('api.governance.meetings.proxies.review', ['meeting' => $meeting->id, 'proxy' => $first['id']]), [
@@ -128,7 +128,7 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
             'representative_membership_id' => $representative->id,
             'representative_name' => 'Representative Director',
             'instrument_reference' => 'BOARD-PROXY-002',
-            'appointed_at' => \\Carbon\\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(5)->toDateTimeString(),
+            'appointed_at' => \Carbon\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(5)->toDateTimeString(),
         ])->assertUnprocessable()->assertJsonValidationErrors(['representative_membership_id']);
     }
 
@@ -138,13 +138,13 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
         $body = $this->body('assembly');
         $position = $this->position($body, 'SHAREHOLDER');
         $member = $this->membership($body, $position, 'GA Member');
-        $meeting = $this->meeting($body, 'ga', \\Carbon\\CarbonImmutable::now('Africa/Addis_Ababa')->addDays(2));
+        $meeting = $this->meeting($body, 'ga', \Carbon\CarbonImmutable::now('Africa/Addis_Ababa')->addDays(2));
 
         $this->postJson(route('api.governance.meetings.proxies.store', ['meeting' => $meeting->id]), [
             'principal_membership_id' => $member->id,
             'representative_name' => 'External Proxy',
             'instrument_reference' => 'GA-PROXY-LATE-001',
-            'appointed_at' => \\Carbon\\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(10)->toDateTimeString(),
+            'appointed_at' => \Carbon\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(10)->toDateTimeString(),
         ])->assertUnprocessable()->assertJsonValidationErrors(['appointed_at']);
     }
 
@@ -154,13 +154,13 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
         $body = $this->body('assembly');
         $position = $this->position($body, 'SHAREHOLDER');
         $member = $this->membership($body, $position, 'GA Member');
-        $meeting = $this->meeting($body, 'ga', \\Carbon\\CarbonImmutable::now('Africa/Addis_Ababa')->addDays(5));
+        $meeting = $this->meeting($body, 'ga', \Carbon\CarbonImmutable::now('Africa/Addis_Ababa')->addDays(5));
 
         $proxy = $this->postJson(route('api.governance.meetings.proxies.store', ['meeting' => $meeting->id]), [
             'principal_membership_id' => $member->id,
             'representative_name' => 'External Proxy',
             'instrument_reference' => 'GA-PROXY-001',
-            'appointed_at' => \\Carbon\\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(10)->toDateTimeString(),
+            'appointed_at' => \Carbon\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(10)->toDateTimeString(),
         ])->assertCreated()->json('data');
 
         $this->postJson(route('api.governance.meetings.proxies.review', ['meeting' => $meeting->id, 'proxy' => $proxy['id']]), [
@@ -179,7 +179,7 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
         $body = $this->body('board');
         $position = $this->position($body, 'DIRECTOR');
         $member = $this->membership($body, $position, 'Late Member');
-        $meeting = $this->meeting($body, 'board', \\Carbon\\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(5));
+        $meeting = $this->meeting($body, 'board', \Carbon\CarbonImmutable::now('Africa/Addis_Ababa')->subMinutes(5));
         $this->postJson(route('api.governance.meetings.start', ['meeting' => $meeting->id]))->assertOk();
         $this->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meeting->id]), [
             'membership_id' => $member->id,
