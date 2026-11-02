@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Governance;
 
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
 use Tests\TestCase;
 
 final class GovernanceElectionEndpointsTest extends TestCase
