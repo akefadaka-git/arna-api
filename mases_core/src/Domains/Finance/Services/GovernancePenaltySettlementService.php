@@ -65,6 +65,18 @@ final class GovernancePenaltySettlementService
         });
     }
 
+    public function revokeAccountMapping(int $tenantId, int $mappingId, int $actorId, string $reason): GovernanceSettlementAccountMapping
+    {
+        return DB::transaction(function () use ($tenantId,$mappingId,$actorId,$reason) {
+            $mapping = GovernanceSettlementAccountMapping::query()->where('tenant_id',$tenantId)->lockForUpdate()->findOrFail($mappingId);
+            if ($mapping->status !== GovernanceSettlementAccountMapping::STATUS_APPROVED || (int)$mapping->approved_by === $actorId || trim($reason)==='') {
+                throw ValidationException::withMessages(['mapping'=>'Only an approved mapping may be revoked by an officer other than its approver, with a reason.']);
+            }
+            $mapping->forceFill(['status'=>GovernanceSettlementAccountMapping::STATUS_REVOKED,'revoked_by'=>$actorId,'revoked_at'=>now(),'configuration_reason'=>$mapping->configuration_reason."\\nRevocation: ".trim($reason)])->save();
+            return $mapping;
+        });
+    }
+
     public function createDividendPayable(int $tenantId, int $entityId, int $shareholderId, string $reference, string $declaredOn, string $dueOn, string $amount, int $actorId): ShareholderDividendPayable
     {
         $amount = $this->money($amount);
