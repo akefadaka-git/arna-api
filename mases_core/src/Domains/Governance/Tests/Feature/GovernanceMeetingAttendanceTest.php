@@ -63,9 +63,17 @@ final class GovernanceMeetingAttendanceTest extends TestCase
     {
         Sanctum::actingAs($this->admin, ['*']);
 
+        $assembly = GovernanceBody::create([
+            'tenant_id' => $this->tenant->id,
+            'code' => 'MEETING-GA',
+            'body_type' => 'assembly',
+            'name_am' => 'ጠቅላላ ጉባኤ',
+            'name_en' => 'General Assembly',
+            'is_active' => true,
+        ]);
         $response = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
             ->postJson(route('api.governance.meetings.store'), [
-                'governance_body_id' => $this->board->id,
+                'governance_body_id' => $assembly->id,
                 'meeting_code' => 'GA-2019-001',
                 'meeting_kind' => 'general_assembly',
                 'title_am' => 'ዓመታዊ ጠቅላላ ጉባኤ',
