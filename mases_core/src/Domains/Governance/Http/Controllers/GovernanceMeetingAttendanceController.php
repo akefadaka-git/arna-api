@@ -136,6 +136,39 @@ final class GovernanceMeetingAttendanceController extends Controller
         ]);
         $tenantId = $this->tenantId();
         $meetingRecord = $this->meeting($tenantId, $meeting);
+        $expectedSubjectType = $meetingRecord->meeting_kind === 'general_assembly' ? 'shareholder' : 'director';
+        if ($data['subject_type'] !== $expectedSubjectType) {
+            throw ValidationException::withMessages(['subject_type' => 'Participant type must match the meeting body: GA attendance is recorded against shareholders; Board attendance is recorded against active Board memberships.']);
+        }
+
+        if ($data['subject_type'] === 'shareholder') {
+            $participant = DB::table('shareholders')
+                ->where('tenant_id', $tenantId)
+                ->where('id', $data['subject_id'])
+                ->where('is_active', true)
+                ->whereNull('deleted_at')
+                ->first(['user_id', 'representative_user_id']);
+            if (!$participant) {
+                throw ValidationException::withMessages(['subject_id' => 'Shareholder is not active in this tenant.']);
+            }
+            $canonicalUserId = $participant->user_id ?? $participant->representative_user_id;
+        } else {
+            $participant = DB::table('governance_memberships')
+                ->where('tenant_id', $tenantId)
+                ->where('governance_body_id', $meetingRecord->governance_body_id)
+                ->where('id', $data['subject_id'])
+                ->where('status', 'active')
+                ->whereNull('deleted_at')
+                ->first(['user_id']);
+            if (!$participant) {
+                throw ValidationException::withMessages(['subject_id' => 'Director membership is not active in this Board.']);
+            }
+            $canonicalUserId = $participant->user_id;
+        }
+        if (isset($data['user_id']) && (int) $data['user_id'] !== (int) ($canonicalUserId ?? 0)) {
+            throw ValidationException::withMessages(['user_id' => 'The supplied user does not match the canonical participant record.']);
+        }
+
         $arrivedAt = isset($data['arrived_at']) ? CarbonImmutable::parse($data['arrived_at']) : null;
         $status = $data['attendance_status'];
         if (
@@ -166,13 +199,13 @@ final class GovernanceMeetingAttendanceController extends Controller
         }
 
         try {
-            $id = DB::transaction(function () use ($data, $tenantId, $meeting, $status, $arrivedAt): int {
+            $id = DB::transaction(function () use ($data, $tenantId, $meeting, $status, $arrivedAt, $canonicalUserId): int {
                 $id = DB::table('governance_meeting_attendance')->insertGetId([
                     'tenant_id' => $tenantId,
                     'meeting_id' => $meeting,
                     'subject_type' => $data['subject_type'],
                     'subject_id' => $data['subject_id'],
-                    'user_id' => $data['user_id'] ?? null,
+                    'user_id' => $canonicalUserId,
                     'attendance_status' => $status,
                     'arrived_at' => $arrivedAt?->toDateTimeString(),
                     'recorded_by' => $this->actorId(),
