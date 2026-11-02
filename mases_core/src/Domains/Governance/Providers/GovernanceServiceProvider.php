@@ -205,11 +205,13 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceTerm;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceAppointmentPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceBodyPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceMembershipPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernancePositionPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceTermPolicy;
+use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceElectionPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceAppointmentRepository;
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceBodyRepository;
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceMembershipRepository;
@@ -530,7 +532,7 @@ final class GovernanceServiceProvider extends ServiceProvider
         $this->app->singleton(GovernanceAuthorityGrantService::class);
 
         // A3 — controlled election register and physical ballot services.\n        $this->app->singleton(GovernanceElectionRegisterService::class);\n        $this->app->singleton(GovernanceElectionPhysicalBallotService::class);
-        $this->app->singleton(GovernanceElectionLifecycleService::class);
+                $this->app->singleton(GovernanceElectionLifecycleService::class);
     }
 
     // =========================================================================
@@ -582,6 +584,7 @@ final class GovernanceServiceProvider extends ServiceProvider
 
         // G2b — term policy.
         Gate::policy(GovernanceTerm::class, GovernanceTermPolicy::class);
+        Gate::policy(GovernanceElection::class, GovernanceElectionPolicy::class);
 
         // G2c — appointment policy.
         Gate::policy(GovernanceAppointment::class, GovernanceAppointmentPolicy::class);
