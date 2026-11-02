@@ -170,7 +170,7 @@ final class GovernanceMeetingAttendanceController extends Controller
         $data = $request->validate([
             'principal_type' => ['required', 'in:shareholder,director'],
             'principal_id' => ['required', 'integer', 'min:1'],
-            'proxy_user_id' => ['required', 'integer', 'min:1', 'different:submitted_by'],
+            'proxy_user_id' => ['required', 'integer', 'min:1'],
             'instrument_reference' => ['nullable', 'string', 'max:2000'],
         ]);
         $tenantId = $this->tenantId();
@@ -189,10 +189,12 @@ final class GovernanceMeetingAttendanceController extends Controller
 
         if (!$isGa) {
             $isDirector = DB::table('governance_memberships')
-                ->where('tenant_id', $tenantId)
-                ->where('governance_body_id', $meetingRecord->governance_body_id)
-                ->where('user_id', $data['proxy_user_id'])
-                ->where('status', 'active')
+                ->join('governance_positions', 'governance_positions.id', '=', 'governance_memberships.governance_position_id')
+                ->where('governance_memberships.tenant_id', $tenantId)
+                ->where('governance_memberships.governance_body_id', $meetingRecord->governance_body_id)
+                ->where('governance_memberships.user_id', $data['proxy_user_id'])
+                ->where('governance_memberships.status', 'active')
+                ->where('governance_positions.is_officer', true)
                 ->exists();
             if (!$isDirector) {
                 throw ValidationException::withMessages(['proxy_user_id' => 'Board proxy must be another active director/member of the Board.']);
@@ -225,6 +227,30 @@ final class GovernanceMeetingAttendanceController extends Controller
         return response()->json(['success' => true, 'data' => DB::table('governance_meeting_proxies')->where('tenant_id', $tenantId)->find($id)], 201);
     }
 
+    public function reviewProxy(Request $request, int $proxy): JsonResponse
+    {
+        $data = $request->validate([
+            'decision' => ['required', 'in:approved,rejected'],
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $tenantId = $this->tenantId();
+        $record = DB::table('governance_meeting_proxies')
+            ->where('tenant_id', $tenantId)->where('id', $proxy)->first();
+        if (!$record) {
+            throw new NotFoundHttpException('Proxy was not found.');
+        }
+        if ($record->status !== 'submitted') {
+            throw new ConflictHttpException('Only submitted proxies can be reviewed.');
+        }
+        DB::table('governance_meeting_proxies')->where('tenant_id', $tenantId)->where('id', $proxy)->update([
+            'status' => $data['decision'], 'updated_at' => now(),
+        ]);
+        $this->activity($tenantId, (int) $record->meeting_id, 'proxy.reviewed', [
+            'proxy_id' => $proxy, 'decision' => $data['decision'], 'reason' => $data['reason'] ?? null,
+        ]);
+        return response()->json(['success' => true, 'data' => DB::table('governance_meeting_proxies')->where('tenant_id', $tenantId)->find($proxy)]);
+    }
+
     public function assessPenalty(Request $request, int $meeting): JsonResponse
     {
         $data = $request->validate([
@@ -244,6 +270,18 @@ final class GovernanceMeetingAttendanceController extends Controller
         }
         if ($data['penalty_type'] === 'absence' && !in_array($attendance->attendance_status, ['absent'], true)) {
             throw ValidationException::withMessages(['attendance_id' => 'An absence penalty requires a recorded absence. Excused and represented participants are excluded.']);
+        }
+        if ($data['penalty_type'] === 'absence') {
+            $hasApprovedProxy = DB::table('governance_meeting_proxies')
+                ->where('tenant_id', $tenantId)
+                ->where('meeting_id', $meeting)
+                ->where('principal_type', $attendance->subject_type)
+                ->where('principal_id', $attendance->subject_id)
+                ->where('status', 'approved')
+                ->exists();
+            if ($hasApprovedProxy) {
+                throw ValidationException::withMessages(['attendance_id' => 'An approved proxy prevents an absence penalty.']);
+            }
         }
         $amount = $data['penalty_type'] === 'late' ? 5000 : 30000;
 
