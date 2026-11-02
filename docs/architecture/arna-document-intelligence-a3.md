@@ -24,7 +24,7 @@ The trusted tenant comes only from `mases_tenant_id()`. The API additionally sco
 
 ## Queue and worker
 
-The worker consumes the dedicated `ocr` queue on the configured database queue connection. Jobs are dispatched after the database transaction commits. A row lock claims a queued job so duplicate queue deliveries do not start concurrent recognition for the same job.
+The worker consumes the dedicated `ocr` queue on the dedicated `ocr` database queue connection. The queue retry window is 1,500 seconds and the job timeout is 1,200 seconds; keep this ordering if either value changes. Jobs are dispatched after the database transaction commits. A row lock claims a queued job so duplicate queue deliveries do not start concurrent recognition for the same job.
 
 Build the worker image from the API repository root:
 
@@ -52,7 +52,7 @@ The image installs Tesseract, Amharic and English trained data, and Poppler util
 - Drop Linux capabilities, disable privilege escalation, and use a read-only root filesystem where the Laravel runtime's required writable paths are mounted explicitly.
 - Keep the source storage mount read-only; use a private, size-limited temporary filesystem for conversion.
 - Run a malware scan before queue submission or before worker processing; the current code does not yet integrate a malware scanner.
-- Ensure queue retry_after is greater than the 300-second job timeout.
+- Keep the OCR queue retry_after (1,500 seconds) greater than the job timeout (1,200 seconds).
 - Configure worker supervision/restart, failed-job alerting, log redaction and queue-depth monitoring.
 - Keep `ARNA_OCR_ENABLED=false` until the worker image and required binaries are installed and validated in the target environment.
 
