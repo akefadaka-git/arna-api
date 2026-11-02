@@ -405,8 +405,10 @@ final class MeetingAttendanceService
             }
             $journal = $this->assertPostedJournal($journalId, $meeting);
             $duplicate = DB::table('governance_meeting_penalty_payments')->where('tenant_id', $this->tenantId())
-                ->where('finance_reference', (string) $journal->id)->exists();
-            if ($duplicate) throw ValidationException::withMessages(['finance_reference' => 'This journal is already linked to another meeting payment.']);
+                ->where('finance_reference', (string) $journal->id)->exists()
+                || DB::table('governance_meeting_dividend_settlement_requests')->where('tenant_id', $this->tenantId())
+                    ->where('finance_reference', (string) $journal->id)->exists();
+            if ($duplicate) throw ValidationException::withMessages(['finance_reference' => 'This journal is already linked to another meeting settlement.']);
             DB::table('governance_meeting_penalty_payments')->where('id', $paymentId)->update([
                 'finance_reconciliation_status' => 'reconciled',
                 'finance_reference' => (string) $journal->id, 'updated_at' => now(),
@@ -427,6 +429,9 @@ final class MeetingAttendanceService
                 ->where('penalties.meeting_id', $meetingId)->select('settlements.*')->lockForUpdate()->first();
             if (!$settlement || $settlement->status !== 'pending_finance_legal_review') {
                 throw ValidationException::withMessages(['settlement_id' => 'Only a pending Finance/Legal settlement request can be decided.']);
+            }
+            if ((int) $settlement->requested_by === $this->actorId()) {
+                throw ValidationException::withMessages(['decision' => 'The requester cannot approve or reject their own dividend settlement request.']);
             }
             if ($data['decision'] === 'approve' && trim((string) ($data['authority_reference'] ?? '')) === '') {
                 throw ValidationException::withMessages(['authority_reference' => 'A valid corporate/legal authority reference is required before approval.']);
@@ -456,8 +461,10 @@ final class MeetingAttendanceService
             }
             $journal = $this->assertPostedJournal($journalId, $meeting);
             $used = DB::table('governance_meeting_dividend_settlement_requests')->where('tenant_id', $this->tenantId())
-                ->where('finance_reference', (string) $journal->id)->exists();
-            if ($used) throw ValidationException::withMessages(['finance_reference' => 'This journal is already linked to a dividend settlement.']);
+                ->where('finance_reference', (string) $journal->id)->exists()
+                || DB::table('governance_meeting_penalty_payments')->where('tenant_id', $this->tenantId())
+                    ->where('finance_reference', (string) $journal->id)->exists();
+            if ($used) throw ValidationException::withMessages(['finance_reference' => 'This journal is already linked to another meeting settlement.']);
             DB::table('governance_meeting_dividend_settlement_requests')->where('id', $settlementId)->update([
                 'status' => 'reconciled', 'finance_reference' => (string) $journal->id, 'updated_at' => now(),
             ]);
