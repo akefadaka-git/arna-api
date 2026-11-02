@@ -29,8 +29,15 @@ final class ProcessOcrDocument implements ShouldQueue
 
     public function handle(OcrEngineInterface $engine): void
     {
-        $job = OcrJob::query()->with('file')->findOrFail($this->ocrJobId);
-        if ($job->status === 'completed') {
+        $job = DB::transaction(function (): ?OcrJob {
+            $locked = OcrJob::query()->lockForUpdate()->findOrFail($this->ocrJobId);
+            if ($locked->status !== 'queued') {
+                return null;
+            }
+            $locked->update(['status' => 'processing', 'attempts' => $locked->attempts + 1, 'started_at' => now()]);
+            return $locked->fresh('file');
+        });
+        if ($job === null) {
             return;
         }
         $file = $job->file;
@@ -70,7 +77,6 @@ final class ProcessOcrDocument implements ShouldQueue
                 throw new RuntimeException('OCR_FILE_SIZE_LIMIT_EXCEEDED');
             }
             $checksum = hash_file('sha256', $temporary);
-            $job->update(['status' => 'processing', 'attempts' => $job->attempts + 1, 'started_at' => now()]);
             $recognized = $engine->recognize($temporary, (string) $file->mime_type, $job->languages);
             $allText = implode("\n\n", array_column($recognized['pages'], 'text'));
             $confidences = array_values(array_filter(array_column($recognized['pages'], 'confidence'), static fn ($v) => $v !== null));
@@ -103,11 +109,7 @@ final class ProcessOcrDocument implements ShouldQueue
                 $job->update(['status' => 'awaiting_review', 'completed_at' => now(), 'failure_code' => null, 'failure_message' => null]);
             });
         } catch (Throwable $exception) {
-            $job->update([
-                'status' => 'failed',
-                'failure_code' => substr($exception->getMessage(), 0, 255),
-                'failure_message' => 'OCR processing failed. Review worker logs for details.',
-            ]);
+            report($exception);
             throw $exception;
         } finally {
             if (is_resource($stream)) {
