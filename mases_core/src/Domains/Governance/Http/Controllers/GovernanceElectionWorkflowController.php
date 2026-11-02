@@ -129,7 +129,7 @@ final class GovernanceElectionWorkflowController extends Controller
             'final_ballot_approved' => ['sometimes', 'boolean'],
         ]);
 
-        return DB::transaction(function () use ($tenantId, $governanceElection, $nomination, $data, $request): JsonResponse {
+        return DB::transaction(function () use ($tenantId, $governanceElection, $nomination, $data, $request, $committeeMember): JsonResponse {
             $candidate = GovernanceElectionNomination::query()
                 ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
                 ->lockForUpdate()->findOrFail($nomination);
