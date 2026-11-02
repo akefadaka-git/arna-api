@@ -98,6 +98,49 @@ final class GovernanceElectionWorkflowController extends Controller
         return response()->json(['data' => ['saved' => true, 'binding' => false]]);
     }
 
+    public function appointCommitteeMember(Request $request, GovernanceElection $governanceElection): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $data = $request->validate([
+            'person_id' => ['required', 'integer', 'min:1'],
+            'user_id' => ['required', 'integer', 'min:1'],
+            'member_role' => ['required', 'in:committee_member,legal_advisor,supervisory_member'],
+            'ex_officio' => ['sometimes', 'boolean'],
+            'appointment_reference' => ['required', 'string', 'max:160'],
+        ]);
+        $exists = DB::table('governance_election_committee_members')
+            ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
+            ->where(function ($query) use ($data): void {
+                $query->where('person_id', $data['person_id'])->orWhere('user_id', $data['user_id']);
+            })->exists();
+        abort_if($exists, 409, 'This person or user is already appointed to this Committee.');
+        $id = DB::table('governance_election_committee_members')->insertGetId([
+            'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
+            'person_id' => $data['person_id'], 'user_id' => $data['user_id'],
+            'member_role' => $data['member_role'], 'ex_officio' => (bool) ($data['ex_officio'] ?? false),
+            'status' => 'active', 'appointed_at' => now(),
+            'appointment_reference' => $data['appointment_reference'],
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        return response()->json(['data' => DB::table('governance_election_committee_members')->where('id', $id)->first()], 201);
+    }
+
+    public function recuseCommitteeMember(Request $request, GovernanceElection $governanceElection, int $member): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $data = $request->validate(['recusal_scope' => ['required', 'string', 'max:80']]);
+        $updated = DB::table('governance_election_committee_members')
+            ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
+            ->where('id', $member)->where('status', 'active')
+            ->update(['recused_at' => now(), 'recusal_scope' => $data['recusal_scope'], 'updated_at' => now()]);
+        abort_if($updated !== 1, 404);
+        return response()->json(['data' => ['recused' => true]]);
+    }
+
     public function committeeQueue(GovernanceElection $governanceElection): JsonResponse
     {
         Gate::authorize('update', $governanceElection);
