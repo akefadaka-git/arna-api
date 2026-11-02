@@ -63,7 +63,7 @@ final class DocumentIntelligenceTest extends TestCase
 
     public function test_reusing_idempotency_key_for_a_different_request_returns_conflict(): void
     {
-        [$tenant, $user] = $this->tenantUser(['ocr.job.create']);
+        [$tenant, $user] = $this->tenantUser(['ocr.job.create', 'file.download']);
         $firstFile = $this->sourceFile($tenant, $user);
         $secondFile = $this->sourceFile($tenant, $user);
         Bus::fake();
