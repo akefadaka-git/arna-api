@@ -71,6 +71,14 @@ final class MeetingAttendanceController extends Controller
         $data = $request->validate([
             'membership_id' => ['required', 'integer', 'min:1'],
             'proxy_id' => ['nullable', 'integer', 'min:1'],
+            'initialed_by_name' => ['required', 'string', 'max:180'],
+            'signature_method' => ['required', Rule::in(['physical', 'digital'])],
+            'signature_reference' => ['required', 'string', 'max:180'],
+            'shareholder_id' => ['nullable', 'integer', 'min:1'],
+            'attendee_address_snapshot' => ['nullable', 'string', 'max:1000'],
+            'share_count_snapshot' => ['nullable', 'numeric', 'min:0', 'decimal:0,4'],
+            'vote_count_snapshot' => ['nullable', 'numeric', 'min:0', 'decimal:0,4'],
+            'entitlement_source_reference' => ['nullable', 'string', 'max:180'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
         return response()->json(['success' => true, 'data' => $this->service->recordArrival($meeting, $data)], 201);
