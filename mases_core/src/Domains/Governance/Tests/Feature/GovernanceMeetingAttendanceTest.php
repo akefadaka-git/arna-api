@@ -1,0 +1,193 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MaaleArna\MASES\Core\Domains\Governance\Tests\Feature;
+
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use Tests\TestCase;
+
+final class GovernanceMeetingAttendanceTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Tenant $tenant;
+    private User $admin;
+    private User $plainUser;
+    private GovernanceBody $board;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->tenant = Tenant::create([
+            'slug' => 'meeting-tenant',
+            'name_am' => 'የስብሰባ ቴናንት',
+            'name_en' => 'Meeting Tenant',
+            'domain' => 'meeting.test',
+            'is_active' => true,
+        ]);
+
+        $view = $this->createPermission('governance.body.view');
+        $manage = $this->createPermission('governance.body.manage');
+
+        $this->admin = $this->createUser('meeting-admin');
+        $this->admin->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+        $this->admin->permissions()->attach([$view->id, $manage->id]);
+        $this->admin->load('permissions');
+
+        $this->plainUser = $this->createUser('meeting-plain');
+        $this->plainUser->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+
+        $this->board = GovernanceBody::create([
+            'tenant_id' => $this->tenant->id,
+            'code' => 'MEETING-BOARD',
+            'body_type' => 'board',
+            'name_am' => 'የማሌ ዓርና ቦርድ',
+            'name_en' => 'Maale Arna Board',
+            'is_active' => true,
+        ]);
+
+        $this->app->instance('tenant', $this->tenant);
+        $this->app->instance('mases.tenant', $this->tenant);
+        $this->app->instance('current_tenant', $this->tenant);
+    }
+
+    public function test_meeting_creation_is_tenant_scoped_and_audited(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+
+        $response = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.store'), [
+                'governance_body_id' => $this->board->id,
+                'meeting_code' => 'GA-2019-001',
+                'meeting_kind' => 'general_assembly',
+                'title_am' => 'ዓመታዊ ጠቅላላ ጉባኤ',
+                'starts_at' => now()->addDays(10)->setTime(9, 0)->toDateTimeString(),
+            ]);
+
+        $response->assertCreated()->assertJsonPath('success', true);
+        $meetingId = (int) $response->json('data.id');
+        $this->assertDatabaseHas('governance_meetings', [
+            'id' => $meetingId,
+            'tenant_id' => $this->tenant->id,
+            'meeting_code' => 'GA-2019-001',
+        ]);
+        $this->assertDatabaseHas('governance_meeting_activity', [
+            'meeting_id' => $meetingId,
+            'tenant_id' => $this->tenant->id,
+            'action' => 'meeting.created',
+            'actor_id' => $this->admin->id,
+        ]);
+    }
+
+    public function test_late_penalty_is_flat_fifty_birr_not_hourly(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+        $meetingId = $this->createMeeting('BOARD-LATE');
+        $startsAt = now()->addDays(2)->setTime(9, 0);
+
+        $attendance = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meetingId]), [
+                'subject_type' => 'director',
+                'subject_id' => 17,
+                'attendance_status' => 'present',
+                'arrived_at' => $startsAt->addMinutes(5)->toDateTimeString(),
+            ])->assertCreated()->assertJsonPath('data.attendance_status', 'late');
+
+        $attendanceId = (int) $attendance->json('data.id');
+        $penalty = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.penalties.store', ['meeting' => $meetingId]), [
+                'attendance_id' => $attendanceId,
+                'penalty_type' => 'late',
+            ])->assertCreated();
+
+        $this->assertSame(5000, (int) $penalty->json('data.amount_cents'));
+        $this->assertSame('ETB', $penalty->json('data.currency'));
+    }
+
+    public function test_absence_penalty_is_three_hundred_birr_and_requires_absent_status(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+        $meetingId = $this->createMeeting('GA-ABSENT');
+
+        $attendance = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meetingId]), [
+                'subject_type' => 'shareholder',
+                'subject_id' => 27,
+                'attendance_status' => 'absent',
+            ])->assertCreated();
+
+        $penalty = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.penalties.store', ['meeting' => $meetingId]), [
+                'attendance_id' => (int) $attendance->json('data.id'),
+                'penalty_type' => 'absence',
+            ])->assertCreated();
+
+        $this->assertSame(30000, (int) $penalty->json('data.amount_cents'));
+    }
+
+    public function test_caller_without_manage_permission_cannot_record_attendance(): void
+    {
+        Sanctum::actingAs($this->plainUser, ['*']);
+        $meetingId = $this->createMeeting('BOARD-FORBIDDEN');
+
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meetingId]), [
+                'subject_type' => 'director',
+                'subject_id' => 1,
+                'attendance_status' => 'absent',
+            ])->assertForbidden();
+    }
+
+    private function createMeeting(string $code): int
+    {
+        return (int) DB::table('governance_meetings')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $this->board->id,
+            'meeting_code' => $code,
+            'meeting_kind' => 'board',
+            'starts_at' => now()->addDays(2)->setTime(9, 0)->toDateTimeString(),
+            'status' => 'scheduled',
+            'created_by' => $this->admin->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function createUser(string $prefix): User
+    {
+        return User::create([
+            'email' => $prefix . '-' . uniqid() . '@meeting.test',
+            'password' => bcrypt('password'),
+            'first_name_en' => 'Meeting',
+            'father_name_en' => ucfirst($prefix),
+            'default_tenant_id' => $this->tenant->id,
+            'locale' => 'am',
+            'is_active' => true,
+        ]);
+    }
+
+    private function createPermission(string $slug): Permission
+    {
+        return Permission::create([
+            'slug' => $slug,
+            'name_am' => $slug,
+            'name_en' => $slug,
+            'description_am' => $slug,
+            'description_en' => $slug,
+            'category' => 'governance',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => true,
+        ]);
+    }
+}
