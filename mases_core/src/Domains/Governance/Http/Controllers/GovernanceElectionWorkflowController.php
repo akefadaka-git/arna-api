@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers;
+namespace MaaleArna\MASES\Core\Domains\Governance\Http\Controllers;
 
-use App\\Http\\Controllers\\Controller;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Gate;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceElection;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceElectionNomination;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElectionNomination;
 
 final class GovernanceElectionWorkflowController extends Controller
 {
