@@ -235,15 +235,16 @@ final class DocumentIntelligenceTest extends TestCase
 
     private function sourceFile(Tenant $tenant, User $user): File
     {
+        $suffix = (string) Str::uuid();
         return File::query()->create([
             'user_id' => $user->id,
             'tenant_id' => $tenant->id,
             'original_name' => 'test-document.pdf',
-            'name' => 'test-document.pdf',
+            'name' => 'test-document-'.$suffix.'.pdf',
             'mime_type' => 'application/pdf',
             'extension' => 'pdf',
             'size' => 1024,
-            'path' => 'tenant-'.$tenant->id.'/test-document.pdf',
+            'path' => 'tenant-'.$tenant->id.'/'.$suffix.'-test-document.pdf',
             'disk' => 'local',
             'version' => 1,
             'status' => 'published',
