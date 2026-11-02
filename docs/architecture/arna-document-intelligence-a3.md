@@ -4,7 +4,7 @@ Status: implementation branch; not deployed.
 
 ## Scope
 
-This module processes printed Amharic and English documents from the canonical ARNA `files` table. OCR jobs and results are tenant-scoped. The original file is never changed. Corrections are append-only records. OCR verification records only the review state of recognized text; it does not approve the source document or authorize a domain transaction.
+This module processes printed Amharic and English documents from the canonical ARNA `files` table. OCR jobs, results and lifecycle events are tenant-scoped. The original file is never changed. Corrections are append-only records. OCR verification records only the review state of recognized text; it does not approve the source document or authorize a domain transaction.
 
 ## API
 
@@ -13,13 +13,14 @@ All endpoints are nested under the existing `auth:sanctum` + `tenant.membership`
 - `GET /api/ocr/jobs`
 - `POST /api/ocr/jobs`
 - `GET /api/ocr/jobs/{id}`
+- `GET /api/ocr/jobs/{id}/events`
 - `POST /api/ocr/jobs/{id}/retry`
 - `GET /api/ocr/results/{id}`
 - `GET /api/ocr/search?q=...`
 - `POST /api/ocr/results/{id}/verify`
 - `POST /api/ocr/results/{id}/corrections`
 
-The trusted tenant comes only from `mases_tenant_id()`. The API additionally scopes every source file, job, result and search query by that tenant. OCR permissions are registered in the canonical permission catalogue. No role grants are added by this change; role assignments require a separate least-privilege review.
+The trusted tenant comes only from `mases_tenant_id()`. The API additionally scopes every source file, job, result and search query by that tenant. OCR permissions are registered in the canonical permission catalogue. The broad `platform_admin` and `tenant_admin` scope grants explicitly exclude the `ocr.` prefix; `super_admin` retains its wildcard. No OCR role grants are assigned to other roles. Owner approval of a least-privilege reviewer/operator matrix is still required before those users can use the OCR workspace.
 
 ## Queue and worker
 
