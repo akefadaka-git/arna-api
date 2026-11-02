@@ -138,7 +138,11 @@ final class GovernanceMeetingAttendanceController extends Controller
         $meetingRecord = $this->meeting($tenantId, $meeting);
         $arrivedAt = isset($data['arrived_at']) ? CarbonImmutable::parse($data['arrived_at']) : null;
         $status = $data['attendance_status'];
-        if ($arrivedAt && $arrivedAt->greaterThan(CarbonImmutable::parse($meetingRecord->starts_at))) {
+        if (
+            $arrivedAt
+            && !in_array($status, ['excused', 'represented'], true)
+            && $arrivedAt->greaterThan(CarbonImmutable::parse($meetingRecord->starts_at))
+        ) {
             $status = 'late';
         }
         if (in_array($status, ['present', 'late'], true) && !$arrivedAt) {
