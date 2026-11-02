@@ -215,11 +215,51 @@ final class MeetingAttendanceService
             } elseif ($meeting->meeting_kind === 'ga' && $acceptedProxy) {
                 throw ValidationException::withMessages(['membership_id' => 'A General Assembly member who appointed an accepted proxy cannot also attend or vote personally at the same meeting.']);
             }
+            $shareholderId = null;
+            $shareCountSnapshot = null;
+            $voteCountSnapshot = null;
+            $addressSnapshot = $data['attendee_address_snapshot'] ?? null;
+            $entitlementReference = $data['entitlement_source_reference'] ?? null;
+            if ($meeting->meeting_kind === 'ga') {
+                if (empty($data['shareholder_id']) || blank($addressSnapshot)
+                    || !isset($data['share_count_snapshot']) || !isset($data['vote_count_snapshot'])
+                    || blank($entitlementReference)) {
+                    throw ValidationException::withMessages(['shareholder_id' => 'GA attendance requires a verified shareholder, address, share and vote snapshots, and the official entitlement-register reference.']);
+                }
+                $shareholder = DB::table('shareholders')->where('tenant_id', $this->tenantId())
+                    ->where('id', $data['shareholder_id'])->where('is_active', true)->whereNull('deleted_at')->first();
+                if (!$shareholder) throw ValidationException::withMessages(['shareholder_id' => 'The shareholder must be active and belong to this tenant.']);
+                $identityMatches = ($member->user_id !== null && in_array((int) $member->user_id, array_filter([
+                    $shareholder->user_id === null ? null : (int) $shareholder->user_id,
+                    $shareholder->representative_user_id === null ? null : (int) $shareholder->representative_user_id,
+                ]), true))
+                    || ($member->external_reference !== null
+                        && $shareholder->shareholder_number !== null
+                        && hash_equals((string) $shareholder->shareholder_number, (string) $member->external_reference));
+                if (!$identityMatches) throw ValidationException::withMessages(['shareholder_id' => 'The shareholder record is not linked to this governance membership.']);
+                $actualShares = (string) DB::table('share_holdings')->where('shareholder_id', $shareholder->id)->sum('current_quantity');
+                $shareCountSnapshot = (string) $data['share_count_snapshot'];
+                $voteCountSnapshot = (string) $data['vote_count_snapshot'];
+                if ($this->minorUnits($actualShares) !== $this->minorUnits($shareCountSnapshot)) {
+                    throw ValidationException::withMessages(['share_count_snapshot' => 'Share count must match the current Shareholder holding ledger projection.']);
+                }
+                $shareholderId = (int) $shareholder->id;
+            }
             $status = $arrivedAt->gt(CarbonImmutable::parse($meeting->scheduled_at, $meeting->timezone)->utc()) ? 'late' : ($proxyId ? 'represented' : 'present');
+            $initialedByName = trim((string) $data['initialed_by_name']);
+            if ($proxyId && mb_strtolower($initialedByName) !== mb_strtolower(trim((string) $proxy->representative_name))) {
+                throw ValidationException::withMessages(['initialed_by_name' => 'The attendance initial must identify the accepted proxy representative.']);
+            }
             $id = DB::table('governance_meeting_attendance')->insertGetId([
                 'tenant_id' => $this->tenantId(), 'meeting_id' => $meetingId,
-                'membership_id' => $member->id, 'proxy_id' => $proxyId, 'status' => $status,
-                'arrived_at' => $arrivedAt, 'recorded_by' => $this->actorId(),
+                'membership_id' => $member->id, 'shareholder_id' => $shareholderId,
+                'proxy_id' => $proxyId, 'attendee_name_snapshot' => $member->member_name_am ?: $member->member_name_en,
+                'attendee_address_snapshot' => $addressSnapshot,
+                'share_count_snapshot' => $shareCountSnapshot, 'vote_count_snapshot' => $voteCountSnapshot,
+                'entitlement_source_reference' => $entitlementReference,
+                'initialed_by_name' => $initialedByName, 'initialed_at' => $arrivedAt,
+                'signature_method' => $data['signature_method'], 'signature_reference' => $data['signature_reference'],
+                'status' => $status, 'arrived_at' => $arrivedAt, 'recorded_by' => $this->actorId(),
                 'notes' => $data['notes'] ?? null, 'created_at' => now(), 'updated_at' => now(),
             ]);
             if ($status === 'late') $this->createPenalty($meetingId, (int) $member->id, 'late', '50.00', 'Late arrival; flat ETB 50 per meeting.');
