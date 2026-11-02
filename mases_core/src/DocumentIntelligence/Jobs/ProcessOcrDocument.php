@@ -46,6 +46,11 @@ final class ProcessOcrDocument implements ShouldQueue
         if ($job === null) {
             return;
         }
+        if (!config('ocr.enabled')) {
+            $job->update(['status' => 'rejected', 'failure_code' => 'OCR_DISABLED', 'completed_at' => now()]);
+            OcrProcessingEvent::query()->create(['tenant_id' => $job->tenant_id, 'job_id' => $job->id, 'event' => 'processing.disabled']);
+            return;
+        }
         $file = $job->file;
         if (!$file || (string) $file->tenant_id !== (string) $job->tenant_id ||
             (int) $file->version !== (int) $job->file_version || $file->deleted_at !== null) {
@@ -87,6 +92,10 @@ final class ProcessOcrDocument implements ShouldQueue
             chmod($temporary, 0600);
             if (filesize($temporary) > (int) config('ocr.max_file_bytes')) {
                 throw new RuntimeException('OCR_FILE_SIZE_LIMIT_EXCEEDED');
+            }
+            $detectedMime = (new \\finfo(FILEINFO_MIME_TYPE))->file($temporary);
+            if (!is_string($detectedMime) || $detectedMime !== $file->mime_type) {
+                throw new RuntimeException('OCR_SOURCE_MIME_MISMATCH');
             }
             $checksum = hash_file('sha256', $temporary);
             $recognized = $engine->recognize($temporary, (string) $file->mime_type, $job->languages);
