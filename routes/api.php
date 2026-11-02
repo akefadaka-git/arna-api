@@ -691,6 +691,18 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::get('/{id}/latest', [FileController::class, 'latestVersion'])
             ->name('latest');
     });
+
+    // Document Intelligence (OCR) — all endpoints inherit authenticated tenant membership.
+    Route::prefix('/ocr')->name('api.ocr.')->group(static function (): void {
+        Route::get('/jobs', [OcrController::class, 'index'])->name('jobs.index');
+        Route::post('/jobs', [OcrController::class, 'submit'])->middleware('throttle:20,1')->name('jobs.store');
+        Route::get('/jobs/{id}', [OcrController::class, 'showJob'])->whereNumber('id')->name('jobs.show');
+        Route::post('/jobs/{id}/retry', [OcrController::class, 'retry'])->whereNumber('id')->name('jobs.retry');
+        Route::get('/results/{id}', [OcrController::class, 'showResult'])->whereNumber('id')->name('results.show');
+        Route::get('/search', [OcrController::class, 'search'])->name('search');
+        Route::post('/results/{id}/verify', [OcrController::class, 'verify'])->whereNumber('id')->name('results.verify');
+        Route::post('/results/{id}/corrections', [OcrController::class, 'correct'])->whereNumber('id')->name('results.corrections.store');
+    });
 });
 
 
