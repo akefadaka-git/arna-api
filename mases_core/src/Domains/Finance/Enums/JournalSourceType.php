@@ -21,6 +21,8 @@ enum JournalSourceType: string
 
     case LOAN = 'loan';
 
+    case GOVERNANCE_PENALTY_SETTLEMENT = 'governance_penalty_settlement';
+
     case PROCUREMENT = 'procurement';
 
     case ACCOUNTS_PAYABLE = 'accounts_payable';
@@ -48,6 +50,7 @@ enum JournalSourceType: string
             self::SHAREHOLDER,
             self::WALLET,
             self::LOAN,
+            self::GOVERNANCE_PENALTY_SETTLEMENT,
             self::PROCUREMENT,
             self::ACCOUNTS_PAYABLE,
             self::ACCOUNTS_RECEIVABLE,
