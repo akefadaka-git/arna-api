@@ -270,7 +270,7 @@ final class MeetingAttendanceService
     {
         $value = trim((string) $amount);
         if (!preg_match('/^\\d+(?:\\.\\d{1,4})?$/', $value)) {
-            throw ValidationException::withMessages(['amount' => 'Money amounts must be non-negative ETB values with at most two decimal places.']);
+            throw ValidationException::withMessages(['amount' => 'Money amounts must be non-negative decimal values with at most four decimal places.']);
         }
         [$whole, $fraction] = array_pad(explode('.', $value, 2), 2, '0');
         return ((int) $whole * 10000) + (int) str_pad($fraction, 4, '0');
@@ -364,8 +364,8 @@ final class MeetingAttendanceService
                 'recorded_by' => $this->actorId(), 'finance_reconciliation_status' => 'pending',
                 'created_at' => now(), 'updated_at' => now(),
             ]);
-            $newPaid = $paid + $amount;
-            $newStatus = $newPaid >= (float) $penalty->amount ? 'paid' : 'partially_paid';
+            $newPaidMinor = $paidMinor + $amountMinor;
+            $newStatus = $newPaidMinor >= $penaltyMinor ? 'paid' : 'partially_paid';
             DB::table('governance_meeting_penalties')->where('id', $penaltyId)->update(['status' => $newStatus, 'updated_at' => now()]);
             $payment = DB::table('governance_meeting_penalty_payments')->where('id', $id)->first();
             $this->audit($meetingId, 'penalty.payment_recorded', 'payment', $id, null, (array) $payment);
@@ -484,6 +484,11 @@ final class MeetingAttendanceService
                 ->where('penalties.meeting_id', $meetingId)->select('settlements.*', 'penalties.id as linked_penalty_id')->lockForUpdate()->first();
             if (!$settlement || $settlement->status !== 'approved') {
                 throw ValidationException::withMessages(['settlement_id' => 'Only an approved dividend settlement can be reconciled.']);
+            }
+            $linkedPenalty = DB::table('governance_meeting_penalties')->where('tenant_id', $this->tenantId())
+                ->where('id', $settlement->linked_penalty_id)->lockForUpdate()->first();
+            if (!$linkedPenalty || !in_array($linkedPenalty->status, ['assessed', 'partially_paid'], true)) {
+                throw ValidationException::withMessages(['settlement_id' => 'The linked penalty must remain assessed and outstanding at reconciliation time.']);
             }
             $journal = $this->assertPostedJournal($journalId, $meeting);
             $journalDebit = $this->minorUnits((string) DB::table('journal_lines')->where('tenant_id', $this->tenantId())
