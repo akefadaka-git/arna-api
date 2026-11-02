@@ -78,7 +78,8 @@ return new class extends Migration
             $table->string('notes', 1000)->nullable();
             $table->timestamps();
             $table->unique(['meeting_id', 'membership_id'], 'gattendance_meeting_member_uq');
-            $table->index(['tenant_id', 'meeting_id', 'status'], 'gattendance_tenant_meeting_status_idx');\n            $table->index(['tenant_id', 'shareholder_id'], 'gattendance_tenant_shareholder_idx');
+            $table->index(['tenant_id', 'meeting_id', 'status'], 'gattendance_tenant_meeting_status_idx');
+            $table->index(['tenant_id', 'shareholder_id'], 'gattendance_tenant_shareholder_idx');
         });
 
         Schema::create('governance_meeting_penalties', function (Blueprint $table): void {
