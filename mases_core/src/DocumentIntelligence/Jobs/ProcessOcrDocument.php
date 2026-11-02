@@ -61,25 +61,29 @@ final class ProcessOcrDocument implements ShouldQueue
             return;
         }
 
-        $disk = Storage::disk($file->disk);
-        $stream = $disk->readStream($file->path);
-        if (!is_resource($stream)) {
-            throw new RuntimeException('OCR_SOURCE_UNAVAILABLE');
-        }
-        $temporary = tempnam(sys_get_temp_dir(), 'arna-ocr-');
-        if ($temporary === false) {
-            fclose($stream);
-            throw new RuntimeException('OCR_TEMP_FILE_UNAVAILABLE');
-        }
-
+        $stream = null;
+        $temporary = null;
         try {
+            $disk = Storage::disk($file->disk);
+            $stream = $disk->readStream($file->path);
+            if (!is_resource($stream)) {
+                throw new RuntimeException('OCR_SOURCE_UNAVAILABLE');
+            }
+            $temporary = tempnam(sys_get_temp_dir(), 'arna-ocr-');
+            if ($temporary === false) {
+                throw new RuntimeException('OCR_TEMP_FILE_UNAVAILABLE');
+            }
             $target = fopen($temporary, 'wb');
             if (!is_resource($target)) {
                 throw new RuntimeException('OCR_TEMP_FILE_UNAVAILABLE');
             }
-            stream_copy_to_stream($stream, $target, (int) config('ocr.max_file_bytes') + 1);
+            $copied = stream_copy_to_stream($stream, $target, (int) config('ocr.max_file_bytes') + 1);
             fclose($target);
             fclose($stream);
+            $stream = null;
+            if ($copied === false) {
+                throw new RuntimeException('OCR_SOURCE_READ_FAILED');
+            }
             chmod($temporary, 0600);
             if (filesize($temporary) > (int) config('ocr.max_file_bytes')) {
                 throw new RuntimeException('OCR_FILE_SIZE_LIMIT_EXCEEDED');
@@ -87,6 +91,9 @@ final class ProcessOcrDocument implements ShouldQueue
             $checksum = hash_file('sha256', $temporary);
             $recognized = $engine->recognize($temporary, (string) $file->mime_type, $job->languages);
             $allText = implode("\n\n", array_column($recognized['pages'], 'text'));
+            if (strlen($allText) > (int) config('ocr.max_result_bytes', 10485760)) {
+                throw new RuntimeException('OCR_RESULT_SIZE_LIMIT_EXCEEDED');
+            }
             $confidences = array_values(array_filter(array_column($recognized['pages'], 'confidence'), static fn ($v) => $v !== null));
 
             DB::transaction(function () use ($job, $file, $recognized, $allText, $checksum, $confidences): void {
@@ -121,17 +128,28 @@ final class ProcessOcrDocument implements ShouldQueue
                     'details' => ['result_id' => $result->id, 'page_count' => count($recognized['pages']), 'engine' => $recognized['engine']],
                 ]);
                 DB::afterCommit(static function () use ($job, $file, $result): void {
-                    event(new OcrResultReady((int) $job->tenant_id, (int) $file->id, (int) $result->id));
+                    try {
+                        event(new OcrResultReady((int) $job->tenant_id, (int) $file->id, (int) $result->id));
+                    } catch (Throwable $eventException) {
+                        report($eventException);
+                    }
                 });
             });
         } catch (Throwable $exception) {
+            $job->update([
+                'status' => 'queued',
+                'failure_code' => substr($exception->getMessage(), 0, 255),
+                'failure_message' => 'OCR processing attempt failed; the queue may retry this job.',
+            ]);
             report($exception);
             throw $exception;
         } finally {
             if (is_resource($stream)) {
                 fclose($stream);
             }
-            @unlink($temporary);
+            if (is_string($temporary)) {
+                @unlink($temporary);
+            }
         }
     }
 
