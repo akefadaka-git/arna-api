@@ -20,7 +20,7 @@ All endpoints are nested under the existing `auth:sanctum` + `tenant.membership`
 - `POST /api/ocr/results/{id}/verify`
 - `POST /api/ocr/results/{id}/corrections`
 
-The trusted tenant comes only from `mases_tenant_id()`. The API additionally scopes every source file, job, result and search query by that tenant. OCR permissions are registered in the canonical permission catalogue. The broad `platform_admin` and `tenant_admin` scope grants explicitly exclude the `ocr.` prefix; `super_admin` retains its wildcard. No OCR role grants are assigned to other roles. Owner approval of a least-privilege reviewer/operator matrix is still required before those users can use the OCR workspace.
+The trusted tenant comes only from `mases_tenant_id()`. The API additionally scopes every source file, job, result and search query by that tenant. OCR content access also requires the canonical `file.download` permission; job listings require `file.list`, and a job detail including its source filename requires `file.view`. These source-file permissions are checked independently of OCR permissions, including on retry, search, correction and verification. OCR permissions are registered in the canonical permission catalogue. The broad `platform_admin` and `tenant_admin` scope grants explicitly exclude the `ocr.` prefix; `super_admin` retains its wildcard. No OCR role grants are assigned to other roles. Owner approval of a least-privilege reviewer/operator matrix is still required before those users can use the OCR workspace.
 
 ## Queue and worker
 
