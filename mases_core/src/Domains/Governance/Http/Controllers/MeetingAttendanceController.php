@@ -22,7 +22,7 @@ final class MeetingAttendanceController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'governance_body_id' => ['required', 'integer', 'min:1'],
+            'governance_body_id' => ['required', 'integer', 'min:1'],\n            'finance_legal_entity_id' => ['nullable', 'integer', 'min:1'],
             'meeting_kind' => ['required', Rule::in(['ga', 'board'])],
             'title_am' => ['nullable', 'string', 'max:180'],
             'title_en' => ['nullable', 'string', 'max:180'],
@@ -115,6 +115,33 @@ final class MeetingAttendanceController extends Controller
             'paid_at' => ['nullable', 'date'],
         ]);
         return response()->json(['success' => true, 'data' => $this->service->recordPayment($meeting, $penalty, $data)], 201);
+    }
+
+    public function financeReconciliationQueue(): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $this->service->financeReconciliationQueue()]);
+    }
+
+    public function reconcilePayment(Request $request, int $meeting, int $payment): JsonResponse
+    {
+        $data = $request->validate(['finance_reference' => ['required', 'integer', 'min:1']]);
+        return response()->json(['success' => true, 'data' => $this->service->reconcilePayment($meeting, $payment, (int) $data['finance_reference'])]);
+    }
+
+    public function reviewDividendSettlement(Request $request, int $meeting, int $settlement): JsonResponse
+    {
+        $data = $request->validate([
+            'decision' => ['required', Rule::in(['approve', 'reject'])],
+            'authority_reference' => ['required_if:decision,approve', 'nullable', 'string', 'max:180'],
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+        return response()->json(['success' => true, 'data' => $this->service->reviewDividendSettlement($meeting, $settlement, $data)]);
+    }
+
+    public function reconcileDividendSettlement(Request $request, int $meeting, int $settlement): JsonResponse
+    {
+        $data = $request->validate(['finance_reference' => ['required', 'integer', 'min:1']]);
+        return response()->json(['success' => true, 'data' => $this->service->reconcileDividendSettlement($meeting, $settlement, (int) $data['finance_reference'])]);
     }
 
     public function requestDividendOffset(Request $request, int $meeting, int $penalty): JsonResponse
