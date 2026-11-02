@@ -199,6 +199,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionUpdated;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermUpdated;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceElectionLifecycleChanged;
 use MaaleArna\MASES\Core\Domains\Governance\Listeners\AuditGovernanceEvent;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
@@ -633,6 +634,9 @@ final class GovernanceServiceProvider extends ServiceProvider
         // G2c — membership events.
         Event::listen(GovernanceMembershipRegistered::class,  AuditGovernanceEvent::class);
         Event::listen(GovernanceMembershipUpdated::class,     AuditGovernanceEvent::class);
+
+        // A3 — election lifecycle audit trail.
+        Event::listen(GovernanceElectionLifecycleChanged::class, AuditGovernanceEvent::class);
     }
 
     // =========================================================================
