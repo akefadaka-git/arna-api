@@ -113,6 +113,15 @@ jobs:
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
           php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceAuthorityGrantController.php
           php -l mases_core/src/Domains/Governance/Routes/api.php
+          php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceMeetingAttendanceController.php
+          php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_110000_create_governance_attendance_review_tables.php
+          php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_100000_create_governance_meeting_attendance_tables.php
+          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
+          php -l mases_core/src/Domains/Finance/Enums/JournalSourceType.php
+          php -l mases_core/src/Domains/Finance/Services/JournalSourceEntityMappingResolver.php
+          php -l mases_core/src/Domains/Finance/Services/SourceLegalEntityMappingService.php
+          php -l mases_core/src/Domains/Finance/Http/Controllers/FinanceController.php
+          php -l mases_core/src/Domains/Finance/Tests/Feature/FinanceSourceEntityMappingResolverTest.php
           php -l mases_core/src/Domains/Governance/Policies/GovernancePositionPolicy.php
           php -l mases_core/src/Domains/Governance/Policies/GovernanceAppointmentPolicy.php
           php -l mases_core/src/Domains/Governance/Policies/GovernanceMembershipPolicy.php
@@ -133,3 +142,5 @@ jobs:
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceAppointmentTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMembershipTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
+          vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
+          vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/FinanceSourceEntityMappingResolverTest.php

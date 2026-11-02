@@ -104,6 +104,23 @@ final class FinanceSourceEntityMappingResolverTest extends TestCase
     }
 
     #[Test]
+    public function test_governance_penalty_settlement_is_registered_but_missing_or_ineligible_source_is_rejected(): void
+    {
+        [$tenant, $entity] = $this->tenantAndEntity();
+
+        $this->assertTrue(
+            app(JournalSourceEntityMappingResolver::class)->supports(JournalSourceType::GOVERNANCE_PENALTY_SETTLEMENT)
+        );
+
+        $this->assertRejected(
+            JournalSourceType::GOVERNANCE_PENALTY_SETTLEMENT,
+            'missing-settlement-999',
+            (int) $tenant->id,
+            (int) $entity->id,
+        );
+    }
+
+    #[Test]
     public function test_unsupported_source_type_is_rejected_by_resolver(): void
     {
         [$tenant, $entity] = $this->tenantAndEntity();
