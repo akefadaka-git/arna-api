@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use MaaleArna\MASES\Core\DocumentIntelligence\Jobs\ProcessOcrDocument;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingJob;
+use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingEvent;
 use MaaleArna\MASES\Core\Files\Models\File;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use RuntimeException;
@@ -50,6 +51,10 @@ final class OcrSubmissionService
                 'idempotency_key' => $key,
                 'languages' => $languages,
                 'status' => 'queued',
+            ]);
+            OcrProcessingEvent::query()->create([
+                'tenant_id' => $tenantId, 'job_id' => $job->id, 'actor_id' => $user->id,
+                'event' => 'job.created', 'details' => ['file_id' => $file->id, 'file_version' => $file->version],
             ]);
             ProcessOcrDocument::dispatch($job->id)
                 ->onConnection((string) config('ocr.connection'))
