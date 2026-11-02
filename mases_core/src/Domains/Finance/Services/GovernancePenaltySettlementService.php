@@ -29,6 +29,7 @@ final class GovernancePenaltySettlementService
                 GovernanceSettlementAccountMapping::ROLE_FINE_RECEIVABLE => ['asset','debit'],
                 GovernanceSettlementAccountMapping::ROLE_CASH_BANK => ['asset','debit'],
                 GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE => ['liability','credit'],
+                GovernanceSettlementAccountMapping::ROLE_PENALTY_INCOME => ['revenue','credit'],
             };
             if ($account->account_type !== $expected[0] || $account->normal_balance !== $expected[1]) {
                 throw ValidationException::withMessages(['ledger_account_id'=>'The account type and normal balance do not match this settlement role.']);
@@ -55,6 +56,7 @@ final class GovernancePenaltySettlementService
                 GovernanceSettlementAccountMapping::ROLE_FINE_RECEIVABLE => ['asset','debit'],
                 GovernanceSettlementAccountMapping::ROLE_CASH_BANK => ['asset','debit'],
                 GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE => ['liability','credit'],
+                GovernanceSettlementAccountMapping::ROLE_PENALTY_INCOME => ['revenue','credit'],
                 default => null,
             };
             if ($expected === null || [$account->account_type,$account->normal_balance] !== $expected) throw ValidationException::withMessages(['ledger_account_id'=>'Account classification changed or is invalid.']);
@@ -101,7 +103,7 @@ final class GovernancePenaltySettlementService
     {
         return DB::transaction(function () use ($tenantId,$settlementId,$actorId,$effectiveDate,$key,$method,$payableId) {
             $s = DB::table('governance_penalty_settlements')->where('tenant_id',$tenantId)->where('id',$settlementId)->lockForUpdate()->first();
-            if (!$s || !in_array($s->status,['pending_finance','pending_legal_finance_review'],true)) throw ValidationException::withMessages(['settlement'=>'Settlement is not pending Finance execution.']);
+            if (!$s || !in_array($s->status,['pending_finance','pending_legal_finance_review'],true) || $s->method !== $method) throw ValidationException::withMessages(['settlement'=>'Settlement is not pending Finance execution.']);
             $penalty = DB::table('governance_meeting_penalties')->where('tenant_id',$tenantId)->where('id',$s->penalty_id)->lockForUpdate()->first();
             if (!$penalty || $penalty->status !== 'assessed') throw ValidationException::withMessages(['penalty'=>'Penalty is disputed, waived, or already settled.']);
             $meeting = DB::table('governance_meetings')->where('tenant_id',$tenantId)->where('id',$penalty->meeting_id)->first();
@@ -117,18 +119,33 @@ final class GovernancePenaltySettlementService
             }
             $entityMapping = GovernanceSettlementAccountMapping::query()->forEntity($tenantId,(int)$this->resolveEntity($tenantId,$settlementId))->approved()->get()->keyBy('account_role');
             $entityId = (int)$this->resolveEntity($tenantId,$settlementId);
-            foreach ([GovernanceSettlementAccountMapping::ROLE_FINE_RECEIVABLE, $method==='cash'?GovernanceSettlementAccountMapping::ROLE_CASH_BANK:GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE] as $role) {
+            foreach ([GovernanceSettlementAccountMapping::ROLE_FINE_RECEIVABLE, GovernanceSettlementAccountMapping::ROLE_PENALTY_INCOME, $method==='cash'?GovernanceSettlementAccountMapping::ROLE_CASH_BANK:GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE] as $role) {
                 if (!$entityMapping->has($role)) throw ValidationException::withMessages(['account_mapping'=>'Finance must approve all required settlement account mappings first.']);
             }
             $debitRole = $method==='cash'?GovernanceSettlementAccountMapping::ROLE_CASH_BANK:GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE;
             $debitAccount = (int)$entityMapping[$debitRole]->ledger_account_id;
             $receivableAccount = (int)$entityMapping[GovernanceSettlementAccountMapping::ROLE_FINE_RECEIVABLE]->ledger_account_id;
+            $incomeAccount = (int)$entityMapping[GovernanceSettlementAccountMapping::ROLE_PENALTY_INCOME]->ledger_account_id;
             if ($method==='dividend_offset') {
                 $payable = ShareholderDividendPayable::query()->where('tenant_id',$tenantId)->where('legal_entity_id',$entityId)->whereKey($payableId)->lockForUpdate()->first();
                 if (!$payable || !$payable->isEligibleForPenaltyOffset()) throw ValidationException::withMessages(['dividend_payable'=>'A real, approved, due shareholder dividend payable is required.']);
                 if ($attendance->subject_type !== 'shareholder' || (int)$attendance->subject_id !== (int)$payable->shareholder_id) throw ValidationException::withMessages(['dividend_payable'=>'Dividend offset is restricted to the shareholder who incurred the penalty; director-only penalties cannot be offset.']);
                 if (bccomp($payable->remainingPayable(),$amount,4)<0) throw ValidationException::withMessages(['dividend_payable'=>'Remaining dividend payable is less than the penalty amount.']);
             }
+            // Recognize the assessed fine as a receivable and penalty income
+            // in the same transaction as settlement. Both journals must post.
+            $accrualKey = 'gps-accrual:'.$settlementId;
+            $accrual = $this->journals->createDraft($tenantId,$actorId,[
+                'legal_entity_id'=>$entityId,'journal_number'=>'GPA-'.$settlementId,
+                'effective_date'=>$effectiveDate,'currency'=>'ETB','description'=>'Recognition of Governance penalty #'.$penalty->id,
+                'source_type'=>JournalSourceType::GOVERNANCE_PENALTY_SETTLEMENT->value,'source_id'=>(string)$settlementId,'idempotency_key'=>$accrualKey,
+            ],[
+                ['account_id'=>$receivableAccount,'debit_amount'=>$amount,'credit_amount'=>'0'],
+                ['account_id'=>$incomeAccount,'debit_amount'=>'0','credit_amount'=>$amount],
+            ]);
+            if ($accrual->status === 'draft') $this->journals->post($tenantId,$actorId,(int)$accrual->id);
+            elseif ($accrual->status !== 'posted') throw new ConflictHttpException('Penalty accrual journal exists but is not posted.');
+
             $journal = $this->journals->createDraft($tenantId,$actorId,[
                 'legal_entity_id'=>$entityId,'journal_number'=>'GPS-'.$settlementId.'-'.substr(hash('sha256',$key),0,8),
                 'effective_date'=>$effectiveDate,'currency'=>'ETB','description'=>($method==='cash'?'Cash receipt':'Dividend offset').' for Governance penalty #'.$penalty->id,
