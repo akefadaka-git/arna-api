@@ -252,6 +252,85 @@ final class GovernanceMeetingAttendanceTest extends TestCase
             ])->assertForbidden();
     }
 
+    public function test_attendance_correction_requires_independent_review_and_preserves_original_until_approval(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+        $meetingId = $this->createMeeting('BOARD-CORRECTION');
+        $attendance = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meetingId]), [
+                'subject_type' => 'director',
+                'subject_id' => $this->directorMembershipId,
+                'attendance_status' => 'present',
+                'arrived_at' => now()->addDays(2)->setTime(8, 55)->toDateTimeString(),
+            ])->assertCreated();
+        $attendanceId = (int) $attendance->json('data.id');
+
+        $request = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.attendance.corrections.store', ['meeting' => $meetingId]), [
+                'attendance_id' => $attendanceId,
+                'proposed_status' => 'late',
+                'proposed_arrived_at' => now()->addDays(2)->setTime(9, 5)->toDateTimeString(),
+                'reason' => 'Original arrival time was entered incorrectly.',
+            ])->assertCreated();
+
+        $correctionId = (int) $request->json('data.id');
+        $this->assertDatabaseHas('governance_meeting_attendance', [
+            'id' => $attendanceId, 'attendance_status' => 'present',
+        ]);
+
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->patchJson(route('api.governance.attendance-corrections.review', ['correction' => $correctionId]), [
+                'decision' => 'approved', 'reason' => 'Verified against the signed arrival register.',
+            ])->assertConflict();
+
+        $reviewer = $this->createUser('meeting-reviewer');
+        $reviewer->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+        $reviewer->permissions()->attach($this->admin->permissions->pluck('id')->all());
+        $reviewer->load('permissions');
+        Sanctum::actingAs($reviewer, ['*']);
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->patchJson(route('api.governance.attendance-corrections.review', ['correction' => $correctionId]), [
+                'decision' => 'approved', 'reason' => 'Verified against the signed arrival register.',
+            ])->assertOk()->assertJsonPath('data.status', 'approved');
+
+        $this->assertDatabaseHas('governance_meeting_attendance', [
+            'id' => $attendanceId, 'attendance_status' => 'late',
+        ]);
+    }
+
+    public function test_penalty_dispute_blocks_settlement_until_reviewed(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+        $meetingId = $this->createMeeting('BOARD-DISPUTE');
+        $attendance = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.attendance.store', ['meeting' => $meetingId]), [
+                'subject_type' => 'director',
+                'subject_id' => $this->directorMembershipId,
+                'attendance_status' => 'present',
+                'arrived_at' => now()->addDays(2)->setTime(9, 5)->toDateTimeString(),
+            ])->assertCreated();
+        $penalty = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.penalties.store', ['meeting' => $meetingId]), [
+                'attendance_id' => (int) $attendance->json('data.id'), 'penalty_type' => 'late',
+            ])->assertCreated();
+        $penaltyId = (int) $penalty->json('data.id');
+
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.penalties.disputes.store', ['penalty' => $penaltyId]), [
+                'reason' => 'The recorded arrival time is disputed.',
+                'evidence_reference' => 'attendance-register-page-2',
+            ])->assertCreated();
+
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.penalties.settlements.store', ['penalty' => $penaltyId]), [
+                'method' => 'cash', 'amount_cents' => 5000,
+            ])->assertConflict();
+
+        $this->assertDatabaseHas('governance_meeting_penalties', [
+            'id' => $penaltyId, 'status' => 'disputed',
+        ]);
+    }
+
     private function createMeeting(string $code): int
     {
         return (int) DB::table('governance_meetings')->insertGetId([
