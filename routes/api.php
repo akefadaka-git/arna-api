@@ -141,6 +141,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\OcrController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
