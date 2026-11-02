@@ -138,7 +138,7 @@ final class ProcessOcrDocument implements ShouldQueue
     public function failed(Throwable $exception): void
     {
         $job = OcrJob::query()->find($this->ocrJobId);
-        if ($job) {
+        if ($job && !in_array($job->status, ['awaiting_review', 'completed'], true)) {
             $job->update(['status' => 'failed', 'failure_code' => 'QUEUE_ATTEMPTS_EXHAUSTED', 'failure_message' => 'OCR worker exhausted its retry attempts.', 'completed_at' => now()]);
             OcrProcessingEvent::query()->create([
                 'tenant_id' => $job->tenant_id, 'job_id' => $job->id,
