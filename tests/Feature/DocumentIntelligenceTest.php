@@ -13,6 +13,7 @@ use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\DocumentIntelligence\Jobs\ProcessOcrDocument;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingEvent;
+use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrPage;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingJob;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrResult;
 use MaaleArna\MASES\Core\Files\Models\File;
@@ -97,6 +98,74 @@ final class DocumentIntelligenceTest extends TestCase
         $this->assertDatabaseHas('ocr_results', [
             'id' => $result->id,
             'tenant_id' => $tenantB->id,
+        ]);
+    }
+
+    public function test_job_status_permission_does_not_expose_recognized_document_content(): void
+    {
+        [$tenant, $reader] = $this->tenantUser(['ocr.job.view']);
+        $file = $this->sourceFile($tenant, $reader);
+        $job = OcrProcessingJob::query()->create([
+            'tenant_id' => $tenant->id, 'file_id' => $file->id, 'file_version' => 1,
+            'requested_by' => $reader->id, 'idempotency_key' => hash('sha256', 'status-only-key'),
+            'languages' => 'amh+eng', 'status' => 'awaiting_review',
+        ]);
+        $result = OcrResult::query()->create([
+            'tenant_id' => $tenant->id, 'job_id' => $job->id, 'file_id' => $file->id,
+            'file_version' => 1, 'engine_name' => 'tesseract', 'engine_version' => 'test',
+            'languages' => 'amh+eng', 'full_text' => 'Sensitive recognized content',
+            'mean_confidence' => 92, 'source_checksum' => str_repeat('b', 64),
+            'result_checksum' => hash('sha256', 'Sensitive recognized content'),
+            'metadata' => ['verification_status' => 'pending'],
+        ]);
+        OcrPage::query()->create([
+            'tenant_id' => $tenant->id, 'result_id' => $result->id, 'page_number' => 1,
+            'text' => 'Sensitive recognized content', 'mean_confidence' => 92, 'blocks' => [],
+        ]);
+
+        $this->tenantRequest($reader, $tenant)->getJson('/api/ocr/jobs/'.$job->id)
+            ->assertOk()
+            ->assertJsonMissing(['full_text' => 'Sensitive recognized content'])
+            ->assertJsonMissing(['text' => 'Sensitive recognized content']);
+    }
+
+    public function test_appending_a_correction_invalidates_previous_ocr_verification(): void
+    {
+        [$tenant, $reviewer] = $this->tenantUser(['ocr.result.correct']);
+        $file = $this->sourceFile($tenant, $reviewer);
+        $job = OcrProcessingJob::query()->create([
+            'tenant_id' => $tenant->id, 'file_id' => $file->id, 'file_version' => 1,
+            'requested_by' => $reviewer->id, 'idempotency_key' => hash('sha256', 'correction-test-key'),
+            'languages' => 'amh+eng', 'status' => 'awaiting_review',
+        ]);
+        $result = OcrResult::query()->create([
+            'tenant_id' => $tenant->id, 'job_id' => $job->id, 'file_id' => $file->id,
+            'file_version' => 1, 'engine_name' => 'tesseract', 'engine_version' => 'test',
+            'languages' => 'amh+eng', 'full_text' => 'Recognized amount 100',
+            'mean_confidence' => 90, 'source_checksum' => str_repeat('c', 64),
+            'result_checksum' => hash('sha256', 'Recognized amount 100'),
+            'metadata' => ['verification_status' => 'verified'],
+        ]);
+        OcrPage::query()->create([
+            'tenant_id' => $tenant->id, 'result_id' => $result->id, 'page_number' => 1,
+            'text' => 'Recognized amount 100', 'mean_confidence' => 90, 'blocks' => [],
+        ]);
+
+        $this->tenantRequest($reviewer, $tenant)->postJson('/api/ocr/results/'.$result->id.'/corrections', [
+            'page_number' => 1,
+            'original_text' => '100',
+            'corrected_text' => '1,000',
+            'reason' => 'Verified against the source image',
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('ocr_results', [
+            'id' => $result->id,
+            'metadata->verification_status' => 'pending',
+        ]);
+        $this->assertDatabaseHas('ocr_corrections', [
+            'result_id' => $result->id,
+            'original_text' => '100',
+            'corrected_text' => '1,000',
         ]);
     }
 
