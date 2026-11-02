@@ -81,6 +81,9 @@ return new class extends Migration
             $table->string('reason', 1000);
             $table->foreignId('assessed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->dateTime('assessed_at')->nullable();
+            $table->foreignId('disputed_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->dateTime('disputed_at')->nullable();
+            $table->string('dispute_reason', 1000)->nullable();
             $table->string('decision_reason', 1000)->nullable();
             $table->timestamps();
             $table->unique(['meeting_id', 'membership_id', 'penalty_type'], 'gpenalty_meeting_member_type_uq');
