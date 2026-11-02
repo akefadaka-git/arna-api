@@ -25,6 +25,8 @@ on:
       - "tests/Feature/PersonApiIntegrationTest.php"
       - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
+      - "tests/Feature/GovernanceElectionWorkflowHttpTest.php"
+      - "tests/Feature/GovernanceElectionWorkflowSecurityContractTest.php"
       - "tests/Feature/OrganizationDomainTest.php"
       - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/**"
@@ -156,6 +158,20 @@ jobs:
 
       - name: Run focused demo seeder guard tests
         run: php artisan test --compact tests/Unit/DemoSeederGuardTest.php
+
+      - name: Run election authorization source-contract regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/GovernanceElectionWorkflowSecurityContractTest.php
+
+      - name: Run election workflow database-backed HTTP regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/GovernanceElectionWorkflowHttpTest.php
 
       - name: Run Loan domain unit tests with hermetic SQLite
         env:
