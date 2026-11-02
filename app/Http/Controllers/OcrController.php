@@ -136,13 +136,22 @@ final class OcrController extends Controller
         preg_match_all('/[\\p{L}\\p{N}]{2,}/u', $validated['q'], $tokens);
         abort_if($tokens[0] === [], 422, 'Search query must contain at least one word.');
         $query = OcrResult::query()->where('tenant_id', $tenantId);
-        if (DB::getDriverName() === 'mysql') {
-            $booleanQuery = implode(' ', array_map(static fn (string $token): string => '+' . $token . '*', $tokens[0]));
-            $query->whereRaw('MATCH(full_text) AGAINST (? IN BOOLEAN MODE)', [$booleanQuery]);
-        } else {
-            $query->where('full_text', 'like', '%' . addcslashes($validated['q'], '%_\\\\') . '%');
-        }
-        $results = $query->with('file:id,original_name,version')->latest()->paginate(20);
+        $query->where(function ($contentQuery) use ($validated, $tokens, $tenantId): void {
+            if (DB::getDriverName() === 'mysql') {
+                $booleanQuery = implode(' ', array_map(static fn (string $token): string => '+' . $token . '*', $tokens[0]));
+                $contentQuery->whereRaw('MATCH(full_text) AGAINST (? IN BOOLEAN MODE)', [$booleanQuery]);
+            } else {
+                $contentQuery->where('full_text', 'like', '%' . addcslashes($validated['q'], '%_\\\\') . '%');
+            }
+            $contentQuery->orWhereHas('corrections', function ($correctionQuery) use ($validated, $tenantId): void {
+                $correctionQuery->where('tenant_id', $tenantId)
+                    ->where('corrected_text', 'like', '%' . addcslashes($validated['q'], '%_\\\\') . '%');
+            });
+        });
+        $results = $query->with([
+            'file:id,original_name,version',
+            'corrections:id,result_id,page_number,original_text,corrected_text',
+        ])->latest()->paginate(20);
         $this->logAudit(action: 'ocr.result.searched', resourceType: 'ocr_search', newValues: ['query_length' => mb_strlen($validated['q']), 'result_count' => $results->total()]);
         return response()->json(['success' => true, 'data' => $results->items(), 'meta' => [
             'current_page' => $results->currentPage(), 'last_page' => $results->lastPage(),
