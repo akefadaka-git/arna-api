@@ -21,6 +21,7 @@ final class RolePermissionSeederScopeExclusionTest extends TestCase
         ];
 
         $method = new ReflectionMethod(RolePermissionSeeder::class, 'resolvePermissionIds');
+        $method->setAccessible(true);
         $ids = $method->invoke(new RolePermissionSeeder(), ['scope:tenant:exclude:ocr.'], $permissions);
 
         self::assertSame([11], $ids);
