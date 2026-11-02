@@ -109,6 +109,11 @@ final class GovernanceMeetingAttendanceController extends Controller
         $record->attendance = DB::table('governance_meeting_attendance')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
         $record->proxies = DB::table('governance_meeting_proxies')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
         $record->penalties = DB::table('governance_meeting_penalties')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
+        $record->settlements = DB::table('governance_penalty_settlements')
+            ->where('tenant_id', $tenantId)
+            ->whereIn('penalty_id', $record->penalties->pluck('id')->all() ?: [0])
+            ->orderBy('id')
+            ->get();
 
         return response()->json(['success' => true, 'data' => $record]);
     }
@@ -187,17 +192,38 @@ final class GovernanceMeetingAttendanceController extends Controller
             throw ValidationException::withMessages(['submitted_at' => 'The proxy submission deadline has passed.']);
         }
 
-        if (!$isGa) {
-            $isDirector = DB::table('governance_memberships')
+        if ($isGa) {
+            $principalExists = DB::table('shareholders')
+                ->where('tenant_id', $tenantId)
+                ->where('id', $data['principal_id'])
+                ->exists();
+            if (!$principalExists) {
+                throw ValidationException::withMessages(['principal_id' => 'Shareholder is not registered in this tenant.']);
+            }
+        } else {
+            $principal = DB::table('governance_memberships')
+                ->join('governance_positions', 'governance_positions.id', '=', 'governance_memberships.governance_position_id')
+                ->where('governance_memberships.tenant_id', $tenantId)
+                ->where('governance_memberships.governance_body_id', $meetingRecord->governance_body_id)
+                ->where('governance_memberships.id', $data['principal_id'])
+                ->where('governance_memberships.status', 'active')
+                ->where('governance_positions.is_officer', true)
+                ->select('governance_memberships.user_id')
+                ->first();
+            if (!$principal || !$principal->user_id) {
+                throw ValidationException::withMessages(['principal_id' => 'Board principal must be an active director with a linked user account.']);
+            }
+            $proxyIsAnotherDirector = DB::table('governance_memberships')
                 ->join('governance_positions', 'governance_positions.id', '=', 'governance_memberships.governance_position_id')
                 ->where('governance_memberships.tenant_id', $tenantId)
                 ->where('governance_memberships.governance_body_id', $meetingRecord->governance_body_id)
                 ->where('governance_memberships.user_id', $data['proxy_user_id'])
                 ->where('governance_memberships.status', 'active')
                 ->where('governance_positions.is_officer', true)
+                ->where('governance_memberships.user_id', '<>', $principal->user_id)
                 ->exists();
-            if (!$isDirector) {
-                throw ValidationException::withMessages(['proxy_user_id' => 'Board proxy must be another active director/member of the Board.']);
+            if (!$proxyIsAnotherDirector) {
+                throw ValidationException::withMessages(['proxy_user_id' => 'Board proxy must be another active director; self-proxy and non-director proxies are not allowed.']);
             }
         }
 
@@ -327,6 +353,10 @@ final class GovernanceMeetingAttendanceController extends Controller
             'amount_cents' => $data['amount_cents'], 'currency' => 'ETB', 'status' => $status,
             'reference' => $data['reference'] ?? null, 'recorded_by' => $this->actorId(),
             'recorded_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->activity($tenantId, (int) $record->meeting_id, 'penalty.settlement_requested', [
+            'penalty_id' => $penalty, 'settlement_id' => $id, 'method' => $data['method'],
+            'amount_cents' => $data['amount_cents'], 'status' => $status,
         ]);
         return response()->json(['success' => true, 'data' => DB::table('governance_penalty_settlements')->where('tenant_id', $tenantId)->find($id)], 201);
     }
