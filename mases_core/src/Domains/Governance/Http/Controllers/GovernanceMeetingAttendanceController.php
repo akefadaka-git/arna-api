@@ -173,12 +173,12 @@ final class GovernanceMeetingAttendanceController extends Controller
 
         $arrivedAt = isset($data['arrived_at']) ? CarbonImmutable::parse($data['arrived_at']) : null;
         $status = $data['attendance_status'];
-        if (
-            $arrivedAt
-            && !in_array($status, ['excused', 'represented'], true)
-            && $arrivedAt->greaterThan(CarbonImmutable::parse($meetingRecord->starts_at))
-        ) {
-            $status = 'late';
+        if ($arrivedAt && !in_array($status, ['excused', 'represented'], true)) {
+            // The signed meeting start time is the only lateness threshold:
+            // any arrival after it is late; an arrival at/before it is present.
+            $status = $arrivedAt->greaterThan(CarbonImmutable::parse($meetingRecord->starts_at))
+                ? 'late'
+                : 'present';
         }
         if (in_array($status, ['present', 'late'], true) && !$arrivedAt) {
             throw ValidationException::withMessages(['arrived_at' => 'Arrival time is required for present or late attendance.']);
