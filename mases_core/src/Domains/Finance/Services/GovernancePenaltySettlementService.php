@@ -73,7 +73,7 @@ final class GovernancePenaltySettlementService
         return ShareholderDividendPayable::query()->create([
             'tenant_id'=>$tenantId,'legal_entity_id'=>$entityId,'shareholder_id'=>$shareholderId,'distribution_reference'=>trim($reference),
             'declared_on'=>$declaredOn,'due_on'=>$dueOn,'net_payable_amount'=>$amount,'cash_paid_amount'=>'0.0000',
-            'penalty_offset_amount'=>'0.0000','status'=>ShareholderDividendPayable::STATUS_DRAFT,
+            'penalty_offset_amount'=>'0.0000','status'=>ShareholderDividendPayable::STATUS_DRAFT,'created_by'=>$actorId,
         ]);
     }
 
@@ -81,7 +81,7 @@ final class GovernancePenaltySettlementService
     {
         return DB::transaction(function () use ($tenantId,$payableId,$actorId,$approvalReference) {
             $p = ShareholderDividendPayable::query()->where('tenant_id',$tenantId)->lockForUpdate()->findOrFail($payableId);
-            if ($p->status !== ShareholderDividendPayable::STATUS_DRAFT || trim($approvalReference)==='') throw ValidationException::withMessages(['payable'=>'Only a draft payable with an approval reference may be approved.']);
+            if ($p->status !== ShareholderDividendPayable::STATUS_DRAFT || (int)$p->created_by === $actorId || trim($approvalReference)==='') throw ValidationException::withMessages(['payable'=>'Only a draft payable with an approval reference may be approved.']);
             $p->forceFill(['status'=>ShareholderDividendPayable::STATUS_PAYABLE,'approval_reference'=>trim($approvalReference),'approved_by'=>$actorId,'approved_at'=>now()])->save();
             return $p;
         });
