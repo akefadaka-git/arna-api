@@ -25,7 +25,7 @@ ENV ARNA_OCR_ENABLED=true \
     ARNA_OCR_PDFINFO_BINARY=/usr/bin/pdfinfo \
     ARNA_OCR_TEMP_DIRECTORY=/tmp/arna-ocr \
     ARNA_OCR_QUEUE=ocr \
-    ARNA_OCR_QUEUE_CONNECTION=database
+    ARNA_OCR_QUEUE_CONNECTION=ocr
 
 USER www-data
 CMD ["sh", "/usr/local/bin/arna-ocr-worker"]
