@@ -29,6 +29,17 @@ return new class extends Migration
             $table->index(['tenant_id', 'status', 'created_at'], 'ocr_jobs_tenant_status_idx');
         });
 
+        Schema::create('ocr_processing_events', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnUpdate()->restrictOnDelete();
+            $table->foreignId('job_id')->constrained('ocr_processing_jobs')->cascadeOnUpdate()->cascadeOnDelete();
+            $table->foreignId('actor_id')->nullable()->constrained('users')->cascadeOnUpdate()->nullOnDelete();
+            $table->string('event', 64);
+            $table->json('details')->nullable();
+            $table->timestamps();
+            $table->index(['tenant_id', 'job_id', 'created_at'], 'ocr_events_tenant_job_idx');
+        });
+
         Schema::create('ocr_results', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnUpdate()->restrictOnDelete();
@@ -89,6 +100,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('ocr_corrections');
+        Schema::dropIfExists('ocr_processing_events');
         Schema::dropIfExists('ocr_verifications');
         Schema::dropIfExists('ocr_pages');
         Schema::dropIfExists('ocr_results');
