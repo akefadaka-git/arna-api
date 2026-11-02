@@ -48,6 +48,13 @@ final class GovernancePenaltySettlementController extends Controller
         return response()->json(['success'=>true,'data'=>$row]);
     }
 
+    public function revokeAccountMapping(Request $request,int $mappingId): JsonResponse
+    {
+        $d=$request->validate(['reason'=>['required','string','min:5','max:2000']]);
+        $row=$this->settlements->revokeAccountMapping($this->tenantId(),$mappingId,(int)$request->user()->getAuthIdentifier(),$d['reason']);
+        return response()->json(['success'=>true,'data'=>$row]);
+    }
+
     public function dividendPayables(Request $request): JsonResponse
     {
         $q=ShareholderDividendPayable::query()->where('tenant_id',$this->tenantId());
