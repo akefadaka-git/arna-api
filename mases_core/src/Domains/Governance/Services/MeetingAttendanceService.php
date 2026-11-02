@@ -139,6 +139,11 @@ final class MeetingAttendanceService
                 throw ValidationException::withMessages(['appointed_at' => 'The proxy must be appointed and received by the applicable statutory/policy deadline.']);
             }
             $representativeMembershipId = $data['representative_membership_id'] ?? null;
+            if ($meeting->meeting_kind === 'ga' && $representativeMembershipId !== null) {
+                $validRepresentative = DB::table('governance_memberships')->where('tenant_id', $this->tenantId())
+                    ->where('id', $representativeMembershipId)->where('status', 'active')->exists();
+                if (!$validRepresentative) throw ValidationException::withMessages(['representative_membership_id' => 'The identified representative must be an active member of this tenant.']);
+            }
             if ($meeting->meeting_kind === 'board') {
                 if (!$representativeMembershipId) throw ValidationException::withMessages(['representative_membership_id' => 'A Board proxy must be another active director.']);
                 if ((int) $representativeMembershipId === (int) $principal->id) throw ValidationException::withMessages(['representative_membership_id' => 'A director cannot represent themselves by proxy.']);
@@ -196,11 +201,16 @@ final class MeetingAttendanceService
             $member = $this->membership((int) $data['membership_id'], (int) $meeting->governance_body_id);
             $arrivedAt = CarbonImmutable::now($meeting->timezone);
             $proxyId = $data['proxy_id'] ?? null;
+            $acceptedProxy = DB::table('governance_meeting_proxies')->where('tenant_id', $this->tenantId())
+                ->where('meeting_id', $meetingId)->where('principal_membership_id', $member->id)
+                ->where('status', 'accepted')->first();
             if ($proxyId) {
                 $proxy = DB::table('governance_meeting_proxies')->where('tenant_id', $this->tenantId())
                     ->where('meeting_id', $meetingId)->where('id', $proxyId)
                     ->where('principal_membership_id', $member->id)->where('status', 'accepted')->first();
                 if (!$proxy) throw ValidationException::withMessages(['proxy_id' => 'An accepted proxy for this member and meeting is required.']);
+            } elseif ($meeting->meeting_kind === 'ga' && $acceptedProxy) {
+                throw ValidationException::withMessages(['membership_id' => 'A General Assembly member who appointed an accepted proxy cannot also attend or vote personally at the same meeting.']);
             }
             $status = $arrivedAt->gt(CarbonImmutable::parse($meeting->scheduled_at, $meeting->timezone)) ? 'late' : ($proxyId ? 'represented' : 'present');
             $id = DB::table('governance_meeting_attendance')->insertGetId([
@@ -236,6 +246,29 @@ final class MeetingAttendanceService
             if ($existing) DB::table('governance_meeting_attendance')->where('id', $existing->id)->update($values);
             else DB::table('governance_meeting_attendance')->insert($values);
             $attendance = DB::table('governance_meeting_attendance')->where('meeting_id', $meetingId)->where('membership_id', $member->id)->first();
+            $pendingPenalty = DB::table('governance_meeting_penalties')->where('tenant_id', $this->tenantId())
+                ->where('meeting_id', $meetingId)->where('membership_id', $member->id)
+                ->where('penalty_type', 'absence')->where('status', 'pending_review')->lockForUpdate()->first();
+            if ($pendingPenalty) {
+                DB::table('governance_meeting_penalties')->where('id', $pendingPenalty->id)->update([
+                    'status' => 'waived', 'assessed_by' => $this->actorId(), 'assessed_at' => now(),
+                    'decision_reason' => 'Authorized absence: '.$data['reason'], 'updated_at' => now(),
+                ]);
+                $this->audit($meetingId, 'penalty.waived_by_absence_authorization', 'penalty', (int) $pendingPenalty->id,
+                    (array) $pendingPenalty, ['status' => 'waived', 'reason' => $data['reason']]);
+            } elseif ($pendingPenalty === null) {
+                $assessedPenalty = DB::table('governance_meeting_penalties')->where('tenant_id', $this->tenantId())
+                    ->where('meeting_id', $meetingId)->where('membership_id', $member->id)
+                    ->where('penalty_type', 'absence')->whereIn('status', ['assessed', 'partially_paid'])->lockForUpdate()->first();
+                if ($assessedPenalty) {
+                    DB::table('governance_meeting_penalties')->where('id', $assessedPenalty->id)->update([
+                        'status' => 'disputed', 'disputed_by' => $this->actorId(), 'disputed_at' => now(),
+                        'dispute_reason' => 'Retroactive absence authorization: '.$data['reason'], 'updated_at' => now(),
+                    ]);
+                    $this->audit($meetingId, 'penalty.disputed_by_retroactive_absence_authorization', 'penalty',
+                        (int) $assessedPenalty->id, (array) $assessedPenalty, ['status' => 'disputed', 'reason' => $data['reason']]);
+                }
+            }
             $this->audit($meetingId, 'attendance.excused', 'attendance', (int) $attendance->id, $existing ? (array) $existing : null, (array) $attendance);
             return $attendance;
         });
