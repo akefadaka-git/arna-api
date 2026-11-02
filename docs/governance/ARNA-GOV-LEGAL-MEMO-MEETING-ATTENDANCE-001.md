@@ -1,45 +1,61 @@
-# Preliminary Legal Review — Meeting Attendance Policy
+# Legal and Governance Reconciliation — Meeting Attendance Policy
 
-**Status: CONDITIONAL / NOT APPROVED.** Review date: 2026-11-02.
+**Reference:** ARNA-GOV-POL-MEETING-ATTENDANCE-001  
+**Source instrument:** Maale Arna S.C. General Assembly and Board Meeting Rules of Procedure No. 001/2016  
+**Status:** OWNER-CONFIRMED APPROVAL — A3 IMPLEMENTATION AUTHORIZED  
+**Review record date:** 2026-11-02
 
-## Conclusion
-The policy is a requirements draft only. It is not cleared for enforcement. The original Rules of Procedure No. 001/2016, current Memorandum and Articles of Association, company bylaws, and certified adoption minutes were not found in the available repository or Library materials. The ETB 50 and ETB 300 amounts therefore remain unverified as enforceable company obligations. An AI desk review cannot issue a formal Ethiopian legal opinion or approve a corporate policy on behalf of the Board or General Meeting.
+## Approval record
 
-## Commercial Code review — Proclamation No. 1243/2021
-- Articles 308 and 310: Board decisions require quorum. Unless the Memorandum provides otherwise, a director may be represented only by another director, and one director may hold only one proxy at a meeting. Proxy may be by letter, fax or email.
-- Articles 373 and 377: a shareholder may participate and vote through a proxy. The Board sets the proxy form and deposit window, but the deposit period may not expire more than three days before the meeting. A shareholder who appoints a proxy may not also participate and vote personally at that meeting.
-- Article 378: the GA attendance sheet must be initialled by shareholders/proxies physically present before the meeting begins and certified by the company secretary. Late arrivals should be recorded in a separate timestamped supplemental register; do not silently alter the original attendance sheet.
-- Articles 397 and 400–402: ordinary GA proxy representation is available unless the Memorandum provides otherwise; an EGM has power to amend the Memorandum and the Code prescribes its quorum and two-thirds majority.
-- Article 438(3), (5): the GA determines dividend payment method/date; the payment date may not exceed four months from the profit-distribution resolution. The shareholder becomes a creditor for the dividend from the payment date.
+The Owner has confirmed that the Memorandum reconciliation has already been supplied and completed and that the General Assembly approved the governing regulation. This repository record adopts that confirmation for the ARNA implementation gate. The uploaded original PowerPoint was inspected and its content reconciled into the implementation policy.
 
-## Civil Code review
-- Articles 1831–1838: set-off requires mutual debts; both must be liquidated and due. Third-party rights are protected and the intention to set off must be notified.
-- Article 1840: contractual set-off may be agreed.
-- Articles 1889–1895: contractual penalty clauses are recognized for non-performance, but this does not establish that the company has validly bound its members to these particular fines.
+The original regulation states:
+- Article 6.1: ETB 50 for late arrival.
+- Article 6.2: ETB 300 for absence without sufficient evidence.
+- Article 5.2: GA proxy arrangements must be submitted at least three days before the meeting.
+- Article 8: the regulation applies from the GA approval date stated in the instrument.
+- Article 9: amendments require Board action and General Assembly approval.
 
-## Findings and required corrections
-1. GA proxy deposit cutoff must be set consistently with Article 377(1): it must not expire more than three days before the meeting. A cutoff earlier than three days is not acceptable under the text reviewed. Members may prepare/appoint a proxy earlier, but the company's final deposit deadline must comply.
-2. Board proxy must be restricted to another director, subject to the Memorandum, and one proxy per director per meeting. The proposed three-hour notice is an internal rule, not a time expressly fixed by Article 310; confirm it against the Memorandum and existing Board rules.
-3. Keep the statutory GA attendance sheet and a separate late-arrival timestamp log.
-4. Do not enforce either fine until the original Rule 001/2016 or a valid member undertaking/corporate resolution is authenticated and counsel confirms the competent approving organ and enforceability.
-5. Do not automatically deduct fines from dividends. Set-off is only potentially available when the fine is a valid, liquidated and due debt, the dividend is due to the same person, the set-off conditions and notice requirements are met, third-party rights are not affected, and Finance/legal controls approve it.
-6. Do not assume directors are shareholders or dividend recipients. Keep Board and GA roles distinct.
+The Owner clarified that ETB 50 is a flat amount per meeting, not an hourly or minute-based escalation; a 09:05 arrival for a 09:00 start is late. The Owner also specified GA proxy notice at least three days before and Board proxy notice at least three hours before the meeting.
 
-## Required source documents
-- Certified complete Rules of Procedure No. 001/2016, including approval/signature pages and amendments.
-- Current certified Memorandum and Articles of Association and registered amendments.
-- Current company bylaws and Board/GA meeting rules.
-- Certified minutes/resolution adopting Rule 001/2016 and any resolutions changing the fees.
-- Written opinion from Ethiopian-qualified company counsel on fines, proxy timing, Board 3-hour notice and dividend set-off.
-- Finance's written accounting/tax treatment for payment and any valid set-off.
+## Statutory implementation constraints
 
-## Approval and implementation status
-- Commercial Code and Civil Code desk research: COMPLETED, preliminary only.
-- Review of original Rule 001/2016: NOT POSSIBLE — source not available.
-- Review of Memorandum/bylaws: NOT POSSIBLE — certified copies not available.
-- ETB 50 / ETB 300 enforceability: UNRESOLVED.
-- Dividend set-off: CONDITIONAL; automatic deduction not authorized.
-- Formal corporate approval: NOT GRANTED / NOT EVIDENCED.
-- API/App implementation: NOT STARTED; enforcement and Finance settlement remain blocked.
+The implementation applies the following constraints from Commercial Code Proclamation No. 1243/2021:
+- Article 310: under the default rule, a director's proxy must be another director; one director may hold only one proxy at a Board meeting, subject to the Memorandum.
+- Articles 377–378: GA proxy deposit timing and the statutory attendance-sheet requirements apply. The implementation records the proxy submission timestamp and does not allow a deadline earlier than the three-day threshold. The statutory attendance sheet is preserved as a meeting record; late arrivals are timestamped in the system's supplemental attendance register.
+- Article 397: GA proxy representation is subject to the Memorandum.
+- Article 438: dividend payment is governed by the GA resolution and statutory timing.
 
-**This memorandum is not a legal opinion from Ethiopian counsel and is not a Board or General Meeting resolution.**
+Civil Code Articles 1831–1840 inform set-off controls. An attendance fine is never automatically deducted from a dividend. A dividend-settlement request is a separate pending record and remains blocked until legal eligibility, mutuality, due/liquidated status, notice, shareholder identity, Finance approval and a traceable Finance reference are confirmed.
+
+## Implementation interpretation
+
+1. **Late arrival:** record the actual arrival time. If it is later than the meeting's scheduled start, create one ETB 50 penalty assessment candidate for that member and meeting. No per-minute or per-hour increase.
+2. **Absence:** on meeting close, create a pending-review ETB 300 assessment candidate only for an active body member with no accepted proxy, no attendance and no approved absence authorization.
+3. **GA proxy:** accept submission only when received no later than the T-minus-three-day deadline; retain instrument reference, representative identity and received timestamp.
+4. **Board proxy:** require another active member of the same Board body, reject self-proxy, enforce the T-minus-three-hour deadline, and enforce one accepted proxy held by any director per meeting.
+5. **Attendance register:** record principal member, representative where applicable, arrival time, attendance state and recorder. Corrections are appended to the audit trail; records are not silently overwritten.
+6. **Penalty review:** automatic detection creates a pending-review item, not a final debt. An authorized reviewer must assess or waive it with a reason.
+7. **Payment:** record ETB payment amount, method, receipt reference and payment time. Payment records remain marked pending Finance reconciliation until linked to Finance evidence.
+8. **Dividend settlement:** store a request only. No automatic offset, dividend mutation, or posting is performed by the Governance service.
+
+## A3 scope and integration boundary
+
+A3 includes the Governance meeting, proxy, attendance, penalty-review, same-day payment-recording and dividend-settlement-request workflows. The Finance domain remains the accounting system of record. The Governance subledger records source obligations and receipts; it does not invent ledger accounts, create or post a journal, or change a shareholder dividend. A Finance adapter must use the Finance domain's approved source-subledger contract and account mappings before any posting capability is enabled.
+
+## Approval and evidence classification
+
+| Item | Status |
+|---|---|
+| Original Rule 001/2016 received and inspected | VERIFIED |
+| Memorandum reconciliation | OWNER-CONFIRMED COMPLETE |
+| General Assembly approval | OWNER-CONFIRMED APPROVED |
+| ETB 50 / ETB 300 policy amounts | VERIFIED IN SOURCE INSTRUMENT |
+| GA three-day proxy control | IMPLEMENTED AS DEADLINE VALIDATION |
+| Board three-hour proxy control | IMPLEMENTED WITH DIRECTOR-ONLY RULE |
+| A3 implementation authorization | AUTHORIZED BY OWNER |
+| Ethiopian counsel opinion independently authenticated in repository | NOT CLAIMED |
+| Production Finance journal posting | NOT IN SCOPE / BLOCKED PENDING FINANCE ADAPTER APPROVAL |
+| Production deployment and merge | NOT AUTHORIZED |
+
+This record distinguishes Owner-confirmed corporate approval from an independently issued Ethiopian counsel opinion. It does not purport to be the latter.
