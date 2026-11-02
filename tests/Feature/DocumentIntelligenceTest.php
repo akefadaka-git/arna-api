@@ -58,7 +58,7 @@ final class DocumentIntelligenceTest extends TestCase
             'actor_id' => $user->id,
             'event' => 'job.created',
         ]);
-        Bus::assertDispatched(ProcessOcrDocument::class, 1);
+        Bus::assertDispatchedTimes(ProcessOcrDocument::class, 1);
     }
 
     public function test_ocr_result_cannot_be_read_across_tenant_boundary(): void
