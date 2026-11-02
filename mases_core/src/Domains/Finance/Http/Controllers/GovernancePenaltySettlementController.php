@@ -90,6 +90,7 @@ final class GovernancePenaltySettlementController extends Controller
         return response()->json(['success'=>true,'data'=>$result],$result['idempotent_replay']?200:201);
     }
 
+    /** Returns entity-scoped journal balance and settlement amount evidence. */
     public function reconciliation(Request $request): JsonResponse
     {
         $d=$request->validate(['legal_entity_id'=>['required','integer','min:1']]);
