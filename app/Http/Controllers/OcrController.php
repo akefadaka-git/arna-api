@@ -72,12 +72,6 @@ final class OcrController extends Controller
                 : 'The source file cannot be processed.');
         }
 
-        if ($job->wasRecentlyCreated) {
-            OcrProcessingEvent::query()->create([
-                'tenant_id' => $tenantId, 'job_id' => $job->id, 'actor_id' => $user->id,
-                'event' => 'job.created', 'details' => ['file_id' => $job->file_id, 'file_version' => $job->file_version],
-            ]);
-        }
         $this->logAudit(action: 'ocr.job.created', resourceType: 'ocr_job', resourceId: (string) $job->id, newValues: ['file_id' => $job->file_id, 'file_version' => $job->file_version, 'languages' => $job->languages]);
         return response()->json(['success' => true, 'data' => $job], 202);
     }
@@ -86,17 +80,19 @@ final class OcrController extends Controller
     {
         $tenantId = $this->tenantId();
         $this->authorize('ocr.job.retry', $request->user(), $tenantId);
-        $job = DB::transaction(function () use ($tenantId, $id): OcrProcessingJob {
+        /** @var User $user */
+        $user = $request->user();
+        $job = DB::transaction(function () use ($tenantId, $id, $user): OcrProcessingJob {
             $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($id);
             abort_unless($job->status === 'failed', 409, 'Only failed OCR jobs may be retried.');
             $job->update(['status' => 'queued', 'failure_code' => null, 'failure_message' => null, 'completed_at' => null]);
+            OcrProcessingEvent::query()->create(['tenant_id' => $tenantId, 'job_id' => $job->id, 'actor_id' => $user->id, 'event' => 'job.retried']);
             return $job;
         });
         ProcessOcrDocument::dispatch($job->id)
             ->onConnection((string) config('ocr.connection'))
             ->onQueue((string) config('ocr.queue'))
             ->afterCommit();
-        OcrProcessingEvent::query()->create(['tenant_id' => $tenantId, 'job_id' => $job->id, 'actor_id' => $request->user()->id, 'event' => 'job.retried']);
         $this->logAudit(action: 'ocr.job.retried', resourceType: 'ocr_job', resourceId: (string) $job->id);
         return response()->json(['success' => true, 'data' => $job], 202);
     }
@@ -116,7 +112,7 @@ final class OcrController extends Controller
         $this->authorize('ocr.audit.view', $request->user(), $tenantId);
         $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->findOrFail($id);
         $events = OcrProcessingEvent::query()->where('tenant_id', $tenantId)->where('job_id', $job->id)
-            ->with('actor:id,name')->orderByDesc('created_at')->paginate(50);
+            ->with('actor:id')->orderByDesc('created_at')->paginate(50);
         return response()->json(['success' => true, 'data' => $events->items(), 'meta' => [
             'current_page' => $events->currentPage(), 'last_page' => $events->lastPage(),
             'per_page' => $events->perPage(), 'total' => $events->total(),
