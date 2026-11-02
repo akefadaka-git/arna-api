@@ -22,7 +22,7 @@ final class ShareholderDividendPayable extends Model
     protected $fillable = [
         'tenant_id', 'legal_entity_id', 'shareholder_id', 'distribution_reference',
         'declared_on', 'due_on', 'net_payable_amount', 'cash_paid_amount',
-        'penalty_offset_amount', 'status', 'approval_reference', 'approved_by', 'approved_at',
+        'penalty_offset_amount', 'status', 'approval_reference', 'created_by', 'approved_by', 'approved_at',
     ];
 
     protected $casts = [
@@ -34,6 +34,7 @@ final class ShareholderDividendPayable extends Model
         'net_payable_amount' => 'decimal:4',
         'cash_paid_amount' => 'decimal:4',
         'penalty_offset_amount' => 'decimal:4',
+        'created_by' => 'integer',
         'approved_by' => 'integer',
         'approved_at' => 'datetime',
     ];
