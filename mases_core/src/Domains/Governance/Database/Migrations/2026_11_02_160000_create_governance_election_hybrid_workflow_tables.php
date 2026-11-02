@@ -27,10 +27,10 @@ return new class extends Migration
         });
 
         Schema::table('governance_election_nominations', function (Blueprint $table): void {
-            $table->unsignedBigInteger('candidate_person_id')->nullable()->index();
+            $table->unsignedBigInteger('candidate_person_id')->nullable()->index('gov_elec_nom_candidate_person_idx');
             $table->string('candidate_name_snapshot', 180)->nullable();
             $table->string('nomination_source', 24)->default('shareholder');
-            $table->unsignedBigInteger('nominated_by_shareholder_id')->nullable()->index();
+            $table->unsignedBigInteger('nominated_by_shareholder_id')->nullable()->index('gov_elec_nom_nominated_by_idx');
             $table->text('nomination_statement')->nullable();
             $table->string('committee_status', 24)->default('pending')->index();
             $table->text('committee_reason')->nullable();
