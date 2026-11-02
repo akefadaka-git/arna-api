@@ -868,6 +868,82 @@ final class FinanceGeneralLedgerTest extends TestCase
         ]);
     }
 
+
+    #[Test]
+    public function test_income_statement_aggregates_posted_revenue_and_expenses_for_the_requested_period(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        $revenue = LedgerAccount::query()->create([
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'code' => 'REV-TEST',
+            'name_en' => 'Test Revenue',
+            'account_type' => 'revenue',
+            'normal_balance' => 'credit',
+            'is_posting_allowed' => true,
+            'status' => 'active',
+        ]);
+        $expense = LedgerAccount::query()->create([
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'code' => 'EXP-TEST',
+            'name_en' => 'Test Expense',
+            'account_type' => 'expense',
+            'normal_balance' => 'debit',
+            'is_posting_allowed' => true,
+            'status' => 'active',
+        ]);
+
+        $journals = app(JournalEntryService::class);
+        $revenueDraft = $journals->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-IS-REVENUE',
+            'effective_date' => '2026-10-10',
+            'description' => 'Income statement revenue fixture',
+            'currency' => 'ETB',
+            'idempotency_key' => 'income-statement-revenue-fixture',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '100.0000', 'credit_amount' => '0'],
+            ['account_id' => $revenue->id, 'debit_amount' => '0', 'credit_amount' => '100.0000'],
+        ]);
+        $journals->post((int) $tenant->id, (int) $user->id, (int) $revenueDraft->id);
+
+        $expenseDraft = $journals->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-IS-EXPENSE',
+            'effective_date' => '2026-10-12',
+            'description' => 'Income statement expense fixture',
+            'currency' => 'ETB',
+            'idempotency_key' => 'income-statement-expense-fixture',
+        ], [
+            ['account_id' => $expense->id, 'debit_amount' => '40.0000', 'credit_amount' => '0'],
+            ['account_id' => $cash->id, 'debit_amount' => '0', 'credit_amount' => '40.0000'],
+        ]);
+        $journals->post((int) $tenant->id, (int) $user->id, (int) $expenseDraft->id);
+
+        $report = app(FinancialReportService::class)->incomeStatement(
+            (int) $tenant->id,
+            (int) $entity->id,
+            '2026-10-01',
+            '2026-10-31',
+        );
+
+        $this->assertSame('ETB', $report['currency']);
+        $this->assertSame('100.0000', $report['summary']['total_revenue']);
+        $this->assertSame('40.0000', $report['summary']['total_expenses']);
+        $this->assertSame('60.0000', $report['summary']['net_income']);
+
+        $balanceSheet = app(FinancialReportService::class)->balanceSheet(
+            (int) $tenant->id,
+            (int) $entity->id,
+            '2026-10-31',
+        );
+        $this->assertSame('60.0000', $balanceSheet['summary']['total_assets']);
+        $this->assertSame('60.0000', $balanceSheet['summary']['total_liabilities_and_equity']);
+        $this->assertTrue($balanceSheet['summary']['is_balanced']);
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
