@@ -571,39 +571,39 @@ Route::name('api.governance.')->group(static function (): void {
 
     // Meeting, attendance, proxy, penalty and Finance reconciliation lifecycle (A3).
     Route::prefix('/meetings')->name('meetings.')->group(static function (): void {
-        Route::get('/finance-reconciliation', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'financeReconciliationQueue'])
+        Route::get('/finance-reconciliation', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'financeReconciliationQueue'])
             ->middleware('auth.permission:finance.journal.view')->name('finance-reconciliation.index');
-        Route::get('/', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'index'])
+        Route::get('/', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'index'])
             ->middleware('auth.permission:governance.body.view')->name('index');
-        Route::post('/', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'store'])
+        Route::post('/', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'store'])
             ->middleware('auth.permission:governance.body.manage')->name('store');
-        Route::get('/{meeting}', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'show'])
+        Route::get('/{meeting}', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'show'])
             ->whereNumber('meeting')->middleware('auth.permission:governance.body.view')->name('show');
-        Route::post('/{meeting}/start', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'start'])
+        Route::post('/{meeting}/start', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'start'])
             ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('start');
-        Route::post('/{meeting}/proxies', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'submitProxy'])
+        Route::post('/{meeting}/proxies', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'submitProxy'])
             ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('proxies.store');
-        Route::post('/{meeting}/proxies/{proxy}/review', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reviewProxy'])
+        Route::post('/{meeting}/proxies/{proxy}/review', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'reviewProxy'])
             ->whereNumber('meeting')->whereNumber('proxy')->middleware('auth.permission:governance.body.manage')->name('proxies.review');
-        Route::post('/{meeting}/attendance', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'recordArrival'])
+        Route::post('/{meeting}/attendance', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'recordArrival'])
             ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('attendance.store');
-        Route::post('/{meeting}/absence-authorizations', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'authorizeAbsence'])
+        Route::post('/{meeting}/absence-authorizations', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'authorizeAbsence'])
             ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('absence-authorizations.store');
-        Route::post('/{meeting}/close', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'close'])
+        Route::post('/{meeting}/close', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'close'])
             ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('close');
-        Route::post('/{meeting}/penalties/{penalty}/review', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reviewPenalty'])
+        Route::post('/{meeting}/penalties/{penalty}/review', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'reviewPenalty'])
             ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.review');
-        Route::post('/{meeting}/penalties/{penalty}/dispute', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'disputePenalty'])
+        Route::post('/{meeting}/penalties/{penalty}/dispute', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'disputePenalty'])
             ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.dispute');
-        Route::post('/{meeting}/penalties/{penalty}/payments', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'recordPayment'])
+        Route::post('/{meeting}/penalties/{penalty}/payments', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'recordPayment'])
             ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.payments.store');
-        Route::post('/{meeting}/penalties/{penalty}/dividend-settlement-requests', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'requestDividendOffset'])
+        Route::post('/{meeting}/penalties/{penalty}/dividend-settlement-requests', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'requestDividendOffset'])
             ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.dividend-settlement-requests.store');
-        Route::post('/{meeting}/payments/{payment}/reconcile', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reconcilePayment'])
+        Route::post('/{meeting}/payments/{payment}/reconcile', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'reconcilePayment'])
             ->whereNumber('meeting')->whereNumber('payment')->middleware('auth.permission:finance.journal.post')->name('payments.reconcile');
-        Route::post('/{meeting}/dividend-settlement-requests/{settlement}/review', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reviewDividendSettlement'])
+        Route::post('/{meeting}/dividend-settlement-requests/{settlement}/review', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'reviewDividendSettlement'])
             ->whereNumber('meeting')->whereNumber('settlement')->middleware('auth.permission:finance.journal.post')->name('dividend-settlement-requests.review');
-        Route::post('/{meeting}/dividend-settlement-requests/{settlement}/reconcile', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reconcileDividendSettlement'])
+        Route::post('/{meeting}/dividend-settlement-requests/{settlement}/reconcile', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\MeetingAttendanceController::class, 'reconcileDividendSettlement'])
             ->whereNumber('meeting')->whereNumber('settlement')->middleware('auth.permission:finance.journal.post')->name('dividend-settlement-requests.reconcile');
     });
 
