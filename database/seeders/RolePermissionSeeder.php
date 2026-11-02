@@ -322,9 +322,13 @@ final class RolePermissionSeeder extends Seeder
              * value.
              */
             if (str_starts_with($entry, 'scope:')) {
-                $scope = substr($entry, 6);
+                $parts = explode(':', $entry, 4);
+                $scope = $parts[1] ?? '';
+                $excludedPrefix = (($parts[2] ?? null) === 'exclude') ? ($parts[3] ?? '') : null;
                 foreach ($permissions as $permission) {
-                    if ($permission->scope === $scope) {
+                    $matchesScope = $permission->scope === $scope;
+                    $isExcluded = $excludedPrefix !== null && str_starts_with($permission->slug, $excludedPrefix);
+                    if ($matchesScope && !$isExcluded) {
                         $ids[] = (int) $permission->id;
                     }
                 }
