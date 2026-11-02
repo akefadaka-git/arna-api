@@ -369,10 +369,12 @@ final class MeetingAttendanceService
                 ->where('payments.finance_reconciliation_status', 'pending')
                 ->select('payments.*', 'meetings.id as meeting_id', 'meetings.finance_legal_entity_id')
                 ->orderBy('payments.id')->limit(500)->get(),
-            'dividend_settlements' => DB::table('governance_meeting_dividend_settlement_requests')
-                ->where('tenant_id', $tenantId)
-                ->whereIn('status', ['pending_finance_legal_review', 'approved'])
-                ->orderBy('id')->limit(500)->get(),
+            'dividend_settlements' => DB::table('governance_meeting_dividend_settlement_requests as settlements')
+                ->join('governance_meeting_penalties as penalties', 'penalties.id', '=', 'settlements.penalty_id')
+                ->where('settlements.tenant_id', $tenantId)
+                ->whereIn('settlements.status', ['pending_finance_legal_review', 'approved'])
+                ->select('settlements.*', 'penalties.meeting_id')
+                ->orderBy('settlements.id')->limit(500)->get(),
         ];
     }
 
