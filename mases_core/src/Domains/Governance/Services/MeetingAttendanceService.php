@@ -116,7 +116,7 @@ final class MeetingAttendanceService
             $meeting = $this->meeting($meetingId, true);
             if ($meeting->status !== 'scheduled') throw ValidationException::withMessages(['meeting_id' => 'Proxy instruments must be received before the meeting starts.']);
             $principal = $this->membership((int) $data['principal_membership_id'], (int) $meeting->governance_body_id);
-            $appointed = CarbonImmutable::parse($data['appointed_at']);
+            $appointed = CarbonImmutable::parse($data['appointed_at'], $meeting->timezone);
             $received = now();
             $cutoff = CarbonImmutable::parse($meeting->scheduled_at, $meeting->timezone)
                 ->sub($meeting->meeting_kind === 'ga' ? '3 days' : '3 hours');
@@ -270,10 +270,15 @@ final class MeetingAttendanceService
             $this->meeting($meetingId, true);
             $penalty = DB::table('governance_meeting_penalties')->where('tenant_id', $this->tenantId())
                 ->where('meeting_id', $meetingId)->where('id', $penaltyId)->lockForUpdate()->first();
-            if (!$penalty || $penalty->status !== 'pending_review') throw ValidationException::withMessages(['penalty_id' => 'Only a pending penalty can be assessed or waived.']);
+            if (!$penalty || !in_array($penalty->status, ['pending_review', 'disputed'], true)) {
+                throw ValidationException::withMessages(['penalty_id' => 'Only a pending or disputed penalty can be assessed or waived.']);
+            }
+            if ($penalty->status === 'disputed' && (int) $penalty->disputed_by === $this->actorId()) {
+                throw ValidationException::withMessages(['decision' => 'The dispute reviewer cannot decide their own dispute.']);
+            }
             $attendance = DB::table('governance_meeting_attendance')->where('meeting_id', $meetingId)
                 ->where('membership_id', $penalty->membership_id)->first();
-            if ($attendance && (int) $attendance->recorded_by === $this->actorId()) {
+            if ($penalty->status === 'pending_review' && $attendance && (int) $attendance->recorded_by === $this->actorId()) {
                 throw ValidationException::withMessages(['decision' => 'The attendance recorder cannot approve or waive the resulting penalty.']);
             }
             $status = $data['decision'] === 'assess' ? 'assessed' : 'waived';
@@ -283,6 +288,26 @@ final class MeetingAttendanceService
             ]);
             $updated = DB::table('governance_meeting_penalties')->where('id', $penaltyId)->first();
             $this->audit($meetingId, 'penalty.'.$status, 'penalty', $penaltyId, (array) $penalty, (array) $updated);
+            return $updated;
+        });
+    }
+
+
+    public function disputePenalty(int $meetingId, int $penaltyId, array $data): object
+    {
+        return DB::transaction(function () use ($meetingId, $penaltyId, $data): object {
+            $this->meeting($meetingId, true);
+            $penalty = DB::table('governance_meeting_penalties')->where('tenant_id', $this->tenantId())
+                ->where('meeting_id', $meetingId)->where('id', $penaltyId)->lockForUpdate()->first();
+            if (!$penalty || !in_array($penalty->status, ['assessed', 'partially_paid'], true)) {
+                throw ValidationException::withMessages(['penalty_id' => 'Only an assessed or partially paid penalty can be disputed.']);
+            }
+            DB::table('governance_meeting_penalties')->where('id', $penaltyId)->update([
+                'status' => 'disputed', 'disputed_by' => $this->actorId(),
+                'disputed_at' => now(), 'dispute_reason' => $data['reason'], 'updated_at' => now(),
+            ]);
+            $updated = DB::table('governance_meeting_penalties')->where('id', $penaltyId)->first();
+            $this->audit($meetingId, 'penalty.disputed', 'penalty', $penaltyId, (array) $penalty, (array) $updated);
             return $updated;
         });
     }
