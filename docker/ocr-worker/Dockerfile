@@ -11,8 +11,9 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/arna
 COPY . .
-RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader \
-    && mkdir -p /tmp/arna-ocr storage/app/private/ocr-tmp \
+RUN mkdir -p /tmp/arna-ocr storage/app/private/ocr-tmp storage/logs \
+        storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache \
+    && composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader \
     && chown -R www-data:www-data /var/www/arna /tmp/arna-ocr \
     && chmod 0700 /tmp/arna-ocr
 
