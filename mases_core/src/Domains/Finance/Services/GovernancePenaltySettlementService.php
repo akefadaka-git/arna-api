@@ -50,6 +50,11 @@ final class GovernancePenaltySettlementService
             if ($mapping->status !== GovernanceSettlementAccountMapping::STATUS_PENDING || (int)$mapping->created_by === $actorId) {
                 throw ValidationException::withMessages(['mapping'=>'Only a pending mapping submitted by another officer can be approved.']);
             }
+            DB::table('legal_entities')->where('tenant_id',$tenantId)->where('id',$mapping->legal_entity_id)->lockForUpdate()->firstOrFail();
+            $alreadyApproved = GovernanceSettlementAccountMapping::query()->forEntity($tenantId,(int)$mapping->legal_entity_id)
+                ->where('account_role',$mapping->account_role)->where('status',GovernanceSettlementAccountMapping::STATUS_APPROVED)
+                ->whereKeyNot($mapping->id)->exists();
+            if ($alreadyApproved) throw new ConflictHttpException('Another approved mapping already exists for this account role.');
             $account = LedgerAccount::query()->where('tenant_id',$tenantId)->where('legal_entity_id',$mapping->legal_entity_id)->whereKey($mapping->ledger_account_id)->where('status','active')->where('is_posting_allowed',true)->first();
             if (!$account) throw ValidationException::withMessages(['ledger_account_id'=>'The mapped account is no longer eligible.']);
             $expected = match ($mapping->account_role) {
