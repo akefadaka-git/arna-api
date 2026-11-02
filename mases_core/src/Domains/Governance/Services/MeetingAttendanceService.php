@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
 use Carbon\CarbonImmutable;
-use Illuminate\Database\QueryException;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;\nuse MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
