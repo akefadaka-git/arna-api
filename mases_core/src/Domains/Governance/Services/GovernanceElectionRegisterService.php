@@ -51,6 +51,11 @@ final class GovernanceElectionRegisterService
             ->join('share_classes as c', 'c.id', '=', 'h.share_class_id')
             ->where('s.tenant_id', $tenantId)
             ->whereNull('s.deleted_at')
+            ->whereExists(function ($query) use ($cutoff): void {
+                $query->selectRaw('1')->from('share_holding_entries as e')
+                    ->whereColumn('e.share_holding_id', 'h.id')
+                    ->where('e.occurred_at', '<=', $cutoff);
+            })
             ->select(['h.id as holding_id', 'h.shareholder_id', 'c.code as class_code'])
             ->orderBy('h.shareholder_id')->orderBy('c.code')->get();
 
