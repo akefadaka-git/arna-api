@@ -795,13 +795,13 @@ return [
     */
     'election_committee' => [
         'authority_record' => 'ARNA-GOV-ELE-AUTH-001',
-        'adoption_date_ec' => '2018-01-01',
+        'adoption_date_ec' => 'ነሐሴ 01/2018',
         'composition' => [
             'general_assembly_non_board_members' => 3,
             'legal_advisor' => [
                 'count' => 1,
                 'capacity' => 'ex_officio',
-                'voting_default' => false,
+                'voting_eligibility' => 'unresolved_requires_instrument',
             ],
             'supervisory_committee_member' => 1,
         ],
