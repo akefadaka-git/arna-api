@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Governance\\Services;
+namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
-use Illuminate\\Support\\Carbon;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceElection;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\Shareholder;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use RuntimeException;
 
 /**
@@ -21,12 +21,12 @@ final class GovernanceElectionRegisterService
         self::assertDecimalArithmetic();
         $quantity = (string) $shareQuantity;
         $rate = (string) $votesPerShare;
-        if (!preg_match('/^\\d+(?:\\.\\d{1,4})?$/', $quantity)
+        if (!preg_match('/^\d+(?:\.\d{1,4})?$/', $quantity)
             || bccomp($quantity, '0', 4) <= 0
             || bccomp($quantity, bcadd($quantity, '0', 0), 4) !== 0) {
             throw ValidationException::withMessages(['share_quantity' => 'Voting shares must be a positive whole-share quantity.']);
         }
-        if (!preg_match('/^\\d+(?:\\.\\d{1,4})?$/', $rate) || bccomp($rate, '0', 4) <= 0) {
+        if (!preg_match('/^\d+(?:\.\d{1,4})?$/', $rate) || bccomp($rate, '0', 4) <= 0) {
             throw ValidationException::withMessages(['votes_per_share' => 'A verified positive class voting rate is required.']);
         }
         return bcmul($quantity, $rate, 4);
