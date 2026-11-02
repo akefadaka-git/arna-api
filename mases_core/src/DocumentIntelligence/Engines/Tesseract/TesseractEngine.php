@@ -118,7 +118,7 @@ final class TesseractEngine implements OcrEngineInterface
     private function run(array $command): string
     {
         $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-        $process = proc_open($command, $descriptors, $pipes, null, ['PATH' => '/usr/bin:/bin']);
+        $process = proc_open($command, $descriptors, $pipes, null, ['PATH' => '/usr/bin:/bin', 'LANG' => 'C.UTF-8', 'LC_ALL' => 'C.UTF-8']);
         if (!is_resource($process)) {
             throw new RuntimeException('OCR_PROCESS_START_FAILED');
         }
@@ -127,6 +127,7 @@ final class TesseractEngine implements OcrEngineInterface
         stream_set_blocking($pipes[2], false);
         $stdout = '';
         $stderr = '';
+        $maxOutputBytes = (int) config('ocr.max_process_output_bytes', 10485760);
         $deadline = microtime(true) + (int) config('ocr.timeout_seconds', 90);
         $exitCode = null;
 
@@ -134,6 +135,10 @@ final class TesseractEngine implements OcrEngineInterface
             while (true) {
                 $stdout .= stream_get_contents($pipes[1]) ?: '';
                 $stderr .= stream_get_contents($pipes[2]) ?: '';
+                if (strlen($stdout) + strlen($stderr) > $maxOutputBytes) {
+                    proc_terminate($process, 9);
+                    throw new RuntimeException('OCR_PROCESS_OUTPUT_LIMIT_EXCEEDED');
+                }
                 $status = proc_get_status($process);
                 if (!$status['running']) {
                     $exitCode = $status['exitcode'];
