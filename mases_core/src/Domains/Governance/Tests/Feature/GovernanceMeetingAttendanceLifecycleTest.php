@@ -123,17 +123,13 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
             'decision' => 'accept', 'reason' => 'Validated director proxy.',
         ])->assertOk()->assertJsonPath('data.status', 'accepted');
 
-        $second = $this->postJson(route('api.governance.meetings.proxies.store', ['meeting' => $meeting->id]), [
+        $this->postJson(route('api.governance.meetings.proxies.store', ['meeting' => $meeting->id]), [
             'principal_membership_id' => $secondPrincipal->id,
             'representative_membership_id' => $representative->id,
             'representative_name' => 'Representative Director',
             'instrument_reference' => 'BOARD-PROXY-002',
             'appointed_at' => now()->subMinutes(5)->toDateTimeString(),
-        ])->assertCreated()->json('data');
-
-        $this->postJson(route('api.governance.meetings.proxies.review', ['meeting' => $meeting->id, 'proxy' => $second['id']]), [
-            'decision' => 'accept', 'reason' => 'Second proxy must be rejected.',
-        ])->assertUnprocessable();
+        ])->assertUnprocessable()->assertJsonValidationErrors(['representative_membership_id']);
     }
 
     public function test_ga_proxy_is_rejected_inside_the_three_day_submission_deadline(): void
@@ -261,7 +257,7 @@ final class GovernanceMeetingAttendanceLifecycleTest extends TestCase
 
     private function meeting(GovernanceBody $body, string $kind, \Carbon\CarbonInterface $scheduledAt): object
     {
-        return $this->postJson(route('api.governance.meetings.store'), [
+        return (object) $this->postJson(route('api.governance.meetings.store'), [
             'governance_body_id' => $body->id,
             'meeting_kind' => $kind,
             'scheduled_at' => $scheduledAt->toDateTimeString(),
