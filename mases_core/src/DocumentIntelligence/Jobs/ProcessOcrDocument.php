@@ -91,11 +91,15 @@ final class ProcessOcrDocument implements ShouldQueue
             }
             chmod($temporary, 0600);
             if (filesize($temporary) > (int) config('ocr.max_file_bytes')) {
-                throw new RuntimeException('OCR_FILE_SIZE_LIMIT_EXCEEDED');
+                $job->update(['status' => 'rejected', 'failure_code' => 'OCR_FILE_SIZE_LIMIT_EXCEEDED', 'completed_at' => now()]);
+                OcrProcessingEvent::query()->create(['tenant_id' => $job->tenant_id, 'job_id' => $job->id, 'event' => 'processing.rejected', 'details' => ['reason' => 'file_size']]);
+                return;
             }
             $detectedMime = (new \finfo(FILEINFO_MIME_TYPE))->file($temporary);
             if (!is_string($detectedMime) || $detectedMime !== $file->mime_type) {
-                throw new RuntimeException('OCR_SOURCE_MIME_MISMATCH');
+                $job->update(['status' => 'rejected', 'failure_code' => 'OCR_SOURCE_MIME_MISMATCH', 'completed_at' => now()]);
+                OcrProcessingEvent::query()->create(['tenant_id' => $job->tenant_id, 'job_id' => $job->id, 'event' => 'processing.rejected', 'details' => ['reason' => 'mime_mismatch']]);
+                return;
             }
             $checksum = hash_file('sha256', $temporary);
             $recognized = $engine->recognize($temporary, (string) $file->mime_type, $job->languages);
