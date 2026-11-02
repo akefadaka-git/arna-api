@@ -40,6 +40,18 @@ final class GovernanceElectionEndpointsTest extends TestCase
         $this->assertSame('require_verified_operative_articles', $voting['articles_override']);
     }
 
+    public function test_voting_weight_is_derived_from_whole_share_quantity(): void
+    {
+        $this->assertSame('40.0000', GovernanceElectionRegisterService::defaultVotingWeight('40'));
+        $this->assertSame('10.0000', GovernanceElectionRegisterService::defaultVotingWeight('10.0000'));
+    }
+
+    public function test_fractional_share_quantity_cannot_create_voting_entitlement(): void
+    {
+        $this->expectException(ValidationException::class);
+        GovernanceElectionRegisterService::defaultVotingWeight('10.5');
+    }
+
     public function test_election_collection_requires_authenticated_session(): void
     {
         $this->getJson('/api/governance/elections')->assertUnauthorized();
