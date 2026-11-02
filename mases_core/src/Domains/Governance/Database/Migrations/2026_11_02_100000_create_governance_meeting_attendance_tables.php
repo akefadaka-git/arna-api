@@ -56,7 +56,17 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->foreignId('meeting_id')->constrained('governance_meetings')->restrictOnDelete();
             $table->unsignedBigInteger('membership_id');
+            $table->unsignedBigInteger('shareholder_id')->nullable();
             $table->foreignId('proxy_id')->nullable()->constrained('governance_meeting_proxies')->nullOnDelete();
+            $table->string('attendee_name_snapshot', 180)->nullable();
+            $table->text('attendee_address_snapshot')->nullable();
+            $table->decimal('share_count_snapshot', 20, 4)->nullable();
+            $table->decimal('vote_count_snapshot', 20, 4)->nullable();
+            $table->string('entitlement_source_reference', 180)->nullable();
+            $table->string('initialed_by_name', 180)->nullable();
+            $table->dateTime('initialed_at')->nullable();
+            $table->string('signature_method', 16)->nullable();
+            $table->string('signature_reference', 180)->nullable();
             $table->string('status', 20);
             $table->dateTime('arrived_at')->nullable();
             $table->boolean('absence_authorized')->default(false);
@@ -67,7 +77,7 @@ return new class extends Migration
             $table->string('notes', 1000)->nullable();
             $table->timestamps();
             $table->unique(['meeting_id', 'membership_id'], 'gattendance_meeting_member_uq');
-            $table->index(['tenant_id', 'meeting_id', 'status'], 'gattendance_tenant_meeting_status_idx');
+            $table->index(['tenant_id', 'meeting_id', 'status'], 'gattendance_tenant_meeting_status_idx');\n            $table->index(['tenant_id', 'shareholder_id'], 'gattendance_tenant_shareholder_idx');
         });
 
         Schema::create('governance_meeting_penalties', function (Blueprint $table): void {
