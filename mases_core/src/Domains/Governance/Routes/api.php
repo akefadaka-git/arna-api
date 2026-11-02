@@ -602,4 +602,21 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.body.manage')
         ->name('penalties.settlements.store');
 
+    Route::post('/meetings/{meeting}/attendance/corrections', [GovernanceMeetingAttendanceController::class, 'requestAttendanceCorrection'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('meetings.attendance.corrections.store');
+    Route::patch('/attendance-corrections/{correction}/review', [GovernanceMeetingAttendanceController::class, 'reviewAttendanceCorrection'])
+        ->whereNumber('correction')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('attendance-corrections.review');
+    Route::post('/penalties/{penalty}/disputes', [GovernanceMeetingAttendanceController::class, 'submitPenaltyDispute'])
+        ->whereNumber('penalty')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('penalties.disputes.store');
+    Route::patch('/penalty-disputes/{dispute}/review', [GovernanceMeetingAttendanceController::class, 'reviewPenaltyDispute'])
+        ->whereNumber('dispute')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('penalty-disputes.review');
+
 });
