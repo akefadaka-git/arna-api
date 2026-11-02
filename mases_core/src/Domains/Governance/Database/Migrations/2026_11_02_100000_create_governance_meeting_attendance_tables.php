@@ -14,6 +14,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->foreignId('governance_body_id')->constrained('governance_bodies')->restrictOnDelete();
+            $table->foreignId('finance_legal_entity_id')->nullable()->constrained('legal_entities')->nullOnDelete();
             $table->string('meeting_kind', 16);
             $table->string('title_am', 180)->nullable();
             $table->string('title_en', 180)->nullable();
