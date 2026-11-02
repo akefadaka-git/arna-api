@@ -62,6 +62,28 @@ final class GovernancePenaltySettlementAccountingTest extends TestCase
             $this->assertSame(0,bccomp((string)$totals->debits,(string)$totals->credits,4));
             $this->assertSame(0,bccomp((string)$totals->debits,'20.0000',4) === 0 || bccomp((string)$totals->debits,'30.0000',4) === 0 ? 0 : 1);
         }
+
+        $reportPermission = Permission::query()->create([
+            'slug'=>'finance.report.view','name_am'=>'Finance report view','name_en'=>'Finance report view',
+            'description_am'=>'Finance report view','description_en'=>'Finance report view','category'=>'finance',
+            'scope'=>'tenant','tenant_id'=>null,'application_id'=>null,'is_active'=>true,'is_system'=>true,
+        ]);
+        $maker->tenants()->attach($tenant->id,['joined_at'=>now()]);
+        $maker->permissions()->attach($reportPermission->id);
+        $maker->load('permissions');
+        $this->app->instance('tenant',$tenant);
+        $this->app->instance('mases.tenant',$tenant);
+        $this->app->instance('current_tenant',$tenant);
+        Sanctum::actingAs($maker,['*']);
+        $reconciliation = $this->withHeaders(['X-Tenant-ID'=>(string)$tenant->id])
+            ->getJson(route('api.finance.governance-settlement.reconciliation').'?legal_entity_id='.$entity->id)
+            ->assertOk()->assertJsonCount(4,'data');
+        foreach ($reconciliation->json('data') as $row) {
+            $this->assertSame('VERIFIED',$row['reconciliation_status']);
+            $this->assertTrue($row['journal_balanced']);
+            $this->assertTrue($row['journal_amount_matches']);
+            $this->assertSame(2,(int)$row['source_journal_count']);
+        }
     }
 
     private function fixture(): array
