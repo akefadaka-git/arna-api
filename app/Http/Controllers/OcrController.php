@@ -72,6 +72,23 @@ final class OcrController extends Controller
         return response()->json(['success' => true, 'data' => $job], 202);
     }
 
+    public function retry(Request $request, int $id): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $this->authorize('ocr.job.retry', $request->user(), $tenantId);
+        $job = DB::transaction(function () use ($tenantId, $id): OcrProcessingJob {
+            $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($id);
+            abort_unless($job->status === 'failed', 409, 'Only failed OCR jobs may be retried.');
+            $job->update(['status' => 'queued', 'failure_code' => null, 'failure_message' => null, 'completed_at' => null]);
+            return $job;
+        });
+        \\MaaleArna\\MASES\\Core\\DocumentIntelligence\\Jobs\\ProcessOcrDocument::dispatch($job->id)
+            ->onConnection((string) config('ocr.connection'))
+            ->onQueue((string) config('ocr.queue'))
+            ->afterCommit();
+        return response()->json(['success' => true, 'data' => $job], 202);
+    }
+
     public function showJob(Request $request, int $id): JsonResponse
     {
         $tenantId = $this->tenantId();
