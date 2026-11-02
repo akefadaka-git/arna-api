@@ -129,6 +129,7 @@ jobs:
           php -l mases_core/src/Domains/Finance/Http/Controllers/GovernancePenaltySettlementController.php
           php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_02_120000_create_governance_settlement_finance_tables.php
           php -l mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
+          php -l mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAccountingTest.php
           php -l mases_core/src/Domains/Governance/Policies/GovernancePositionPolicy.php
           php -l mases_core/src/Domains/Governance/Policies/GovernanceAppointmentPolicy.php
           php -l mases_core/src/Domains/Governance/Policies/GovernanceMembershipPolicy.php
@@ -152,3 +153,4 @@ jobs:
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/FinanceSourceEntityMappingResolverTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
+          vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAccountingTest.php
