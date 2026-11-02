@@ -49,7 +49,10 @@ return new class extends Migration
             $table->foreignId('meeting_id')->constrained('governance_meetings')->restrictOnDelete();
             $table->string('principal_type', 24);
             $table->unsignedBigInteger('principal_id');
-            $table->foreignId('proxy_user_id')->constrained('users')->restrictOnDelete();
+            $table->foreignId('proxy_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('proxy_name_am', 150)->nullable();
+            $table->string('proxy_name_en', 150)->nullable();
+            $table->string('proxy_reference', 100)->nullable();
             $table->foreignId('submitted_by')->constrained('users')->restrictOnDelete();
             $table->dateTime('submitted_at');
             $table->dateTime('deadline_at');
