@@ -56,10 +56,7 @@ final class OcrController extends Controller
         ]);
         $idempotencyKey = (string) ($validated['idempotency_key'] ?? $request->header('Idempotency-Key', ''));
         if (strlen($idempotencyKey) < 16 || strlen($idempotencyKey) > 200) {
-            return response()->json(['success' => false, 'error' => [
-                'code' => 'IDEMPOTENCY_KEY_REQUIRED',
-                'message' => 'Provide an Idempotency-Key header between 16 and 200 characters.',
-            ]], 422);
+            abort(422, 'Provide an idempotency_key in the request body or Idempotency-Key header between 16 and 200 characters.');
         }
         $file = File::query()->where('tenant_id', $tenantId)->findOrFail($validated['file_id']);
 
@@ -69,10 +66,9 @@ final class OcrController extends Controller
             );
         } catch (RuntimeException $exception) {
             $conflict = $exception->getMessage() === 'OCR_IDEMPOTENCY_CONFLICT';
-            return response()->json(['success' => false, 'error' => [
-                'code' => $exception->getMessage(),
-                'message' => $conflict ? 'The idempotency key was already used with a different request.' : 'The source file cannot be processed.',
-            ]], $conflict ? 409 : 422);
+            abort($conflict ? 409 : 422, $conflict
+                ? 'The idempotency key was already used with a different request.'
+                : 'The source file cannot be processed.');
         }
 
         $this->logAudit(action: 'ocr.job.created', resourceType: 'ocr_job', resourceId: (string) $job->id, newValues: ['file_id' => $job->file_id, 'file_version' => $job->file_version, 'languages' => $job->languages]);
@@ -101,7 +97,8 @@ final class OcrController extends Controller
     {
         $tenantId = $this->tenantId();
         $this->authorize('ocr.job.view', $request->user(), $tenantId);
-        $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->with('result.pages')->findOrFail($id);
+        $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->with('result:id,job_id,mean_confidence')->findOrFail($id);
+        $this->logAudit(action: 'ocr.job.viewed', resourceType: 'ocr_job', resourceId: (string) $job->id);
         return response()->json(['success' => true, 'data' => $job]);
     }
 
@@ -110,6 +107,7 @@ final class OcrController extends Controller
         $tenantId = $this->tenantId();
         $this->authorize('ocr.result.view', $request->user(), $tenantId);
         $result = OcrResult::query()->where('tenant_id', $tenantId)->with(['pages', 'verifications', 'corrections'])->findOrFail($id);
+        $this->logAudit(action: 'ocr.result.viewed', resourceType: 'ocr_result', resourceId: (string) $result->id);
         return response()->json(['success' => true, 'data' => $result]);
     }
 
@@ -125,6 +123,7 @@ final class OcrController extends Controller
             $query->where('full_text', 'like', '%' . addcslashes($validated['q'], '%_\\\\') . '%');
         }
         $results = $query->with('file:id,original_name,version')->latest()->paginate(20);
+        $this->logAudit(action: 'ocr.result.searched', resourceType: 'ocr_search', newValues: ['query_length' => mb_strlen($validated['q']), 'result_count' => $results->total()]);
         return response()->json(['success' => true, 'data' => $results->items(), 'meta' => [
             'current_page' => $results->currentPage(), 'last_page' => $results->lastPage(),
             'per_page' => $results->perPage(), 'total' => $results->total(),
@@ -174,7 +173,7 @@ final class OcrController extends Controller
         ]);
         $result = OcrResult::query()->where('tenant_id', $tenantId)->with('pages')->findOrFail($id);
         if (isset($validated['page_number']) && !$result->pages->contains('page_number', $validated['page_number'])) {
-            return response()->json(['success' => false, 'error' => ['code' => 'OCR_PAGE_NOT_FOUND', 'message' => 'The requested page does not belong to this result.']], 422);
+            abort(422, 'The requested page does not belong to this result.');
         }
         $correction = OcrCorrection::query()->create([
             'tenant_id' => $tenantId, 'result_id' => $result->id, 'corrected_by' => $user->id,
