@@ -390,28 +390,33 @@ final class GovernanceMeetingAttendanceController extends Controller
             'reference' => ['nullable', 'string', 'max:100'],
         ]);
         $tenantId = $this->tenantId();
-        $record = DB::table('governance_meeting_penalties')->where('tenant_id', $tenantId)->where('id', $penalty)->first();
-        if (!$record) {
-            throw new NotFoundHttpException('Penalty was not found.');
-        }
-        $paid = (int) DB::table('governance_penalty_settlements')
-            ->where('tenant_id', $tenantId)->where('penalty_id', $penalty)
-            ->whereNotIn('status', ['rejected', 'cancelled'])->sum('amount_cents');
-        $remaining = (int) $record->amount_cents - $paid;
-        if ($data['amount_cents'] > $remaining) {
-            throw ValidationException::withMessages(['amount_cents' => 'Settlement exceeds the assessed outstanding amount.']);
-        }
         $status = $data['method'] === 'dividend_offset' ? 'pending_legal_finance_review' : 'pending_finance';
-        $id = DB::table('governance_penalty_settlements')->insertGetId([
-            'tenant_id' => $tenantId, 'penalty_id' => $penalty, 'method' => $data['method'],
-            'amount_cents' => $data['amount_cents'], 'currency' => 'ETB', 'status' => $status,
-            'reference' => $data['reference'] ?? null, 'recorded_by' => $this->actorId(),
-            'recorded_at' => now(), 'created_at' => now(), 'updated_at' => now(),
-        ]);
-        $this->activity($tenantId, (int) $record->meeting_id, 'penalty.settlement_requested', [
-            'penalty_id' => $penalty, 'settlement_id' => $id, 'method' => $data['method'],
-            'amount_cents' => $data['amount_cents'], 'status' => $status,
-        ]);
+        $id = DB::transaction(function () use ($tenantId, $penalty, $data, $status): int {
+            $record = DB::table('governance_meeting_penalties')
+                ->where('tenant_id', $tenantId)->where('id', $penalty)
+                ->lockForUpdate()->first();
+            if (!$record) {
+                throw new NotFoundHttpException('Penalty was not found.');
+            }
+            $reserved = (int) DB::table('governance_penalty_settlements')
+                ->where('tenant_id', $tenantId)->where('penalty_id', $penalty)
+                ->whereNotIn('status', ['rejected', 'cancelled'])->sum('amount_cents');
+            $remaining = (int) $record->amount_cents - $reserved;
+            if ((int) $data['amount_cents'] > $remaining) {
+                throw ValidationException::withMessages(['amount_cents' => 'Settlement exceeds the assessed outstanding amount.']);
+            }
+            $id = DB::table('governance_penalty_settlements')->insertGetId([
+                'tenant_id' => $tenantId, 'penalty_id' => $penalty, 'method' => $data['method'],
+                'amount_cents' => $data['amount_cents'], 'currency' => 'ETB', 'status' => $status,
+                'reference' => $data['reference'] ?? null, 'recorded_by' => $this->actorId(),
+                'recorded_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->activity($tenantId, (int) $record->meeting_id, 'penalty.settlement_requested', [
+                'penalty_id' => $penalty, 'settlement_id' => $id, 'method' => $data['method'],
+                'amount_cents' => $data['amount_cents'], 'status' => $status,
+            ]);
+            return $id;
+        });
         return response()->json(['success' => true, 'data' => DB::table('governance_penalty_settlements')->where('tenant_id', $tenantId)->find($id)], 201);
     }
 
