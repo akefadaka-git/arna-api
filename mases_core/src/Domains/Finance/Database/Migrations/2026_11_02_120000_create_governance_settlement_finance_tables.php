@@ -45,6 +45,7 @@ return new class extends Migration
             $table->decimal('penalty_offset_amount', 20, 4)->default(0);
             $table->string('status', 16)->default('draft');
             $table->text('approval_reference')->nullable();
+            $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $table->foreignId('approved_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->dateTime('approved_at')->nullable();
             $table->timestamps();
