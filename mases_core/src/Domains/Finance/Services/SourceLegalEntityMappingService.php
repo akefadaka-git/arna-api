@@ -203,6 +203,25 @@ final class SourceLegalEntityMappingService implements SourceLegalEntityMappingC
 
     private function assertSourceExists(int $tenantId, JournalSourceType $sourceType, string $sourceId): void
     {
+        if ($sourceType === JournalSourceType::GOVERNANCE_PENALTY_SETTLEMENT) {
+            $exists = DB::table('governance_penalty_settlements as settlements')
+                ->join('governance_meeting_penalties as penalties', 'penalties.id', '=', 'settlements.penalty_id')
+                ->where('settlements.tenant_id', $tenantId)
+                ->where('settlements.id', $sourceId)
+                ->whereIn('settlements.status', ['pending_finance', 'pending_legal_finance_review'])
+                ->where('penalties.tenant_id', $tenantId)
+                ->where('penalties.status', 'assessed')
+                ->exists();
+
+            if (!$exists) {
+                throw ValidationException::withMessages([
+                    'source_id' => 'The Governance settlement is unavailable, disputed, waived, or no longer eligible for Finance review.',
+                ]);
+            }
+
+            return;
+        }
+
         $modelClass = match ($sourceType) {
             JournalSourceType::SHAREHOLDER => Shareholder::class,
             JournalSourceType::WALLET => Wallet::class,
