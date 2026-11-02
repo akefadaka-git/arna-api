@@ -17,6 +17,7 @@ return new class extends Migration
             $table->unsignedInteger('file_version');
             $table->foreignId('requested_by')->constrained('users')->cascadeOnUpdate()->restrictOnDelete();
             $table->string('idempotency_key', 64);
+            $table->char('request_hash', 64);
             $table->string('languages', 32)->default('amh+eng');
             $table->string('status', 32)->default('queued');
             $table->unsignedSmallInteger('attempts')->default(0);
@@ -25,7 +26,7 @@ return new class extends Migration
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
-            $table->unique(['tenant_id', 'file_id', 'file_version', 'idempotency_key'], 'ocr_job_idempotency_unique');
+            $table->unique(['tenant_id', 'idempotency_key'], 'ocr_job_idempotency_unique');
             $table->index(['tenant_id', 'status', 'created_at'], 'ocr_jobs_tenant_status_idx');
         });
 
