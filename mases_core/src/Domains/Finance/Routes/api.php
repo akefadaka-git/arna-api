@@ -28,3 +28,16 @@ Route::post('/journals/{journalId}/post', [$controller, 'postJournal'])->whereNu
 Route::post('/journals/{journalId}/reverse', [$controller, 'reverseJournal'])->whereNumber('journalId')->middleware('auth.permission:finance.journal.reverse')->name('journals.reverse');
 
 Route::get('/trial-balance', [$controller, 'trialBalance'])->middleware('auth.permission:finance.report.view')->name('reports.trial-balance');
+
+
+$settlementController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\GovernancePenaltySettlementController::class;
+Route::get('/governance-settlement/account-mappings', [$settlementController, 'accountMappings'])->middleware('auth.permission:finance.account.view')->name('governance-settlement.account-mappings.index');
+Route::post('/governance-settlement/account-mappings', [$settlementController, 'requestAccountMapping'])->middleware('auth.permission:finance.account.manage')->name('governance-settlement.account-mappings.store');
+Route::post('/governance-settlement/account-mappings/{mappingId}/approve', [$settlementController, 'approveAccountMapping'])->whereNumber('mappingId')->middleware('auth.permission:finance.account.manage')->name('governance-settlement.account-mappings.approve');
+Route::post('/governance-settlement/account-mappings/{mappingId}/revoke', [$settlementController, 'revokeAccountMapping'])->whereNumber('mappingId')->middleware('auth.permission:finance.account.manage')->name('governance-settlement.account-mappings.revoke');
+Route::get('/governance-settlement/dividend-payables', [$settlementController, 'dividendPayables'])->middleware('auth.permission:finance.entity.view')->name('governance-settlement.dividend-payables.index');
+Route::post('/governance-settlement/dividend-payables', [$settlementController, 'createDividendPayable'])->middleware('auth.permission:finance.entity.manage')->name('governance-settlement.dividend-payables.store');
+Route::post('/governance-settlement/dividend-payables/{payableId}/approve', [$settlementController, 'approveDividendPayable'])->whereNumber('payableId')->middleware('auth.permission:finance.entity.manage')->name('governance-settlement.dividend-payables.approve');
+Route::post('/governance-settlement/settlements/{settlementId}/cash', [$settlementController, 'executeCash'])->whereNumber('settlementId')->middleware('auth.permission:finance.journal.post')->name('governance-settlement.settlements.cash');
+Route::post('/governance-settlement/settlements/{settlementId}/dividend-offset', [$settlementController, 'executeDividendOffset'])->whereNumber('settlementId')->middleware('auth.permission:finance.journal.post')->name('governance-settlement.settlements.dividend-offset');
+Route::get('/governance-settlement/reconciliation', [$settlementController, 'reconciliation'])->middleware('auth.permission:finance.report.view')->name('governance-settlement.reconciliation');
