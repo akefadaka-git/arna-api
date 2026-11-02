@@ -22,7 +22,8 @@ final class MeetingAttendanceController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'governance_body_id' => ['required', 'integer', 'min:1'],\n            'finance_legal_entity_id' => ['nullable', 'integer', 'min:1'],
+            'governance_body_id' => ['required', 'integer', 'min:1'],
+            'finance_legal_entity_id' => ['nullable', 'integer', 'min:1'],
             'meeting_kind' => ['required', Rule::in(['ga', 'board'])],
             'title_am' => ['nullable', 'string', 'max:180'],
             'title_en' => ['nullable', 'string', 'max:180'],
@@ -70,7 +71,6 @@ final class MeetingAttendanceController extends Controller
         $data = $request->validate([
             'membership_id' => ['required', 'integer', 'min:1'],
             'proxy_id' => ['nullable', 'integer', 'min:1'],
-            'arrived_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
         return response()->json(['success' => true, 'data' => $this->service->recordArrival($meeting, $data)], 201);
