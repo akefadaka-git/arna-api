@@ -252,35 +252,48 @@ final class GovernanceMeetingAttendanceController extends Controller
             if (!$proxyIsAnotherDirector) {
                 throw ValidationException::withMessages(['proxy_user_id' => 'Board proxy must be another active director; self-proxy and non-director proxies are not allowed.']);
             }
-            $alreadyHoldsProxy = DB::table('governance_meeting_proxies')
-                ->where('tenant_id', $tenantId)
-                ->where('meeting_id', $meeting)
-                ->where('proxy_user_id', $data['proxy_user_id'])
-                ->whereIn('status', ['submitted', 'approved'])
-                ->exists();
-            if ($alreadyHoldsProxy) {
-                throw ValidationException::withMessages(['proxy_user_id' => 'A director may hold no more than one Board proxy for the same meeting.']);
-            }
         }
 
         try {
-            $id = DB::table('governance_meeting_proxies')->insertGetId([
-                'tenant_id' => $tenantId,
-                'meeting_id' => $meeting,
-                'principal_type' => $data['principal_type'],
-                'principal_id' => $data['principal_id'],
-                'proxy_user_id' => $data['proxy_user_id'] ?? null,
-                'proxy_name_am' => $data['proxy_name_am'] ?? null,
-                'proxy_name_en' => $data['proxy_name_en'] ?? null,
-                'proxy_reference' => $data['proxy_reference'] ?? null,
-                'submitted_by' => $this->actorId(),
-                'submitted_at' => $submittedAt->toDateTimeString(),
-                'deadline_at' => $deadline->toDateTimeString(),
-                'status' => 'submitted',
-                'instrument_reference' => $data['instrument_reference'] ?? null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $id = DB::transaction(function () use ($tenantId, $meeting, $data, $submittedAt, $deadline, $isGa): int {
+                DB::table('governance_meetings')
+                    ->where('tenant_id', $tenantId)
+                    ->where('id', $meeting)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$isGa) {
+                    $alreadyHoldsProxy = DB::table('governance_meeting_proxies')
+                        ->where('tenant_id', $tenantId)
+                        ->where('meeting_id', $meeting)
+                        ->where('proxy_user_id', $data['proxy_user_id'])
+                        ->whereIn('status', ['submitted', 'approved'])
+                        ->exists();
+                    if ($alreadyHoldsProxy) {
+                        throw ValidationException::withMessages(['proxy_user_id' => 'A director may hold no more than one Board proxy for the same meeting.']);
+                    }
+                }
+
+                $id = DB::table('governance_meeting_proxies')->insertGetId([
+                    'tenant_id' => $tenantId,
+                    'meeting_id' => $meeting,
+                    'principal_type' => $data['principal_type'],
+                    'principal_id' => $data['principal_id'],
+                    'proxy_user_id' => $data['proxy_user_id'] ?? null,
+                    'proxy_name_am' => $data['proxy_name_am'] ?? null,
+                    'proxy_name_en' => $data['proxy_name_en'] ?? null,
+                    'proxy_reference' => $data['proxy_reference'] ?? null,
+                    'submitted_by' => $this->actorId(),
+                    'submitted_at' => $submittedAt->toDateTimeString(),
+                    'deadline_at' => $deadline->toDateTimeString(),
+                    'status' => 'submitted',
+                    'instrument_reference' => $data['instrument_reference'] ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $this->activity($tenantId, $meeting, 'proxy.submitted', ['proxy_id' => $id, 'principal_type' => $data['principal_type']]);
+                return $id;
+            });
         } catch (QueryException $exception) {
             if ((string) $exception->getCode() === '23000') {
                 throw new ConflictHttpException('A proxy is already registered for this participant and meeting.');
@@ -288,7 +301,6 @@ final class GovernanceMeetingAttendanceController extends Controller
             throw $exception;
         }
 
-        $this->activity($tenantId, $meeting, 'proxy.submitted', ['proxy_id' => $id, 'principal_type' => $data['principal_type']]);
         return response()->json(['success' => true, 'data' => DB::table('governance_meeting_proxies')->where('tenant_id', $tenantId)->find($id)], 201);
     }
 
@@ -307,9 +319,12 @@ final class GovernanceMeetingAttendanceController extends Controller
         if ($record->status !== 'submitted') {
             throw new ConflictHttpException('Only submitted proxies can be reviewed.');
         }
-        DB::table('governance_meeting_proxies')->where('tenant_id', $tenantId)->where('id', $proxy)->update([
-            'status' => $data['decision'], 'updated_at' => now(),
-        ]);
+        $updated = DB::table('governance_meeting_proxies')
+            ->where('tenant_id', $tenantId)->where('id', $proxy)->where('status', 'submitted')
+            ->update(['status' => $data['decision'], 'updated_at' => now()]);
+        if ($updated !== 1) {
+            throw new ConflictHttpException('Proxy was already reviewed by another request.');
+        }
         $this->activity($tenantId, (int) $record->meeting_id, 'proxy.reviewed', [
             'proxy_id' => $proxy, 'decision' => $data['decision'], 'reason' => $data['reason'] ?? null,
         ]);
