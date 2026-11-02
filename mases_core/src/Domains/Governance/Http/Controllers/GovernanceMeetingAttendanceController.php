@@ -144,17 +144,21 @@ final class GovernanceMeetingAttendanceController extends Controller
         if (in_array($status, ['present', 'late'], true) && !$arrivedAt) {
             throw ValidationException::withMessages(['arrived_at' => 'Arrival time is required for present or late attendance.']);
         }
-        if ($status === 'represented') {
-            $approvedProxy = DB::table('governance_meeting_proxies')
-                ->where('tenant_id', $tenantId)
-                ->where('meeting_id', $meeting)
-                ->where('principal_type', $data['subject_type'])
-                ->where('principal_id', $data['subject_id'])
-                ->where('status', 'approved')
-                ->exists();
-            if (!$approvedProxy) {
-                throw ValidationException::withMessages(['attendance_status' => 'Represented attendance requires an approved proxy for this principal and meeting.']);
-            }
+        $approvedProxy = DB::table('governance_meeting_proxies')
+            ->where('tenant_id', $tenantId)
+            ->where('meeting_id', $meeting)
+            ->where('principal_type', $data['subject_type'])
+            ->where('principal_id', $data['subject_id'])
+            ->where('status', 'approved')
+            ->exists();
+        if ($status === 'represented' && !$approvedProxy) {
+            throw ValidationException::withMessages(['attendance_status' => 'Represented attendance requires an approved proxy for this principal and meeting.']);
+        }
+        if ($approvedProxy && in_array($status, ['present', 'late'], true)) {
+            throw ValidationException::withMessages(['attendance_status' => 'A principal with an approved proxy cannot also attend personally in the same meeting.']);
+        }
+        if ($status === 'excused' && trim((string) ($data['notes'] ?? '')) === '') {
+            throw ValidationException::withMessages(['notes' => 'Permission or supporting evidence reference is required for excused absence.']);
         }
 
         try {
