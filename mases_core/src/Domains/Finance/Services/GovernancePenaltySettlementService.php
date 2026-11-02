@@ -116,6 +116,12 @@ final class GovernancePenaltySettlementService
         return $this->execute($tenantId,$settlementId,$actorId,$effectiveDate,$idempotencyKey,'dividend_offset',$payableId);
     }
 
+    /**
+     * Posts the fine accrual and its cash/offset settlement atomically. The penalty
+     * row lock serializes partial settlements; the caller key makes retries safe.
+     *
+     * @return array<string, int|string|bool>
+     */
     private function execute(int $tenantId,int $settlementId,int $actorId,string $effectiveDate,string $key,string $method,?int $payableId): array
     {
         return DB::transaction(function () use ($tenantId,$settlementId,$actorId,$effectiveDate,$key,$method,$payableId) {
