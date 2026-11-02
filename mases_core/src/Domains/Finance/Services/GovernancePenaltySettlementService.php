@@ -129,7 +129,16 @@ final class GovernancePenaltySettlementService
             if ($method==='dividend_offset') {
                 $payable = ShareholderDividendPayable::query()->where('tenant_id',$tenantId)->where('legal_entity_id',$entityId)->whereKey($payableId)->lockForUpdate()->first();
                 if (!$payable || !$payable->isEligibleForPenaltyOffset()) throw ValidationException::withMessages(['dividend_payable'=>'A real, approved, due shareholder dividend payable is required.']);
-                if ($attendance->subject_type !== 'shareholder' || (int)$attendance->subject_id !== (int)$payable->shareholder_id) throw ValidationException::withMessages(['dividend_payable'=>'Dividend offset is restricted to the shareholder who incurred the penalty; director-only penalties cannot be offset.']);
+                $shareholder = DB::table('shareholders')->where('tenant_id',$tenantId)->where('id',$payable->shareholder_id)->first(['user_id','representative_user_id']);
+                $sameBeneficiary = $attendance->subject_type === 'shareholder'
+                    ? (int)$attendance->subject_id === (int)$payable->shareholder_id
+                    : (function () use ($tenantId,$attendance,$shareholder): bool {
+                        if (!$shareholder) return false;
+                        $membership = DB::table('governance_memberships')->where('tenant_id',$tenantId)->where('id',$attendance->subject_id)->first(['user_id']);
+                        $memberUserId = (int)($membership->user_id ?? 0);
+                        return $memberUserId > 0 && $memberUserId === (int)($shareholder->user_id ?? $shareholder->representative_user_id ?? 0);
+                    })();
+                if (!$sameBeneficiary) throw ValidationException::withMessages(['dividend_payable'=>'Dividend offset is allowed only where the penalty subject is the same shareholder or the Board director is the shareholder beneficiary.']);
                 if (bccomp($payable->remainingPayable(),$amount,4)<0) throw ValidationException::withMessages(['dividend_payable'=>'Remaining dividend payable is less than the penalty amount.']);
             }
             // Recognize the assessed fine as a receivable and penalty income
