@@ -776,6 +776,50 @@ return [
     | ARNA integration CR's approval.
     |
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Adopted Board Election Committee Framework
+    |--------------------------------------------------------------------------
+    |
+    | Owner-confirmed GA adoption: ነሐሴ 01/2018 E.C.
+    | Source: ARNA-GOV-ELE-AUTHORITY-RECORD-001 and the supplied
+    | Governance blueprint. The signed handwritten evidence image is
+    | recorded by SHA-256 in the authority evidence record.
+    |
+    | These values encode only explicit framework rules. The Legal
+    | Advisor is ex officio; voting is not granted by assumption.
+    | A conflicted member is recused from the affected vote. Individual
+    | appointments and operative Articles-based eligibility remain data
+    | and legal-evidence requirements, not hard-coded assumptions.
+    |
+    */
+    'election_committee' => [
+        'authority_record' => 'ARNA-GOV-ELE-AUTH-001',
+        'adoption_date_ec' => '2018-01-01',
+        'composition' => [
+            'general_assembly_non_board_members' => 3,
+            'legal_advisor' => [
+                'count' => 1,
+                'capacity' => 'ex_officio',
+                'voting_default' => false,
+            ],
+            'supervisory_committee_member' => 1,
+        ],
+        'quorum' => 3,
+        'meeting_frequency' => [
+            'during_election_cycle' => 'weekly',
+            'otherwise' => 'as_needed',
+        ],
+        'candidate_eligibility_validation_authority' => true,
+        'conflict_of_interest' => [
+            'candidate_member_must_recuse' => true,
+            'immediate_family_of_candidate_must_recuse' => true,
+            'recusal_scope' => 'affected_decision',
+        ],
+        'dissolution_days_after_results_ratified' => 30,
+        'general_assembly_post_election_review' => true,
+    ],
+
     'features' => [
         'notifications_enabled'      => (bool) env('MASES_GOVERNANCE_NOTIFICATIONS', false),
         'electronic_voting_enabled'  => false,
