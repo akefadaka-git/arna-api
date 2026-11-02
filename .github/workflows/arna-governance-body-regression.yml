@@ -138,4 +138,3 @@ jobs:
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMembershipTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
-          php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
