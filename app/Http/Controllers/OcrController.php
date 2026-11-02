@@ -196,14 +196,29 @@ final class OcrController extends Controller
         if (isset($validated['page_number']) && !$result->pages->contains('page_number', $validated['page_number'])) {
             abort(422, 'The requested page does not belong to this result.');
         }
-        $correction = OcrCorrection::query()->create([
-            'tenant_id' => $tenantId, 'result_id' => $result->id, 'corrected_by' => $user->id,
-            'page_number' => $validated['page_number'] ?? null,
-            'original_text' => $validated['original_text'],
-            'corrected_text' => $validated['corrected_text'],
-            'reason' => $validated['reason'] ?? null,
-        ]);
-        OcrProcessingEvent::query()->create(['tenant_id' => $tenantId, 'job_id' => $result->job_id, 'actor_id' => $user->id, 'event' => 'result.corrected', 'details' => ['correction_id' => $correction->id, 'page_number' => $correction->page_number]]);
+        $sourceText = isset($validated['page_number'])
+            ? (string) $result->pages->firstWhere('page_number', $validated['page_number'])?->text
+            : $result->full_text;
+        abort_unless(str_contains($sourceText, $validated['original_text']), 422, 'The original text must match the selected OCR source text.');
+
+        $correction = DB::transaction(function () use ($tenantId, $user, $result, $validated): OcrCorrection {
+            $record = OcrCorrection::query()->create([
+                'tenant_id' => $tenantId, 'result_id' => $result->id, 'corrected_by' => $user->id,
+                'page_number' => $validated['page_number'] ?? null,
+                'original_text' => $validated['original_text'],
+                'corrected_text' => $validated['corrected_text'],
+                'reason' => $validated['reason'] ?? null,
+            ]);
+            $metadata = $result->metadata ?? [];
+            $metadata['verification_status'] = 'pending';
+            $metadata['verification_invalidated_at'] = now()->toIso8601String();
+            $result->update(['metadata' => $metadata]);
+            OcrProcessingEvent::query()->create([
+                'tenant_id' => $tenantId, 'job_id' => $result->job_id, 'actor_id' => $user->id,
+                'event' => 'result.corrected', 'details' => ['correction_id' => $record->id, 'page_number' => $record->page_number],
+            ]);
+            return $record;
+        });
         $this->logAudit(action: 'ocr.result.corrected', resourceType: 'ocr_result', resourceId: (string) $result->id, newValues: ['correction_id' => $correction->id, 'page_number' => $correction->page_number]);
         return response()->json(['success' => true, 'data' => $correction], 201);
     }
