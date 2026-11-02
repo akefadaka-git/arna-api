@@ -1,32 +1,57 @@
 # ARNA Board Election — Authority Evidence Record
 
 - Record ID: ARNA-GOV-ELE-AUTH-001
-- Status: OWNER-ATTESTED / PRIMARY INSTRUMENT PENDING
+- Status: OWNER-IDENTIFIED GA INSTRUMENT RECEIVED / IMAGE-REVIEWED / TRANSCRIPTION PARTIAL
 - Applies to: Electoral Committee framework and Board Election System
-- Recorded: 2026-11-02
 - Reported adoption date: ነሐሴ 01/2018 E.C.
+- Evidence received: 2026-11-02
+- Evidence file supplied in conversation: `image-1793613020291.jpg`
+- SHA-256: `8e86788a2575207b1dbd538c42d8310d99271a1976112537dbd8fe8720bd3fae`
 
-## Owner attestation
+## Evidence statement
 
-The ARNA Owner has confirmed in the project conversation on 2026-11-02 that the Electoral Committee framework previously supplied in the Governance blueprint was adopted by the General Assembly on ነሐሴ 01/2018 E.C.
+The Owner identifies the supplied handwritten page as the signed General Assembly resolution or certified minutes supporting adoption of the Electoral Committee framework on ነሐሴ 01/2018 E.C. The original image is preserved as the evidence received for this record. The image is handwritten and portions are not reliably legible at the supplied resolution. This repository record therefore does not invent a resolution number, signatories, vote count, or unreadable clauses.
 
-This record preserves that instruction for implementation and audit traceability. It is not a substitute for the signed General Assembly minutes or resolution, certified operative Memorandum and Articles, or legal review.
+The Owner's identification is recorded as the provenance for implementation. The image itself has not been independently authenticated against a company-held original or certified register. The status is therefore evidence-received and Owner-identified, not a legal opinion or independent authenticity certification.
 
-## Implementation treatment
+## Adopted framework baseline carried into implementation
 
-1. Treat the previously supplied Electoral Committee framework as the approved policy baseline for technical implementation, subject to the exact scope of the framework actually supplied.
-2. Implement committee composition, quorum, conflict-of-interest controls, mandate, and dissolution rules only to the extent those rules are explicitly present in that framework.
-3. Preserve the adoption date exactly as supplied. Do not invent a resolution number, meeting location, signatories, vote count, or additional terms.
-4. Store the authority record as owner-attested evidence with provenance and status. Do not mark the primary legal instrument as verified until the signed resolution/minutes or a certified copy is registered and reviewed.
-5. Block irreversible election certification where the operative company authority or applicable legal instrument cannot be independently verified. Technical readiness must not be represented as legal certification readiness.
+The previously supplied Governance blueprint states the following Electoral Committee rules. They are treated as the adopted implementation baseline under the Owner's confirmation:
 
-## Evidence still required
+1. Purpose: administer nomination, vetting, and election of Board members in accordance with the Articles of Association; the framework also names Supervisory Committee elections.
+2. Eligibility authority: the Committee validates candidate eligibility.
+3. Composition: three General Assembly members who are not Board members; one Legal Advisor ex officio; one Supervisory Committee member.
+4. Quorum: three members.
+5. Meetings: weekly during election cycles and as needed otherwise.
+6. Conflict of interest: a Committee member who is a candidate or an immediate family member of a candidate must not vote on the affected matter.
+7. Dissolution: the Committee dissolves 30 days after election results are ratified.
+8. Accountability: post-election performance review by the General Assembly.
 
-- Signed General Assembly minutes or resolution dated ነሐሴ 01/2018 E.C. (or certified extract).
-- Certified operative Memorandum and Articles, including amendments effective on the election record date.
-- Current shareholder register and reconciled shareholding ledger as of the legally approved record date.
-- Legal confirmation of any provisions whose interpretation affects eligibility, voting weights, proxy rights, quorum, or certification.
+These are framework rules only. The software must not infer individual appointees, current committee membership, candidate eligibility criteria not specified in the operative Articles, voting weights, proxy entitlements, quorum for the General Assembly, or result thresholds from this framework.
+
+## Implementation controls
+
+- Record the adoption date as ነሐሴ 01/2018 E.C.; do not fabricate a Gregorian conversion.
+- Preserve the supplied image's SHA-256 and provenance in the authority evidence register.
+- Committee membership, role assignment, recusals, quorum checks, meeting records, and dissolution must be versioned and audited.
+- The legal advisor is ex officio; do not silently treat that position as a voting member. The framework does not state whether the legal advisor votes, so the application must keep voting eligibility configurable and default to non-voting until the operative instrument resolves it.
+- A conflicted member is excluded from the affected decision's vote; retain the conflict declaration, recusal, decision and audit evidence.
+- Committee eligibility validation is distinct from final election result certification.
+- Keep electronic voting disabled; this GA framework image does not establish a separate electronic-voting authorization.
+- Block irreversible result certification if the operative Articles, election-specific legal rules, voter register, or required independent reconciliation are not verified.
+
+## Evidence classification and remaining controls
+
+| Evidence item | Status | Treatment |
+|---|---|---|
+| GA adoption date and adoption of framework | OWNER-IDENTIFIED from supplied resolution/minutes image | Use as approved policy baseline |
+| Handwritten page contents | PARTIALLY LEGIBLE | Do not infer illegible clauses |
+| Previously supplied Governance blueprint | OWNER-SUPPLIED FRAMEWORK TEXT | Implement only explicit committee rules listed above |
+| Authenticity against company original/certified register | NOT INDEPENDENTLY VERIFIED | Preserve provenance; no fabricated verification |
+| Certified operative Memorandum and Articles and amendments | NOT PRESENT IN THIS evidence packet | Required before legal eligibility/voting rules are finalized |
+| Current shareholder register and shareholding ledger as of record date | NOT PRESENT IN THIS evidence packet | Required before freezing the voter register |
+| Legal interpretation of eligibility, voting weights, proxy rights, quorum and certification | NOT INDEPENDENTLY VERIFIED | Fail closed on irreversible certification |
 
 ## Change control
 
-This record may be upgraded from OWNER-ATTESTED to DOCUMENT-VERIFIED only after the primary instrument is supplied or retrieved from an authoritative company record and its authenticity, date, adoption, scope, and consistency with the operative Articles are reviewed. Any discrepancy must be logged as an exception; do not silently overwrite this attestation.
+This record may be upgraded to DOCUMENT-VERIFIED after the supplied image is independently matched to the company's signed original or certified minute book and the operative Articles are reconciled. Any discrepancy must be logged; never silently overwrite the Owner's attestation or infer missing clauses.
