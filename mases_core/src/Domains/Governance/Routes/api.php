@@ -569,8 +569,10 @@ Route::name('api.governance.')->group(static function (): void {
         ->name('memberships.update');
 
 
-    // Meeting, attendance, proxy and penalty lifecycle (A3).
+    // Meeting, attendance, proxy, penalty and Finance reconciliation lifecycle (A3).
     Route::prefix('/meetings')->name('meetings.')->group(static function (): void {
+        Route::get('/finance-reconciliation', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'financeReconciliationQueue'])
+            ->middleware('auth.permission:finance.journal.view')->name('finance-reconciliation.index');
         Route::get('/', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'index'])
             ->middleware('auth.permission:governance.body.view')->name('index');
         Route::post('/', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'store'])
@@ -597,6 +599,12 @@ Route::name('api.governance.')->group(static function (): void {
             ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.payments.store');
         Route::post('/{meeting}/penalties/{penalty}/dividend-settlement-requests', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'requestDividendOffset'])
             ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.dividend-settlement-requests.store');
+        Route::post('/{meeting}/payments/{payment}/reconcile', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reconcilePayment'])
+            ->whereNumber('meeting')->whereNumber('payment')->middleware('auth.permission:finance.journal.post')->name('payments.reconcile');
+        Route::post('/{meeting}/dividend-settlement-requests/{settlement}/review', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reviewDividendSettlement'])
+            ->whereNumber('meeting')->whereNumber('settlement')->middleware('auth.permission:finance.journal.post')->name('dividend-settlement-requests.review');
+        Route::post('/{meeting}/dividend-settlement-requests/{settlement}/reconcile', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reconcileDividendSettlement'])
+            ->whereNumber('meeting')->whereNumber('settlement')->middleware('auth.permission:finance.journal.post')->name('dividend-settlement-requests.reconcile');
     });
 
 });
