@@ -100,6 +100,12 @@ final class MeetingAttendanceController extends Controller
         return response()->json(['success' => true, 'data' => $this->service->reviewPenalty($meeting, $penalty, $data)]);
     }
 
+    public function disputePenalty(Request $request, int $meeting, int $penalty): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+        return response()->json(['success' => true, 'data' => $this->service->disputePenalty($meeting, $penalty, $data)]);
+    }
+
     public function recordPayment(Request $request, int $meeting, int $penalty): JsonResponse
     {
         $data = $request->validate([
