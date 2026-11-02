@@ -62,12 +62,18 @@ final class GovernanceMeetingAttendanceController extends Controller
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
         ]);
         $tenantId = $this->tenantId();
-        $bodyExists = DB::table('governance_bodies')
+        $body = DB::table('governance_bodies')
             ->where('tenant_id', $tenantId)
             ->where('id', $data['governance_body_id'])
-            ->exists();
-        if (!$bodyExists) {
+            ->first(['id', 'body_type']);
+        if (!$body) {
             throw new NotFoundHttpException('Governance body was not found in this tenant.');
+        }
+        $expectedBodyType = $data['meeting_kind'] === 'general_assembly' ? 'assembly' : 'board';
+        if ($body->body_type !== $expectedBodyType) {
+            throw ValidationException::withMessages([
+                'meeting_kind' => 'Meeting kind must match the selected Governance body type.',
+            ]);
         }
 
         try {
