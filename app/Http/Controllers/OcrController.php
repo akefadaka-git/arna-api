@@ -13,6 +13,7 @@ use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrCorrection;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingJob;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrResult;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrVerification;
+use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingEvent;
 use MaaleArna\MASES\Core\DocumentIntelligence\Jobs\ProcessOcrDocument;
 use MaaleArna\MASES\Core\Audit\Traits\LogsAudit;
 use MaaleArna\MASES\Core\DocumentIntelligence\Services\OcrSubmissionService;
@@ -71,6 +72,12 @@ final class OcrController extends Controller
                 : 'The source file cannot be processed.');
         }
 
+        if ($job->wasRecentlyCreated) {
+            OcrProcessingEvent::query()->create([
+                'tenant_id' => $tenantId, 'job_id' => $job->id, 'actor_id' => $user->id,
+                'event' => 'job.created', 'details' => ['file_id' => $job->file_id, 'file_version' => $job->file_version],
+            ]);
+        }
         $this->logAudit(action: 'ocr.job.created', resourceType: 'ocr_job', resourceId: (string) $job->id, newValues: ['file_id' => $job->file_id, 'file_version' => $job->file_version, 'languages' => $job->languages]);
         return response()->json(['success' => true, 'data' => $job], 202);
     }
@@ -89,6 +96,7 @@ final class OcrController extends Controller
             ->onConnection((string) config('ocr.connection'))
             ->onQueue((string) config('ocr.queue'))
             ->afterCommit();
+        OcrProcessingEvent::query()->create(['tenant_id' => $tenantId, 'job_id' => $job->id, 'actor_id' => $request->user()->id, 'event' => 'job.retried']);
         $this->logAudit(action: 'ocr.job.retried', resourceType: 'ocr_job', resourceId: (string) $job->id);
         return response()->json(['success' => true, 'data' => $job], 202);
     }
@@ -100,6 +108,19 @@ final class OcrController extends Controller
         $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->with(['result:id,job_id,mean_confidence', 'file:id,original_name,version'])->findOrFail($id);
         $this->logAudit(action: 'ocr.job.viewed', resourceType: 'ocr_job', resourceId: (string) $job->id);
         return response()->json(['success' => true, 'data' => $job]);
+    }
+
+    public function events(Request $request, int $id): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $this->authorize('ocr.audit.view', $request->user(), $tenantId);
+        $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->findOrFail($id);
+        $events = OcrProcessingEvent::query()->where('tenant_id', $tenantId)->where('job_id', $job->id)
+            ->with('actor:id,name')->orderByDesc('created_at')->paginate(50);
+        return response()->json(['success' => true, 'data' => $events->items(), 'meta' => [
+            'current_page' => $events->currentPage(), 'last_page' => $events->lastPage(),
+            'per_page' => $events->perPage(), 'total' => $events->total(),
+        ]]);
     }
 
     public function showResult(Request $request, int $id): JsonResponse
@@ -155,6 +176,7 @@ final class OcrController extends Controller
             return $record;
         });
 
+        OcrProcessingEvent::query()->create(['tenant_id' => $tenantId, 'job_id' => $result->job_id, 'actor_id' => $user->id, 'event' => 'result.verified', 'details' => ['decision' => $validated['decision']]]);
         $this->logAudit(action: 'ocr.result.verified', resourceType: 'ocr_result', resourceId: (string) $result->id, newValues: ['decision' => $validated['decision']]);
         return response()->json(['success' => true, 'data' => $verification], 201);
     }
@@ -182,6 +204,7 @@ final class OcrController extends Controller
             'corrected_text' => $validated['corrected_text'],
             'reason' => $validated['reason'] ?? null,
         ]);
+        OcrProcessingEvent::query()->create(['tenant_id' => $tenantId, 'job_id' => $result->job_id, 'actor_id' => $user->id, 'event' => 'result.corrected', 'details' => ['correction_id' => $correction->id, 'page_number' => $correction->page_number]]);
         $this->logAudit(action: 'ocr.result.corrected', resourceType: 'ocr_result', resourceId: (string) $result->id, newValues: ['correction_id' => $correction->id, 'page_number' => $correction->page_number]);
         return response()->json(['success' => true, 'data' => $correction], 201);
     }
