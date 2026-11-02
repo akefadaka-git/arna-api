@@ -52,7 +52,7 @@ final class OcrController extends Controller
         $this->authorize('ocr.job.create', $user, $tenantId);
         $validated = $request->validate([
             'file_id' => ['required', 'integer', 'min:1'],
-            'languages' => ['sometimes', 'string', 'max:32', 'regex:/^(amh|eng)(\+(amh|eng))*$/'],
+            'languages' => ['sometimes', 'string', 'max:32', 'in:amh,eng,amh+eng,eng+amh'],
             'idempotency_key' => ['sometimes', 'string', 'min:16', 'max:200'],
         ]);
         $idempotencyKey = (string) ($validated['idempotency_key'] ?? $request->header('Idempotency-Key', ''));
