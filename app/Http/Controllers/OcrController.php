@@ -82,6 +82,7 @@ final class OcrController extends Controller
     {
         $tenantId = $this->tenantId();
         $this->authorize('ocr.job.retry', $request->user(), $tenantId);
+        $this->authorize('file.download', $request->user(), $tenantId);
         /** @var User $user */
         $user = $request->user();
         $job = DB::transaction(function () use ($tenantId, $id, $user): OcrProcessingJob {
