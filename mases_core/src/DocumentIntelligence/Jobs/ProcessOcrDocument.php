@@ -15,6 +15,7 @@ use MaaleArna\MASES\Core\DocumentIntelligence\Contracts\OcrEngineInterface;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrPage;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingJob as OcrJob;
 use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrResult;
+use MaaleArna\MASES\Core\DocumentIntelligence\Events\OcrResultReady;
 use RuntimeException;
 use Throwable;
 
@@ -107,6 +108,9 @@ final class ProcessOcrDocument implements ShouldQueue
                     ]);
                 }
                 $job->update(['status' => 'awaiting_review', 'completed_at' => now(), 'failure_code' => null, 'failure_message' => null]);
+                DB::afterCommit(static function () use ($job, $file, $result): void {
+                    event(new OcrResultReady((int) $job->tenant_id, (int) $file->id, (int) $result->id));
+                });
             });
         } catch (Throwable $exception) {
             report($exception);
