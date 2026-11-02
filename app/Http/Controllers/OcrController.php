@@ -1,0 +1,176 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrCorrection;
+use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrProcessingJob;
+use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrResult;
+use MaaleArna\MASES\Core\DocumentIntelligence\Models\OcrVerification;
+use MaaleArna\MASES\Core\DocumentIntelligence\Services\OcrSubmissionService;
+use MaaleArna\MASES\Core\Files\Models\File;
+use RuntimeException;
+
+final class OcrController extends Controller
+{
+    public function __construct(
+        private readonly AuthorizationService $authorization,
+        private readonly OcrSubmissionService $submissions,
+    ) {}
+
+    public function index(Request $request): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $this->authorize('ocr.job.view', $request->user(), $tenantId);
+        $jobs = OcrProcessingJob::query()->where('tenant_id', $tenantId)
+            ->with('result:id,job_id,mean_confidence')
+            ->latest()->paginate(min(max((int) $request->integer('per_page', 20), 1), 100));
+
+        return response()->json(['success' => true, 'data' => $jobs->items(), 'meta' => [
+            'current_page' => $jobs->currentPage(), 'last_page' => $jobs->lastPage(),
+            'per_page' => $jobs->perPage(), 'total' => $jobs->total(),
+        ]]);
+    }
+
+    public function submit(Request $request): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        /** @var User $user */
+        $user = $request->user();
+        $this->authorize('ocr.job.create', $user, $tenantId);
+        $validated = $request->validate([
+            'file_id' => ['required', 'integer', 'min:1'],
+            'languages' => ['sometimes', 'string', 'max:32', 'regex:/^(amh|eng)(\+(amh|eng))*$/'],
+        ]);
+        $idempotencyKey = (string) $request->header('Idempotency-Key', '');
+        if (strlen($idempotencyKey) < 16 || strlen($idempotencyKey) > 200) {
+            return response()->json(['success' => false, 'error' => [
+                'code' => 'IDEMPOTENCY_KEY_REQUIRED',
+                'message' => 'Provide an Idempotency-Key header between 16 and 200 characters.',
+            ]], 422);
+        }
+        $file = File::query()->where('tenant_id', $tenantId)->findOrFail($validated['file_id']);
+
+        try {
+            $job = $this->submissions->submit(
+                $file, $user, $tenantId, $idempotencyKey, $validated['languages'] ?? 'amh+eng'
+            );
+        } catch (RuntimeException $exception) {
+            $conflict = $exception->getMessage() === 'OCR_IDEMPOTENCY_CONFLICT';
+            return response()->json(['success' => false, 'error' => [
+                'code' => $exception->getMessage(),
+                'message' => $conflict ? 'The idempotency key was already used with a different request.' : 'The source file cannot be processed.',
+            ]], $conflict ? 409 : 422);
+        }
+
+        return response()->json(['success' => true, 'data' => $job], 202);
+    }
+
+    public function showJob(Request $request, int $id): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $this->authorize('ocr.job.view', $request->user(), $tenantId);
+        $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->with('result.pages')->findOrFail($id);
+        return response()->json(['success' => true, 'data' => $job]);
+    }
+
+    public function showResult(Request $request, int $id): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $this->authorize('ocr.result.view', $request->user(), $tenantId);
+        $result = OcrResult::query()->where('tenant_id', $tenantId)->with(['pages', 'verifications', 'corrections'])->findOrFail($id);
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
+    public function search(Request $request): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $this->authorize('ocr.result.search', $request->user(), $tenantId);
+        $validated = $request->validate(['q' => ['required', 'string', 'min:2', 'max:200']]);
+        $results = OcrResult::query()->where('tenant_id', $tenantId)
+            ->where('full_text', 'like', '%' . addcslashes($validated['q'], '%_\\\\') . '%')
+            ->with('file:id,original_name,version')
+            ->latest()->paginate(20);
+        return response()->json(['success' => true, 'data' => $results->items(), 'meta' => [
+            'current_page' => $results->currentPage(), 'last_page' => $results->lastPage(),
+            'per_page' => $results->perPage(), 'total' => $results->total(),
+        ]]);
+    }
+
+    public function verify(Request $request, int $id): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        /** @var User $user */
+        $user = $request->user();
+        $this->authorize('ocr.result.verify', $user, $tenantId);
+        $validated = $request->validate([
+            'decision' => ['required', 'in:verified,rejected'],
+            'notes' => ['nullable', 'string', 'max:4000'],
+        ]);
+        $result = OcrResult::query()->where('tenant_id', $tenantId)->findOrFail($id);
+
+        $verification = DB::transaction(function () use ($result, $user, $tenantId, $validated): OcrVerification {
+            $record = OcrVerification::query()->create([
+                'tenant_id' => $tenantId, 'result_id' => $result->id,
+                'verified_by' => $user->id, 'decision' => $validated['decision'],
+                'notes' => $validated['notes'] ?? null, 'verified_at' => now(),
+            ]);
+            $metadata = $result->metadata ?? [];
+            $metadata['verification_status'] = $validated['decision'];
+            $metadata['last_verified_at'] = now()->toIso8601String();
+            $result->update(['metadata' => $metadata]);
+            return $record;
+        });
+
+        return response()->json(['success' => true, 'data' => $verification], 201);
+    }
+
+    public function correct(Request $request, int $id): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        /** @var User $user */
+        $user = $request->user();
+        $this->authorize('ocr.result.correct', $user, $tenantId);
+        $validated = $request->validate([
+            'page_number' => ['nullable', 'integer', 'min:1'],
+            'original_text' => ['required', 'string', 'max:20000'],
+            'corrected_text' => ['required', 'string', 'max:20000'],
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+        $result = OcrResult::query()->where('tenant_id', $tenantId)->with('pages')->findOrFail($id);
+        if (isset($validated['page_number']) && !$result->pages->contains('page_number', $validated['page_number'])) {
+            return response()->json(['success' => false, 'error' => ['code' => 'OCR_PAGE_NOT_FOUND', 'message' => 'The requested page does not belong to this result.']], 422);
+        }
+        $correction = OcrCorrection::query()->create([
+            'tenant_id' => $tenantId, 'result_id' => $result->id, 'corrected_by' => $user->id,
+            'page_number' => $validated['page_number'] ?? null,
+            'original_text' => $validated['original_text'],
+            'corrected_text' => $validated['corrected_text'],
+            'reason' => $validated['reason'] ?? null,
+        ]);
+        return response()->json(['success' => true, 'data' => $correction], 201);
+    }
+
+    private function tenantId(): int|string
+    {
+        $tenantId = mases_tenant_id();
+        abort_if($tenantId === null || $tenantId === '', 403, 'A verified tenant context is required.');
+        return $tenantId;
+    }
+
+    private function authorize(string $permission, ?User $user, int|string $tenantId): void
+    {
+        abort_unless($user, 401);
+        $this->authorization->requirePermission(
+            permissionSlug: $permission,
+            user: $user,
+            tenantId: $tenantId,
+        );
+    }
+}
