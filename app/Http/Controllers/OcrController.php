@@ -72,7 +72,7 @@ final class OcrController extends Controller
                 : 'The source file cannot be processed.');
         }
 
-        $this->logAudit(action: 'ocr.job.created', resourceType: 'ocr_job', resourceId: (string) $job->id, newValues: ['file_id' => $job->file_id, 'file_version' => $job->file_version, 'languages' => $job->languages]);
+        $this->logAudit(action: $job->wasRecentlyCreated ? 'ocr.job.created' : 'ocr.job.idempotent_reuse', resourceType: 'ocr_job', resourceId: (string) $job->id, newValues: ['file_id' => $job->file_id, 'file_version' => $job->file_version, 'languages' => $job->languages]);
         return response()->json(['success' => true, 'data' => $job], 202);
     }
 
