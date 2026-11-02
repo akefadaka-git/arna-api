@@ -74,7 +74,7 @@ final class DocumentIntelligenceTest extends TestCase
 
         $this->tenantRequest($user, $tenant)->postJson('/api/ocr/jobs', [
             'file_id' => $secondFile->id, 'languages' => 'amh+eng', 'idempotency_key' => $key,
-        ])->assertConflict();
+        ])->assertStatus(409);
 
         $this->assertSame(1, OcrProcessingJob::query()->count());
     }
