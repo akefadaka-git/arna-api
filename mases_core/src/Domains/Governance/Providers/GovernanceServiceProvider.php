@@ -199,17 +199,20 @@ use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionUpdated;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermUpdated;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceElectionLifecycleChanged;
 use MaaleArna\MASES\Core\Domains\Governance\Listeners\AuditGovernanceEvent;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceTerm;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceAppointmentPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceBodyPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceMembershipPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernancePositionPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceTermPolicy;
+use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceElectionPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceAppointmentRepository;
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceBodyRepository;
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceMembershipRepository;
@@ -217,6 +220,9 @@ use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernancePositionRepos
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceTermRepository;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAppointmentService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionPhysicalBallotService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionLifecycleService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceBodyService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceMembershipService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernancePositionService;
@@ -525,6 +531,11 @@ final class GovernanceServiceProvider extends ServiceProvider
 
         // P1.3-B3 — explicit position-scoped authority grants.
         $this->app->singleton(GovernanceAuthorityGrantService::class);
+
+        // A3 — controlled election lifecycle, register and physical ballot services.
+        $this->app->singleton(GovernanceElectionLifecycleService::class);
+        $this->app->singleton(GovernanceElectionRegisterService::class);
+        $this->app->singleton(GovernanceElectionPhysicalBallotService::class);
     }
 
     // =========================================================================
@@ -576,6 +587,7 @@ final class GovernanceServiceProvider extends ServiceProvider
 
         // G2b — term policy.
         Gate::policy(GovernanceTerm::class, GovernanceTermPolicy::class);
+        Gate::policy(GovernanceElection::class, GovernanceElectionPolicy::class);
 
         // G2c — appointment policy.
         Gate::policy(GovernanceAppointment::class, GovernanceAppointmentPolicy::class);
@@ -622,6 +634,9 @@ final class GovernanceServiceProvider extends ServiceProvider
         // G2c — membership events.
         Event::listen(GovernanceMembershipRegistered::class,  AuditGovernanceEvent::class);
         Event::listen(GovernanceMembershipUpdated::class,     AuditGovernanceEvent::class);
+
+        // A3 — election lifecycle audit trail.
+        Event::listen(GovernanceElectionLifecycleChanged::class, AuditGovernanceEvent::class);
     }
 
     // =========================================================================

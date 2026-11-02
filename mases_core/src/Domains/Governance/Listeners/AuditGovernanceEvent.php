@@ -419,6 +419,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionUpdated;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermUpdated;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceElectionLifecycleChanged;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
@@ -659,6 +660,7 @@ final class AuditGovernanceEvent
                 // G2c — membership events.
                 $event instanceof GovernanceMembershipRegistered  => $this->handleGovernanceMembershipRegistered($event),
                 $event instanceof GovernanceMembershipUpdated     => $this->handleGovernanceMembershipUpdated($event),
+                $event instanceof GovernanceElectionLifecycleChanged => $this->handleGovernanceElectionLifecycleChanged($event),
 
                 default                                            => null,
             };
@@ -1051,6 +1053,37 @@ final class AuditGovernanceEvent
             resourceId: (string) $membership->id,
             oldValues: $oldValues,
             newValues: $changes,
+            ipAddress: request()->ip(),
+            userAgent: request()->userAgent(),
+            requestId: $this->resolveRequestId(),
+        );
+    }
+
+    /**
+     * Record an election lifecycle mutation with explicit before/after state.
+     */
+    private function handleGovernanceElectionLifecycleChanged(GovernanceElectionLifecycleChanged $event): void
+    {
+        $election = $event->election;
+        $this->auditService->log(
+            action: 'governance.election.' . $event->action,
+            data: [
+                'source' => 'event-listener',
+                'event' => GovernanceElectionLifecycleChanged::class,
+                'actor_id' => $event->actorId,
+            ],
+            user: $event->actorId,
+            tenantId: (int) $election->tenant_id,
+            resourceType: 'GovernanceElection',
+            resourceId: (string) $election->id,
+            oldValues: $event->before,
+            newValues: $election->fresh()?->only([
+                'status', 'record_date', 'authority_reference',
+                'authority_verified_at', 'authority_verified_by',
+                'voting_rule_version', 'voting_method',
+                'nominations_open_at', 'nominations_close_at',
+                'poll_open_at', 'poll_close_at',
+            ]),
             ipAddress: request()->ip(),
             userAgent: request()->userAgent(),
             requestId: $this->resolveRequestId(),

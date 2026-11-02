@@ -233,6 +233,8 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingContr
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePositionController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceSeatController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceTermController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionWorkflowController;
 
 /*
 |--------------------------------------------------------------------------
@@ -567,5 +569,39 @@ Route::name('api.governance.')->group(static function (): void {
     Route::match(['patch', 'put'], '/memberships/{governanceMembership}', [GovernanceMembershipController::class, 'update'])
         ->whereNumber('governanceMembership')
         ->name('memberships.update');
+
+    // Board elections — policy-backed, tenant-scoped initial endpoints.
+    Route::get('/elections', [GovernanceElectionController::class, 'index'])
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.index');
+
+    Route::post('/elections', [GovernanceElectionController::class, 'store'])
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.store');
+
+    Route::get('/elections/{governanceElection}', [GovernanceElectionController::class, 'show'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.show');
+
+    // Nomination intake and non-binding shareholder consultation.
+    Route::post('/elections/{governanceElection}/nominations', [GovernanceElectionWorkflowController::class, 'submitNomination'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.view')->name('elections.nominations.submit');
+    Route::get('/elections/{governanceElection}/candidate-review', [GovernanceElectionWorkflowController::class, 'candidateReviewIndex'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.view')->name('elections.candidate-review.index');
+    Route::post('/elections/{governanceElection}/candidates/{nomination}/feedback', [GovernanceElectionWorkflowController::class, 'storeFeedback'])
+        ->whereNumber('governanceElection')->whereNumber('nomination')->middleware('auth.permission:governance.election.view')->name('elections.candidates.feedback');
+    Route::post('/elections/{governanceElection}/candidates/{nomination}/preference', [GovernanceElectionWorkflowController::class, 'storePreference'])
+        ->whereNumber('governanceElection')->whereNumber('nomination')->middleware('auth.permission:governance.election.view')->name('elections.candidates.preference');
+
+    // Committee review is additionally protected by the election update policy.
+    Route::get('/elections/{governanceElection}/committee/queue', [GovernanceElectionWorkflowController::class, 'committeeQueue'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.committee.queue');
+    Route::post('/elections/{governanceElection}/committee/members', [GovernanceElectionWorkflowController::class, 'appointCommitteeMember'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.committee.members.store');
+    Route::post('/elections/{governanceElection}/committee/members/{member}/recusal', [GovernanceElectionWorkflowController::class, 'recuseCommitteeMember'])
+        ->whereNumber('governanceElection')->whereNumber('member')->middleware('auth.permission:governance.election.manage')->name('elections.committee.members.recusal');
+    Route::post('/elections/{governanceElection}/committee/candidates/{nomination}/decision', [GovernanceElectionWorkflowController::class, 'decideNomination'])
+        ->whereNumber('governanceElection')->whereNumber('nomination')->middleware('auth.permission:governance.election.manage')->name('elections.committee.decisions.store');
 
 });

@@ -653,6 +653,48 @@ final class GovernancePermissionsSeeder extends Seeder
             'name_en'  => 'Manage elections',
             'category' => 'governance',
         ],
+        [
+            'slug'     => 'governance.election.committee.manage',
+            'name_am'  => 'የምርጫ ኮሚቴን ማስተዳደር',
+            'name_en'  => 'Manage election committee',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.register.manage',
+            'name_am'  => 'የመራጮች መዝገብን ማስተዳደር',
+            'name_en'  => 'Manage election register',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.nomination.manage',
+            'name_am'  => 'እጩነቶችን ማስተዳደር',
+            'name_en'  => 'Manage nominations',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.ballot.issue',
+            'name_am'  => 'የወረቀት ድምፅ መስጫ ማውጣት',
+            'name_en'  => 'Issue physical ballots',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.count.manage',
+            'name_am'  => 'የድምፅ ቆጠራን ማስተዳደር',
+            'name_en'  => 'Manage vote count and reconciliation',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.complaint.manage',
+            'name_am'  => 'ቅሬታዎችንና ይግባኞችን ማስተዳደር',
+            'name_en'  => 'Manage complaints and appeals',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.certify',
+            'name_am'  => 'የምርጫ ውጤትን ማረጋገጥ',
+            'name_en'  => 'Certify election results',
+            'category' => 'governance',
+        ],
 
         // ---------------------------------------------------------------------
         // Documents
