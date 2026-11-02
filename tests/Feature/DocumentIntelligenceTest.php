@@ -37,7 +37,7 @@ final class DocumentIntelligenceTest extends TestCase
 
     public function test_ocr_submission_is_idempotent_and_records_tenant_lifecycle(): void
     {
-        [$tenant, $user] = $this->tenantUser(['ocr.job.create']);
+        [$tenant, $user] = $this->tenantUser(['ocr.job.create', 'file.download']);
         $file = $this->sourceFile($tenant, $user);
         Bus::fake();
         $payload = [
@@ -81,7 +81,7 @@ final class DocumentIntelligenceTest extends TestCase
 
     public function test_ocr_result_cannot_be_read_across_tenant_boundary(): void
     {
-        [$tenantA, $reader] = $this->tenantUser(['ocr.result.view']);
+        [$tenantA, $reader] = $this->tenantUser(['ocr.result.view', 'file.download']);
         [$tenantB, $owner] = $this->tenantUser();
         $file = $this->sourceFile($tenantB, $owner);
         $job = OcrProcessingJob::query()->create([
@@ -121,7 +121,7 @@ final class DocumentIntelligenceTest extends TestCase
 
     public function test_job_status_permission_does_not_expose_recognized_document_content(): void
     {
-        [$tenant, $reader] = $this->tenantUser(['ocr.job.view']);
+        [$tenant, $reader] = $this->tenantUser(['ocr.job.view', 'file.view']);
         $file = $this->sourceFile($tenant, $reader);
         $job = OcrProcessingJob::query()->create([
             'tenant_id' => $tenant->id, 'file_id' => $file->id, 'file_version' => 1,
@@ -150,7 +150,7 @@ final class DocumentIntelligenceTest extends TestCase
 
     public function test_appending_a_correction_invalidates_previous_ocr_verification(): void
     {
-        [$tenant, $reviewer] = $this->tenantUser(['ocr.result.correct']);
+        [$tenant, $reviewer] = $this->tenantUser(['ocr.result.correct', 'file.download']);
         $file = $this->sourceFile($tenant, $reviewer);
         $job = OcrProcessingJob::query()->create([
             'tenant_id' => $tenant->id, 'file_id' => $file->id, 'file_version' => 1,
