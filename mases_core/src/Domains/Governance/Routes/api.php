@@ -234,6 +234,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePositionC
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceSeatController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceTermController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionWorkflowController;
 
 /*
 |--------------------------------------------------------------------------
