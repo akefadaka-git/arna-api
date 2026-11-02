@@ -93,7 +93,7 @@ final class ProcessOcrDocument implements ShouldQueue
             if (filesize($temporary) > (int) config('ocr.max_file_bytes')) {
                 throw new RuntimeException('OCR_FILE_SIZE_LIMIT_EXCEEDED');
             }
-            $detectedMime = (new \\finfo(FILEINFO_MIME_TYPE))->file($temporary);
+            $detectedMime = (new \finfo(FILEINFO_MIME_TYPE))->file($temporary);
             if (!is_string($detectedMime) || $detectedMime !== $file->mime_type) {
                 throw new RuntimeException('OCR_SOURCE_MIME_MISMATCH');
             }
