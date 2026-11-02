@@ -531,8 +531,10 @@ final class GovernanceServiceProvider extends ServiceProvider
         // P1.3-B3 — explicit position-scoped authority grants.
         $this->app->singleton(GovernanceAuthorityGrantService::class);
 
-        // A3 — controlled election register and physical ballot services.\n        $this->app->singleton(GovernanceElectionRegisterService::class);\n        $this->app->singleton(GovernanceElectionPhysicalBallotService::class);
-                $this->app->singleton(GovernanceElectionLifecycleService::class);
+        // A3 — controlled election lifecycle, register and physical ballot services.
+        $this->app->singleton(GovernanceElectionLifecycleService::class);
+        $this->app->singleton(GovernanceElectionRegisterService::class);
+        $this->app->singleton(GovernanceElectionPhysicalBallotService::class);
     }
 
     // =========================================================================
