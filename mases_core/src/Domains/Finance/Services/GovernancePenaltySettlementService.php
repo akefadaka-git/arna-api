@@ -119,8 +119,16 @@ final class GovernancePenaltySettlementService
     private function execute(int $tenantId,int $settlementId,int $actorId,string $effectiveDate,string $key,string $method,?int $payableId): array
     {
         return DB::transaction(function () use ($tenantId,$settlementId,$actorId,$effectiveDate,$key,$method,$payableId) {
+            if (trim($key)==='' || strlen($key)>128) throw ValidationException::withMessages(['idempotency_key'=>'A non-empty idempotency key of at most 128 characters is required.']);
             $s = DB::table('governance_penalty_settlements')->where('tenant_id',$tenantId)->where('id',$settlementId)->lockForUpdate()->first();
-            if (!$s || !in_array($s->status,['pending_finance','pending_legal_finance_review'],true) || $s->method !== $method) throw ValidationException::withMessages(['settlement'=>'Settlement is not pending Finance execution.']);
+            if (!$s || $s->method !== $method) throw ValidationException::withMessages(['settlement'=>'Settlement does not exist for this method in the trusted tenant.']);
+            $existing = DB::table('journal_entries')->where('tenant_id',$tenantId)->where('idempotency_key',$key)->first();
+            if ($existing) {
+                if ($existing->source_type !== JournalSourceType::GOVERNANCE_PENALTY_SETTLEMENT->value || (string)$existing->source_id !== (string)$settlementId) throw new ConflictHttpException('Idempotency key is already used for another transaction.');
+                if ($existing->status !== 'posted') throw new ConflictHttpException('An idempotent settlement journal exists but is not posted.');
+                return ['journal_id'=>(int)$existing->id,'journal_number'=>$existing->journal_number,'settlement_id'=>$settlementId,'status'=>'settled','method'=>$method,'idempotent_replay'=>true];
+            }
+            if (!in_array($s->status,['pending_finance','pending_legal_finance_review'],true)) throw ValidationException::withMessages(['settlement'=>'Settlement is not pending Finance execution.']);
             $penalty = DB::table('governance_meeting_penalties')->where('tenant_id',$tenantId)->where('id',$s->penalty_id)->lockForUpdate()->first();
             if (!$penalty || $penalty->status !== 'assessed') throw ValidationException::withMessages(['penalty'=>'Penalty is disputed, waived, or already settled.']);
             $meeting = DB::table('governance_meetings')->where('tenant_id',$tenantId)->where('id',$penalty->meeting_id)->first();
@@ -130,11 +138,6 @@ final class GovernancePenaltySettlementService
             $cents = (int)$s->amount_cents;
             $amount = intdiv($cents,100).'.'.str_pad((string)($cents % 100),2,'0',STR_PAD_LEFT);
             if ((int)$s->amount_cents < 1 || $s->currency !== 'ETB') throw ValidationException::withMessages(['amount'=>'Only positive ETB settlements are supported.']);
-            $existing = DB::table('journal_entries')->where('tenant_id',$tenantId)->where('idempotency_key',$key)->first();
-            if ($existing) {
-                if ($existing->source_type !== JournalSourceType::GOVERNANCE_PENALTY_SETTLEMENT->value || (string)$existing->source_id !== (string)$settlementId) throw new ConflictHttpException('Idempotency key is already used by another transaction.');
-                return ['journal_id'=>(int)$existing->id,'status'=>$existing->status,'idempotent_replay'=>true];
-            }
             $entityMapping = GovernanceSettlementAccountMapping::query()->forEntity($tenantId,(int)$this->resolveEntity($tenantId,$settlementId))->approved()->get()->keyBy('account_role');
             $entityId = (int)$this->resolveEntity($tenantId,$settlementId);
             foreach ([GovernanceSettlementAccountMapping::ROLE_FINE_RECEIVABLE, GovernanceSettlementAccountMapping::ROLE_PENALTY_INCOME, $method==='cash'?GovernanceSettlementAccountMapping::ROLE_CASH_BANK:GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE] as $role) {
