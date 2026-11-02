@@ -37,7 +37,7 @@ final class GovernancePenaltySettlementController extends Controller
 
     public function requestAccountMapping(Request $request): JsonResponse
     {
-        $d=$request->validate(['legal_entity_id'=>['required','integer','min:1'],'account_role'=>['required','in:fine_receivable,cash_bank,dividend_payable'],'ledger_account_id'=>['required','integer','min:1'],'reason'=>['required','string','min:5','max:2000']]);
+        $d=$request->validate(['legal_entity_id'=>['required','integer','min:1'],'account_role'=>['required','in:fine_receivable,cash_bank,dividend_payable,penalty_income'],'ledger_account_id'=>['required','integer','min:1'],'reason'=>['required','string','min:5','max:2000']]);
         $row=$this->settlements->requestAccountMapping($this->tenantId(),(int)$d['legal_entity_id'],$d['account_role'],(int)$d['ledger_account_id'],(int)$request->user()->getAuthIdentifier(),$d['reason']);
         return response()->json(['success'=>true,'data'=>$row],201);
     }
