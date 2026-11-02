@@ -14,7 +14,25 @@ use RuntimeException;
  */
 final class GovernanceElectionRegisterService
 {
-    /** @param array<int,array{shareholder_id:int,share_class_code:string,share_quantity:string|int|float,voting_weight:string|int|float,entitlement_reference:string,proxy_authorized?:bool}> $entries */
+    /**
+     * Calculate the default share-weighted entitlement using decimal arithmetic.
+     * Any class-specific override requires separately verified entitlement evidence.
+     */
+    public static function defaultVotingWeight(string|int $shareQuantity): string
+    {
+        $quantity = (string) $shareQuantity;
+        if (!function_exists('bcmul') || !function_exists('bccomp')) {
+            throw new RuntimeException('BCMath is required for precise share-voting calculations.');
+        }
+        if (bccomp($quantity, '0', 4) <= 0 || bccomp($quantity, bcadd($quantity, '0', 0), 4) !== 0) {
+            throw ValidationException::withMessages(['share_quantity' => 'Voting shares must be a positive whole-share quantity.']);
+        }
+
+        $votesPerShare = (string) config('governance.election_voting.default_votes_per_share', 1);
+        return bcmul($quantity, $votesPerShare, 4);
+    }
+
+    /** @param array<int,array{shareholder_id:int,share_class_code:string,share_quantity:string|int|float,voting_weight?:string|int|float,entitlement_reference:string,proxy_authorized?:bool}> $entries */
     public function freeze(int $tenantId, int $electionId, string $recordDate, string $sourceReference, string $ruleVersion, int $actorId, array $entries): int
     {
         if ($entries === []) {
@@ -39,22 +57,28 @@ final class GovernanceElectionRegisterService
             $ids = [];
             foreach ($entries as $entry) {
                 $id = (int) ($entry['shareholder_id'] ?? 0);
-                $quantity = (float) ($entry['share_quantity'] ?? 0);
-                $weight = (float) ($entry['voting_weight'] ?? -1);
+                $quantity = (string) ($entry['share_quantity'] ?? '0');
+                $weight = (string) ($entry['voting_weight'] ?? '');
+                $expectedWeight = self::defaultVotingWeight($quantity);
                 $class = trim((string) ($entry['share_class_code'] ?? ''));
                 $evidence = trim((string) ($entry['entitlement_reference'] ?? ''));
-                if ($id < 1 || $quantity <= 0 || $weight < 0 || $class === '' || $evidence === '') {
+                if ($id < 1 || $class === '' || $evidence === '') {
                     throw ValidationException::withMessages(['entries' => 'Each entry requires a shareholder, positive quantity, non-negative approved weight, class and evidence reference.']);
                 }
                 if (isset($ids[$id])) {
                     throw ValidationException::withMessages(['entries' => 'A shareholder may appear only once in an election register.']);
                 }
+                if ($weight !== '' && bccomp($weight, $expectedWeight, 4) !== 0) {
+                    throw ValidationException::withMessages([
+                        'entries' => 'Voting weight must equal the verified eligible share quantity multiplied by the configured votes-per-share rate. One-holder-one-vote is not permitted.',
+                    ]);
+                }
                 $ids[$id] = true;
                 $normalised[] = [
                     'shareholder_id' => $id,
                     'share_class_code' => $class,
-                    'share_quantity' => number_format($quantity, 4, '.', ''),
-                    'voting_weight' => number_format($weight, 4, '.', ''),
+                    'share_quantity' => bcadd($quantity, '0', 4),
+                    'voting_weight' => $expectedWeight,
                     'entitlement_reference' => $evidence,
                     'proxy_authorized' => (bool) ($entry['proxy_authorized'] ?? false),
                 ];
