@@ -119,7 +119,7 @@ final class GovernancePenaltySettlementService
     private function execute(int $tenantId,int $settlementId,int $actorId,string $effectiveDate,string $key,string $method,?int $payableId): array
     {
         return DB::transaction(function () use ($tenantId,$settlementId,$actorId,$effectiveDate,$key,$method,$payableId) {
-            if (trim($key)==='' || strlen($key)>128) throw ValidationException::withMessages(['idempotency_key'=>'A non-empty idempotency key of at most 128 characters is required.']);
+            if (trim($key)==='' || strlen($key)>128 || str_starts_with($key,'gps-accrual:')) throw ValidationException::withMessages(['idempotency_key'=>'A unique caller-supplied idempotency key of at most 128 characters is required.']);
             $s = DB::table('governance_penalty_settlements')->where('tenant_id',$tenantId)->where('id',$settlementId)->lockForUpdate()->first();
             if (!$s || $s->method !== $method) throw ValidationException::withMessages(['settlement'=>'Settlement does not exist for this method in the trusted tenant.']);
             $existing = DB::table('journal_entries')->where('tenant_id',$tenantId)->where('idempotency_key',$key)->first();
