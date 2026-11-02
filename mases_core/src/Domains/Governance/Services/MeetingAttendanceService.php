@@ -137,7 +137,7 @@ final class MeetingAttendanceService
             $appointed = CarbonImmutable::parse($data['appointed_at'], $meeting->timezone);
             $received = now();
             $cutoff = CarbonImmutable::parse($meeting->scheduled_at, $meeting->timezone)
-                ->sub($meeting->meeting_kind === 'ga' ? '3 days' : '3 hours');
+                ->sub($meeting->meeting_kind === 'ga' ? '3 days' : '3 hours')->utc();
             if ($appointed->gt($received) || $received->gt($cutoff)) {
                 throw ValidationException::withMessages(['appointed_at' => 'The proxy must be appointed and received by the applicable statutory/policy deadline.']);
             }
@@ -202,7 +202,7 @@ final class MeetingAttendanceService
             $meeting = $this->meeting($meetingId, true);
             if ($meeting->status !== 'open') throw ValidationException::withMessages(['meeting_id' => 'Attendance can only be recorded while the meeting is open.']);
             $member = $this->membership((int) $data['membership_id'], (int) $meeting->governance_body_id);
-            $arrivedAt = CarbonImmutable::now($meeting->timezone);
+            $arrivedAt = CarbonImmutable::now('UTC');
             $proxyId = $data['proxy_id'] ?? null;
             $acceptedProxy = DB::table('governance_meeting_proxies')->where('tenant_id', $this->tenantId())
                 ->where('meeting_id', $meetingId)->where('principal_membership_id', $member->id)
@@ -215,7 +215,7 @@ final class MeetingAttendanceService
             } elseif ($meeting->meeting_kind === 'ga' && $acceptedProxy) {
                 throw ValidationException::withMessages(['membership_id' => 'A General Assembly member who appointed an accepted proxy cannot also attend or vote personally at the same meeting.']);
             }
-            $status = $arrivedAt->gt(CarbonImmutable::parse($meeting->scheduled_at, $meeting->timezone)) ? 'late' : ($proxyId ? 'represented' : 'present');
+            $status = $arrivedAt->gt(CarbonImmutable::parse($meeting->scheduled_at, $meeting->timezone)->utc()) ? 'late' : ($proxyId ? 'represented' : 'present');
             $id = DB::table('governance_meeting_attendance')->insertGetId([
                 'tenant_id' => $this->tenantId(), 'meeting_id' => $meetingId,
                 'membership_id' => $member->id, 'proxy_id' => $proxyId, 'status' => $status,
