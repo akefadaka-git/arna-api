@@ -847,6 +847,9 @@ return [
         'legally_disqualified_shares' => 'exclude_from_voting_entitlement',
         'record_date_snapshot_required' => true,
         'articles_override' => 'require_verified_operative_articles',
+        // Intentionally empty until the operative Articles/class rights are verified.
+        // Each key is a ShareClass.code; values require verified, eligible and votes_per_share.
+        'verified_class_entitlements' => [],
     ],
 
     'features' => [
