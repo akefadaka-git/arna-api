@@ -233,6 +233,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingContr
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePositionController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceSeatController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceTermController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -567,5 +568,19 @@ Route::name('api.governance.')->group(static function (): void {
     Route::match(['patch', 'put'], '/memberships/{governanceMembership}', [GovernanceMembershipController::class, 'update'])
         ->whereNumber('governanceMembership')
         ->name('memberships.update');
+
+    // Board elections — policy-backed, tenant-scoped initial endpoints.
+    Route::get('/elections', [GovernanceElectionController::class, 'index'])
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.index');
+
+    Route::post('/elections', [GovernanceElectionController::class, 'store'])
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.store');
+
+    Route::get('/elections/{governanceElection}', [GovernanceElectionController::class, 'show'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.show');
 
 });
