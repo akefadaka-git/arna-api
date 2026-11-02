@@ -127,7 +127,7 @@ final class GovernancePenaltySettlementService
             if (!$meeting) throw ValidationException::withMessages(['meeting'=>'Meeting not found in this tenant.']);
             $attendance = DB::table('governance_meeting_attendance')->where('tenant_id',$tenantId)->where('id',$penalty->attendance_id)->first();
             if (!$attendance) throw ValidationException::withMessages(['attendance'=>'Attendance source is missing.']);
-            $amount = number_format(((int)$s->amount_cents)/100,2,'.','');
+            $cents = (int)$s->amount_cents;\n            $amount = intdiv($cents,100).'.'.str_pad((string)($cents % 100),2,'0',STR_PAD_LEFT);
             if ((int)$s->amount_cents < 1 || $s->currency !== 'ETB') throw ValidationException::withMessages(['amount'=>'Only positive ETB settlements are supported.']);
             $existing = DB::table('journal_entries')->where('tenant_id',$tenantId)->where('idempotency_key',$key)->first();
             if ($existing) {
@@ -187,7 +187,7 @@ final class GovernancePenaltySettlementService
                 $payable->save();
             }
             DB::table('governance_penalty_settlements')->where('tenant_id',$tenantId)->where('id',$settlementId)->update(['status'=>'settled','reference'=>'journal:'.$posted->id,'updated_at'=>now()]);
-            DB::table('governance_meeting_penalties')->where('tenant_id',$tenantId)->where('id',$penalty->id)->update(['status'=>'settled','updated_at'=>now()]);
+            $settledCents = (int) DB::table('governance_penalty_settlements')->where('tenant_id',$tenantId)->where('penalty_id',$penalty->id)->where('status','settled')->sum('amount_cents');\n            $penaltyStatus = $settledCents >= (int)$penalty->amount_cents ? 'settled' : 'assessed';\n            DB::table('governance_meeting_penalties')->where('tenant_id',$tenantId)->where('id',$penalty->id)->update(['status'=>$penaltyStatus,'updated_at'=>now()]);
             DB::table('governance_meeting_activity')->insert(['tenant_id'=>$tenantId,'meeting_id'=>$meeting->id,'actor_id'=>$actorId,'action'=>'penalty.settlement.executed','payload'=>json_encode(['settlement_id'=>$settlementId,'journal_id'=>$posted->id,'method'=>$method,'amount'=>$amount,'payable_id'=>$payableId]),'occurred_at'=>now()]);
             return ['journal_id'=>(int)$posted->id,'journal_number'=>$posted->journal_number,'settlement_id'=>$settlementId,'status'=>'settled','method'=>$method,'amount'=>$amount,'idempotent_replay'=>false];
         });
