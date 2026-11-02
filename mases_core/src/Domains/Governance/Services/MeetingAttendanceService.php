@@ -269,11 +269,11 @@ final class MeetingAttendanceService
     private function minorUnits(string|int|float $amount): int
     {
         $value = trim((string) $amount);
-        if (!preg_match('/^\\d+(?:\\.\\d{1,2})?$/', $value)) {
+        if (!preg_match('/^\\d+(?:\\.\\d{1,4})?$/', $value)) {
             throw ValidationException::withMessages(['amount' => 'Money amounts must be non-negative ETB values with at most two decimal places.']);
         }
         [$whole, $fraction] = array_pad(explode('.', $value, 2), 2, '0');
-        return ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+        return ((int) $whole * 10000) + (int) str_pad($fraction, 4, '0');
     }
 
     private function createPenalty(int $meetingId, int $membershipId, string $type, string $amount, string $reason): void
@@ -356,7 +356,7 @@ final class MeetingAttendanceService
             if ($amountMinor <= 0 || $amountMinor > ($penaltyMinor - $paidMinor - $reservedMinor)) {
                 throw ValidationException::withMessages(['amount' => 'Payment must be positive and cannot exceed the unreserved outstanding balance.']);
             }
-            $amount = number_format($amountMinor / 100, 2, '.', '');
+            $amount = number_format($amountMinor / 10000, 2, '.', '');
             $id = DB::table('governance_meeting_penalty_payments')->insertGetId([
                 'tenant_id' => $this->tenantId(), 'penalty_id' => $penaltyId, 'amount' => $amount,
                 'currency' => 'ETB', 'payment_method' => $data['payment_method'],
@@ -422,6 +422,14 @@ final class MeetingAttendanceService
                 throw ValidationException::withMessages(['finance_reference' => 'This payment is already reconciled to another journal.']);
             }
             $journal = $this->assertPostedJournal($journalId, $meeting);
+            $journalDebit = $this->minorUnits((string) DB::table('journal_lines')->where('tenant_id', $this->tenantId())
+                ->where('legal_entity_id', $meeting->finance_legal_entity_id)->where('journal_entry_id', $journal->id)->sum('debit_amount'));
+            $journalCredit = $this->minorUnits((string) DB::table('journal_lines')->where('tenant_id', $this->tenantId())
+                ->where('legal_entity_id', $meeting->finance_legal_entity_id)->where('journal_entry_id', $journal->id)->sum('credit_amount'));
+            $paymentAmount = $this->minorUnits((string) $payment->amount);
+            if ($journalDebit !== $paymentAmount || $journalCredit !== $paymentAmount) {
+                throw ValidationException::withMessages(['finance_reference' => 'The posted journal debit and credit totals must each equal the payment amount.']);
+            }
             $duplicate = DB::table('governance_meeting_penalty_payments')->where('tenant_id', $this->tenantId())
                 ->where('finance_reference', (string) $journal->id)->exists()
                 || DB::table('governance_meeting_dividend_settlement_requests')->where('tenant_id', $this->tenantId())
@@ -478,6 +486,14 @@ final class MeetingAttendanceService
                 throw ValidationException::withMessages(['settlement_id' => 'Only an approved dividend settlement can be reconciled.']);
             }
             $journal = $this->assertPostedJournal($journalId, $meeting);
+            $journalDebit = $this->minorUnits((string) DB::table('journal_lines')->where('tenant_id', $this->tenantId())
+                ->where('legal_entity_id', $meeting->finance_legal_entity_id)->where('journal_entry_id', $journal->id)->sum('debit_amount'));
+            $journalCredit = $this->minorUnits((string) DB::table('journal_lines')->where('tenant_id', $this->tenantId())
+                ->where('legal_entity_id', $meeting->finance_legal_entity_id)->where('journal_entry_id', $journal->id)->sum('credit_amount'));
+            $settlementAmount = $this->minorUnits((string) $settlement->requested_amount);
+            if ($journalDebit !== $settlementAmount || $journalCredit !== $settlementAmount) {
+                throw ValidationException::withMessages(['finance_reference' => 'The posted journal debit and credit totals must each equal the approved dividend settlement amount.']);
+            }
             $used = DB::table('governance_meeting_dividend_settlement_requests')->where('tenant_id', $this->tenantId())
                 ->where('finance_reference', (string) $journal->id)->exists()
                 || DB::table('governance_meeting_penalty_payments')->where('tenant_id', $this->tenantId())
@@ -517,7 +533,7 @@ final class MeetingAttendanceService
             if ($requestedMinor <= 0 || $requestedMinor > ($penaltyMinor - $paidMinor - $reservedMinor)) {
                 throw ValidationException::withMessages(['requested_amount' => 'Requested set-off cannot exceed the remaining unreserved penalty balance.']);
             }
-            $requested = number_format($requestedMinor / 100, 2, '.', '');
+            $requested = number_format($requestedMinor / 10000, 2, '.', '');
             $id = DB::table('governance_meeting_dividend_settlement_requests')->insertGetId([
                 'tenant_id' => $this->tenantId(), 'penalty_id' => $penaltyId,
                 'shareholder_id' => $data['shareholder_id'], 'dividend_reference' => $data['dividend_reference'],
