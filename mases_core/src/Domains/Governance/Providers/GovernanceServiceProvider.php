@@ -217,6 +217,8 @@ use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernancePositionRepos
 use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceTermRepository;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAppointmentService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionPhysicalBallotService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceBodyService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceMembershipService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernancePositionService;
@@ -524,7 +526,9 @@ final class GovernanceServiceProvider extends ServiceProvider
         $this->app->singleton(GovernanceMembershipService::class);
 
         // P1.3-B3 — explicit position-scoped authority grants.
-        $this->app->singleton(GovernanceAuthorityGrantService::class);\n\n        // A3 — controlled election register and physical ballot services.\n        $this->app->singleton(GovernanceElectionRegisterService::class);\n        $this->app->singleton(GovernanceElectionPhysicalBallotService::class);
+        $this->app->singleton(GovernanceAuthorityGrantService::class);
+
+        // A3 — controlled election register and physical ballot services.\n        $this->app->singleton(GovernanceElectionRegisterService::class);\n        $this->app->singleton(GovernanceElectionPhysicalBallotService::class);
     }
 
     // =========================================================================
