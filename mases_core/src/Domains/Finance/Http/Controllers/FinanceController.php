@@ -84,6 +84,7 @@ final class FinanceController extends Controller
                 JournalSourceType::SHAREHOLDER->value,
                 JournalSourceType::WALLET->value,
                 JournalSourceType::LOAN->value,
+                JournalSourceType::GOVERNANCE_PENALTY_SETTLEMENT->value,
             ])],
             'source_id' => ['required', 'string', 'max:128'],
             'legal_entity_id' => ['required', 'integer', 'min:1'],
