@@ -103,6 +103,7 @@ final class GovernanceElectionWorkflowController extends Controller
         Gate::authorize('update', $governanceElection);
         $tenantId = $this->tenantId();
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $this->assertCommitteeMember($tenantId, (int) $governanceElection->id);
 
         $submissions = DB::table('governance_election_nomination_submissions')
             ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
@@ -119,6 +120,7 @@ final class GovernanceElectionWorkflowController extends Controller
         Gate::authorize('update', $governanceElection);
         $tenantId = $this->tenantId();
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $committeeMember = $this->assertCommitteeMember($tenantId, (int) $governanceElection->id);
         $data = $request->validate([
             'decision' => ['required', 'in:approved,rejected,returned'],
             'reason' => ['required', 'string', 'min:10', 'max:10000'],
@@ -134,8 +136,10 @@ final class GovernanceElectionWorkflowController extends Controller
 
             $activeMembers = DB::table('governance_election_committee_members')
                 ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
-                ->where('status', 'active')->count();
+                ->where('status', 'active')->whereNull('recused_at')->count();
             abort_if($activeMembers < 3, 409, 'Committee quorum is not established.');
+            abort_if($committeeMember->recused_at !== null, 403, 'A recused committee member cannot decide this nomination.');
+            abort_if((int) ($committeeMember->person_id ?? 0) === (int) ($candidate->candidate_person_id ?? 0), 403, 'A candidate cannot decide their own nomination.');
 
             $actorId = (int) $request->user()->getAuthIdentifier();
             $candidate->committee_status = $data['decision'];
@@ -163,6 +167,17 @@ final class GovernanceElectionWorkflowController extends Controller
 
             return response()->json(['data' => $candidate->fresh()]);
         });
+    }
+
+    private function assertCommitteeMember(int $tenantId, int $electionId): object
+    {
+        $userId = auth()->id();
+        abort_if($userId === null, 401);
+        $member = DB::table('governance_election_committee_members')
+            ->where('tenant_id', $tenantId)->where('election_id', $electionId)
+            ->where('user_id', $userId)->where('status', 'active')->first();
+        abort_if($member === null, 403, 'Active Electoral Committee membership is required.');
+        return $member;
     }
 
     private function approvedCandidate(int $tenantId, int $electionId, int $nomination): GovernanceElectionNomination
