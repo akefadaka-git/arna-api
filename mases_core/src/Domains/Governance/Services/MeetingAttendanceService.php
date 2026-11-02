@@ -179,7 +179,7 @@ final class MeetingAttendanceService
             $meeting = $this->meeting($meetingId, true);
             if ($meeting->status !== 'open') throw ValidationException::withMessages(['meeting_id' => 'Attendance can only be recorded while the meeting is open.']);
             $member = $this->membership((int) $data['membership_id'], (int) $meeting->governance_body_id);
-            $arrivedAt = CarbonImmutable::parse($data['arrived_at'] ?? now(), $meeting->timezone);
+            $arrivedAt = CarbonImmutable::now($meeting->timezone);
             $proxyId = $data['proxy_id'] ?? null;
             if ($proxyId) {
                 $proxy = DB::table('governance_meeting_proxies')->where('tenant_id', $this->tenantId())
@@ -271,6 +271,11 @@ final class MeetingAttendanceService
             $penalty = DB::table('governance_meeting_penalties')->where('tenant_id', $this->tenantId())
                 ->where('meeting_id', $meetingId)->where('id', $penaltyId)->lockForUpdate()->first();
             if (!$penalty || $penalty->status !== 'pending_review') throw ValidationException::withMessages(['penalty_id' => 'Only a pending penalty can be assessed or waived.']);
+            $attendance = DB::table('governance_meeting_attendance')->where('meeting_id', $meetingId)
+                ->where('membership_id', $penalty->membership_id)->first();
+            if ($attendance && (int) $attendance->recorded_by === $this->actorId()) {
+                throw ValidationException::withMessages(['decision' => 'The attendance recorder cannot approve or waive the resulting penalty.']);
+            }
             $status = $data['decision'] === 'assess' ? 'assessed' : 'waived';
             DB::table('governance_meeting_penalties')->where('id', $penaltyId)->update([
                 'status' => $status, 'assessed_by' => $this->actorId(), 'assessed_at' => now(),
@@ -322,9 +327,13 @@ final class MeetingAttendanceService
                 throw ValidationException::withMessages(['penalty_id' => 'Only an assessed outstanding penalty can be submitted for dividend-settlement review.']);
             }
             $paid = (float) DB::table('governance_meeting_penalty_payments')->where('penalty_id', $penaltyId)->sum('amount');
+            $reserved = (float) DB::table('governance_meeting_dividend_settlement_requests')
+                ->where('penalty_id', $penaltyId)
+                ->whereIn('status', ['pending_finance_legal_review', 'approved', 'reconciled'])
+                ->sum('requested_amount');
             $requested = (float) $data['requested_amount'];
-            if ($requested <= 0 || $requested > ((float) $penalty->amount - $paid)) {
-                throw ValidationException::withMessages(['requested_amount' => 'Requested set-off cannot exceed the outstanding penalty.']);
+            if ($requested <= 0 || $requested > ((float) $penalty->amount - $paid - $reserved)) {
+                throw ValidationException::withMessages(['requested_amount' => 'Requested set-off cannot exceed the remaining unreserved penalty balance.']);
             }
             $id = DB::table('governance_meeting_dividend_settlement_requests')->insertGetId([
                 'tenant_id' => $this->tenantId(), 'penalty_id' => $penaltyId,
