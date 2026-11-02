@@ -73,8 +73,15 @@ final class MeetingAttendanceService
             if (!$body) throw ValidationException::withMessages(['governance_body_id' => 'Governance body not found in this tenant.']);
             $expectedType = $data['meeting_kind'] === 'ga' ? 'assembly' : 'board';
             if ($body->body_type !== $expectedType) throw ValidationException::withMessages(['meeting_kind' => 'Meeting kind does not match the selected governance body.']);
+            $legalEntityId = $data['finance_legal_entity_id'] ?? null;
+            if ($legalEntityId !== null) {
+                $entity = DB::table('legal_entities')->where('tenant_id', $tenantId)
+                    ->where('id', $legalEntityId)->where('status', 'active')->first();
+                if (!$entity) throw ValidationException::withMessages(['finance_legal_entity_id' => 'The Finance legal entity must be active and belong to this tenant.']);
+            }
             $id = DB::table('governance_meetings')->insertGetId([
                 'tenant_id' => $tenantId, 'governance_body_id' => $body->id,
+                'finance_legal_entity_id' => $legalEntityId,
                 'meeting_kind' => $data['meeting_kind'], 'title_am' => $data['title_am'] ?? null,
                 'title_en' => $data['title_en'] ?? null, 'scheduled_at' => $data['scheduled_at'],
                 'timezone' => $data['timezone'] ?? 'Africa/Addis_Ababa', 'status' => 'scheduled',
@@ -94,6 +101,14 @@ final class MeetingAttendanceService
             'proxies' => DB::table('governance_meeting_proxies')->where('tenant_id', $this->tenantId())->where('meeting_id', $id)->orderBy('id')->get(),
             'attendance' => DB::table('governance_meeting_attendance')->where('tenant_id', $this->tenantId())->where('meeting_id', $id)->orderBy('id')->get(),
             'penalties' => DB::table('governance_meeting_penalties')->where('tenant_id', $this->tenantId())->where('meeting_id', $id)->orderBy('id')->get(),
+            'payments' => DB::table('governance_meeting_penalty_payments as payments')
+                ->join('governance_meeting_penalties as penalties', 'penalties.id', '=', 'payments.penalty_id')
+                ->where('payments.tenant_id', $this->tenantId())->where('penalties.meeting_id', $id)
+                ->select('payments.*')->orderBy('payments.id')->get(),
+            'dividend_settlement_requests' => DB::table('governance_meeting_dividend_settlement_requests as settlements')
+                ->join('governance_meeting_penalties as penalties', 'penalties.id', '=', 'settlements.penalty_id')
+                ->where('settlements.tenant_id', $this->tenantId())->where('penalties.meeting_id', $id)
+                ->select('settlements.*')->orderBy('settlements.id')->get(),
         ];
     }
 
@@ -339,6 +354,121 @@ final class MeetingAttendanceService
             $payment = DB::table('governance_meeting_penalty_payments')->where('id', $id)->first();
             $this->audit($meetingId, 'penalty.payment_recorded', 'payment', $id, null, (array) $payment);
             return $payment;
+        });
+    }
+
+
+    public function financeReconciliationQueue(): array
+    {
+        $tenantId = $this->tenantId();
+        return [
+            'payments' => DB::table('governance_meeting_penalty_payments as payments')
+                ->join('governance_meetings as meetings', 'meetings.id', '=', 'payments.penalty_id')
+                ->where('payments.tenant_id', $tenantId)
+                ->where('payments.finance_reconciliation_status', 'pending')
+                ->select('payments.*')->orderBy('payments.id')->limit(500)->get(),
+            'dividend_settlements' => DB::table('governance_meeting_dividend_settlement_requests')
+                ->where('tenant_id', $tenantId)
+                ->whereIn('status', ['pending_finance_legal_review', 'approved'])
+                ->orderBy('id')->limit(500)->get(),
+        ];
+    }
+
+    private function assertPostedJournal(int $journalId, object $meeting): object
+    {
+        if (!$meeting->finance_legal_entity_id) {
+            throw ValidationException::withMessages(['finance_legal_entity_id' => 'Select an active Finance legal entity on the meeting before reconciliation.']);
+        }
+        $journal = JournalEntry::query()->where('tenant_id', $this->tenantId())
+            ->where('legal_entity_id', $meeting->finance_legal_entity_id)
+            ->whereKey($journalId)->where('status', JournalEntry::POSTED)->first();
+        if (!$journal) {
+            throw ValidationException::withMessages(['finance_reference' => 'A posted journal in the meeting legal entity is required for reconciliation.']);
+        }
+        return $journal;
+    }
+
+    public function reconcilePayment(int $meetingId, int $paymentId, int $journalId): object
+    {
+        return DB::transaction(function () use ($meetingId, $paymentId, $journalId): object {
+            $meeting = $this->meeting($meetingId, true);
+            $payment = DB::table('governance_meeting_penalty_payments as payments')
+                ->join('governance_meeting_penalties as penalties', 'penalties.id', '=', 'payments.penalty_id')
+                ->where('payments.tenant_id', $this->tenantId())->where('payments.id', $paymentId)
+                ->where('penalties.meeting_id', $meetingId)->select('payments.*')->lockForUpdate()->first();
+            if (!$payment) throw new NotFoundHttpException('Payment record not found.');
+            if ($payment->finance_reconciliation_status === 'reconciled') {
+                if ((string) $payment->finance_reference === (string) $journalId) return $payment;
+                throw ValidationException::withMessages(['finance_reference' => 'This payment is already reconciled to another journal.']);
+            }
+            $journal = $this->assertPostedJournal($journalId, $meeting);
+            $duplicate = DB::table('governance_meeting_penalty_payments')->where('tenant_id', $this->tenantId())
+                ->where('finance_reference', (string) $journal->id)->exists();
+            if ($duplicate) throw ValidationException::withMessages(['finance_reference' => 'This journal is already linked to another meeting payment.']);
+            DB::table('governance_meeting_penalty_payments')->where('id', $paymentId)->update([
+                'finance_reconciliation_status' => 'reconciled',
+                'finance_reference' => (string) $journal->id, 'updated_at' => now(),
+            ]);
+            $updated = DB::table('governance_meeting_penalty_payments')->where('id', $paymentId)->first();
+            $this->audit($meetingId, 'penalty.payment_reconciled', 'payment', $paymentId, (array) $payment, (array) $updated);
+            return $updated;
+        });
+    }
+
+    public function reviewDividendSettlement(int $meetingId, int $settlementId, array $data): object
+    {
+        return DB::transaction(function () use ($meetingId, $settlementId, $data): object {
+            $this->meeting($meetingId, true);
+            $settlement = DB::table('governance_meeting_dividend_settlement_requests as settlements')
+                ->join('governance_meeting_penalties as penalties', 'penalties.id', '=', 'settlements.penalty_id')
+                ->where('settlements.tenant_id', $this->tenantId())->where('settlements.id', $settlementId)
+                ->where('penalties.meeting_id', $meetingId)->select('settlements.*')->lockForUpdate()->first();
+            if (!$settlement || $settlement->status !== 'pending_finance_legal_review') {
+                throw ValidationException::withMessages(['settlement_id' => 'Only a pending Finance/Legal settlement request can be decided.']);
+            }
+            if ($data['decision'] === 'approve' && trim((string) ($data['authority_reference'] ?? '')) === '') {
+                throw ValidationException::withMessages(['authority_reference' => 'A valid corporate/legal authority reference is required before approval.']);
+            }
+            $status = $data['decision'] === 'approve' ? 'approved' : 'rejected';
+            DB::table('governance_meeting_dividend_settlement_requests')->where('id', $settlementId)->update([
+                'status' => $status, 'authority_reference' => $data['authority_reference'] ?? null,
+                'decided_by' => $this->actorId(), 'decided_at' => now(),
+                'decision_reason' => $data['reason'], 'updated_at' => now(),
+            ]);
+            $updated = DB::table('governance_meeting_dividend_settlement_requests')->where('id', $settlementId)->first();
+            $this->audit($meetingId, 'dividend_settlement.'.$status, 'dividend_settlement', $settlementId, (array) $settlement, (array) $updated);
+            return $updated;
+        });
+    }
+
+    public function reconcileDividendSettlement(int $meetingId, int $settlementId, int $journalId): object
+    {
+        return DB::transaction(function () use ($meetingId, $settlementId, $journalId): object {
+            $meeting = $this->meeting($meetingId, true);
+            $settlement = DB::table('governance_meeting_dividend_settlement_requests as settlements')
+                ->join('governance_meeting_penalties as penalties', 'penalties.id', '=', 'settlements.penalty_id')
+                ->where('settlements.tenant_id', $this->tenantId())->where('settlements.id', $settlementId)
+                ->where('penalties.meeting_id', $meetingId)->select('settlements.*', 'penalties.id as linked_penalty_id')->lockForUpdate()->first();
+            if (!$settlement || $settlement->status !== 'approved') {
+                throw ValidationException::withMessages(['settlement_id' => 'Only an approved dividend settlement can be reconciled.']);
+            }
+            $journal = $this->assertPostedJournal($journalId, $meeting);
+            $used = DB::table('governance_meeting_dividend_settlement_requests')->where('tenant_id', $this->tenantId())
+                ->where('finance_reference', (string) $journal->id)->exists();
+            if ($used) throw ValidationException::withMessages(['finance_reference' => 'This journal is already linked to a dividend settlement.']);
+            DB::table('governance_meeting_dividend_settlement_requests')->where('id', $settlementId)->update([
+                'status' => 'reconciled', 'finance_reference' => (string) $journal->id, 'updated_at' => now(),
+            ]);
+            $paid = (float) DB::table('governance_meeting_penalty_payments')->where('penalty_id', $settlement->linked_penalty_id)->sum('amount');
+            $offset = (float) DB::table('governance_meeting_dividend_settlement_requests')
+                ->where('penalty_id', $settlement->linked_penalty_id)->where('status', 'reconciled')->sum('requested_amount')
+                + (float) $settlement->requested_amount;
+            $penalty = DB::table('governance_meeting_penalties')->where('id', $settlement->linked_penalty_id)->first();
+            $newStatus = ($paid + $offset) >= (float) $penalty->amount ? 'paid' : 'partially_paid';
+            DB::table('governance_meeting_penalties')->where('id', $settlement->linked_penalty_id)->update(['status' => $newStatus, 'updated_at' => now()]);
+            $updated = DB::table('governance_meeting_dividend_settlement_requests')->where('id', $settlementId)->first();
+            $this->audit($meetingId, 'dividend_settlement.reconciled', 'dividend_settlement', $settlementId, (array) $settlement, (array) $updated);
+            return $updated;
         });
     }
 
