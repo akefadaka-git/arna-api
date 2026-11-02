@@ -33,6 +33,7 @@ final class OcrController extends Controller
     {
         $tenantId = $this->tenantId();
         $this->authorize('ocr.job.view', $request->user(), $tenantId);
+        $this->authorize('file.list', $request->user(), $tenantId);
         $jobs = OcrProcessingJob::query()->where('tenant_id', $tenantId)
             ->with(['result:id,job_id,mean_confidence', 'file:id,original_name,version'])
             ->latest()->paginate(min(max((int) $request->integer('per_page', 20), 1), 100));
@@ -50,6 +51,7 @@ final class OcrController extends Controller
         /** @var User $user */
         $user = $request->user();
         $this->authorize('ocr.job.create', $user, $tenantId);
+        $this->authorize('file.download', $user, $tenantId);
         $validated = $request->validate([
             'file_id' => ['required', 'integer', 'min:1'],
             'languages' => ['sometimes', 'string', 'max:32', 'in:amh,eng,amh+eng,eng+amh'],
@@ -101,6 +103,7 @@ final class OcrController extends Controller
     {
         $tenantId = $this->tenantId();
         $this->authorize('ocr.job.view', $request->user(), $tenantId);
+        $this->authorize('file.view', $request->user(), $tenantId);
         $job = OcrProcessingJob::query()->where('tenant_id', $tenantId)->with(['result:id,job_id,mean_confidence', 'file:id,original_name,version'])->findOrFail($id);
         $this->logAudit(action: 'ocr.job.viewed', resourceType: 'ocr_job', resourceId: (string) $job->id);
         return response()->json(['success' => true, 'data' => $job]);
@@ -123,6 +126,7 @@ final class OcrController extends Controller
     {
         $tenantId = $this->tenantId();
         $this->authorize('ocr.result.view', $request->user(), $tenantId);
+        $this->authorize('file.download', $request->user(), $tenantId);
         $result = OcrResult::query()->where('tenant_id', $tenantId)->with(['pages', 'verifications', 'corrections'])->findOrFail($id);
         $this->logAudit(action: 'ocr.result.viewed', resourceType: 'ocr_result', resourceId: (string) $result->id);
         return response()->json(['success' => true, 'data' => $result]);
@@ -132,6 +136,7 @@ final class OcrController extends Controller
     {
         $tenantId = $this->tenantId();
         $this->authorize('ocr.result.search', $request->user(), $tenantId);
+        $this->authorize('file.download', $request->user(), $tenantId);
         $validated = $request->validate(['q' => ['required', 'string', 'min:2', 'max:200']]);
         preg_match_all('/[\\p{L}\\p{N}]{2,}/u', $validated['q'], $tokens);
         abort_if($tokens[0] === [], 422, 'Search query must contain at least one word.');
@@ -165,6 +170,7 @@ final class OcrController extends Controller
         /** @var User $user */
         $user = $request->user();
         $this->authorize('ocr.result.verify', $user, $tenantId);
+        $this->authorize('file.download', $user, $tenantId);
         $validated = $request->validate([
             'decision' => ['required', 'in:verified,rejected'],
             'notes' => ['nullable', 'string', 'max:4000'],
@@ -195,6 +201,7 @@ final class OcrController extends Controller
         /** @var User $user */
         $user = $request->user();
         $this->authorize('ocr.result.correct', $user, $tenantId);
+        $this->authorize('file.download', $user, $tenantId);
         $validated = $request->validate([
             'page_number' => ['nullable', 'integer', 'min:1'],
             'original_text' => ['required', 'string', 'max:20000'],
