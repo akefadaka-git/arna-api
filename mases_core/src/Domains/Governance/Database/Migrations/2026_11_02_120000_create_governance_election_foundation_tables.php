@@ -34,7 +34,7 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamps();
             $table->softDeletes();
-            $table->unique(['tenant_id', 'code']);
+            $table->unique(['tenant_id', 'code'], 'gov_elections_tenant_code_uq');
         });
 
         Schema::create('governance_election_register_snapshots', function (Blueprint $table): void {
@@ -49,7 +49,7 @@ return new class extends Migration
             $table->unsignedBigInteger('created_by');
             $table->dateTime('frozen_at');
             $table->timestamps();
-            $table->unique(['tenant_id', 'election_id']);
+            $table->unique(['tenant_id', 'election_id'], 'gov_elec_snap_tenant_elec_uq');
         });
 
         Schema::create('governance_election_voters', function (Blueprint $table): void {
