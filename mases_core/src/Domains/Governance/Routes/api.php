@@ -568,4 +568,33 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('governanceMembership')
         ->name('memberships.update');
 
+
+    // Meeting, attendance, proxy and penalty lifecycle (A3).
+    Route::prefix('/meetings')->name('meetings.')->group(static function (): void {
+        Route::get('/', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'index'])
+            ->middleware('auth.permission:governance.body.view')->name('index');
+        Route::post('/', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'store'])
+            ->middleware('auth.permission:governance.body.manage')->name('store');
+        Route::get('/{meeting}', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'show'])
+            ->whereNumber('meeting')->middleware('auth.permission:governance.body.view')->name('show');
+        Route::post('/{meeting}/start', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'start'])
+            ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('start');
+        Route::post('/{meeting}/proxies', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'submitProxy'])
+            ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('proxies.store');
+        Route::post('/{meeting}/proxies/{proxy}/review', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reviewProxy'])
+            ->whereNumber('meeting')->whereNumber('proxy')->middleware('auth.permission:governance.body.manage')->name('proxies.review');
+        Route::post('/{meeting}/attendance', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'recordArrival'])
+            ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('attendance.store');
+        Route::post('/{meeting}/absence-authorizations', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'authorizeAbsence'])
+            ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('absence-authorizations.store');
+        Route::post('/{meeting}/close', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'close'])
+            ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('close');
+        Route::post('/{meeting}/penalties/{penalty}/review', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'reviewPenalty'])
+            ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.review');
+        Route::post('/{meeting}/penalties/{penalty}/payments', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'recordPayment'])
+            ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.payments.store');
+        Route::post('/{meeting}/penalties/{penalty}/dividend-settlement-requests', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\MeetingAttendanceController::class, 'requestDividendOffset'])
+            ->whereNumber('meeting')->whereNumber('penalty')->middleware('auth.permission:governance.body.manage')->name('penalties.dividend-settlement-requests.store');
+    });
+
 });
