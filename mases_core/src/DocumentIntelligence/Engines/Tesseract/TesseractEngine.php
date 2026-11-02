@@ -169,7 +169,7 @@ final class TesseractEngine implements OcrEngineInterface
     {
         $lines = preg_split('/\r?\n/', trim($tsv)) ?: [];
         $blocks = [];
-        $texts = [];
+        $lineTexts = [];
         $confidence = [];
         foreach (array_slice($lines, 1) as $line) {
             $columns = explode("\t", $line, 12);
@@ -186,14 +186,15 @@ final class TesseractEngine implements OcrEngineInterface
                 'confidence' => $conf >= 0 ? round($conf, 2) : null,
                 'text' => $text,
             ];
-            $texts[] = $text;
+            $lineKey = implode(':', array_slice($columns, 2, 3));
+            $lineTexts[$lineKey][] = $text;
             if ($conf >= 0) {
                 $confidence[] = $conf;
             }
         }
         return [
             'page_number' => $pageNumber,
-            'text' => implode(' ', $texts),
+            'text' => implode("\n", array_map(static fn (array $words): string => implode(' ', $words), array_values($lineTexts))),
             'confidence' => $confidence === [] ? null : round(array_sum($confidence) / count($confidence), 2),
             'blocks' => $blocks,
         ];
