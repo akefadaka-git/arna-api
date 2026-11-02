@@ -43,6 +43,11 @@ final class GovernanceElectionPolicy
         );
     }
 
+    public function update(User $user, GovernanceElection $election): bool
+    {
+        return $this->manage($user, $election);
+    }
+
     public function manage(User $user, GovernanceElection $election): bool
     {
         $tenantId = $this->tenantId();
