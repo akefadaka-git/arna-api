@@ -20,6 +20,9 @@ final class DividendDistribution extends Model
         'declared_on' => 'date',
         'record_date' => 'date',
         'payment_due_on' => 'date',
+        'is_historical' => 'boolean',
+        'historical_timing_exception' => 'boolean',
+        'historical_imported_at' => 'datetime',
         'declared_amount' => 'decimal:4',
         'withholding_rate_bps' => 'integer',
         'snapshot_row_count' => 'integer',
@@ -31,6 +34,9 @@ final class DividendDistribution extends Model
         'created_by' => 'integer',
         'approved_by' => 'integer',
         'approved_at' => 'datetime',
+        'distributable_profit_amount' => 'decimal:4',
+        'profit_certified_by' => 'integer',
+        'profit_certified_at' => 'datetime',
     ];
 
     public function items(): HasMany
