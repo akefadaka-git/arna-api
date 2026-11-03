@@ -81,7 +81,7 @@ final class DividendReinvestmentService
             $amount = $this->money((string) $data['entitlement_amount']);
             $alreadyUsed = (string) DB::table('finance_dividend_reinvestments')
                 ->where('tenant_id', $tenantId)->where('distribution_item_id', (int) $item->id)
-                ->whereIn('status', ['pending', 'approved', 'posted'])->sum('entitlement_amount');
+                ->whereIn('status', ['pending', 'approved', 'posted'])->sum('applied_amount');
             $remaining = bcsub((string) $item->net_amount, $alreadyUsed, 4);
             if (bccomp($amount, '0.0000', 4) <= 0 || bccomp($amount, $remaining, 4) > 0) {
                 throw ValidationException::withMessages(['entitlement_amount' => 'Reinvestment cannot exceed the shareholder net dividend remaining after prior reinvestment applications.']);
@@ -227,7 +227,7 @@ final class DividendReinvestmentService
                 }
             }
             DB::table('finance_dividend_reinvestments')->where('id', $id)->update([
-                'status' => 'posted', 'posted_at' => now(), 'updated_at' => now(),
+                'status' => 'posted', 'posted_by' => $actorId, 'posted_at' => now(), 'updated_at' => now(),
             ]);
             return (object) DB::table('finance_dividend_reinvestments')->where('id', $id)->first();
         });
