@@ -2,10 +2,9 @@ name: ARNA clean-install MySQL verification
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/dividend-engine-a1-a4-completion]
   pull_request:
-    # Include the active stacked People implementation PR base as well as main.
-    # This lets the same clean-install gate run automatically for PR #23.
+    # Include the active stacked feature bases so Finance clean-install verification runs on dividend changes.
     branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/annual-shareholder-dividend-engine]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
