@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Enums\\HoldingDirection;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\ShareClass;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\Shareholder;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Services\\ShareHoldingService;
-use Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Shareholder\Enums\HoldingDirection;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareClass;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
+use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareHoldingService;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 final class DividendReinvestmentService
 {
@@ -18,12 +19,14 @@ final class DividendReinvestmentService
 
     public function recordSubscriptionBalance(int $tenantId, int $actorId, array $data): object
     {
+        $entity = DB::table('legal_entities')->where('tenant_id', $tenantId)
+            ->where('id', (int) $data['legal_entity_id'])->where('status', 'active')->exists();
         $shareholder = Shareholder::query()->where('tenant_id', $tenantId)
             ->whereKey((int) $data['shareholder_id'])->whereNull('deleted_at')->first();
         $shareClass = ShareClass::query()->whereKey((int) $data['share_class_id'])
             ->where('is_active', true)->first();
-        if (!$shareholder || !$shareClass) {
-            throw ValidationException::withMessages(['shareholder_id' => 'The shareholder and active share class must exist in this tenant.']);
+        if (!$entity || !$shareholder || !$shareClass) {
+            throw ValidationException::withMessages(['shareholder_id' => 'An active legal entity, shareholder in this tenant and active share class are required.']);
         }
 
         $quantity = (int) $data['subscribed_share_quantity'];
@@ -34,7 +37,7 @@ final class DividendReinvestmentService
             throw ValidationException::withMessages(['original_amount' => 'The subscription amount must equal whole shares multiplied by the agreed per-share price.']);
         }
 
-        return DB::table('finance_share_subscription_balances')->insertGetId([
+        $id = DB::table('finance_share_subscription_balances')->insertGetId([
             'tenant_id' => $tenantId,
             'legal_entity_id' => (int) $data['legal_entity_id'],
             'shareholder_id' => (int) $shareholder->id,
@@ -49,7 +52,8 @@ final class DividendReinvestmentService
             'created_by' => $actorId,
             'created_at' => now(),
             'updated_at' => now(),
-        ]) ?: throw new ConflictHttpException('The subscription balance could not be recorded.');
+        ]);
+        return (object) DB::table('finance_share_subscription_balances')->where('id', $id)->first();
     }
 
     public function record(int $tenantId, int $actorId, array $data): object
@@ -69,11 +73,16 @@ final class DividendReinvestmentService
                 throw ValidationException::withMessages(['tax_assessment' => 'A recipient-specific tax assessment must exist before a net dividend can be reinvested.']);
             }
 
+            $source = (string) ($data['source_category'] ?? 'internal_revenue');
+            if (!in_array($source, ['internal_revenue', 'other'], true)) {
+                throw ValidationException::withMessages(['source_category' => 'Source category must be internal_revenue or other; tax treatment is recorded separately.']);
+            }
+
             $amount = $this->money((string) $data['entitlement_amount']);
-            $alreadyUsed = DB::table('finance_dividend_reinvestments')
+            $alreadyUsed = (string) DB::table('finance_dividend_reinvestments')
                 ->where('tenant_id', $tenantId)->where('distribution_item_id', (int) $item->id)
                 ->whereIn('status', ['pending', 'approved', 'posted'])->sum('entitlement_amount');
-            $remaining = bcsub((string) $item->net_amount, (string) $alreadyUsed, 4);
+            $remaining = bcsub((string) $item->net_amount, $alreadyUsed, 4);
             if (bccomp($amount, '0.0000', 4) <= 0 || bccomp($amount, $remaining, 4) > 0) {
                 throw ValidationException::withMessages(['entitlement_amount' => 'Reinvestment cannot exceed the shareholder net dividend remaining after prior reinvestment applications.']);
             }
@@ -96,6 +105,9 @@ final class DividendReinvestmentService
                 }
                 $subscriptionId = (int) $balance->id;
             } else {
+                if (!in_array($type, ['new_company_allotment', 'existing_share_transfer'], true)) {
+                    throw ValidationException::withMessages(['settlement_type' => 'Unsupported reinvestment route.']);
+                }
                 $shareClass = ShareClass::query()->whereKey((int) $data['share_class_id'])
                     ->where('is_active', true)->first();
                 if (!$shareClass) {
@@ -105,6 +117,9 @@ final class DividendReinvestmentService
                 $unitPrice = $this->money((string) $data['price_per_share']);
                 if ($quantity < 1 || bccomp($unitPrice, '0.0000', 4) <= 0) {
                     throw ValidationException::withMessages(['share_quantity' => 'A positive whole-share quantity and positive unit price are required.']);
+                }
+                if ($type === 'new_company_allotment' && bccomp($unitPrice, (string) $shareClass->par_value, 4) < 0) {
+                    throw ValidationException::withMessages(['price_per_share' => 'A new company allotment cannot be priced below the share class par value.']);
                 }
                 $shareClassId = (int) $shareClass->id;
                 $applied = bcmul((string) $quantity, $unitPrice, 4);
@@ -119,8 +134,6 @@ final class DividendReinvestmentService
                         throw ValidationException::withMessages(['seller_shareholder_id' => 'A different, valid shareholder in the same tenant is required as seller.']);
                     }
                     $sellerId = (int) $seller->id;
-                } elseif ($type !== 'new_company_allotment') {
-                    throw ValidationException::withMessages(['settlement_type' => 'Unsupported reinvestment route.']);
                 }
             }
 
@@ -130,7 +143,7 @@ final class DividendReinvestmentService
                 'distribution_item_id' => (int) $item->id,
                 'shareholder_id' => (int) $item->shareholder_id,
                 'settlement_type' => $type,
-                'source_category' => (string) ($data['source_category'] ?? 'internal_revenue'),
+                'source_category' => $source,
                 'entitlement_amount' => $amount,
                 'applied_amount' => $applied,
                 'unapplied_amount' => $unapplied,
@@ -191,7 +204,7 @@ final class DividendReinvestmentService
                         $buyer, $shareClass, HoldingDirection::In, (int) $row->share_quantity,
                         'subscription', 'DividendReinvestment', (string) $row->id,
                         'Historical dividend reinvestment — new company allotment', $actorId,
-                        \\Carbon\\CarbonImmutable::parse($row->occurred_on)
+                        CarbonImmutable::parse($row->occurred_on)
                     );
                     DB::table('finance_dividend_reinvestments')->where('id', $id)->update(['buyer_holding_entry_id' => $entry->id]);
                 } else {
@@ -200,13 +213,13 @@ final class DividendReinvestmentService
                         $seller, $shareClass, HoldingDirection::Out, (int) $row->share_quantity,
                         'transfer_out', 'DividendReinvestment', (string) $row->id,
                         'Historical dividend reinvestment — seller transfer', $actorId,
-                        \\Carbon\\CarbonImmutable::parse($row->occurred_on)
+                        CarbonImmutable::parse($row->occurred_on)
                     );
                     $in = $this->holdings->recordEntryFor(
                         $buyer, $shareClass, HoldingDirection::In, (int) $row->share_quantity,
                         'transfer_in', 'DividendReinvestment', (string) $row->id,
                         'Historical dividend reinvestment — buyer transfer', $actorId,
-                        \\Carbon\\CarbonImmutable::parse($row->occurred_on)
+                        CarbonImmutable::parse($row->occurred_on)
                     );
                     DB::table('finance_dividend_reinvestments')->where('id', $id)->update([
                         'seller_holding_entry_id' => $out->id, 'buyer_holding_entry_id' => $in->id,
