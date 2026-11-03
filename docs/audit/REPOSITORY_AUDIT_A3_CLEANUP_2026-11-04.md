@@ -43,3 +43,23 @@ Added a dated audit disposition to bootstrap/providers.php clarifying that the p
 - Production deployment: NOT RUN.
 
 This is a proposed cleanup branch, not a production release. Merge remains gated on exact-head verification.
+
+## Dependency security remediation
+
+- Composer audit initially identified advisories in league/commonmark and symfony/mime.
+- Updated the lockfile to league/commonmark 2.10.7 and symfony/mime 7.4.22 without changing composer.json constraints.
+- The post-update Composer audit reported no remaining advisories.
+- The clean-install workflow now runs PHP syntax lint over every tracked PHP file, Composer audit, and the canonical Ethiopian localization regression before database and domain verification.
+
+## A4 verification
+
+- Exact cleanup/dependency code SHA: 1e5277d9fbfc871668f1447091215e5e6b7baed9 (later audit-record commits are documentation-only).
+- Clean-install MySQL verification run 41730034005: PASS.
+- PHP syntax lint: PASS.
+- Composer validation and security audit: PASS; no remaining advisories.
+- Canonical LocalizationService regression: PASS.
+- Fresh MySQL migration and migration idempotence: PASS.
+- Finance, Loan, People, Organization, Governance and Shareholder focused regression suites: PASS.
+- Tenant-isolation and shareholder seed-number regressions: PASS.
+- Production deployment: NOT RUN.
+
