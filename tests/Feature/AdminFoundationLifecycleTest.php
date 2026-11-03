@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Cache;
-use Illuminate\\Support\\Facades\\Config;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Permission;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Role;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\TenantMembership;
-use MaaleArna\\MASES\\Core\\Tenancy\\Services\\RequestTenantResolver;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Authorization\Models\Role;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use Tests\TestCase;
 
 final class AdminFoundationLifecycleTest extends TestCase
 {
