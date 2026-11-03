@@ -147,7 +147,7 @@ final class CorporateSitePublishingTest extends TestCase
         Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
         config(['services.corporate_media_scanner.url' => null]);
 
-        $this->expectException(\\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
     }
 
