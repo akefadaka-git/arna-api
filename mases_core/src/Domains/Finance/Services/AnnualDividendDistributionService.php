@@ -136,17 +136,41 @@ final class AnnualDividendDistributionService
             if (!in_array($treatment, ['statutory', 'treaty', 'exempt', 'special'], true)) {
                 throw ValidationException::withMessages(['treatment' => 'A supported, explicit tax treatment is required.']);
             }
-            if (($treatment === 'treaty' || $treatment === 'exempt') && trim((string) ($data['evidence_reference'] ?? '')) === '') {
-                throw ValidationException::withMessages(['evidence_reference' => 'Treaty and exemption treatments require supporting evidence.']);
+            $effectiveFrom = CarbonImmutable::parse((string) $data['effective_from'])->toDateString();
+            $statutoryRate = $effectiveFrom >= '2025-07-08' ? 1500 : 1000;
+            if (!in_array((string) $data['tax_residency'], ['resident', 'non_resident'], true)) {
+                throw ValidationException::withMessages(['tax_residency' => 'Residency must be established before tax can be assessed.']);
+            }
+            if ($treatment === 'statutory' && $rate !== $statutoryRate) {
+                throw ValidationException::withMessages(['withholding_rate_bps' => 'The statutory dividend rate is 15% for income derived on or after 8 July 2025 under Proclamation 1395/2025, and 10% for the prior statutory period.']);
+            }
+            if ($treatment === 'treaty' && ($rate > $statutoryRate || trim((string) ($data['evidence_reference'] ?? '')) === '')) {
+                throw ValidationException::withMessages(['withholding_rate_bps' => 'A treaty rate must not exceed the domestic statutory rate and requires valid treaty/residency evidence.']);
+            }
+            if (($treatment === 'exempt' || $treatment === 'special') && trim((string) ($data['evidence_reference'] ?? '')) === '') {
+                throw ValidationException::withMessages(['evidence_reference' => 'Exempt and special treatments require documentary evidence.']);
             }
             if ($treatment === 'exempt' && $rate !== 0) {
                 throw ValidationException::withMessages(['withholding_rate_bps' => 'An exempt treatment must carry a zero rate.']);
+            }
+            if ($treatment === 'special' && $rate > $statutoryRate) {
+                throw ValidationException::withMessages(['withholding_rate_bps' => 'A special treatment cannot exceed the statutory dividend rate without an independently documented legal basis.']);
+            }
+            $legalBasis = trim((string) $data['legal_basis']);
+            if ($treatment === 'statutory') {
+                $legalBasis = $effectiveFrom >= '2025-07-08'
+                    ? ((string) $data['tax_residency'] === 'resident'
+                        ? 'Federal Income Tax Proclamation 979/2016 as amended by Proclamation 1395/2025, Article 57(1); effective for income derived on or after 8 July 2025.'
+                        : 'Federal Income Tax Proclamation 979/2016 as amended by Proclamation 1395/2025, Article 52(2)(b); non-resident dividend tax at 15%.')
+                    : ((string) $data['tax_residency'] === 'resident'
+                        ? 'Federal Income Tax Proclamation 979/2016, Article 55 (pre-amendment statutory dividend rate).'
+                        : 'Federal Income Tax Proclamation 979/2016, Article 51(2)(b) (pre-amendment non-resident dividend rate).');
             }
             $payload = [
                 'tenant_id' => $tenantId, 'distribution_id' => $distributionId, 'shareholder_id' => $shareholderId,
                 'recipient_type' => (string) $data['recipient_type'], 'tax_residency' => (string) $data['tax_residency'],
                 'treatment' => $treatment, 'withholding_rate_bps' => $rate,
-                'legal_basis' => trim((string) $data['legal_basis']),
+                'legal_basis' => $legalBasis,
                 'evidence_reference' => isset($data['evidence_reference']) ? trim((string) $data['evidence_reference']) : null,
                 'effective_from' => (string) $data['effective_from'],
                 'evidence_expires_on' => $data['evidence_expires_on'] ?? null,
