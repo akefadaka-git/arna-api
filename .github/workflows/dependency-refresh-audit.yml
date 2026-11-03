@@ -8,7 +8,7 @@ on:
       - .github/workflows/dependency-refresh-audit.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh-and-verify:
@@ -18,7 +18,7 @@ jobs:
       - name: Checkout exact audit branch
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Set up PHP 8.3 and Composer
         uses: shivammathur/setup-php@v2
         with:
@@ -43,6 +43,18 @@ jobs:
           '
       - name: Run canonical localization regression
         run: php artisan test --compact tests/Unit/LocalizationServiceTest.php
+      - name: Commit verified Composer lock to the isolated audit branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.lock
+          if git diff --cached --quiet; then
+            echo "No Composer lock changes to commit."
+          else
+            git commit -m "fix(deps): update Composer security advisories"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
       - name: Upload candidate Composer lock and advisory report
         uses: actions/upload-artifact@v4
         with:
