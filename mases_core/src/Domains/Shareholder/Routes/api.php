@@ -73,6 +73,7 @@ use MaaleArna\MASES\Core\Domains\Shareholder\Http\Controllers\MyShareholderContr
 use MaaleArna\MASES\Core\Domains\Shareholder\Http\Controllers\ShareClassController;
 use MaaleArna\MASES\Core\Domains\Shareholder\Http\Controllers\ShareHoldingController;
 use MaaleArna\MASES\Core\Domains\Shareholder\Http\Controllers\ShareholderController;
+use MaaleArna\MASES\Core\Domains\Shareholder\Http\Controllers\MyDividendStatementsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -384,7 +385,7 @@ Route::name('api.shareholders.')->group(static function (): void {
         });
 
     // Dividend statements are resolved only from the authenticated user's direct shareholder link.
-    Route::get('/me/dividends', [\MaaleArna\MASES\Core\Domains\Shareholder\Http\Controllers\\MyDividendStatementsController::class, 'index'])
+    Route::get('/me/dividends', [MyDividendStatementsController::class, 'index'])
         ->name('me.dividends.index');
 
     // =========================================================================
