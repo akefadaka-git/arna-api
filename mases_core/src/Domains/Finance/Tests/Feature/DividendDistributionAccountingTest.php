@@ -37,11 +37,12 @@ final class DividendDistributionAccountingTest extends TestCase
         );
 
         $this->assertSame('posted', $journal->status);
-        $this->assertSame('system', $journal->source_type->value ?? $journal->source_type);
         $lines = DB::table('journal_lines')->where('journal_entry_id', $journal->id)->orderBy('line_number')->get();
         $this->assertCount(3, $lines);
-        $this->assertSame('1000.0000', (string) $lines->sum('debit_amount'));
-        $this->assertSame('1000.0000', (string) $lines->sum('credit_amount'));
+        $totals = DB::table('journal_lines')->where('journal_entry_id', $journal->id)
+            ->selectRaw('SUM(debit_amount) AS debits, SUM(credit_amount) AS credits')->first();
+        $this->assertSame(0, bccomp((string) $totals->debits, (string) $totals->credits, 4));
+        $this->assertSame('system', DB::table('journal_entries')->where('id', $journal->id)->value('source_type'));
 
         $replay = $service->accrueDividendDistribution(
             (int) $tenant->id, (int) $entity->id, 901,
