@@ -67,7 +67,7 @@ final class AnnualDividendDistributionController extends Controller
             'approved_balance_sheet_reference' => ['required', 'string', 'max:200'],
             'distributable_profit_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
             'resolution_evidence_reference' => ['required', 'string', 'max:500'],
-            'payment_method' => ['required', 'in:bank_transfer,cheque,other_approved'],
+            'payment_method' => ['required', 'in:bank_transfer,cheque,nbe_authorized_payment'],
             'accounting_framework' => ['required', 'in:ifrs,ifrs_sme,other_aabe_approved'],
         ]);
         $row = $this->distributions->create($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data);
@@ -95,6 +95,18 @@ final class AnnualDividendDistributionController extends Controller
         $row = $this->distributions->assessRecipientTax(
             $this->tenantId(), $distributionId, $shareholderId,
             (int) $request->user()->getAuthIdentifier(), $data
+        );
+        return response()->json(['success' => true, 'data' => $row]);
+    }
+
+    public function cancel(Request $request, int $distributionId): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+        $row = $this->distributions->cancel(
+            $this->tenantId(), $distributionId,
+            (int) $request->user()->getAuthIdentifier(), $data['reason']
         );
         return response()->json(['success' => true, 'data' => $row]);
     }
