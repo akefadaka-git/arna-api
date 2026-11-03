@@ -31,7 +31,7 @@ final class DividendTaxRemittanceService
         return DB::transaction(function () use ($tenantId, $entityId, $distributionId, $actorId, $reference, $authorityReference, $amount) {
             $d = DB::table('finance_dividend_distributions')->where('tenant_id', $tenantId)
                 ->where('legal_entity_id', $entityId)->where('id', $distributionId)
-                ->whereIn('status', ['paid', 'partially_paid'])->lockForUpdate()->first();
+                ->whereIn('status', ['approved', 'paid', 'partially_paid'])->lockForUpdate()->first();
             if (!$d) {
                 throw ValidationException::withMessages(['distribution_id' => 'Tax remittance requires an approved dividend distribution.']);
             }
@@ -48,11 +48,20 @@ final class DividendTaxRemittanceService
                 ->groupBy('i.id', 'i.withholding_amount', 'i.net_amount')
                 ->select('i.id', 'i.withholding_amount', 'i.net_amount')
                 ->selectRaw('SUM(bi.amount) AS paid_net_amount')->get();
+            $reinvestedAllocations = DB::table('finance_dividend_reinvestments')
+                ->where('tenant_id', $tenantId)->where('distribution_id', $distributionId)
+                ->where('status', 'posted')
+                ->groupBy('distribution_item_id')
+                ->select('distribution_item_id')
+                ->selectRaw('SUM(applied_amount) AS reinvested_net_amount')
+                ->get()->keyBy('distribution_item_id');
             $withholdingEarned = '0.0000';
             foreach ($paidAllocations as $allocation) {
                 if (bccomp((string) $allocation->net_amount, '0.0000', 4) <= 0) continue;
-                $paidNet = bccomp((string) $allocation->paid_net_amount, (string) $allocation->net_amount, 4) > 0
-                    ? (string) $allocation->net_amount : (string) $allocation->paid_net_amount;
+                $reinvestedNet = (string) ($reinvestedAllocations->get($allocation->id)->reinvested_net_amount ?? '0.0000');
+                $settledNet = bcadd((string) $allocation->paid_net_amount, $reinvestedNet, 4);
+                $paidNet = bccomp($settledNet, (string) $allocation->net_amount, 4) > 0
+                    ? (string) $allocation->net_amount : $settledNet;
                 $withholdingEarned = bcadd(
                     $withholdingEarned,
                     bcdiv(bcmul((string) $allocation->withholding_amount, $paidNet, 8), (string) $allocation->net_amount, 4),
@@ -63,7 +72,7 @@ final class DividendTaxRemittanceService
                 ->where('distribution_id', $distributionId)->whereIn('status', ['draft', 'approved', 'paid'])->sum('amount');
             $outstanding = bcsub($withholdingEarned, $reserved, 4);
             if (bccomp($amount, $outstanding, 4) > 0) {
-                throw ValidationException::withMessages(['amount' => 'The remittance exceeds withholding tax actually deducted from confirmed shareholder payments, after existing remittance reservations and payments.']);
+                throw ValidationException::withMessages(['amount' => 'The remittance exceeds withholding tax actually deducted from confirmed cash payments and posted dividend reinvestments, after existing remittance reservations and payments.']);
             }
             $id = DB::table('finance_dividend_tax_remittances')->insertGetId([
                 'tenant_id' => $tenantId, 'legal_entity_id' => $entityId,
