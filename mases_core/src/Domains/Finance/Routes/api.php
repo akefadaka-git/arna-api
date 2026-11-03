@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\AnnualDividendDistributionController;
 
 $controller = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\FinanceController::class;
 
@@ -43,7 +44,7 @@ Route::post('/governance-settlement/settlements/{settlementId}/dividend-offset',
 Route::get('/governance-settlement/reconciliation', [$settlementController, 'reconciliation'])->middleware('auth.permission:finance.report.view')->name('governance-settlement.reconciliation');
 
 
-$dividendDistributionController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\\AnnualDividendDistributionController::class;
+$dividendDistributionController = AnnualDividendDistributionController::class;
 Route::get('/dividend-distributions', [$dividendDistributionController, 'index'])->middleware('auth.permission:finance.entity.view')->name('dividend-distributions.index');
 Route::post('/dividend-distributions', [$dividendDistributionController, 'store'])->middleware('auth.permission:finance.entity.manage')->name('dividend-distributions.store');
 Route::get('/dividend-distributions/{distributionId}', [$dividendDistributionController, 'show'])->whereNumber('distributionId')->middleware('auth.permission:finance.entity.view')->name('dividend-distributions.show');
