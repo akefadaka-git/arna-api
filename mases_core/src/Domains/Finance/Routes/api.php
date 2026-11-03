@@ -52,6 +52,7 @@ Route::post('/dividend-distributions/{distributionId}/certify-profit', [$dividen
 Route::post('/dividend-distributions/{distributionId}/shareholders/{shareholderId}/tax-assessment', [$dividendDistributionController, 'assessRecipientTax'])->whereNumber('distributionId')->whereNumber('shareholderId')->middleware('auth.permission:finance.entity.manage')->name('dividend-distributions.tax-assessment');
 Route::post('/dividend-distributions/{distributionId}/calculate', [$dividendDistributionController, 'calculate'])->whereNumber('distributionId')->middleware('auth.permission:finance.entity.manage')->name('dividend-distributions.calculate');
 Route::post('/dividend-distributions/{distributionId}/approve', [$dividendDistributionController, 'approve'])->whereNumber('distributionId')->middleware('auth.permission:finance.entity.manage')->name('dividend-distributions.approve');
+Route::post('/dividend-distributions/{distributionId}/cancel', [$dividendDistributionController, 'cancel'])->whereNumber('distributionId')->middleware('auth.permission:finance.entity.manage')->name('dividend-distributions.cancel');
 $dividendPaymentController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\DividendPaymentController::class;
 Route::get('/dividend-payment-batches', [$dividendPaymentController, 'index'])->middleware('auth.permission:finance.entity.view')->name('dividend-payment-batches.index');
 Route::post('/dividend-payment-batches', [$dividendPaymentController, 'store'])->middleware('auth.permission:finance.entity.manage')->name('dividend-payment-batches.store');
