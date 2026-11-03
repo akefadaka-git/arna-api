@@ -36,7 +36,9 @@ final class DividendReinvestmentService
         $price = $this->money((string) $data['price_per_share']);
         $expected = bcmul((string) $quantity, $price, 4);
         $original = $this->money((string) $data['original_amount']);
-        if ($quantity < 1 || bccomp($expected, $original, 4) !== 0) {
+        $outstanding = $this->money((string) $data['outstanding_amount']);
+        if ($quantity < 1 || bccomp($expected, $original, 4) !== 0
+            || bccomp($outstanding, '0.0000', 4) <= 0 || bccomp($outstanding, $original, 4) > 0) {
             throw ValidationException::withMessages(['original_amount' => 'The subscription amount must equal whole shares multiplied by the agreed per-share price.']);
         }
 
@@ -49,7 +51,7 @@ final class DividendReinvestmentService
             'subscribed_share_quantity' => $quantity,
             'price_per_share' => $price,
             'original_amount' => $original,
-            'outstanding_amount' => $original,
+            'outstanding_amount' => $outstanding,
             'occurred_on' => $data['occurred_on'],
             'evidence_reference' => trim((string) $data['evidence_reference']),
             'created_by' => $actorId,
