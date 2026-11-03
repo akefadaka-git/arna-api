@@ -209,6 +209,19 @@ final class DividendPaymentService
             $status = $pending === 0 && $failed === 0 && $paid > 0 ? 'paid' : ($paid > 0 ? 'partially_paid' : 'approved');
             DB::table('finance_dividend_payment_batches')->where('tenant_id', $tenantId)->where('id', $batchId)
                 ->update(['status' => $status, 'updated_at' => now()]);
+
+            $distributionPayables = DB::table('finance_dividend_distribution_items as i')
+                ->join('finance_shareholder_dividend_payables as p', function ($join) {
+                    $join->on('p.id', '=', 'i.payable_id')->on('p.tenant_id', '=', 'i.tenant_id');
+                })
+                ->where('i.tenant_id', $tenantId)->where('i.distribution_id', $batch->distribution_id)
+                ->where('i.net_amount', '>', 0)->select('p.status')->get();
+            $settledCount = $distributionPayables->where('status', ShareholderDividendPayable::STATUS_SETTLED)->count();
+            $outstandingCount = $distributionPayables->where('status', '!=', ShareholderDividendPayable::STATUS_SETTLED)->count();
+            $distributionStatus = $outstandingCount === 0 ? 'paid' : ($settledCount > 0 ? 'partially_paid' : 'approved');
+            DB::table('finance_dividend_distributions')->where('tenant_id', $tenantId)
+                ->where('id', $batch->distribution_id)->update(['status' => $distributionStatus, 'updated_at' => now()]);
+
             $this->event($tenantId, $batchId, $actorId, 'payment.confirmed', [
                 'item_id' => $itemId, 'payable_id' => $payable->id, 'amount' => (string) $item->amount,
                 'bank_reference' => trim($bankReference), 'journal_id' => $journal->id,
