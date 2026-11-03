@@ -33,6 +33,9 @@ final class GovernancePenaltySettlementService
                 GovernanceSettlementAccountMapping::ROLE_PENALTY_INCOME => ['revenue','credit'],
                 GovernanceSettlementAccountMapping::ROLE_DIVIDEND_EQUITY => ['equity','debit'],
                 GovernanceSettlementAccountMapping::ROLE_WITHHOLDING_TAX_PAYABLE => ['liability','credit'],
+                GovernanceSettlementAccountMapping::ROLE_SHARE_SUBSCRIPTION_RECEIVABLE => ['asset','debit'],
+                GovernanceSettlementAccountMapping::ROLE_SHARE_CAPITAL => ['equity','credit'],
+                GovernanceSettlementAccountMapping::ROLE_SHARE_TRANSFER_PAYABLE => ['liability','credit'],
             };
             if ($account->account_type !== $expected[0] || $account->normal_balance !== $expected[1]) {
                 throw ValidationException::withMessages(['ledger_account_id'=>'The account type and normal balance do not match this settlement role.']);
@@ -309,6 +312,115 @@ final class GovernancePenaltySettlementService
             DB::table('governance_meeting_activity')->insert(['tenant_id'=>$tenantId,'meeting_id'=>$meeting->id,'actor_id'=>$actorId,'action'=>'penalty.settlement.executed','payload'=>json_encode(['settlement_id'=>$settlementId,'journal_id'=>$posted->id,'method'=>$method,'amount'=>$amount,'payable_id'=>$payableId]),'occurred_at'=>now()]);
             return ['journal_id'=>(int)$posted->id,'journal_number'=>$posted->journal_number,'settlement_id'=>$settlementId,'status'=>'settled','method'=>$method,'amount'=>$amount,'idempotent_replay'=>false];
         });
+    }
+
+
+    /**
+     * Post the balanced GL settlement for a dividend reinvestment.
+     * The debit extinguishes the shareholder dividend payable; the credit
+     * recognizes subscription receivable recovery, issued share capital,
+     * or the consideration payable to an existing-share seller.
+     */
+    public function postDividendReinvestment(
+        int $tenantId,
+        int $entityId,
+        int $reinvestmentId,
+        int $actorId,
+        string $settlementType,
+        string $effectiveDate,
+        string $amount,
+    ): JournalEntry {
+        $value = $this->money($amount);
+        $creditRole = match ($settlementType) {
+            'subscription_balance' => GovernanceSettlementAccountMapping::ROLE_SHARE_SUBSCRIPTION_RECEIVABLE,
+            'new_company_allotment' => GovernanceSettlementAccountMapping::ROLE_SHARE_CAPITAL,
+            'existing_share_transfer' => GovernanceSettlementAccountMapping::ROLE_SHARE_TRANSFER_PAYABLE,
+            default => throw ValidationException::withMessages(['settlement_type' => 'Unsupported dividend reinvestment settlement type.']),
+        };
+        if (bccomp($value, '0.0000', 4) <= 0) {
+            throw ValidationException::withMessages(['amount' => 'A positive reinvestment settlement amount is required.']);
+        }
+        $entity = DB::table('legal_entities')->where('tenant_id', $tenantId)
+            ->where('id', $entityId)->where('status', 'active')->where('base_currency', 'ETB')->first();
+        if (!$entity) {
+            throw ValidationException::withMessages(['legal_entity_id' => 'An active ETB legal entity is required for dividend reinvestment posting.']);
+        }
+        $mappings = GovernanceSettlementAccountMapping::query()
+            ->forEntity($tenantId, $entityId)->approved()->get()->keyBy('account_role');
+        foreach ([GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE, $creditRole] as $role) {
+            if (!$mappings->has($role)) {
+                throw ValidationException::withMessages(['account_mapping' => 'Finance must approve dividend payable and the matching share/subscription settlement account mappings before posting reinvestment.']);
+            }
+        }
+        $journal = $this->journals->createDraft($tenantId, $actorId, [
+            'legal_entity_id' => $entityId,
+            'journal_number' => 'DIV-REINV-'.$reinvestmentId,
+            'effective_date' => $effectiveDate,
+            'currency' => 'ETB',
+            'description' => 'Dividend reinvestment settlement #'.$reinvestmentId,
+            'source_type' => JournalSourceType::SYSTEM->value,
+            'idempotency_key' => 'dividend-reinvestment:'.$tenantId.':'.$entityId.':'.$reinvestmentId,
+        ], [
+            ['account_id' => (int) $mappings[GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE]->ledger_account_id,
+                'debit_amount' => $value, 'credit_amount' => '0.0000', 'description' => 'Settle shareholder dividend payable'],
+            ['account_id' => (int) $mappings[$creditRole]->ledger_account_id,
+                'debit_amount' => '0.0000', 'credit_amount' => $value, 'description' => 'Recognize reinvestment settlement'],
+        ]);
+        if ($journal->status === JournalEntry::DRAFT) {
+            return $this->journals->post($tenantId, $actorId, (int) $journal->id)->load('lines');
+        }
+        if ($journal->status !== JournalEntry::POSTED) {
+            throw new ConflictHttpException('The reinvestment settlement journal exists but is not posted.');
+        }
+        return $journal->load('lines');
+    }
+
+    /**
+     * Settle the consideration payable to a selling shareholder after an
+     * existing-share transfer. This is a separately evidenced bank event.
+     */
+    public function settleDividendShareTransfer(
+        int $tenantId,
+        int $entityId,
+        int $reinvestmentId,
+        int $actorId,
+        string $effectiveDate,
+        string $amount,
+        string $bankReference,
+        string $evidenceReference,
+    ): JournalEntry {
+        $value = $this->money($amount);
+        if (bccomp($value, '0.0000', 4) <= 0 || trim($bankReference) === '' || trim($evidenceReference) === '') {
+            throw ValidationException::withMessages(['seller_settlement' => 'Positive consideration, bank reference and payment evidence are required.']);
+        }
+        $mappings = GovernanceSettlementAccountMapping::query()
+            ->forEntity($tenantId, $entityId)->approved()->get()->keyBy('account_role');
+        foreach ([GovernanceSettlementAccountMapping::ROLE_SHARE_TRANSFER_PAYABLE, GovernanceSettlementAccountMapping::ROLE_CASH_BANK] as $role) {
+            if (!$mappings->has($role)) {
+                throw ValidationException::withMessages(['account_mapping' => 'Approved share-transfer payable and cash/bank account mappings are required to settle the seller.']);
+            }
+        }
+        $journal = $this->journals->createDraft($tenantId, $actorId, [
+            'legal_entity_id' => $entityId,
+            'journal_number' => 'DIV-REINV-SELLER-'.$reinvestmentId,
+            'effective_date' => $effectiveDate,
+            'currency' => 'ETB',
+            'description' => 'Settle existing-share seller consideration #'.$reinvestmentId.' · '.$bankReference,
+            'source_type' => JournalSourceType::SYSTEM->value,
+            'idempotency_key' => 'dividend-share-transfer-settlement:'.$tenantId.':'.$entityId.':'.$reinvestmentId,
+        ], [
+            ['account_id' => (int) $mappings[GovernanceSettlementAccountMapping::ROLE_SHARE_TRANSFER_PAYABLE]->ledger_account_id,
+                'debit_amount' => $value, 'credit_amount' => '0.0000', 'description' => 'Clear share-transfer consideration payable'],
+            ['account_id' => (int) $mappings[GovernanceSettlementAccountMapping::ROLE_CASH_BANK]->ledger_account_id,
+                'debit_amount' => '0.0000', 'credit_amount' => $value, 'description' => 'Bank payment to selling shareholder'],
+        ]);
+        if ($journal->status === JournalEntry::DRAFT) {
+            return $this->journals->post($tenantId, $actorId, (int) $journal->id)->load('lines');
+        }
+        if ($journal->status !== JournalEntry::POSTED) {
+            throw new ConflictHttpException('The seller consideration journal exists but is not posted.');
+        }
+        return $journal->load('lines');
     }
 
     private function resolveEntity(int $tenantId,int $settlementId): int
