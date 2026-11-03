@@ -111,6 +111,19 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('governance_election_secret_ballots', $migration);
     }
 
+    public function test_committee_composition_is_bounded_and_legal_advisor_is_not_assumed_to_vote(): void
+    {
+        $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
+        $config = $this->source('mases_core/src/Domains/Governance/Config/governance.php');
+
+        self::assertStringContainsString("'committee_member' => 3", $controller);
+        self::assertStringContainsString("'legal_advisor', 'supervisory_member' => 1", $controller);
+        self::assertStringContainsString("Only the Legal Advisor appointment is ex officio", $controller);
+        self::assertStringContainsString("Legal Advisor voting and decision eligibility is unresolved", $controller);
+        self::assertStringContainsString("'enabled' => false", $config);
+        self::assertStringContainsString("'default_votes_per_share' => null", $config);
+    }
+
     public function test_committee_recusal_and_identity_columns_are_persisted(): void
     {
         $migration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_160000_create_governance_election_hybrid_workflow_tables.php');
