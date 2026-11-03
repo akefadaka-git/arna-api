@@ -142,6 +142,72 @@ final class CorporateSiteEntryController extends Controller
         return response()->json(['success' => true, 'data' => ['reference' => $inquiry->public_id, 'status' => 'received']], 202);
     }
 
+
+    public function adminStore(Request $request): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'entry_type' => ['required', 'in:news,announcement,publication,media,career,opportunity,business,service,advertisement,marketplace'],
+            'slug_am' => ['nullable', 'string', 'max:180', 'unique:corporate_site_entries,slug_am'],
+            'slug_en' => ['nullable', 'string', 'max:180', 'unique:corporate_site_entries,slug_en'],
+            'translations' => ['required', 'array'],
+            'translations.am.title' => ['required', 'string', 'max:180'],
+            'translations.en.title' => ['required', 'string', 'max:180'],
+            'translations.am.body' => ['nullable', 'string', 'max:12000'],
+            'translations.en.body' => ['nullable', 'string', 'max:12000'],
+            'payload' => ['nullable', 'array'],
+            'seo' => ['nullable', 'array'],
+        ])->validate();
+
+        $entry = CorporateSiteEntry::query()->create([
+            ...$validated,
+            'created_by' => $request->user()->id,
+        ]);
+        AuditLog::create([
+            'user_id' => $request->user()->id, 'tenant_id' => null,
+            'action' => 'corporate_site_entry.created', 'resource_type' => 'corporate_site_entry',
+            'resource_id' => (string) $entry->id, 'old_values' => null,
+            'new_values' => ['entry_type' => $entry->entry_type, 'status' => $entry->status],
+            'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+            'request_id' => null, 'metadata' => ['public_id' => $entry->public_id],
+        ]);
+
+        return response()->json(['success' => true, 'data' => $entry], 201);
+    }
+
+    public function adminUpdate(Request $request, int $id): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'expected_version' => ['required', 'integer', 'min:1'],
+            'slug_am' => ['sometimes', 'nullable', 'string', 'max:180', 'unique:corporate_site_entries,slug_am,' . $id],
+            'slug_en' => ['sometimes', 'nullable', 'string', 'max:180', 'unique:corporate_site_entries,slug_en,' . $id],
+            'translations' => ['sometimes', 'required', 'array'],
+            'payload' => ['sometimes', 'nullable', 'array'],
+            'seo' => ['sometimes', 'nullable', 'array'],
+        ])->validate();
+
+        return DB::transaction(function () use ($request, $id, $validated): JsonResponse {
+            $entry = CorporateSiteEntry::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($entry->version === (int) $validated['expected_version'], 409, 'This entry changed after it was loaded.');
+            $old = ['status' => $entry->status, 'version' => $entry->version];
+            $entry->fill(collect($validated)->except('expected_version')->all());
+            $entry->status = 'draft';
+            $entry->published_at = null;
+            $entry->reviewed_by = null;
+            $entry->version++;
+            $entry->save();
+            AuditLog::create([
+                'user_id' => $request->user()->id, 'tenant_id' => null,
+                'action' => 'corporate_site_entry.updated', 'resource_type' => 'corporate_site_entry',
+                'resource_id' => (string) $entry->id, 'old_values' => $old,
+                'new_values' => ['status' => $entry->status, 'version' => $entry->version],
+                'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                'request_id' => null, 'metadata' => ['public_id' => $entry->public_id],
+            ]);
+
+            return response()->json(['success' => true, 'data' => $entry]);
+        });
+    }
+
     public function adminEntries(Request $request): JsonResponse
     {
         $query = CorporateSiteEntry::query()->orderByDesc('updated_at');
