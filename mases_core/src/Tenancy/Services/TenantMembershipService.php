@@ -32,8 +32,11 @@ final class TenantMembershipService
         ?string $reason = null,
     ): void {
         DB::transaction(function () use ($tenantId, $userId): void {
-            DB::table('tenants')->where('id', $tenantId)->lockForUpdate()->firstOrFail();
-            DB::table('users')->where('id', $userId)->lockForUpdate()->firstOrFail();
+            $tenant = DB::table('tenants')->where('id', $tenantId)->lockForUpdate()->first();
+            $user = DB::table('users')->where('id', $userId)->lockForUpdate()->first();
+            if ($tenant === null || $user === null) {
+                throw new RuntimeException('Tenant or user does not exist.');
+            }
 
             $existing = DB::table('tenant_memberships')
                 ->where('tenant_id', $tenantId)
