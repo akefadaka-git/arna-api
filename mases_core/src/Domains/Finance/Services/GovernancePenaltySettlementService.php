@@ -70,6 +70,9 @@ final class GovernancePenaltySettlementService
                 GovernanceSettlementAccountMapping::ROLE_PENALTY_INCOME => ['revenue','credit'],
                 GovernanceSettlementAccountMapping::ROLE_DIVIDEND_EQUITY => ['equity','debit'],
                 GovernanceSettlementAccountMapping::ROLE_WITHHOLDING_TAX_PAYABLE => ['liability','credit'],
+                GovernanceSettlementAccountMapping::ROLE_SHARE_SUBSCRIPTION_RECEIVABLE => ['asset','debit'],
+                GovernanceSettlementAccountMapping::ROLE_SHARE_CAPITAL => ['equity','credit'],
+                GovernanceSettlementAccountMapping::ROLE_SHARE_TRANSFER_PAYABLE => ['liability','credit'],
                 default => null,
             };
             if ($expected === null || [$account->account_type,$account->normal_balance] !== $expected) throw ValidationException::withMessages(['ledger_account_id'=>'Account classification changed or is invalid.']);
