@@ -112,6 +112,16 @@ final class CorporateSiteController extends Controller
 
             if ($decision === 'approve') {
                 abort_unless($page->status === 'draft', 422, 'Only draft pages can be approved.');
+                abort_unless((int) $page->created_by !== (int) $request->user()->id, 403, 'The page author cannot approve their own page.');
+                foreach (['am', 'en'] as $requiredLocale) {
+                    abort_unless(
+                        is_array($page->translations[$requiredLocale] ?? null) &&
+                        filled($page->translations[$requiredLocale]['title'] ?? null) &&
+                        filled($requiredLocale === 'am' ? $page->slug_am : $page->slug_en),
+                        422,
+                        'Both Amharic and English titles and slugs are required before approval.',
+                    );
+                }
                 $page->status = 'approved';
                 $page->reviewed_by = $request->user()->id;
             } elseif ($decision === 'publish') {
