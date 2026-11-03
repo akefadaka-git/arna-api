@@ -60,6 +60,14 @@ The API route table registers GET /api/launcher inside the tenant-scoped authent
 
 No migration, schema, seed data, authorization catalogue, audit history, active route, current provider, canonical localization implementation or domain code is classified as removable in this pass.
 
+## Dependency security audit and remediation
+
+Composer audit at the baseline found:
+- league/commonmark 2.10.1: one high and one medium advisory.
+- symfony/mime 7.4.19: one medium advisory (CVE-2026-45070).
+
+An isolated compatible update produced league/commonmark 2.10.7 and symfony/mime 7.4.22. The updated composer.lock is committed to the audit branch. Composer audit after update reported no remaining advisories. The clean-install workflow now enforces composer audit and lints every tracked PHP file. Exact-head MySQL migration/regression verification is pending.
+
 ## A2 status
 
 - Provider registration analysis: VERIFIED by source inspection.
