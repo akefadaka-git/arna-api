@@ -181,6 +181,7 @@ Route::get('/health', static function (): JsonResponse {
 // Public corporate site pages: published locale-specific pages only.
 // -----------------------------------------------------------------------------
 Route::get('/public/site/home', [CorporateSiteController::class, 'home'])->middleware('throttle:60,1')->name('api.public.site.home');
+Route::get('/public/site/pages', [CorporateSiteController::class, 'pages'])->middleware('throttle:60,1')->name('api.public.site.pages.index');
 Route::get('/public/site/pages/{locale}/{slug}', [CorporateSiteController::class, 'page'])->whereIn('locale', ['am', 'en'])->middleware('throttle:60,1')->name('api.public.site.pages.show');
 Route::get('/public/site/sitemap.xml', [CorporateSiteEntryController::class, 'sitemap'])->middleware('throttle:30,1')->name('api.public.site.sitemap');
 Route::post('/public/site/inquiries', [CorporateSiteEntryController::class, 'submitInquiry'])->middleware('throttle:5,10')->name('api.public.site.inquiries.store');
