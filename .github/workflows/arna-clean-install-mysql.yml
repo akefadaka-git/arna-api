@@ -214,6 +214,12 @@ jobs:
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
 
+      - name: Lint historical dividend reinvestment implementation
+        run: |
+          php -l mases_core/src/Domains/Finance/Services/DividendReinvestmentService.php
+          php -l mases_core/src/Domains/Finance/Services/GovernancePenaltySettlementService.php
+          php -l mases_core/src/Domains/Finance/Tests/Feature/DividendReinvestmentJournalTest.php
+
       - name: Lint Finance Governance settlement migration
         run: php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_02_120000_create_governance_settlement_finance_tables.php
 
