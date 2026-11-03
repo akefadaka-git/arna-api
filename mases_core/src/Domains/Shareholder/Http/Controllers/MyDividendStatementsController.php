@@ -41,6 +41,9 @@ final class MyDividendStatementsController extends Controller
                 'i.withholding_amount', 'i.net_amount', 'p.cash_paid_amount',
                 'p.penalty_offset_amount', 'p.status as payable_status',
             ])
+            ->selectRaw('COALESCE(p.net_payable_amount - p.cash_paid_amount - p.penalty_offset_amount, 0) AS remaining_payable_amount')
+            ->orderByDesc('d.declared_on');
+            ])
             ->orderByDesc('d.declared_on');
 
         $paginator = $query->paginate(min(max($request->integer('per_page', 25), 1), 100));
