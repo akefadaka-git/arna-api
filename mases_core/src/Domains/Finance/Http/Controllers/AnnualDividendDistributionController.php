@@ -172,6 +172,7 @@ final class AnnualDividendDistributionController extends Controller
             'subscribed_share_quantity' => ['required', 'integer', 'min:1'],
             'price_per_share' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
             'original_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+            'outstanding_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4', 'lte:original_amount'],
             'occurred_on' => ['required', 'date'],
             'evidence_reference' => ['required', 'string', 'min:3', 'max:500'],
         ]);
