@@ -37,6 +37,9 @@ final class TenantMembershipService
             if ($tenant === null || $user === null) {
                 throw new RuntimeException('Tenant or user does not exist.');
             }
+            if (!(bool) $tenant->is_active || !(bool) $user->is_active) {
+                throw new DomainException('Only active tenants and active user accounts can receive a membership.');
+            }
 
             $existing = DB::table('tenant_memberships')
                 ->where('tenant_id', $tenantId)
@@ -140,6 +143,14 @@ final class TenantMembershipService
             }
 
             $currentStatus = (string) ($membership->status ?? TenantMembership::STATUS_ACTIVE);
+
+            if ($targetStatus === TenantMembership::STATUS_ACTIVE) {
+                $tenant = DB::table('tenants')->where('id', $tenantId)->lockForUpdate()->first();
+                $user = DB::table('users')->where('id', $userId)->lockForUpdate()->first();
+                if ($tenant === null || $user === null || !(bool) $tenant->is_active || !(bool) $user->is_active) {
+                    throw new DomainException('Only active tenants and active user accounts can have active memberships.');
+                }
+            }
 
             if ($currentStatus === $targetStatus) {
                 return null;
