@@ -26,16 +26,17 @@ final class CorporateSiteEntryController extends Controller
     {
         $pages = CorporateSitePage::query()->published()->get();
         $entries = CorporateSiteEntry::query()->published()->get();
+        $base = rtrim((string) (config('services.corporate_site.url') ?: url('/')), '/');
         $urls = [];
 
         foreach ($pages as $page) {
             foreach (['am' => $page->slug_am, 'en' => $page->slug_en] as $locale => $slug) {
-                if ($slug) $urls[] = ['loc' => url('/' . $locale . '/' . $slug), 'lastmod' => $page->updated_at];
+                if ($slug) $urls[] = ['loc' => $base . '/' . $locale . '/' . $slug, 'lastmod' => $page->updated_at];
             }
         }
         foreach ($entries as $entry) {
             foreach (['am' => $entry->slug_am, 'en' => $entry->slug_en] as $locale => $slug) {
-                if ($slug) $urls[] = ['loc' => url('/' . $locale . '/content/' . $entry->entry_type . '/' . $slug), 'lastmod' => $entry->updated_at];
+                if ($slug) $urls[] = ['loc' => $base . '/' . $locale . '/content/' . $entry->entry_type . '/' . $slug, 'lastmod' => $entry->updated_at];
             }
         }
 
