@@ -126,7 +126,7 @@ final class AnnualDividendDistributionController extends Controller
     {
         $data = $request->validate([
             'share_class_id' => ['required', 'integer', 'min:1'],
-            'weight_bps' => ['required', 'integer', 'between:1,100000'],
+            'weight_bps' => ['required', 'integer', 'between:0,100000'],
             'evidence_reference' => ['required', 'string', 'min:3', 'max:500'],
         ]);
         $row = $this->distributions->requestShareClassWeight(
