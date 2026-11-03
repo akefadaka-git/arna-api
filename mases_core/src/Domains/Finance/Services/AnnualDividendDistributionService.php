@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
