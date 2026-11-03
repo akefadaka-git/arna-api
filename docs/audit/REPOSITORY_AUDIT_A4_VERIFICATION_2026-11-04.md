@@ -9,7 +9,7 @@ Base SHA: `48542c59132b50d7405adb827afbb897051deb11`
 
 ## Verification evidence
 
-<badge>PASS</badge> GitHub Actions run [41732332975](https://github.com/akefadaka-git/arna-api/actions/runs/41732332975) completed successfully against the exact verified head SHA.
+**PASS** GitHub Actions run [41732332975](https://github.com/akefadaka-git/arna-api/actions/runs/41732332975) completed successfully against the exact verified head SHA.
 
 The run completed all 44 steps, including:
 
@@ -38,7 +38,7 @@ All steps: PASS. No step was skipped in the verification job.
 
 ## A4 status
 
-<badge color="success">VERIFIED</badge> API A4 complete.
+**VERIFIED** API A4 complete.
 
 Production deployment: NOT RUN.  
 PR merge: pending coordinated A5 closure across both repositories.
