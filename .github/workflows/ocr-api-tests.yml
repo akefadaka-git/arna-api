@@ -1,0 +1,80 @@
+name: ARNA OCR API verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/Http/Controllers/OcrController.php'
+      - 'config/ocr.php'
+      - 'config/queue.php'
+      - 'database/migrations/*ocr*'
+      - 'database/seeders/Data/PermissionCatalogue.php'
+      - 'database/seeders/Data/RolePermissionGrants.php'
+      - 'database/seeders/RolePermissionSeeder.php'
+      - 'mases_core/src/DocumentIntelligence/**'
+      - 'tests/Feature/DocumentIntelligenceTest.php'
+      - 'tests/Unit/DocumentIntelligence/**'
+      - 'tests/Unit/RolePermissionSeederScopeExclusionTest.php'
+      - '.github/workflows/ocr-api-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ocr-api-tests:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: arna_test
+          MYSQL_USER: arna
+          MYSQL_PASSWORD: secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, ctype, curl, dom, fileinfo, intl, mbstring, pdo_mysql, xml, zip
+          coverage: none
+      - name: Install locked Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Allow the existing append-only migration triggers in disposable MySQL
+        run: mysql -h127.0.0.1 -uroot -proot -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: arna_test
+          DB_USERNAME: arna
+          DB_PASSWORD: secret
+      - name: Run OCR, tenant isolation and permission tests
+        run: |
+          php artisan test --compact tests/Feature/DocumentIntelligenceTest.php
+          php artisan test --compact tests/Unit/DocumentIntelligence
+          php artisan test --compact tests/Unit/RolePermissionSeederScopeExclusionTest.php
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: arna_test
+          DB_USERNAME: arna
+          DB_PASSWORD: secret
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: database

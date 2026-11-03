@@ -70,7 +70,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  * =============================================================================
  * The grant-spec vocabulary
  * =============================================================================
- * A grant spec is a STRING. Three forms are recognised by the seeder:
+ * A grant spec is a STRING. Four forms are recognised by the seeder:
  *
  *   1. '*' — the wildcard grant. Matches every permission in the
  *            catalogue.
@@ -86,10 +86,18 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  *                          scope:tenant
  *                          scope:application
  *
- *      Used by: platform_admin (scope:global, scope:tenant),
- *               tenant_admin (scope:tenant).
+ *      Used by: platform_admin (scope:global, scope:tenant:exclude:ocr.),
+ *               tenant_admin (scope:tenant:exclude:ocr.).
  *
- *   3. A literal permission slug — the exact grant. Matches the one
+ *   3. 'scope:{scope}:exclude:{prefix}' — matches the named scope but
+ *      excludes permission slugs beginning with the supplied prefix.
+ *      This is used to prevent newly introduced sensitive capabilities
+ *      from being silently inherited by broad scope-based roles.
+ *
+ *      Used by: platform_admin and tenant_admin to exclude OCR grants
+ *      until an explicit least-privilege role matrix is approved.
+ *
+ *   4. A literal permission slug — the exact grant. Matches the one
  *      permission whose slug equals the string. Every slug used
  *      below is defined in PermissionCatalogue; a slug that does not
  *      resolve to a permission is silently skipped by the seeder.
@@ -101,7 +109,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  * =============================================================================
  * This constant is a MAP keyed by role slug, matching the shape of
  * RoleCatalogue (Unit S-5). Each value is an integer-indexed list of
- * grant specs, which may mix all three forms above.
+ * grant specs, which may mix the four forms above.
  *
  * The outer keys MUST match the role slugs defined in RoleCatalogue.
  *
@@ -117,14 +125,14 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  * =============================================================================
  *   super_admin     — '*'              : every permission
  *
- *   platform_admin  — scope:global + scope:tenant
+ *   platform_admin  — scope:global + scope:tenant:exclude:ocr.
  *                     + app.admin.access + app.app.access
  *                     + app.launcher.access
  *                                      : the two non-application scopes
  *                                        plus the three platform-operation
  *                                        applications
  *
- *   tenant_admin    — scope:tenant + every 'app.*.access'
+ *   tenant_admin    — scope:tenant:exclude:ocr. + every 'app.*.access'
  *                                      : everything scoped to a tenant,
  *                                        plus explicit access to all
  *                                        seven applications
@@ -202,11 +210,11 @@ final class RolePermissionGrants
     public const MAP = [
         'super_admin'     => ['*'],
         'platform_admin'  => [
-            'scope:global', 'scope:tenant',
+            'scope:global', 'scope:tenant:exclude:ocr.',
             'app.admin.access', 'app.app.access', 'app.launcher.access',
         ],
         'tenant_admin'    => [
-            'scope:tenant',
+            'scope:tenant:exclude:ocr.',
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['tenant_admin'], 'app.hr.access',
             'app.admin.access', 'app.arna.access', 'app.app.access', 'app.launcher.access',
         ],

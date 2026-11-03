@@ -38,8 +38,8 @@ final class CommunicationAnnouncementsTest extends TestCase
     {
         $catalogue = collect(PermissionCatalogue::ROWS)->keyBy('slug');
 
-        // 44 core permission rows plus 13 Finance rows are the canonical 57.
-        $this->assertCount(57, PermissionCatalogue::ROWS);
+        // 53 core permission rows (including nine OCR capabilities) plus 13 Finance rows.
+        $this->assertCount(66, PermissionCatalogue::ROWS);
 
         foreach (['announcement.view', 'announcement.manage', 'announcement.approve', 'announcement.publish'] as $slug) {
             $this->assertTrue($catalogue->has($slug), "Missing canonical permission: {$slug}");
@@ -67,8 +67,10 @@ final class CommunicationAnnouncementsTest extends TestCase
 
         // Existing platform-wide role policy grants tenant-scoped permissions
         // to platform_admin and tenant_admin; super_admin remains wildcard.
-        $this->assertContains('scope:tenant', $grants['platform_admin']);
-        $this->assertContains('scope:tenant', $grants['tenant_admin']);
+        $this->assertContains('scope:tenant:exclude:ocr.', $grants['platform_admin']);
+        $this->assertContains('scope:tenant:exclude:ocr.', $grants['tenant_admin']);
+        $this->assertNotContains('ocr.result.verify', $grants['platform_admin']);
+        $this->assertNotContains('ocr.result.verify', $grants['tenant_admin']);
         $this->assertSame(['*'], $grants['super_admin']);
     }
 

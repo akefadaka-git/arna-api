@@ -9,7 +9,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
 /**
  * PermissionCatalogue
  *
- * The platform's forty-four core permissions plus thirteen Finance permissions (fifty-seven total) — the atomic capabilities
+ * The platform's fifty-three core permissions (including nine OCR capabilities) plus thirteen Finance permissions (sixty-six total) — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -180,6 +180,15 @@ final class PermissionCatalogue
         ['slug' => 'file.restore',       'name_am' => 'ፋይልን መልሶ ማግኘት',        'name_en' => 'Restore Files',        'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'file.list',          'name_am' => 'የፋይሎችን ዝርዝር ማየት',     'name_en' => 'List Files',           'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'file.view_versions', 'name_am' => 'የፋይል ስሪቶችን ማየት',      'name_en' => 'View File Versions',   'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'ocr.job.create', 'name_am' => 'የOCR ሥራ መጀመር', 'name_en' => 'Create OCR Jobs', 'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'ocr.job.view', 'name_am' => 'የOCR ሂደት ማየት', 'name_en' => 'View OCR Jobs', 'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'ocr.job.retry', 'name_am' => 'የOCR ሥራ እንደገና ማስኬድ', 'name_en' => 'Retry OCR Jobs', 'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'ocr.result.view', 'name_am' => 'የOCR ውጤት ማየት', 'name_en' => 'View OCR Results', 'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'ocr.result.search', 'name_am' => 'በOCR ይዘት መፈለግ', 'name_en' => 'Search OCR Content', 'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'ocr.result.correct', 'name_am' => 'የOCR ጽሑፍ ማስተካከል', 'name_en' => 'Correct OCR Text', 'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'ocr.result.verify', 'name_am' => 'የOCR ውጤት ማረጋገጥ', 'name_en' => 'Verify OCR Results', 'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'ocr.engine.manage', 'name_am' => 'የOCR ሞተር ማስተዳደር', 'name_en' => 'Manage OCR Engines', 'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'ocr.audit.view', 'name_am' => 'የOCR ኦዲት ማየት', 'name_en' => 'View OCR Audit', 'category' => 'file', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'tenant.list',   'name_am' => 'የቴናንቶችን ዝርዝር ማየት', 'name_en' => 'View Tenants',   'category' => 'tenant', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'tenant.create', 'name_am' => 'ቴናንት መፍጠር',        'name_en' => 'Create Tenant',  'category' => 'tenant', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'tenant.update', 'name_am' => 'ቴናንት ማዘመን',        'name_en' => 'Update Tenant',  'category' => 'tenant', 'scope' => 'global', 'is_system' => false],
