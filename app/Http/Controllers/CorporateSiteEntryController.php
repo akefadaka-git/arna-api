@@ -119,18 +119,35 @@ final class CorporateSiteEntryController extends Controller
 
         $file = $request->file('file');
         $path = $file->storeAs('corporate-quarantine', Str::uuid() . '.' . $file->guessExtension(), 'local');
-        $entry = CorporateSiteEntry::query()->create([
-            'entry_type' => 'media',
-            'created_by' => $request->user()->id,
-            'translations' => [$validated['locale'] => [
-                'title' => $validated['title'],
-                'body' => $validated['description'] ?? '',
-            ]],
-            'asset_path' => $path,
-            'asset_mime' => $file->getMimeType(),
-            'asset_size' => $file->getSize(),
-            'payload' => ['quarantine' => true, 'scan_status' => 'pending'],
-        ]);
+        try {
+            $entry = DB::transaction(function () use ($request, $validated, $file, $path): CorporateSiteEntry {
+                $entry = CorporateSiteEntry::query()->create([
+                    'entry_type' => 'media',
+                    'created_by' => $request->user()->id,
+                    'translations' => [$validated['locale'] => [
+                        'title' => $validated['title'],
+                        'body' => $validated['description'] ?? '',
+                    ]],
+                    'asset_path' => $path,
+                    'asset_mime' => $file->getMimeType(),
+                    'asset_size' => $file->getSize(),
+                    'payload' => ['quarantine' => true, 'scan_status' => 'pending'],
+                ]);
+                AuditLog::create([
+                    'user_id' => $request->user()->id, 'tenant_id' => null,
+                    'action' => 'corporate_site_entry.media_uploaded', 'resource_type' => 'corporate_site_entry',
+                    'resource_id' => (string) $entry->id, 'old_values' => null,
+                    'new_values' => ['status' => 'draft', 'asset_mime' => $entry->asset_mime, 'asset_size' => $entry->asset_size],
+                    'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                    'request_id' => null, 'metadata' => ['public_id' => $entry->public_id],
+                ]);
+
+                return $entry;
+            });
+        } catch (\\Throwable $exception) {
+            Storage::disk('local')->delete($path);
+            throw $exception;
+        }
 
         return response()->json(['success' => true, 'data' => [
             'reference' => $entry->public_id,
