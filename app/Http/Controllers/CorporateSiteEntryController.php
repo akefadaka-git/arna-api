@@ -121,6 +121,7 @@ final class CorporateSiteEntryController extends Controller
         $path = $file->storeAs('corporate-quarantine', Str::uuid() . '.' . $file->guessExtension(), 'local');
         $entry = CorporateSiteEntry::query()->create([
             'entry_type' => 'media',
+            'created_by' => $request->user()->id,
             'translations' => [$validated['locale'] => [
                 'title' => $validated['title'],
                 'body' => $validated['description'] ?? '',
