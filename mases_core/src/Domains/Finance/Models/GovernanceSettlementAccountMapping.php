@@ -14,6 +14,8 @@ final class GovernanceSettlementAccountMapping extends Model
     public const ROLE_CASH_BANK = 'cash_bank';
     public const ROLE_DIVIDEND_PAYABLE = 'dividend_payable';
     public const ROLE_PENALTY_INCOME = 'penalty_income';
+    public const ROLE_DIVIDEND_EQUITY = 'dividend_equity';
+    public const ROLE_WITHHOLDING_TAX_PAYABLE = 'withholding_tax_payable';
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_APPROVED = 'approved';
@@ -56,6 +58,6 @@ final class GovernanceSettlementAccountMapping extends Model
 
     public static function roles(): array
     {
-        return [self::ROLE_FINE_RECEIVABLE, self::ROLE_CASH_BANK, self::ROLE_DIVIDEND_PAYABLE, self::ROLE_PENALTY_INCOME];
+        return [self::ROLE_FINE_RECEIVABLE, self::ROLE_CASH_BANK, self::ROLE_DIVIDEND_PAYABLE, self::ROLE_PENALTY_INCOME, self::ROLE_DIVIDEND_EQUITY, self::ROLE_WITHHOLDING_TAX_PAYABLE];
     }
 }
