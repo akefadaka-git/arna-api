@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\Finance\Models\DividendDistribution;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AnnualDividendDistributionService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\DividendReinvestmentService;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
 final class AnnualDividendDistributionController extends Controller
@@ -17,6 +18,7 @@ final class AnnualDividendDistributionController extends Controller
     public function __construct(
         private readonly TenantContextService $tenantContext,
         private readonly AnnualDividendDistributionService $distributions,
+        private readonly DividendReinvestmentService $reinvestments,
     ) {}
 
     private function tenantId(): int
@@ -155,4 +157,79 @@ final class AnnualDividendDistributionController extends Controller
         $row = $this->distributions->approve($this->tenantId(), $distributionId, (int) $request->user()->getAuthIdentifier());
         return response()->json(['success' => true, 'data' => $row]);
     }
+
+    public function recordShareSubscriptionBalance(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer', 'min:1'],
+            'shareholder_id' => ['required', 'integer', 'min:1'],
+            'share_class_id' => ['required', 'integer', 'min:1'],
+            'subscription_reference' => ['required', 'string', 'max:120'],
+            'subscribed_share_quantity' => ['required', 'integer', 'min:1'],
+            'price_per_share' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+            'original_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+            'occurred_on' => ['required', 'date'],
+            'evidence_reference' => ['required', 'string', 'min:3', 'max:500'],
+        ]);
+        $row = $this->reinvestments->recordSubscriptionBalance(
+            $this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data
+        );
+        return response()->json(['success' => true, 'data' => $row], 201);
+    }
+
+    public function reinvestments(Request $request): JsonResponse
+    {
+        $query = DB::table('finance_dividend_reinvestments')
+            ->where('tenant_id', $this->tenantId());
+        foreach (['distribution_id', 'shareholder_id', 'status', 'settlement_type'] as $field) {
+            if ($request->filled($field)) $query->where($field, $request->input($field));
+        }
+        $rows = $query->orderByDesc('id')->paginate(min(max($request->integer('per_page', 25), 1), 100));
+        return response()->json(['success' => true, 'data' => $rows->items(), 'meta' => [
+            'current_page' => $rows->currentPage(), 'per_page' => $rows->perPage(),
+            'total' => $rows->total(), 'last_page' => $rows->lastPage(),
+        ]]);
+    }
+
+    public function recordReinvestment(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'distribution_id' => ['required', 'integer', 'min:1'],
+            'distribution_item_id' => ['required', 'integer', 'min:1'],
+            'shareholder_id' => ['required', 'integer', 'min:1'],
+            'settlement_type' => ['required', 'in:subscription_balance,new_company_allotment,existing_share_transfer'],
+            'source_category' => ['sometimes', 'in:internal_revenue,other'],
+            'entitlement_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+            'subscription_balance_id' => ['required_if:settlement_type,subscription_balance', 'nullable', 'integer', 'min:1'],
+            'share_class_id' => ['required_if:settlement_type,new_company_allotment,existing_share_transfer', 'nullable', 'integer', 'min:1'],
+            'share_quantity' => ['required_if:settlement_type,new_company_allotment,existing_share_transfer', 'nullable', 'integer', 'min:1'],
+            'price_per_share' => ['required_if:settlement_type,new_company_allotment,existing_share_transfer', 'nullable', 'numeric', 'gt:0', 'decimal:0,4'],
+            'seller_shareholder_id' => ['required_if:settlement_type,existing_share_transfer', 'nullable', 'integer', 'min:1'],
+            'occurred_on' => ['required', 'date'],
+            'transaction_reference' => ['required', 'string', 'max:150'],
+            'evidence_reference' => ['required', 'string', 'min:3', 'max:500'],
+            'idempotency_key' => ['required', 'string', 'max:100'],
+        ]);
+        $row = $this->reinvestments->record(
+            $this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data
+        );
+        return response()->json(['success' => true, 'data' => $row], 201);
+    }
+
+    public function approveReinvestment(Request $request, int $reinvestmentId): JsonResponse
+    {
+        $row = $this->reinvestments->approve(
+            $this->tenantId(), $reinvestmentId, (int) $request->user()->getAuthIdentifier()
+        );
+        return response()->json(['success' => true, 'data' => $row]);
+    }
+
+    public function postReinvestment(Request $request, int $reinvestmentId): JsonResponse
+    {
+        $row = $this->reinvestments->post(
+            $this->tenantId(), $reinvestmentId, (int) $request->user()->getAuthIdentifier()
+        );
+        return response()->json(['success' => true, 'data' => $row]);
+    }
+
 }
