@@ -33,15 +33,25 @@ final class DividendPaymentServiceTest extends TestCase
         $payable = $settlements->createDividendPayable(
             (int) $tenant->id, (int) $entity->id, $shareholderId,
             'GA-DIV-2026-001', today()->subDays(5)->toDateString(),
-            today()->addDays(30)->toDateString(), '900.0000', (int) $maker->id
+            today()->addDays(30)->toDateString(), '850.0000', (int) $maker->id
         );
         $settlements->approveDividendPayable((int) $tenant->id, (int) $payable->id, (int) $checker->id, 'Approved GA distribution');
+        $taxAssessmentId = (int) DB::table('finance_dividend_tax_assessments')->insertGetId([
+            'tenant_id' => $tenant->id, 'distribution_id' => $distributionId,
+            'shareholder_id' => $shareholderId, 'recipient_type' => 'individual',
+            'tax_residency' => 'resident', 'treatment' => 'statutory',
+            'withholding_rate_bps' => 1500, 'legal_basis' => 'Proclamation 1395/2025 Article 57(1)',
+            'effective_from' => '2025-08-07', 'assessed_by' => $checker->id,
+            'assessed_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
         DB::table('finance_dividend_distribution_items')->insert([
             'tenant_id' => $tenant->id, 'distribution_id' => $distributionId,
             'shareholder_id' => $shareholderId, 'eligible_share_quantity' => '90.0000',
-            'gross_amount' => '1000.0000', 'withholding_amount' => '100.0000',
-            'net_amount' => '900.0000', 'payable_id' => $payable->id,
-            'created_at' => now(), 'updated_at' => now(),
+            'weighted_share_quantity' => '90.0000',
+            'gross_amount' => '1000.0000', 'withholding_amount' => '150.0000',
+            'net_amount' => '850.0000', 'payable_id' => $payable->id,
+            'tax_assessment_id' => $taxAssessmentId, 'tax_treatment' => 'statutory',
+            'tax_rate_bps' => 1500, 'created_at' => now(), 'updated_at' => now(),
         ]);
 
         $service = $this->paymentService();
@@ -72,7 +82,7 @@ final class DividendPaymentServiceTest extends TestCase
 
         $reconciled = $service->reconcileBatch(
             (int) $tenant->id, (int) $batch->id, (int) $checker->id,
-            'BANK-STATEMENT-001', '900.0000'
+            'BANK-STATEMENT-001', '850.0000'
         );
         $this->assertSame('reconciled', $reconciled->reconciliation_status);
     }
@@ -123,7 +133,7 @@ final class DividendPaymentServiceTest extends TestCase
             'declared_amount' => '1000.0000', 'allocation_method' => 'pro_rata_shares',
             'withholding_rate_bps' => 0, 'status' => 'approved', 'snapshot_row_count' => 1,
             'eligible_share_quantity' => '90.0000', 'gross_total' => '1000.0000',
-            'withholding_total' => '100.0000', 'net_total' => '900.0000',
+            'withholding_total' => '150.0000', 'net_total' => '850.0000',
             'created_by' => $maker->id, 'approved_by' => $checker->id, 'approved_at' => now(),
             'created_at' => now(), 'updated_at' => now(),
         ]);
