@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use MaaleArna\MASES\Core\Audit\Services\AuditService;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -16,6 +17,7 @@ use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use Throwable;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantMembershipService;
 
 final class AdminFoundationController extends Controller
@@ -167,6 +169,11 @@ final class AdminFoundationController extends Controller
     {
         $tenantId = $this->tenantId();
         $user = User::query()->findOrFail($id);
+        abort_if(
+            $user->memberships()->where('tenant_id', $tenantId)->exists(),
+            409,
+            'A membership already exists; reactivate a suspended membership or retain the revoked record.',
+        );
         $actor = $request->user();
         abort_unless($actor instanceof User, 401);
 
@@ -189,6 +196,8 @@ final class AdminFoundationController extends Controller
     {
         $tenantId = $this->tenantId();
         $user = $this->tenantMembershipUser($id, $tenantId);
+        $currentStatus = $user->memberships()->where('tenant_id', $tenantId)->value('status');
+        abort_if($currentStatus === 'revoked', 409, 'A revoked membership cannot be restored or changed.');
         $validated = $request->validate([
             'status' => ['required', Rule::in(['active', 'suspended'])],
             'reason' => ['required', 'string', 'min:10', 'max:500'],
@@ -375,8 +384,6 @@ final class AdminFoundationController extends Controller
             }
         });
 
-        $authorization->clearUserCache($user);
-
         $audit->log(
             action: 'admin.rbac.user_roles_synced',
             user: $actor,
@@ -386,6 +393,8 @@ final class AdminFoundationController extends Controller
             oldValues: ['tenant_role_ids' => $before],
             newValues: ['tenant_role_ids' => $roleIds],
         );
+
+        $this->clearUserAuthorizationCache($user, $authorization);
 
         return response()->json(['success' => true, 'data' => [
             'user_id' => $user->id,
@@ -496,12 +505,24 @@ final class AdminFoundationController extends Controller
         return $role;
     }
 
+    private function clearUserAuthorizationCache(User $user, AuthorizationService $authorization): void
+    {
+        try {
+            $authorization->clearUserCache($user);
+        } catch (Throwable $exception) {
+            Log::error('Admin identity authorization cache invalidation failed.', [
+                'user_id' => $user->id,
+                'exception' => $exception::class,
+            ]);
+        }
+    }
+
     private function clearRoleUsersCache(Role $role, AuthorizationService $authorization): void
     {
-        $role->users()->select('users.*')->chunkById(250, static function ($users) use ($authorization): void {
+        $role->users()->select('users.*')->chunkById(250, function ($users) use ($authorization, $role): void {
             foreach ($users as $user) {
-                $authorization->clearUserCache($user);
+                $this->clearUserAuthorizationCache($user, $authorization);
             }
-        });
+        }, 'users.id');
     }
 }
