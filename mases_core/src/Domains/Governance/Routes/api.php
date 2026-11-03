@@ -601,6 +601,9 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.committee.members.store');
     Route::post('/elections/{governanceElection}/committee/members/{member}/recusal', [GovernanceElectionWorkflowController::class, 'recuseCommitteeMember'])
         ->whereNumber('governanceElection')->whereNumber('member')->middleware('auth.permission:governance.election.manage')->name('elections.committee.members.recusal');
+    Route::post('/elections/{governanceElection}/committee/submissions/{submission}/decision', [GovernanceElectionWorkflowController::class, 'decideNominationSubmission'])
+        ->whereNumber('governanceElection')->whereNumber('submission')->middleware('auth.permission:governance.election.manage')->name('elections.committee.submissions.decision');
+
     Route::post('/elections/{governanceElection}/committee/candidates/{nomination}/decision', [GovernanceElectionWorkflowController::class, 'decideNomination'])
         ->whereNumber('governanceElection')->whereNumber('nomination')->middleware('auth.permission:governance.election.manage')->name('elections.committee.decisions.store');
 
