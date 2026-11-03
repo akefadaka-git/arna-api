@@ -70,6 +70,8 @@ final class AnnualDividendDistributionController extends Controller
             'resolution_evidence_reference' => ['required', 'string', 'max:500'],
             'payment_method' => ['required', 'in:bank_transfer,cheque,nbe_authorized_payment'],
             'accounting_framework' => ['required', 'in:ifrs,ifrs_sme,other_aabe_approved'],
+            'replaces_distribution_id' => ['nullable', 'integer', 'min:1'],
+            'replacement_reason' => ['required_with:replaces_distribution_id', 'nullable', 'string', 'min:5', 'max:500'],
         ]);
         $row = $this->distributions->create($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data);
         return response()->json(['success' => true, 'data' => $row], 201);
