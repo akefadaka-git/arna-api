@@ -175,6 +175,7 @@ final class CorporateSiteController extends Controller
             'page_key' => $page->page_key,
             'locale' => $locale,
             'slug' => $locale === 'am' ? $page->slug_am : $page->slug_en,
+            'alternate_slug' => $locale === 'am' ? $page->slug_en : $page->slug_am,
             'title' => (string) ($translation['title'] ?? ''),
             'summary' => (string) ($translation['summary'] ?? ''),
             'sections' => array_values(array_filter($page->sections ?? [], static fn ($section): bool =>
