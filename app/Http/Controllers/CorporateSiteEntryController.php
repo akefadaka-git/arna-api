@@ -336,6 +336,15 @@ final class CorporateSiteEntryController extends Controller
 
             if ($decision === 'approve') {
                 abort_unless($entry->status === 'draft', 422);
+                foreach (['am', 'en'] as $requiredLocale) {
+                    abort_unless(
+                        is_array($entry->translations[$requiredLocale] ?? null) &&
+                        filled($entry->translations[$requiredLocale]['title'] ?? null) &&
+                        filled($requiredLocale === 'am' ? $entry->slug_am : $entry->slug_en),
+                        422,
+                        'Both Amharic and English titles and slugs are required before approval.',
+                    );
+                }
                 $entry->status = 'approved';
                 $entry->reviewed_by = $request->user()->id;
             } elseif ($decision === 'publish') {
@@ -417,7 +426,7 @@ final class CorporateSiteEntryController extends Controller
 
     private function resource(CorporateSiteEntry $entry, string $locale): array
     {
-        $translation = $entry->translations[$locale] ?? $entry->translations['en'] ?? $entry->translations['am'] ?? [];
+        $translation = $entry->translations[$locale] ?? [];\n        abort_unless(is_array($translation) && filled($translation['title'] ?? null), 404);
         return [
             'public_id' => $entry->public_id,
             'type' => $entry->entry_type,
