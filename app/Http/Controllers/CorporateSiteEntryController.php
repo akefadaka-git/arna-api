@@ -178,6 +178,7 @@ final class CorporateSiteEntryController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             'subject' => ['required', 'string', 'max:200'],
             'message' => ['required', 'string', 'max:10000'],
+            'consent' => ['required', 'accepted'],
             'website' => ['nullable', 'max:0'],
         ])->validate();
 
@@ -188,6 +189,7 @@ final class CorporateSiteEntryController extends Controller
             'phone' => $validated['phone'] ?? null,
             'subject' => $validated['subject'],
             'message' => $validated['message'],
+            'consented_at' => now(),
         ]);
 
         return response()->json(['success' => true, 'data' => ['reference' => $inquiry->public_id, 'status' => 'received']], 202);
