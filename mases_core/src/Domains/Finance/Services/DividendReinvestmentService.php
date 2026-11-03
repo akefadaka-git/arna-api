@@ -90,10 +90,26 @@ final class DividendReinvestmentService
             }
 
             $amount = $this->money((string) $data['entitlement_amount']);
+            $payable = DB::table('finance_shareholder_dividend_payables')
+                ->where('tenant_id', $tenantId)->where('id', (int) $item->payable_id)
+                ->lockForUpdate()->first();
+            if (!$payable) {
+                throw ValidationException::withMessages(['payable_id' => 'The approved dividend payable is required before reinvestment.']);
+            }
             $alreadyUsed = (string) DB::table('finance_dividend_reinvestments')
                 ->where('tenant_id', $tenantId)->where('distribution_item_id', (int) $item->id)
-                ->whereIn('status', ['pending', 'approved', 'posted'])->sum('applied_amount');
-            $remaining = bcsub((string) $item->net_amount, $alreadyUsed, 4);
+                ->whereIn('status', ['pending', 'approved'])->sum('applied_amount');
+            $cashReserved = (string) DB::table('finance_dividend_payment_batch_items as bi')
+                ->join('finance_dividend_payment_batches as b', function ($join) {
+                    $join->on('b.id', '=', 'bi.batch_id')->on('b.tenant_id', '=', 'bi.tenant_id');
+                })
+                ->where('bi.tenant_id', $tenantId)->where('bi.payable_id', (int) $payable->id)
+                ->where('bi.status', 'pending')->whereIn('b.status', ['draft', 'approved', 'partially_paid'])
+                ->sum('bi.amount');
+            $remaining = bcsub(bcsub((string) $payable->net_payable_amount,
+                bcadd(bcadd((string) $payable->cash_paid_amount, (string) $payable->penalty_offset_amount, 4),
+                    (string) ($payable->reinvested_amount ?? '0.0000'), 4), 4),
+                bcadd($alreadyUsed, $cashReserved, 4), 4);
             if (bccomp($amount, '0.0000', 4) <= 0 || bccomp($amount, $remaining, 4) > 0) {
                 throw ValidationException::withMessages(['entitlement_amount' => 'Reinvestment cannot exceed the shareholder net dividend remaining after prior reinvestment applications.']);
             }
@@ -198,6 +214,14 @@ final class DividendReinvestmentService
                 throw ValidationException::withMessages(['reinvestment' => 'Posting requires an approved record and a posting actor independent of maker and checker.']);
             }
             $buyer = Shareholder::query()->where('tenant_id', $tenantId)->whereKey((int) $row->shareholder_id)->whereNull('deleted_at')->firstOrFail();
+            $item = DB::table('finance_dividend_distribution_items')->where('tenant_id', $tenantId)
+                ->where('distribution_id', (int) $row->distribution_id)->where('id', (int) $row->distribution_item_id)
+                ->where('shareholder_id', (int) $row->shareholder_id)->lockForUpdate()->first();
+            $payable = $item ? DB::table('finance_shareholder_dividend_payables')
+                ->where('tenant_id', $tenantId)->where('id', (int) $item->payable_id)->lockForUpdate()->first() : null;
+            if (!$item || !$payable) {
+                throw new ConflictHttpException('The linked dividend payable is missing; reinvestment cannot be posted.');
+            }
             if ($row->settlement_type === 'subscription_balance') {
                 $balance = DB::table('finance_share_subscription_balances')->where('tenant_id', $tenantId)
                     ->where('id', (int) $row->subscription_balance_id)->lockForUpdate()->first();
@@ -237,6 +261,17 @@ final class DividendReinvestmentService
                     ]);
                 }
             }
+            $nextReinvested = bcadd((string) ($payable->reinvested_amount ?? '0.0000'), (string) $row->applied_amount, 4);
+            $remainingAfterPosting = bcsub(
+                bcsub(bcsub((string) $payable->net_payable_amount, (string) $payable->cash_paid_amount, 4),
+                    (string) $payable->penalty_offset_amount, 4),
+                $nextReinvested, 4
+            );
+            DB::table('finance_shareholder_dividend_payables')->where('tenant_id', $tenantId)->where('id', $payable->id)->update([
+                'reinvested_amount' => $nextReinvested,
+                'status' => bccomp($remainingAfterPosting, '0.0000', 4) <= 0 ? 'settled' : 'payable',
+                'updated_at' => now(),
+            ]);
             DB::table('finance_dividend_reinvestments')->where('id', $id)->update([
                 'status' => 'posted', 'posted_by' => $actorId, 'posted_at' => now(), 'updated_at' => now(),
             ]);
