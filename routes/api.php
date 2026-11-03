@@ -503,6 +503,40 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
 });
 
 // =============================================================================
+ // Admin Console foundation — central tenant directory and tenant-scoped
+ // identity/RBAC read surfaces. Mutations are limited to tenant activation;
+ // user/role/permission writes require a separately verified lifecycle flow.
+ // =============================================================================
+Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access'])
+    ->prefix('admin')
+    ->name('api.admin.foundation.')
+    ->group(static function (): void {
+        Route::get('/tenants', [\\App\\Http\\Controllers\\Admin\\AdminFoundationController::class, 'tenants'])
+            ->middleware('auth.permission:tenant.list')
+            ->name('tenants.index');
+        Route::get('/tenants/{id}', [\\App\\Http\\Controllers\\Admin\\AdminFoundationController::class, 'tenant'])
+            ->whereNumber('id')
+            ->middleware('auth.permission:tenant.list')
+            ->name('tenants.show');
+        Route::patch('/tenants/{id}', [\\App\\Http\\Controllers\\Admin\\AdminFoundationController::class, 'updateTenant'])
+            ->whereNumber('id')
+            ->middleware('auth.permission:tenant.update')
+            ->name('tenants.update');
+
+        Route::middleware('tenant.membership')->group(static function (): void {
+            Route::get('/identity/users', [\\App\\Http\\Controllers\\Admin\\AdminFoundationController::class, 'users'])
+                ->middleware('auth.permission:user.list')
+                ->name('users.index');
+            Route::get('/authorization/roles', [\\App\\Http\\Controllers\\Admin\\AdminFoundationController::class, 'roles'])
+                ->middleware('auth.permission:role.list')
+                ->name('roles.index');
+            Route::get('/authorization/permissions', [\\App\\Http\\Controllers\\Admin\\AdminFoundationController::class, 'permissions'])
+                ->middleware('auth.permission:permission.list')
+                ->name('permissions.index');
+        });
+    });
+
+// =============================================================================
 // Corporate Site CMS Administration — platform-wide, permission-gated
 // =============================================================================
 Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
