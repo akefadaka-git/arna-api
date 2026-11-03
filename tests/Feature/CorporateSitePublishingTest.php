@@ -6,6 +6,9 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use App\Services\CorporateSite\CorporateMediaScanner;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
@@ -115,6 +118,37 @@ final class CorporateSitePublishingTest extends TestCase
         $this->assertNotNull(DB::table('corporate_site_inquiries')->where('email', 'contact@example.test')->value('consented_at'));
 
         $this->getJson('/api/admin/corporate-site/inquiries')->assertUnauthorized();
+    }
+
+
+
+    public function test_media_scanner_accepts_only_a_clean_verdict_from_configured_https_service(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => 'test-signature'], 200),
+        ]);
+
+        $verdict = app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+
+        $this->assertSame('clean', $verdict['status']);
+        $this->assertSame('test-signature', $verdict['signature']);
+        Http::assertSent(fn ($request): bool => $request->hasHeader('Authorization', 'Bearer scanner-token'));
+    }
+
+    public function test_media_scanner_fails_closed_when_not_configured(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        config(['services.corporate_media_scanner.url' => null]);
+
+        $this->expectException(\\RuntimeException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
     }
 
 
