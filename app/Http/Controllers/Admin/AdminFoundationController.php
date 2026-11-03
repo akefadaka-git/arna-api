@@ -322,6 +322,7 @@ final class AdminFoundationController extends Controller
         $roleIds = collect($validated['role_ids'])->map(static fn ($id): int => (int) $id)->unique()->values()->all();
 
         $roles = Role::query()
+            ->with('permissions:id,slug')
             ->where('scope', 'tenant')
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
@@ -331,6 +332,15 @@ final class AdminFoundationController extends Controller
 
         $actor = $request->user();
         abort_unless($actor instanceof User, 401);
+        foreach ($roles as $role) {
+            foreach ($role->permissions as $permission) {
+                abort_unless(
+                    $authorization->hasPermission($permission->slug, $actor, $tenantId),
+                    403,
+                    'You cannot grant a role containing permissions you do not hold.',
+                );
+            }
+        }
         $before = DB::table('user_has_roles')
             ->join('roles', 'roles.id', '=', 'user_has_roles.role_id')
             ->where('user_has_roles.user_id', $user->id)
@@ -384,7 +394,7 @@ final class AdminFoundationController extends Controller
     }
 
     /** Replace a tenant role's permission set; Role emits the synchronous cache-invalidation event. */
-    public function syncRolePermissions(Request $request, int $id, AuditService $audit): JsonResponse
+    public function syncRolePermissions(Request $request, int $id, AuditService $audit, AuthorizationService $authorization): JsonResponse
     {
         $tenantId = $this->tenantId();
         $role = $this->tenantRole($id, $tenantId);
@@ -405,12 +415,22 @@ final class AdminFoundationController extends Controller
             ->get(['id', 'slug']);
         abort_if($permissions->count() !== count($permissionIds), 422, 'One or more permissions are not assignable to this tenant role.');
 
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
+        foreach ($permissions as $permission) {
+            abort_unless(
+                $authorization->hasPermission($permission->slug, $actor, $tenantId),
+                403,
+                'You cannot grant a permission you do not hold.',
+            );
+        }
+
         $before = $role->permissions()->pluck('permissions.id')->map(static fn ($id): int => (int) $id)->all();
         DB::transaction(function () use ($role, $permissionIds, $audit, $request, $tenantId, $before): void {
             $role->syncPermissions($permissionIds);
             $audit->log(
                 action: 'admin.rbac.role_permissions_synced',
-                user: $request->user(),
+                user: $actor,
                 tenantId: $tenantId,
                 resourceType: 'role',
                 resourceId: (string) $role->id,
