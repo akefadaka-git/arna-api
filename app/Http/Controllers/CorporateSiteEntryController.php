@@ -426,7 +426,8 @@ final class CorporateSiteEntryController extends Controller
 
     private function resource(CorporateSiteEntry $entry, string $locale): array
     {
-        $translation = $entry->translations[$locale] ?? [];\n        abort_unless(is_array($translation) && filled($translation['title'] ?? null), 404);
+        $translation = $entry->translations[$locale] ?? [];
+        abort_unless(is_array($translation) && filled($translation['title'] ?? null), 404);
         return [
             'public_id' => $entry->public_id,
             'type' => $entry->entry_type,
