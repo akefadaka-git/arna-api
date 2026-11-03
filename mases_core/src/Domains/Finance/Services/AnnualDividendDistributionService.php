@@ -302,6 +302,12 @@ final class AnnualDividendDistributionService
                 || $items->contains(fn ($item) => $item->tax_assessment_id === null || $item->tax_rate_bps === null)) {
                 throw new ConflictHttpException('The immutable distribution snapshot is incomplete.');
             }
+            $taxReviewByApprover = DB::table('finance_dividend_tax_assessments')
+                ->where('tenant_id', $tenantId)->where('distribution_id', $d->id)
+                ->where('assessed_by', $actorId)->exists();
+            if ($taxReviewByApprover) {
+                throw ValidationException::withMessages(['tax' => 'The distribution approver cannot also be the recipient tax assessor.']);
+            }
             foreach ($items as $item) {
                 $payable = $this->payables->createDividendPayable(
                     $tenantId, (int) $d->legal_entity_id, (int) $item->shareholder_id,
