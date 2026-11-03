@@ -16,6 +16,13 @@ final class AnnualDividendDistributionService
 
     public function create(int $tenantId, int $actorId, array $data): DividendDistribution
     {
+        if (!array_key_exists('withholding_rate_bps', $data)
+            || !is_int($data['withholding_rate_bps'])
+            || $data['withholding_rate_bps'] < 0
+            || $data['withholding_rate_bps'] > 10000) {
+            throw ValidationException::withMessages(['withholding_rate_bps' => 'An explicit annual withholding rate in basis points (0–10000) is required; prior-year defaults are never inherited.']);
+        }
+
         $amount = $this->money((string) $data['declared_amount']);
         if (bccomp($amount, '0.0000', 4) <= 0) {
             throw ValidationException::withMessages(['declared_amount' => 'The GA-declared distribution amount must be positive.']);
@@ -49,7 +56,7 @@ final class AnnualDividendDistributionService
             'currency' => 'ETB',
             'declared_amount' => $amount,
             'allocation_method' => 'pro_rata_shares',
-            'withholding_rate_bps' => (int) ($data['withholding_rate_bps'] ?? 0),
+            'withholding_rate_bps' => $data['withholding_rate_bps'],
             'status' => 'draft',
             'created_by' => $actorId,
         ]);
