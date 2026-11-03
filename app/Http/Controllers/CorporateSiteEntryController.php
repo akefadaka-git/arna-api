@@ -273,12 +273,18 @@ final class CorporateSiteEntryController extends Controller
 
     public function scanMedia(Request $request, int $id, CorporateMediaScanner $scanner): JsonResponse
     {
+        $validated = Validator::make($request->all(), [
+            'expected_version' => ['required', 'integer', 'min:1'],
+        ])->validate();
+
         $entry = CorporateSiteEntry::query()->where('entry_type', 'media')->findOrFail($id);
+        abort_unless($entry->status === 'draft', 422, 'Only quarantined draft media can be scanned.');
         abort_unless($entry->asset_path !== null, 422, 'This entry has no quarantined media asset.');
+        abort_unless($entry->version === (int) $validated['expected_version'], 409, 'This media entry changed after it was loaded.');
 
         try {
             $verdict = $scanner->scan($entry->asset_path, $entry->public_id);
-        } catch (\Throwable $exception) {
+        } catch (\\Throwable $exception) {
             report($exception);
             return response()->json(['success' => false, 'error' => [
                 'code' => 'MEDIA_SCAN_UNAVAILABLE',
@@ -286,28 +292,32 @@ final class CorporateSiteEntryController extends Controller
             ]], 503);
         }
 
-        $payload = $entry->payload ?? [];
-        $payload['scan_status'] = $verdict['status'];
-        $payload['scan_signature'] = $verdict['signature'];
-        $payload['scanned_at'] = now()->toIso8601String();
-        $entry->payload = $payload;
-        $entry->version++;
-        $entry->save();
+        return DB::transaction(function () use ($request, $id, $validated, $verdict): JsonResponse {
+            $entry = CorporateSiteEntry::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($entry->version === (int) $validated['expected_version'], 409, 'This media entry changed while it was being scanned.');
+            $payload = $entry->payload ?? [];
+            $payload['scan_status'] = $verdict['status'];
+            $payload['scan_signature'] = $verdict['signature'];
+            $payload['scanned_at'] = now()->toIso8601String();
+            $entry->payload = $payload;
+            $entry->version++;
+            $entry->save();
 
-        AuditLog::create([
-            'user_id' => $request->user()->id, 'tenant_id' => null,
-            'action' => 'corporate_site_entry.media_scanned', 'resource_type' => 'corporate_site_entry',
-            'resource_id' => (string) $entry->id, 'old_values' => null,
-            'new_values' => ['scan_status' => $verdict['status'], 'signature' => $verdict['signature']],
-            'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
-            'request_id' => null, 'metadata' => ['public_id' => $entry->public_id],
-        ]);
+            AuditLog::create([
+                'user_id' => $request->user()->id, 'tenant_id' => null,
+                'action' => 'corporate_site_entry.media_scanned', 'resource_type' => 'corporate_site_entry',
+                'resource_id' => (string) $entry->id, 'old_values' => ['version' => $validated['expected_version']],
+                'new_values' => ['scan_status' => $verdict['status'], 'signature' => $verdict['signature'], 'version' => $entry->version],
+                'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                'request_id' => null, 'metadata' => ['public_id' => $entry->public_id],
+            ]);
 
-        return response()->json(['success' => true, 'data' => [
-            'public_id' => $entry->public_id,
-            'scan_status' => $verdict['status'],
-            'version' => $entry->version,
-        ]]);
+            return response()->json(['success' => true, 'data' => [
+                'public_id' => $entry->public_id,
+                'scan_status' => $verdict['status'],
+                'version' => $entry->version,
+            ]]);
+        });
     }
 
     public function review(Request $request, int $id, string $decision): JsonResponse
