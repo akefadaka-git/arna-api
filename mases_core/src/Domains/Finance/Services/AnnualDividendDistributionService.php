@@ -27,6 +27,15 @@ final class AnnualDividendDistributionService
             throw ValidationException::withMessages(['allocation_method' => 'This release supports pro-rata allocation by eligible shares only.']);
         }
 
+        $entityExists = DB::table('legal_entities')
+            ->where('tenant_id', $tenantId)
+            ->where('id', (int) $data['legal_entity_id'])
+            ->where('status', 'active')
+            ->exists();
+        if (!$entityExists) {
+            throw ValidationException::withMessages(['legal_entity_id' => 'An active legal entity in the resolved tenant is required.']);
+        }
+
         return DividendDistribution::query()->create([
             'tenant_id' => $tenantId,
             'legal_entity_id' => (int) $data['legal_entity_id'],
@@ -61,13 +70,21 @@ final class AnnualDividendDistributionService
                 throw new ConflictHttpException('A distribution snapshot already exists and is immutable.');
             }
 
-            $latest = DB::table('share_holding_entries as e')
-                ->selectRaw('MAX(e.id) as latest_entry_id')
-                ->whereDate('e.occurred_at', '<=', $d->record_date->toDateString())
-                ->groupBy('e.share_holding_id');
-
             $rows = DB::table('share_holding_entries as e')
-                ->joinSub($latest, 'latest', fn ($join) => $join->on('latest.latest_entry_id', '=', 'e.id'))
+                ->whereDate('e.occurred_at', '<=', $d->record_date->toDateString())
+                ->whereNotExists(function ($query) use ($d): void {
+                    $query->selectRaw('1')
+                        ->from('share_holding_entries as newer')
+                        ->whereColumn('newer.share_holding_id', 'e.share_holding_id')
+                        ->whereDate('newer.occurred_at', '<=', $d->record_date->toDateString())
+                        ->where(function ($later) {
+                            $later->whereColumn('newer.occurred_at', '>', 'e.occurred_at')
+                                ->orWhere(function ($tie) {
+                                    $tie->whereColumn('newer.occurred_at', '=', 'e.occurred_at')
+                                        ->whereColumn('newer.id', '>', 'e.id');
+                                });
+                        });
+                })
                 ->join('share_holdings as h', 'h.id', '=', 'e.share_holding_id')
                 ->join('shareholders as s', 's.id', '=', 'h.shareholder_id')
                 ->where('s.tenant_id', $tenantId)
