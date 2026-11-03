@@ -46,9 +46,15 @@ final class AdminFoundationController extends Controller
 
         $users = User::query()
             ->whereHas('memberships', static fn ($query) => $query->where('tenant_id', $tenantId))
-            ->with(['memberships' => static fn ($query) => $query
-                ->where('tenant_id', $tenantId)
-                ->select(['tenant_id', 'user_id', 'status'])])
+            ->with([
+                'memberships' => static fn ($query) => $query
+                    ->where('tenant_id', $tenantId)
+                    ->select(['tenant_id', 'user_id', 'status']),
+                'roles' => static fn ($query) => $query
+                    ->where('roles.scope', 'tenant')
+                    ->where('roles.tenant_id', $tenantId)
+                    ->select(['roles.id', 'roles.slug', 'roles.name_am', 'roles.name_en', 'roles.scope']),
+            ])
             ->select([
                 'id', 'email', 'username', 'phone', 'first_name_am', 'father_name_am', 'grandfather_name_am',
                 'first_name_en', 'father_name_en', 'grandfather_name_en', 'locale', 'is_active', 'created_at',
