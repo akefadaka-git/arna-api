@@ -28,7 +28,16 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    'corporate_site' => [\n        'url' => env('CORPORATE_SITE_URL'),\n    ],\n\n    'corporate_media_scanner' => [\n        'url' => env('CORPORATE_MEDIA_SCANNER_URL'),\n        'token' => env('CORPORATE_MEDIA_SCANNER_TOKEN'),\n    ],\n\n    'slack' => [
+    'corporate_site' => [
+        'url' => env('CORPORATE_SITE_URL'),
+    ],
+
+    'corporate_media_scanner' => [
+        'url' => env('CORPORATE_MEDIA_SCANNER_URL'),
+        'token' => env('CORPORATE_MEDIA_SCANNER_TOKEN'),
+    ],
+
+    'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
