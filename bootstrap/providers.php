@@ -533,6 +533,28 @@ declare(strict_types=1);
  * -----------------------------------------------------------------------------
  */
 
+/*
+ * =============================================================================
+ * Repository audit disposition — 2026-11-04
+ * =============================================================================
+ *
+ * The long LocalizationServiceProvider change record above is historical
+ * context, not an active registration. The proposed provider entry was not
+ * present in the effective provider array. The unregistered provider and its
+ * isolated legacy localization cluster have been retired after repository-wide
+ * reference analysis. The canonical localization implementation remains:
+ *
+ *   - CoreServiceProvider
+ *   - LocalizationService
+ *   - Localization/Calendar/EthiopianCalendar
+ *   - Localization/Middleware/LocalizationMiddleware
+ *
+ * The unregistered MasesCoreServiceProvider and EventServiceProvider have
+ * also been retired. CoreServiceProvider remains the active Core/event provider.
+ *
+ * =============================================================================
+ */
+
 return [
     /*
      * -------------------------------------------------------------------------
