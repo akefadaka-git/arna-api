@@ -146,6 +146,7 @@ use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\CorporateSiteController;
+use App\Http\Controllers\CorporateSiteEntryController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CommunicationAnnouncementController;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -181,6 +182,13 @@ Route::get('/health', static function (): JsonResponse {
 // -----------------------------------------------------------------------------
 Route::get('/public/site/home', [CorporateSiteController::class, 'home'])->middleware('throttle:60,1')->name('api.public.site.home');
 Route::get('/public/site/pages/{locale}/{slug}', [CorporateSiteController::class, 'page'])->whereIn('locale', ['am', 'en'])->middleware('throttle:60,1')->name('api.public.site.pages.show');
+Route::post('/public/site/inquiries', [CorporateSiteEntryController::class, 'submitInquiry'])->middleware('throttle:5,10')->name('api.public.site.inquiries.store');
+Route::get('/public/site/content/{type}', [CorporateSiteEntryController::class, 'index'])->whereIn('type', ['news', 'announcement', 'publication', 'media', 'career', 'opportunity', 'business', 'service', 'advertisement', 'marketplace'])->middleware('throttle:60,1')->name('api.public.site.content.index');
+Route::get('/public/site/content/{type}/{slug}', [CorporateSiteEntryController::class, 'show'])->whereIn('type', ['news', 'announcement', 'publication', 'media', 'career', 'opportunity', 'business', 'service', 'advertisement', 'marketplace'])->middleware('throttle:60,1')->name('api.public.site.content.show');
+Route::post('/public/site/submissions/{type}', [CorporateSiteEntryController::class, 'submit'])->whereIn('type', ['career', 'opportunity', 'advertisement', 'marketplace', 'business', 'service'])->middleware('throttle:5,10')->name('api.public.site.submissions.store');
+Route::post('/public/site/media', [CorporateSiteEntryController::class, 'uploadMedia'])->middleware('throttle:5,10')->name('api.public.site.media.store');
+Route::get('/public/site/media/{publicId}/asset', [CorporateSiteEntryController::class, 'asset'])->whereUuid('publicId')->middleware('throttle:60,1')->name('api.public.site.media.asset');
+
 
 // -----------------------------------------------------------------------------
 // Public corporate content: only approved and published records are readable.
@@ -507,6 +515,19 @@ Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
             ->whereNumber('id')
             ->whereIn('decision', ['approve', 'publish', 'schedule', 'unpublish'])
             ->name('review');
+    });
+
+
+// Corporate editorial entries and contact-inquiry administration.
+Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
+    ->prefix('admin/corporate-site')
+    ->name('api.admin.corporate-site.')
+    ->group(static function (): void {
+        Route::get('/entries', [CorporateSiteEntryController::class, 'adminEntries'])->name('entries.index');
+        Route::post('/entries/{id}/{decision}', [CorporateSiteEntryController::class, 'review'])
+            ->whereNumber('id')->whereIn('decision', ['approve', 'publish', 'reject', 'unpublish'])->name('entries.review');
+        Route::get('/inquiries', [CorporateSiteEntryController::class, 'adminInquiries'])->name('inquiries.index');
+        Route::put('/inquiries/{id}', [CorporateSiteEntryController::class, 'updateInquiry'])->whereNumber('id')->name('inquiries.update');
     });
 
 // =============================================================================
