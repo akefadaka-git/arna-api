@@ -13,6 +13,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\GovernanceSettlementAccountMappi
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Services\DividendTaxRemittanceService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\GovernancePenaltySettlementService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalEntryService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
