@@ -228,6 +228,20 @@ final class AnnualDividendDistributionController extends Controller
         return response()->json(['success' => true, 'data' => $row]);
     }
 
+
+    public function settleReinvestmentSeller(Request $request, int $reinvestmentId): JsonResponse
+    {
+        $data = $request->validate([
+            'bank_reference' => ['required', 'string', 'min:3', 'max:150'],
+            'evidence_reference' => ['required', 'string', 'min:3', 'max:500'],
+            'paid_on' => ['required', 'date'],
+        ]);
+        $row = $this->reinvestments->settleSeller(
+            $this->tenantId(), $reinvestmentId, (int) $request->user()->getAuthIdentifier(), $data
+        );
+        return response()->json(['success' => true, 'data' => $row]);
+    }
+
     public function postReinvestment(Request $request, int $reinvestmentId): JsonResponse
     {
         $row = $this->reinvestments->post(
