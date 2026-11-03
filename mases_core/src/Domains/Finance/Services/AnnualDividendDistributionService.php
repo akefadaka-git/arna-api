@@ -374,6 +374,16 @@ final class AnnualDividendDistributionService
                 (string) $d->distribution_reference, $d->declared_on->toDateString(),
                 $grossTotal, $netTotal, $withholdingTotal, $actorId
             );
+            foreach ($items as $item) {
+                DB::table('finance_dividend_tax_assessments')
+                    ->where('tenant_id', $tenantId)->where('distribution_id', $d->id)
+                    ->where('shareholder_id', $item->shareholder_id)
+                    ->update([
+                        'tax_certificate_number' => 'ARNA-DIV-TAX-'.$d->id.'-'.$item->shareholder_id,
+                        'certificate_issued_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+            }
             $d->forceFill([
                 'status' => 'approved',
                 'approved_by' => $actorId,
