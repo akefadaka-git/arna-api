@@ -382,6 +382,85 @@ final class AnnualDividendDistributionService
         });
     }
 
+    /**
+     * Apply Commercial Code Article 438(4) through a controlled cancellation.
+     * A posted accrual is reversed; any distribution with actual cash payments
+     * or penalty offsets is blocked because it requires a separately approved
+     * recovery/refund process rather than silently undoing shareholder rights.
+     */
+    public function cancel(int $tenantId, int $distributionId, int $actorId, string $reason): DividendDistribution
+    {
+        return DB::transaction(function () use ($tenantId, $distributionId, $actorId, $reason) {
+            $d = DividendDistribution::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($distributionId);
+            if (!in_array($d->status, ['draft', 'calculated', 'approved'], true)
+                || (int) $d->created_by === $actorId
+                || ($d->approved_by !== null && (int) $d->approved_by === $actorId)
+                || trim($reason) === ''
+                || today()->greaterThan($d->payment_due_on)) {
+                throw ValidationException::withMessages(['distribution' => 'Cancellation requires a reason, an independent officer and an unexpired Article 438(3) payment period.']);
+            }
+
+            $reversal = null;
+            if ($d->status === 'approved') {
+                $paid = DB::table('finance_dividend_payment_batch_items as i')
+                    ->join('finance_dividend_payment_batches as b', function ($join) {
+                        $join->on('b.id', '=', 'i.batch_id')->on('b.tenant_id', '=', 'i.tenant_id');
+                    })
+                    ->where('b.tenant_id', $tenantId)->where('b.distribution_id', $d->id)
+                    ->where('i.status', 'paid')->exists();
+                $offset = DB::table('finance_shareholder_dividend_payables')
+                    ->where('tenant_id', $tenantId)->where('legal_entity_id', $d->legal_entity_id)
+                    ->where('distribution_reference', $d->distribution_reference)
+                    ->where(function ($query) {
+                        $query->where('cash_paid_amount', '>', 0)->orWhere('penalty_offset_amount', '>', 0);
+                    })->exists();
+                if ($paid || $offset) {
+                    throw ConflictHttpException('This distribution has settled shareholder value. Use a separately approved recovery/refund workflow; cancellation cannot erase creditor rights.');
+                }
+                if (trim((string) $d->accrual_journal_reference) === '') {
+                    throw ConflictHttpException('The approved distribution has no traceable accrual journal to reverse.');
+                }
+                $reversal = $this->payables->reverseDividendAccrual(
+                    $tenantId, (int) $d->legal_entity_id, (int) $d->id,
+                    (string) $d->accrual_journal_reference, today()->toDateString(),
+                    trim($reason), $actorId
+                );
+                DB::table('finance_shareholder_dividend_payables')
+                    ->where('tenant_id', $tenantId)->where('legal_entity_id', $d->legal_entity_id)
+                    ->where('distribution_reference', $d->distribution_reference)
+                    ->whereIn('status', ['draft', 'approved', 'payable'])
+                    ->update(['status' => 'void', 'updated_at' => now()]);
+
+                $batchIds = DB::table('finance_dividend_payment_batches')->where('tenant_id', $tenantId)
+                    ->where('distribution_id', $d->id)->pluck('id');
+                if ($batchIds->isNotEmpty()) {
+                    DB::table('finance_dividend_payment_batch_items')->where('tenant_id', $tenantId)
+                        ->whereIn('batch_id', $batchIds)->whereIn('status', ['pending', 'failed'])
+                        ->update(['status' => 'cancelled', 'updated_at' => now()]);
+                    DB::table('finance_dividend_payment_batches')->where('tenant_id', $tenantId)
+                        ->whereIn('id', $batchIds)->update(['status' => 'cancelled', 'updated_at' => now()]);
+                    foreach ($batchIds as $batchId) {
+                        DB::table('finance_dividend_payment_events')->insert([
+                            'tenant_id' => $tenantId, 'batch_id' => $batchId, 'actor_id' => $actorId,
+                            'action' => 'batch.cancelled', 'payload' => json_encode(['reason' => trim($reason)], JSON_THROW_ON_ERROR),
+                            'occurred_at' => now(),
+                        ]);
+                    }
+                }
+            }
+
+            $d->forceFill([
+                'status' => 'cancelled',
+                'cancelled_by' => $actorId,
+                'cancelled_at' => now(),
+                'cancellation_reason' => trim($reason),
+                'reversal_journal_reference' => $reversal?->journal_number,
+            ])->save();
+
+            return $d->fresh('items');
+        });
+    }
+
     private function money(string $value): string
     {
         $value = trim($value);
