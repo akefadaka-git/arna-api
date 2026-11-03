@@ -56,6 +56,7 @@ return new class extends Migration
             $table->string('status', 24)->default('pending');
             $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $table->foreignId('approved_by')->nullable()->constrained('users')->restrictOnDelete();
+            $table->foreignId('posted_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->dateTime('approved_at')->nullable();
             $table->dateTime('posted_at')->nullable();
             $table->timestamps();
