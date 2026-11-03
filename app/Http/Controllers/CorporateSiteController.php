@@ -19,7 +19,7 @@ final class CorporateSiteController extends Controller
         $page = CorporateSitePage::query()->published()->where('page_key', 'home')->first();
 
         if (!$page) {
-            return response()->json(['success' => true, 'data' => ['locale' => $locale, 'page' => null, 'sections' => []]]);
+            return response()->json(['success' => true, 'data' => null]);
         }
 
         return response()->json(['success' => true, 'data' => $this->resource($page, $locale)]);
