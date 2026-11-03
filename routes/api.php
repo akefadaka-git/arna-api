@@ -188,7 +188,6 @@ Route::post('/public/site/inquiries', [CorporateSiteEntryController::class, 'sub
 Route::get('/public/site/content/{type}', [CorporateSiteEntryController::class, 'index'])->whereIn('type', ['news', 'announcement', 'publication', 'media', 'career', 'opportunity', 'business', 'service', 'advertisement', 'marketplace'])->middleware('throttle:60,1')->name('api.public.site.content.index');
 Route::get('/public/site/content/{type}/{slug}', [CorporateSiteEntryController::class, 'show'])->whereIn('type', ['news', 'announcement', 'publication', 'media', 'career', 'opportunity', 'business', 'service', 'advertisement', 'marketplace'])->middleware('throttle:60,1')->name('api.public.site.content.show');
 Route::post('/public/site/submissions/{type}', [CorporateSiteEntryController::class, 'submit'])->whereIn('type', ['career', 'opportunity', 'advertisement', 'marketplace', 'business', 'service'])->middleware('throttle:5,10')->name('api.public.site.submissions.store');
-Route::post('/public/site/media', [CorporateSiteEntryController::class, 'uploadMedia'])->middleware('throttle:5,10')->name('api.public.site.media.store');
 Route::get('/public/site/media/{publicId}/asset', [CorporateSiteEntryController::class, 'asset'])->whereUuid('publicId')->middleware('throttle:60,1')->name('api.public.site.media.asset');
 
 
@@ -525,6 +524,7 @@ Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
     ->prefix('admin/corporate-site')
     ->name('api.admin.corporate-site.')
     ->group(static function (): void {
+        Route::post('/media', [CorporateSiteEntryController::class, 'uploadMedia'])->middleware('throttle:5,10')->name('media.store');
         Route::get('/entries', [CorporateSiteEntryController::class, 'adminEntries'])->name('entries.index');
         Route::post('/entries', [CorporateSiteEntryController::class, 'adminStore'])->name('entries.store');
         Route::put('/entries/{id}', [CorporateSiteEntryController::class, 'adminUpdate'])->whereNumber('id')->name('entries.update');
