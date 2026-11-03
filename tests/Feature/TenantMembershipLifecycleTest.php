@@ -17,6 +17,56 @@ final class TenantMembershipLifecycleTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_attaching_a_membership_records_audit_and_security_events(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $member = User::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create(['is_active' => true]);
+
+        app(TenantMembershipService::class)->attach(
+            (int) $tenant->id,
+            (int) $member->id,
+            $actor,
+            'Approved tenant onboarding request',
+        );
+
+        $this->assertDatabaseHas('tenant_memberships', [
+            'tenant_id' => $tenant->id,
+            'user_id' => $member->id,
+            'status' => TenantMembership::STATUS_ACTIVE,
+        ]);
+
+        $this->assertTrue(
+            $member->activeTenants()->where('tenants.id', $tenant->id)->exists(),
+        );
+
+        $this->assertDatabaseHas('security_events', [
+            'event_type' => 'tenant.membership.created',
+            'tenant_id' => $tenant->id,
+            'user_id' => $actor->id,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'tenant.membership.created',
+            'tenant_id' => $tenant->id,
+            'user_id' => $actor->id,
+        ]);
+    }
+
+    public function test_existing_or_revoked_membership_cannot_be_attached_again(): void
+    {
+        [$tenant, $member, $actor] = $this->createMembership(TenantMembership::STATUS_REVOKED);
+
+        $this->expectException(DomainException::class);
+
+        app(TenantMembershipService::class)->attach(
+            (int) $tenant->id,
+            (int) $member->id,
+            $actor,
+            'Attempted second membership',
+        );
+    }
+
     public function test_suspending_a_membership_removes_tenant_access_and_records_security_event(): void
     {
         [$tenant, $member, $actor] = $this->createMembership();
@@ -40,6 +90,12 @@ final class TenantMembershipLifecycleTest extends TestCase
 
         $this->assertDatabaseHas('security_events', [
             'event_type' => 'tenant.membership.status_changed',
+            'tenant_id' => $tenant->id,
+            'user_id' => $actor->id,
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'tenant.membership.status_changed',
             'tenant_id' => $tenant->id,
             'user_id' => $actor->id,
         ]);
