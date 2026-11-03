@@ -49,3 +49,10 @@ Audit branch: audit/arna-repository-consolidation-2026-11-04
 ## Preservation requirements
 
 Keep unrelated branch work, historical migrations, immutable audit evidence, approved architecture boundaries, and all existing production behavior. No bulk branch deletion or mass PR closure is authorized by this audit.
+
+## Current disposition snapshot (2026-11-04)
+
+- Current branches: 56 (includes this isolated audit branch).
+- Current open PRs: 42 (includes audit PR #86).
+- Superseded historical PR #78 was closed after verifying merged successor #79; its source branch and both historical documents were retained.
+- Thirteen branches without an open PR remain untouched pending ancestry/age review.
