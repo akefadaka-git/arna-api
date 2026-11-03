@@ -16,7 +16,7 @@ final class CorporateSiteInquiry extends Model
         'status', 'assigned_to', 'internal_note', 'handled_at',
     ];
 
-    protected $casts = ['handled_at' => 'datetime'];
+    protected $casts = ['handled_at' => 'datetime', 'version' => 'integer'];
 
     protected static function booted(): void
     {
