@@ -30,6 +30,9 @@ final class DividendPaymentService
             if (!$distribution) {
                 throw ValidationException::withMessages(['distribution_id' => 'Only an approved distribution in the selected legal entity can be paid.']);
             }
+            if ((string) $distribution->payment_method === 'reinvestment_only') {
+                throw ValidationException::withMessages(['distribution_id' => 'This historical distribution is designated reinvestment-only; cash payment batches are prohibited.']);
+            }
 
             $entity = DB::table('legal_entities')->where('tenant_id', $tenantId)->where('id', $entityId)
                 ->where('status', 'active')->first();
@@ -76,7 +79,14 @@ final class DividendPaymentService
                     ->where('i.tenant_id', $tenantId)->where('i.payable_id', $payableId)
                     ->where('i.status', 'pending')->whereIn('b.status', ['draft', 'approved', 'partially_paid'])
                     ->sum('i.amount');
-                $available = bcsub($payable->remainingPayable(), (string) $reserved, 4);
+                $reinvestmentReserved = (string) DB::table('finance_dividend_reinvestments')
+                    ->where('tenant_id', $tenantId)->where('distribution_item_id', (int) $allocation->id)
+                    ->whereIn('status', ['pending', 'approved', 'posted'])->sum('applied_amount');
+                $available = bcsub(
+                    bcsub($payable->remainingPayable(), (string) $reserved, 4),
+                    $reinvestmentReserved,
+                    4
+                );
                 if (bccomp($available, '0.0000', 4) <= 0) {
                     throw ValidationException::withMessages(['payable_ids' => 'The selected payable has already been fully reserved by another open payment batch.']);
                 }
