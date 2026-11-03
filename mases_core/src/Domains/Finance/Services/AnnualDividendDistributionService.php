@@ -244,7 +244,7 @@ final class AnnualDividendDistributionService
             if ($d->status !== 'draft' || (int) $d->created_by !== $actorId || $d->items()->exists()) {
                 throw ValidationException::withMessages(['distribution' => 'Only the maker may request a class weight while the distribution is an unsnapshotted draft.']);
             }
-            if (!DB::table('share_classes')->where('id', $shareClassId)->whereNull('deleted_at')->exists()) {
+            if (!DB::table('share_classes')->where('id', $shareClassId)->where('is_active', true)->exists()) {
                 throw ValidationException::withMessages(['share_class_id' => 'The share class is not active.']);
             }
             $existing = DB::table('finance_dividend_share_class_weights')->where('tenant_id', $tenantId)
