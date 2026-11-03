@@ -233,7 +233,7 @@ final class AdminFoundationController extends Controller
         $tenantId = $this->tenantId();
 
         $roles = Role::query()
-            ->with(['permissions:id,slug,name_am,name_en,scope'])
+            ->with(['permissions:id,slug,name_am,name_en,scope,is_system'])
             ->where(static function ($query) use ($tenantId): void {
                 $query->whereNull('tenant_id')->orWhere('tenant_id', $tenantId);
             })
