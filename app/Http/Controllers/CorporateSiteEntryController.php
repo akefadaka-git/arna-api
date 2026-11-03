@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;\nuse App\\Services\\CorporateSite\\CorporateMediaScanner;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
+use App\Services\CorporateSite\CorporateMediaScanner;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class CorporateSiteEntryController extends Controller
@@ -225,7 +226,7 @@ final class CorporateSiteEntryController extends Controller
 
         try {
             $verdict = $scanner->scan($entry->asset_path, $entry->public_id);
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             report($exception);
             return response()->json(['success' => false, 'error' => [
                 'code' => 'MEDIA_SCAN_UNAVAILABLE',
