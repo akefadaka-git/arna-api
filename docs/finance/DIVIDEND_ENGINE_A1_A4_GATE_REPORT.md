@@ -1,88 +1,129 @@
-# Dividend Engine A1–A4 Gate Report
+# ARNA Dividend Engine — A1–A4 Gate Report
 
 **Assessment date:** 2026-11-03  
+**Owner authorization:** A1–A4 implementation, enhancement, integration, fixes and verification authorized  
 **Repositories:** `akefadaka-git/arna-api`, `akefadaka-git/arna-app`  
-**Deployment:** A5 explicitly excluded
+**A5:** explicitly separate; no production deployment or live transfer execution
 
-## Executive status
+## Executive decision
 
-A1 and A2 design/compliance baseline work is recorded. A3 is partially implemented across the existing annual distribution engine and the new compliance/tax-control increment. A4 is not closed for the new exact heads because dividend-specific automated tests, integrated MySQL verification, frontend/API integration, accessibility/device acceptance and concurrency acceptance have not been run against those heads.
+**A1: PASS — requirements and compliance baseline documented.**  
+**A2: PASS — target architecture and control contracts implemented.**  
+**A3: PARTIAL — core API, accounting, tax, payment, remittance, cancellation, class-weighting and UI implementation committed; bank-provider-specific initiation and printable tax-certificate rendering remain integration items.**  
+**A4: NOT CLOSED — exact-head automated and manual acceptance has not been executed.**  
+**A5: NOT STARTED — outside this authorization scope.**
 
-**Overall gate status: PARTIAL — NOT PRODUCTION READY.** Do not represent the current engine as fully closed or permit production dividend release.
+**Production release: NO-GO until A4 passes.** The implementation work is materially advanced; it is not responsible to claim full A1–A4 closure without exact-SHA runtime evidence.
 
-## A1 — Assessment and requirements
+## Exact GitHub targets
 
-**Status: PASS WITH OPEN LEGAL/ACCOUNTING VALIDATION**
+| Target | PR | Exact head SHA | PR status |
+|---|---|---|---|
+| API | [PR #83](https://github.com/akefadaka-git/arna-api/pull/83) | `37c95bc12be37cf120a0a0469b683cf97dc5d293` | Draft, mergeable |
+| App | [PR #35](https://github.com/akefadaka-git/arna-app/pull/35) | `73c9563eec69593ccfb5b839629baf514b30835e` | Draft, mergeable |
 
-- Commercial Code Proclamation 1243/2021, Article 438 baseline captured: approved-balance-sheet net profit, General Meeting authority, payment deadline, creditor status and controlled variation/cancellation.
-- Financial Reporting Proclamation 847/2014 and AABE framework applicability captured; entity-specific IFRS / IFRS for SMEs classification remains to be confirmed.
-- Income-tax configuration is designed as recipient-specific and effective-dated. The current implementation does not make a blanket tax determination for all shareholders.
-- Legal counsel and the entity's licensed accountant must validate the actual company, articles, shareholder classes, treaty claims and tax-year treatment.
+Base PRs remain API #81 and App #33. Main branches were not modified. Implementation is isolated in the stacked dividend branches.
 
-## A2 — Read-only design and contract
+## A1 — Assessment and compliance baseline
 
-**Status: PASS WITH OPEN ACCOUNT-MAPPING/PROVIDER CONTRACTS**
+**Status: PASS for documented requirements; external legal/tax sign-off remains outstanding.**
 
-- Annual distribution and shareholder eligibility snapshot contract exists.
-- Pro-rata allocation is limited to a single comparable share class; multi-class distributions fail closed pending approved class rights and weights.
-- New API increment adds approved balance-sheet evidence, distributable-profit amount, GA resolution evidence, independent profit certification and per-shareholder tax assessment fields.
-- Remaining accounting mapping, bank/provider, tax-remittance and reconciliation contracts are not complete.
+- Ethiopian Commercial Code Proclamation 1243/2021, Article 438: approved-balance-sheet net profit, General Meeting decision, payment period not exceeding four months, and the right to vary/cancel before the applicable period expires.
+- Controlled cancellation now records the independent actor, timestamp, reason and reversal journal; replacement distributions link back to the cancelled decision.
+- Dividend amount is bounded by certified distributable profit; balance-sheet and General Meeting evidence are mandatory.
+- Federal Income Tax Proclamation 979/2016 as amended by Proclamation 1395/2025: recipient-specific treatment and current dividend withholding policy are encoded.
+- Standard statutory withholding: 15% for Schedule D dividend payments from 7 August 2025; 10% for the pre-8 July 2025 statutory period. The 8 July–6 August 2025 transition window fails closed pending a documented tax-director determination.
+- Treaty, group-company and other exemption treatments require supporting evidence; resident-company classification is required for the configured group-company exemption path.
+- Payment instrument options are restricted to bank transfer, account-payee cheque, account-payee bank draft or an NBE-authorized payment system. No cash payment option is exposed.
+- Legal counsel and the licensed accountant must validate the entity's articles, actual shareholder rights, group-company evidence, treaty status, tax period and accounting policy before first use.
 
-## A3 — Implementation
+## A2 — Architecture and control contracts
 
-**Status: PARTIAL**
+**Status: PASS.**
 
-Existing API PR #81 and App PR #33 contain the initial distribution engine and shareholder statement portal. Additional draft increments:
+- Tenant-scoped annual distribution, eligibility snapshot, tax assessment, class-weight, payment batch, tax remittance and audit evidence structures.
+- Pro-rata allocation supports multiple share classes only when each class has an independently approved, GA-evidenced weight. A single class defaults to 1.0x; non-participating classes may use zero weight.
+- Immutable per-shareholder and per-class allocation snapshots preserve actual and weighted share quantities.
+- Maker-checker separation for profit certification, class-weight approval, distribution approval, payment-batch approval and tax-remittance approval.
+- Journal idempotency keys protect accrual, payment and tax-remittance postings against replay.
+- Payment batch reservations prevent the same payable balance being committed to multiple open batches.
+- Payment confirmation requires bank reference and evidence; statement reconciliation records matched/discrepant outcomes.
+- Tax remittance is capped at withholding actually deducted from confirmed shareholder payments, net of existing draft/approved/paid remittance reservations.
 
-- API PR #83: https://github.com/akefadaka-git/arna-api/pull/83
-- App PR #35: https://github.com/akefadaka-git/arna-app/pull/35
+## A3 — Implementation delivered
 
-Implemented in the new increments:
-- Evidence fields for approved balance sheet, distributable profit, GA resolution, payment method and reporting framework.
-- Independent Finance profit certification.
-- Recipient-specific tax assessments with treatment, rate, legal basis, evidence and expiry.
-- Per-shareholder tax rate snapshots in distribution allocation items.
-- Separation between recipient tax assessor and final distribution approver.
-- Shareholder portal visibility for cash paid, penalty offsets and remaining payable.
+**Status: PARTIAL — core functionality committed; provider/PDF integration boundary remains.**
 
-Still missing:
-1. Dividend accrual journal and separate withholding-tax liability journal, with independently approved entity-scoped account mappings.
-2. Withholding tax return/remittance records, certificates and reconciliation.
-3. Payment batches, provider/bank adapter, maker-checker release, idempotent execution, failure/retry/return handling, confirmation evidence and bank reconciliation.
-4. Controlled GA amendment/cancellation and compensating journal workflow.
-5. Finance administration UI for distribution creation, profit certification, recipient tax assessment, approval, journal and payment monitoring.
-6. Share-class weighting configuration and validated legal rights model.
-7. Dividend-specific audit events, reporting, statements/PDF and operational exception queues.
+### API and Finance
+- Approved balance-sheet, distributable-profit and GA resolution evidence.
+- Independent Finance profit certification and immutable certification control.
+- Effective-dated, recipient-specific statutory/treaty/exempt/special tax assessments.
+- Per-shareholder tax-rate snapshots and payment-date tax validity checks.
+- Multi-class dividend weighting, independent weight approval and class-level snapshots.
+- Balanced dividend accrual journal: debit dividend distribution equity; credit shareholder dividend payables and withholding-tax liability.
+- Maker-checker payment batches; reservation, failure, cancellation, duplicate-reference and idempotent confirmation controls.
+- Payment journals: debit shareholder dividend payable; credit cash/bank.
+- Bank statement amount/reference reconciliation.
+- Tax remittance workflow with approval, bank evidence, idempotent liability-clearing journal and outstanding-liability cap.
+- Controlled dividend cancellation/reversal and linked replacement distribution.
+- Tax certificate numbers issued on distribution approval and revoked on lawful cancellation.
+- Shareholder statement API exposes paid cash, penalty offsets, remaining payable, withholding rate/treatment/legal basis and certificate reference/status.
+- Clean-install workflow expanded to the new dividend migrations and 82-migration baseline.
 
-## A4 — Verification
+### App
+- Finance admin route: `/admin/dividend-engine`.
+- Distribution creation, profit certification, recipient tax assessment, class-weight request/approval, calculation and approval.
+- Payment batches, confirmation/failure, cancellation and bank reconciliation.
+- Tax remittance creation, approval, confirmation and cancellation.
+- Shareholder portal shows tax certificate reference, withholding rate/legal basis, paid cash, penalty offsets and remaining payable.
 
-**Status: NOT CLOSED ON THE NEW EXACT HEADS**
+### Remaining A3 integration items
+1. No bank API/provider credentials or bank-specific contract was supplied. The implemented flow records and journals independently bank-confirmed transfers; it does not initiate a live bank transfer. Provider-specific initiation requires the selected bank/provider contract.
+2. Tax certificate reference and data are issued and exposed; a formally styled downloadable PDF certificate is not yet implemented.
+3. Entity-specific legal/tax/accounting sign-off remains a required governance control, not something software can infer or self-certify.
 
-Prior evidence for the underlying PR #81 API head `bd42a08293905dd7200413c07fbfaab9a12119f4`:
-- PHP lint and public verification tests: PASS — run 41624005007.
-- Fresh migration/seed regression: PASS — run 41624004986.
-- Governance authorization tests: PASS — run 41624004996.
-- Tenant-isolation suite: PASS — run 41624004976.
-- Runtime route/authorization audit: PASS — run 41624005039.
-- Later clean-install MySQL workflow: PASS — run 41649343084; exact-target checkout and Finance regressions, migration idempotence, seed flow and table checks completed.
-- Later tenant-isolation run 41649342961: CANCELLED.
-- Earlier full MySQL run 41624004977: FAILED at expected core/domain table verification; later clean-install run passed but does not establish dividend-specific acceptance.
-- Dividend-specific service/payment tests: NOT ADDED / NOT RUN in PR #81.
+## A4 — Exact-head verification
 
-Prior App PR #33 head `36eb8e8204ee38d02004b649cd766917c7a17e16`:
-- Frontend verification/build: PASS — run 41623666708.
-- Device, accessibility and end-to-end API integration acceptance: NOT RUN.
+**Status: NOT RUN / NOT CLOSED.**
 
-New exact heads:
-- API PR #83: `78c6f81a78fc44fb774d3c21622afbe267d4e9e0` — no workflow runs/status checks returned at report time.
-- App PR #35: `6ec7cfa043a438d1db7de3df6b1397d9eb915842` — no workflow runs/status checks returned at report time.
+Six dividend-focused feature test files are committed:
+- `DividendDistributionAccountingTest.php`
+- `DividendPaymentServiceTest.php`
+- `DividendTaxComplianceTest.php`
+- `DividendShareClassWeightTest.php`
+- `DividendTaxRemittanceServiceTest.php`
+- `DividendCancellationTest.php`
 
-Required A4 work: PHP lint, migration ordering and clean-install MySQL, recipient-tax and profit-certification feature tests, tenant isolation, journal balancing/idempotency, payment lifecycle and reconciliation tests, frontend type-check/build, API contract integration, mobile/tablet/desktop, keyboard/screen-reader/WCAG 2.2 AA, and concurrent approval/payment replay tests on the final exact heads.
+The API clean-install MySQL workflow now includes the new tables, migration checks and the dividend implementation branch. The App frontend workflow already targets `feat/**`.
+
+**Exact-head evidence lookup:** no workflow runs and no combined status checks were returned for API SHA `37c95bc12be37cf120a0a0469b683cf97dc5d293` or App SHA `73c9563eec69593ccfb5b839629baf514b30835e` at report time.
+
+| A4 acceptance item | Result |
+|---|---|
+| API PHP lint on exact head | NOT RUN |
+| API clean-install MySQL on exact head | NOT RUN |
+| Migration idempotence / rollback checks | NOT RUN |
+| Dividend accounting, tax, cancellation and payment tests | NOT RUN |
+| Full API regression and tenant isolation | NOT RUN on exact head |
+| App type-check and all four builds | NOT RUN |
+| API/App end-to-end integration | NOT RUN |
+| Keyboard, screen-reader and WCAG 2.2 AA review | NOT RUN |
+| Mobile/tablet/desktop acceptance | NOT RUN |
+| Payment replay, race/concurrency and load acceptance | NOT RUN |
+
+Earlier passing CI on the underlying PR #81 and App PR #33 heads is historical evidence only; it does not certify the new exact heads.
 
 ## A5 — Deployment
 
-**NOT STARTED — SEPARATE GATE.** No production deployment, secrets configuration, bank/provider credentials, live payment execution or production data mutation is authorized by this completion scope.
+**NOT STARTED.** No production secrets, bank credentials, live payment instructions, production database changes or deployment operations were performed.
 
-## Release decision
+## Immediate next step
 
-**NO-GO for production dividend distribution or payment.** Keep release controls fail-closed until A3 items 1–7 and A4 exact-head acceptance are complete and evidenced.
+Run the API clean-install MySQL workflow and all Finance regressions against API SHA `37c95bc12be37cf120a0a0469b683cf97dc5d293`; run App type-check, four builds and UI acceptance against App SHA `73c9563eec69593ccfb5b839629baf514b30835e`. Resolve every failure, repeat on the final exact heads, then close A4. Merge only after those acceptance results pass. A5 remains separate.
+
+## Evidence labels
+
+- **PASS:** requirements/control design implemented or prior evidence explicitly cited.
+- **PARTIAL:** core implementation committed, with named integration items outstanding.
+- **NOT RUN:** no execution evidence on the current exact SHA.
+- **NO-GO:** production release blocked by incomplete A4.
