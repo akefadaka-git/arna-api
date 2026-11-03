@@ -383,6 +383,10 @@ Route::name('api.shareholders.')->group(static function (): void {
                 ->name('cancel');
         });
 
+    // Dividend statements are resolved only from the authenticated user's direct shareholder link.
+    Route::get('/me/dividends', [\\MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Http\\Controllers\\MyDividendStatementsController::class, 'index'])
+        ->name('me.dividends.index');
+
     // =========================================================================
     // Shareholders — the domain's primary resource
     // =========================================================================
