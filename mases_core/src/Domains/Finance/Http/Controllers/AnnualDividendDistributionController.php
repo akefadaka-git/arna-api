@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\Finance\Models\DividendDistribution;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AnnualDividendDistributionService;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
@@ -107,6 +108,36 @@ final class AnnualDividendDistributionController extends Controller
         $row = $this->distributions->cancel(
             $this->tenantId(), $distributionId,
             (int) $request->user()->getAuthIdentifier(), $data['reason']
+        );
+        return response()->json(['success' => true, 'data' => $row]);
+    }
+
+    public function shareClassWeights(int $distributionId): JsonResponse
+    {
+        $rows = DB::table('finance_dividend_share_class_weights')
+            ->where('tenant_id', $this->tenantId())->where('distribution_id', $distributionId)
+            ->orderBy('share_class_id')->get();
+        return response()->json(['success' => true, 'data' => $rows]);
+    }
+
+    public function requestShareClassWeight(Request $request, int $distributionId): JsonResponse
+    {
+        $data = $request->validate([
+            'share_class_id' => ['required', 'integer', 'min:1'],
+            'weight_bps' => ['required', 'integer', 'between:1,100000'],
+            'evidence_reference' => ['required', 'string', 'min:3', 'max:500'],
+        ]);
+        $row = $this->distributions->requestShareClassWeight(
+            $this->tenantId(), $distributionId, (int) $data['share_class_id'],
+            (int) $request->user()->getAuthIdentifier(), (int) $data['weight_bps'], $data['evidence_reference']
+        );
+        return response()->json(['success' => true, 'data' => $row], 201);
+    }
+
+    public function approveShareClassWeight(Request $request, int $distributionId, int $weightId): JsonResponse
+    {
+        $row = $this->distributions->approveShareClassWeight(
+            $this->tenantId(), $distributionId, $weightId, (int) $request->user()->getAuthIdentifier()
         );
         return response()->json(['success' => true, 'data' => $row]);
     }
