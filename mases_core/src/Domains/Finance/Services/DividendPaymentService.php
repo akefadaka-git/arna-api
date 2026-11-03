@@ -116,6 +116,32 @@ final class DividendPaymentService
         });
     }
 
+    public function cancelBatch(int $tenantId, int $batchId, int $actorId, string $reason): object
+    {
+        return DB::transaction(function () use ($tenantId, $batchId, $actorId, $reason) {
+            $batch = DB::table('finance_dividend_payment_batches')->where('tenant_id', $tenantId)
+                ->where('id', $batchId)->lockForUpdate()->first();
+            if (!$batch || !in_array($batch->status, ['draft', 'approved', 'failed'], true)
+                || (int) $batch->created_by === $actorId
+                || ($batch->approved_by !== null && (int) $batch->approved_by === $actorId)
+                || trim($reason) === '') {
+                throw ValidationException::withMessages(['batch' => 'Only an unpaid batch may be cancelled by an independent officer with a reason.']);
+            }
+            $paid = DB::table('finance_dividend_payment_batch_items')->where('tenant_id', $tenantId)
+                ->where('batch_id', $batchId)->where('status', 'paid')->exists();
+            if ($paid) {
+                throw ConflictHttpException('A batch with confirmed shareholder payments cannot be cancelled.');
+            }
+            DB::table('finance_dividend_payment_batch_items')->where('tenant_id', $tenantId)
+                ->where('batch_id', $batchId)->whereIn('status', ['pending', 'failed'])
+                ->update(['status' => 'cancelled', 'failure_reason' => trim($reason), 'updated_at' => now()]);
+            DB::table('finance_dividend_payment_batches')->where('tenant_id', $tenantId)->where('id', $batchId)
+                ->update(['status' => 'cancelled', 'updated_at' => now()]);
+            $this->event($tenantId, $batchId, $actorId, 'batch.cancelled', ['reason' => trim($reason)]);
+            return DB::table('finance_dividend_payment_batches')->where('tenant_id', $tenantId)->where('id', $batchId)->first();
+        });
+    }
+
     public function confirmPayment(int $tenantId, int $batchId, int $itemId, int $actorId, string $bankReference, string $evidenceReference, string $paidOn): array
     {
         return DB::transaction(function () use ($tenantId, $batchId, $itemId, $actorId, $bankReference, $evidenceReference, $paidOn) {
