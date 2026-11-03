@@ -77,4 +77,5 @@ Route::post('/dividend-share-subscription-balances', [$dividendDistributionContr
 Route::post('/dividend-reinvestments', [$dividendDistributionController, 'recordReinvestment'])->middleware('auth.permission:finance.entity.manage')->name('dividend-reinvestments.store');
 Route::post('/dividend-reinvestments/{reinvestmentId}/approve', [$dividendDistributionController, 'approveReinvestment'])->whereNumber('reinvestmentId')->middleware('auth.permission:finance.entity.manage')->name('dividend-reinvestments.approve');
 Route::post('/dividend-reinvestments/{reinvestmentId}/post', [$dividendDistributionController, 'postReinvestment'])->whereNumber('reinvestmentId')->middleware('auth.permission:finance.journal.post')->name('dividend-reinvestments.post');
+Route::post('/dividend-reinvestments/{reinvestmentId}/settle-seller', [$dividendDistributionController, 'settleReinvestmentSeller'])->whereNumber('reinvestmentId')->middleware('auth.permission:finance.journal.post')->name('dividend-reinvestments.settle-seller');
 
