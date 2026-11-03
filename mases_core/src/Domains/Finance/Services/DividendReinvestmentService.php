@@ -264,6 +264,11 @@ final class DividendReinvestmentService
                     ]);
                 }
             }
+            $distribution = DB::table('finance_dividend_distributions')->where('tenant_id', $tenantId)
+                ->where('id', (int) $row->distribution_id)->first();
+            if (!$distribution) {
+                throw new ConflictHttpException('The originating distribution cannot be resolved for GL posting.');
+            }
             $journal = $this->settlements->postDividendReinvestment(
                 $tenantId,
                 (int) $payable->legal_entity_id,
@@ -271,7 +276,8 @@ final class DividendReinvestmentService
                 $actorId,
                 (string) $row->settlement_type,
                 (string) $row->occurred_on,
-                (string) $row->applied_amount
+                (string) $row->applied_amount,
+                (bool) $distribution->is_historical
             );
             $nextReinvested = bcadd((string) ($payable->reinvested_amount ?? '0.0000'), (string) $row->applied_amount, 4);
             $remainingAfterPosting = bcsub(
