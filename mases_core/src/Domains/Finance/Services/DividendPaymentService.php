@@ -181,7 +181,8 @@ final class DividendPaymentService
             } else {
                 throw ValidationException::withMessages(['tax' => 'The actual payment falls in the 8 July–6 August 2025 Schedule D transition window and requires a documented tax-director determination.']);
             }
-            if (!$taxAssessment || $taxAssessment->effective_from > $paidOn
+            if (!$taxAssessment || (int) $item->tax_rate_bps !== (int) $taxAssessment->withholding_rate_bps
+                || $taxAssessment->effective_from > $paidOn
                 || ($taxAssessment->evidence_expires_on !== null && $taxAssessment->evidence_expires_on < $paidOn)
                 || ($taxAssessment->treatment === 'statutory' && (int) $item->tax_rate_bps !== $statutoryRate)
                 || ($taxAssessment->treatment === 'treaty' && (int) $item->tax_rate_bps > $statutoryRate)) {
