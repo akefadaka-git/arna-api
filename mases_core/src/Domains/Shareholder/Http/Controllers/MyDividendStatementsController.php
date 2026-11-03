@@ -30,6 +30,12 @@ final class MyDividendStatementsController extends Controller
                 $join->on('p.id', '=', 'i.payable_id')
                     ->on('p.tenant_id', '=', 'i.tenant_id');
             })
+            ->leftJoin('finance_dividend_tax_assessments as t', function ($join) {
+                $join->on('t.id', '=', 'i.tax_assessment_id')
+                    ->on('t.tenant_id', '=', 'i.tenant_id')
+                    ->on('t.distribution_id', '=', 'i.distribution_id')
+                    ->on('t.shareholder_id', '=', 'i.shareholder_id');
+            })
             ->where('i.tenant_id', (int) $tenantId)
             ->where('s.user_id', $userId)
             ->whereNull('s.deleted_at')
@@ -40,6 +46,8 @@ final class MyDividendStatementsController extends Controller
                 'd.currency', 'i.eligible_share_quantity', 'i.gross_amount',
                 'i.withholding_amount', 'i.net_amount', 'p.cash_paid_amount',
                 'p.penalty_offset_amount', 'p.status as payable_status',
+                'i.tax_rate_bps', 'i.tax_treatment', 't.legal_basis as tax_legal_basis',
+                't.tax_certificate_number', 't.certificate_issued_at', 't.certificate_status',
             ])
             ->selectRaw('COALESCE(p.net_payable_amount - p.cash_paid_amount - p.penalty_offset_amount, 0) AS remaining_payable_amount')
             ->orderByDesc('d.declared_on');
