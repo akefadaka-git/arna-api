@@ -43,6 +43,7 @@ return new class extends Migration
             $table->string('subject', 200);
             $table->text('message');
             $table->string('status', 24)->default('new')->index();
+            $table->unsignedInteger('version')->default(1);
             $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
             $table->text('internal_note')->nullable();
             $table->timestamp('handled_at')->nullable();
