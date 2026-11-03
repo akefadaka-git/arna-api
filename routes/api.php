@@ -145,6 +145,7 @@ use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PublicContentController;
+use App\Http\Controllers\CorporateSiteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CommunicationAnnouncementController;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -174,6 +175,12 @@ Route::get('/health', static function (): JsonResponse {
     ]);
 })->name('api.health');
 
+
+// -----------------------------------------------------------------------------
+// Public corporate site pages: published locale-specific pages only.
+// -----------------------------------------------------------------------------
+Route::get('/public/site/home', [CorporateSiteController::class, 'home'])->middleware('throttle:60,1')->name('api.public.site.home');
+Route::get('/public/site/pages/{locale}/{slug}', [CorporateSiteController::class, 'page'])->whereIn('locale', ['am', 'en'])->middleware('throttle:60,1')->name('api.public.site.pages.show');
 
 // -----------------------------------------------------------------------------
 // Public corporate content: only approved and published records are readable.
