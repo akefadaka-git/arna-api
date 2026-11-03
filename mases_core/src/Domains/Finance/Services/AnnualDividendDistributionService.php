@@ -30,6 +30,17 @@ final class AnnualDividendDistributionService
         if (($data['currency'] ?? 'ETB') !== 'ETB') {
             throw ValidationException::withMessages(['currency' => 'Only the legal entity base currency ETB is enabled for this distribution workflow.']);
         }
+        $resolutionDate = CarbonImmutable::parse((string) $data['resolution_date'])->startOfDay();
+        $paymentDueDate = CarbonImmutable::parse((string) $data['payment_due_on'])->startOfDay();
+        if ($paymentDueDate->greaterThan($resolutionDate->addMonths(4))) {
+            throw ValidationException::withMessages([
+                'payment_due_on' => 'Commercial Code Article 438(3): the general meeting payment date must not be later than four months after the profit-distribution resolution.',
+            ]);
+        }
+        if (CarbonImmutable::parse((string) $data['record_date'])->startOfDay()->greaterThan($paymentDueDate)) {
+            throw ValidationException::withMessages(['record_date' => 'The shareholder record date cannot be later than the dividend payment due date.']);
+        }
+
         if (($data['allocation_method'] ?? 'pro_rata_shares') !== 'pro_rata_shares') {
             throw ValidationException::withMessages(['allocation_method' => 'This release supports pro-rata allocation by eligible shares only.']);
         }
