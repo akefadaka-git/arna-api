@@ -837,9 +837,11 @@ return [
     |
     */
     'election_voting' => [
-        'enabled' => true,
+        'enabled' => false,
         'basis' => 'eligible_share_entitlement',
-        'default_votes_per_share' => 1,
+        // No voting weight is activated until the operative Articles and
+        // applicable share-class rights are verified for this election.
+        'default_votes_per_share' => null,
         'one_holder_one_vote' => false,
         'aggregate_by_registered_holder' => true,
         'holder_type_neutral' => true,
