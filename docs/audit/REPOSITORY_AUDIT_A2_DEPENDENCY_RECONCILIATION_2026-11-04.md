@@ -56,6 +56,10 @@ The API route table registers GET /api/launcher inside the tenant-scoped authent
 - resources/views/welcome.blade.php is actively referenced by routes/web.php and is retained.
 - mases_core/src/Migrations/.gitkeep is retained because CoreServiceProvider loads that directory; it is not dead merely because domain migrations live in subdirectories.
 
+## Admin PR scope/security discrepancy
+
+PR #85's description presents the API slice as read-only, but its actual diff adds POST/PUT/DELETE routes and user/role lifecycle methods. This is a material scope mismatch and requires an explicit review of permission coverage, tenant isolation, audit logging and the approved A2 boundary before merge. PR #84 is the narrower platform-level read-only alternative, but its permission catalogue and cross-tenant access model also require review. Neither PR was merged or closed by this cleanup.
+
 ## Preservation and safety
 
 No migration, schema, seed data, authorization catalogue, audit history, active route, current provider, canonical localization implementation or domain code is classified as removable in this pass.
