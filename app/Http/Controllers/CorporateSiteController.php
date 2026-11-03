@@ -25,6 +25,18 @@ final class CorporateSiteController extends Controller
         return response()->json(['success' => true, 'data' => $this->resource($page, $locale)]);
     }
 
+
+    public function pages(Request $request): JsonResponse
+    {
+        $locale = $this->locale($request->query('locale', 'am'));
+        $pages = CorporateSitePage::query()->published()->orderBy('page_key')->limit(100)->get()
+            ->filter(static fn (CorporateSitePage $page): bool => is_array($page->translations[$locale] ?? null))
+            ->map(fn (CorporateSitePage $page): array => $this->resource($page, $locale))
+            ->values();
+
+        return response()->json(['success' => true, 'data' => $pages]);
+    }
+
     public function page(string $locale, string $slug): JsonResponse
     {
         $locale = $this->locale($locale);
