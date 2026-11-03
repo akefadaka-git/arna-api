@@ -19,8 +19,8 @@
 
 | Target | PR | Exact head SHA | PR status |
 |---|---|---|---|
-| API | [PR #83](https://github.com/akefadaka-git/arna-api/pull/83) | `09cce0de9cbea98efd760c8af396285ead12e042` | Draft, mergeable |
-| App | [PR #35](https://github.com/akefadaka-git/arna-app/pull/35) | `71e8bbe1ece20552a06980b5f86517597038e8cd` | Draft, mergeable |
+| API | [PR #83](https://github.com/akefadaka-git/arna-api/pull/83) | `76ca8579095079dab8afc72aa0c28eb7bb62a56c` | Draft, mergeable |
+| App | [PR #35](https://github.com/akefadaka-git/arna-app/pull/35) | `1d8a794a7b0c1f122575bb79444ed1dfdd835c81` | Draft, mergeable |
 
 Base PRs remain API #81 and App #33. Main branches were not modified. Implementation is isolated in the stacked dividend branches.
 
@@ -68,7 +68,7 @@ Base PRs remain API #81 and App #33. Main branches were not modified. Implementa
 - Controlled dividend cancellation/reversal and linked replacement distribution.
 - Tax certificate numbers issued on distribution approval and revoked on lawful cancellation.
 - Shareholder statement API exposes paid cash, penalty offsets, remaining payable, withholding rate/treatment/legal basis and certificate reference/status.
-- Clean-install workflow expanded to the new dividend migrations and 82-migration baseline.
+- Clean-install workflow expanded to the new dividend migrations and 85-migration baseline.
 
 ### App
 - Finance admin route: `/admin/dividend-engine`.
@@ -83,9 +83,26 @@ Base PRs remain API #81 and App #33. Main branches were not modified. Implementa
 - Entity-specific legal/tax/accounting sign-off remains a required governance control before first use; it is not a software implementation defect.
 - All identified A3 code-level gaps in the dividend workflow have been addressed in the API and App branches. Remaining execution and acceptance evidence is tracked under A4, not misclassified as unimplemented A3 scope.
 
-## A4 — Exact-head verification
+## A4 — Historical reinvestment implementation and exact-head verification
 
-**Status: NOT RUN / NOT CLOSED.**
+**Implementation: PARTIAL-COMPLETE on the branches below. Verification: NOT RUN / NOT CLOSED.**
+
+### Historical dividend and reinvestment extension
+- Historical distribution import mode supports 2016, 2017 and 2018 E.C. records; the exact Gregorian transaction dates, declaration/resolution dates and record dates must be entered from source records.
+- Historical imports require source category, documentary evidence and an import reason. The selected historical source category is kept separate from recipient-level tax assessment; “internal revenue” does not automatically grant a shareholder dividend tax exemption.
+- Historical distribution records use the actual settlement date for recipient tax assessment and require the reinvestment transaction date to match that date. The historical share snapshot is calculated from the append-only shareholding ledger as of the distribution record date.
+- Historical distributions are designated reinvestment-only. Cash payment batches are prohibited for them.
+- Each shareholder's net dividend may be applied to an existing unpaid share-subscription balance, a new company allotment, or a purchase of existing shares from another shareholder.
+- New allotments create a subscription entry in the canonical ShareHolding ledger. Existing-share purchases create paired transfer-out and transfer-in entries; the seller's consideration is separately recorded as payable and must be settled with bank reference and evidence.
+- The payable projection records reinvested value, preventing the same dividend amount from being paid again in cash. The shareholder statement reports reinvested value, share quantity, subscription balance offsets and remaining payable.
+- Balanced, idempotent journals are required for each route: dividend payable against share-subscription receivable, share capital, or share-transfer consideration payable. Seller settlement posts a separate payable-clearing/bank journal.
+- New Finance account mappings are required and must be independently approved: share subscription receivable, share capital and share transfer payable. Seller settlement also requires the approved cash/bank mapping.
+- Posted reinvestments are included in withholding-tax remittance eligibility; pending/approved reinvestments reserve against cash payment to prevent duplicate settlement.
+- Historical journal entries post in the current open accounting period while preserving the original historical event date in the journal description and reinvestment record. The historical timing exception is explicitly flagged where the four-month rule is exceeded; the evidence and reason are retained.
+
+**Historical source data status:** no shareholder-level historical amounts, exact dates, General Meeting resolutions, share subscription balances, transfer counterparties, share quantities/prices or documentary evidence have been loaded in this workstream. The new admin workflow is available to enter them; it must not fabricate missing transaction facts.
+
+
 
 Six dividend-focused feature test files are committed:
 - `DividendDistributionAccountingTest.php`
@@ -95,13 +112,17 @@ Six dividend-focused feature test files are committed:
 - `DividendTaxRemittanceServiceTest.php`
 - `DividendCancellationTest.php`
 
-The API clean-install MySQL workflow now includes the new tables, migration checks and the dividend implementation branch. The App frontend workflow already targets `feat/**`.
+The API clean-install MySQL workflow now includes the new tables, historical distribution/payable migrations, migration checks and an 85-migration baseline. The App frontend workflow already targets `feat/**`.
 
-**Exact-head evidence lookup:** no workflow runs and no combined status checks were returned for API SHA `37c95bc12be37cf120a0a0469b683cf97dc5d293` or App SHA `73c9563eec69593ccfb5b839629baf514b30835e` at report time.
+**Exact-head evidence lookup:** no workflow runs and no combined status checks were returned for API SHA `76ca8579095079dab8afc72aa0c28eb7bb62a56c` or App SHA `1d8a794a7b0c1f122575bb79444ed1dfdd835c81` at report time.
 
 | A4 acceptance item | Result |
 |---|---|
 | API PHP lint on exact head | NOT RUN |
+| Historical 2016–2018 E.C. source-data reconciliation and import | NOT RUN — source records not yet supplied/loaded |
+| Reinvestment subscription-balance, new-allotment and existing-transfer tests | NOT RUN |
+| Balanced reinvestment and seller-settlement journal tests | NOT RUN |
+| Cash-vs-reinvestment duplicate settlement / tax remittance regression | NOT RUN |
 | API clean-install MySQL on exact head | NOT RUN |
 | Migration idempotence / rollback checks | NOT RUN |
 | Dividend accounting, tax, cancellation and payment tests | NOT RUN |
@@ -120,7 +141,7 @@ Earlier passing CI on the underlying PR #81 and App PR #33 heads is historical e
 
 ## Immediate next step
 
-Run the API clean-install MySQL workflow and all Finance regressions against API SHA `37c95bc12be37cf120a0a0469b683cf97dc5d293`; run App type-check, four builds and UI acceptance against App SHA `73c9563eec69593ccfb5b839629baf514b30835e`. Resolve every failure, repeat on the final exact heads, then close A4. Merge only after those acceptance results pass. A5 remains separate.
+Run the API clean-install MySQL workflow and all Finance regressions against API SHA `76ca8579095079dab8afc72aa0c28eb7bb62a56c`; run App type-check, four builds and UI acceptance against App SHA `1d8a794a7b0c1f122575bb79444ed1dfdd835c81`. Add the new reinvestment and seller-settlement acceptance tests before A4 closure. Resolve every failure, repeat on the final exact heads, then close A4. Merge only after those acceptance results pass. A5 remains separate.
 
 ## Evidence labels
 
