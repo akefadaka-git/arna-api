@@ -29,6 +29,18 @@ final class GovernanceElectionWorkflowController extends Controller
         ]);
 
         $self = (bool) ($data['self_nomination'] ?? false);
+        $candidateShareholders = DB::table('shareholders')
+            ->where('tenant_id', $tenantId)
+            ->where('person_id', $data['candidate_person_id'])
+            ->where('is_active', true)
+            ->whereNull('deleted_at')
+            ->limit(2)
+            ->get(['id', 'person_id']);
+        abort_unless($candidateShareholders->count() === 1, 422, 'Candidate must resolve to exactly one active natural-person shareholder in this tenant.');
+        if ($self) {
+            $nominator = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)->first(['person_id']);
+            abort_unless($nominator !== null && (int) ($nominator->person_id ?? 0) === (int) $data['candidate_person_id'], 422, 'Self-nomination must identify the authenticated shareholder person.');
+        }
         $submission = DB::table('governance_election_nomination_submissions')->updateOrInsert(
             [
                 'tenant_id' => $tenantId,
