@@ -72,4 +72,9 @@ Route::post('/dividend-tax-remittances/{remittanceId}/approve', [$dividendTaxRem
 Route::post('/dividend-tax-remittances/{remittanceId}/cancel', [$dividendTaxRemittanceController, 'cancel'])->whereNumber('remittanceId')->middleware('auth.permission:finance.entity.manage')->name('dividend-tax-remittances.cancel');
 Route::post('/dividend-tax-remittances/{remittanceId}/confirm', [$dividendTaxRemittanceController, 'confirm'])->whereNumber('remittanceId')->middleware('auth.permission:finance.journal.post')->name('dividend-tax-remittances.confirm');
 
+Route::get('/dividend-reinvestments', [$dividendDistributionController, 'reinvestments'])->middleware('auth.permission:finance.entity.view')->name('dividend-reinvestments.index');
+Route::post('/dividend-share-subscription-balances', [$dividendDistributionController, 'recordShareSubscriptionBalance'])->middleware('auth.permission:finance.entity.manage')->name('dividend-share-subscription-balances.store');
+Route::post('/dividend-reinvestments', [$dividendDistributionController, 'recordReinvestment'])->middleware('auth.permission:finance.entity.manage')->name('dividend-reinvestments.store');
+Route::post('/dividend-reinvestments/{reinvestmentId}/approve', [$dividendDistributionController, 'approveReinvestment'])->whereNumber('reinvestmentId')->middleware('auth.permission:finance.entity.manage')->name('dividend-reinvestments.approve');
+Route::post('/dividend-reinvestments/{reinvestmentId}/post', [$dividendDistributionController, 'postReinvestment'])->whereNumber('reinvestmentId')->middleware('auth.permission:finance.journal.post')->name('dividend-reinvestments.post');
 
