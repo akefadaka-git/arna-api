@@ -174,7 +174,13 @@ final class DividendPaymentService
             $taxAssessment = DB::table('finance_dividend_tax_assessments')->where('tenant_id', $tenantId)
                 ->where('distribution_id', $batch->distribution_id)
                 ->where('shareholder_id', $item->shareholder_id)->where('id', $item->tax_assessment_id)->first();
-            $statutoryRate = $paidOn >= '2025-07-08' ? 1500 : 1000;
+            if ($paidOn >= '2025-08-07') {
+                $statutoryRate = 1500;
+            } elseif ($paidOn < '2025-07-08') {
+                $statutoryRate = 1000;
+            } else {
+                throw ValidationException::withMessages(['tax' => 'The actual payment falls in the 8 July–6 August 2025 Schedule D transition window and requires a documented tax-director determination.']);
+            }
             if (!$taxAssessment || $taxAssessment->effective_from > $paidOn
                 || ($taxAssessment->evidence_expires_on !== null && $taxAssessment->evidence_expires_on < $paidOn)
                 || ($taxAssessment->treatment === 'statutory' && (int) $item->tax_rate_bps !== $statutoryRate)
