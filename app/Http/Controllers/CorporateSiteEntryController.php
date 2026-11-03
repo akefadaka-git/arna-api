@@ -284,7 +284,7 @@ final class CorporateSiteEntryController extends Controller
 
         try {
             $verdict = $scanner->scan($entry->asset_path, $entry->public_id);
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             report($exception);
             return response()->json(['success' => false, 'error' => [
                 'code' => 'MEDIA_SCAN_UNAVAILABLE',
