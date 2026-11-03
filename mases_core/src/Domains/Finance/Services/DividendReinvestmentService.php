@@ -15,7 +15,10 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 final class DividendReinvestmentService
 {
-    public function __construct(private readonly ShareHoldingService $holdings) {}
+    public function __construct(
+        private readonly ShareHoldingService $holdings,
+        private readonly GovernancePenaltySettlementService $settlements,
+    ) {}
 
     public function recordSubscriptionBalance(int $tenantId, int $actorId, array $data): object
     {
@@ -261,6 +264,15 @@ final class DividendReinvestmentService
                     ]);
                 }
             }
+            $journal = $this->settlements->postDividendReinvestment(
+                $tenantId,
+                (int) $payable->legal_entity_id,
+                $id,
+                $actorId,
+                (string) $row->settlement_type,
+                (string) $row->occurred_on,
+                (string) $row->applied_amount
+            );
             $nextReinvested = bcadd((string) ($payable->reinvested_amount ?? '0.0000'), (string) $row->applied_amount, 4);
             $remainingAfterPosting = bcsub(
                 bcsub(bcsub((string) $payable->net_payable_amount, (string) $payable->cash_paid_amount, 4),
@@ -273,9 +285,51 @@ final class DividendReinvestmentService
                 'updated_at' => now(),
             ]);
             DB::table('finance_dividend_reinvestments')->where('id', $id)->update([
-                'status' => 'posted', 'posted_by' => $actorId, 'posted_at' => now(), 'updated_at' => now(),
+                'status' => 'posted', 'posted_by' => $actorId, 'posted_at' => now(),
+                'journal_reference' => (string) $journal->journal_number,
+                'seller_settlement_status' => $row->settlement_type === 'existing_share_transfer' ? 'payable' : 'not_applicable',
+                'updated_at' => now(),
             ]);
             return (object) DB::table('finance_dividend_reinvestments')->where('id', $id)->first();
+        });
+    }
+
+
+    public function settleSeller(int $tenantId, int $id, int $actorId, array $data): object
+    {
+        return DB::transaction(function () use ($tenantId, $id, $actorId, $data) {
+            $row = DB::table('finance_dividend_reinvestments')->where('tenant_id', $tenantId)
+                ->where('id', $id)->lockForUpdate()->first();
+            if (!$row || $row->status !== 'posted' || $row->settlement_type !== 'existing_share_transfer'
+                || $row->seller_settlement_status !== 'payable'
+                || in_array($actorId, [(int) $row->created_by, (int) $row->approved_by, (int) $row->posted_by], true)) {
+                throw ValidationException::withMessages(['seller_settlement' => 'Seller settlement requires a posted share transfer and a settlement officer independent of maker, checker and poster.']);
+            }
+            $distribution = DB::table('finance_dividend_distributions')->where('tenant_id', $tenantId)
+                ->where('id', (int) $row->distribution_id)->first();
+            if (!$distribution) {
+                throw new ConflictHttpException('The originating dividend distribution cannot be resolved.');
+            }
+            $journal = $this->settlements->settleDividendShareTransfer(
+                $tenantId,
+                (int) $distribution->legal_entity_id,
+                $id,
+                $actorId,
+                (string) $data['paid_on'],
+                (string) $row->applied_amount,
+                trim((string) $data['bank_reference']),
+                trim((string) $data['evidence_reference'])
+            );
+            DB::table('finance_dividend_reinvestments')->where('tenant_id', $tenantId)->where('id', $id)->update([
+                'seller_settlement_status' => 'settled',
+                'seller_bank_reference' => trim((string) $data['bank_reference']),
+                'seller_evidence_reference' => trim((string) $data['evidence_reference']),
+                'seller_journal_reference' => (string) $journal->journal_number,
+                'seller_settled_by' => $actorId,
+                'seller_settled_at' => now(),
+                'updated_at' => now(),
+            ]);
+            return (object) DB::table('finance_dividend_reinvestments')->where('tenant_id', $tenantId)->where('id', $id)->first();
         });
     }
 
