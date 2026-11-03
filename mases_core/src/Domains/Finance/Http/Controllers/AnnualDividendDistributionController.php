@@ -84,7 +84,7 @@ final class AnnualDividendDistributionController extends Controller
     {
         $data = $request->validate([
             'recipient_type' => ['required', 'in:individual,company,other'],
-            'tax_residency' => ['required', 'in:resident,non_resident,unknown'],
+            'tax_residency' => ['required', 'in:resident,non_resident'],
             'treatment' => ['required', 'in:statutory,treaty,exempt,special'],
             'withholding_rate_bps' => ['required', 'integer', 'between:0,10000'],
             'legal_basis' => ['required', 'string', 'min:3', 'max:500'],
