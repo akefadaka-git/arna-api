@@ -23,6 +23,17 @@ final class AnnualDividendDistributionService
             }
         }
 
+        $isHistorical = (bool) ($data['is_historical'] ?? false);
+        if ($isHistorical) {
+            foreach (['historical_source_category', 'historical_evidence_reference', 'historical_import_reason'] as $required) {
+                if (!isset($data[$required]) || trim((string) $data[$required]) === '') {
+                    throw ValidationException::withMessages([$required => 'Historical dividend imports require source classification, documentary evidence and an import reason.']);
+                }
+            }
+            if (!in_array((string) $data['historical_source_category'], ['internal_revenue', 'other'], true)) {
+                throw ValidationException::withMessages(['historical_source_category' => 'Unsupported historical source classification.']);
+            }
+        }
         $amount = $this->money((string) $data['declared_amount']);
         $distributableProfit = $this->money((string) $data['distributable_profit_amount']);
         if (bccomp($distributableProfit, $amount, 4) < 0) {
@@ -34,7 +45,7 @@ final class AnnualDividendDistributionService
         if (($data['currency'] ?? 'ETB') !== 'ETB') {
             throw ValidationException::withMessages(['currency' => 'Only the legal entity base currency ETB is enabled for this distribution workflow.']);
         }
-        if (!in_array((string) $data['payment_method'], ['bank_transfer', 'account_payee_cheque', 'account_payee_bank_draft', 'nbe_authorized_payment'], true)) {
+        if (!in_array((string) $data['payment_method'], ['bank_transfer', 'account_payee_cheque', 'account_payee_bank_draft', 'nbe_authorized_payment', 'reinvestment_only'], true) || ((string) $data['payment_method'] === 'reinvestment_only' && !$isHistorical)) {
             throw ValidationException::withMessages(['payment_method' => 'Dividend payment must use bank transfer, account-payee cheque, account-payee bank draft or an NBE-authorized payment system.']);
         }
         $resolutionDate = CarbonImmutable::parse((string) $data['resolution_date'])->startOfDay();
@@ -43,7 +54,7 @@ final class AnnualDividendDistributionService
             throw ValidationException::withMessages(['declared_on' => 'The dividend declaration date cannot precede the General Meeting resolution.']);
         }
         $paymentDueDate = CarbonImmutable::parse((string) $data['payment_due_on'])->startOfDay();
-        if ($paymentDueDate->greaterThan($resolutionDate->addMonths(4))) {
+        if (!$isHistorical && $paymentDueDate->greaterThan($resolutionDate->addMonths(4))) {
             throw ValidationException::withMessages([
                 'payment_due_on' => 'Commercial Code Article 438(3): the general meeting payment date must not be later than four months after the profit-distribution resolution.',
             ]);
@@ -96,6 +107,12 @@ final class AnnualDividendDistributionService
             'distributable_profit_amount' => $distributableProfit,
             'resolution_evidence_reference' => trim((string) $data['resolution_evidence_reference']),
             'payment_method' => trim((string) $data['payment_method']),
+            'is_historical' => $isHistorical,
+            'historical_timing_exception' => $isHistorical && $paymentDueDate->greaterThan($resolutionDate->addMonths(4)),
+            'historical_source_category' => $isHistorical ? (string) $data['historical_source_category'] : null,
+            'historical_evidence_reference' => $isHistorical ? trim((string) $data['historical_evidence_reference']) : null,
+            'historical_import_reason' => $isHistorical ? trim((string) $data['historical_import_reason']) : null,
+            'historical_imported_at' => $isHistorical ? now() : null,
             'accounting_framework' => trim((string) $data['accounting_framework']),
             'replaces_distribution_id' => $replacesDistributionId,
             'replacement_reason' => $replacesDistributionId !== null ? $replacementReason : null,
