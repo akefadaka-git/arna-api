@@ -31,7 +31,17 @@ final class AnnualDividendDistributionController extends Controller
         foreach (['legal_entity_id', 'financial_year', 'status'] as $field) {
             if ($request->filled($field)) $query->where($field, $request->input($field));
         }
-        return response()->json(['success' => true, 'data' => $query->orderByDesc('id')->paginate(min(max($request->integer('per_page', 25), 1), 100))]);
+        $paginator = $query->orderByDesc('id')->paginate(min(max($request->integer('per_page', 25), 1), 100));
+        return response()->json([
+            'success' => true,
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
     }
 
     public function show(int $distributionId): JsonResponse
