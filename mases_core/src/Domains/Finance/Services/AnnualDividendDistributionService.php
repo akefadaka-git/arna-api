@@ -34,6 +34,9 @@ final class AnnualDividendDistributionService
         if (($data['currency'] ?? 'ETB') !== 'ETB') {
             throw ValidationException::withMessages(['currency' => 'Only the legal entity base currency ETB is enabled for this distribution workflow.']);
         }
+        if (!in_array((string) $data['payment_method'], ['bank_transfer', 'account_payee_cheque', 'account_payee_bank_draft', 'nbe_authorized_payment'], true)) {
+            throw ValidationException::withMessages(['payment_method' => 'Dividend payment must use bank transfer, account-payee cheque, account-payee bank draft or an NBE-authorized payment system.']);
+        }
         $resolutionDate = CarbonImmutable::parse((string) $data['resolution_date'])->startOfDay();
         $declaredDate = CarbonImmutable::parse((string) $data['declared_on'])->startOfDay();
         if ($declaredDate->lessThan($resolutionDate)) {
