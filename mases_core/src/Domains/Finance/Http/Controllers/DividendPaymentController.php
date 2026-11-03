@@ -70,6 +70,15 @@ final class DividendPaymentController extends Controller
         return response()->json(['success' => true, 'data' => $batch]);
     }
 
+    public function cancel(Request $request, int $batchId): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:500']]);
+        $batch = $this->payments->cancelBatch(
+            $this->tenantId(), $batchId, (int) $request->user()->getAuthIdentifier(), $data['reason']
+        );
+        return response()->json(['success' => true, 'data' => $batch]);
+    }
+
     public function confirm(Request $request, int $batchId, int $itemId): JsonResponse
     {
         $data = $request->validate([
