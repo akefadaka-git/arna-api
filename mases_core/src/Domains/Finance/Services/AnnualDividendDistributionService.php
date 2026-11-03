@@ -17,13 +17,6 @@ final class AnnualDividendDistributionService
 
     public function create(int $tenantId, int $actorId, array $data): DividendDistribution
     {
-        if (!array_key_exists('withholding_rate_bps', $data)
-            || !is_int($data['withholding_rate_bps'])
-            || $data['withholding_rate_bps'] < 0
-            || $data['withholding_rate_bps'] > 10000) {
-            throw ValidationException::withMessages(['withholding_rate_bps' => 'An explicit annual withholding rate in basis points (0–10000) is required; prior-year defaults are never inherited.']);
-        }
-
         foreach (['approved_balance_sheet_reference', 'distributable_profit_amount', 'resolution_evidence_reference', 'payment_method', 'accounting_framework'] as $required) {
             if (!isset($data[$required]) || trim((string) $data[$required]) === '') {
                 throw ValidationException::withMessages([$required => 'Approved financial and General Meeting evidence is mandatory before a dividend distribution can be created.']);
@@ -83,7 +76,9 @@ final class AnnualDividendDistributionService
             'payment_method' => trim((string) $data['payment_method']),
             'accounting_framework' => trim((string) $data['accounting_framework']),
             'allocation_method' => 'pro_rata_shares',
-            'withholding_rate_bps' => $data['withholding_rate_bps'],
+            // Legacy aggregate column retained for schema compatibility only.
+            // Tax is assessed and snapshotted per shareholder below.
+            'withholding_rate_bps' => 0,
             'status' => 'draft',
             'created_by' => $actorId,
         ]);
@@ -308,7 +303,13 @@ final class AnnualDividendDistributionService
             if ($taxReviewByApprover) {
                 throw ValidationException::withMessages(['tax' => 'The distribution approver cannot also be the recipient tax assessor.']);
             }
+            $grossTotal = '0.0000';
+            $netTotal = '0.0000';
+            $withholdingTotal = '0.0000';
             foreach ($items as $item) {
+                $grossTotal = bcadd($grossTotal, (string) $item->gross_amount, 4);
+                $netTotal = bcadd($netTotal, (string) $item->net_amount, 4);
+                $withholdingTotal = bcadd($withholdingTotal, (string) $item->withholding_amount, 4);
                 $payable = $this->payables->createDividendPayable(
                     $tenantId, (int) $d->legal_entity_id, (int) $item->shareholder_id,
                     (string) $d->distribution_reference, $d->declared_on->toDateString(),
@@ -320,7 +321,22 @@ final class AnnualDividendDistributionService
                 );
                 $item->forceFill(['payable_id' => $payable->id])->save();
             }
-            $d->forceFill(['status' => 'approved', 'approved_by' => $actorId, 'approved_at' => now()])->save();
+            if (bccomp($grossTotal, (string) $d->declared_amount, 4) !== 0
+                || bccomp(bcadd($netTotal, $withholdingTotal, 4), $grossTotal, 4) !== 0) {
+                throw new ConflictHttpException('Dividend allocation totals do not reconcile to the approved gross distribution.');
+            }
+            $journal = $this->payables->accrueDividendDistribution(
+                $tenantId, (int) $d->legal_entity_id, (int) $d->id,
+                (string) $d->distribution_reference, $d->declared_on->toDateString(),
+                $grossTotal, $netTotal, $withholdingTotal, $actorId
+            );
+            $d->forceFill([
+                'status' => 'approved',
+                'approved_by' => $actorId,
+                'approved_at' => now(),
+                'accrual_journal_reference' => (string) $journal->journal_number,
+                'withholding_journal_reference' => bccomp($withholdingTotal, '0.0000', 4) > 0 ? (string) $journal->journal_number : null,
+            ])->save();
             return $d->fresh('items');
         });
     }
