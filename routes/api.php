@@ -566,7 +566,7 @@ Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access'])
             Route::get('/authorization/permissions', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'permissions'])
                 ->middleware('auth.permission:permission.list')
                 ->name('permissions.index');
-        });;
+        });
     });
 
 // =============================================================================
