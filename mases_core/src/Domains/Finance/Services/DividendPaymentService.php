@@ -61,7 +61,7 @@ final class DividendPaymentService
                     ->where('i.tenant_id', $tenantId)->where('i.distribution_id', $distributionId)
                     ->whereColumn('p.distribution_reference', 'd.distribution_reference')
                     ->where('p.legal_entity_id', $entityId)->where('p.id', $payableId)
-                    ->select('i.shareholder_id', 'p.id as payable_id')->first();
+                    ->select('i.id as distribution_item_id', 'i.shareholder_id', 'p.id as payable_id')->first();
                 if (!$allocation) {
                     throw ValidationException::withMessages(['payable_ids' => 'Every selected payable must belong to this exact distribution, shareholder and legal entity.']);
                 }
@@ -80,7 +80,7 @@ final class DividendPaymentService
                     ->where('i.status', 'pending')->whereIn('b.status', ['draft', 'approved', 'partially_paid'])
                     ->sum('i.amount');
                 $reinvestmentReserved = (string) DB::table('finance_dividend_reinvestments')
-                    ->where('tenant_id', $tenantId)->where('distribution_item_id', (int) $allocation->id)
+                    ->where('tenant_id', $tenantId)->where('distribution_item_id', (int) $allocation->distribution_item_id)
                     ->whereIn('status', ['pending', 'approved', 'posted'])->sum('applied_amount');
                 $available = bcsub(
                     bcsub($payable->remainingPayable(), (string) $reserved, 4),
