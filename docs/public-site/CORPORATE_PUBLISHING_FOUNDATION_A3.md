@@ -26,6 +26,7 @@
 
 ### Public
 - `GET /api/public/site/home?locale=am|en`
+- `GET /api/public/site/pages?locale=am|en` — published page navigation.
 - `GET /api/public/site/pages/{locale}/{slug}`
 - `GET /api/public/site/content/{type}?locale=am|en`
 - `GET /api/public/site/content/{type}/{slug}?locale=am|en`
@@ -33,7 +34,7 @@
 - `GET /api/public/site/sitemap.xml`
 - `POST /api/public/site/inquiries`
 - `POST /api/public/site/submissions/{type}`
-- `POST /api/public/site/media`
+- `POST /api/admin/corporate-site/media` — authenticated, permission-gated media upload into quarantine.
 
 ### Protected administration
 - `/api/admin/corporate-site/pages` — list/create/update and approve/publish/schedule/unpublish.
