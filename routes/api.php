@@ -518,11 +518,6 @@ Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access'])
             ->whereNumber('id')
             ->middleware('auth.permission:tenant.list')
             ->name('tenants.show');
-        Route::patch('/tenants/{id}', [\\App\\Http\\Controllers\\Admin\\AdminFoundationController::class, 'updateTenant'])
-            ->whereNumber('id')
-            ->middleware('auth.permission:tenant.update')
-            ->name('tenants.update');
-
         Route::middleware('tenant.membership')->group(static function (): void {
             Route::get('/identity/users', [\\App\\Http\\Controllers\\Admin\\AdminFoundationController::class, 'users'])
                 ->middleware('auth.permission:user.list')
