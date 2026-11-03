@@ -49,7 +49,11 @@ final class MyDividendStatementsController extends Controller
                 'i.tax_rate_bps', 'i.tax_treatment', 't.legal_basis as tax_legal_basis',
                 't.tax_certificate_number', 't.certificate_issued_at', 't.certificate_status',
             ])
-            ->selectRaw('COALESCE(p.net_payable_amount - p.cash_paid_amount - p.penalty_offset_amount, 0) AS remaining_payable_amount')
+            ->selectRaw("(SELECT COALESCE(SUM(r.applied_amount), 0) FROM finance_dividend_reinvestments r WHERE r.tenant_id = i.tenant_id AND r.distribution_item_id = i.id AND r.status = 'posted') AS reinvested_amount")
+            ->selectRaw("(SELECT COALESCE(SUM(r.share_quantity), 0) FROM finance_dividend_reinvestments r WHERE r.tenant_id = i.tenant_id AND r.distribution_item_id = i.id AND r.status = 'posted' AND r.share_quantity IS NOT NULL) AS reinvested_share_quantity")
+            ->selectRaw("(SELECT COALESCE(SUM(r.applied_amount), 0) FROM finance_dividend_reinvestments r WHERE r.tenant_id = i.tenant_id AND r.distribution_item_id = i.id AND r.status = 'posted' AND r.settlement_type = 'subscription_balance') AS subscription_balance_applied_amount")
+            ->selectRaw("(SELECT COALESCE(SUM(r.unapplied_amount), 0) FROM finance_dividend_reinvestments r WHERE r.tenant_id = i.tenant_id AND r.distribution_item_id = i.id AND r.status = 'posted') AS reinvestment_unapplied_amount")
+            ->selectRaw("COALESCE(p.net_payable_amount - p.cash_paid_amount - p.penalty_offset_amount - (SELECT COALESCE(SUM(r.applied_amount), 0) FROM finance_dividend_reinvestments r WHERE r.tenant_id = i.tenant_id AND r.distribution_item_id = i.id AND r.status = 'posted'), 0) AS remaining_payable_amount")
             ->orderByDesc('d.declared_on');
 
         $paginator = $query->paginate(min(max($request->integer('per_page', 25), 1), 100));
