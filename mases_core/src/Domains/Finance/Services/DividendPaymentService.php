@@ -81,7 +81,7 @@ final class DividendPaymentService
                     ->sum('i.amount');
                 $reinvestmentReserved = (string) DB::table('finance_dividend_reinvestments')
                     ->where('tenant_id', $tenantId)->where('distribution_item_id', (int) $allocation->distribution_item_id)
-                    ->whereIn('status', ['pending', 'approved', 'posted'])->sum('applied_amount');
+                    ->whereIn('status', ['pending', 'approved'])->sum('applied_amount');
                 $available = bcsub(
                     bcsub($payable->remainingPayable(), (string) $reserved, 4),
                     $reinvestmentReserved,
