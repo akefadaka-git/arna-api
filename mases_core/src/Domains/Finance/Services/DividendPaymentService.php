@@ -94,7 +94,7 @@ final class DividendPaymentService
     {
         return DB::transaction(function () use ($tenantId, $batchId, $actorId) {
             $batch = DB::table('finance_dividend_payment_batches')->where('tenant_id', $tenantId)
-                ->lockForUpdate()->find($batchId);
+                ->lockForUpdate()->where('id', $batchId)->first();
             if (!$batch || $batch->status !== 'draft' || (int) $batch->created_by === $actorId) {
                 throw ValidationException::withMessages(['batch' => 'Only a different Finance officer may approve a draft payment batch.']);
             }
@@ -188,7 +188,8 @@ final class DividendPaymentService
                 ->where('batch_id', $batchId)->where('status', 'pending')->count();
             $paid = DB::table('finance_dividend_payment_batch_items')->where('tenant_id', $tenantId)
                 ->where('batch_id', $batchId)->where('status', 'paid')->count();
-            $status = $pending === 0 && $paid > 0 ? 'paid' : ($paid > 0 ? 'partially_paid' : 'approved');
+            $failed = DB::table('finance_dividend_payment_batch_items')->where('tenant_id', $tenantId)->where('batch_id', $batchId)->where('status', 'failed')->count();
+            $status = $pending === 0 && $failed === 0 && $paid > 0 ? 'paid' : ($paid > 0 ? 'partially_paid' : 'approved');
             DB::table('finance_dividend_payment_batches')->where('tenant_id', $tenantId)->where('id', $batchId)
                 ->update(['status' => $status, 'updated_at' => now()]);
             $this->event($tenantId, $batchId, $actorId, 'payment.confirmed', [
@@ -227,6 +228,9 @@ final class DividendPaymentService
             if (!$batch || !in_array($batch->status, ['paid', 'partially_paid'], true)
                 || (int) $batch->created_by === $actorId || trim($statementReference) === '') {
                 throw ValidationException::withMessages(['batch' => 'Only a different officer may reconcile a batch with confirmed payments and a bank statement reference.']);
+            }
+            if ($batch->reconciliation_status === 'reconciled') {
+                throw new ConflictHttpException('A reconciled bank statement is immutable; use a separate controlled correction record.');
             }
             $amount = $this->money($statementAmount);
             $confirmed = (string) DB::table('finance_dividend_payment_batch_items')->where('tenant_id', $tenantId)
