@@ -438,6 +438,9 @@ final class AnnualDividendDistributionService
                     (string) $d->accrual_journal_reference, today()->toDateString(),
                     trim($reason), $actorId
                 );
+                DB::table('finance_dividend_tax_assessments')
+                    ->where('tenant_id', $tenantId)->where('distribution_id', $d->id)
+                    ->update(['certificate_status' => 'revoked', 'updated_at' => now()]);
                 DB::table('finance_shareholder_dividend_payables')
                     ->where('tenant_id', $tenantId)->where('legal_entity_id', $d->legal_entity_id)
                     ->where('distribution_reference', $d->distribution_reference)
