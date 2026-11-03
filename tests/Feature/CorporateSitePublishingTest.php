@@ -102,6 +102,7 @@ final class CorporateSitePublishingTest extends TestCase
             'email' => 'contact@example.test',
             'subject' => 'Partnership inquiry',
             'message' => 'Please contact me about a partnership.',
+            'consent' => true,
         ]);
 
         $response->assertAccepted()->assertJsonPath('data.status', 'received');
@@ -110,6 +111,7 @@ final class CorporateSitePublishingTest extends TestCase
             'status' => 'new',
             'inquiry_type' => 'partnership',
         ]);
+        $this->assertDatabaseHas('corporate_site_inquiries', ['email' => 'contact@example.test', 'consented_at' => now()->toDateTimeString()]);
 
         $this->getJson('/api/admin/corporate-site/inquiries')->assertUnauthorized();
     }
