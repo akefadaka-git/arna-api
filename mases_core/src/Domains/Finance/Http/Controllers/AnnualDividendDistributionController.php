@@ -65,9 +65,39 @@ final class AnnualDividendDistributionController extends Controller
             'declared_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
             'allocation_method' => ['sometimes', 'in:pro_rata_shares'],
             'withholding_rate_bps' => ['required', 'integer', 'between:0,10000'],
+            'approved_balance_sheet_reference' => ['required', 'string', 'max:200'],
+            'distributable_profit_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+            'resolution_evidence_reference' => ['required', 'string', 'max:500'],
+            'payment_method' => ['required', 'in:bank_transfer,cheque,other_approved'],
+            'accounting_framework' => ['required', 'in:ifrs,ifrs_sme,other_aabe_approved'],
         ]);
         $row = $this->distributions->create($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data);
         return response()->json(['success' => true, 'data' => $row], 201);
+    }
+
+    public function certifyProfit(Request $request, int $distributionId): JsonResponse
+    {
+        $row = $this->distributions->certifyProfit($this->tenantId(), $distributionId, (int) $request->user()->getAuthIdentifier());
+        return response()->json(['success' => true, 'data' => $row]);
+    }
+
+    public function assessRecipientTax(Request $request, int $distributionId, int $shareholderId): JsonResponse
+    {
+        $data = $request->validate([
+            'recipient_type' => ['required', 'in:individual,company,other'],
+            'tax_residency' => ['required', 'in:resident,non_resident,unknown'],
+            'treatment' => ['required', 'in:statutory,treaty,exempt,special'],
+            'withholding_rate_bps' => ['required', 'integer', 'between:0,10000'],
+            'legal_basis' => ['required', 'string', 'min:3', 'max:500'],
+            'evidence_reference' => ['nullable', 'string', 'max:500'],
+            'effective_from' => ['required', 'date'],
+            'evidence_expires_on' => ['nullable', 'date', 'after_or_equal:effective_from'],
+        ]);
+        $row = $this->distributions->assessRecipientTax(
+            $this->tenantId(), $distributionId, $shareholderId,
+            (int) $request->user()->getAuthIdentifier(), $data
+        );
+        return response()->json(['success' => true, 'data' => $row]);
     }
 
     public function calculate(Request $request, int $distributionId): JsonResponse
