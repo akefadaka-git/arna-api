@@ -88,7 +88,7 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('$committeeMember->recused_at !== null', $controller);
         self::assertStringContainsString('candidate cannot decide their own nomination', $controller);
         self::assertStringContainsString('governance_election_committee_decisions', $controller);
-        self::assertStringContainsString("'decided_by' => $actorId", $controller);
+        self::assertStringContainsString("'decided_by' => \$actorId", $controller);
     }
 
     public function test_shareholder_consultation_is_advisory_and_only_approved_candidates_are_visible(): void
