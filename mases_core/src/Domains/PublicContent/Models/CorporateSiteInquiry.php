@@ -13,10 +13,10 @@ final class CorporateSiteInquiry extends Model
 
     protected $fillable = [
         'inquiry_type', 'name', 'email', 'phone', 'subject', 'message',
-        'status', 'assigned_to', 'internal_note', 'handled_at',
+        'status', 'assigned_to', 'internal_note', 'handled_at', 'consented_at',
     ];
 
-    protected $casts = ['handled_at' => 'datetime', 'version' => 'integer'];
+    protected $casts = ['handled_at' => 'datetime', 'consented_at' => 'datetime', 'version' => 'integer'];
 
     protected static function booted(): void
     {
