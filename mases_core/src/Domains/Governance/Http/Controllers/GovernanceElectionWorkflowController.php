@@ -154,8 +154,12 @@ final class GovernanceElectionWorkflowController extends Controller
         $candidates = GovernanceElectionNomination::query()
             ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
             ->orderBy('id')->get();
+        $members = DB::table('governance_election_committee_members')
+            ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
+            ->orderBy('appointed_at')->orderBy('id')
+            ->get(['id', 'person_id', 'user_id', 'member_role', 'ex_officio', 'status', 'recused_at', 'recusal_scope', 'appointment_reference']);
 
-        return response()->json(['data' => ['submissions' => $submissions, 'candidates' => $candidates]]);
+        return response()->json(['data' => ['submissions' => $submissions, 'candidates' => $candidates, 'members' => $members]]);
     }
 
     public function decideNomination(Request $request, GovernanceElection $governanceElection, int $nomination): JsonResponse
