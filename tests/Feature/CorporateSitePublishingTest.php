@@ -93,7 +93,8 @@ final class CorporateSitePublishingTest extends TestCase
 
         $this->getJson('/api/public/site/content/news/test-news-en?locale=en')
             ->assertOk()
-            ->assertJsonPath('data.title', 'Test news');
+            ->assertJsonPath('data.title', 'Test news')
+            ->assertJsonPath('data.alternate_slug', 'test-news');
 
         $this->getJson('/api/public/site/content/news/draft-news-en?locale=en')->assertNotFound();
     }
