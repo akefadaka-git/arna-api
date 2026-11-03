@@ -145,6 +145,8 @@ use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\PublicCertificateVerificationController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PublicContentController;
+use App\Http\Controllers\CorporateSiteController;
+use App\Http\Controllers\CorporateSiteEntryController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CommunicationAnnouncementController;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -173,6 +175,20 @@ Route::get('/health', static function (): JsonResponse {
         ],
     ]);
 })->name('api.health');
+
+
+// -----------------------------------------------------------------------------
+// Public corporate site pages: published locale-specific pages only.
+// -----------------------------------------------------------------------------
+Route::get('/public/site/home', [CorporateSiteController::class, 'home'])->middleware('throttle:60,1')->name('api.public.site.home');
+Route::get('/public/site/pages', [CorporateSiteController::class, 'pages'])->middleware('throttle:60,1')->name('api.public.site.pages.index');
+Route::get('/public/site/pages/{locale}/{slug}', [CorporateSiteController::class, 'page'])->whereIn('locale', ['am', 'en'])->middleware('throttle:60,1')->name('api.public.site.pages.show');
+Route::get('/public/site/sitemap.xml', [CorporateSiteEntryController::class, 'sitemap'])->middleware('throttle:30,1')->name('api.public.site.sitemap');
+Route::post('/public/site/inquiries', [CorporateSiteEntryController::class, 'submitInquiry'])->middleware('throttle:5,10')->name('api.public.site.inquiries.store');
+Route::get('/public/site/content/{type}', [CorporateSiteEntryController::class, 'index'])->whereIn('type', ['news', 'announcement', 'publication', 'media', 'career', 'opportunity', 'business', 'service', 'advertisement', 'marketplace'])->middleware('throttle:60,1')->name('api.public.site.content.index');
+Route::get('/public/site/content/{type}/{slug}', [CorporateSiteEntryController::class, 'show'])->whereIn('type', ['news', 'announcement', 'publication', 'media', 'career', 'opportunity', 'business', 'service', 'advertisement', 'marketplace'])->middleware('throttle:60,1')->name('api.public.site.content.show');
+Route::post('/public/site/submissions/{type}', [CorporateSiteEntryController::class, 'submit'])->whereIn('type', ['career', 'opportunity', 'advertisement', 'marketplace', 'business', 'service'])->middleware('throttle:5,10')->name('api.public.site.submissions.store');
+Route::get('/public/site/media/{publicId}/asset', [CorporateSiteEntryController::class, 'asset'])->whereUuid('publicId')->middleware('throttle:60,1')->name('api.public.site.media.asset');
 
 
 // -----------------------------------------------------------------------------
@@ -485,6 +501,39 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
     Route::get('/tenant-context', [TenantContextController::class, 'show'])
         ->name('api.tenant.context');
 });
+
+// =============================================================================
+// Corporate Site CMS Administration — platform-wide, permission-gated
+// =============================================================================
+Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
+    ->prefix('admin/corporate-site/pages')
+    ->name('api.admin.corporate-site.pages.')
+    ->group(static function (): void {
+        Route::get('/', [CorporateSiteController::class, 'adminIndex'])->name('index');
+        Route::post('/', [CorporateSiteController::class, 'adminStore'])->name('store');
+        Route::put('/{id}', [CorporateSiteController::class, 'adminUpdate'])->whereNumber('id')->name('update');
+        Route::post('/{id}/{decision}', [CorporateSiteController::class, 'adminReview'])
+            ->whereNumber('id')
+            ->whereIn('decision', ['approve', 'publish', 'schedule', 'unpublish'])
+            ->name('review');
+    });
+
+
+// Corporate editorial entries and contact-inquiry administration.
+Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
+    ->prefix('admin/corporate-site')
+    ->name('api.admin.corporate-site.')
+    ->group(static function (): void {
+        Route::post('/media', [CorporateSiteEntryController::class, 'uploadMedia'])->middleware('throttle:5,10')->name('media.store');
+        Route::get('/entries', [CorporateSiteEntryController::class, 'adminEntries'])->name('entries.index');
+        Route::post('/entries', [CorporateSiteEntryController::class, 'adminStore'])->name('entries.store');
+        Route::put('/entries/{id}', [CorporateSiteEntryController::class, 'adminUpdate'])->whereNumber('id')->name('entries.update');
+        Route::post('/entries/{id}/scan', [CorporateSiteEntryController::class, 'scanMedia'])->whereNumber('id')->name('entries.scan');
+        Route::post('/entries/{id}/{decision}', [CorporateSiteEntryController::class, 'review'])
+            ->whereNumber('id')->whereIn('decision', ['approve', 'publish', 'reject', 'unpublish'])->name('entries.review');
+        Route::get('/inquiries', [CorporateSiteEntryController::class, 'adminInquiries'])->name('inquiries.index');
+        Route::put('/inquiries/{id}', [CorporateSiteEntryController::class, 'updateInquiry'])->whereNumber('id')->name('inquiries.update');
+    });
 
 // =============================================================================
 // Public Content Administration — platform-wide, permission-gated

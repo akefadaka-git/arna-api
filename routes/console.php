@@ -5,6 +5,9 @@ declare(strict_types=1);
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Audit\Models\AuditLog;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,3 +54,45 @@ Artisan::command('inspire', function () {
 Schedule::command('loan:accrue-interest')->daily();
 Schedule::command('loan:detect-arrears')->daily();
 Schedule::command('public-content:publish-scheduled')->everyMinute()->withoutOverlapping();
+Schedule::command('corporate-site:publish-scheduled')->everyMinute()->withoutOverlapping();
+
+Artisan::command('corporate-site:publish-scheduled', function (): int {
+    $published = DB::transaction(function (): int {
+        $pages = CorporateSitePage::query()
+            ->where('status', 'scheduled')
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '<=', now())
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->limit(100)
+            ->get();
+
+        foreach ($pages as $page) {
+            $old = ['status' => $page->status, 'version' => $page->version];
+            $page->status = 'published';
+            $page->published_at = now();
+            $page->version++;
+            $page->save();
+
+            AuditLog::create([
+                'user_id' => null,
+                'tenant_id' => null,
+                'action' => 'corporate_site_page.scheduled_publish',
+                'resource_type' => 'corporate_site_page',
+                'resource_id' => (string) $page->id,
+                'old_values' => $old,
+                'new_values' => ['status' => 'published', 'version' => $page->version],
+                'ip_address' => null,
+                'user_agent' => null,
+                'request_id' => null,
+                'metadata' => ['public_id' => $page->public_id],
+            ]);
+        }
+
+        return $pages->count();
+    });
+
+    $this->info("Published {$published} scheduled corporate page(s).");
+    return 0;
+})->purpose('Publish approved corporate pages whose schedule time has arrived');
+

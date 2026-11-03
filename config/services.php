@@ -28,6 +28,15 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'corporate_site' => [
+        'url' => env('CORPORATE_SITE_URL'),
+    ],
+
+    'corporate_media_scanner' => [
+        'url' => env('CORPORATE_MEDIA_SCANNER_URL'),
+        'token' => env('CORPORATE_MEDIA_SCANNER_TOKEN'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

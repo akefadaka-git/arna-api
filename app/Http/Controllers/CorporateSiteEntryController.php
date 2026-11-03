@@ -1,0 +1,445 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use MaaleArna\MASES\Core\Audit\Models\AuditLog;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
+use App\Services\CorporateSite\CorporateMediaScanner;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+
+final class CorporateSiteEntryController extends Controller
+{
+    private const TYPES = ['news', 'announcement', 'publication', 'media', 'career', 'opportunity', 'business', 'service', 'advertisement', 'marketplace'];
+
+
+    public function sitemap(): \Illuminate\Http\Response
+    {
+        $pages = CorporateSitePage::query()->published()->get();
+        $entries = CorporateSiteEntry::query()->published()->get();
+        $base = rtrim((string) (config('services.corporate_site.url') ?: url('/')), '/');
+        $urls = [];
+
+        foreach ($pages as $page) {
+            foreach (['am' => $page->slug_am, 'en' => $page->slug_en] as $locale => $slug) {
+                if ($slug) $urls[] = ['loc' => $base . '/' . $locale . '/' . $slug, 'lastmod' => $page->updated_at];
+            }
+        }
+        foreach ($entries as $entry) {
+            foreach (['am' => $entry->slug_am, 'en' => $entry->slug_en] as $locale => $slug) {
+                if ($slug) $urls[] = ['loc' => $base . '/' . $locale . '/content/' . $entry->entry_type . '/' . $slug, 'lastmod' => $entry->updated_at];
+            }
+        }
+
+        $items = collect($urls)->map(static fn (array $item): string =>
+            '<url><loc>' . htmlspecialchars($item['loc'], ENT_XML1 | ENT_COMPAT, 'UTF-8') .
+            '</loc><lastmod>' . $item['lastmod']->toDateString() . '</lastmod></url>'
+        )->implode('');
+
+        return response(
+            '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . $items . '</urlset>',
+            200,
+            ['Content-Type' => 'application/xml; charset=UTF-8', 'X-Content-Type-Options' => 'nosniff'],
+        );
+    }
+
+    public function index(string $type, Request $request): JsonResponse
+    {
+        abort_unless(in_array($type, self::TYPES, true), 404);
+        $locale = $this->locale($request->query('locale', 'am'));
+        $entries = CorporateSiteEntry::query()->published()->where('entry_type', $type)
+            ->latest('published_at')->paginate(min(max((int) $request->query('per_page', 12), 1), 50));
+
+        return response()->json(['success' => true, 'data' => [
+            'items' => $entries->getCollection()->map(fn (CorporateSiteEntry $entry): array => $this->resource($entry, $locale)),
+            'current_page' => $entries->currentPage(),
+            'last_page' => $entries->lastPage(),
+            'total' => $entries->total(),
+        ]]);
+    }
+
+    public function show(string $type, string $slug, Request $request): JsonResponse
+    {
+        abort_unless(in_array($type, self::TYPES, true), 404);
+        $locale = $this->locale($request->query('locale', 'am'));
+        $column = $locale === 'am' ? 'slug_am' : 'slug_en';
+        $entry = CorporateSiteEntry::query()->published()->where('entry_type', $type)->where($column, $slug)->firstOrFail();
+
+        return response()->json(['success' => true, 'data' => $this->resource($entry, $locale)]);
+    }
+
+    public function submit(Request $request, string $type): JsonResponse
+    {
+        abort_unless(in_array($type, ['career', 'opportunity', 'advertisement', 'marketplace', 'business', 'service'], true), 404);
+        $validated = Validator::make($request->all(), [
+            'name' => ['required', 'string', 'max:160'],
+            'email' => ['required', 'email:rfc', 'max:190'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'title' => ['required', 'string', 'max:180'],
+            'description' => ['required', 'string', 'max:12000'],
+            'organization' => ['nullable', 'string', 'max:180'],
+            'locale' => ['nullable', 'in:am,en'],
+        ])->validate();
+
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => $type,
+            'translations' => [
+                $validated['locale'] ?? 'am' => [
+                    'title' => $validated['title'],
+                    'body' => $validated['description'],
+                    'contact_name' => $validated['name'],
+                    'contact_email' => $validated['email'],
+                    'contact_phone' => $validated['phone'] ?? null,
+                    'organization' => $validated['organization'] ?? null,
+                ],
+            ],
+            'payload' => ['submission_channel' => 'public_form'],
+        ]);
+
+        return response()->json(['success' => true, 'data' => ['reference' => $entry->public_id, 'status' => 'received']], 202);
+    }
+
+    public function uploadMedia(Request $request): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'title' => ['required', 'string', 'max:180'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'locale' => ['required', 'in:am,en'],
+            'file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,webp,pdf,mp4'],
+        ])->validate();
+
+        $file = $request->file('file');
+        $path = $file->storeAs('corporate-quarantine', Str::uuid() . '.' . $file->guessExtension(), 'local');
+        try {
+            $entry = DB::transaction(function () use ($request, $validated, $file, $path): CorporateSiteEntry {
+                $entry = CorporateSiteEntry::query()->create([
+                    'entry_type' => 'media',
+                    'created_by' => $request->user()->id,
+                    'translations' => [$validated['locale'] => [
+                        'title' => $validated['title'],
+                        'body' => $validated['description'] ?? '',
+                    ]],
+                    'asset_path' => $path,
+                    'asset_mime' => $file->getMimeType(),
+                    'asset_size' => $file->getSize(),
+                    'payload' => ['quarantine' => true, 'scan_status' => 'pending'],
+                ]);
+                AuditLog::create([
+                    'user_id' => $request->user()->id, 'tenant_id' => null,
+                    'action' => 'corporate_site_entry.media_uploaded', 'resource_type' => 'corporate_site_entry',
+                    'resource_id' => (string) $entry->id, 'old_values' => null,
+                    'new_values' => ['status' => 'draft', 'asset_mime' => $entry->asset_mime, 'asset_size' => $entry->asset_size],
+                    'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                    'request_id' => null, 'metadata' => ['public_id' => $entry->public_id],
+                ]);
+
+                return $entry;
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('local')->delete($path);
+            throw $exception;
+        }
+
+        return response()->json(['success' => true, 'data' => [
+            'reference' => $entry->public_id,
+            'status' => 'pending_review',
+            'message' => 'The media file is quarantined until an administrator verifies it.',
+        ]], 202);
+    }
+
+    public function asset(string $publicId)
+    {
+        $entry = CorporateSiteEntry::query()->published()->where('entry_type', 'media')->where('public_id', $publicId)->firstOrFail();
+        abort_unless($entry->asset_path && Storage::disk('local')->exists($entry->asset_path), 404);
+        abort_unless(in_array($entry->asset_mime, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4'], true), 404);
+
+        return response()->file(Storage::disk('local')->path($entry->asset_path), [
+            'Content-Type' => $entry->asset_mime,
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'public, max-age=300',
+        ]);
+    }
+
+    public function submitInquiry(Request $request): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'inquiry_type' => ['nullable', 'in:general,investor,partnership,media,career,advertising,marketplace'],
+            'name' => ['required', 'string', 'max:160'],
+            'email' => ['required', 'email:rfc', 'max:190'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'subject' => ['required', 'string', 'max:200'],
+            'message' => ['required', 'string', 'max:10000'],
+            'consent' => ['required', 'accepted'],
+            'website' => ['nullable', 'max:0'],
+        ])->validate();
+
+        $inquiry = CorporateSiteInquiry::query()->create([
+            'inquiry_type' => $validated['inquiry_type'] ?? 'general',
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'subject' => $validated['subject'],
+            'message' => $validated['message'],
+            'consented_at' => now(),
+        ]);
+
+        return response()->json(['success' => true, 'data' => ['reference' => $inquiry->public_id, 'status' => 'received']], 202);
+    }
+
+
+    public function adminStore(Request $request): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'entry_type' => ['required', 'in:news,announcement,publication,media,career,opportunity,business,service,advertisement,marketplace'],
+            'slug_am' => ['nullable', 'string', 'max:180', 'unique:corporate_site_entries,slug_am'],
+            'slug_en' => ['nullable', 'string', 'max:180', 'unique:corporate_site_entries,slug_en'],
+            'translations' => ['required', 'array'],
+            'translations.am.title' => ['required', 'string', 'max:180'],
+            'translations.en.title' => ['required', 'string', 'max:180'],
+            'translations.am.body' => ['nullable', 'string', 'max:12000'],
+            'translations.en.body' => ['nullable', 'string', 'max:12000'],
+            'payload' => ['nullable', 'array'],
+            'seo' => ['nullable', 'array'],
+        ])->validate();
+
+        $entry = CorporateSiteEntry::query()->create([
+            ...$validated,
+            'created_by' => $request->user()->id,
+        ]);
+        AuditLog::create([
+            'user_id' => $request->user()->id, 'tenant_id' => null,
+            'action' => 'corporate_site_entry.created', 'resource_type' => 'corporate_site_entry',
+            'resource_id' => (string) $entry->id, 'old_values' => null,
+            'new_values' => ['entry_type' => $entry->entry_type, 'status' => $entry->status],
+            'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+            'request_id' => null, 'metadata' => ['public_id' => $entry->public_id],
+        ]);
+
+        return response()->json(['success' => true, 'data' => $entry], 201);
+    }
+
+    public function adminUpdate(Request $request, int $id): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'expected_version' => ['required', 'integer', 'min:1'],
+            'slug_am' => ['sometimes', 'nullable', 'string', 'max:180', 'unique:corporate_site_entries,slug_am,' . $id],
+            'slug_en' => ['sometimes', 'nullable', 'string', 'max:180', 'unique:corporate_site_entries,slug_en,' . $id],
+            'translations' => ['sometimes', 'required', 'array'],
+            'payload' => ['sometimes', 'nullable', 'array'],
+            'seo' => ['sometimes', 'nullable', 'array'],
+        ])->validate();
+
+        return DB::transaction(function () use ($request, $id, $validated): JsonResponse {
+            $entry = CorporateSiteEntry::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($entry->version === (int) $validated['expected_version'], 409, 'This entry changed after it was loaded.');
+            $old = ['status' => $entry->status, 'version' => $entry->version];
+            $entry->fill(collect($validated)->except('expected_version')->all());
+            $entry->status = 'draft';
+            $entry->published_at = null;
+            $entry->reviewed_by = null;
+            $entry->version++;
+            $entry->save();
+            AuditLog::create([
+                'user_id' => $request->user()->id, 'tenant_id' => null,
+                'action' => 'corporate_site_entry.updated', 'resource_type' => 'corporate_site_entry',
+                'resource_id' => (string) $entry->id, 'old_values' => $old,
+                'new_values' => ['status' => $entry->status, 'version' => $entry->version],
+                'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                'request_id' => null, 'metadata' => ['public_id' => $entry->public_id],
+            ]);
+
+            return response()->json(['success' => true, 'data' => $entry]);
+        });
+    }
+
+    public function adminEntries(Request $request): JsonResponse
+    {
+        $query = CorporateSiteEntry::query()->orderByDesc('updated_at');
+        if ($request->filled('status')) $query->where('status', $request->string('status')->toString());
+        if ($request->filled('type')) $query->where('entry_type', $request->string('type')->toString());
+
+        return response()->json(['success' => true, 'data' => $query->paginate(30)]);
+    }
+
+
+    public function scanMedia(Request $request, int $id, CorporateMediaScanner $scanner): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'expected_version' => ['required', 'integer', 'min:1'],
+        ])->validate();
+
+        $entry = CorporateSiteEntry::query()->where('entry_type', 'media')->findOrFail($id);
+        abort_unless($entry->status === 'draft', 422, 'Only quarantined draft media can be scanned.');
+        abort_unless($entry->asset_path !== null, 422, 'This entry has no quarantined media asset.');
+        abort_unless($entry->version === (int) $validated['expected_version'], 409, 'This media entry changed after it was loaded.');
+
+        try {
+            $verdict = $scanner->scan($entry->asset_path, $entry->public_id);
+        } catch (\Throwable $exception) {
+            report($exception);
+            return response()->json(['success' => false, 'error' => [
+                'code' => 'MEDIA_SCAN_UNAVAILABLE',
+                'message' => 'The media scanner is unavailable; the asset remains quarantined.',
+            ]], 503);
+        }
+
+        return DB::transaction(function () use ($request, $id, $validated, $verdict): JsonResponse {
+            $entry = CorporateSiteEntry::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($entry->version === (int) $validated['expected_version'], 409, 'This media entry changed while it was being scanned.');
+            $payload = $entry->payload ?? [];
+            $payload['scan_status'] = $verdict['status'];
+            $payload['scan_signature'] = $verdict['signature'];
+            $payload['scanned_at'] = now()->toIso8601String();
+            $entry->payload = $payload;
+            $entry->version++;
+            $entry->save();
+
+            AuditLog::create([
+                'user_id' => $request->user()->id, 'tenant_id' => null,
+                'action' => 'corporate_site_entry.media_scanned', 'resource_type' => 'corporate_site_entry',
+                'resource_id' => (string) $entry->id, 'old_values' => ['version' => $validated['expected_version']],
+                'new_values' => ['scan_status' => $verdict['status'], 'signature' => $verdict['signature'], 'version' => $entry->version],
+                'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                'request_id' => null, 'metadata' => ['public_id' => $entry->public_id],
+            ]);
+
+            return response()->json(['success' => true, 'data' => [
+                'public_id' => $entry->public_id,
+                'scan_status' => $verdict['status'],
+                'version' => $entry->version,
+            ]]);
+        });
+    }
+
+    public function review(Request $request, int $id, string $decision): JsonResponse
+    {
+        abort_unless(in_array($decision, ['approve', 'publish', 'reject', 'unpublish'], true), 404);
+        $validated = Validator::make($request->all(), [
+            'expected_version' => ['required', 'integer', 'min:1'],
+            'moderation_note' => ['nullable', 'string', 'max:1000'],
+        ])->validate();
+
+        return DB::transaction(function () use ($request, $id, $decision, $validated): JsonResponse {
+            $entry = CorporateSiteEntry::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($entry->version === (int) $validated['expected_version'], 409, 'This submission changed after it was loaded.');
+            abort_unless((int) $entry->created_by !== (int) $request->user()->id, 403, 'The submitter cannot review their own submission.');
+            $old = ['status' => $entry->status, 'version' => $entry->version];
+
+            if ($decision === 'approve') {
+                abort_unless($entry->status === 'draft', 422);
+                foreach (['am', 'en'] as $requiredLocale) {
+                    abort_unless(
+                        is_array($entry->translations[$requiredLocale] ?? null) &&
+                        filled($entry->translations[$requiredLocale]['title'] ?? null) &&
+                        filled($requiredLocale === 'am' ? $entry->slug_am : $entry->slug_en),
+                        422,
+                        'Both Amharic and English titles and slugs are required before approval.',
+                    );
+                }
+                $entry->status = 'approved';
+                $entry->reviewed_by = $request->user()->id;
+            } elseif ($decision === 'publish') {
+                abort_unless($entry->status === 'approved', 422);
+                if ($entry->entry_type === 'media') {
+                    abort_unless(($entry->payload['scan_status'] ?? null) === 'clean', 422, 'Media must pass malware scanning before publication.');
+                }
+                $entry->status = 'published';
+                $entry->published_at = now();
+            } elseif ($decision === 'reject') {
+                abort_unless(in_array($entry->status, ['draft', 'approved'], true), 422);
+                $entry->status = 'rejected';
+            } else {
+                abort_unless($entry->status === 'published', 422);
+                $entry->status = 'unpublished';
+                $entry->published_at = null;
+            }
+
+            $entry->moderation_note = $validated['moderation_note'] ?? null;
+            $entry->version++;
+            $entry->save();
+            AuditLog::create([
+                'user_id' => $request->user()->id, 'tenant_id' => null,
+                'action' => 'corporate_site_entry.' . $decision,
+                'resource_type' => 'corporate_site_entry', 'resource_id' => (string) $entry->id,
+                'old_values' => $old, 'new_values' => ['status' => $entry->status, 'version' => $entry->version],
+                'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                'request_id' => null, 'metadata' => ['public_id' => $entry->public_id, 'entry_type' => $entry->entry_type],
+            ]);
+
+            return response()->json(['success' => true, 'data' => $entry]);
+        });
+    }
+
+    public function adminInquiries(Request $request): JsonResponse
+    {
+        $query = CorporateSiteInquiry::query()->orderByDesc('created_at');
+        if ($request->filled('status')) $query->where('status', $request->string('status')->toString());
+
+        return response()->json(['success' => true, 'data' => $query->paginate(30)]);
+    }
+
+    public function updateInquiry(Request $request, int $id): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'expected_version' => ['required', 'integer', 'min:1'],
+            'status' => ['required', 'in:new,assigned,in_progress,resolved,closed,spam'],
+            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            'internal_note' => ['nullable', 'string', 'max:5000'],
+        ])->validate();
+
+        return DB::transaction(function () use ($request, $id, $validated): JsonResponse {
+            $inquiry = CorporateSiteInquiry::query()->lockForUpdate()->findOrFail($id);
+            abort_unless((int) $inquiry->version === (int) $validated['expected_version'], 409, 'This inquiry changed after it was loaded.');
+            $old = ['status' => $inquiry->status, 'version' => $inquiry->version];
+            $inquiry->fill(collect($validated)->except('expected_version')->all());
+            if (in_array($inquiry->status, ['resolved', 'closed', 'spam'], true)) $inquiry->handled_at = now();
+            else $inquiry->handled_at = null;
+            $inquiry->version++;
+            $inquiry->save();
+
+            AuditLog::create([
+                'user_id' => $request->user()->id, 'tenant_id' => null,
+                'action' => 'corporate_site_inquiry.updated', 'resource_type' => 'corporate_site_inquiry',
+                'resource_id' => (string) $inquiry->id, 'old_values' => $old,
+                'new_values' => ['status' => $inquiry->status, 'version' => $inquiry->version, 'assigned_to' => $inquiry->assigned_to],
+                'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                'request_id' => null, 'metadata' => ['public_id' => $inquiry->public_id],
+            ]);
+
+            return response()->json(['success' => true, 'data' => $inquiry]);
+        });
+    }
+
+    private function locale(mixed $locale): string
+    {
+        return in_array($locale, ['am', 'en'], true) ? $locale : 'am';
+    }
+
+    private function resource(CorporateSiteEntry $entry, string $locale): array
+    {
+        $translation = $entry->translations[$locale] ?? [];
+        abort_unless(is_array($translation) && filled($translation['title'] ?? null), 404);
+        return [
+            'public_id' => $entry->public_id,
+            'type' => $entry->entry_type,
+            'slug' => $locale === 'am' ? $entry->slug_am : $entry->slug_en,
+            'alternate_slug' => $locale === 'am' ? $entry->slug_en : $entry->slug_am,
+            'title' => (string) ($translation['title'] ?? ''),
+            'summary' => (string) ($translation['summary'] ?? ''),
+            'body' => (string) ($translation['body'] ?? ''),
+            'payload' => $entry->payload,
+            'asset_url' => $entry->asset_path ? url('/api/public/site/media/' . $entry->public_id . '/asset') : null,
+            'seo' => $entry->seo[$locale] ?? null,
+            'published_at' => $entry->published_at?->toIso8601String(),
+        ];
+    }
+}
