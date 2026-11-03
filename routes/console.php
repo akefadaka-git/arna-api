@@ -93,6 +93,6 @@ Artisan::command('corporate-site:publish-scheduled', function (): int {
     });
 
     $this->info("Published {$published} scheduled corporate page(s).");
-    return self::SUCCESS;
+    return 0;
 })->purpose('Publish approved corporate pages whose schedule time has arrived');
 
