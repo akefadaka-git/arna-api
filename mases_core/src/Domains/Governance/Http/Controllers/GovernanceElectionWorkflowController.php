@@ -230,7 +230,6 @@ final class GovernanceElectionWorkflowController extends Controller
                     'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
                     'shareholder_id' => $candidate->id, 'status' => 'approved',
                     'candidate_person_id' => $item->candidate_person_id,
-                    'candidate_name_snapshot' => DB::table('people')->where('id', $item->candidate_person_id)->value('full_name'),
                     'nomination_source' => $item->self_nomination ? 'self' : 'shareholder',
                     'nominated_by_shareholder_id' => $item->nominated_by_shareholder_id,
                     'nomination_statement' => $item->statement,
