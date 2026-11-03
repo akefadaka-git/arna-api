@@ -113,7 +113,7 @@ Six dividend-focused feature test files are committed:
 - `DividendCancellationTest.php`
 - `DividendReinvestmentJournalTest.php`
 
-The API clean-install MySQL workflow now includes the new tables, historical distribution/payable migrations, migration checks and an 85-migration baseline. The workflow now lints the reinvestment services and runs the dividend feature tests, including the new reinvestment journal tests, against disposable MySQL. App workflow evidence is still absent.
+The API clean-install MySQL workflow now includes the new tables, historical distribution/payable migrations, migration checks and an 85-migration baseline. It lints the reinvestment services and runs the dividend feature tests, including the new reinvestment journal tests, against disposable MySQL. An App exact-head workflow has also been added for type-check, four builds, static output verification and UI contract tests.
 
 **Exact-head evidence lookup:** no workflow runs and no combined status checks were returned for API SHA `76ca8579095079dab8afc72aa0c28eb7bb62a56c` or App SHA `1d8a794a7b0c1f122575bb79444ed1dfdd835c81` at report time.
 
@@ -125,14 +125,15 @@ The API clean-install MySQL workflow now includes the new tables, historical dis
 | Full reinvestment subledger and share-transfer acceptance | NOT RUN |
 | Balanced reinvestment and seller-settlement journal tests | NOT RUN |
 | Cash-vs-reinvestment duplicate settlement / tax remittance regression | NOT RUN |
-| API clean-install MySQL on exact head | PENDING — run #41692470986 |
+| API clean-install MySQL on exact code/test head | IN PROGRESS — run #41692470986 |
+| App type-check and four-build workflow | NOT RETURNED — workflow added, waiting for execution evidence |
 | Earlier API clean-install MySQL | PASS — run #41691380905; not final test head |
 | Migration idempotence / rollback checks | NOT RUN |
 | Dividend accounting, tax, cancellation and payment tests | PENDING — latest workflow queued; exact test results not yet returned |
 | Full API regression and tenant isolation | NOT RUN on exact head |
 | App type-check and all four builds | NOT RUN |
 | API/App end-to-end integration | NOT RUN |
-| App type-check and four builds on latest head | NOT RUN — no App workflow run returned |
+| App type-check and four builds on latest head | NOT RUN — new workflow is present but no run result returned |
 | Keyboard, screen-reader and WCAG 2.2 AA review | NOT RUN |
 | Mobile/tablet/desktop acceptance | NOT RUN |
 | Payment replay, race/concurrency and load acceptance | NOT RUN |
