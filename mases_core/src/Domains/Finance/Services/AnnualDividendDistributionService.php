@@ -297,20 +297,53 @@ final class AnnualDividendDistributionService
             if ($rows->isEmpty()) {
                 throw ValidationException::withMessages(['record_date' => 'No eligible shareholder ledger balances were found on the selected record date.']);
             }
-            if ($rows->pluck('share_class_id')->unique()->count() !== 1) {
-                throw ValidationException::withMessages(['allocation_method' => 'Pro-rata allocation requires one comparable share class. Multiple share classes require an approved class-weighting rule.']);
+
+            $classIds = $rows->pluck('share_class_id')->unique()->map(fn ($id) => (int) $id)->values();
+            $classWeights = DB::table('finance_dividend_share_class_weights')
+                ->where('tenant_id', $tenantId)->where('distribution_id', $d->id)
+                ->whereIn('share_class_id', $classIds)->get()->keyBy('share_class_id');
+            if ($classIds->count() > 1) {
+                foreach ($classIds as $classId) {
+                    $weight = $classWeights->get($classId);
+                    if (!$weight || $weight->status !== 'approved' || (int) $weight->created_by === (int) $d->created_by
+                        || $weight->approved_by === null || (int) $weight->approved_by === (int) $d->created_by) {
+                        throw ValidationException::withMessages(['allocation_method' => 'Every share class requires an independently approved, GA-evidenced dividend weight before multi-class allocation.']);
+                    }
+                }
             }
 
             $byShareholder = [];
+            $classSnapshots = [];
             $totalShares = '0.0000';
+            $totalWeightedShares = '0.0000';
             foreach ($rows as $row) {
                 $quantity = $this->money((string) $row->balance_after);
-                $id = (int) $row->shareholder_id;
-                $byShareholder[$id] = bcadd($byShareholder[$id] ?? '0.0000', $quantity, 4);
+                $shareholderId = (int) $row->shareholder_id;
+                $classId = (int) $row->share_class_id;
+                $weight = $classWeights->get($classId);
+                if ($weight && ($weight->status !== 'approved'
+                    || (int) $weight->created_by === (int) $d->created_by
+                    || $weight->approved_by === null
+                    || (int) $weight->approved_by === (int) $d->created_by)) {
+                    throw ValidationException::withMessages(['allocation_method' => 'A configured share-class weight must be independently approved before snapshot creation.']);
+                }
+                $weightBps = $weight ? (int) $weight->weight_bps : 10000;
+                $weightedQuantity = bcdiv(bcmul($quantity, (string) $weightBps, 8), '10000', 4);
+                $byShareholder[$shareholderId] ??= ['shares' => '0.0000', 'weighted' => '0.0000'];
+                $byShareholder[$shareholderId]['shares'] = bcadd($byShareholder[$shareholderId]['shares'], $quantity, 4);
+                $byShareholder[$shareholderId]['weighted'] = bcadd($byShareholder[$shareholderId]['weighted'], $weightedQuantity, 4);
                 $totalShares = bcadd($totalShares, $quantity, 4);
+                $totalWeightedShares = bcadd($totalWeightedShares, $weightedQuantity, 4);
+                $classSnapshots[] = [
+                    'tenant_id' => $tenantId, 'distribution_id' => $d->id,
+                    'shareholder_id' => $shareholderId, 'share_class_id' => $classId,
+                    'eligible_share_quantity' => $quantity, 'weight_bps' => $weightBps,
+                    'weighted_share_quantity' => $weightedQuantity,
+                    'created_at' => now(), 'updated_at' => now(),
+                ];
             }
-            if (bccomp($totalShares, '0.0000', 4) <= 0) {
-                throw ValidationException::withMessages(['record_date' => 'The eligible share quantity must be positive.']);
+            if (bccomp($totalShares, '0.0000', 4) <= 0 || bccomp($totalWeightedShares, '0.0000', 4) <= 0) {
+                throw ValidationException::withMessages(['record_date' => 'Eligible and weighted share quantities must both be positive.']);
             }
 
             $shareholderIds = array_keys($byShareholder);
@@ -320,7 +353,7 @@ final class AnnualDividendDistributionService
             foreach ($shareholderIds as $index => $shareholderId) {
                 $gross = $index === $last
                     ? bcsub((string) $d->declared_amount, $grossAllocated, 4)
-                    : bcdiv(bcmul((string) $d->declared_amount, $byShareholder[$shareholderId], 8), $totalShares, 4);
+                    : bcdiv(bcmul((string) $d->declared_amount, $byShareholder[$shareholderId]['weighted'], 8), $totalWeightedShares, 4);
                 $grossAllocated = bcadd($grossAllocated, $gross, 4);
                 $assessment = DB::table('finance_dividend_tax_assessments')
                     ->where('tenant_id', $tenantId)->where('distribution_id', $d->id)
@@ -329,7 +362,7 @@ final class AnnualDividendDistributionService
                     ->first();
                 if (!$assessment || (int) $assessment->assessed_by === (int) $d->created_by
                     || ($assessment->evidence_expires_on !== null && $assessment->evidence_expires_on < $d->payment_due_on->toDateString())) {
-                    throw ValidationException::withMessages(['tax' => 'Every eligible shareholder requires a valid, independently reviewed tax assessment effective on the declaration date.']);
+                    throw ValidationException::withMessages(['tax' => 'Every eligible shareholder requires a valid, independently reviewed tax assessment effective on the scheduled payment date.']);
                 }
                 $taxRate = (int) $assessment->withholding_rate_bps;
                 $withholding = bcdiv(bcmul($gross, (string) $taxRate, 8), '10000', 4);
@@ -338,7 +371,8 @@ final class AnnualDividendDistributionService
                     'tenant_id' => $tenantId,
                     'distribution_id' => $d->id,
                     'shareholder_id' => $shareholderId,
-                    'eligible_share_quantity' => $byShareholder[$shareholderId],
+                    'eligible_share_quantity' => $byShareholder[$shareholderId]['shares'],
+                    'weighted_share_quantity' => $byShareholder[$shareholderId]['weighted'],
                     'gross_amount' => $gross,
                     'withholding_amount' => $withholding,
                     'net_amount' => $net,
@@ -352,6 +386,9 @@ final class AnnualDividendDistributionService
             foreach ($items as $item) {
                 DividendDistributionItem::query()->create($item);
             }
+            foreach ($classSnapshots as $classSnapshot) {
+                DB::table('finance_dividend_distribution_share_class_snapshots')->insert($classSnapshot);
+            }
             $withholdingTotal = '0.0000';
             $netTotal = '0.0000';
             foreach ($items as $item) {
@@ -359,7 +396,7 @@ final class AnnualDividendDistributionService
                 $netTotal = bcadd($netTotal, $item['net_amount'], 4);
             }
             $canonical = array_map(static fn ($item) => [
-                $item['shareholder_id'], $item['eligible_share_quantity'],
+                $item['shareholder_id'], $item['eligible_share_quantity'], $item['weighted_share_quantity'],
                 $item['gross_amount'], $item['withholding_amount'], $item['net_amount'],
             ], $items);
             $d->forceFill([
