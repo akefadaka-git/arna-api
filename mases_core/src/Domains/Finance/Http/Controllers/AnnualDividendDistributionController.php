@@ -64,7 +64,7 @@ final class AnnualDividendDistributionController extends Controller
             'currency' => ['sometimes', 'in:ETB'],
             'declared_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
             'allocation_method' => ['sometimes', 'in:pro_rata_shares'],
-            'withholding_rate_bps' => ['sometimes', 'integer', 'between:0,10000'],
+            'withholding_rate_bps' => ['required', 'integer', 'between:0,10000'],
         ]);
         $row = $this->distributions->create($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data);
         return response()->json(['success' => true, 'data' => $row], 201);
