@@ -360,13 +360,22 @@ final class AnnualDividendDistributionService
                 $byShareholder[$shareholderId]['weighted'] = bcadd($byShareholder[$shareholderId]['weighted'], $weightedQuantity, 4);
                 $totalShares = bcadd($totalShares, $quantity, 4);
                 $totalWeightedShares = bcadd($totalWeightedShares, $weightedQuantity, 4);
-                $classSnapshots[] = [
-                    'tenant_id' => $tenantId, 'distribution_id' => $d->id,
-                    'shareholder_id' => $shareholderId, 'share_class_id' => $classId,
-                    'eligible_share_quantity' => $quantity, 'weight_bps' => $weightBps,
-                    'weighted_share_quantity' => $weightedQuantity,
-                    'created_at' => now(), 'updated_at' => now(),
-                ];
+                $snapshotKey = $shareholderId.':'.$classId;
+                if (!isset($classSnapshots[$snapshotKey])) {
+                    $classSnapshots[$snapshotKey] = [
+                        'tenant_id' => $tenantId, 'distribution_id' => $d->id,
+                        'shareholder_id' => $shareholderId, 'share_class_id' => $classId,
+                        'eligible_share_quantity' => '0.0000', 'weight_bps' => $weightBps,
+                        'weighted_share_quantity' => '0.0000',
+                        'created_at' => now(), 'updated_at' => now(),
+                    ];
+                }
+                $classSnapshots[$snapshotKey]['eligible_share_quantity'] = bcadd(
+                    $classSnapshots[$snapshotKey]['eligible_share_quantity'], $quantity, 4
+                );
+                $classSnapshots[$snapshotKey]['weighted_share_quantity'] = bcadd(
+                    $classSnapshots[$snapshotKey]['weighted_share_quantity'], $weightedQuantity, 4
+                );
             }
             if (bccomp($totalShares, '0.0000', 4) <= 0 || bccomp($totalWeightedShares, '0.0000', 4) <= 0) {
                 throw ValidationException::withMessages(['record_date' => 'Eligible and weighted share quantities must both be positive.']);
