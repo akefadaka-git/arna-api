@@ -22,6 +22,8 @@ final class DividendDistributionItem extends Model
         'withholding_amount' => 'decimal:4',
         'net_amount' => 'decimal:4',
         'payable_id' => 'integer',
+        'tax_assessment_id' => 'integer',
+        'tax_rate_bps' => 'integer',
     ];
 
     public function distribution(): BelongsTo
