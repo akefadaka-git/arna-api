@@ -100,7 +100,7 @@ final class CorporateSiteController extends Controller
     {
         $validated = Validator::make($request->all(), [
             'expected_version' => ['required', 'integer', 'min:1'],
-            'scheduled_at' => ['required_if:decision,schedule', 'nullable', 'date', 'after:now'],
+            'scheduled_at' => [$decision === 'schedule' ? 'required' : 'nullable', 'date', 'after:now'],
         ])->validate();
 
         abort_unless(in_array($decision, ['approve', 'publish', 'schedule', 'unpublish'], true), 404);
