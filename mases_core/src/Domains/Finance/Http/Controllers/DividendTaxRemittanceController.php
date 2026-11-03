@@ -62,6 +62,15 @@ final class DividendTaxRemittanceController extends Controller
         return response()->json(['success' => true, 'data' => $row]);
     }
 
+    public function cancel(Request $request, int $remittanceId): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:500']]);
+        $row = $this->remittances->cancel(
+            $this->tenantId(), $remittanceId, (int) $request->user()->getAuthIdentifier(), $data['reason']
+        );
+        return response()->json(['success' => true, 'data' => $row]);
+    }
+
     public function confirm(Request $request, int $remittanceId): JsonResponse
     {
         $data = $request->validate([
