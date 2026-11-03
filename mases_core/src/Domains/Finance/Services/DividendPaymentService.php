@@ -145,6 +145,17 @@ final class DividendPaymentService
                 throw ConflictHttpException('The bank reference has already been used in this tenant.');
             }
 
+            $taxAssessment = DB::table('finance_dividend_tax_assessments')->where('tenant_id', $tenantId)
+                ->where('distribution_id', $batch->distribution_id)
+                ->where('shareholder_id', $item->shareholder_id)->where('id', $item->tax_assessment_id)->first();
+            $statutoryRate = $paidOn >= '2025-07-08' ? 1500 : 1000;
+            if (!$taxAssessment || $taxAssessment->effective_from > $paidOn
+                || ($taxAssessment->evidence_expires_on !== null && $taxAssessment->evidence_expires_on < $paidOn)
+                || ($taxAssessment->treatment === 'statutory' && (int) $item->tax_rate_bps !== $statutoryRate)
+                || ($taxAssessment->treatment === 'treaty' && (int) $item->tax_rate_bps > $statutoryRate)) {
+                throw ValidationException::withMessages(['tax' => 'The recipient tax assessment is not effective and valid on the actual payment date; payment is blocked pending compliant tax review.']);
+            }
+
             $payable = ShareholderDividendPayable::query()->where('tenant_id', $tenantId)
                 ->where('legal_entity_id', $batch->legal_entity_id)->lockForUpdate()->findOrFail($item->payable_id);
             if ($payable->status !== ShareholderDividendPayable::STATUS_PAYABLE
