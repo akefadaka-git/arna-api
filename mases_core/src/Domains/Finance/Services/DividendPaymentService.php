@@ -48,9 +48,15 @@ final class DividendPaymentService
             foreach ($payableIds as $payableId) {
                 $allocation = DB::table('finance_dividend_distribution_items as i')
                     ->join('finance_shareholder_dividend_payables as p', function ($join) {
-                        $join->on('p.id', '=', 'i.payable_id')->on('p.tenant_id', '=', 'i.tenant_id');
+                        $join->on('p.id', '=', 'i.payable_id')
+                            ->on('p.tenant_id', '=', 'i.tenant_id')
+                            ->on('p.shareholder_id', '=', 'i.shareholder_id');
+                    })
+                    ->join('finance_dividend_distributions as d', function ($join) {
+                        $join->on('d.id', '=', 'i.distribution_id')->on('d.tenant_id', '=', 'i.tenant_id');
                     })
                     ->where('i.tenant_id', $tenantId)->where('i.distribution_id', $distributionId)
+                    ->whereColumn('p.distribution_reference', 'd.distribution_reference')
                     ->where('p.legal_entity_id', $entityId)->where('p.id', $payableId)
                     ->select('i.shareholder_id', 'p.id as payable_id')->first();
                 if (!$allocation) {
