@@ -24,7 +24,17 @@ final class AnnualDividendDistributionService
             throw ValidationException::withMessages(['withholding_rate_bps' => 'An explicit annual withholding rate in basis points (0–10000) is required; prior-year defaults are never inherited.']);
         }
 
+        foreach (['approved_balance_sheet_reference', 'distributable_profit_amount', 'resolution_evidence_reference', 'payment_method', 'accounting_framework'] as $required) {
+            if (!isset($data[$required]) || trim((string) $data[$required]) === '') {
+                throw ValidationException::withMessages([$required => 'Approved financial and General Meeting evidence is mandatory before a dividend distribution can be created.']);
+            }
+        }
+
         $amount = $this->money((string) $data['declared_amount']);
+        $distributableProfit = $this->money((string) $data['distributable_profit_amount']);
+        if (bccomp($distributableProfit, $amount, 4) < 0) {
+            throw ValidationException::withMessages(['declared_amount' => 'The declared dividend cannot exceed the certified distributable net profit.']);
+        }
         if (bccomp($amount, '0.0000', 4) <= 0) {
             throw ValidationException::withMessages(['declared_amount' => 'The GA-declared distribution amount must be positive.']);
         }
@@ -67,11 +77,88 @@ final class AnnualDividendDistributionService
             'payment_due_on' => $data['payment_due_on'],
             'currency' => 'ETB',
             'declared_amount' => $amount,
+            'approved_balance_sheet_reference' => trim((string) $data['approved_balance_sheet_reference']),
+            'distributable_profit_amount' => $distributableProfit,
+            'resolution_evidence_reference' => trim((string) $data['resolution_evidence_reference']),
+            'payment_method' => trim((string) $data['payment_method']),
+            'accounting_framework' => trim((string) $data['accounting_framework']),
             'allocation_method' => 'pro_rata_shares',
             'withholding_rate_bps' => $data['withholding_rate_bps'],
             'status' => 'draft',
             'created_by' => $actorId,
         ]);
+    }
+
+    /**
+     * Independent Finance officer attests that the referenced approved balance
+     * sheet supports the declared distributable profit. This is an evidence
+     * attestation; it does not replace external audit/legal review.
+     */
+    public function certifyProfit(int $tenantId, int $distributionId, int $actorId): DividendDistribution
+    {
+        return DB::transaction(function () use ($tenantId, $distributionId, $actorId) {
+            $d = DividendDistribution::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($distributionId);
+            if ($d->status !== 'draft' || (int) $d->created_by === $actorId) {
+                throw ValidationException::withMessages(['distribution' => 'Only a different Finance officer may certify a draft distribution.']);
+            }
+            if (trim((string) $d->approved_balance_sheet_reference) === ''
+                || trim((string) $d->resolution_evidence_reference) === ''
+                || bccomp((string) $d->distributable_profit_amount, (string) $d->declared_amount, 4) < 0) {
+                throw ValidationException::withMessages(['profit' => 'Approved balance-sheet, GA resolution evidence and sufficient distributable profit are required.']);
+            }
+            $d->forceFill(['profit_certified_by' => $actorId, 'profit_certified_at' => now()])->save();
+            return $d->fresh();
+        });
+    }
+
+    /**
+     * Record a recipient-specific tax decision. Every decision is independently
+     * reviewed by someone other than the distribution maker.
+     */
+    public function assessRecipientTax(int $tenantId, int $distributionId, int $shareholderId, int $actorId, array $data): object
+    {
+        return DB::transaction(function () use ($tenantId, $distributionId, $shareholderId, $actorId, $data) {
+            $d = DividendDistribution::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($distributionId);
+            if ($d->status !== 'draft' || (int) $d->created_by === $actorId) {
+                throw ValidationException::withMessages(['tax' => 'Tax assessment must be completed by an independent reviewer while the distribution is draft.']);
+            }
+            $shareholderExists = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)->where('is_active', true)->whereNull('deleted_at')->exists();
+            if (!$shareholderExists) {
+                throw ValidationException::withMessages(['shareholder_id' => 'The shareholder does not belong to this tenant or is inactive.']);
+            }
+            $rate = (int) ($data['withholding_rate_bps'] ?? -1);
+            if ($rate < 0 || $rate > 10000) {
+                throw ValidationException::withMessages(['withholding_rate_bps' => 'A recipient-specific withholding rate from 0 to 10000 basis points is required.']);
+            }
+            $treatment = (string) ($data['treatment'] ?? '');
+            if (!in_array($treatment, ['statutory', 'treaty', 'exempt', 'special'], true)) {
+                throw ValidationException::withMessages(['treatment' => 'A supported, explicit tax treatment is required.']);
+            }
+            if (($treatment === 'treaty' || $treatment === 'exempt') && trim((string) ($data['evidence_reference'] ?? '')) === '') {
+                throw ValidationException::withMessages(['evidence_reference' => 'Treaty and exemption treatments require supporting evidence.']);
+            }
+            if ($treatment === 'exempt' && $rate !== 0) {
+                throw ValidationException::withMessages(['withholding_rate_bps' => 'An exempt treatment must carry a zero rate.']);
+            }
+            $payload = [
+                'tenant_id' => $tenantId, 'distribution_id' => $distributionId, 'shareholder_id' => $shareholderId,
+                'recipient_type' => (string) $data['recipient_type'], 'tax_residency' => (string) $data['tax_residency'],
+                'treatment' => $treatment, 'withholding_rate_bps' => $rate,
+                'legal_basis' => trim((string) $data['legal_basis']),
+                'evidence_reference' => isset($data['evidence_reference']) ? trim((string) $data['evidence_reference']) : null,
+                'effective_from' => (string) $data['effective_from'],
+                'evidence_expires_on' => $data['evidence_expires_on'] ?? null,
+                'assessed_by' => $actorId, 'assessed_at' => now(), 'updated_at' => now(),
+            ];
+            $existing = DB::table('finance_dividend_tax_assessments')->where('tenant_id', $tenantId)->where('distribution_id', $distributionId)->where('shareholder_id', $shareholderId)->first();
+            if ($existing) {
+                DB::table('finance_dividend_tax_assessments')->where('id', $existing->id)->update($payload);
+                return (object) array_merge((array) $existing, $payload);
+            }
+            $payload['created_at'] = now();
+            $id = DB::table('finance_dividend_tax_assessments')->insertGetId($payload);
+            return DB::table('finance_dividend_tax_assessments')->where('id', $id)->first();
+        });
     }
 
     /**
@@ -142,7 +229,17 @@ final class AnnualDividendDistributionService
                     ? bcsub((string) $d->declared_amount, $grossAllocated, 4)
                     : bcdiv(bcmul((string) $d->declared_amount, $byShareholder[$shareholderId], 8), $totalShares, 4);
                 $grossAllocated = bcadd($grossAllocated, $gross, 4);
-                $withholding = bcdiv(bcmul($gross, (string) $d->withholding_rate_bps, 8), '10000', 4);
+                $assessment = DB::table('finance_dividend_tax_assessments')
+                    ->where('tenant_id', $tenantId)->where('distribution_id', $d->id)
+                    ->where('shareholder_id', $shareholderId)
+                    ->whereDate('effective_from', '<=', $d->declared_on->toDateString())
+                    ->first();
+                if (!$assessment || (int) $assessment->assessed_by === (int) $d->created_by
+                    || ($assessment->evidence_expires_on !== null && $assessment->evidence_expires_on < $d->declared_on->toDateString())) {
+                    throw ValidationException::withMessages(['tax' => 'Every eligible shareholder requires a valid, independently reviewed tax assessment effective on the declaration date.']);
+                }
+                $taxRate = (int) $assessment->withholding_rate_bps;
+                $withholding = bcdiv(bcmul($gross, (string) $taxRate, 8), '10000', 4);
                 $net = bcsub($gross, $withholding, 4);
                 $items[] = [
                     'tenant_id' => $tenantId,
@@ -152,6 +249,9 @@ final class AnnualDividendDistributionService
                     'gross_amount' => $gross,
                     'withholding_amount' => $withholding,
                     'net_amount' => $net,
+                    'tax_assessment_id' => $assessment->id,
+                    'tax_treatment' => $assessment->treatment,
+                    'tax_rate_bps' => $taxRate,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -192,11 +292,14 @@ final class AnnualDividendDistributionService
     {
         return DB::transaction(function () use ($tenantId, $distributionId, $actorId) {
             $d = DividendDistribution::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($distributionId);
-            if ($d->status !== 'calculated' || (int) $d->created_by === $actorId) {
+            if ($d->status !== 'calculated' || (int) $d->created_by === $actorId
+                || $d->profit_certified_by === null || $d->profit_certified_at === null
+                || (int) $d->profit_certified_by === $actorId) {
                 throw ValidationException::withMessages(['distribution' => 'A calculated distribution must be approved by an officer other than its maker.']);
             }
             $items = $d->items()->lockForUpdate()->orderBy('shareholder_id')->get();
-            if ($items->count() !== (int) $d->snapshot_row_count || $items->isEmpty()) {
+            if ($items->count() !== (int) $d->snapshot_row_count || $items->isEmpty()
+                || $items->contains(fn ($item) => $item->tax_assessment_id === null || $item->tax_rate_bps === null)) {
                 throw new ConflictHttpException('The immutable distribution snapshot is incomplete.');
             }
             foreach ($items as $item) {
