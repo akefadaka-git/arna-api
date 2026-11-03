@@ -233,8 +233,8 @@ final class AnnualDividendDistributionService
         int $weightBps,
         string $evidenceReference,
     ): object {
-        if ($weightBps < 1 || $weightBps > 100000 || trim($evidenceReference) === '') {
-            throw ValidationException::withMessages(['weight_bps' => 'A positive class weight up to 10x and its GA resolution evidence are required.']);
+        if ($weightBps < 0 || $weightBps > 100000 || trim($evidenceReference) === '') {
+            throw ValidationException::withMessages(['weight_bps' => 'A class weight from 0 to 10x and its GA resolution evidence are required.']);
         }
         return DB::transaction(function () use ($tenantId, $distributionId, $shareClassId, $actorId, $weightBps, $evidenceReference) {
             $d = DividendDistribution::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($distributionId);
