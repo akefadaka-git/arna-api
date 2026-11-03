@@ -202,6 +202,62 @@ final class AnnualDividendDistributionService
      * Snapshot eligible holdings from the append-only holding ledger as at the
      * approved record date. Current-state projections are deliberately not used.
      */
+    public function requestShareClassWeight(
+        int $tenantId,
+        int $distributionId,
+        int $shareClassId,
+        int $actorId,
+        int $weightBps,
+        string $evidenceReference,
+    ): object {
+        if ($weightBps < 1 || $weightBps > 100000 || trim($evidenceReference) === '') {
+            throw ValidationException::withMessages(['weight_bps' => 'A positive class weight up to 10x and its GA resolution evidence are required.']);
+        }
+        return DB::transaction(function () use ($tenantId, $distributionId, $shareClassId, $actorId, $weightBps, $evidenceReference) {
+            $d = DividendDistribution::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($distributionId);
+            if ($d->status !== 'draft' || (int) $d->created_by !== $actorId || $d->items()->exists()) {
+                throw ValidationException::withMessages(['distribution' => 'Only the maker may request a class weight while the distribution is an unsnapshotted draft.']);
+            }
+            if (!DB::table('share_classes')->where('id', $shareClassId)->whereNull('deleted_at')->exists()) {
+                throw ValidationException::withMessages(['share_class_id' => 'The share class is not active.']);
+            }
+            $existing = DB::table('finance_dividend_share_class_weights')->where('tenant_id', $tenantId)
+                ->where('distribution_id', $distributionId)->where('share_class_id', $shareClassId)->lockForUpdate()->first();
+            if ($existing && $existing->status === 'approved') {
+                throw new ConflictHttpException('An approved class weight is immutable for this distribution.');
+            }
+            $payload = [
+                'weight_bps' => $weightBps, 'evidence_reference' => trim($evidenceReference),
+                'status' => 'pending', 'created_by' => $actorId, 'approved_by' => null,
+                'approved_at' => null, 'updated_at' => now(),
+            ];
+            if ($existing) {
+                DB::table('finance_dividend_share_class_weights')->where('id', $existing->id)->update($payload);
+                return DB::table('finance_dividend_share_class_weights')->where('id', $existing->id)->first();
+            }
+            $payload += ['tenant_id' => $tenantId, 'distribution_id' => $distributionId,
+                'share_class_id' => $shareClassId, 'created_at' => now()];
+            $id = DB::table('finance_dividend_share_class_weights')->insertGetId($payload);
+            return DB::table('finance_dividend_share_class_weights')->where('id', $id)->first();
+        });
+    }
+
+    public function approveShareClassWeight(int $tenantId, int $distributionId, int $weightId, int $actorId): object
+    {
+        return DB::transaction(function () use ($tenantId, $distributionId, $weightId, $actorId) {
+            $d = DividendDistribution::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($distributionId);
+            $weight = DB::table('finance_dividend_share_class_weights')->where('tenant_id', $tenantId)
+                ->where('distribution_id', $distributionId)->where('id', $weightId)->lockForUpdate()->first();
+            if ($d->status !== 'draft' || !$weight || $weight->status !== 'pending'
+                || (int) $weight->created_by === $actorId || (int) $d->created_by === $actorId) {
+                throw ValidationException::withMessages(['weight' => 'A different Finance reviewer must approve a pending class weight before snapshot creation.']);
+            }
+            DB::table('finance_dividend_share_class_weights')->where('tenant_id', $tenantId)->where('id', $weightId)
+                ->update(['status' => 'approved', 'approved_by' => $actorId, 'approved_at' => now(), 'updated_at' => now()]);
+            return DB::table('finance_dividend_share_class_weights')->where('tenant_id', $tenantId)->where('id', $weightId)->first();
+        });
+    }
+
     public function snapshotAndCalculate(int $tenantId, int $distributionId, int $actorId): DividendDistribution
     {
         return DB::transaction(function () use ($tenantId, $distributionId, $actorId) {
