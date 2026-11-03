@@ -64,4 +64,10 @@ Route::post('/dividend-payment-batches/{batchId}/approve', [$dividendPaymentCont
 Route::post('/dividend-payment-batches/{batchId}/items/{itemId}/confirm', [$dividendPaymentController, 'confirm'])->whereNumber('batchId')->whereNumber('itemId')->middleware('auth.permission:finance.journal.post')->name('dividend-payment-batches.items.confirm');
 Route::post('/dividend-payment-batches/{batchId}/items/{itemId}/fail', [$dividendPaymentController, 'fail'])->whereNumber('batchId')->whereNumber('itemId')->middleware('auth.permission:finance.journal.post')->name('dividend-payment-batches.items.fail');
 Route::post('/dividend-payment-batches/{batchId}/reconcile', [$dividendPaymentController, 'reconcile'])->whereNumber('batchId')->middleware('auth.permission:finance.report.view')->name('dividend-payment-batches.reconcile');
+$dividendTaxRemittanceController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\DividendTaxRemittanceController::class;
+Route::get('/dividend-tax-remittances', [$dividendTaxRemittanceController, 'index'])->middleware('auth.permission:finance.entity.view')->name('dividend-tax-remittances.index');
+Route::post('/dividend-tax-remittances', [$dividendTaxRemittanceController, 'store'])->middleware('auth.permission:finance.entity.manage')->name('dividend-tax-remittances.store');
+Route::post('/dividend-tax-remittances/{remittanceId}/approve', [$dividendTaxRemittanceController, 'approve'])->whereNumber('remittanceId')->middleware('auth.permission:finance.entity.manage')->name('dividend-tax-remittances.approve');
+Route::post('/dividend-tax-remittances/{remittanceId}/confirm', [$dividendTaxRemittanceController, 'confirm'])->whereNumber('remittanceId')->middleware('auth.permission:finance.journal.post')->name('dividend-tax-remittances.confirm');
+
 
