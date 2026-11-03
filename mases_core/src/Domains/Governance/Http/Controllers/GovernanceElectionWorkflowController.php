@@ -226,7 +226,7 @@ final class GovernanceElectionWorkflowController extends Controller
                     ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
                     ->where('shareholder_id', $candidate->id)->first();
                 abort_if($existing !== null, 409, 'This shareholder already has a nomination record for the election.');
-                GovernanceElectionNomination::query()->create([
+                $committeeNomination = GovernanceElectionNomination::query()->create([
                     'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
                     'shareholder_id' => $candidate->id, 'status' => 'approved',
                     'candidate_person_id' => $item->candidate_person_id,
@@ -242,8 +242,9 @@ final class GovernanceElectionWorkflowController extends Controller
 
             DB::table('governance_election_nomination_submissions')->where('id', $item->id)
                 ->where('tenant_id', $tenantId)->update([
-                    'status' => $data['decision'], 'reviewed_at' => now(),
-                    'reviewed_by' => (int) $request->user()->getAuthIdentifier(), 'updated_at' => now(),
+                    'status' => $data['decision'],
+                    'committee_candidate_id' => $data['decision'] === 'approved' ? $committeeNomination->id : null,
+                    'updated_at' => now(),
                 ]);
             DB::table('governance_election_committee_decisions')->insert([
                 'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
