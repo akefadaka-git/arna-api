@@ -52,7 +52,7 @@ final class DividendReinvestmentJournalTest extends TestCase
 
         $credit = DB::table('journal_lines')->where('journal_entry_id', $journal->id)->orderBy('line_number')->skip(1)->first();
         $this->assertSame('500.0000', (string) $credit->credit_amount);
-        $this->assertSame('SHARE-CAPITAL', DB::table('ledger_accounts')->where('id', $credit->account_id)->value('code'));
+        $this->assertSame('3100', DB::table('ledger_accounts')->where('id', $credit->account_id)->value('code'));
     }
 
     #[Test]
@@ -66,7 +66,7 @@ final class DividendReinvestmentJournalTest extends TestCase
 
         $credit = DB::table('journal_lines')->where('journal_entry_id', $journal->id)->orderBy('line_number')->skip(1)->first();
         $this->assertSame('750.0000', (string) $credit->credit_amount);
-        $this->assertSame('SHARE-TRANSFER-PAYABLE', DB::table('ledger_accounts')->where('id', $credit->account_id)->value('code'));
+        $this->assertSame('2200', DB::table('ledger_accounts')->where('id', $credit->account_id)->value('code'));
     }
 
     #[Test]
@@ -82,7 +82,7 @@ final class DividendReinvestmentJournalTest extends TestCase
         $lines = DB::table('journal_lines')->where('journal_entry_id', $journal->id)->orderBy('line_number')->get();
         $this->assertSame('750.0000', (string) $lines[0]->debit_amount);
         $this->assertSame('750.0000', (string) $lines[1]->credit_amount);
-        $this->assertSame('CASH-BANK', DB::table('ledger_accounts')->where('id', $lines[1]->account_id)->value('code'));
+        $this->assertSame('1000', DB::table('ledger_accounts')->where('id', $lines[1]->account_id)->value('code'));
     }
 
     private function fixture(): array
