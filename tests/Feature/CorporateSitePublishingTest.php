@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use Laravel\Sanctum\Sanctum;
