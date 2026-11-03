@@ -76,7 +76,7 @@ final class DividendTaxRemittanceService
                 throw ValidationException::withMessages(['remittance' => 'Only an unpaid remittance may be cancelled by an independent officer with a reason.']);
             }
             DB::table('finance_dividend_tax_remittances')->where('tenant_id', $tenantId)->where('id', $remittanceId)
-                ->update(['status' => 'cancelled', 'cancellation_reason' => trim($reason), 'updated_at' => now()]);
+                ->update(['status' => 'cancelled', 'cancellation_reason' => trim($reason), 'cancelled_by' => $actorId, 'cancelled_at' => now(), 'updated_at' => now()]);
             return DB::table('finance_dividend_tax_remittances')->where('tenant_id', $tenantId)->where('id', $remittanceId)->first();
         });
     }
