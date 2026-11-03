@@ -23,7 +23,7 @@ final class DividendTaxComplianceTest extends TestCase
     #[Test]
     public function statutory_dividend_tax_uses_the_amended_fifteen_percent_rate(): void
     {
-        [$tenant, $distribution, $shareholderId, $maker, $reviewer] = $this->fixture();
+        [$tenant, $distribution, $shareholderId, $maker, $reviewer, $classId] = $this->fixture();
         $service = $this->service();
 
         try {
@@ -55,12 +55,13 @@ final class DividendTaxComplianceTest extends TestCase
     #[Test]
     public function treaty_and_exempt_treatments_require_documentary_evidence(): void
     {
-        [$tenant, $distribution, $shareholderId, $maker, $reviewer] = $this->fixture();
+        [$tenant, $distribution, $shareholderId, $maker, $reviewer, $classId] = $this->fixture();
         $companyShareholderId = (int) DB::table('shareholders')->insertGetId([
             'tenant_id' => $tenant->id, 'shareholder_number' => 'SH-DIV-TAX-COMPANY-001',
             'shareholder_type' => 'company', 'entity_name_en' => 'Group Company Shareholder',
             'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
         ]);
+        $this->addHolding($companyShareholderId, $classId, 100, (int) $maker->id);
         $service = $this->service();
 
         try {
@@ -123,7 +124,40 @@ final class DividendTaxComplianceTest extends TestCase
             'accounting_framework' => 'ifrs_sme',
         ]);
 
-        return [$tenant, $distribution, $shareholderId, $maker, $reviewer];
+        $classId = (int) DB::table('share_classes')->insertGetId([
+            'code' => 'DIVTAX', 'name_en' => 'Dividend Tax Test Class',
+            'par_value' => '10000.0000', 'currency' => 'ETB',
+            'is_active' => true, 'is_treasury_eligible' => false,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $weight = $this->service()->requestShareClassWeight(
+            (int) $tenant->id, (int) $distribution->id, $classId, (int) $maker->id,
+            10000, 'GA-CLASS-TAX-001'
+        );
+        $this->service()->approveShareClassWeight(
+            (int) $tenant->id, (int) $distribution->id, (int) $weight->id, (int) $reviewer->id
+        );
+        $this->addHolding($shareholderId, $classId, 100, (int) $maker->id);
+
+        return [$tenant, $distribution, $shareholderId, $maker, $reviewer, $classId];
+    }
+
+    private function addHolding(int $shareholderId, int $classId, int $quantity, int $actorId): void
+    {
+        $holdingId = (int) DB::table('share_holdings')->insertGetId([
+            'shareholder_id' => $shareholderId, 'share_class_id' => $classId,
+            'current_quantity' => number_format($quantity, 4, '.', ''),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('share_holding_entries')->insert([
+            'share_holding_id' => $holdingId, 'entry_type' => 'allocation',
+            'quantity' => number_format($quantity, 4, '.', ''),
+            'balance_before' => '0.0000', 'balance_after' => number_format($quantity, 4, '.', ''),
+            'reference_type' => 'DividendTaxComplianceTest', 'reference_id' => (string) $holdingId,
+            'description' => 'Shareholding before historical dividend record date',
+            'occurred_at' => now()->subDays(19), 'created_by' => $actorId,
+            'reversed_entry_id' => null, 'created_at' => now(),
+        ]);
     }
 
     private function service(): AnnualDividendDistributionService
