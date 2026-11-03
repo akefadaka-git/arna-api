@@ -176,13 +176,13 @@ final class AdminFoundationController extends Controller
         ]], 201);
     }
 
-    /** Suspend, reactivate or permanently revoke a tenant membership. */
+    /** Suspend or reactivate a tenant membership. */
     public function updateMembership(Request $request, int $id, TenantMembershipService $memberships): JsonResponse
     {
         $tenantId = $this->tenantId();
         $user = User::query()->findOrFail($id);
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['active', 'suspended', 'revoked'])],
+            'status' => ['required', Rule::in(['active', 'suspended'])],
             'reason' => ['required', 'string', 'min:10', 'max:500'],
         ]);
         $actor = $request->user();
@@ -191,13 +191,32 @@ final class AdminFoundationController extends Controller
         match ($validated['status']) {
             'active' => $memberships->reactivate($tenantId, (int) $user->id, $actor, $validated['reason']),
             'suspended' => $memberships->suspend($tenantId, (int) $user->id, $actor, $validated['reason']),
-            'revoked' => $memberships->revoke($tenantId, (int) $user->id, $actor, $validated['reason']),
         };
 
         return response()->json(['success' => true, 'data' => [
             'user_id' => $user->id,
             'tenant_id' => $tenantId,
             'status' => $validated['status'],
+        ]]);
+    }
+
+    /** Permanently revoke a tenant membership; revoked records cannot be restored. */
+    public function revokeMembership(Request $request, int $id, TenantMembershipService $memberships): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $user = User::query()->findOrFail($id);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:500'],
+        ]);
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
+
+        $memberships->revoke($tenantId, (int) $user->id, $actor, $validated['reason']);
+
+        return response()->json(['success' => true, 'data' => [
+            'user_id' => $user->id,
+            'tenant_id' => $tenantId,
+            'status' => 'revoked',
         ]]);
     }
 
@@ -380,7 +399,7 @@ final class AdminFoundationController extends Controller
         abort_if($permissions->count() !== count($permissionIds), 422, 'One or more permissions are not assignable to this tenant role.');
 
         $before = $role->permissions()->pluck('permissions.id')->map(static fn ($id): int => (int) $id)->all();
-        DB::transaction(function () use ($role, $permissionIds, $audit, $request, $tenantId): void {
+        DB::transaction(function () use ($role, $permissionIds, $audit, $request, $tenantId, $before): void {
             $role->syncPermissions($permissionIds);
             $audit->log(
                 action: 'admin.rbac.role_permissions_synced',
@@ -388,7 +407,7 @@ final class AdminFoundationController extends Controller
                 tenantId: $tenantId,
                 resourceType: 'role',
                 resourceId: (string) $role->id,
-                oldValues: ['permission_ids' => $role->permissions()->pluck('permissions.id')->all()],
+                oldValues: ['permission_ids' => $before],
                 newValues: ['permission_ids' => $permissionIds],
             );
         });
