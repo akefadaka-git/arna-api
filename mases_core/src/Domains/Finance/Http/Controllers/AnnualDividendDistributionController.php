@@ -64,7 +64,6 @@ final class AnnualDividendDistributionController extends Controller
             'currency' => ['sometimes', 'in:ETB'],
             'declared_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
             'allocation_method' => ['sometimes', 'in:pro_rata_shares'],
-            'withholding_rate_bps' => ['required', 'integer', 'between:0,10000'],
             'approved_balance_sheet_reference' => ['required', 'string', 'max:200'],
             'distributable_profit_amount' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
             'resolution_evidence_reference' => ['required', 'string', 'max:500'],
