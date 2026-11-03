@@ -154,6 +154,13 @@ jobs:
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      - name: Run canonical Ethiopian localization regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Unit/LocalizationServiceTest.php
+
       - name: Run focused demo seeder guard tests
         run: php artisan test --compact tests/Unit/DemoSeederGuardTest.php
 
