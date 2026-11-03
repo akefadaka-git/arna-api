@@ -330,8 +330,9 @@ final class GovernancePenaltySettlementService
         int $reinvestmentId,
         int $actorId,
         string $settlementType,
-        string $effectiveDate,
+        string $occurredOn,
         string $amount,
+        bool $historical = false,
     ): JournalEntry {
         $value = $this->money($amount);
         $creditRole = match ($settlementType) {
@@ -358,9 +359,9 @@ final class GovernancePenaltySettlementService
         $journal = $this->journals->createDraft($tenantId, $actorId, [
             'legal_entity_id' => $entityId,
             'journal_number' => 'DIV-REINV-'.$reinvestmentId,
-            'effective_date' => $effectiveDate,
+            'effective_date' => $historical ? today()->toDateString() : $occurredOn,
             'currency' => 'ETB',
-            'description' => 'Dividend reinvestment settlement #'.$reinvestmentId,
+            'description' => 'Dividend reinvestment settlement #'.$reinvestmentId.($historical ? ' · historical event date '.$occurredOn : ''),
             'source_type' => JournalSourceType::SYSTEM->value,
             'idempotency_key' => 'dividend-reinvestment:'.$tenantId.':'.$entityId.':'.$reinvestmentId,
         ], [
