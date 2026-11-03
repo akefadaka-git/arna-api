@@ -31,6 +31,9 @@ final class DividendDistribution extends Model
         'created_by' => 'integer',
         'approved_by' => 'integer',
         'approved_at' => 'datetime',
+        'distributable_profit_amount' => 'decimal:4',
+        'profit_certified_by' => 'integer',
+        'profit_certified_at' => 'datetime',
     ];
 
     public function items(): HasMany
