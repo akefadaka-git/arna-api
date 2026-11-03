@@ -10,7 +10,7 @@ Current branches: 56
 | PR | Title | Head branch | Base | State | Mergeability | Disposition |
 |---:|---|---|---|---|---|---|
 | #86 | A1–A3: retire inactive legacy localization and provider code | `audit/arna-repository-consolidation-2026-11-04` | `main` | Ready | Mergeable | A1–A3 audit cleanup PR; verify then merge |
-| #85 | A2: Admin central identity, RBAC and tenant foundation API | `feat/admin-central-identity-rbac-tenancy-a2` | `main` | Draft | Mergeable | OVERLAP: competing Admin Console contracts; consolidate API/App pair before merge |
+| #85 | A2: Admin central identity, RBAC and tenant foundation API | `feat/admin-central-identity-rbac-tenancy-a2` | `main` | Draft | Mergeable | OVERLAP: competing Admin Console contracts; #85 description says read-only but its diff includes user/role mutations (POST/PUT/DELETE). Treat as scope/security discrepancy; reconcile API/App pair before merge |
 | #84 | Admin control plane: central identity, RBAC and tenant foundation | `feature/admin-central-identity-rbac-tenancy` | `main` | Draft | Mergeable | OVERLAP: competing Admin Console contracts; consolidate API/App pair before merge |
 | #83 | Complete dividend accounting, tax, payment and cancellation controls | `feat/dividend-engine-a1-a4-completion` | `feat/annual-shareholder-dividend-engine` | Draft | Mergeable | STACKED DEPENDENCY: based on feat/annual-shareholder-dividend-engine; preserve order and do not merge independently |
 | #81 | Build annual shareholder dividend distribution engine | `feat/annual-shareholder-dividend-engine` | `main` | Draft | Blocked | BLOCKED: GitHub currently reports not mergeable; inspect conflicts/base drift |
