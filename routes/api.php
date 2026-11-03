@@ -494,6 +494,22 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
 });
 
 // =============================================================================
+// Corporate Site CMS Administration — platform-wide, permission-gated
+// =============================================================================
+Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
+    ->prefix('admin/corporate-site/pages')
+    ->name('api.admin.corporate-site.pages.')
+    ->group(static function (): void {
+        Route::get('/', [CorporateSiteController::class, 'adminIndex'])->name('index');
+        Route::post('/', [CorporateSiteController::class, 'adminStore'])->name('store');
+        Route::put('/{id}', [CorporateSiteController::class, 'adminUpdate'])->whereNumber('id')->name('update');
+        Route::post('/{id}/{decision}', [CorporateSiteController::class, 'adminReview'])
+            ->whereNumber('id')
+            ->whereIn('decision', ['approve', 'publish', 'schedule', 'unpublish'])
+            ->name('review');
+    });
+
+// =============================================================================
 // Public Content Administration — platform-wide, permission-gated
 // =============================================================================
 Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
