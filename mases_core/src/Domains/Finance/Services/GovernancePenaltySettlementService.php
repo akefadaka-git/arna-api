@@ -164,6 +164,30 @@ final class GovernancePenaltySettlementService
         return $journal->load('lines');
     }
 
+    /**
+     * Reverse the posted accrual journal for a legally cancelled dividend.
+     * The general ledger owns reversal mechanics and enforces an open period.
+     */
+    public function reverseDividendAccrual(
+        int $tenantId,
+        int $entityId,
+        int $distributionId,
+        string $journalNumber,
+        string $effectiveDate,
+        string $reason,
+        int $actorId,
+    ): JournalEntry {
+        $original = JournalEntry::query()->where('tenant_id', $tenantId)
+            ->where('legal_entity_id', $entityId)->where('journal_number', $journalNumber)->first();
+        if (!$original) {
+            throw ValidationException::withMessages(['accrual_journal_reference' => 'The original dividend accrual journal cannot be found.']);
+        }
+        return $this->journals->reverse(
+            $tenantId, $actorId, (int) $original->id,
+            'DIV-REV-'.$distributionId, $effectiveDate, $reason
+        );
+    }
+
     public function createDividendPayable(int $tenantId, int $entityId, int $shareholderId, string $reference, string $declaredOn, string $dueOn, string $amount, int $actorId): ShareholderDividendPayable
     {
         $amount = $this->money($amount);
