@@ -71,7 +71,7 @@ final class DividendPaymentServiceTest extends TestCase
         $this->assertTrue($replay['idempotent_replay']);
 
         $reconciled = $service->reconcileBatch(
-            (int) $tenant->id, (int) $batch->id, (int) $maker->id,
+            (int) $tenant->id, (int) $batch->id, (int) $checker->id,
             'BANK-STATEMENT-001', '900.0000'
         );
         $this->assertSame('reconciled', $reconciled->reconciliation_status);
