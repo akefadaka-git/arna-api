@@ -12,6 +12,7 @@ return new class extends Migration
     {
         Schema::table('finance_dividend_distributions', function (Blueprint $table): void {
             $table->boolean('is_historical')->default(false);
+            $table->boolean('historical_timing_exception')->default(false);
             $table->string('historical_source_category', 40)->nullable();
             $table->string('historical_evidence_reference', 500)->nullable();
             $table->string('historical_import_reason', 500)->nullable();
@@ -23,7 +24,7 @@ return new class extends Migration
     {
         Schema::table('finance_dividend_distributions', function (Blueprint $table): void {
             $table->dropColumn([
-                'is_historical', 'historical_source_category',
+                'is_historical', 'historical_timing_exception', 'historical_source_category',
                 'historical_evidence_reference', 'historical_import_reason',
                 'historical_imported_at',
             ]);
