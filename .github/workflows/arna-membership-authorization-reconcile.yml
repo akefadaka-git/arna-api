@@ -6,6 +6,14 @@ on:
       - codex/arna-membership-authorization-reconcile
     paths:
       - "app/Http/Controllers/TenantContextController.php"
+      - "app/Http/Controllers/Admin/AdminFoundationController.php"
+      - "routes/api.php"
+      - "mases_core/src/Audit/Services/AuditService.php"
+      - "mases_core/src/Authorization/Models/Role.php"
+      - "mases_core/src/Authorization/Events/RolePermissionsChanged.php"
+      - "mases_core/src/Listeners/InvalidateAuthorizationCacheListener.php"
+      - "mases_core/src/Providers/CoreServiceProvider.php"
+      - "tests/Feature/AdminFoundationLifecycleTest.php"
       - "database/migrations/**"
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Auth/Services/AuthenticationService.php"
@@ -139,3 +147,6 @@ jobs:
 
       - name: Run tenant membership access regression
         run: vendor/bin/phpunit tests/Feature/TenantMembershipTest.php
+
+      - name: Run Admin identity and RBAC lifecycle regression
+        run: vendor/bin/phpunit tests/Feature/AdminFoundationLifecycleTest.php
