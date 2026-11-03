@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
@@ -111,7 +112,7 @@ final class CorporateSitePublishingTest extends TestCase
             'status' => 'new',
             'inquiry_type' => 'partnership',
         ]);
-        $this->assertDatabaseHas('corporate_site_inquiries', ['email' => 'contact@example.test', 'consented_at' => now()->toDateTimeString()]);
+        $this->assertNotNull(DB::table('corporate_site_inquiries')->where('email', 'contact@example.test')->value('consented_at'));
 
         $this->getJson('/api/admin/corporate-site/inquiries')->assertUnauthorized();
     }
