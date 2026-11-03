@@ -22,6 +22,12 @@ return new class extends Migration
             $table->string('withholding_journal_reference', 100)->nullable();
         });
 
+        Schema::table('finance_dividend_distribution_items', function (Blueprint $table): void {
+            $table->foreignId('tax_assessment_id')->nullable()->constrained('finance_dividend_tax_assessments')->restrictOnDelete();
+            $table->string('tax_treatment', 32)->nullable();
+            $table->unsignedSmallInteger('tax_rate_bps')->nullable();
+        });
+
         Schema::create('finance_dividend_tax_assessments', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
@@ -45,6 +51,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::table('finance_dividend_distribution_items', function (Blueprint $table): void {
+            $table->dropConstrainedForeignId('tax_assessment_id');
+            $table->dropColumn(['tax_treatment', 'tax_rate_bps']);
+        });
         Schema::dropIfExists('finance_dividend_tax_assessments');
         Schema::table('finance_dividend_distributions', function (Blueprint $table): void {
             $table->dropConstrainedForeignId('profit_certified_by');
