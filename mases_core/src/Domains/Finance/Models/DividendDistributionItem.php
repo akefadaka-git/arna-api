@@ -18,6 +18,7 @@ final class DividendDistributionItem extends Model
         'distribution_id' => 'integer',
         'shareholder_id' => 'integer',
         'eligible_share_quantity' => 'decimal:4',
+        'weighted_share_quantity' => 'decimal:4',
         'gross_amount' => 'decimal:4',
         'withholding_amount' => 'decimal:4',
         'net_amount' => 'decimal:4',
