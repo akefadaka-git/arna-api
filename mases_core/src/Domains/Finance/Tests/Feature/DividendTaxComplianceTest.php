@@ -31,7 +31,7 @@ final class DividendTaxComplianceTest extends TestCase
                 'recipient_type' => 'individual', 'tax_residency' => 'resident',
                 'treatment' => 'statutory', 'withholding_rate_bps' => 1000,
                 'legal_basis' => 'Incorrect superseded statutory rate',
-                'effective_from' => '2025-07-08',
+                'effective_from' => '2025-08-07',
             ]);
             $this->fail('The superseded 10 percent rate must be rejected for post-amendment dividend income.');
         } catch (ValidationException $exception) {
@@ -43,7 +43,7 @@ final class DividendTaxComplianceTest extends TestCase
                 'recipient_type' => 'individual', 'tax_residency' => 'resident',
                 'treatment' => 'statutory', 'withholding_rate_bps' => 1500,
                 'legal_basis' => 'Client supplied label is replaced by statutory basis',
-                'effective_from' => '2025-07-08',
+                'effective_from' => '2025-08-07',
             ]
         );
 
@@ -68,7 +68,7 @@ final class DividendTaxComplianceTest extends TestCase
                 'recipient_type' => 'company', 'tax_residency' => 'resident',
                 'treatment' => 'exempt', 'withholding_rate_bps' => 0,
                 'legal_basis' => 'Income Tax Amendment Article 57(3)',
-                'effective_from' => '2025-07-08',
+                'effective_from' => '2025-08-07',
             ]);
             $this->fail('An exemption must not be accepted without evidence.');
         } catch (ValidationException $exception) {
@@ -81,7 +81,7 @@ final class DividendTaxComplianceTest extends TestCase
                 'treatment' => 'exempt', 'withholding_rate_bps' => 0,
                 'legal_basis' => 'Income Tax Amendment Proclamation 1395/2025, Article 57(3)-(5)',
                 'evidence_reference' => 'GROUP-OWNERSHIP-CERTIFICATE-001',
-                'effective_from' => '2025-07-08',
+                'effective_from' => '2025-08-07',
             ]
         );
 
