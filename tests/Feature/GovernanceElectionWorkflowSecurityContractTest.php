@@ -124,6 +124,27 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString("'default_votes_per_share' => null", $config);
     }
 
+    public function test_nomination_submission_decisions_are_routed_and_candidate_identity_is_validated(): void
+    {
+        $routes = $this->source('mases_core/src/Domains/Governance/Routes/api.php');
+        $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
+
+        self::assertStringContainsString('decideNominationSubmission', $routes);
+        self::assertStringContainsString('decideNominationSubmission', $controller);
+        self::assertStringContainsString("->where('person_id', \$data['candidate_person_id'])", $controller);
+        self::assertStringContainsString('Self-nomination must identify the authenticated shareholder person.', $controller);
+        self::assertStringContainsString('governance_election_committee_decisions', $controller);
+    }
+
+    public function test_unverified_election_voting_rules_fail_closed(): void
+    {
+        $config = $this->source('mases_core/src/Domains/Governance/Config/governance.php');
+
+        self::assertStringContainsString("'enabled' => false", $config);
+        self::assertStringContainsString("'default_votes_per_share' => null", $config);
+        self::assertStringContainsString("'electronic_voting_enabled'  => false", $config);
+    }
+
     public function test_committee_recusal_and_identity_columns_are_persisted(): void
     {
         $migration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_160000_create_governance_election_hybrid_workflow_tables.php');
