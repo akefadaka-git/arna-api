@@ -31,10 +31,10 @@ return new class extends Migration
 
         Schema::create('finance_dividend_distribution_share_class_snapshots', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
-            $table->foreignId('distribution_id')->constrained('finance_dividend_distributions')->restrictOnDelete();
-            $table->foreignId('shareholder_id')->constrained('shareholders')->restrictOnDelete();
-            $table->foreignId('share_class_id')->constrained('share_classes')->restrictOnDelete();
+            $table->foreignId('tenant_id')->constrained('tenants', 'id', 'fdiv_snap_tenant_fk')->restrictOnDelete();
+            $table->foreignId('distribution_id')->constrained('finance_dividend_distributions', 'id', 'fdiv_snap_distribution_fk')->restrictOnDelete();
+            $table->foreignId('shareholder_id')->constrained('shareholders', 'id', 'fdiv_snap_shareholder_fk')->restrictOnDelete();
+            $table->foreignId('share_class_id')->constrained('share_classes', 'id', 'fdiv_snap_class_fk')->restrictOnDelete();
             $table->decimal('eligible_share_quantity', 20, 4);
             $table->unsignedInteger('weight_bps');
             $table->decimal('weighted_share_quantity', 20, 4);
