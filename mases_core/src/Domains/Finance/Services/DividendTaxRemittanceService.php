@@ -36,18 +36,19 @@ final class DividendTaxRemittanceService
                 throw ValidationException::withMessages(['distribution_id' => 'Tax remittance requires an approved dividend distribution.']);
             }
             $paidAllocations = DB::table('finance_dividend_distribution_items as i')
-                ->join('finance_dividend_payment_batch_items as bi', function ($join) {
-                    $join->on('bi.payable_id', '=', 'i.payable_id')
-                        ->on('bi.tenant_id', '=', 'i.tenant_id');
-                })
-                ->join('finance_dividend_payment_batches as b', function ($join) {
-                    $join->on('b.id', '=', 'bi.batch_id')->on('b.tenant_id', '=', 'bi.tenant_id');
-                })
                 ->where('i.tenant_id', $tenantId)->where('i.distribution_id', $distributionId)
-                ->where('bi.status', 'paid')
-                ->groupBy('i.id', 'i.withholding_amount', 'i.net_amount')
                 ->select('i.id', 'i.withholding_amount', 'i.net_amount')
-                ->selectRaw('SUM(bi.amount) AS paid_net_amount')->get();
+                ->selectSub(function ($query): void {
+                    $query->from('finance_dividend_payment_batch_items as bi')
+                        ->join('finance_dividend_payment_batches as b', function ($join) {
+                            $join->on('b.id', '=', 'bi.batch_id')->on('b.tenant_id', '=', 'bi.tenant_id');
+                        })
+                        ->whereColumn('bi.payable_id', 'i.payable_id')
+                        ->whereColumn('bi.tenant_id', 'i.tenant_id')
+                        ->where('bi.status', 'paid')
+                        ->selectRaw('COALESCE(SUM(bi.amount), 0)');
+                }, 'paid_net_amount')
+                ->get();
             $reinvestedAllocations = DB::table('finance_dividend_reinvestments')
                 ->where('tenant_id', $tenantId)->where('distribution_id', $distributionId)
                 ->where('status', 'posted')
