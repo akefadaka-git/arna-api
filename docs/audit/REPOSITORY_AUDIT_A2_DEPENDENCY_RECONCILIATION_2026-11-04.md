@@ -49,6 +49,13 @@ Disposition: retire the inactive provider, middleware, facade and legacy localiz
 
 The API route table registers GET /api/launcher inside the tenant-scoped authenticated group. The App launcher service still treats a 404 as a successful empty list and has stale comments saying the endpoint is not deployed. This masks route/configuration regressions. A3 should remove the special 404-to-empty conversion; a valid empty catalogue must be represented by HTTP 200 with an empty array.
 
+## Additional deployment-placeholder finding
+
+- Root index.html is the stock Plesk "Domain Default page", not ARNA application code. routes/web.php serves resources/views/welcome.blade.php through Laravel, and public/index.php is the Laravel front controller.
+- The root index.html is a deployment-path candidate, but it is not deleted in this audit because the exact Plesk document-root mapping is not present in repository evidence. If the API vhost document root is public/, the root file is outside the served document root; if the repo root is served, it can mask Laravel routing. Confirm Plesk document-root configuration before retiring it.
+- resources/views/welcome.blade.php is actively referenced by routes/web.php and is retained.
+- mases_core/src/Migrations/.gitkeep is retained because CoreServiceProvider loads that directory; it is not dead merely because domain migrations live in subdirectories.
+
 ## Preservation and safety
 
 No migration, schema, seed data, authorization catalogue, audit history, active route, current provider, canonical localization implementation or domain code is classified as removable in this pass.
