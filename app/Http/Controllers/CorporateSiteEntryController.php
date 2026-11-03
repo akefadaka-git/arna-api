@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;\nuse App\\Services\\CorporateSite\\CorporateMediaScanner;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class CorporateSiteEntryController extends Controller
@@ -215,6 +215,46 @@ final class CorporateSiteEntryController extends Controller
         if ($request->filled('type')) $query->where('entry_type', $request->string('type')->toString());
 
         return response()->json(['success' => true, 'data' => $query->paginate(30)]);
+    }
+
+
+    public function scanMedia(Request $request, int $id, CorporateMediaScanner $scanner): JsonResponse
+    {
+        $entry = CorporateSiteEntry::query()->where('entry_type', 'media')->findOrFail($id);
+        abort_unless($entry->asset_path !== null, 422, 'This entry has no quarantined media asset.');
+
+        try {
+            $verdict = $scanner->scan($entry->asset_path, $entry->public_id);
+        } catch (\\Throwable $exception) {
+            report($exception);
+            return response()->json(['success' => false, 'error' => [
+                'code' => 'MEDIA_SCAN_UNAVAILABLE',
+                'message' => 'The media scanner is unavailable; the asset remains quarantined.',
+            ]], 503);
+        }
+
+        $payload = $entry->payload ?? [];
+        $payload['scan_status'] = $verdict['status'];
+        $payload['scan_signature'] = $verdict['signature'];
+        $payload['scanned_at'] = now()->toIso8601String();
+        $entry->payload = $payload;
+        $entry->version++;
+        $entry->save();
+
+        AuditLog::create([
+            'user_id' => $request->user()->id, 'tenant_id' => null,
+            'action' => 'corporate_site_entry.media_scanned', 'resource_type' => 'corporate_site_entry',
+            'resource_id' => (string) $entry->id, 'old_values' => null,
+            'new_values' => ['scan_status' => $verdict['status'], 'signature' => $verdict['signature']],
+            'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+            'request_id' => null, 'metadata' => ['public_id' => $entry->public_id],
+        ]);
+
+        return response()->json(['success' => true, 'data' => [
+            'public_id' => $entry->public_id,
+            'scan_status' => $verdict['status'],
+            'version' => $entry->version,
+        ]]);
     }
 
     public function review(Request $request, int $id, string $decision): JsonResponse
