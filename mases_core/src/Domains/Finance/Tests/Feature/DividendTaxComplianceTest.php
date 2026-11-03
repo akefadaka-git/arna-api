@@ -56,10 +56,15 @@ final class DividendTaxComplianceTest extends TestCase
     public function treaty_and_exempt_treatments_require_documentary_evidence(): void
     {
         [$tenant, $distribution, $shareholderId, $maker, $reviewer] = $this->fixture();
+        $companyShareholderId = (int) DB::table('shareholders')->insertGetId([
+            'tenant_id' => $tenant->id, 'shareholder_number' => 'SH-DIV-TAX-COMPANY-001',
+            'shareholder_type' => 'company', 'entity_name_en' => 'Group Company Shareholder',
+            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
         $service = $this->service();
 
         try {
-            $service->assessRecipientTax((int) $tenant->id, (int) $distribution->id, $shareholderId, (int) $reviewer->id, [
+            $service->assessRecipientTax((int) $tenant->id, (int) $distribution->id, $companyShareholderId, (int) $reviewer->id, [
                 'recipient_type' => 'company', 'tax_residency' => 'resident',
                 'treatment' => 'exempt', 'withholding_rate_bps' => 0,
                 'legal_basis' => 'Income Tax Amendment Article 57(3)',
@@ -71,7 +76,7 @@ final class DividendTaxComplianceTest extends TestCase
         }
 
         $assessment = $service->assessRecipientTax(
-            (int) $tenant->id, (int) $distribution->id, $shareholderId, (int) $reviewer->id, [
+            (int) $tenant->id, (int) $distribution->id, $companyShareholderId, (int) $reviewer->id, [
                 'recipient_type' => 'company', 'tax_residency' => 'resident',
                 'treatment' => 'exempt', 'withholding_rate_bps' => 0,
                 'legal_basis' => 'Income Tax Amendment Proclamation 1395/2025, Article 57(3)-(5)',
