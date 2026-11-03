@@ -426,7 +426,7 @@ final class AdminFoundationController extends Controller
         }
 
         $before = $role->permissions()->pluck('permissions.id')->map(static fn ($id): int => (int) $id)->all();
-        DB::transaction(function () use ($role, $permissionIds, $audit, $request, $tenantId, $before): void {
+        DB::transaction(function () use ($role, $permissionIds, $audit, $actor, $tenantId, $before): void {
             $role->syncPermissions($permissionIds);
             $audit->log(
                 action: 'admin.rbac.role_permissions_synced',
