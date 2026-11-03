@@ -21,7 +21,70 @@ final class TenantMembershipService
 {
     public function __construct(
         private readonly SecurityEventService $securityEvents,
+        private readonly AuditService $audit,
     ) {
+    }
+
+    public function attach(
+        int $tenantId,
+        int $userId,
+        User|int|null $actor = null,
+        ?string $reason = null,
+    ): void {
+        DB::transaction(function () use ($tenantId, $userId): void {
+            DB::table('tenants')->where('id', $tenantId)->lockForUpdate()->firstOrFail();
+            DB::table('users')->where('id', $userId)->lockForUpdate()->firstOrFail();
+
+            $existing = DB::table('tenant_memberships')
+                ->where('tenant_id', $tenantId)
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing !== null) {
+                throw new DomainException(
+                    'A membership record already exists; suspended memberships must be reactivated and revoked memberships cannot be restored.'
+                );
+            }
+
+            DB::table('tenant_memberships')->insert([
+                'tenant_id' => $tenantId,
+                'user_id' => $userId,
+                'joined_at' => now(),
+                'status' => TenantMembership::STATUS_ACTIVE,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $actorId = $actor instanceof User ? $actor->id : $actor;
+
+        $this->securityEvents->log(
+            'tenant.membership.created',
+            [
+                'tenant_id' => $tenantId,
+                'user_id' => $actorId,
+                'actor_user_id' => $actorId,
+                'member_user_id' => $userId,
+                'reason' => $reason,
+            ],
+            'warning',
+            'A user was granted membership in a tenant.',
+        );
+
+        $this->audit->log(
+            action: 'tenant.membership.created',
+            user: $actor,
+            tenantId: $tenantId,
+            resourceType: 'tenant_membership',
+            resourceId: $tenantId . ':' . $userId,
+            newValues: [
+                'tenant_id' => $tenantId,
+                'user_id' => $userId,
+                'status' => TenantMembership::STATUS_ACTIVE,
+                'reason' => $reason,
+            ],
+        );
     }
 
     public function suspend(
@@ -116,6 +179,19 @@ final class TenantMembershipService
         }
 
         $actorId = $actor instanceof User ? $actor->id : $actor;
+
+        $this->audit->log(
+            action: 'tenant.membership.status_changed',
+            user: $actor,
+            tenantId: $tenantId,
+            resourceType: 'tenant_membership',
+            resourceId: $tenantId . ':' . $userId,
+            oldValues: ['status' => $change['previous_status']],
+            newValues: [
+                'status' => $change['new_status'],
+                'reason' => $reason,
+            ],
+        );
 
         $this->securityEvents->log(
             'tenant.membership.status_changed',
