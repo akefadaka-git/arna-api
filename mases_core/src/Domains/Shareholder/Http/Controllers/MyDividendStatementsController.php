@@ -43,9 +43,17 @@ final class MyDividendStatementsController extends Controller
             ])
             ->orderByDesc('d.declared_on');
 
+        $paginator = $query->paginate(min(max($request->integer('per_page', 25), 1), 100));
+
         return response()->json([
             'success' => true,
-            'data' => $query->paginate(min(max($request->integer('per_page', 25), 1), 100)),
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
         ]);
     }
 }
