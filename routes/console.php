@@ -5,6 +5,9 @@ declare(strict_types=1);
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Audit\Models\AuditLog;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 
 /*
 |--------------------------------------------------------------------------
