@@ -74,7 +74,7 @@ Prior App PR #33 head `36eb8e8204ee38d02004b649cd766917c7a17e16`:
 - Device, accessibility and end-to-end API integration acceptance: NOT RUN.
 
 New exact heads:
-- API PR #83: `bb92b413a5233d0c525517b9cf11c09f02988658` — no workflow runs/status checks returned at report time.
+- API PR #83: `78c6f81a78fc44fb774d3c21622afbe267d4e9e0` — no workflow runs/status checks returned at report time.
 - App PR #35: `6ec7cfa043a438d1db7de3df6b1397d9eb915842` — no workflow runs/status checks returned at report time.
 
 Required A4 work: PHP lint, migration ordering and clean-install MySQL, recipient-tax and profit-certification feature tests, tenant isolation, journal balancing/idempotency, payment lifecycle and reconciliation tests, frontend type-check/build, API contract integration, mobile/tablet/desktop, keyboard/screen-reader/WCAG 2.2 AA, and concurrent approval/payment replay tests on the final exact heads.
