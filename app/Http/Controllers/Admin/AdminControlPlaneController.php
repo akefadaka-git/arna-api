@@ -115,9 +115,10 @@ final class AdminControlPlaneController extends Controller
 
     public function memberships(Request $request, Tenant $tenant): JsonResponse
     {
+        $request->validate(['status' => 'sometimes|in:active,suspended,revoked']);
         $memberships = TenantMembership::query()->where('tenant_id', $tenant->id)
             ->with(['user:id,email,username,first_name_en,first_name_am,father_name_en,father_name_am'])
-            ->when($request->filled('status'), fn ($q) => $q->where('status', Rule::in(TenantMembership::STATUSES)))
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
             ->orderBy('user_id')->paginate($this->pageSize($request));
 
         $memberships->getCollection()->transform(static fn (TenantMembership $membership): array => [
