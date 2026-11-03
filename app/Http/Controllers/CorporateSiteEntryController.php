@@ -144,7 +144,7 @@ final class CorporateSiteEntryController extends Controller
 
                 return $entry;
             });
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             Storage::disk('local')->delete($path);
             throw $exception;
         }
