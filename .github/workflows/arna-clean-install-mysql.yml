@@ -148,11 +148,19 @@ jobs:
           tools: composer:v2
           coverage: none
 
+      - name: Lint every tracked PHP source file
+        shell: bash
+        run: |
+          git ls-files -z -- '*.php' | xargs -0 -n1 php -l
+
       - name: Validate Composer manifest and lock
         run: composer validate --no-check-publish
 
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Enforce Composer security advisory gate
+        run: composer audit --format=plain
 
       - name: Run canonical Ethiopian localization regressions
         env:
