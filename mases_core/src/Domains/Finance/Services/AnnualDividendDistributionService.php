@@ -500,6 +500,7 @@ final class AnnualDividendDistributionService
                     ->update([
                         'tax_certificate_number' => 'ARNA-DIV-TAX-'.$d->id.'-'.$item->shareholder_id,
                         'certificate_issued_at' => now(),
+                        'certificate_status' => 'issued',
                         'updated_at' => now(),
                     ]);
             }
