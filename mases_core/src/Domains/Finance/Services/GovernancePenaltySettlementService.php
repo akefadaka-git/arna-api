@@ -11,6 +11,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalSourceType;
 use MaaleArna\MASES\Core\Domains\Finance\Models\GovernanceSettlementAccountMapping;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\ShareholderDividendPayable;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 
 final class GovernancePenaltySettlementService
 {
@@ -30,6 +31,8 @@ final class GovernancePenaltySettlementService
                 GovernanceSettlementAccountMapping::ROLE_CASH_BANK => ['asset','debit'],
                 GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE => ['liability','credit'],
                 GovernanceSettlementAccountMapping::ROLE_PENALTY_INCOME => ['revenue','credit'],
+                GovernanceSettlementAccountMapping::ROLE_DIVIDEND_EQUITY => ['equity','debit'],
+                GovernanceSettlementAccountMapping::ROLE_WITHHOLDING_TAX_PAYABLE => ['liability','credit'],
             };
             if ($account->account_type !== $expected[0] || $account->normal_balance !== $expected[1]) {
                 throw ValidationException::withMessages(['ledger_account_id'=>'The account type and normal balance do not match this settlement role.']);
@@ -62,6 +65,8 @@ final class GovernancePenaltySettlementService
                 GovernanceSettlementAccountMapping::ROLE_CASH_BANK => ['asset','debit'],
                 GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE => ['liability','credit'],
                 GovernanceSettlementAccountMapping::ROLE_PENALTY_INCOME => ['revenue','credit'],
+                GovernanceSettlementAccountMapping::ROLE_DIVIDEND_EQUITY => ['equity','debit'],
+                GovernanceSettlementAccountMapping::ROLE_WITHHOLDING_TAX_PAYABLE => ['liability','credit'],
                 default => null,
             };
             if ($expected === null || [$account->account_type,$account->normal_balance] !== $expected) throw ValidationException::withMessages(['ledger_account_id'=>'Account classification changed or is invalid.']);
@@ -80,6 +85,83 @@ final class GovernancePenaltySettlementService
             $mapping->forceFill(['status'=>GovernanceSettlementAccountMapping::STATUS_REVOKED,'revoked_by'=>$actorId,'revoked_at'=>now(),'configuration_reason'=>$mapping->configuration_reason."\nRevocation: ".trim($reason)])->save();
             return $mapping;
         });
+    }
+
+    /**
+     * Recognize the approved dividend distribution and withholding liability.
+     * Posting is idempotent per tenant, entity and distribution. Account mappings
+     * must be independently approved before this method can post.
+     */
+    public function accrueDividendDistribution(
+        int $tenantId,
+        int $entityId,
+        int $distributionId,
+        string $reference,
+        string $effectiveDate,
+        string $grossAmount,
+        string $netAmount,
+        string $withholdingAmount,
+        int $actorId,
+    ): JournalEntry {
+        $gross = $this->money($grossAmount);
+        $net = $this->money($netAmount);
+        $withholding = $this->money($withholdingAmount);
+        if (bccomp($gross, '0.0000', 4) <= 0
+            || bccomp(bcadd($net, $withholding, 4), $gross, 4) !== 0
+            || $distributionId < 1 || trim($reference) === '') {
+            throw ValidationException::withMessages(['distribution' => 'Dividend accrual totals must reconcile exactly: gross = net payable + withholding liability.']);
+        }
+
+        $entity = DB::table('legal_entities')->where('tenant_id', $tenantId)
+            ->where('id', $entityId)->where('status', 'active')->first();
+        if (!$entity) {
+            throw ValidationException::withMessages(['legal_entity_id' => 'An active legal entity in the trusted tenant is required.']);
+        }
+
+        $mappings = GovernanceSettlementAccountMapping::query()
+            ->forEntity($tenantId, $entityId)->approved()->get()->keyBy('account_role');
+        foreach ([GovernanceSettlementAccountMapping::ROLE_DIVIDEND_EQUITY,
+            GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE] as $role) {
+            if (!$mappings->has($role)) {
+                throw ValidationException::withMessages(['account_mapping' => 'Finance must independently approve the dividend equity and shareholder payable account mappings before approval.']);
+            }
+        }
+        if (bccomp($withholding, '0.0000', 4) > 0
+            && !$mappings->has(GovernanceSettlementAccountMapping::ROLE_WITHHOLDING_TAX_PAYABLE)) {
+            throw ValidationException::withMessages(['account_mapping' => 'Finance must independently approve a withholding-tax liability account mapping before approval.']);
+        }
+
+        $lines = [
+            ['account_id' => (int) $mappings[GovernanceSettlementAccountMapping::ROLE_DIVIDEND_EQUITY]->ledger_account_id,
+                'debit_amount' => $gross, 'credit_amount' => '0.0000', 'description' => 'Approved dividend distribution '.$reference],
+            ['account_id' => (int) $mappings[GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE]->ledger_account_id,
+                'debit_amount' => '0.0000', 'credit_amount' => $net, 'description' => 'Net shareholder dividend payable '.$reference],
+        ];
+        if (bccomp($withholding, '0.0000', 4) > 0) {
+            $lines[] = [
+                'account_id' => (int) $mappings[GovernanceSettlementAccountMapping::ROLE_WITHHOLDING_TAX_PAYABLE]->ledger_account_id,
+                'debit_amount' => '0.0000', 'credit_amount' => $withholding,
+                'description' => 'Dividend withholding-tax liability '.$reference,
+            ];
+        }
+
+        $journal = $this->journals->createDraft($tenantId, $actorId, [
+            'legal_entity_id' => $entityId,
+            'journal_number' => 'DIV-ACR-'.$distributionId,
+            'effective_date' => $effectiveDate,
+            'currency' => (string) $entity->base_currency,
+            'description' => 'Dividend accrual '.$reference,
+            'source_type' => JournalSourceType::SYSTEM->value,
+            'idempotency_key' => 'dividend-accrual:'.$tenantId.':'.$entityId.':'.$distributionId,
+        ], $lines);
+
+        if ($journal->status === JournalEntry::DRAFT) {
+            return $this->journals->post($tenantId, $actorId, (int) $journal->id);
+        }
+        if ($journal->status !== JournalEntry::POSTED) {
+            throw new ConflictHttpException('The idempotent dividend accrual journal exists but is not posted.');
+        }
+        return $journal->load('lines');
     }
 
     public function createDividendPayable(int $tenantId, int $entityId, int $shareholderId, string $reference, string $declaredOn, string $dueOn, string $amount, int $actorId): ShareholderDividendPayable
