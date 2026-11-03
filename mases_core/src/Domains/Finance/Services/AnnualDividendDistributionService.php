@@ -62,6 +62,21 @@ final class AnnualDividendDistributionService
             throw ValidationException::withMessages(['legal_entity_id' => 'An active legal entity in the resolved tenant is required.']);
         }
 
+        $replacesDistributionId = isset($data['replaces_distribution_id']) ? (int) $data['replaces_distribution_id'] : null;
+        $replacementReason = trim((string) ($data['replacement_reason'] ?? ''));
+        if ($replacesDistributionId !== null) {
+            $replaced = DividendDistribution::query()->where('tenant_id', $tenantId)
+                ->where('legal_entity_id', (int) $data['legal_entity_id'])
+                ->whereKey($replacesDistributionId)->where('status', 'cancelled')->first();
+            if (!$replaced || $replacementReason === ''
+                || DividendDistribution::query()->where('tenant_id', $tenantId)
+                    ->where('replaces_distribution_id', $replacesDistributionId)->exists()) {
+                throw ValidationException::withMessages(['replaces_distribution_id' => 'A replacement must reference one cancelled distribution in the same entity and include a reason; only one replacement is permitted.']);
+            }
+        } elseif ($replacementReason !== '') {
+            throw ValidationException::withMessages(['replacement_reason' => 'A replacement reason requires a cancelled distribution reference.']);
+        }
+
         return DividendDistribution::query()->create([
             'tenant_id' => $tenantId,
             'legal_entity_id' => (int) $data['legal_entity_id'],
@@ -79,6 +94,8 @@ final class AnnualDividendDistributionService
             'resolution_evidence_reference' => trim((string) $data['resolution_evidence_reference']),
             'payment_method' => trim((string) $data['payment_method']),
             'accounting_framework' => trim((string) $data['accounting_framework']),
+            'replaces_distribution_id' => $replacesDistributionId,
+            'replacement_reason' => $replacesDistributionId !== null ? $replacementReason : null,
             'allocation_method' => 'pro_rata_shares',
             // Legacy aggregate column retained for schema compatibility only.
             // Tax is assessed and snapshotted per shareholder below.
