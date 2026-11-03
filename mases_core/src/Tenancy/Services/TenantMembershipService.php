@@ -6,6 +6,7 @@ namespace MaaleArna\MASES\Core\Tenancy\Services;
 
 use DomainException;
 use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Audit\Services\AuditService;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
 use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
