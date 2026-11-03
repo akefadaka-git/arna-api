@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -180,7 +179,7 @@ final class AdminFoundationController extends Controller
     public function updateMembership(Request $request, int $id, TenantMembershipService $memberships): JsonResponse
     {
         $tenantId = $this->tenantId();
-        $user = User::query()->findOrFail($id);
+        $user = $this->tenantMembershipUser($id, $tenantId);
         $validated = $request->validate([
             'status' => ['required', Rule::in(['active', 'suspended'])],
             'reason' => ['required', 'string', 'min:10', 'max:500'],
@@ -204,7 +203,7 @@ final class AdminFoundationController extends Controller
     public function revokeMembership(Request $request, int $id, TenantMembershipService $memberships): JsonResponse
     {
         $tenantId = $this->tenantId();
-        $user = User::query()->findOrFail($id);
+        $user = $this->tenantMembershipUser($id, $tenantId);
         $validated = $request->validate([
             'reason' => ['required', 'string', 'min:10', 'max:500'],
         ]);
@@ -450,6 +449,14 @@ final class AdminFoundationController extends Controller
         return User::query()
             ->whereKey($userId)
             ->whereHas('activeTenants', static fn ($query) => $query->where('tenants.id', $tenantId))
+            ->firstOrFail();
+    }
+
+    private function tenantMembershipUser(int $userId, int $tenantId): User
+    {
+        return User::query()
+            ->whereKey($userId)
+            ->whereHas('memberships', static fn ($query) => $query->where('tenant_id', $tenantId))
             ->firstOrFail();
     }
 
