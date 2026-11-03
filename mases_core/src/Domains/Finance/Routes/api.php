@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\AnnualDividendDistributionController;
 
 $controller = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\FinanceController::class;
 
@@ -41,3 +42,11 @@ Route::post('/governance-settlement/dividend-payables/{payableId}/approve', [$se
 Route::post('/governance-settlement/settlements/{settlementId}/cash', [$settlementController, 'executeCash'])->whereNumber('settlementId')->middleware('auth.permission:finance.journal.post')->name('governance-settlement.settlements.cash');
 Route::post('/governance-settlement/settlements/{settlementId}/dividend-offset', [$settlementController, 'executeDividendOffset'])->whereNumber('settlementId')->middleware('auth.permission:finance.journal.post')->name('governance-settlement.settlements.dividend-offset');
 Route::get('/governance-settlement/reconciliation', [$settlementController, 'reconciliation'])->middleware('auth.permission:finance.report.view')->name('governance-settlement.reconciliation');
+
+
+$dividendDistributionController = AnnualDividendDistributionController::class;
+Route::get('/dividend-distributions', [$dividendDistributionController, 'index'])->middleware('auth.permission:finance.entity.view')->name('dividend-distributions.index');
+Route::post('/dividend-distributions', [$dividendDistributionController, 'store'])->middleware('auth.permission:finance.entity.manage')->name('dividend-distributions.store');
+Route::get('/dividend-distributions/{distributionId}', [$dividendDistributionController, 'show'])->whereNumber('distributionId')->middleware('auth.permission:finance.entity.view')->name('dividend-distributions.show');
+Route::post('/dividend-distributions/{distributionId}/calculate', [$dividendDistributionController, 'calculate'])->whereNumber('distributionId')->middleware('auth.permission:finance.entity.manage')->name('dividend-distributions.calculate');
+Route::post('/dividend-distributions/{distributionId}/approve', [$dividendDistributionController, 'approve'])->whereNumber('distributionId')->middleware('auth.permission:finance.entity.manage')->name('dividend-distributions.approve');
