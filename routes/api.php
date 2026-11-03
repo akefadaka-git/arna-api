@@ -524,7 +524,7 @@ Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
     ->name('api.admin.corporate-site.')
     ->group(static function (): void {
         Route::get('/entries', [CorporateSiteEntryController::class, 'adminEntries'])->name('entries.index');\n        Route::post('/entries', [CorporateSiteEntryController::class, 'adminStore'])->name('entries.store');\n        Route::put('/entries/{id}', [CorporateSiteEntryController::class, 'adminUpdate'])->whereNumber('id')->name('entries.update');
-        Route::post('/entries/{id}/{decision}', [CorporateSiteEntryController::class, 'review'])
+        Route::post('/entries/{id}/scan', [CorporateSiteEntryController::class, 'scanMedia'])->whereNumber('id')->name('entries.scan');\n        Route::post('/entries/{id}/{decision}', [CorporateSiteEntryController::class, 'review'])
             ->whereNumber('id')->whereIn('decision', ['approve', 'publish', 'reject', 'unpublish'])->name('entries.review');
         Route::get('/inquiries', [CorporateSiteEntryController::class, 'adminInquiries'])->name('inquiries.index');
         Route::put('/inquiries/{id}', [CorporateSiteEntryController::class, 'updateInquiry'])->whereNumber('id')->name('inquiries.update');
