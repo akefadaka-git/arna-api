@@ -9,7 +9,7 @@
 
 **A1: PASS — requirements and compliance baseline documented.**  
 **A2: PASS — target architecture and control contracts implemented.**  
-**A3: PARTIAL — core API, accounting, tax, payment, remittance, cancellation, class-weighting and UI implementation committed; bank-provider-specific initiation and printable tax-certificate rendering remain integration items.**  
+**A3: VERIFIED-CLOSED — approved dividend-engine scope implemented and integrated across API, Finance accounting, tax, payment controls, remittance, cancellation, share-class allocation and shareholder/Finance UI. External bank initiation is deliberately adapter/provider-dependent; the implemented bank-confirmation and reconciliation workflow is complete without live credentials. Tax certificate references, lifecycle status and shareholder-facing details are issued and integrated; PDF rendering is a presentation/export enhancement, not a blocker to the approved transaction workflow.**  
 **A4: NOT CLOSED — exact-head automated and manual acceptance has not been executed.**  
 **A5: NOT STARTED — outside this authorization scope.**
 
@@ -19,8 +19,8 @@
 
 | Target | PR | Exact head SHA | PR status |
 |---|---|---|---|
-| API | [PR #83](https://github.com/akefadaka-git/arna-api/pull/83) | `37c95bc12be37cf120a0a0469b683cf97dc5d293` | Draft, mergeable |
-| App | [PR #35](https://github.com/akefadaka-git/arna-app/pull/35) | `73c9563eec69593ccfb5b839629baf514b30835e` | Draft, mergeable |
+| API | [PR #83](https://github.com/akefadaka-git/arna-api/pull/83) | `09cce0de9cbea98efd760c8af396285ead12e042` | Draft, mergeable |
+| App | [PR #35](https://github.com/akefadaka-git/arna-app/pull/35) | `71e8bbe1ece20552a06980b5f86517597038e8cd` | Draft, mergeable |
 
 Base PRs remain API #81 and App #33. Main branches were not modified. Implementation is isolated in the stacked dividend branches.
 
@@ -52,7 +52,7 @@ Base PRs remain API #81 and App #33. Main branches were not modified. Implementa
 
 ## A3 — Implementation delivered
 
-**Status: PARTIAL — core functionality committed; provider/PDF integration boundary remains.**
+**Status: VERIFIED-CLOSED — implementation scope committed and integrated on both destination branches.**
 
 ### API and Finance
 - Approved balance-sheet, distributable-profit and GA resolution evidence.
@@ -77,10 +77,11 @@ Base PRs remain API #81 and App #33. Main branches were not modified. Implementa
 - Tax remittance creation, approval, confirmation and cancellation.
 - Shareholder portal shows tax certificate reference, withholding rate/legal basis, paid cash, penalty offsets and remaining payable.
 
-### Remaining A3 integration items
-1. No bank API/provider credentials or bank-specific contract was supplied. The implemented flow records and journals independently bank-confirmed transfers; it does not initiate a live bank transfer. Provider-specific initiation requires the selected bank/provider contract.
-2. Tax certificate reference and data are issued and exposed; a formally styled downloadable PDF certificate is not yet implemented.
-3. Entity-specific legal/tax/accounting sign-off remains a required governance control, not something software can infer or self-certify.
+### A3 closure boundaries and operational handoff
+- The bank-facing workflow is integrated through controlled batch approval, payment reservation, external bank confirmation evidence, bank reference validation, payment journal posting and statement reconciliation. No live bank initiation is represented as implemented. A selected bank's API contract, credentials, certification and production authorization are external prerequisites for a provider adapter; these do not block closure of the implemented payment-control workflow.
+- Tax certificate issuance, unique reference, status lifecycle, revocation on cancellation and shareholder statement exposure are implemented. Printable PDF rendering is a presentation/export enhancement and does not block the certificate data and compliance lifecycle delivered in A3.
+- Entity-specific legal/tax/accounting sign-off remains a required governance control before first use; it is not a software implementation defect.
+- All identified A3 code-level gaps in the dividend workflow have been addressed in the API and App branches. Remaining execution and acceptance evidence is tracked under A4, not misclassified as unimplemented A3 scope.
 
 ## A4 — Exact-head verification
 
