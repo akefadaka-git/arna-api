@@ -42,6 +42,7 @@ return new class extends Migration
             $table->string('phone', 50)->nullable();
             $table->string('subject', 200);
             $table->text('message');
+            $table->timestamp('consented_at')->nullable();
             $table->string('status', 24)->default('new')->index();
             $table->unsignedInteger('version')->default(1);
             $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
