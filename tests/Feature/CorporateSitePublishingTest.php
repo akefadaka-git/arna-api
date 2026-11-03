@@ -60,6 +60,6 @@ final class CorporateSitePublishingTest extends TestCase
         ]);
 
         $this->getJson('/api/public/site/pages/en/about')->assertNotFound();
-        $this->getJson('/api/public/site/home')->assertJsonPath('data.page', null);
+        $this->getJson('/api/public/site/home')->assertJsonPath('data', null);
     }
 }
