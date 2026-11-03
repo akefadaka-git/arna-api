@@ -350,16 +350,33 @@ final class CorporateSiteEntryController extends Controller
     public function updateInquiry(Request $request, int $id): JsonResponse
     {
         $validated = Validator::make($request->all(), [
+            'expected_version' => ['required', 'integer', 'min:1'],
             'status' => ['required', 'in:new,assigned,in_progress,resolved,closed,spam'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
             'internal_note' => ['nullable', 'string', 'max:5000'],
         ])->validate();
-        $inquiry = CorporateSiteInquiry::query()->findOrFail($id);
-        $inquiry->fill($validated);
-        if (in_array($inquiry->status, ['resolved', 'closed', 'spam'], true)) $inquiry->handled_at = now();
-        $inquiry->save();
 
-        return response()->json(['success' => true, 'data' => $inquiry]);
+        return DB::transaction(function () use ($request, $id, $validated): JsonResponse {
+            $inquiry = CorporateSiteInquiry::query()->lockForUpdate()->findOrFail($id);
+            abort_unless((int) $inquiry->version === (int) $validated['expected_version'], 409, 'This inquiry changed after it was loaded.');
+            $old = ['status' => $inquiry->status, 'version' => $inquiry->version];
+            $inquiry->fill(collect($validated)->except('expected_version')->all());
+            if (in_array($inquiry->status, ['resolved', 'closed', 'spam'], true)) $inquiry->handled_at = now();
+            else $inquiry->handled_at = null;
+            $inquiry->version++;
+            $inquiry->save();
+
+            AuditLog::create([
+                'user_id' => $request->user()->id, 'tenant_id' => null,
+                'action' => 'corporate_site_inquiry.updated', 'resource_type' => 'corporate_site_inquiry',
+                'resource_id' => (string) $inquiry->id, 'old_values' => $old,
+                'new_values' => ['status' => $inquiry->status, 'version' => $inquiry->version, 'assigned_to' => $inquiry->assigned_to],
+                'ip_address' => $request->ip(), 'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                'request_id' => null, 'metadata' => ['public_id' => $inquiry->public_id],
+            ]);
+
+            return response()->json(['success' => true, 'data' => $inquiry]);
+        });
     }
 
     private function locale(mixed $locale): string
