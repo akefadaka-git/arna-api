@@ -45,7 +45,10 @@ final class AdminFoundationController extends Controller
         $tenantId = $this->tenantId();
 
         $users = User::query()
-            ->whereHas('activeTenants', static fn ($query) => $query->where('tenants.id', $tenantId))
+            ->whereHas('memberships', static fn ($query) => $query->where('tenant_id', $tenantId))
+            ->with(['memberships' => static fn ($query) => $query
+                ->where('tenant_id', $tenantId)
+                ->select(['tenant_id', 'user_id', 'status'])])
             ->select([
                 'id', 'email', 'username', 'phone', 'first_name_am', 'father_name_am', 'grandfather_name_am',
                 'first_name_en', 'father_name_en', 'grandfather_name_en', 'locale', 'is_active', 'created_at',
@@ -118,7 +121,7 @@ final class AdminFoundationController extends Controller
     public function updateUser(Request $request, int $id, AuditService $audit): JsonResponse
     {
         $tenantId = $this->tenantId();
-        $user = $this->tenantUser($id, $tenantId);
+        $user = $this->tenantMembershipUser($id, $tenantId);
         $validated = $request->validate([
             'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'username' => ['sometimes', 'nullable', 'string', 'max:100', Rule::unique('users', 'username')->ignore($user->id)],
@@ -225,7 +228,6 @@ final class AdminFoundationController extends Controller
 
         $roles = Role::query()
             ->with(['permissions:id,slug,name_am,name_en,scope'])
-            ->where('is_active', true)
             ->where(static function ($query) use ($tenantId): void {
                 $query->whereNull('tenant_id')->orWhere('tenant_id', $tenantId);
             })
