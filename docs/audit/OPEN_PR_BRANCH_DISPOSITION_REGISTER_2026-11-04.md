@@ -2,7 +2,7 @@
 
 Audit date: 2026-11-04
 Repository: akefadaka-git/arna-api
-Current open PRs: 43
+Current open PRs: 42
 Current branches: 56
 
 ## Open pull requests
@@ -14,7 +14,7 @@ Current branches: 56
 | #84 | Admin control plane: central identity, RBAC and tenant foundation | `feature/admin-central-identity-rbac-tenancy` | `main` | Draft | Mergeable | OVERLAP: competing Admin Console contracts; consolidate API/App pair before merge |
 | #83 | Complete dividend accounting, tax, payment and cancellation controls | `feat/dividend-engine-a1-a4-completion` | `feat/annual-shareholder-dividend-engine` | Draft | Mergeable | STACKED DEPENDENCY: based on feat/annual-shareholder-dividend-engine; preserve order and do not merge independently |
 | #81 | Build annual shareholder dividend distribution engine | `feat/annual-shareholder-dividend-engine` | `main` | Draft | Blocked | BLOCKED: GitHub currently reports not mergeable; inspect conflicts/base drift |
-| #78 | docs(governance): attendance policy draft and preliminary legal review | `docs/governance-attendance-penalty-policy` | `main` | Draft | Mergeable | HISTORICAL/SUPERSEDED CANDIDATE: PR body says superseded by approved implementation; verify merged successor then close without deleting branch evidence |
+| #78 | docs(governance): attendance policy draft and preliminary legal review | `docs/governance-attendance-penalty-policy` | `main` | Closed (superseded) | — | Closed after merged successor PR #79 was verified; source branch and two historical documents preserved |
 | #77 | [WIP] Build ARNA Board Election API foundation | `feat/board-election-a3` | `main` | Ready | Blocked | BLOCKED: GitHub currently reports not mergeable; inspect conflicts/base drift |
 | #76 | feat(ocr): introduce self-hosted ARNA Document Intelligence | `feat/arna-ocr-a3-api` | `main` | Draft | Mergeable | Independent feature/documentation work; preserve and review against its own acceptance gate |
 | #75 | A3.4: Calendar reminder delivery and recurrence lifecycle | `feat/arna-calendar-a4-worker` | `feat/arna-calendar-a4-remediation` | Draft | Mergeable | STACKED DEPENDENCY: based on feat/arna-calendar-a4-remediation; preserve order and do not merge independently |
