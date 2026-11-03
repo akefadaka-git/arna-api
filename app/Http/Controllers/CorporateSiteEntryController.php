@@ -432,6 +432,7 @@ final class CorporateSiteEntryController extends Controller
             'public_id' => $entry->public_id,
             'type' => $entry->entry_type,
             'slug' => $locale === 'am' ? $entry->slug_am : $entry->slug_en,
+            'alternate_slug' => $locale === 'am' ? $entry->slug_en : $entry->slug_am,
             'title' => (string) ($translation['title'] ?? ''),
             'summary' => (string) ($translation['summary'] ?? ''),
             'body' => (string) ($translation['body'] ?? ''),
