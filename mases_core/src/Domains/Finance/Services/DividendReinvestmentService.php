@@ -69,6 +69,9 @@ final class DividendReinvestmentService
             if (!$distribution || !$item || !in_array($distribution->status, ['approved', 'posted', 'partially_paid', 'paid'], true)) {
                 throw ValidationException::withMessages(['distribution_id' => 'Only an approved dividend distribution and its matching shareholder item may be reinvested.']);
             }
+            if ((bool) $distribution->is_historical && (string) $distribution->payment_method !== 'reinvestment_only') {
+                throw ValidationException::withMessages(['payment_method' => 'Historical dividend reinvestment records require a reinvestment-only distribution with no cash settlement.']);
+            }
             if ((bool) $distribution->is_historical && $data['occurred_on'] !== $distribution->payment_due_on) {
                 throw ValidationException::withMessages(['occurred_on' => 'For a historical distribution, the recorded reinvestment date must match the tax-assessment settlement date on the distribution.']);
             }
@@ -76,7 +79,12 @@ final class DividendReinvestmentService
                 throw ValidationException::withMessages(['tax_assessment' => 'A recipient-specific tax assessment must exist before a net dividend can be reinvested.']);
             }
 
-            $source = (string) ($data['source_category'] ?? 'internal_revenue');
+            $source = (bool) $distribution->is_historical
+                ? (string) $distribution->historical_source_category
+                : (string) ($data['source_category'] ?? 'internal_revenue');
+            if (isset($data['source_category']) && (string) $data['source_category'] !== $source) {
+                throw ValidationException::withMessages(['source_category' => 'Reinvestment source classification must match the approved historical distribution record.']);
+            }
             if (!in_array($source, ['internal_revenue', 'other'], true)) {
                 throw ValidationException::withMessages(['source_category' => 'Source category must be internal_revenue or other; tax treatment is recorded separately.']);
             }
