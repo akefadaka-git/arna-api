@@ -69,6 +69,9 @@ final class DividendReinvestmentService
             if (!$distribution || !$item || !in_array($distribution->status, ['approved', 'posted', 'partially_paid', 'paid'], true)) {
                 throw ValidationException::withMessages(['distribution_id' => 'Only an approved dividend distribution and its matching shareholder item may be reinvested.']);
             }
+            if ((bool) $distribution->is_historical && $data['occurred_on'] !== $distribution->payment_due_on) {
+                throw ValidationException::withMessages(['occurred_on' => 'For a historical distribution, the recorded reinvestment date must match the tax-assessment settlement date on the distribution.']);
+            }
             if (empty($item->tax_assessment_id)) {
                 throw ValidationException::withMessages(['tax_assessment' => 'A recipient-specific tax assessment must exist before a net dividend can be reinvested.']);
             }
