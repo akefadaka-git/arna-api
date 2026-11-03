@@ -181,9 +181,15 @@ final class DividendPaymentService
                 throw ConflictHttpException('The bank reference has already been used in this tenant.');
             }
 
-            $taxAssessment = DB::table('finance_dividend_tax_assessments')->where('tenant_id', $tenantId)
+            $distributionItem = DB::table('finance_dividend_distribution_items')->where('tenant_id', $tenantId)
                 ->where('distribution_id', $batch->distribution_id)
-                ->where('shareholder_id', $item->shareholder_id)->where('id', $item->tax_assessment_id)->first();
+                ->where('shareholder_id', $item->shareholder_id)->first();
+            $taxAssessment = $distributionItem
+                ? DB::table('finance_dividend_tax_assessments')->where('tenant_id', $tenantId)
+                    ->where('distribution_id', $batch->distribution_id)
+                    ->where('shareholder_id', $item->shareholder_id)
+                    ->where('id', $distributionItem->tax_assessment_id)->first()
+                : null;
             if ($paidOn >= '2025-08-07') {
                 $statutoryRate = 1500;
             } elseif ($paidOn < '2025-07-08') {
