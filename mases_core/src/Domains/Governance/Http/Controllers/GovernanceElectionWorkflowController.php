@@ -110,21 +110,39 @@ final class GovernanceElectionWorkflowController extends Controller
             'ex_officio' => ['sometimes', 'boolean'],
             'appointment_reference' => ['required', 'string', 'max:160'],
         ]);
-        $exists = DB::table('governance_election_committee_members')
-            ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
-            ->where(function ($query) use ($data): void {
+        $role = $data['member_role'];
+        $exOfficio = (bool) ($data['ex_officio'] ?? false);
+        abort_if(($role === 'legal_advisor') !== $exOfficio, 422,
+            'Only the Legal Advisor appointment is ex officio under the adopted Committee framework.');
+
+        $member = DB::transaction(function () use ($tenantId, $governanceElection, $data, $role, $exOfficio): object {
+            $members = DB::table('governance_election_committee_members')
+                ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
+                ->lockForUpdate();
+            $exists = (clone $members)->where(function ($query) use ($data): void {
                 $query->where('person_id', $data['person_id'])->orWhere('user_id', $data['user_id']);
             })->exists();
-        abort_if($exists, 409, 'This person or user is already appointed to this Committee.');
-        $id = DB::table('governance_election_committee_members')->insertGetId([
-            'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
-            'person_id' => $data['person_id'], 'user_id' => $data['user_id'],
-            'member_role' => $data['member_role'], 'ex_officio' => (bool) ($data['ex_officio'] ?? false),
-            'status' => 'active', 'appointed_at' => now(),
-            'appointment_reference' => $data['appointment_reference'],
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
-        return response()->json(['data' => DB::table('governance_election_committee_members')->where('id', $id)->first()], 201);
+            abort_if($exists, 409, 'This person or user is already appointed to this Committee.');
+
+            $roleCount = (clone $members)->where('member_role', $role)->where('status', 'active')->count();
+            $maximum = match ($role) {
+                'committee_member' => 3,
+                'legal_advisor', 'supervisory_member' => 1,
+            };
+            abort_if($roleCount >= $maximum, 409, 'The adopted Committee composition limit has been reached for this role.');
+
+            $id = DB::table('governance_election_committee_members')->insertGetId([
+                'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
+                'person_id' => $data['person_id'], 'user_id' => $data['user_id'],
+                'member_role' => $role, 'ex_officio' => $exOfficio,
+                'status' => 'active', 'appointed_at' => now(),
+                'appointment_reference' => $data['appointment_reference'],
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            return DB::table('governance_election_committee_members')->where('id', $id)->first();
+        });
+
+        return response()->json(['data' => $member], 201);
     }
 
     public function recuseCommitteeMember(Request $request, GovernanceElection $governanceElection, int $member): JsonResponse
@@ -224,6 +242,8 @@ final class GovernanceElectionWorkflowController extends Controller
             ->where('tenant_id', $tenantId)->where('election_id', $electionId)
             ->where('user_id', $userId)->where('status', 'active')->first();
         abort_if($member === null, 403, 'Active Electoral Committee membership is required.');
+        abort_if($member->member_role === 'legal_advisor', 403,
+            'Legal Advisor voting and decision eligibility is unresolved and requires verified governing-instrument authority.');
         return $member;
     }
 
