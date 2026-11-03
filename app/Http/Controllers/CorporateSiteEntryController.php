@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
+use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 use App\Services\CorporateSite\CorporateMediaScanner;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -21,7 +22,7 @@ final class CorporateSiteEntryController extends Controller
     private const TYPES = ['news', 'announcement', 'publication', 'media', 'career', 'opportunity', 'business', 'service', 'advertisement', 'marketplace'];
 
 
-    public function sitemap(): \\Illuminate\\Http\\Response
+    public function sitemap(): \Illuminate\Http\Response
     {
         $pages = CorporateSitePage::query()->published()->get();
         $entries = CorporateSiteEntry::query()->published()->get();
@@ -34,7 +35,7 @@ final class CorporateSiteEntryController extends Controller
         }
         foreach ($entries as $entry) {
             foreach (['am' => $entry->slug_am, 'en' => $entry->slug_en] as $locale => $slug) {
-                if ($slug) $urls[] = ['loc' => url('/' . $locale . '/' . $slug), 'lastmod' => $entry->updated_at];
+                if ($slug) $urls[] = ['loc' => url('/' . $locale . '/content/' . $entry->entry_type . '/' . $slug), 'lastmod' => $entry->updated_at];
             }
         }
 
