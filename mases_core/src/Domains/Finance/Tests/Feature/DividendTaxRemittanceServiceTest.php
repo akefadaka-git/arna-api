@@ -26,7 +26,30 @@ final class DividendTaxRemittanceServiceTest extends TestCase
     #[Test]
     public function tax_remittance_is_capped_by_outstanding_liability_and_posts_balanced_clearing_journal(): void
     {
-        [$tenant, $entity, $maker, $checker, $distributionId] = $this->fixture();
+        [$tenant, $entity, $maker, $checker, $distributionId, $shareholderId] = $this->fixture();
+        $settlements = new GovernancePenaltySettlementService(new JournalEntryService(new JournalSourceReferenceResolverRegistry([])));
+        $payable = $settlements->createDividendPayable((int) $tenant->id, (int) $entity->id, $shareholderId,
+            'GA-DIV-TAX-REM-001', today()->subDays(5)->toDateString(), today()->addDays(30)->toDateString(), '900.0000', (int) $maker->id);
+        $settlements->approveDividendPayable((int) $tenant->id, (int) $payable->id, (int) $checker->id, 'Approved dividend payable');
+        DB::table('finance_dividend_distribution_items')->insert([
+            'tenant_id' => $tenant->id, 'distribution_id' => $distributionId, 'shareholder_id' => $shareholderId,
+            'eligible_share_quantity' => '100.0000', 'weighted_share_quantity' => '100.0000',
+            'gross_amount' => '1000.0000', 'withholding_amount' => '100.0000', 'net_amount' => '900.0000',
+            'payable_id' => $payable->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $batchId = (int) DB::table('finance_dividend_payment_batches')->insertGetId([
+            'tenant_id' => $tenant->id, 'legal_entity_id' => $entity->id, 'distribution_id' => $distributionId,
+            'batch_reference' => 'DIV-TAX-PAID-BATCH-001', 'currency' => 'ETB', 'total_amount' => '900.0000',
+            'status' => 'paid', 'reconciliation_status' => 'reconciled', 'created_by' => $maker->id,
+            'approved_by' => $checker->id, 'approved_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('finance_dividend_payment_batch_items')->insert([
+            'tenant_id' => $tenant->id, 'batch_id' => $batchId, 'payable_id' => $payable->id,
+            'shareholder_id' => $shareholderId, 'amount' => '900.0000', 'status' => 'paid',
+            'bank_reference' => 'BANK-DIV-TAX-001', 'evidence_reference' => 'BANK-EVIDENCE-001',
+            'journal_reference' => 'DIV-PAY-001', 'paid_on' => today()->toDateString(),
+            'confirmed_by' => $checker->id, 'confirmed_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
         $service = new DividendTaxRemittanceService(
             new JournalEntryService(new JournalSourceReferenceResolverRegistry([]))
         );
@@ -102,12 +125,17 @@ final class DividendTaxRemittanceServiceTest extends TestCase
             'payment_due_on' => today()->addDays(30)->toDateString(),
             'currency' => 'ETB', 'declared_amount' => '1000.0000',
             'allocation_method' => 'pro_rata_shares', 'withholding_rate_bps' => 0,
-            'status' => 'approved', 'snapshot_row_count' => 1,
+            'status' => 'paid', 'snapshot_row_count' => 1,
             'eligible_share_quantity' => '100.0000', 'gross_total' => '1000.0000',
             'withholding_total' => '100.0000', 'net_total' => '900.0000',
             'created_by' => $maker->id, 'approved_by' => $checker->id, 'approved_at' => now(),
             'created_at' => now(), 'updated_at' => now(),
         ]);
-        return [$tenant, $entity, $maker, $checker, $distributionId];
+        $shareholderId = (int) DB::table('shareholders')->insertGetId([
+            'tenant_id' => $tenant->id, 'shareholder_number' => 'SH-DIV-TAX-REM-001',
+            'shareholder_type' => 'individual', 'first_name_en' => 'Tax Remittance Holder',
+            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        return [$tenant, $entity, $maker, $checker, $distributionId, $shareholderId];
     }
 }
