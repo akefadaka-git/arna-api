@@ -143,6 +143,9 @@ final class AnnualDividendDistributionService
                 throw ValidationException::withMessages(['treatment' => 'A supported, explicit tax treatment is required.']);
             }
             $effectiveFrom = CarbonImmutable::parse((string) $data['effective_from'])->toDateString();
+            if ($effectiveFrom > $d->payment_due_on->toDateString()) {
+                throw ValidationException::withMessages(['effective_from' => 'The tax treatment must be effective no later than the scheduled dividend payment date.']);
+            }
             $statutoryRate = $effectiveFrom >= '2025-07-08' ? 1500 : 1000;
             if (!in_array((string) $data['tax_residency'], ['resident', 'non_resident'], true)) {
                 throw ValidationException::withMessages(['tax_residency' => 'Residency must be established before tax can be assessed.']);
@@ -266,10 +269,10 @@ final class AnnualDividendDistributionService
                 $assessment = DB::table('finance_dividend_tax_assessments')
                     ->where('tenant_id', $tenantId)->where('distribution_id', $d->id)
                     ->where('shareholder_id', $shareholderId)
-                    ->whereDate('effective_from', '<=', $d->declared_on->toDateString())
+                    ->whereDate('effective_from', '<=', $d->payment_due_on->toDateString())
                     ->first();
                 if (!$assessment || (int) $assessment->assessed_by === (int) $d->created_by
-                    || ($assessment->evidence_expires_on !== null && $assessment->evidence_expires_on < $d->declared_on->toDateString())) {
+                    || ($assessment->evidence_expires_on !== null && $assessment->evidence_expires_on < $d->payment_due_on->toDateString())) {
                     throw ValidationException::withMessages(['tax' => 'Every eligible shareholder requires a valid, independently reviewed tax assessment effective on the declaration date.']);
                 }
                 $taxRate = (int) $assessment->withholding_rate_bps;
