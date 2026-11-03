@@ -503,9 +503,9 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
 });
 
 // =============================================================================
- // Admin Console foundation — central tenant directory and tenant-scoped
- // identity/RBAC read surfaces. Mutations are limited to tenant activation;
- // user/role/permission writes require a separately verified lifecycle flow.
+// Admin Console foundation — central tenant directory and tenant-scoped
+// identity/RBAC read surfaces. This first slice is read-only; all mutation
+// routes wait for audited lifecycle services and cache invalidation.
  // =============================================================================
 Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access'])
     ->prefix('admin')
