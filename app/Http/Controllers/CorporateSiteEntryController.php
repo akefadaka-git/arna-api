@@ -20,6 +20,36 @@ final class CorporateSiteEntryController extends Controller
 {
     private const TYPES = ['news', 'announcement', 'publication', 'media', 'career', 'opportunity', 'business', 'service', 'advertisement', 'marketplace'];
 
+
+    public function sitemap(): \\Illuminate\\Http\\Response
+    {
+        $pages = CorporateSitePage::query()->published()->get();
+        $entries = CorporateSiteEntry::query()->published()->get();
+        $urls = [];
+
+        foreach ($pages as $page) {
+            foreach (['am' => $page->slug_am, 'en' => $page->slug_en] as $locale => $slug) {
+                if ($slug) $urls[] = ['loc' => url('/' . $locale . '/' . $slug), 'lastmod' => $page->updated_at];
+            }
+        }
+        foreach ($entries as $entry) {
+            foreach (['am' => $entry->slug_am, 'en' => $entry->slug_en] as $locale => $slug) {
+                if ($slug) $urls[] = ['loc' => url('/' . $locale . '/' . $slug), 'lastmod' => $entry->updated_at];
+            }
+        }
+
+        $items = collect($urls)->map(static fn (array $item): string =>
+            '<url><loc>' . htmlspecialchars($item['loc'], ENT_XML1 | ENT_COMPAT, 'UTF-8') .
+            '</loc><lastmod>' . $item['lastmod']->toDateString() . '</lastmod></url>'
+        )->implode('');
+
+        return response(
+            '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . $items . '</urlset>',
+            200,
+            ['Content-Type' => 'application/xml; charset=UTF-8', 'X-Content-Type-Options' => 'nosniff'],
+        );
+    }
+
     public function index(string $type, Request $request): JsonResponse
     {
         abort_unless(in_array($type, self::TYPES, true), 404);
