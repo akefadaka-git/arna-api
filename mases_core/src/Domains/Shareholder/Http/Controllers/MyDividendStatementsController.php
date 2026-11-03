@@ -53,7 +53,7 @@ final class MyDividendStatementsController extends Controller
             ->selectRaw("(SELECT COALESCE(SUM(r.share_quantity), 0) FROM finance_dividend_reinvestments r WHERE r.tenant_id = i.tenant_id AND r.distribution_item_id = i.id AND r.status = 'posted' AND r.share_quantity IS NOT NULL) AS reinvested_share_quantity")
             ->selectRaw("(SELECT COALESCE(SUM(r.applied_amount), 0) FROM finance_dividend_reinvestments r WHERE r.tenant_id = i.tenant_id AND r.distribution_item_id = i.id AND r.status = 'posted' AND r.settlement_type = 'subscription_balance') AS subscription_balance_applied_amount")
             ->selectRaw("(SELECT COALESCE(SUM(r.unapplied_amount), 0) FROM finance_dividend_reinvestments r WHERE r.tenant_id = i.tenant_id AND r.distribution_item_id = i.id AND r.status = 'posted') AS reinvestment_unapplied_amount")
-            ->selectRaw("COALESCE(p.net_payable_amount - p.cash_paid_amount - p.penalty_offset_amount - (SELECT COALESCE(SUM(r.applied_amount), 0) FROM finance_dividend_reinvestments r WHERE r.tenant_id = i.tenant_id AND r.distribution_item_id = i.id AND r.status = 'posted'), 0) AS remaining_payable_amount")
+            ->selectRaw("COALESCE(p.net_payable_amount - p.cash_paid_amount - p.penalty_offset_amount - p.reinvested_amount, 0) AS remaining_payable_amount")
             ->orderByDesc('d.declared_on');
 
         $paginator = $query->paginate(min(max($request->integer('per_page', 25), 1), 100));
