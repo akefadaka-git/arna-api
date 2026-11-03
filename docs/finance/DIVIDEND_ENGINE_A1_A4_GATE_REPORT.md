@@ -19,7 +19,7 @@
 
 | Target | PR | Exact head SHA | PR status |
 |---|---|---|---|
-| API | [PR #83](https://github.com/akefadaka-git/arna-api/pull/83) | `2b593b4274e356f7f75be57393798b7114c59630` | Draft, mergeable |
+| API | [PR #83](https://github.com/akefadaka-git/arna-api/pull/83) | `a5b805f14dc65dc724744ce119f8683930c1ab4d` | Draft, mergeable |
 | App | [PR #35](https://github.com/akefadaka-git/arna-app/pull/35) | `e8fd795b4f265f649f05423eabe99dec4c5ce18b` | Draft, mergeable |
 
 Base PRs remain API #81 and App #33. Main branches were not modified. Implementation is isolated in the stacked dividend branches.
@@ -121,19 +121,19 @@ The API clean-install MySQL workflow now includes the new tables, historical dis
 |---|---|
 | API PHP lint on exact head | NOT RUN |
 | Historical 2016–2018 E.C. source-data reconciliation and import | NOT RUN — source records not yet supplied/loaded |
-| Reinvestment journal and seller-settlement tests | PENDING — latest workflow queued; exact test results not yet returned |
+| Reinvestment journal and seller-settlement tests | Three assertion expectations corrected; rerun pending in #41693509496 |
 | Full reinvestment subledger and share-transfer acceptance | NOT RUN |
 | Balanced reinvestment and seller-settlement journal tests | NOT RUN |
 | Cash-vs-reinvestment duplicate settlement / tax remittance regression | NOT RUN |
-| API clean-install MySQL on exact code/test head | IN PROGRESS — run #41692470986 |
-| App type-check and four-build workflow | NOT RETURNED — workflow added, waiting for execution evidence |
+| API clean-install MySQL and dividend regressions | FAIL — run #41692470986; fixes committed; rerun #41693509496 pending |
+| App type-check and four-build workflow | PASS — run #41692936317 |
 | Earlier API clean-install MySQL | PASS — run #41691380905; not final test head |
 | Migration idempotence / rollback checks | NOT RUN |
-| Dividend accounting, tax, cancellation and payment tests | PENDING — latest workflow queued; exact test results not yet returned |
+| Dividend accounting, tax, cancellation and payment tests | FAIL in #41692470986; payment tax lookup and tax fixture corrected; rerun pending |
 | Full API regression and tenant isolation | NOT RUN on exact head |
 | App type-check and all four builds | NOT RUN |
 | API/App end-to-end integration | NOT RUN |
-| App type-check and four builds on latest head | NOT RUN — new workflow is present but no run result returned |
+| App type-check and four builds on workflow head | PASS — run #41692936317 |
 | Keyboard, screen-reader and WCAG 2.2 AA review | NOT RUN |
 | Mobile/tablet/desktop acceptance | NOT RUN |
 | Payment replay, race/concurrency and load acceptance | NOT RUN |
