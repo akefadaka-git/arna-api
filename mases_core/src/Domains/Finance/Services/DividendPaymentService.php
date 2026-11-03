@@ -25,7 +25,7 @@ final class DividendPaymentService
 
         return DB::transaction(function () use ($tenantId, $entityId, $distributionId, $actorId, $reference, $payableIds) {
             $distribution = DB::table('finance_dividend_distributions')->where('tenant_id', $tenantId)
-                ->where('legal_entity_id', $entityId)->where('id', $distributionId)->where('status', 'approved')
+                ->where('legal_entity_id', $entityId)->where('id', $distributionId)->whereIn('status', ['approved', 'partially_paid'])
                 ->lockForUpdate()->first();
             if (!$distribution) {
                 throw ValidationException::withMessages(['distribution_id' => 'Only an approved distribution in the selected legal entity can be paid.']);
