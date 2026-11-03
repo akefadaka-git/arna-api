@@ -124,9 +124,15 @@ final class AnnualDividendDistributionService
             if ($d->status !== 'draft' || (int) $d->created_by === $actorId) {
                 throw ValidationException::withMessages(['tax' => 'Tax assessment must be completed by an independent reviewer while the distribution is draft.']);
             }
-            $shareholderExists = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)->where('is_active', true)->whereNull('deleted_at')->exists();
-            if (!$shareholderExists) {
+            $shareholder = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)
+                ->where('is_active', true)->whereNull('deleted_at')->first(['shareholder_type']);
+            if (!$shareholder) {
                 throw ValidationException::withMessages(['shareholder_id' => 'The shareholder does not belong to this tenant or is inactive.']);
+            }
+            $actualRecipientType = in_array((string) $shareholder->shareholder_type, ['individual', 'company'], true)
+                ? (string) $shareholder->shareholder_type : 'other';
+            if ((string) ($data['recipient_type'] ?? '') !== $actualRecipientType) {
+                throw ValidationException::withMessages(['recipient_type' => 'Recipient classification must match the verified shareholder record.']);
             }
             $rate = (int) ($data['withholding_rate_bps'] ?? -1);
             if ($rate < 0 || $rate > 10000) {
@@ -150,8 +156,10 @@ final class AnnualDividendDistributionService
             if (($treatment === 'exempt' || $treatment === 'special') && trim((string) ($data['evidence_reference'] ?? '')) === '') {
                 throw ValidationException::withMessages(['evidence_reference' => 'Exempt and special treatments require documentary evidence.']);
             }
-            if ($treatment === 'exempt' && $rate !== 0) {
-                throw ValidationException::withMessages(['withholding_rate_bps' => 'An exempt treatment must carry a zero rate.']);
+            if ($treatment === 'exempt' && ($rate !== 0
+                || (string) $data['recipient_type'] !== 'company'
+                || (string) $data['tax_residency'] !== 'resident')) {
+                throw ValidationException::withMessages(['withholding_rate_bps' => 'Dividend exemption requires a resident company recipient, a zero rate and evidence of the applicable group-company exemption.']);
             }
             if ($treatment === 'special' && $rate > $statutoryRate) {
                 throw ValidationException::withMessages(['withholding_rate_bps' => 'A special treatment cannot exceed the statutory dividend rate without an independently documented legal basis.']);
