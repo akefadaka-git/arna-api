@@ -19,8 +19,8 @@
 
 | Target | PR | Exact head SHA | PR status |
 |---|---|---|---|
-| API | [PR #83](https://github.com/akefadaka-git/arna-api/pull/83) | `76ca8579095079dab8afc72aa0c28eb7bb62a56c` | Draft, mergeable |
-| App | [PR #35](https://github.com/akefadaka-git/arna-app/pull/35) | `1d8a794a7b0c1f122575bb79444ed1dfdd835c81` | Draft, mergeable |
+| API | [PR #83](https://github.com/akefadaka-git/arna-api/pull/83) | `2b593b4274e356f7f75be57393798b7114c59630` | Draft, mergeable |
+| App | [PR #35](https://github.com/akefadaka-git/arna-app/pull/35) | `e8fd795b4f265f649f05423eabe99dec4c5ce18b` | Draft, mergeable |
 
 Base PRs remain API #81 and App #33. Main branches were not modified. Implementation is isolated in the stacked dividend branches.
 
@@ -111,8 +111,9 @@ Six dividend-focused feature test files are committed:
 - `DividendShareClassWeightTest.php`
 - `DividendTaxRemittanceServiceTest.php`
 - `DividendCancellationTest.php`
+- `DividendReinvestmentJournalTest.php`
 
-The API clean-install MySQL workflow now includes the new tables, historical distribution/payable migrations, migration checks and an 85-migration baseline. The App frontend workflow already targets `feat/**`.
+The API clean-install MySQL workflow now includes the new tables, historical distribution/payable migrations, migration checks and an 85-migration baseline. The workflow now lints the reinvestment services and runs the dividend feature tests, including the new reinvestment journal tests, against disposable MySQL. App workflow evidence is still absent.
 
 **Exact-head evidence lookup:** no workflow runs and no combined status checks were returned for API SHA `76ca8579095079dab8afc72aa0c28eb7bb62a56c` or App SHA `1d8a794a7b0c1f122575bb79444ed1dfdd835c81` at report time.
 
@@ -120,15 +121,18 @@ The API clean-install MySQL workflow now includes the new tables, historical dis
 |---|---|
 | API PHP lint on exact head | NOT RUN |
 | Historical 2016–2018 E.C. source-data reconciliation and import | NOT RUN — source records not yet supplied/loaded |
-| Reinvestment subscription-balance, new-allotment and existing-transfer tests | NOT RUN |
+| Reinvestment journal and seller-settlement tests | PENDING — latest workflow queued; exact test results not yet returned |
+| Full reinvestment subledger and share-transfer acceptance | NOT RUN |
 | Balanced reinvestment and seller-settlement journal tests | NOT RUN |
 | Cash-vs-reinvestment duplicate settlement / tax remittance regression | NOT RUN |
-| API clean-install MySQL on exact head | NOT RUN |
+| API clean-install MySQL on exact head | PENDING — run #41692470986 |
+| Earlier API clean-install MySQL | PASS — run #41691380905; not final test head |
 | Migration idempotence / rollback checks | NOT RUN |
-| Dividend accounting, tax, cancellation and payment tests | NOT RUN |
+| Dividend accounting, tax, cancellation and payment tests | PENDING — latest workflow queued; exact test results not yet returned |
 | Full API regression and tenant isolation | NOT RUN on exact head |
 | App type-check and all four builds | NOT RUN |
 | API/App end-to-end integration | NOT RUN |
+| App type-check and four builds on latest head | NOT RUN — no App workflow run returned |
 | Keyboard, screen-reader and WCAG 2.2 AA review | NOT RUN |
 | Mobile/tablet/desktop acceptance | NOT RUN |
 | Payment replay, race/concurrency and load acceptance | NOT RUN |
