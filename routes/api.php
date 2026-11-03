@@ -542,6 +542,10 @@ Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access'])
                 ->whereNumber('id')
                 ->middleware('auth.permission:user.delete')
                 ->name('users.membership.destroy');
+            Route::post('/identity/users/{id}/membership/revoke', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'revokeMembership'])
+                ->whereNumber('id')
+                ->middleware('auth.permission:user.delete')
+                ->name('users.membership.revoke');
 
             // Tenant-scoped RBAC lifecycle; platform roles and system permissions are protected.
             Route::get('/authorization/roles', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'roles'])
