@@ -35,6 +35,10 @@ final class AnnualDividendDistributionService
             throw ValidationException::withMessages(['currency' => 'Only the legal entity base currency ETB is enabled for this distribution workflow.']);
         }
         $resolutionDate = CarbonImmutable::parse((string) $data['resolution_date'])->startOfDay();
+        $declaredDate = CarbonImmutable::parse((string) $data['declared_on'])->startOfDay();
+        if ($declaredDate->lessThan($resolutionDate)) {
+            throw ValidationException::withMessages(['declared_on' => 'The dividend declaration date cannot precede the General Meeting resolution.']);
+        }
         $paymentDueDate = CarbonImmutable::parse((string) $data['payment_due_on'])->startOfDay();
         if ($paymentDueDate->greaterThan($resolutionDate->addMonths(4))) {
             throw ValidationException::withMessages([
@@ -95,6 +99,9 @@ final class AnnualDividendDistributionService
             $d = DividendDistribution::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($distributionId);
             if ($d->status !== 'draft' || (int) $d->created_by === $actorId) {
                 throw ValidationException::withMessages(['distribution' => 'Only a different Finance officer may certify a draft distribution.']);
+            }
+            if ($d->profit_certified_by !== null || $d->profit_certified_at !== null) {
+                throw new ConflictHttpException('Profit certification is immutable once recorded; correct the source evidence through a controlled cancellation and replacement.');
             }
             if (trim((string) $d->approved_balance_sheet_reference) === ''
                 || trim((string) $d->resolution_evidence_reference) === ''
@@ -310,16 +317,18 @@ final class AnnualDividendDistributionService
                 $grossTotal = bcadd($grossTotal, (string) $item->gross_amount, 4);
                 $netTotal = bcadd($netTotal, (string) $item->net_amount, 4);
                 $withholdingTotal = bcadd($withholdingTotal, (string) $item->withholding_amount, 4);
-                $payable = $this->payables->createDividendPayable(
-                    $tenantId, (int) $d->legal_entity_id, (int) $item->shareholder_id,
-                    (string) $d->distribution_reference, $d->declared_on->toDateString(),
-                    $d->payment_due_on->toDateString(), (string) $item->net_amount, (int) $d->created_by
-                );
-                $this->payables->approveDividendPayable(
-                    $tenantId, (int) $payable->id, $actorId,
-                    'GA distribution '.$d->resolution_reference
-                );
-                $item->forceFill(['payable_id' => $payable->id])->save();
+                if (bccomp((string) $item->net_amount, '0.0000', 4) > 0) {
+                    $payable = $this->payables->createDividendPayable(
+                        $tenantId, (int) $d->legal_entity_id, (int) $item->shareholder_id,
+                        (string) $d->distribution_reference, $d->declared_on->toDateString(),
+                        $d->payment_due_on->toDateString(), (string) $item->net_amount, (int) $d->created_by
+                    );
+                    $this->payables->approveDividendPayable(
+                        $tenantId, (int) $payable->id, $actorId,
+                        'GA distribution '.$d->resolution_reference
+                    );
+                    $item->forceFill(['payable_id' => $payable->id])->save();
+                }
             }
             if (bccomp($grossTotal, (string) $d->declared_amount, 4) !== 0
                 || bccomp(bcadd($netTotal, $withholdingTotal, 4), $grossTotal, 4) !== 0) {
