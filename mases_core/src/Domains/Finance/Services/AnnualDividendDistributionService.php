@@ -163,12 +163,18 @@ final class AnnualDividendDistributionService
             if ($effectiveFrom > $d->payment_due_on->toDateString()) {
                 throw ValidationException::withMessages(['effective_from' => 'The tax treatment must be effective no later than the scheduled dividend payment date.']);
             }
-            $statutoryRate = $effectiveFrom >= '2025-07-08' ? 1500 : 1000;
+            if ($effectiveFrom >= '2025-08-07') {
+                $statutoryRate = 1500;
+            } elseif ($effectiveFrom < '2025-07-08') {
+                $statutoryRate = 1000;
+            } else {
+                throw ValidationException::withMessages(['effective_from' => 'Dividend payments in the 8 July–6 August 2025 transition window require a documented tax-director determination; the system will not infer the withholding treatment.']);
+            }
             if (!in_array((string) $data['tax_residency'], ['resident', 'non_resident'], true)) {
                 throw ValidationException::withMessages(['tax_residency' => 'Residency must be established before tax can be assessed.']);
             }
             if ($treatment === 'statutory' && $rate !== $statutoryRate) {
-                throw ValidationException::withMessages(['withholding_rate_bps' => 'The statutory dividend rate is 15% for income derived on or after 8 July 2025 under Proclamation 1395/2025, and 10% for the prior statutory period.']);
+                throw ValidationException::withMessages(['withholding_rate_bps' => 'The statutory dividend rate is 15% for Schedule D dividend payments on or after 7 August 2025 under Proclamation 1395/2025, and 10% before 8 July 2025; the 8 July–6 August transition window requires a documented tax-director determination.']);
             }
             if ($treatment === 'treaty' && ($rate > $statutoryRate || trim((string) ($data['evidence_reference'] ?? '')) === '')) {
                 throw ValidationException::withMessages(['withholding_rate_bps' => 'A treaty rate must not exceed the domestic statutory rate and requires valid treaty/residency evidence.']);
@@ -186,9 +192,9 @@ final class AnnualDividendDistributionService
             }
             $legalBasis = trim((string) $data['legal_basis']);
             if ($treatment === 'statutory') {
-                $legalBasis = $effectiveFrom >= '2025-07-08'
+                $legalBasis = $effectiveFrom >= '2025-08-07'
                     ? ((string) $data['tax_residency'] === 'resident'
-                        ? 'Federal Income Tax Proclamation 979/2016 as amended by Proclamation 1395/2025, Article 57(1); effective for income derived on or after 8 July 2025.'
+                        ? 'Federal Income Tax Proclamation 979/2016 as amended by Proclamation 1395/2025, Article 57(1); 15% dividend rate under Article 57(1); Schedule D tax collection effective 7 August 2025.'
                         : 'Federal Income Tax Proclamation 979/2016 as amended by Proclamation 1395/2025, Article 52(2)(b); non-resident dividend tax at 15%.')
                     : ((string) $data['tax_residency'] === 'resident'
                         ? 'Federal Income Tax Proclamation 979/2016, Article 55 (pre-amendment statutory dividend rate).'
