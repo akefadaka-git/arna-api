@@ -20,7 +20,7 @@ final class GovernanceElectionWorkflowController extends Controller
         $tenantId = $this->tenantId();
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
         $shareholderId = $this->authenticatedShareholderId($tenantId);
-        abort_unless($governanceElection->status === 'nominations_open', 409, 'Nomination period is not open.');
+        abort_unless($governanceElection->status === 'nominating', 409, 'Nomination period is not open.');
 
         $data = $request->validate([
             'candidate_person_id' => ['required', 'integer', 'min:1'],
@@ -32,6 +32,7 @@ final class GovernanceElectionWorkflowController extends Controller
         $candidateShareholders = DB::table('shareholders')
             ->where('tenant_id', $tenantId)
             ->where('person_id', $data['candidate_person_id'])
+            ->where('shareholder_type', 'individual')
             ->where('is_active', true)
             ->whereNull('deleted_at')
             ->limit(2)
@@ -212,11 +213,11 @@ final class GovernanceElectionWorkflowController extends Controller
             abort_if($item === null || $item->status !== 'submitted', 404, 'Open nomination submission not found.');
             $members = DB::table('governance_election_committee_members')
                 ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
-                ->where('status', 'active')->whereNull('recused_at')->count();
+                ->where('status', 'active')->whereNull('recused_at')->where('member_role', 'committee_member')->count();
             abort_if($members < 3, 409, 'Committee quorum is not established.');
             abort_if($committeeMember->recused_at !== null, 403, 'A recused committee member cannot decide this submission.');
             $candidate = DB::table('shareholders')->where('tenant_id', $tenantId)
-                ->where('person_id', $item->candidate_person_id)->where('is_active', true)
+                ->where('person_id', $item->candidate_person_id)->where('shareholder_type', 'individual')->where('is_active', true)
                 ->whereNull('deleted_at')->first(['id']);
             abort_if($candidate === null, 409, 'Candidate shareholder identity is no longer eligible.');
             abort_if((int) $committeeMember->person_id === (int) $item->candidate_person_id, 403, 'A candidate cannot decide their own nomination.');
@@ -280,7 +281,7 @@ final class GovernanceElectionWorkflowController extends Controller
 
             $activeMembers = DB::table('governance_election_committee_members')
                 ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
-                ->where('status', 'active')->whereNull('recused_at')->count();
+                ->where('status', 'active')->whereNull('recused_at')->where('member_role', 'committee_member')->count();
             abort_if($activeMembers < 3, 409, 'Committee quorum is not established.');
             abort_if($committeeMember->recused_at !== null, 403, 'A recused committee member cannot decide this nomination.');
             abort_if((int) ($committeeMember->person_id ?? 0) === (int) ($candidate->candidate_person_id ?? 0), 403, 'A candidate cannot decide their own nomination.');
