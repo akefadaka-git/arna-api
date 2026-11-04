@@ -8,6 +8,8 @@ on:
       - "app/Http/Controllers/Admin/AdminAuditSecurityController.php"
       - "routes/api.php"
       - "tests/Feature/AdminAuditSecurityTest.php"
+      - "tests/Feature/CommunicationAnnouncementsTest.php"
+      - "database/seeders/Data/PermissionCatalogue.php"
       - "mases_core/src/Audit/**"
       - "mases_core/src/Security/**"
       - "database/migrations/**"
