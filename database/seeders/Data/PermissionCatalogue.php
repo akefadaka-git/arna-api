@@ -9,7 +9,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
 /**
  * PermissionCatalogue
  *
- * The platform's forty-four core permissions plus thirteen Finance permissions (fifty-seven total) — the atomic capabilities
+ * The platform's forty-four core permissions plus thirteen Finance permissions and three Admin security permissions (sixty total) — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -138,7 +138,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
 final class PermissionCatalogue
 {
     /**
-     * The forty-four core platform permissions, in source order; the Finance catalogue is appended separately.
+     * The core platform permissions, in source order; Finance and Admin security catalogues are appended separately.
      *
      * Each row is an associative array with the six keys documented
      * in the class docblock. The order below is preserved verbatim
@@ -188,6 +188,9 @@ final class PermissionCatalogue
         ['slug' => 'people.manage', 'name_am' => 'የሰው መገለጫዎችን ማስተዳደር', 'name_en' => 'Manage People Profiles', 'category' => 'user', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'people.account-link.manage', 'name_am' => 'የሰው መገለጫና መለያ ግንኙነትን ማስተዳደር', 'name_en' => 'Manage Global Person Account Links', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'people.tenant-access.manage', 'name_am' => 'የሰው መገለጫን በቴናንት መካከል መፍቀድ', 'name_en' => 'Manage Global Person Tenant Access', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'audit.view', 'name_am' => 'የኦዲት መዝገቦችን ማየት', 'name_en' => 'View Audit Logs', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'security-event.view', 'name_am' => 'የደህንነት ክስተቶችን ማየት', 'name_en' => 'View Security Events', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'security-event.resolve', 'name_am' => 'የደህንነት ክስተቶችን መፍታት', 'name_en' => 'Resolve Security Events', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
         ...FinancePermissionCatalogue::ROWS,
             ['slug' => 'public-content.review', 'name_am' => 'ይፋዊ ይዘት መገምገምና ማተም', 'name_en' => 'Review and publish public content', 'category' => 'public_content', 'scope' => 'global', 'is_system' => false],
             ['slug' => 'announcement.view', 'name_am' => 'ማስታወቂያዎችን ማየት', 'name_en' => 'View Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
