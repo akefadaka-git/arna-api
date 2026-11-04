@@ -197,6 +197,21 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('A frozen, approved voter register is required before voting.', $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php'));
     }
 
+    public function test_committee_decisions_require_two_distinct_votes_before_finalizing(): void
+    {
+        $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
+        $voteMigration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_164000_add_committee_vote_idempotency.php');
+        $ballotMigration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_165000_add_committee_vote_ballot_flag.php');
+
+        self::assertStringContainsString('already voted on this submission', $controller);
+        self::assertStringContainsString('already voted on this candidate', $controller);
+        self::assertStringContainsString('$votes < 2', $controller);
+        self::assertStringContainsString('awaiting_committee_majority', $controller);
+        self::assertStringContainsString('gov_elec_submission_vote_once', $voteMigration);
+        self::assertStringContainsString('gov_elec_candidate_vote_once', $voteMigration);
+        self::assertStringContainsString("->boolean('final_ballot_approved')->default(false)", $ballotMigration);
+    }
+
     public function test_committee_recusal_and_identity_columns_are_persisted(): void
     {
         $migration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_160000_create_governance_election_hybrid_workflow_tables.php');
