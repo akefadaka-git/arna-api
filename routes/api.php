@@ -790,6 +790,32 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
 // the divergence and is covered by `ApiErrorContractTest`.
 // =============================================================================
 
+// Admin audit and security investigation — read-only audit trail plus
+// explicitly audited security-event resolution. All reads and writes are tenant-bound.
+Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access', 'tenant.membership'])
+    ->prefix('admin')
+    ->name('api.admin.audit-security.')
+    ->group(static function (): void {
+        Route::get('/audit-logs', [\\App\\Http\\Controllers\\Admin\\AdminAuditSecurityController::class, 'auditLogs'])
+            ->middleware('auth.permission:audit.view')
+            ->name('audit.index');
+        Route::get('/audit-logs/{id}', [\\App\\Http\\Controllers\\Admin\\AdminAuditSecurityController::class, 'auditLog'])
+            ->whereNumber('id')
+            ->middleware('auth.permission:audit.view')
+            ->name('audit.show');
+        Route::get('/security-events', [\\App\\Http\\Controllers\\Admin\\AdminAuditSecurityController::class, 'securityEvents'])
+            ->middleware('auth.permission:security-event.view')
+            ->name('security.index');
+        Route::get('/security-events/{id}', [\\App\\Http\\Controllers\\Admin\\AdminAuditSecurityController::class, 'securityEvent'])
+            ->whereNumber('id')
+            ->middleware('auth.permission:security-event.view')
+            ->name('security.show');
+        Route::post('/security-events/{id}/resolve', [\\App\\Http\\Controllers\\Admin\\AdminAuditSecurityController::class, 'resolveSecurityEvent'])
+            ->whereNumber('id')
+            ->middleware('auth.permission:security-event.resolve')
+            ->name('security.resolve');
+    });
+
 Route::fallback(static function (): never {
     throw new NotFoundHttpException('The requested endpoint does not exist.');
 })->name('api.fallback');
