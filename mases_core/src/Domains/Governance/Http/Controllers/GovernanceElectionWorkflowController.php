@@ -127,6 +127,12 @@ final class GovernanceElectionWorkflowController extends Controller
         $exOfficio = (bool) ($data['ex_officio'] ?? false);
         abort_if(($role === 'legal_advisor') !== $exOfficio, 422,
             'Only the Legal Advisor appointment is ex officio under the adopted Committee framework.');
+        $person = DB::table('people')->where('id', $data['person_id'])->whereNull('deleted_at')->first(['id', 'user_id']);
+        abort_unless($person !== null, 422, 'Committee member must resolve to an active canonical Person.');
+        abort_unless((int) ($person->user_id ?? 0) === (int) $data['user_id'], 422, 'Committee user must be the account linked to the canonical Person.');
+        $tenantAccess = DB::table('person_tenant_accesses')->where('person_id', $data['person_id'])
+            ->where('tenant_id', $tenantId)->where('status', 'active')->exists();
+        abort_unless($tenantAccess, 422, 'Committee member must have active Person tenant access.');
 
         $member = DB::transaction(function () use ($tenantId, $governanceElection, $data, $role, $exOfficio): object {
             $members = DB::table('governance_election_committee_members')
