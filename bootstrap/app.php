@@ -724,7 +724,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Server-side diagnostic enrichment is intentionally restricted to
         // server failures. The diagnostic engine is deterministic and read-only.
-        $exceptions->reportable(function (\\Throwable $e): void {
+        $exceptions->reportable(function (\Throwable $e): void {
             [$code, , $status] = mases_resolve_error($e);
             if ($status < 500) {
                 return;
