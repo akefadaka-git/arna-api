@@ -178,6 +178,7 @@ use Illuminate\Session\TokenMismatchException;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Exceptions\CoreException;
 use MaaleArna\MASES\Core\Exceptions\ErrorCodeRegistry;
+use MaaleArna\MASES\Core\Monitoring\ErrorDiagnosticEngine;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
@@ -720,6 +721,24 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+
+        // Server-side diagnostic enrichment is intentionally restricted to
+        // server failures. The diagnostic engine is deterministic and read-only.
+        $exceptions->reportable(function (\\Throwable $e): void {
+            [$code, , $status] = mases_resolve_error($e);
+            if ($status < 500) {
+                return;
+            }
+
+            $diagnostic = app(ErrorDiagnosticEngine::class)->diagnose($e, $code);
+            logger()->error('ARNA exception diagnostic', [
+                'error_code' => $code,
+                'http_status' => $status,
+                'exception_class' => get_class($e),
+                'request_id' => mases_resolve_request_id(request()),
+                'diagnostic' => $diagnostic,
+            ]);
+        });
 
         // ---------------------------------------------------------------------
         // Canonical JSON error rendering
