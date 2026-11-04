@@ -44,6 +44,10 @@ on:
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
       - "tests/Feature/CentralNotificationsTest.php"
+      - "bootstrap/app.php"
+      - "mases_core/src/Exceptions/ErrorCodeRegistry.php"
+      - "mases_core/src/Monitoring/ErrorDiagnosticEngine.php"
+      - "tests/Unit/ErrorDiagnosticEngineTest.php"
   workflow_dispatch:
     inputs:
       target_sha:
@@ -153,6 +157,15 @@ jobs:
 
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run centralized error diagnostics unit tests
+        run: php artisan test --compact tests/Unit/ErrorDiagnosticEngineTest.php
+
+      - name: Validate bootstrap PHP syntax
+        run: php -l bootstrap/app.php
+
+      - name: Check formatting of new diagnostics PHP files
+        run: vendor/bin/pint --test mases_core/src/Exceptions/ErrorCodeRegistry.php mases_core/src/Monitoring/ErrorDiagnosticEngine.php tests/Unit/ErrorDiagnosticEngineTest.php
 
       - name: Run focused demo seeder guard tests
         run: php artisan test --compact tests/Unit/DemoSeederGuardTest.php
