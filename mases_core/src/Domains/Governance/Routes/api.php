@@ -604,6 +604,15 @@ Route::name('api.governance.')->group(static function (): void {
     Route::post('/elections/{governanceElection}/committee/submissions/{submission}/decision', [GovernanceElectionWorkflowController::class, 'decideNominationSubmission'])
         ->whereNumber('governanceElection')->whereNumber('submission')->middleware('auth.permission:governance.election.manage')->name('elections.committee.submissions.decision');
 
+    Route::post('/elections/{governanceElection}/objections', [GovernanceElectionWorkflowController::class, 'submitObjection'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.view')->name('elections.objections.store');
+    Route::post('/elections/{governanceElection}/objections/{objection}/appeals', [GovernanceElectionWorkflowController::class, 'submitAppeal'])
+        ->whereNumber('governanceElection')->whereNumber('objection')->middleware('auth.permission:governance.election.view')->name('elections.appeals.store');
+    Route::post('/elections/{governanceElection}/certification', [GovernanceElectionWorkflowController::class, 'certifyElection'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.certification.store');
+    Route::post('/elections/{governanceElection}/ratification', [GovernanceElectionWorkflowController::class, 'ratifyElection'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.ratification.store');
+
     Route::post('/elections/{governanceElection}/committee/candidates/{nomination}/decision', [GovernanceElectionWorkflowController::class, 'decideNomination'])
         ->whereNumber('governanceElection')->whereNumber('nomination')->middleware('auth.permission:governance.election.manage')->name('elections.committee.decisions.store');
 
