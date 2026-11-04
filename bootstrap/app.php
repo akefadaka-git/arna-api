@@ -549,7 +549,12 @@ if (!function_exists('mases_resolve_request_id')) {
     {
         foreach (['X-Request-ID', 'X-Correlation-ID'] as $header) {
             $value = $request->header($header);
-            if (is_string($value) && $value !== '') {
+            // Accept only bounded printable identifiers; reject control characters
+            // and oversized values before echoing them into responses or logs.
+            if (
+                is_string($value)
+                && preg_match('/\\A[a-zA-Z0-9._:-]{1,128}\\z/D', $value) === 1
+            ) {
                 return $value;
             }
         }
