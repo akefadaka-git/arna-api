@@ -145,6 +145,58 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString("'electronic_voting_enabled'  => false", $config);
     }
 
+    public function test_nomination_intake_matches_lifecycle_status_and_canonical_shareholder_schema(): void
+    {
+        $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
+        $service = $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php');
+
+        self::assertStringContainsString("status' === 'nominating'", $controller);
+        self::assertStringContainsString("'status' => 'nominating'", $service);
+        self::assertStringContainsString("->where('shareholder_type', 'individual')", $controller);
+        self::assertStringContainsString("->where('person_id', ", $controller);
+        self::assertStringContainsString("->where('status', 'active')", $controller);
+    }
+
+    public function test_committee_appointment_requires_canonical_person_user_and_tenant_access(): void
+    {
+        $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
+
+        self::assertStringContainsString("DB::table('people')", $controller);
+        self::assertStringContainsString("DB::table('person_tenant_accesses')", $controller);
+        self::assertStringContainsString("'status', 'active'", $controller);
+        self::assertStringContainsString('Committee user must be the account linked to the canonical Person.', $controller);
+    }
+
+    public function test_challenges_and_independent_certification_are_persisted_and_routed(): void
+    {
+        $migration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_163000_create_election_challenges_and_certification.php');
+        $routes = $this->source('mases_core/src/Domains/Governance/Routes/api.php');
+        $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
+
+        foreach (['governance_election_objections', 'governance_election_appeals', 'governance_election_certifications'] as $table) {
+            self::assertStringContainsString($table, $migration);
+        }
+        foreach (['submitObjection', 'submitAppeal', 'certifyElection', 'ratifyElection'] as $action) {
+            self::assertStringContainsString($action, $routes);
+            self::assertStringContainsString('function '.$action.'(', $controller);
+        }
+        self::assertStringContainsString('The tally preparer cannot independently certify the tally.', $controller);
+        self::assertStringContainsString('All objections and appeals must receive a recorded outcome before certification.', $controller);
+        self::assertStringContainsString('The certifier cannot ratify the same election.', $controller);
+    }
+
+    public function test_election_lifecycle_transitions_are_exposed_and_authority_gated(): void
+    {
+        $routes = $this->source('mases_core/src/Domains/Governance/Routes/api.php');
+        $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
+
+        foreach (['verifyElectionAuthority', 'openElectionNominations', 'openPhysicalElectionVoting', 'closeElectionVoting'] as $action) {
+            self::assertStringContainsString($action, $routes);
+            self::assertStringContainsString('function '.$action.'(', $controller);
+        }
+        self::assertStringContainsString('A frozen, approved voter register is required before voting.', $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php'));
+    }
+
     public function test_committee_recusal_and_identity_columns_are_persisted(): void
     {
         $migration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_160000_create_governance_election_hybrid_workflow_tables.php');
