@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Admin;
+namespace App\Http\Controllers\Admin;
 
-use App\\Http\\Controllers\\Controller;
-use Illuminate\\Database\\Eloquent\\Builder;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;\nuse Carbon\\Carbon;\nuse RuntimeException;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\MASES\\Core\\Audit\\Models\\AuditLog;
-use MaaleArna\\MASES\\Core\\Audit\\Services\\AuditService;
-use MaaleArna\\MASES\\Core\\Security\\Models\\SecurityEvent;
+use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;\nuse Carbon\Carbon;\nuse RuntimeException;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Audit\Models\AuditLog;
+use MaaleArna\MASES\Core\Audit\Services\AuditService;
+use MaaleArna\MASES\Core\Security\Models\SecurityEvent;
 
 final class AdminAuditSecurityController extends Controller
 {
@@ -34,7 +34,7 @@ final class AdminAuditSecurityController extends Controller
             ->where('tenant_id', $tenantId)
             ->when($filters['q'] ?? null, function (Builder $builder, string $term): void {
                 $builder->where(function (Builder $nested) use ($term): void {
-                    $like = '%' . addcslashes($term, '%_\\\\') . '%';
+                    $like = '%' . addcslashes($term, '%_\\') . '%';
                     $nested->where('action', 'like', $like)
                         ->orWhere('resource_type', 'like', $like)
                         ->orWhere('resource_id', 'like', $like)
@@ -47,10 +47,10 @@ final class AdminAuditSecurityController extends Controller
             ->when($filters['from'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '>=', $value))
             ->when($filters['to'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '<=', $value));
 
-        return response()->json([
-            'success' => true,
-            'data' => $query->latest('id')->paginate($filters['per_page'] ?? 25),
-        ]);
+        $page = $query->latest('id')->paginate($filters['per_page'] ?? 25);
+        $page->getCollection()->transform(fn (AuditLog $entry): array => $this->auditPayload($entry));
+
+        return response()->json(['success' => true, 'data' => $page]);
     }
 
     public function auditLog(Request $request, int $id): JsonResponse
@@ -82,7 +82,7 @@ final class AdminAuditSecurityController extends Controller
             ->with(['user:id,email', 'resolver:id,email'])
             ->where('tenant_id', $tenantId)
             ->when($filters['q'] ?? null, function (Builder $builder, string $term): void {
-                $like = '%' . addcslashes($term, '%_\\\\') . '%';
+                $like = '%' . addcslashes($term, '%_\\') . '%';
                 $builder->where(function (Builder $nested) use ($like): void {
                     $nested->where('event_type', 'like', $like)
                         ->orWhere('description', 'like', $like)
@@ -98,10 +98,10 @@ final class AdminAuditSecurityController extends Controller
             ->when($filters['from'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '>=', $value))
             ->when($filters['to'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '<=', $value));
 
-        return response()->json([
-            'success' => true,
-            'data' => $query->latest('id')->paginate($filters['per_page'] ?? 25),
-        ]);
+        $page = $query->latest('id')->paginate($filters['per_page'] ?? 25);
+        $page->getCollection()->transform(fn (SecurityEvent $event): array => $this->securityPayload($event));
+
+        return response()->json(['success' => true, 'data' => $page]);
     }
 
     public function securityEvent(Request $request, int $id): JsonResponse
@@ -146,7 +146,7 @@ final class AdminAuditSecurityController extends Controller
                 'resolution_notes' => $validated['resolution_notes'],
             ])->save();
 
-            $audit->log(
+            $auditEntry = $audit->log(
                 action: 'security.event.resolved',
                 user: $actor,
                 tenantId: $tenantId,
@@ -159,11 +159,68 @@ final class AdminAuditSecurityController extends Controller
                     'resolution_notes' => $validated['resolution_notes'],
                 ],
             );
+            if ($auditEntry === null) {
+                throw new RuntimeException('The security-event resolution audit record could not be persisted.');
+            }
 
             return $event->fresh(['user:id,email', 'resolver:id,email']);
         });
 
-        return response()->json(['success' => true, 'data' => $event]);
+        return response()->json(['success' => true, 'data' => $this->securityPayload($event)]);
+    }
+
+    /**
+     * Redact credential-shaped keys recursively before exposing forensic data.
+     *
+     * @param array<string, mixed>|null $value
+     * @return array<string, mixed>|null
+     */
+    private function redact(?array $value): ?array
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $sensitive = [
+            'password', 'password_confirmation', 'current_password', 'token',
+            'access_token', 'bearer_token', 'api_token', 'session_token',
+            'password_reset_token', 'email_verification_token', 'refresh_token',
+            'secret', 'api_key', 'api_secret', 'client_secret', 'mfa_secret',
+            'totp_secret', 'two_factor_secret', 'two_factor_recovery_codes',
+            'otp', 'otp_code', 'one_time_password', 'one_time_code', 'totp',
+            'totp_code', 'mfa_code', 'verification_code',
+        ];
+
+        $clean = [];
+        foreach ($value as $key => $item) {
+            if (in_array(strtolower((string) $key), $sensitive, true)) {
+                $clean[$key] = '[REDACTED]';
+            } elseif (is_array($item)) {
+                $clean[$key] = $this->redact($item);
+            } else {
+                $clean[$key] = $item;
+            }
+        }
+
+        return $clean;
+    }
+
+    /** @return array<string, mixed> */
+    private function auditPayload(AuditLog $entry): array
+    {
+        return array_merge($entry->toArray(), [
+            'old_values' => $this->redact($entry->old_values),
+            'new_values' => $this->redact($entry->new_values),
+            'metadata' => $this->redact($entry->metadata),
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function securityPayload(SecurityEvent $event): array
+    {
+        return array_merge($event->toArray(), [
+            'event_data' => $this->redact($event->event_data),
+        ]);
     }
 
     private function tenantId(): int
