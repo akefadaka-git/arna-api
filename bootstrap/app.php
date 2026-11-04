@@ -177,6 +177,8 @@ use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Exceptions\CoreException;
+use MaaleArna\MASES\Core\Exceptions\ErrorCodeRegistry;
+use MaaleArna\MASES\Core\Monitoring\ErrorDiagnosticEngine;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
@@ -547,7 +549,12 @@ if (!function_exists('mases_resolve_request_id')) {
     {
         foreach (['X-Request-ID', 'X-Correlation-ID'] as $header) {
             $value = $request->header($header);
-            if (is_string($value) && $value !== '') {
+            // Accept only bounded printable identifiers; reject control characters
+            // and oversized values before echoing them into responses or logs.
+            if (
+                is_string($value)
+                && preg_match('/\\A[a-zA-Z0-9._:-]{1,128}\\z/D', $value) === 1
+            ) {
                 return $value;
             }
         }
@@ -720,6 +727,24 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
 
+        // Server-side diagnostic enrichment is intentionally restricted to
+        // server failures. The diagnostic engine is deterministic and read-only.
+        $exceptions->reportable(function (\Throwable $e): void {
+            [$code, , $status] = mases_resolve_error($e);
+            if ($status < 500) {
+                return;
+            }
+
+            $diagnostic = app(ErrorDiagnosticEngine::class)->diagnose($e, $code);
+            logger()->error('ARNA exception diagnostic', [
+                'error_code' => $code,
+                'http_status' => $status,
+                'exception_class' => get_class($e),
+                'request_id' => mases_resolve_request_id(request()),
+                'diagnostic' => $diagnostic,
+            ]);
+        });
+
         // ---------------------------------------------------------------------
         // Canonical JSON error rendering
         // ---------------------------------------------------------------------
@@ -735,14 +760,20 @@ return Application::configure(basePath: dirname(__DIR__))
             // Compute the canonical error code, message, and status code.
             [$code, $message, $status] = mases_resolve_error($e);
 
-            // Build the canonical envelope.
+            // Resolve governed metadata without changing legacy code/status behavior.
+            $errorMetadata = ErrorCodeRegistry::metadata($code);
+
+            // Build the canonical, backward-compatible envelope.
             $envelope = [
                 'success' => false,
                 'error'   => [
-                    'code'       => $code,
-                    'message'    => $message,
-                    'request_id' => mases_resolve_request_id($request),
-                    'timestamp'  => now()->toIso8601String(),
+                    'code'        => $code,
+                    'message'     => $message,
+                    'message_key' => $errorMetadata['message_key'],
+                    'severity'    => $errorMetadata['severity'],
+                    'retryable'   => $errorMetadata['retryable'],
+                    'request_id'  => mases_resolve_request_id($request),
+                    'timestamp'   => now()->toIso8601String(),
                 ],
             ];
 
