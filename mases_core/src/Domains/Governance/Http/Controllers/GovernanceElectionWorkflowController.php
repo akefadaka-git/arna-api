@@ -14,6 +14,55 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElectionNomination;
 
 final class GovernanceElectionWorkflowController extends Controller
 {
+    public function verifyElectionAuthority(Request $request, GovernanceElection $governanceElection, GovernanceElectionLifecycleService $lifecycle): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $data = $request->validate(['authority_reference' => ['required', 'string', 'min:3', 'max:160']]);
+        $election = $lifecycle->verifyAuthority($tenantId, (int) $governanceElection->id,
+            $data['authority_reference'], (int) $request->user()->getAuthIdentifier());
+        return response()->json(['data' => $election]);
+    }
+
+    public function openElectionNominations(Request $request, GovernanceElection $governanceElection, GovernanceElectionLifecycleService $lifecycle): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $data = $request->validate([
+            'rule_version' => ['required', 'string', 'min:1', 'max:80'],
+            'opens_at' => ['required', 'date'],
+            'closes_at' => ['required', 'date', 'after:opens_at'],
+        ]);
+        $election = $lifecycle->openNominations($tenantId, (int) $governanceElection->id,
+            $data['rule_version'], $data['opens_at'], $data['closes_at']);
+        return response()->json(['data' => $election]);
+    }
+
+    public function openPhysicalElectionVoting(Request $request, GovernanceElection $governanceElection, GovernanceElectionLifecycleService $lifecycle): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $data = $request->validate([
+            'opens_at' => ['required', 'date'],
+            'closes_at' => ['required', 'date', 'after:opens_at'],
+        ]);
+        $election = $lifecycle->openPhysicalVoting($tenantId, (int) $governanceElection->id,
+            $data['opens_at'], $data['closes_at']);
+        return response()->json(['data' => $election]);
+    }
+
+    public function closeElectionVoting(Request $request, GovernanceElection $governanceElection, GovernanceElectionLifecycleService $lifecycle): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $election = $lifecycle->closeVoting($tenantId, (int) $governanceElection->id);
+        return response()->json(['data' => $election]);
+    }
+
     public function submitNomination(Request $request, GovernanceElection $governanceElection): JsonResponse
     {
         Gate::authorize('view', $governanceElection);
