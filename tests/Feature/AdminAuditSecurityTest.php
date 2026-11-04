@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Cache;
-use Illuminate\\Support\\Facades\\Config;
-use MaaleArna\\MASES\\Core\\Audit\\Models\\AuditLog;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Permission;
-use MaaleArna\\MASES\\Core\\Security\\Models\\SecurityEvent;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\TenantMembership;
-use MaaleArna\\MASES\\Core\\Tenancy\\Services\\RequestTenantResolver;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
+use MaaleArna\MASES\Core\Audit\Models\AuditLog;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Security\Models\SecurityEvent;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use Tests\TestCase;
 
 final class AdminAuditSecurityTest extends TestCase
 {
@@ -49,7 +49,11 @@ final class AdminAuditSecurityTest extends TestCase
             'action' => 'identity.profile.updated',
             'resource_type' => 'user',
             'resource_id' => '42',
-            'new_values' => ['locale' => 'am', 'password' => 'must-not-leak', 'nested' => ['access_token' => 'must-not-leak-either']],
+            'new_values' => [
+                'locale' => 'am',
+                'password' => 'must-not-leak',
+                'nested' => ['access_token' => 'must-not-leak-either'],
+            ],
         ]);
         $otherTenant = Tenant::factory()->create(['is_active' => true]);
         $foreign = AuditLog::query()->create([
@@ -65,6 +69,8 @@ final class AdminAuditSecurityTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('data.total', 1)
             ->assertJsonPath('data.data.0.id', $own->id)
+            ->assertJsonPath('data.data.0.new_values.password', '[REDACTED]')
+            ->assertJsonPath('data.data.0.new_values.nested.access_token', '[REDACTED]')
             ->assertJsonMissing(['id' => $foreign->id]);
 
         $this->asTenantAdmin()->getJson('/api/admin/audit-logs/' . $foreign->id)->assertNotFound();
@@ -92,7 +98,8 @@ final class AdminAuditSecurityTest extends TestCase
             ->getJson('/api/admin/security-events?severity=warning&status=open')
             ->assertOk()
             ->assertJsonPath('data.total', 1)
-            ->assertJsonPath('data.data.0.id', $event->id)\n            ->assertJsonPath('data.data.0.event_data.otp_code', '[REDACTED]');
+            ->assertJsonPath('data.data.0.id', $event->id)
+            ->assertJsonPath('data.data.0.event_data.otp_code', '[REDACTED]');
 
         $this->asTenantAdmin()
             ->postJson('/api/admin/security-events/' . $event->id . '/resolve', [
