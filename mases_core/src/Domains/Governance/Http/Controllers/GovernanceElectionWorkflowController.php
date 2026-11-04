@@ -320,6 +320,119 @@ final class GovernanceElectionWorkflowController extends Controller
         });
     }
 
+    public function submitObjection(Request $request, GovernanceElection $governanceElection): JsonResponse
+    {
+        Gate::authorize('view', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $shareholderId = $this->authenticatedShareholderId($tenantId);
+        $data = $request->validate([
+            'nomination_id' => ['nullable', 'integer', 'min:1'],
+            'category' => ['required', 'in:eligibility,nomination,procedure,ballot,counting,other'],
+            'grounds' => ['required', 'string', 'min:20', 'max:10000'],
+            'evidence_reference' => ['nullable', 'string', 'max:160'],
+        ]);
+        if (!empty($data['nomination_id'])) {
+            GovernanceElectionNomination::query()->where('tenant_id', $tenantId)
+                ->where('election_id', $governanceElection->id)->findOrFail($data['nomination_id']);
+        }
+        $id = DB::table('governance_election_objections')->insertGetId([
+            'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
+            'nomination_id' => $data['nomination_id'] ?? null,
+            'submitted_by_shareholder_id' => $shareholderId, 'category' => $data['category'],
+            'grounds' => $data['grounds'], 'evidence_reference' => $data['evidence_reference'] ?? null,
+            'status' => 'submitted', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        return response()->json(['data' => ['objection_id' => $id, 'status' => 'submitted']], 201);
+    }
+
+    public function submitAppeal(Request $request, GovernanceElection $governanceElection, int $objection): JsonResponse
+    {
+        Gate::authorize('view', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $shareholderId = $this->authenticatedShareholderId($tenantId);
+        $data = $request->validate([
+            'grounds' => ['required', 'string', 'min:20', 'max:10000'],
+            'evidence_reference' => ['nullable', 'string', 'max:160'],
+        ]);
+        $record = DB::table('governance_election_objections')->where('tenant_id', $tenantId)
+            ->where('election_id', $governanceElection->id)->where('id', $objection)->first();
+        abort_if($record === null || !in_array($record->status, ['upheld', 'dismissed'], true), 409,
+            'An appeal may be submitted only after a reasoned objection decision.');
+        $id = DB::table('governance_election_appeals')->insertGetId([
+            'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
+            'objection_id' => $objection, 'appellant_shareholder_id' => $shareholderId,
+            'grounds' => $data['grounds'], 'evidence_reference' => $data['evidence_reference'] ?? null,
+            'status' => 'submitted', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        return response()->json(['data' => ['appeal_id' => $id, 'status' => 'submitted']], 201);
+    }
+
+    public function certifyElection(Request $request, GovernanceElection $governanceElection): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $data = $request->validate([
+            'tally_id' => ['required', 'integer', 'min:1'],
+            'certifying_authority' => ['required', 'string', 'min:3', 'max:160'],
+            'certification_reference' => ['required', 'string', 'min:3', 'max:160'],
+            'evidence_sha256' => ['required', 'regex:/^[a-f0-9]{64}$/i'],
+        ]);
+        return DB::transaction(function () use ($tenantId, $governanceElection, $data, $request): JsonResponse {
+            $election = GovernanceElection::query()->where('tenant_id', $tenantId)
+                ->lockForUpdate()->findOrFail($governanceElection->id);
+            abort_unless($election->status === 'counting', 409, 'Election must be in counting status before independent certification.');
+            $tally = DB::table('governance_election_tallies')->where('tenant_id', $tenantId)
+                ->where('election_id', $election->id)->where('id', $data['tally_id'])->first();
+            abort_if($tally === null, 404, 'Election tally not found.');
+            $actorId = (int) $request->user()->getAuthIdentifier();
+            abort_if((int) $tally->prepared_by === $actorId, 403, 'The tally preparer cannot independently certify the tally.');
+            $openObjections = DB::table('governance_election_objections')->where('tenant_id', $tenantId)
+                ->where('election_id', $election->id)->whereNotIn('status', ['dismissed', 'upheld', 'withdrawn'])->exists();
+            $openAppeals = DB::table('governance_election_appeals')->where('tenant_id', $tenantId)
+                ->where('election_id', $election->id)->whereNotIn('status', ['dismissed', 'upheld', 'withdrawn'])->exists();
+            abort_if($openObjections || $openAppeals, 409, 'All objections and appeals must receive a recorded outcome before certification.');
+            $id = DB::table('governance_election_certifications')->insertGetId([
+                'tenant_id' => $tenantId, 'election_id' => $election->id, 'tally_id' => $tally->id,
+                'certifying_authority' => $data['certifying_authority'],
+                'certification_reference' => $data['certification_reference'],
+                'evidence_sha256' => strtolower($data['evidence_sha256']),
+                'certified_by' => $actorId, 'certified_at' => now(),
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $election->forceFill(['status' => 'certified'])->save();
+            return response()->json(['data' => ['certification_id' => $id, 'status' => 'certified']], 201);
+        });
+    }
+
+    public function ratifyElection(Request $request, GovernanceElection $governanceElection): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $data = $request->validate(['ratification_reference' => ['required', 'string', 'min:3', 'max:160']]);
+        return DB::transaction(function () use ($tenantId, $governanceElection, $data, $request): JsonResponse {
+            $election = GovernanceElection::query()->where('tenant_id', $tenantId)
+                ->lockForUpdate()->findOrFail($governanceElection->id);
+            abort_unless($election->status === 'certified', 409, 'Only an independently certified election may be ratified.');
+            $certification = DB::table('governance_election_certifications')->where('tenant_id', $tenantId)
+                ->where('election_id', $election->id)->lockForUpdate()->first();
+            abort_if($certification === null, 409, 'Independent certification evidence is required.');
+            $actorId = (int) $request->user()->getAuthIdentifier();
+            abort_if((int) $certification->certified_by === $actorId, 403, 'The certifier cannot ratify the same election.');
+            DB::table('governance_election_certifications')->where('id', $certification->id)
+                ->where('tenant_id', $tenantId)->update([
+                    'ratified_by' => $actorId, 'ratified_at' => now(),
+                    'certification_reference' => $certification->certification_reference . ' | Ratification: ' . $data['ratification_reference'],
+                    'updated_at' => now(),
+                ]);
+            $election->forceFill(['status' => 'ratified'])->save();
+            return response()->json(['data' => ['status' => 'ratified', 'ratified_at' => now()]]);
+        });
+    }
+
     private function assertCommitteeMember(int $tenantId, int $electionId): object
     {
         $userId = auth()->id();
