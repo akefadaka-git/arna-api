@@ -176,7 +176,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Validation\ValidationException;
-use MaaleArna\MASES\Core\Exceptions\CoreException;
+use MaaleArna\\MASES\\Core\\Exceptions\\CoreException;
+use MaaleArna\\MASES\\Core\\Exceptions\\ErrorCodeRegistry;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
@@ -735,14 +736,20 @@ return Application::configure(basePath: dirname(__DIR__))
             // Compute the canonical error code, message, and status code.
             [$code, $message, $status] = mases_resolve_error($e);
 
-            // Build the canonical envelope.
+            // Resolve governed metadata without changing legacy code/status behavior.
+            $errorMetadata = ErrorCodeRegistry::metadata($code);
+
+            // Build the canonical, backward-compatible envelope.
             $envelope = [
                 'success' => false,
                 'error'   => [
-                    'code'       => $code,
-                    'message'    => $message,
-                    'request_id' => mases_resolve_request_id($request),
-                    'timestamp'  => now()->toIso8601String(),
+                    'code'        => $code,
+                    'message'     => $message,
+                    'message_key' => $errorMetadata['message_key'],
+                    'severity'    => $errorMetadata['severity'],
+                    'retryable'   => $errorMetadata['retryable'],
+                    'request_id'  => mases_resolve_request_id($request),
+                    'timestamp'   => now()->toIso8601String(),
                 ],
             ];
 
