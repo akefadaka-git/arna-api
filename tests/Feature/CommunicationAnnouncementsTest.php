@@ -38,8 +38,8 @@ final class CommunicationAnnouncementsTest extends TestCase
     {
         $catalogue = collect(PermissionCatalogue::ROWS)->keyBy('slug');
 
-        // 44 core permission rows plus 13 Finance rows are the canonical 57.
-        $this->assertCount(57, PermissionCatalogue::ROWS);
+        // 44 core permission rows, 13 Finance rows and 3 Admin audit/security rows.
+        $this->assertCount(60, PermissionCatalogue::ROWS);
 
         foreach (['announcement.view', 'announcement.manage', 'announcement.approve', 'announcement.publish'] as $slug) {
             $this->assertTrue($catalogue->has($slug), "Missing canonical permission: {$slug}");

@@ -1,0 +1,63 @@
+name: ARNA Admin audit and security regression
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "app/Http/Controllers/Admin/AdminAuditSecurityController.php"
+      - "routes/api.php"
+      - "tests/Feature/AdminAuditSecurityTest.php"
+      - "tests/Feature/CommunicationAnnouncementsTest.php"
+      - "database/seeders/Data/PermissionCatalogue.php"
+      - "mases_core/src/Audit/**"
+      - "mases_core/src/Security/**"
+      - "database/migrations/**"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-admin-audit-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  admin-audit-security:
+    name: PHP 8.3 Admin audit/security feature tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact revision
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+      - name: Validate and install locked dependencies
+        run: |
+          composer validate --no-check-publish
+          composer install --prefer-dist --no-interaction --no-progress
+      - name: PHP syntax lint
+        run: |
+          php -l app/Http/Controllers/Admin/AdminAuditSecurityController.php
+          php -l tests/Feature/AdminAuditSecurityTest.php
+          php -l routes/api.php
+      - name: Run Admin audit/security feature tests
+        run: vendor/bin/phpunit tests/Feature/AdminAuditSecurityTest.php
+      - name: Run existing audit/security regressions
+        run: |
+          vendor/bin/phpunit tests/Feature/AuditSecurityTest.php
+          vendor/bin/phpunit tests/Unit/SecurityEventServiceTest.php
