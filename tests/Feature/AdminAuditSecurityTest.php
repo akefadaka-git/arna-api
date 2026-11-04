@@ -49,7 +49,7 @@ final class AdminAuditSecurityTest extends TestCase
             'action' => 'identity.profile.updated',
             'resource_type' => 'user',
             'resource_id' => '42',
-            'new_values' => ['locale' => 'am'],
+            'new_values' => ['locale' => 'am', 'password' => 'must-not-leak', 'nested' => ['access_token' => 'must-not-leak-either']],
         ]);
         $otherTenant = Tenant::factory()->create(['is_active' => true]);
         $foreign = AuditLog::query()->create([
@@ -82,7 +82,7 @@ final class AdminAuditSecurityTest extends TestCase
             'event_type' => 'login.failed',
             'severity' => 'warning',
             'description' => 'Repeated failed sign-in attempts',
-            'event_data' => ['attempt_count' => 5],
+            'event_data' => ['attempt_count' => 5, 'otp_code' => '123456'],
             'ip_address' => '192.0.2.10',
             'request_id' => 'req-security-001',
             'created_at' => now(),
@@ -92,7 +92,7 @@ final class AdminAuditSecurityTest extends TestCase
             ->getJson('/api/admin/security-events?severity=warning&status=open')
             ->assertOk()
             ->assertJsonPath('data.total', 1)
-            ->assertJsonPath('data.data.0.id', $event->id);
+            ->assertJsonPath('data.data.0.id', $event->id)\n            ->assertJsonPath('data.data.0.event_data.otp_code', '[REDACTED]');
 
         $this->asTenantAdmin()
             ->postJson('/api/admin/security-events/' . $event->id . '/resolve', [
