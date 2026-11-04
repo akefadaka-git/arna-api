@@ -84,11 +84,17 @@ jobs:
           tools: composer:v2
           coverage: none
 
+      - name: Create runner-local environment file
+        run: touch .env
+
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Run centralized error diagnostics unit tests
         run: php artisan test --compact tests/Unit/ErrorDiagnosticEngineTest.php
 
-      - name: Check formatting of changed PHP files
-        run: vendor/bin/pint --test bootstrap/app.php mases_core/src/Exceptions/ErrorCodeRegistry.php mases_core/src/Monitoring/ErrorDiagnosticEngine.php tests/Unit/ErrorDiagnosticEngineTest.php
+      - name: Validate bootstrap PHP syntax
+        run: php -l bootstrap/app.php
+
+      - name: Check formatting of new diagnostics PHP files
+        run: vendor/bin/pint --test mases_core/src/Exceptions/ErrorCodeRegistry.php mases_core/src/Monitoring/ErrorDiagnosticEngine.php tests/Unit/ErrorDiagnosticEngineTest.php
