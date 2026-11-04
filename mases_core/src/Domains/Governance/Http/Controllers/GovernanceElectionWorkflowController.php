@@ -272,11 +272,34 @@ final class GovernanceElectionWorkflowController extends Controller
                 ->where('status', 'active')->whereNull('recused_at')->where('member_role', 'committee_member')->count();
             abort_if($members < 3, 409, 'Committee quorum is not established.');
             abort_if($committeeMember->recused_at !== null, 403, 'A recused committee member cannot decide this submission.');
-            $candidate = DB::table('shareholders')->where('tenant_id', $tenantId)
-                ->where('person_id', $item->candidate_person_id)->where('shareholder_type', 'individual')->where('is_active', true)
-                ->whereNull('deleted_at')->first(['id']);
-            abort_if($candidate === null, 409, 'Candidate shareholder identity is no longer eligible.');
             abort_if((int) $committeeMember->person_id === (int) $item->candidate_person_id, 403, 'A candidate cannot decide their own nomination.');
+            $candidate = DB::table('shareholders')->where('tenant_id', $tenantId)
+                ->where('person_id', $item->candidate_person_id)->where('shareholder_type', 'individual')
+                ->where('is_active', true)->whereNull('deleted_at')->first(['id']);
+            abort_if($candidate === null, 409, 'Candidate shareholder identity is no longer eligible.');
+            $actorId = (int) $request->user()->getAuthIdentifier();
+            $alreadyVoted = DB::table('governance_election_committee_decisions')
+                ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
+                ->where('decision_type', 'nomination_submission')->where('submission_id', $item->id)
+                ->where('decided_by', $actorId)->exists();
+            abort_if($alreadyVoted, 409, 'This committee member has already voted on this submission.');
+
+            DB::table('governance_election_committee_decisions')->insert([
+                'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
+                'nomination_id' => null, 'submission_id' => $item->id,
+                'decision_type' => 'nomination_submission', 'decision' => $data['decision'],
+                'final_ballot_approved' => false, 'reason' => $data['reason'],
+                'decided_by' => $actorId, 'meeting_reference' => $data['meeting_reference'] ?? null,
+                'evidence_reference' => $data['evidence_reference'] ?? null,
+                'decided_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $votes = DB::table('governance_election_committee_decisions')
+                ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
+                ->where('decision_type', 'nomination_submission')->where('submission_id', $item->id)
+                ->where('decision', $data['decision'])->count();
+            if ($votes < 2) {
+                return response()->json(['data' => ['submission_id' => $item->id, 'vote_recorded' => true, 'votes_for_decision' => $votes, 'status' => 'awaiting_committee_majority']]);
+            }
 
             if ($data['decision'] === 'approved') {
                 $existing = GovernanceElectionNomination::query()
@@ -291,28 +314,17 @@ final class GovernanceElectionWorkflowController extends Controller
                     'nominated_by_shareholder_id' => $item->nominated_by_shareholder_id,
                     'nomination_statement' => $item->statement,
                     'committee_status' => 'approved', 'committee_reason' => $data['reason'],
-                    'committee_decided_at' => now(), 'committee_decided_by' => (int) $request->user()->getAuthIdentifier(),
-                    'final_ballot_approved' => true, 'final_ballot_approved_at' => now(),
-                    'reviewed_by' => (int) $request->user()->getAuthIdentifier(), 'reviewed_at' => now(),
+                    'committee_decided_at' => now(), 'committee_decided_by' => $actorId,
+                    'final_ballot_approved' => false, 'reviewed_by' => $actorId, 'reviewed_at' => now(),
                 ]);
             }
-
             DB::table('governance_election_nomination_submissions')->where('id', $item->id)
                 ->where('tenant_id', $tenantId)->update([
                     'status' => $data['decision'],
                     'committee_candidate_id' => $data['decision'] === 'approved' ? $committeeNomination->id : null,
                     'updated_at' => now(),
                 ]);
-            DB::table('governance_election_committee_decisions')->insert([
-                'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
-                'nomination_id' => null, 'decision_type' => 'nomination_submission',
-                'decision' => $data['decision'], 'reason' => $data['reason'],
-                'decided_by' => (int) $request->user()->getAuthIdentifier(),
-                'meeting_reference' => $data['meeting_reference'] ?? null,
-                'evidence_reference' => $data['evidence_reference'] ?? null,
-                'decided_at' => now(), 'created_at' => now(), 'updated_at' => now(),
-            ]);
-            return response()->json(['data' => ['submission_id' => $item->id, 'decision' => $data['decision']]]);
+            return response()->json(['data' => ['submission_id' => $item->id, 'decision' => $data['decision'], 'status' => $data['decision']]]);
         });
     }
 
@@ -334,38 +346,46 @@ final class GovernanceElectionWorkflowController extends Controller
             $candidate = GovernanceElectionNomination::query()
                 ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
                 ->lockForUpdate()->findOrFail($nomination);
-
-            $activeMembers = DB::table('governance_election_committee_members')
+            $members = DB::table('governance_election_committee_members')
                 ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
                 ->where('status', 'active')->whereNull('recused_at')->where('member_role', 'committee_member')->count();
-            abort_if($activeMembers < 3, 409, 'Committee quorum is not established.');
+            abort_if($members < 3, 409, 'Committee quorum is not established.');
             abort_if($committeeMember->recused_at !== null, 403, 'A recused committee member cannot decide this nomination.');
             abort_if((int) ($committeeMember->person_id ?? 0) === (int) ($candidate->candidate_person_id ?? 0), 403, 'A candidate cannot decide their own nomination.');
-
             $actorId = (int) $request->user()->getAuthIdentifier();
+            $alreadyVoted = DB::table('governance_election_committee_decisions')
+                ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
+                ->where('decision_type', 'candidate_review')->where('nomination_id', $candidate->id)
+                ->where('decided_by', $actorId)->exists();
+            abort_if($alreadyVoted, 409, 'This committee member has already voted on this candidate.');
+            $ballotApproval = $data['decision'] === 'approved' && (bool) ($data['final_ballot_approved'] ?? false);
+            DB::table('governance_election_committee_decisions')->insert([
+                'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
+                'nomination_id' => $candidate->id, 'submission_id' => null,
+                'decision_type' => 'candidate_review', 'decision' => $data['decision'],
+                'final_ballot_approved' => $ballotApproval, 'reason' => $data['reason'],
+                'decided_by' => $actorId, 'meeting_reference' => $data['meeting_reference'] ?? null,
+                'evidence_reference' => $data['evidence_reference'] ?? null,
+                'decided_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $votes = DB::table('governance_election_committee_decisions')
+                ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
+                ->where('decision_type', 'candidate_review')->where('nomination_id', $candidate->id)
+                ->where('decision', $data['decision'])->count();
+            if ($votes < 2) {
+                return response()->json(['data' => ['id' => $candidate->id, 'vote_recorded' => true, 'votes_for_decision' => $votes, 'status' => 'awaiting_committee_majority']]);
+            }
+            $ballotVotes = DB::table('governance_election_committee_decisions')
+                ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
+                ->where('decision_type', 'candidate_review')->where('nomination_id', $candidate->id)
+                ->where('decision', 'approved')->where('final_ballot_approved', true)->count();
             $candidate->committee_status = $data['decision'];
             $candidate->committee_reason = $data['reason'];
             $candidate->committee_decided_at = now();
             $candidate->committee_decided_by = $actorId;
-            $candidate->final_ballot_approved = $data['decision'] === 'approved' && (bool) ($data['final_ballot_approved'] ?? false);
+            $candidate->final_ballot_approved = $data['decision'] === 'approved' && $ballotVotes >= 2;
             $candidate->final_ballot_approved_at = $candidate->final_ballot_approved ? now() : null;
             $candidate->save();
-
-            DB::table('governance_election_committee_decisions')->insert([
-                'tenant_id' => $tenantId,
-                'election_id' => $governanceElection->id,
-                'nomination_id' => $candidate->id,
-                'decision_type' => 'candidate_review',
-                'decision' => $data['decision'],
-                'reason' => $data['reason'],
-                'decided_by' => $actorId,
-                'meeting_reference' => $data['meeting_reference'] ?? null,
-                'evidence_reference' => $data['evidence_reference'] ?? null,
-                'decided_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
             return response()->json(['data' => $candidate->fresh()]);
         });
     }
