@@ -57,6 +57,7 @@ return new class extends Migration
             $table->char('evidence_sha256', 64);
             $table->unsignedBigInteger('certified_by');
             $table->dateTime('certified_at');
+            $table->string('ratification_reference', 160)->nullable();
             $table->unsignedBigInteger('ratified_by')->nullable();
             $table->dateTime('ratified_at')->nullable();
             $table->timestamps();
