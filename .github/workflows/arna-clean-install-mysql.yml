@@ -9,6 +9,10 @@ on:
     branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
+      - "bootstrap/app.php"
+      - "mases_core/src/Exceptions/ErrorCodeRegistry.php"
+      - "mases_core/src/Monitoring/ErrorDiagnosticEngine.php"
+      - "tests/Unit/ErrorDiagnosticEngineTest.php"
       - "database/migrations/**"
       - "mases_core/src/**/Database/Migrations/**"
       - "mases_core/src/**/Providers/**"
@@ -44,10 +48,6 @@ on:
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
       - "tests/Feature/CentralNotificationsTest.php"
-      - "bootstrap/app.php"
-      - "mases_core/src/Exceptions/ErrorCodeRegistry.php"
-      - "mases_core/src/Monitoring/ErrorDiagnosticEngine.php"
-      - "tests/Unit/ErrorDiagnosticEngineTest.php"
   workflow_dispatch:
     inputs:
       target_sha:
@@ -152,12 +152,16 @@ jobs:
           tools: composer:v2
           coverage: none
 
+      - name: Lint every tracked PHP source file
+        shell: bash
+        run: |
+          git ls-files -z -- '*.php' | xargs -0 -n1 php -l
+
       - name: Validate Composer manifest and lock
         run: composer validate --no-check-publish
 
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
-
       - name: Run centralized error diagnostics unit tests
         run: php artisan test --compact tests/Unit/ErrorDiagnosticEngineTest.php
 
@@ -166,6 +170,17 @@ jobs:
 
       - name: Check formatting of new diagnostics PHP files
         run: vendor/bin/pint --test mases_core/src/Exceptions/ErrorCodeRegistry.php mases_core/src/Monitoring/ErrorDiagnosticEngine.php tests/Unit/ErrorDiagnosticEngineTest.php
+
+
+      - name: Enforce Composer security advisory gate
+        run: composer audit --format=plain
+
+      - name: Run canonical Ethiopian localization regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Unit/LocalizationServiceTest.php
 
       - name: Run focused demo seeder guard tests
         run: php artisan test --compact tests/Unit/DemoSeederGuardTest.php
@@ -414,97 +429,3 @@ jobs:
             migration-status.txt
           if-no-files-found: warn
           retention-days: 14
-
-  cleanup-merged-source-branches:
-    name: Clean up merged source branches after successful main verification
-    if: ${{ needs.clean-install.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.clean-install.outputs.target_sha == github.sha }}
-    needs: clean-install
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-      pull-requests: read
-    steps:
-      - name: Delete only safe, fully merged source branches associated with this exact main commit
-        uses: actions/github-script@v7
-        env:
-          TARGET_SHA: ${{ needs.clean-install.outputs.target_sha }}
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const sha = process.env.TARGET_SHA;
-            core.info(`Post-merge verification succeeded for exact main SHA: ${sha}`);
-            const repository = await github.rest.repos.get({ owner, repo });
-            const defaultBranch = repository.data.default_branch;
-
-            // Refuse cleanup unless the exact tested SHA is already reachable from
-            // the default branch. This permits targeted checks of old merge commits.
-            const comparison = await github.rest.repos.compareCommits({
-              owner, repo, base: sha, head: defaultBranch
-            });
-            if (comparison.data.merge_base_commit?.sha !== sha) {
-              core.setFailed(`Target SHA ${sha} is not an ancestor of ${defaultBranch}; refusing branch cleanup.`);
-              return;
-            }
-
-            // Discover merged PRs independently of the push/dispatch SHA.
-            const closedPRs = await github.paginate(github.rest.pulls.list, {
-              owner, repo, state: 'closed', base: defaultBranch, per_page: 100
-            });
-            const prs = closedPRs.filter(pr => pr.merged_at && pr.base.ref === defaultBranch);
-            core.info(`Found ${prs.length} merged PR(s) targeting ${defaultBranch}.`);
-
-            const protectedName = /^(main|master|develop|development|integration(?:\/.*)?|release(?:\/.*)?|hotfix(?:\/.*)?)$/i;
-            const consideredBranches = new Set();
-            for (const pr of prs) {
-              const branch = pr.head.ref;
-              const headRepo = pr.head.repo?.full_name;
-              if (consideredBranches.has(branch)) {
-                core.info(`Skip duplicate candidate ${branch}; already evaluated from an earlier merged PR.`);
-                continue;
-              }
-              consideredBranches.add(branch);
-              if (!pr.merged_at || pr.state !== 'closed') {
-                core.info(`Skip PR #${pr.number}: not confirmed merged and closed.`);
-                continue;
-              }
-              if (headRepo !== `${owner}/${repo}`) {
-                core.info(`Skip PR #${pr.number}: source branch belongs to ${headRepo || 'a deleted/unknown repository'}.`);
-                continue;
-              }
-              if (branch === defaultBranch || protectedName.test(branch)) {
-                core.info(`Skip protected/long-lived branch ${branch} from PR #${pr.number}.`);
-                continue;
-              }
-              let current;
-              try {
-                current = await github.rest.repos.getBranch({ owner, repo, branch });
-              } catch (error) {
-                if (error.status === 404) {
-                  core.info(`Branch ${branch} is already absent.`);
-                  continue;
-                }
-                throw error;
-              }
-              if (current.data.commit.sha !== pr.head.sha) {
-                core.warning(`Skip ${branch}: branch advanced after PR #${pr.number}; current=${current.data.commit.sha}, merged-head=${pr.head.sha}.`);
-                continue;
-              }
-              const openPRs = await github.rest.pulls.list({
-                owner, repo, state: 'open', head: `${owner}:${branch}`, per_page: 100
-              });
-              if (openPRs.data.length > 0) {
-                core.warning(`Skip ${branch}: ${openPRs.data.length} open pull request(s) still use it.`);
-                continue;
-              }
-              try {
-                await github.rest.git.deleteRef({ owner, repo, ref: `heads/${branch}` });
-                core.notice(`Deleted merged source branch ${branch} (PR #${pr.number}, head ${pr.head.sha}).`);
-              } catch (error) {
-                if (error.status === 422 || error.status === 403) {
-                  core.warning(`Could not delete ${branch}; it may be protected or repository policy may prohibit deletion. ${error.message}`);
-                  continue;
-                }
-                throw error;
-              }
-            }
