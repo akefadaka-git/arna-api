@@ -299,7 +299,7 @@ final class AuditSecurityTest extends TestCase
     {
         $token = $this->login();
 
-        $response = $this->withToken($token)->postJson('/api/logout');
+        $response = $this->withToken($token)->postJson('/api/logout', [], $this->tenantHeaders());
         $response->assertSuccessful();
 
         $this->assertDatabaseHas('security_events', [
