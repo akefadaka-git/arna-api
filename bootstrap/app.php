@@ -183,6 +183,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Throwable;
 
 /*
 |--------------------------------------------------------------------------
@@ -349,7 +350,7 @@ if (!function_exists('mases_resolve_error')) {
      *
      * @return array{0: string, 1: string, 2: int}
      */
-    function mases_resolve_error(\Throwable $e): array
+    function mases_resolve_error(Throwable $e): array
     {
         // 1. MASES CoreException hierarchy (Authorization, Tenant,
         //    Authentication, File, …). These carry their own error code,
@@ -729,7 +730,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Server-side diagnostic enrichment is intentionally restricted to
         // server failures. The diagnostic engine is deterministic and read-only.
-        $exceptions->reportable(function (\Throwable $e): void {
+        $exceptions->reportable(function (Throwable $e): void {
             [$code, , $status] = mases_resolve_error($e);
             if ($status < 500) {
                 return;
@@ -748,7 +749,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // ---------------------------------------------------------------------
         // Canonical JSON error rendering
         // ---------------------------------------------------------------------
-        $exceptions->renderable(function (\Throwable $e, Request $request): ?JsonResponse {
+        $exceptions->renderable(function (Throwable $e, Request $request): ?JsonResponse {
 
             // Non-API requests fall through to Laravel's default HTML
             // renderer. This keeps web routes, error pages, and any
