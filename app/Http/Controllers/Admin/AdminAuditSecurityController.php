@@ -8,7 +8,7 @@ use App\\Http\\Controllers\\Controller;
 use Illuminate\\Database\\Eloquent\\Builder;
 use Illuminate\\Http\\JsonResponse;
 use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Facades\\DB;\nuse RuntimeException;
 use Illuminate\\Validation\\ValidationException;
 use MaaleArna\\MASES\\Core\\Audit\\Models\\AuditLog;
 use MaaleArna\\MASES\\Core\\Audit\\Services\\AuditService;
