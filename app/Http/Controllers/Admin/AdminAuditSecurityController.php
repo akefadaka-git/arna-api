@@ -8,7 +8,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;\nuse Carbon\Carbon;\nuse RuntimeException;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;\nuse RuntimeException;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Audit\Services\AuditService;
@@ -44,8 +45,8 @@ final class AdminAuditSecurityController extends Controller
             ->when($filters['action'] ?? null, fn (Builder $q, string $value) => $q->where('action', $value))
             ->when($filters['resource_type'] ?? null, fn (Builder $q, string $value) => $q->where('resource_type', $value))
             ->when($filters['actor_id'] ?? null, fn (Builder $q, int $value) => $q->where('user_id', $value))
-            ->when($filters['from'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '>=', $value))
-            ->when($filters['to'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '<=', $value));
+            ->when($filters['from'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '>=', Carbon::parse($value)->startOfDay()))
+            ->when($filters['to'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '<=', Carbon::parse($value)->endOfDay()));
 
         $page = $query->latest('id')->paginate($filters['per_page'] ?? 25);
         $page->getCollection()->transform(fn (AuditLog $entry): array => $this->auditPayload($entry));
