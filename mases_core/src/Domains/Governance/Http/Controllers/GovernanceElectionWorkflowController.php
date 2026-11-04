@@ -439,6 +439,7 @@ final class GovernanceElectionWorkflowController extends Controller
             abort_if($tally === null, 404, 'Election tally not found.');
             $actorId = (int) $request->user()->getAuthIdentifier();
             abort_if((int) $tally->prepared_by === $actorId, 403, 'The tally preparer cannot independently certify the tally.');
+            abort_unless(hash_equals(strtolower((string) $tally->evidence_sha256), strtolower($data['evidence_sha256'])), 422, 'Certification hash must match the frozen tally evidence hash.');
             $openObjections = DB::table('governance_election_objections')->where('tenant_id', $tenantId)
                 ->where('election_id', $election->id)->whereNotIn('status', ['dismissed', 'upheld', 'withdrawn'])->exists();
             $openAppeals = DB::table('governance_election_appeals')->where('tenant_id', $tenantId)
@@ -475,7 +476,7 @@ final class GovernanceElectionWorkflowController extends Controller
             DB::table('governance_election_certifications')->where('id', $certification->id)
                 ->where('tenant_id', $tenantId)->update([
                     'ratified_by' => $actorId, 'ratified_at' => now(),
-                    'certification_reference' => $certification->certification_reference . ' | Ratification: ' . $data['ratification_reference'],
+                    'ratification_reference' => $data['ratification_reference'],
                     'updated_at' => now(),
                 ]);
             $election->forceFill(['status' => 'ratified'])->save();
