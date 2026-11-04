@@ -150,7 +150,7 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
         $service = $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php');
 
-        self::assertStringContainsString("$governanceElection->status === 'nominating'", $controller);
+        self::assertStringContainsString("\$governanceElection->status === 'nominating'", $controller);
         self::assertStringContainsString("'status' => 'nominating'", $service);
         self::assertStringContainsString("->where('shareholder_type', 'individual')", $controller);
         self::assertStringContainsString("->where('person_id', ", $controller);
