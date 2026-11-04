@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElectionNomination;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionLifecycleService;
 
 final class GovernanceElectionWorkflowController extends Controller
 {
