@@ -8,7 +8,7 @@ use App\\Http\\Controllers\\Controller;
 use Illuminate\\Database\\Eloquent\\Builder;
 use Illuminate\\Http\\JsonResponse;
 use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;\nuse RuntimeException;
+use Illuminate\\Support\\Facades\\DB;\nuse Carbon\\Carbon;\nuse RuntimeException;
 use Illuminate\\Validation\\ValidationException;
 use MaaleArna\\MASES\\Core\\Audit\\Models\\AuditLog;
 use MaaleArna\\MASES\\Core\\Audit\\Services\\AuditService;
@@ -60,7 +60,7 @@ final class AdminAuditSecurityController extends Controller
             ->where('tenant_id', $this->tenantId())
             ->findOrFail($id);
 
-        return response()->json(['success' => true, 'data' => $entry]);
+        return response()->json(['success' => true, 'data' => $this->auditPayload($entry)]);
     }
 
     public function securityEvents(Request $request): JsonResponse
@@ -111,7 +111,7 @@ final class AdminAuditSecurityController extends Controller
             ->where('tenant_id', $this->tenantId())
             ->findOrFail($id);
 
-        return response()->json(['success' => true, 'data' => $event]);
+        return response()->json(['success' => true, 'data' => $this->securityPayload($event)]);
     }
 
     public function resolveSecurityEvent(Request $request, int $id, AuditService $audit): JsonResponse
