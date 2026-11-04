@@ -36,7 +36,7 @@ final class ErrorDiagnosticEngineTest extends TestCase
     #[Test]
     public function diagnostics_are_read_only_and_classify_financial_integrity_errors(): void
     {
-        $engine = new ErrorDiagnosticEngine();
+        $engine = new ErrorDiagnosticEngine;
         $result = $engine->diagnose(new RuntimeException('Ledger rejected write'), 'FINANCE_UNBALANCED_JOURNAL');
 
         $this->assertSame('financial_integrity', $result['category']);
@@ -48,7 +48,7 @@ final class ErrorDiagnosticEngineTest extends TestCase
     #[Test]
     public function database_diagnostics_do_not_expose_exception_messages(): void
     {
-        $engine = new ErrorDiagnosticEngine();
+        $engine = new ErrorDiagnosticEngine;
         $result = $engine->diagnose(new RuntimeException('SQLSTATE[secret] password=do-not-leak'), 'DATABASE_ERROR');
 
         $this->assertSame('database', $result['category']);
