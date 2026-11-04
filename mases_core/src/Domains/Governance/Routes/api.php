@@ -584,6 +584,15 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.election.view')
         ->name('elections.show');
 
+    Route::post('/elections/{governanceElection}/authority/verify', [GovernanceElectionWorkflowController::class, 'verifyElectionAuthority'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.authority.verify');
+    Route::post('/elections/{governanceElection}/nominations/open', [GovernanceElectionWorkflowController::class, 'openElectionNominations'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.nominations.open');
+    Route::post('/elections/{governanceElection}/voting/open-physical', [GovernanceElectionWorkflowController::class, 'openPhysicalElectionVoting'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.voting.open-physical');
+    Route::post('/elections/{governanceElection}/voting/close', [GovernanceElectionWorkflowController::class, 'closeElectionVoting'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.voting.close');
+
     // Nomination intake and non-binding shareholder consultation.
     Route::post('/elections/{governanceElection}/nominations', [GovernanceElectionWorkflowController::class, 'submitNomination'])
         ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.view')->name('elections.nominations.submit');
