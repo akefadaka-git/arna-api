@@ -84,7 +84,8 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
 
         self::assertStringContainsString('$this->assertCommitteeMember($tenantId', $controller);
-        self::assertStringContainsString('$activeMembers < 3', $controller);
+        self::assertStringContainsString("->where('status', 'active')->whereNull('recused_at')->where('member_role', 'committee_member')->count()", $controller);
+        self::assertStringContainsString('$members < 3', $controller);
         self::assertStringContainsString('$committeeMember->recused_at !== null', $controller);
         self::assertStringContainsString('candidate cannot decide their own nomination', $controller);
         self::assertStringContainsString('governance_election_committee_decisions', $controller);
