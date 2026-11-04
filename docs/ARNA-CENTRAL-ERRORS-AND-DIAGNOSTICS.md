@@ -10,6 +10,9 @@ The existing Laravel exception renderer and App single Axios transport remain ca
 - Existing codes remain valid. Unknown legacy codes remain renderable and should be surfaced as catalogue drift in telemetry.
 - Messages are safe for end users; internal exception detail belongs only in protected logs.
 
+## Existing code inventory
+The registry includes the established CoreException taxonomy and codes discovered in the AuthenticationException, AuthorizationException, FileException, and TenantException classes, plus the explicit authentication controller and tenancy middleware response codes. Unknown codes remain compatible but are not considered catalogued; add a registration and test whenever a new code is introduced. This inventory is additive and must be expanded when additional domain code sources are reconciled.
+
 ## Self-diagnosis and remediation model
 1. Detect: collect exception class, stable code, HTTP status, timestamp, request/correlation ID and bounded safe context.
 2. Correlate: link frontend request ID, API logs, tenant-scoped audit/security events, queue job ID and deployment SHA where available.
