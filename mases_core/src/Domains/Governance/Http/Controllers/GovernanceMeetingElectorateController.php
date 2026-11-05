@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers;
+namespace MaaleArna\MASES\Core\Domains\Governance\Http\Controllers;
 
-use App\\Http\\Controllers\\Controller;
-use Carbon\\CarbonImmutable;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
-use Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException;
-use Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException;
+use App\Http\Controllers\Controller;
+use Carbon\CarbonImmutable;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Immutable GA electorate snapshots and fail-closed quorum evaluation.
@@ -481,16 +481,27 @@ final class GovernanceMeetingElectorateController extends Controller
         if (function_exists('bccomp')) {
             return bccomp($left, $right, 4);
         }
-        $normalise = static function (string $value): string {
+        $normalise = static function (string $value): array {
             $value = trim($value);
             $negative = str_starts_with($value, '-');
             $value = ltrim($value, '+-');
             [$whole, $fraction] = array_pad(explode('.', $value, 2), 2, '');
             $whole = ltrim($whole, '0') ?: '0';
             $fraction = rtrim(str_pad(substr($fraction, 0, 4), 4, '0'), '0');
-            return ($negative ? '-' : '') . $whole . '.' . ($fraction === '' ? '0' : $fraction);
+            return [$negative, $whole, $fraction === '' ? '0' : $fraction];
         };
-        return strcmp($normalise($left), $normalise($right)) <=> 0;
+        [$leftNegative, $leftWhole, $leftFraction] = $normalise($left);
+        [$rightNegative, $rightWhole, $rightFraction] = $normalise($right);
+        if ($leftNegative !== $rightNegative) {
+            return $leftNegative ? -1 : 1;
+        }
+        $wholeCompare = strlen($leftWhole) <=> strlen($rightWhole);
+        if ($wholeCompare === 0) {
+            $wholeCompare = strcmp($leftWhole, $rightWhole) <=> 0;
+        }
+        $fractionCompare = strcmp(str_pad($leftFraction, 4, '0'), str_pad($rightFraction, 4, '0')) <=> 0;
+        $comparison = $wholeCompare !== 0 ? $wholeCompare : $fractionCompare;
+        return $leftNegative ? -$comparison : $comparison;
     }
 
     private function activity(int $tenantId, int $meetingId, string $action, array $payload): void
