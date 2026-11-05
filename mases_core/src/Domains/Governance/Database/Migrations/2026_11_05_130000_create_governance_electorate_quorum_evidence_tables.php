@@ -59,6 +59,10 @@ return new class extends Migration
             $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $table->foreignId('approved_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->timestamp('approved_at')->nullable();
+            $table->foreignId('legal_verified_by')->nullable()->constrained('users')->restrictOnDelete();
+            $table->timestamp('legal_verified_at')->nullable();
+            $table->string('legal_verification_reference', 200)->nullable();
+            $table->char('legal_verification_document_hash', 64)->nullable();
             $table->timestamps();
             $table->index(['tenant_id', 'meeting_kind', 'status'], 'gqr_tenant_kind_status_ix');
         });
