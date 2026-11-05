@@ -257,17 +257,22 @@ final class GovernanceMeetingElectorateController extends Controller
             'quorum_numerator' => ['required', 'integer', 'min:1', 'max:100000'],
             'quorum_denominator' => ['required', 'integer', 'min:1', 'max:100000'],
             'share_class_weights' => ['required', 'array', 'min:1'],
-            'share_class_weights.*' => ['required', 'numeric', 'gt:0', 'max:1000000'],
+            'share_class_weights.*' => ['required', 'string', 'regex:/^\\d{1,12}(\\.\\d{1,4})?$/', 'gt:0'],
             'effective_from' => ['required', 'date'],
             'effective_until' => ['nullable', 'date', 'after:effective_from'],
         ]);
         if ($data['quorum_numerator'] > $data['quorum_denominator']) {
             throw ValidationException::withMessages(['quorum_numerator' => 'Quorum numerator cannot exceed denominator.']);
         }
+        $shareClassIds = [];
         foreach (array_keys($data['share_class_weights']) as $classId) {
             if (!ctype_digit((string) $classId) || (int) $classId < 1) {
                 throw ValidationException::withMessages(['share_class_weights' => 'Share-class weights must be keyed by numeric share_class_id.']);
             }
+            $shareClassIds[] = (int) $classId;
+        }
+        if (DB::table('share_classes')->whereIn('id', $shareClassIds)->count() !== count(array_unique($shareClassIds))) {
+            throw ValidationException::withMessages(['share_class_weights' => 'Every voting-weight key must identify an existing share class.']);
         }
 
         $tenantId = $this->tenantId();
