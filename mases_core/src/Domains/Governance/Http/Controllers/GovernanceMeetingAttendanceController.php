@@ -62,6 +62,9 @@ final class GovernanceMeetingAttendanceController extends Controller
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
         ]);
+        if ($data['meeting_kind'] === 'board' && !empty($data['meeting_category'])) {
+            throw ValidationException::withMessages(['meeting_category' => 'Board meetings do not use a General Assembly category.']);
+        }
         $tenantId = $this->tenantId();
         $body = DB::table('governance_bodies')
             ->where('tenant_id', $tenantId)
