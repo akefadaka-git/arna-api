@@ -2,7 +2,7 @@
 ## Draft Amendment to the General Assembly Procedure Regulation No. 001/2016
 
 **Document ID:** ARNA-GOV-GA-REG-AMENDMENT-001-EN  
-**Status:** Proposed draft for review — not adopted  
+**Status:** Board-approved amendment draft — General Assembly approval and legal verification remain pending  
 **Draft date:** 5 November 2026 (26 Tikimt 2019 E.C.)  
 **Instrument amended:** General Assembly Procedure Regulation No. 001/2016  
 **Company:** Maale Arna Share Company
@@ -248,6 +248,19 @@ The following evidence is required before final approval:
 | General Assembly approval | General Assembly | Certified minutes and resolution | NOT DONE |
 | Filing / notice | Legally designated authority or Company officer | Filing or service evidence | NOT DONE |
 | Effective date | As determined by law and valid approval | Final approval instrument | NOT SET |
+
+---
+
+## Board Approval Record — Status Update
+
+- **Board resolution number:** 0001/2019
+- **Resolution date:** ጥቅምት 26/2019 E.C.
+- **Approval status:** Board-approved, as confirmed by the Owner.
+- **Evidence note:** A signed copy of the Board minutes/resolution has not been attached to this amendment document. The resolution and signatures remain to be document-verified when the certified record is supplied.
+- **General Assembly approval:** NOT YET CONFIRMED — the General Assembly approval required by Article 9 of the original Regulation remains outstanding.
+- **Independent Ethiopian corporate-law review:** PENDING.
+- **Filing / notice:** PENDING, if legally required.
+- **Effective date:** NOT SET. This amendment is not operative until all required approvals and legal formalities are completed.
 
 ---
 
