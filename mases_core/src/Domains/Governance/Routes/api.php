@@ -591,6 +591,11 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('meeting')
         ->middleware('auth.permission:governance.body.manage')
         ->name('meetings.proxies.store');
+    Route::patch('/proxies/{proxy}/revoke', [GovernanceMeetingAttendanceController::class, 'revokeProxy'])
+        ->whereNumber('proxy')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('proxies.revoke');
+
     Route::patch('/proxies/{proxy}/review', [GovernanceMeetingAttendanceController::class, 'reviewProxy'])
         ->whereNumber('proxy')
         ->middleware('auth.permission:governance.body.manage')
