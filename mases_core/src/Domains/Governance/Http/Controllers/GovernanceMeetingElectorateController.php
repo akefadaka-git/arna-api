@@ -169,6 +169,9 @@ final class GovernanceMeetingElectorateController extends Controller
             $snapshotManifest = [
                 'tenant_id' => $tenantId,
                 'meeting_id' => $meeting,
+                'meeting_kind' => (string) $meetingRow->meeting_kind,
+                'meeting_category' => (string) $meetingRow->meeting_category,
+                'meeting_round' => (int) $meetingRow->meeting_round,
                 'version' => $latestVersion + 1,
                 'source_register_version' => $sourceRegisterVersion,
                 'cutoff_at' => $cutoffString,
@@ -539,6 +542,9 @@ final class GovernanceMeetingElectorateController extends Controller
         $snapshotManifest = [
             'tenant_id' => (int) $snapshot->tenant_id,
             'meeting_id' => (int) $snapshot->meeting_id,
+            'meeting_kind' => (string) $meetingRow->meeting_kind,
+            'meeting_category' => (string) $meetingRow->meeting_category,
+            'meeting_round' => (int) $meetingRow->meeting_round,
             'version' => (int) $snapshot->version,
             'source_register_version' => (string) $snapshot->source_register_version,
             'cutoff_at' => (string) $snapshot->cutoff_at,
