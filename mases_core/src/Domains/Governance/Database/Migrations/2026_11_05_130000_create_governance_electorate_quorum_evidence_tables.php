@@ -50,6 +50,7 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->string('meeting_kind', 32);
             $table->string('meeting_category', 24)->nullable();
+            $table->unsignedTinyInteger('meeting_round')->nullable();
             $table->string('rule_code', 80);
             $table->json('rule_payload');
             $table->char('rule_definition_hash', 64);
@@ -67,7 +68,7 @@ return new class extends Migration
             $table->string('legal_verification_reference', 200)->nullable();
             $table->char('legal_verification_document_hash', 64)->nullable();
             $table->timestamps();
-            $table->index(['tenant_id', 'meeting_kind', 'meeting_category', 'status'], 'gqr_tenant_kind_category_status_ix');
+            $table->index(['tenant_id', 'meeting_kind', 'meeting_category', 'meeting_round', 'status'], 'gqr_tenant_kind_category_round_status_ix');
         });
 
         Schema::create('governance_meeting_quorum_evaluations', function (Blueprint $table): void {
