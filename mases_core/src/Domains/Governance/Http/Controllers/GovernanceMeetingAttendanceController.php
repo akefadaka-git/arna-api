@@ -114,6 +114,7 @@ final class GovernanceMeetingAttendanceController extends Controller
         $record = $this->meeting($tenantId, $meeting);
         $record->attendance = DB::table('governance_meeting_attendance')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
         $record->proxies = DB::table('governance_meeting_proxies')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
+        $record->proxy_events = DB::table('governance_meeting_proxy_events')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
         $record->penalties = DB::table('governance_meeting_penalties')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
         $record->settlements = DB::table('governance_penalty_settlements')
             ->where('tenant_id', $tenantId)
@@ -370,9 +371,6 @@ final class GovernanceMeetingAttendanceController extends Controller
             }
             if ($data['decision'] === 'approved') {
                 $meeting = $this->meeting($tenantId, (int) $record->meeting_id);
-                if (CarbonImmutable::now()->greaterThan(CarbonImmutable::parse($record->deadline_at))) {
-                    throw new ConflictHttpException('The proxy deadline has passed; late approval is blocked.');
-                }
                 if ($meeting->meeting_kind === 'board' && !empty($record->proxy_user_id)) {
                     $alreadyHoldsProxy = DB::table('governance_meeting_proxies')
                         ->where('tenant_id', $tenantId)->where('meeting_id', $record->meeting_id)
