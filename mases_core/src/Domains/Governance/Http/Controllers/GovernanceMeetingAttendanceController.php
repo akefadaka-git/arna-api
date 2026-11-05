@@ -448,7 +448,7 @@ final class GovernanceMeetingAttendanceController extends Controller
             ->where('tenant_id', $tenantId)->where('proxy_id', $proxy)
             ->orderBy('id')->get();
         $previousHash = null;
-        $verified = true;
+        $verified = $events->isNotEmpty();
         $failedEventId = null;
 
         foreach ($events as $event) {
@@ -474,17 +474,22 @@ final class GovernanceMeetingAttendanceController extends Controller
             $previousHash = (string) $event->event_hash;
         }
 
+        if ($verified && (string) $events->last()->next_status !== (string) $record->status) {
+            $verified = false;
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
-                'status' => $verified ? 'PASS' : 'FAIL',
+                'status' => $events->isEmpty() ? 'BLOCKED' : ($verified ? 'PASS' : 'FAIL'),
                 'proxy_id' => $proxy,
                 'event_count' => $events->count(),
                 'verified_through_event_id' => $verified ? ($events->last()->id ?? null) : null,
                 'failed_event_id' => $failedEventId,
                 'chain_root' => $previousHash,
                 'integrity_verified' => $verified,
-                'note' => 'This verifies the stored per-proxy hash chain. It is not an independent blockchain anchor.',
+                'current_status_matches_chain' => $events->isNotEmpty() && (string) $events->last()->next_status === (string) $record->status,
+                'note' => 'This verifies the stored per-proxy hash chain and current status linkage. It is not an independent blockchain anchor.',
             ],
         ]);
     }
