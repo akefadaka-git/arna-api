@@ -229,6 +229,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAppointme
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAgendaController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
@@ -635,5 +636,18 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.body.manage')
         ->name('agenda-items.update');
 
+
+
+    // GA electorate snapshot, approved quorum rule registry and fail-closed evaluation.
+    Route::post('/meetings/{meeting}/electorate-snapshots', [GovernanceMeetingElectorateController::class, 'createSnapshot'])
+        ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('meetings.electorate.snapshots.store');
+    Route::post('/electorate-snapshots/{snapshot}/approve', [GovernanceMeetingElectorateController::class, 'approveSnapshot'])
+        ->whereNumber('snapshot')->middleware('auth.permission:governance.body.manage')->name('electorate.snapshots.approve');
+    Route::post('/quorum-rules', [GovernanceMeetingElectorateController::class, 'createQuorumRule'])
+        ->middleware('auth.permission:governance.body.manage')->name('quorum-rules.store');
+    Route::post('/quorum-rules/{rule}/approve', [GovernanceMeetingElectorateController::class, 'approveQuorumRule'])
+        ->whereNumber('rule')->middleware('auth.permission:governance.body.manage')->name('quorum-rules.approve');
+    Route::post('/meetings/{meeting}/quorum/evaluate', [GovernanceMeetingElectorateController::class, 'evaluateQuorum'])
+        ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('meetings.quorum.evaluate');
 
 });
