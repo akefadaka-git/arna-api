@@ -43,8 +43,12 @@ final class GovernanceMeetingElectorateController extends Controller
             'cutoff_at' => ['required', 'date'],
         ]);
         $tenantId = $this->tenantId();
+        $cutoffAt = CarbonImmutable::parse($data['cutoff_at']);
+        if ($cutoffAt->greaterThan(CarbonImmutable::now())) {
+            throw ValidationException::withMessages(['cutoff_at' => 'The register cut-off cannot be in the future.']);
+        }
 
-        $snapshot = DB::transaction(function () use ($tenantId, $meeting, $data): object {
+        $snapshot = DB::transaction(function () use ($tenantId, $meeting, $data, $cutoffAt): object {
             $meetingRow = DB::table('governance_meetings')
                 ->where('tenant_id', $tenantId)->where('id', $meeting)
                 ->lockForUpdate()->first();
@@ -54,8 +58,20 @@ final class GovernanceMeetingElectorateController extends Controller
             if ($meetingRow->meeting_kind !== 'general_assembly') {
                 throw ValidationException::withMessages(['meeting' => 'This electorate snapshot builder is for General Assembly meetings only.']);
             }
+            if ($cutoffAt->greaterThan(CarbonImmutable::parse($meetingRow->starts_at))) {
+                throw ValidationException::withMessages(['cutoff_at' => 'The electorate cut-off cannot be later than the scheduled meeting start.']);
+            }
             if (in_array($meetingRow->status, ['cancelled', 'closed'], true)) {
                 throw new ConflictHttpException('A cancelled or closed meeting cannot receive a new electorate snapshot.');
+            }
+            $unreconciledShareholders = DB::table('shareholders')
+                ->where('tenant_id', $tenantId)->where('created_at', '<=', $cutoffAt->toDateTimeString())
+                ->where('updated_at', '>', $cutoffAt->toDateTimeString())->exists();
+            $unreconciledClasses = DB::table('share_classes')
+                ->where('created_at', '<=', $cutoffAt->toDateTimeString())
+                ->where('updated_at', '>', $cutoffAt->toDateTimeString())->exists();
+            if ($unreconciledShareholders || $unreconciledClasses) {
+                throw new ConflictHttpException('The shareholder or share-class register changed after the requested cut-off and has no effective-dated status history. Reconcile the historical register before creating this snapshot.');
             }
 
             $latestVersion = (int) DB::table('governance_meeting_electorate_snapshots')
@@ -65,6 +81,12 @@ final class GovernanceMeetingElectorateController extends Controller
                 ->selectRaw('COALESCE(SUM(quantity), 0) AS ledger_quantity')
                 ->selectRaw('MAX(id) AS latest_entry_id')
                 ->groupBy('share_holding_id');
+            $cutoffLedger = DB::table('share_holding_entries')
+                ->where('occurred_at', '<=', $cutoffAt->toDateTimeString())
+                ->select('share_holding_id')
+                ->selectRaw('COALESCE(SUM(quantity), 0) AS snapshot_quantity')
+                ->selectRaw('MAX(id) AS snapshot_latest_entry_id')
+                ->groupBy('share_holding_id');
 
             $holdingRows = DB::table('share_holdings as sh')
                 ->join('shareholders as s', 's.id', '=', 'sh.shareholder_id')
@@ -72,17 +94,29 @@ final class GovernanceMeetingElectorateController extends Controller
                 ->leftJoinSub($ledger, 'sl', function ($join): void {
                     $join->on('sl.share_holding_id', '=', 'sh.id');
                 })
+                ->leftJoinSub($cutoffLedger, 'cl', function ($join): void {
+                    $join->on('cl.share_holding_id', '=', 'sh.id');
+                })
                 ->where('s.tenant_id', $tenantId)
+                ->where('s.created_at', '<=', $cutoffAt->toDateTimeString())
+                ->where('s.updated_at', '<=', $cutoffAt->toDateTimeString())
                 ->where('s.is_active', true)
-                ->whereNull('s.deleted_at')
+                ->where(function ($query) use ($cutoffAt): void {
+                    $query->whereNull('s.deleted_at')->orWhere('s.deleted_at', '>', $cutoffAt->toDateTimeString());
+                })
+                ->where('sc.created_at', '<=', $cutoffAt->toDateTimeString())
+                ->where('sc.updated_at', '<=', $cutoffAt->toDateTimeString())
                 ->where('sc.is_active', true)
-                ->whereNull('sc.deleted_at')
+                ->where(function ($query) use ($cutoffAt): void {
+                    $query->whereNull('sc.deleted_at')->orWhere('sc.deleted_at', '>', $cutoffAt->toDateTimeString());
+                })
                 ->orderBy('s.id')
                 ->orderBy('sc.id')
                 ->get([
                     'sh.id as holding_id', 'sh.shareholder_id', 'sh.share_class_id',
                     'sh.current_quantity', 'sc.code as share_class_code',
                     'sl.ledger_quantity', 'sl.latest_entry_id',
+                    'cl.snapshot_quantity', 'cl.snapshot_latest_entry_id',
                 ]);
 
             $holdingsByShareholder = [];
@@ -100,8 +134,8 @@ final class GovernanceMeetingElectorateController extends Controller
                     'holding_id' => (int) $holding->holding_id,
                     'share_class_id' => (int) $holding->share_class_id,
                     'share_class_code' => (string) $holding->share_class_code,
-                    'quantity' => $current,
-                    'latest_ledger_entry_id' => (int) ($holding->latest_entry_id ?? 0),
+                    'quantity' => (string) ($holding->snapshot_quantity ?? '0.0000'),
+                    'latest_ledger_entry_id' => (int) ($holding->snapshot_latest_entry_id ?? 0),
                 ];
                 $holdingSource['source_hash'] = hash('sha256', json_encode($holdingSource, JSON_THROW_ON_ERROR));
                 $holdingsByShareholder[(int) $holding->shareholder_id][] = $holdingSource;
@@ -109,8 +143,12 @@ final class GovernanceMeetingElectorateController extends Controller
 
             $shareholders = DB::table('shareholders')
                 ->where('tenant_id', $tenantId)
+                ->where('created_at', '<=', $cutoffAt->toDateTimeString())
+                ->where('updated_at', '<=', $cutoffAt->toDateTimeString())
                 ->where('is_active', true)
-                ->whereNull('deleted_at')
+                ->where(function ($query) use ($cutoffAt): void {
+                    $query->whereNull('deleted_at')->orWhere('deleted_at', '>', $cutoffAt->toDateTimeString());
+                })
                 ->orderBy('id')
                 ->get(['id']);
 
