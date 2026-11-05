@@ -435,6 +435,60 @@ final class GovernanceMeetingAttendanceController extends Controller
         return response()->json(['success' => true, 'data' => $result]);
     }
 
+    public function verifyProxyHistory(int $proxy): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $record = DB::table('governance_meeting_proxies')
+            ->where('tenant_id', $tenantId)->where('id', $proxy)->first();
+        if (!$record) {
+            throw new NotFoundHttpException('Proxy was not found.');
+        }
+
+        $events = DB::table('governance_meeting_proxy_events')
+            ->where('tenant_id', $tenantId)->where('proxy_id', $proxy)
+            ->orderBy('id')->get();
+        $previousHash = null;
+        $verified = true;
+        $failedEventId = null;
+
+        foreach ($events as $event) {
+            $payload = [
+                'tenant_id' => (int) $event->tenant_id,
+                'meeting_id' => (int) $event->meeting_id,
+                'proxy_id' => (int) $event->proxy_id,
+                'event_type' => (string) $event->event_type,
+                'previous_status' => $event->previous_status,
+                'next_status' => $event->next_status,
+                'actor_id' => (int) $event->actor_id,
+                'reason' => $event->reason,
+                'evidence_reference' => $event->evidence_reference,
+                'previous_event_hash' => $event->previous_event_hash,
+                'occurred_at' => (string) $event->occurred_at,
+            ];
+            $expected = hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+            if ($event->previous_event_hash !== $previousHash || !hash_equals((string) $event->event_hash, $expected)) {
+                $verified = false;
+                $failedEventId = (int) $event->id;
+                break;
+            }
+            $previousHash = (string) $event->event_hash;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'status' => $verified ? 'PASS' : 'FAIL',
+                'proxy_id' => $proxy,
+                'event_count' => $events->count(),
+                'verified_through_event_id' => $verified ? ($events->last()->id ?? null) : null,
+                'failed_event_id' => $failedEventId,
+                'chain_root' => $previousHash,
+                'integrity_verified' => $verified,
+                'note' => 'This verifies the stored per-proxy hash chain. It is not an independent blockchain anchor.',
+            ],
+        ]);
+    }
+
     public function revokeProxy(Request $request, int $proxy): JsonResponse
     {
         $data = $request->validate([
