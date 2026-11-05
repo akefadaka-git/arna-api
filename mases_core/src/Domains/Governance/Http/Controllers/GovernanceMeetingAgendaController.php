@@ -121,6 +121,13 @@ final class GovernanceMeetingAgendaController extends Controller
                 if ($item->status !== 'draft') {
                     throw new ConflictHttpException('Only draft agenda items can be edited.');
                 }
+                $finalTitleAm = array_key_exists('title_am', $data) ? $data['title_am'] : $item->title_am;
+                $finalTitleEn = array_key_exists('title_en', $data) ? $data['title_en'] : $item->title_en;
+                if (trim((string) $finalTitleAm) === '' && trim((string) $finalTitleEn) === '') {
+                    throw ValidationException::withMessages([
+                        'title_am' => 'At least one Amharic or English title is required.',
+                    ]);
+                }
                 if ((int) $item->version !== (int) $data['version']) {
                     throw new ConflictHttpException('Agenda item changed since it was loaded. Reload before editing.');
                 }
