@@ -266,7 +266,8 @@ final class GovernanceMeetingElectorateController extends Controller
     {
         $data = $request->validate([
             'meeting_kind' => ['required', 'in:general_assembly'],
-            'meeting_category' => ['required_if:meeting_kind,general_assembly', 'nullable', 'in:ordinary,extraordinary'],
+            'meeting_category' => ['required', 'in:ordinary,extraordinary'],
+            'meeting_round' => ['required', 'integer', 'min:1', 'max:3'],
             'rule_code' => ['required', 'string', 'max:80'],
             'legal_basis' => ['required', 'string', 'min:5', 'max:1000'],
             'quorum_numerator' => ['required', 'integer', 'min:1', 'max:100000'],
@@ -291,7 +292,11 @@ final class GovernanceMeetingElectorateController extends Controller
         }
 
         $tenantId = $this->tenantId();
-        $meetingCategory = $data['meeting_category'] ?? null;
+        $meetingCategory = $data['meeting_category'];
+        if ($meetingCategory === 'ordinary' && (int) $data['meeting_round'] > 2) {
+            throw ValidationException::withMessages(['meeting_round' => 'Ordinary General Assembly rules support only first and second meeting rounds.']);
+        }
+        $meetingRound = (int) $data['meeting_round'];
         $payload = [
             'quorum_numerator' => (int) $data['quorum_numerator'],
             'quorum_denominator' => (int) $data['quorum_denominator'],
@@ -304,6 +309,7 @@ final class GovernanceMeetingElectorateController extends Controller
         $ruleDefinition = [
             'meeting_kind' => $data['meeting_kind'],
             'meeting_category' => $meetingCategory,
+            'meeting_round' => $meetingRound,
             'rule_code' => trim($data['rule_code']),
             'rule_payload' => $payload,
             'legal_basis' => trim($data['legal_basis']),
@@ -316,6 +322,7 @@ final class GovernanceMeetingElectorateController extends Controller
             'tenant_id' => $tenantId,
             'meeting_kind' => $data['meeting_kind'],
             'meeting_category' => $meetingCategory,
+            'meeting_round' => $meetingRound,
             'rule_code' => trim($data['rule_code']),
             'rule_payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
             'rule_definition_hash' => $ruleDefinitionHash,
@@ -419,6 +426,10 @@ final class GovernanceMeetingElectorateController extends Controller
         if (!in_array($meetingRow->meeting_category, ['ordinary', 'extraordinary'], true)) {
             return $this->blocked($tenantId, $meeting, null, null, 'GENERAL_ASSEMBLY_CATEGORY_MISSING');
         }
+        if (!in_array((int) $meetingRow->meeting_round, [1, 2, 3], true)
+            || ($meetingRow->meeting_category === 'ordinary' && (int) $meetingRow->meeting_round > 2)) {
+            return $this->blocked($tenantId, $meeting, null, null, 'GENERAL_ASSEMBLY_MEETING_ROUND_MISSING_OR_INVALID');
+        }
         $snapshot = DB::table('governance_meeting_electorate_snapshots')
             ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)
             ->orderByDesc('version')->first();
@@ -430,6 +441,7 @@ final class GovernanceMeetingElectorateController extends Controller
             ->where('tenant_id', $tenantId)
             ->where('meeting_kind', $meetingRow->meeting_kind)
             ->where('meeting_category', $meetingRow->meeting_category)
+            ->where('meeting_round', $meetingRow->meeting_round)
             ->where('status', 'approved')
             ->where('effective_from', '<=', $meetingRow->starts_at)
             ->where(function ($query) use ($meetingRow): void {
@@ -452,6 +464,7 @@ final class GovernanceMeetingElectorateController extends Controller
         $ruleDefinition = [
             'meeting_kind' => (string) $rule->meeting_kind,
             'meeting_category' => $rule->meeting_category === null ? null : (string) $rule->meeting_category,
+            'meeting_round' => (int) $rule->meeting_round,
             'rule_code' => (string) $rule->rule_code,
             'rule_payload' => $payload,
             'legal_basis' => (string) $rule->legal_basis,
