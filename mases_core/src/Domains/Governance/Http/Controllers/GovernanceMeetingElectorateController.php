@@ -161,15 +161,26 @@ final class GovernanceMeetingElectorateController extends Controller
                 $entries[] = $entry;
             }
 
-            $canonical = json_encode($entries, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-            $snapshotHash = hash('sha256', $canonical);
+            $sourceRegisterVersion = trim($data['source_register_version']);
+            $cutoffString = $cutoffAt->toDateTimeString();
+            $snapshotManifest = [
+                'tenant_id' => $tenantId,
+                'meeting_id' => $meeting,
+                'version' => $latestVersion + 1,
+                'source_register_version' => $sourceRegisterVersion,
+                'cutoff_at' => $cutoffString,
+                'source_ledger_max_id' => $sourceLedgerMaxId,
+                'entries' => $entries,
+            ];
+            $snapshotHash = hash('sha256', json_encode($snapshotManifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
             $snapshotId = DB::table('governance_meeting_electorate_snapshots')->insertGetId([
                 'tenant_id' => $tenantId,
                 'meeting_id' => $meeting,
                 'version' => $latestVersion + 1,
-                'source_register_version' => trim($data['source_register_version']),
-                'cutoff_at' => CarbonImmutable::parse($data['cutoff_at'])->toDateTimeString(),
+                'source_register_version' => $sourceRegisterVersion,
+                'cutoff_at' => $cutoffString,
                 'entry_count' => count($entries),
+                'source_ledger_max_id' => $sourceLedgerMaxId,
                 'source_hash' => $snapshotHash,
                 'status' => 'draft',
                 'created_by' => $this->actorId(),
@@ -276,21 +287,35 @@ final class GovernanceMeetingElectorateController extends Controller
         }
 
         $tenantId = $this->tenantId();
+        $payload = [
+            'quorum_numerator' => (int) $data['quorum_numerator'],
+            'quorum_denominator' => (int) $data['quorum_denominator'],
+            'share_class_weights' => $data['share_class_weights'],
+            'denominator_basis' => 'total_eligible_voting_units',
+            'counted_attendance_statuses' => ['present', 'late', 'represented'],
+        ];
+        $effectiveFrom = CarbonImmutable::parse($data['effective_from'])->toDateTimeString();
+        $effectiveUntil = isset($data['effective_until']) ? CarbonImmutable::parse($data['effective_until'])->toDateTimeString() : null;
+        $ruleDefinition = [
+            'meeting_kind' => $data['meeting_kind'],
+            'rule_code' => trim($data['rule_code']),
+            'rule_payload' => $payload,
+            'legal_basis' => trim($data['legal_basis']),
+            'effective_from' => $effectiveFrom,
+            'effective_until' => $effectiveUntil,
+        ];
+        $ruleDefinitionHash = hash('sha256', $this->canonicalJson($ruleDefinition));
+
         $id = DB::table('governance_quorum_rules')->insertGetId([
             'tenant_id' => $tenantId,
             'meeting_kind' => $data['meeting_kind'],
             'rule_code' => trim($data['rule_code']),
-            'rule_payload' => json_encode([
-                'quorum_numerator' => (int) $data['quorum_numerator'],
-                'quorum_denominator' => (int) $data['quorum_denominator'],
-                'share_class_weights' => $data['share_class_weights'],
-                'denominator_basis' => 'total_eligible_voting_units',
-                'counted_attendance_statuses' => ['present', 'late', 'represented'],
-            ], JSON_THROW_ON_ERROR),
+            'rule_payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            'rule_definition_hash' => $ruleDefinitionHash,
             'legal_basis' => trim($data['legal_basis']),
             'status' => 'draft',
-            'effective_from' => CarbonImmutable::parse($data['effective_from'])->toDateTimeString(),
-            'effective_until' => isset($data['effective_until']) ? CarbonImmutable::parse($data['effective_until'])->toDateTimeString() : null,
+            'effective_from' => $effectiveFrom,
+            'effective_until' => $effectiveUntil,
             'created_by' => $this->actorId(),
             'created_at' => now(),
             'updated_at' => now(),
@@ -410,6 +435,21 @@ final class GovernanceMeetingElectorateController extends Controller
         }
 
         $payload = json_decode((string) $rule->rule_payload, true);
+        if (!is_array($payload)) {
+            return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'APPROVED_QUORUM_RULE_INVALID');
+        }
+        $ruleDefinition = [
+            'meeting_kind' => (string) $rule->meeting_kind,
+            'rule_code' => (string) $rule->rule_code,
+            'rule_payload' => $payload,
+            'legal_basis' => (string) $rule->legal_basis,
+            'effective_from' => (string) $rule->effective_from,
+            'effective_until' => $rule->effective_until === null ? null : (string) $rule->effective_until,
+        ];
+        $recomputedRuleHash = hash('sha256', $this->canonicalJson($ruleDefinition));
+        if (!hash_equals((string) $rule->rule_definition_hash, $recomputedRuleHash)) {
+            return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'APPROVED_QUORUM_RULE_HASH_MISMATCH');
+        }
         $numerator = (int) ($payload['quorum_numerator'] ?? 0);
         $denominator = (int) ($payload['quorum_denominator'] ?? 0);
         $weights = $payload['share_class_weights'] ?? null;
@@ -458,7 +498,16 @@ final class GovernanceMeetingElectorateController extends Controller
             }
             $canonicalEntries[] = $canonicalEntry;
         }
-        $recomputedSnapshotHash = hash('sha256', json_encode($canonicalEntries, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+        $snapshotManifest = [
+            'tenant_id' => (int) $snapshot->tenant_id,
+            'meeting_id' => (int) $snapshot->meeting_id,
+            'version' => (int) $snapshot->version,
+            'source_register_version' => (string) $snapshot->source_register_version,
+            'cutoff_at' => (string) $snapshot->cutoff_at,
+            'source_ledger_max_id' => (int) $snapshot->source_ledger_max_id,
+            'entries' => $canonicalEntries,
+        ];
+        $recomputedSnapshotHash = hash('sha256', json_encode($snapshotManifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
         if (!hash_equals((string) $snapshot->source_hash, $recomputedSnapshotHash)) {
             return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'ELECTORATE_SNAPSHOT_HASH_MISMATCH');
         }
@@ -582,6 +631,25 @@ final class GovernanceMeetingElectorateController extends Controller
         ]);
 
         return response()->json(['success' => true, 'data' => $result + ['evaluation_id' => $id]]);
+    }
+
+    private function canonicalJson(array $value): string
+    {
+        $normalise = function (mixed $item) use (&$normalise): mixed {
+            if (!is_array($item)) {
+                return $item;
+            }
+            if (array_is_list($item)) {
+                return array_map($normalise, $item);
+            }
+            ksort($item, SORT_STRING);
+            foreach ($item as $key => $child) {
+                $item[$key] = $normalise($child);
+            }
+            return $item;
+        };
+
+        return json_encode($normalise($value), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     }
 
     private function decimalEqual(string $left, string $right): bool
