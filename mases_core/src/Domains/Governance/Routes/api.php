@@ -228,6 +228,7 @@ use Illuminate\Support\Facades\Route;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAppointmentController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAgendaController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
@@ -618,5 +619,21 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('dispute')
         ->middleware('auth.permission:governance.body.manage')
         ->name('penalty-disputes.review');
+
+    // G5 A3 — editable working agenda. Publication is deliberately not exposed
+    // until the required corporate/legal approval gates are complete.
+    Route::get('/meetings/{meeting}/agenda', [GovernanceMeetingAgendaController::class, 'index'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.body.view')
+        ->name('meetings.agenda.index');
+    Route::post('/meetings/{meeting}/agenda', [GovernanceMeetingAgendaController::class, 'store'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('meetings.agenda.store');
+    Route::patch('/agenda-items/{agendaItem}', [GovernanceMeetingAgendaController::class, 'update'])
+        ->whereNumber('agendaItem')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('agenda-items.update');
+
 
 });
