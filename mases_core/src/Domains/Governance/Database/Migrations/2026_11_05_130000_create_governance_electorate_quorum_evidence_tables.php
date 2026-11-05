@@ -94,6 +94,7 @@ return new class extends Migration
             $table->foreignId('actor_id')->constrained('users')->restrictOnDelete();
             $table->text('reason')->nullable();
             $table->string('evidence_reference', 500)->nullable();
+            $table->char('previous_event_hash', 64)->nullable();
             $table->char('event_hash', 64);
             $table->timestamp('occurred_at');
             $table->timestamps();
