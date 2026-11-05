@@ -67,11 +67,8 @@ final class GovernanceMeetingElectorateController extends Controller
             $unreconciledShareholders = DB::table('shareholders')
                 ->where('tenant_id', $tenantId)->where('created_at', '<=', $cutoffAt->toDateTimeString())
                 ->where('updated_at', '>', $cutoffAt->toDateTimeString())->exists();
-            $unreconciledClasses = DB::table('share_classes')
-                ->where('created_at', '<=', $cutoffAt->toDateTimeString())
-                ->where('updated_at', '>', $cutoffAt->toDateTimeString())->exists();
-            if ($unreconciledShareholders || $unreconciledClasses) {
-                throw new ConflictHttpException('The shareholder or share-class register changed after the requested cut-off and has no effective-dated status history. Reconcile the historical register before creating this snapshot.');
+            if ($unreconciledShareholders) {
+                throw new ConflictHttpException('The shareholder register changed after the requested cut-off and has no effective-dated status history. Reconcile the historical register before creating this snapshot.');
             }
 
             $latestVersion = (int) DB::table('governance_meeting_electorate_snapshots')
@@ -104,18 +101,12 @@ final class GovernanceMeetingElectorateController extends Controller
                 ->where(function ($query) use ($cutoffAt): void {
                     $query->whereNull('s.deleted_at')->orWhere('s.deleted_at', '>', $cutoffAt->toDateTimeString());
                 })
-                ->where('sc.created_at', '<=', $cutoffAt->toDateTimeString())
-                ->where('sc.updated_at', '<=', $cutoffAt->toDateTimeString())
-                ->where('sc.is_active', true)
-                ->where(function ($query) use ($cutoffAt): void {
-                    $query->whereNull('sc.deleted_at')->orWhere('sc.deleted_at', '>', $cutoffAt->toDateTimeString());
-                })
+
                 ->orderBy('s.id')
                 ->orderBy('sc.id')
                 ->get([
                     'sh.id as holding_id', 'sh.shareholder_id', 'sh.share_class_id',
-                    'sh.current_quantity', 'sc.code as share_class_code',
-                    'sl.ledger_quantity', 'sl.latest_entry_id',
+                    'sh.current_quantity', 'sl.ledger_quantity', 'sl.latest_entry_id',
                     'cl.snapshot_quantity', 'cl.snapshot_latest_entry_id',
                 ]);
 
@@ -133,7 +124,6 @@ final class GovernanceMeetingElectorateController extends Controller
                 $holdingSource = [
                     'holding_id' => (int) $holding->holding_id,
                     'share_class_id' => (int) $holding->share_class_id,
-                    'share_class_code' => (string) $holding->share_class_code,
                     'quantity' => (string) ($holding->snapshot_quantity ?? '0.0000'),
                     'latest_ledger_entry_id' => (int) ($holding->snapshot_latest_entry_id ?? 0),
                 ];
