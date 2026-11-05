@@ -265,7 +265,7 @@ final class GovernanceMeetingElectorateController extends Controller
     public function createQuorumRule(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'meeting_kind' => ['required', 'in:general_assembly,board'],
+            'meeting_kind' => ['required', 'in:general_assembly'],
             'meeting_category' => ['required_if:meeting_kind,general_assembly', 'nullable', 'in:ordinary,extraordinary'],
             'rule_code' => ['required', 'string', 'max:80'],
             'legal_basis' => ['required', 'string', 'min:5', 'max:1000'],
@@ -291,9 +291,6 @@ final class GovernanceMeetingElectorateController extends Controller
         }
 
         $tenantId = $this->tenantId();
-        if ($data['meeting_kind'] === 'board' && !empty($data['meeting_category'])) {
-            throw ValidationException::withMessages(['meeting_category' => 'Board rules do not use a General Assembly category.']);
-        }
         $meetingCategory = $data['meeting_category'] ?? null;
         $payload = [
             'quorum_numerator' => (int) $data['quorum_numerator'],
