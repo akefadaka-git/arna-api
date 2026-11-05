@@ -58,6 +58,7 @@ final class GovernanceMeetingAttendanceController extends Controller
             'title_am' => ['nullable', 'string', 'max:190'],
             'title_en' => ['nullable', 'string', 'max:190'],
             'meeting_kind' => ['required', 'in:general_assembly,board'],
+            'meeting_category' => ['required_if:meeting_kind,general_assembly', 'nullable', 'in:ordinary,extraordinary'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
         ]);
@@ -85,6 +86,7 @@ final class GovernanceMeetingAttendanceController extends Controller
                     'title_am' => $data['title_am'] ?? null,
                     'title_en' => $data['title_en'] ?? null,
                     'meeting_kind' => $data['meeting_kind'],
+                    'meeting_category' => $data['meeting_category'] ?? null,
                     'starts_at' => CarbonImmutable::parse($data['starts_at'])->toDateTimeString(),
                     'ends_at' => isset($data['ends_at']) ? CarbonImmutable::parse($data['ends_at'])->toDateTimeString() : null,
                     'status' => 'scheduled',
