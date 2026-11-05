@@ -329,11 +329,46 @@ final class GovernanceMeetingElectorateController extends Controller
                 throw new ConflictHttpException('The quorum-rule author cannot approve the same rule.');
             }
             DB::table('governance_quorum_rules')->where('tenant_id', $tenantId)->where('id', $rule)->update([
-                'status' => 'approved',
+                'status' => 'pending_legal_verification',
                 'approval_reference' => trim($data['approval_reference']),
                 'approval_document_hash' => strtolower($data['approval_document_hash']),
                 'approved_by' => $this->actorId(),
                 'approved_at' => now(),
+                'updated_at' => now(),
+            ]);
+            return DB::table('governance_quorum_rules')->where('tenant_id', $tenantId)->find($rule);
+        });
+
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
+    public function verifyQuorumRule(Request $request, int $rule): JsonResponse
+    {
+        $data = $request->validate([
+            'legal_verification_reference' => ['required', 'string', 'min:3', 'max:200'],
+            'legal_verification_document_hash' => ['required', 'regex:/^[a-f0-9]{64}$/i'],
+        ]);
+        $tenantId = $this->tenantId();
+
+        $result = DB::transaction(function () use ($tenantId, $rule, $data): object {
+            $record = DB::table('governance_quorum_rules')
+                ->where('tenant_id', $tenantId)->where('id', $rule)
+                ->lockForUpdate()->first();
+            if (!$record) {
+                throw new NotFoundHttpException('Quorum rule was not found.');
+            }
+            if ($record->status !== 'pending_legal_verification') {
+                throw new ConflictHttpException('Only a rule with recorded governance approval can enter legal verification.');
+            }
+            if ((int) $record->created_by === $this->actorId() || (int) $record->approved_by === $this->actorId()) {
+                throw new ConflictHttpException('The rule author and governance approver cannot perform the independent legal verification.');
+            }
+            DB::table('governance_quorum_rules')->where('tenant_id', $tenantId)->where('id', $rule)->update([
+                'status' => 'approved',
+                'legal_verified_by' => $this->actorId(),
+                'legal_verified_at' => now(),
+                'legal_verification_reference' => trim($data['legal_verification_reference']),
+                'legal_verification_document_hash' => strtolower($data['legal_verification_document_hash']),
                 'updated_at' => now(),
             ]);
             return DB::table('governance_quorum_rules')->where('tenant_id', $tenantId)->find($rule);
@@ -367,7 +402,9 @@ final class GovernanceMeetingElectorateController extends Controller
                 $query->whereNull('effective_until')->orWhere('effective_until', '>=', $meetingRow->starts_at);
             })
             ->orderByDesc('effective_from')->orderByDesc('id')->first();
-        if (!$rule || !$rule->approval_reference || !$rule->approval_document_hash || !$rule->approved_at) {
+        if (!$rule || !$rule->approval_reference || !$rule->approval_document_hash || !$rule->approved_at
+            || !$rule->legal_verified_by || !$rule->legal_verified_at
+            || !$rule->legal_verification_reference || !$rule->legal_verification_document_hash) {
             return $this->blocked($tenantId, $meeting, (int) $snapshot->id, $rule?->id, 'APPROVED_QUORUM_RULE_MISSING');
         }
         if (!function_exists('bcadd') || !function_exists('bcmul') || !function_exists('bccomp')) {
