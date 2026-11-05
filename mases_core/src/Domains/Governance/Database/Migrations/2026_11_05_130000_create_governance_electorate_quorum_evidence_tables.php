@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('source_register_version', 120);
             $table->timestamp('cutoff_at');
             $table->unsignedInteger('entry_count')->default(0);
+            $table->unsignedBigInteger('source_ledger_max_id')->default(0);
             $table->char('source_hash', 64);
             $table->string('status', 20)->default('draft');
             $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
@@ -50,6 +51,7 @@ return new class extends Migration
             $table->string('meeting_kind', 32);
             $table->string('rule_code', 80);
             $table->json('rule_payload');
+            $table->char('rule_definition_hash', 64);
             $table->string('legal_basis', 1000);
             $table->string('approval_reference', 200)->nullable();
             $table->char('approval_document_hash', 64)->nullable();
