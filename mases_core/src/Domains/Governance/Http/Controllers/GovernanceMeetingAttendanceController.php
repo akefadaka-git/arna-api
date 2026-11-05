@@ -396,6 +396,9 @@ final class GovernanceMeetingAttendanceController extends Controller
                 throw new ConflictHttpException('The proxy submitter cannot approve or reject their own proxy.');
             }
             if ($data['decision'] === 'approved') {
+                if (trim((string) ($record->instrument_reference ?? '')) === '') {
+                    throw new ConflictHttpException('Proxy approval requires a recorded proxy-instrument evidence reference.');
+                }
                 $meeting = $this->meeting($tenantId, (int) $record->meeting_id);
                 if ($meeting->meeting_kind === 'board' && !empty($record->proxy_user_id)) {
                     $alreadyHoldsProxy = DB::table('governance_meeting_proxies')
