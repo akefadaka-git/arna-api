@@ -376,11 +376,14 @@ final class GovernanceMeetingElectorateController extends Controller
             throw new NotFoundHttpException('Meeting was not found in this tenant.');
         }
 
+        if ($meetingRow->meeting_kind !== 'general_assembly') {
+            return $this->blocked($tenantId, $meeting, null, null, 'BOARD_ELECTORATE_ADAPTER_NOT_IMPLEMENTED');
+        }
         $snapshot = DB::table('governance_meeting_electorate_snapshots')
             ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)
-            ->where('status', 'approved')->orderByDesc('version')->first();
-        if (!$snapshot) {
-            return $this->blocked($tenantId, $meeting, null, null, 'APPROVED_ELECTORATE_SNAPSHOT_MISSING');
+            ->orderByDesc('version')->first();
+        if (!$snapshot || $snapshot->status !== 'approved') {
+            return $this->blocked($tenantId, $meeting, $snapshot?->id, null, 'LATEST_ELECTORATE_SNAPSHOT_NOT_APPROVED');
         }
 
         $rule = DB::table('governance_quorum_rules')
@@ -418,6 +421,7 @@ final class GovernanceMeetingElectorateController extends Controller
 
         $unitsByShareholder = [];
         $totalUnits = '0.0000';
+        $canonicalEntries = [];
         foreach ($entries as $entry) {
             $units = '0.0000';
             $holdings = json_decode((string) $entry->shareholdings_json, true);
@@ -425,16 +429,33 @@ final class GovernanceMeetingElectorateController extends Controller
                 return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'ELECTORATE_ENTRY_CORRUPT');
             }
             foreach ($holdings as $holding) {
+                $quantity = (string) ($holding['quantity'] ?? '0');
+                if (bccomp($quantity, '0', 4) <= 0) {
+                    continue;
+                }
                 $classId = (string) ($holding['share_class_id'] ?? '');
                 if (!array_key_exists($classId, $weights)) {
                     return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'APPROVED_RULE_SHARE_CLASS_WEIGHT_MISSING');
                 }
-                $quantity = (string) ($holding['quantity'] ?? '0');
                 $weight = (string) $weights[$classId];
                 $units = bcadd($units, bcmul($quantity, $weight, 4), 4);
             }
             $unitsByShareholder[(int) $entry->shareholder_id] = $units;
             $totalUnits = bcadd($totalUnits, $units, 4);
+            $canonicalEntry = [
+                'shareholder_id' => (int) $entry->shareholder_id,
+                'shareholdings' => $holdings,
+                'eligibility_status' => $entry->eligibility_status,
+            ];
+            $canonicalEntry['source_hash'] = hash('sha256', json_encode($canonicalEntry, JSON_THROW_ON_ERROR));
+            if (!hash_equals((string) $entry->source_record_hash, $canonicalEntry['source_hash'])) {
+                return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'ELECTORATE_ENTRY_HASH_MISMATCH');
+            }
+            $canonicalEntries[] = $canonicalEntry;
+        }
+        $recomputedSnapshotHash = hash('sha256', json_encode($canonicalEntries, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+        if (!hash_equals((string) $snapshot->source_hash, $recomputedSnapshotHash)) {
+            return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'ELECTORATE_SNAPSHOT_HASH_MISMATCH');
         }
         if (bccomp($totalUnits, '0', 4) <= 0) {
             return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'TOTAL_ELIGIBLE_VOTING_UNITS_ZERO');
