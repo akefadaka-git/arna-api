@@ -701,6 +701,9 @@ final class GovernanceMeetingAttendanceController extends Controller
         ?string $reason,
         ?string $evidenceReference,
     ): void {
+        $previousHash = DB::table('governance_meeting_proxy_events')
+            ->where('tenant_id', $tenantId)->where('proxy_id', $proxyId)
+            ->orderByDesc('id')->value('event_hash');
         $event = [
             'tenant_id' => $tenantId,
             'meeting_id' => $meetingId,
@@ -711,6 +714,7 @@ final class GovernanceMeetingAttendanceController extends Controller
             'actor_id' => $this->actorId(),
             'reason' => $reason,
             'evidence_reference' => $evidenceReference,
+            'previous_event_hash' => $previousHash,
             'occurred_at' => now()->toDateTimeString(),
         ];
         $event['event_hash'] = hash('sha256', json_encode($event, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
