@@ -482,14 +482,36 @@ final class GovernanceMeetingElectorateController extends Controller
             }
             $countedShareholders[$shareholderId] = true;
 
-            $approvedProxy = DB::table('governance_meeting_proxies')
+            $approvedProxyExists = DB::table('governance_meeting_proxies')
                 ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)
                 ->where('principal_type', 'shareholder')->where('principal_id', $shareholderId)
                 ->where('status', 'approved')->exists();
-            if ($row->attendance_status === 'represented' && !$approvedProxy) {
-                return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'REPRESENTATION_WITHOUT_APPROVED_PROXY');
+            if ($row->attendance_status === 'represented') {
+                $linkedProxy = !empty($row->proxy_id)
+                    ? DB::table('governance_meeting_proxies')
+                        ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)
+                        ->where('id', $row->proxy_id)->where('principal_type', 'shareholder')
+                        ->where('principal_id', $shareholderId)->where('status', 'approved')->first()
+                    : null;
+                if (!$linkedProxy) {
+                    return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'REPRESENTATION_WITHOUT_LINKED_APPROVED_PROXY');
+                }
+                if (!empty($linkedProxy->proxy_user_id)) {
+                    if ((int) ($row->represented_by_user_id ?? 0) !== (int) $linkedProxy->proxy_user_id) {
+                        return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'PROXY_ATTENDEE_IDENTITY_MISMATCH');
+                    }
+                } else {
+                    $attendingName = trim((string) ($row->represented_by_name ?? ''));
+                    $approvedNames = array_filter([
+                        trim((string) ($linkedProxy->proxy_name_am ?? '')),
+                        trim((string) ($linkedProxy->proxy_name_en ?? '')),
+                    ]);
+                    if ($attendingName === '' || !in_array($attendingName, $approvedNames, true)) {
+                        return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'EXTERNAL_PROXY_ATTENDEE_IDENTITY_MISMATCH');
+                    }
+                }
             }
-            if (in_array($row->attendance_status, ['present', 'late'], true) && $approvedProxy) {
+            if (in_array($row->attendance_status, ['present', 'late'], true) && $approvedProxyExists) {
                 return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'PERSONAL_AND_PROXY_ATTENDANCE_CONFLICT');
             }
             $presentUnits = bcadd($presentUnits, $unitsByShareholder[$shareholderId], 4);
