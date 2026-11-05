@@ -59,11 +59,15 @@ final class GovernanceMeetingAttendanceController extends Controller
             'title_en' => ['nullable', 'string', 'max:190'],
             'meeting_kind' => ['required', 'in:general_assembly,board'],
             'meeting_category' => ['required_if:meeting_kind,general_assembly', 'nullable', 'in:ordinary,extraordinary'],
+            'meeting_round' => ['required_if:meeting_kind,general_assembly', 'nullable', 'integer', 'min:1', 'max:3'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
         ]);
-        if ($data['meeting_kind'] === 'board' && !empty($data['meeting_category'])) {
-            throw ValidationException::withMessages(['meeting_category' => 'Board meetings do not use a General Assembly category.']);
+        if ($data['meeting_kind'] === 'board' && (!empty($data['meeting_category']) || !empty($data['meeting_round']))) {
+            throw ValidationException::withMessages(['meeting_category' => 'Board meetings do not use General Assembly category or round values.']);
+        }
+        if ($data['meeting_kind'] === 'general_assembly' && $data['meeting_category'] === 'ordinary' && (int) $data['meeting_round'] > 2) {
+            throw ValidationException::withMessages(['meeting_round' => 'Ordinary General Assembly meetings support only the first or second meeting round.']);
         }
         $tenantId = $this->tenantId();
         $body = DB::table('governance_bodies')
@@ -90,6 +94,7 @@ final class GovernanceMeetingAttendanceController extends Controller
                     'title_en' => $data['title_en'] ?? null,
                     'meeting_kind' => $data['meeting_kind'],
                     'meeting_category' => $data['meeting_category'] ?? null,
+                    'meeting_round' => $data['meeting_round'] ?? null,
                     'starts_at' => CarbonImmutable::parse($data['starts_at'])->toDateTimeString(),
                     'ends_at' => isset($data['ends_at']) ? CarbonImmutable::parse($data['ends_at'])->toDateTimeString() : null,
                     'status' => 'scheduled',
