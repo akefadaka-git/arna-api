@@ -652,6 +652,8 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.body.manage')->name('quorum-rules.store');
     Route::post('/quorum-rules/{rule}/approve', [GovernanceMeetingElectorateController::class, 'approveQuorumRule'])
         ->whereNumber('rule')->middleware('auth.permission:governance.body.manage')->name('quorum-rules.approve');
+    Route::post('/quorum-rules/{rule}/verify-legal', [GovernanceMeetingElectorateController::class, 'verifyQuorumRule'])
+        ->whereNumber('rule')->middleware('auth.permission:governance.body.manage')->name('quorum-rules.verify-legal');
     Route::post('/meetings/{meeting}/quorum/evaluate', [GovernanceMeetingElectorateController::class, 'evaluateQuorum'])
         ->whereNumber('meeting')->middleware('auth.permission:governance.body.manage')->name('meetings.quorum.evaluate');
 
