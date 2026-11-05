@@ -58,6 +58,9 @@ final class GovernanceMeetingElectorateController extends Controller
             if ($meetingRow->meeting_kind !== 'general_assembly') {
                 throw ValidationException::withMessages(['meeting' => 'This electorate snapshot builder is for General Assembly meetings only.']);
             }
+            if (!in_array($meetingRow->meeting_category, ['ordinary', 'extraordinary'], true)) {
+                throw ConflictHttpException('Ordinary or extraordinary General Assembly category must be recorded before creating the electorate snapshot.');
+            }
             if ($cutoffAt->greaterThan(CarbonImmutable::parse($meetingRow->starts_at))) {
                 throw ValidationException::withMessages(['cutoff_at' => 'The electorate cut-off cannot be later than the scheduled meeting start.']);
             }
@@ -263,6 +266,7 @@ final class GovernanceMeetingElectorateController extends Controller
     {
         $data = $request->validate([
             'meeting_kind' => ['required', 'in:general_assembly,board'],
+            'meeting_category' => ['required_if:meeting_kind,general_assembly', 'nullable', 'in:ordinary,extraordinary'],
             'rule_code' => ['required', 'string', 'max:80'],
             'legal_basis' => ['required', 'string', 'min:5', 'max:1000'],
             'quorum_numerator' => ['required', 'integer', 'min:1', 'max:100000'],
@@ -287,6 +291,10 @@ final class GovernanceMeetingElectorateController extends Controller
         }
 
         $tenantId = $this->tenantId();
+        if ($data['meeting_kind'] === 'board' && !empty($data['meeting_category'])) {
+            throw ValidationException::withMessages(['meeting_category' => 'Board rules do not use a General Assembly category.']);
+        }
+        $meetingCategory = $data['meeting_category'] ?? null;
         $payload = [
             'quorum_numerator' => (int) $data['quorum_numerator'],
             'quorum_denominator' => (int) $data['quorum_denominator'],
@@ -298,6 +306,7 @@ final class GovernanceMeetingElectorateController extends Controller
         $effectiveUntil = isset($data['effective_until']) ? CarbonImmutable::parse($data['effective_until'])->toDateTimeString() : null;
         $ruleDefinition = [
             'meeting_kind' => $data['meeting_kind'],
+            'meeting_category' => $meetingCategory,
             'rule_code' => trim($data['rule_code']),
             'rule_payload' => $payload,
             'legal_basis' => trim($data['legal_basis']),
@@ -309,6 +318,7 @@ final class GovernanceMeetingElectorateController extends Controller
         $id = DB::table('governance_quorum_rules')->insertGetId([
             'tenant_id' => $tenantId,
             'meeting_kind' => $data['meeting_kind'],
+            'meeting_category' => $meetingCategory,
             'rule_code' => trim($data['rule_code']),
             'rule_payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
             'rule_definition_hash' => $ruleDefinitionHash,
@@ -409,6 +419,9 @@ final class GovernanceMeetingElectorateController extends Controller
         if ($meetingRow->meeting_kind !== 'general_assembly') {
             return $this->blocked($tenantId, $meeting, null, null, 'BOARD_ELECTORATE_ADAPTER_NOT_IMPLEMENTED');
         }
+        if (!in_array($meetingRow->meeting_category, ['ordinary', 'extraordinary'], true)) {
+            return $this->blocked($tenantId, $meeting, null, null, 'GENERAL_ASSEMBLY_CATEGORY_MISSING');
+        }
         $snapshot = DB::table('governance_meeting_electorate_snapshots')
             ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)
             ->orderByDesc('version')->first();
@@ -419,6 +432,7 @@ final class GovernanceMeetingElectorateController extends Controller
         $rule = DB::table('governance_quorum_rules')
             ->where('tenant_id', $tenantId)
             ->where('meeting_kind', $meetingRow->meeting_kind)
+            ->where('meeting_category', $meetingRow->meeting_category)
             ->where('status', 'approved')
             ->where('effective_from', '<=', $meetingRow->starts_at)
             ->where(function ($query) use ($meetingRow): void {
@@ -440,6 +454,7 @@ final class GovernanceMeetingElectorateController extends Controller
         }
         $ruleDefinition = [
             'meeting_kind' => (string) $rule->meeting_kind,
+            'meeting_category' => $rule->meeting_category === null ? null : (string) $rule->meeting_category,
             'rule_code' => (string) $rule->rule_code,
             'rule_payload' => $payload,
             'legal_basis' => (string) $rule->legal_basis,
