@@ -267,7 +267,7 @@ final class GovernanceMeetingAttendanceController extends Controller
             'proxy_name_am' => ['nullable', 'string', 'max:150'],
             'proxy_name_en' => ['nullable', 'string', 'max:150'],
             'proxy_reference' => ['nullable', 'string', 'max:100'],
-            'instrument_reference' => ['nullable', 'string', 'max:2000'],
+            'instrument_reference' => ['required', 'string', 'min:3', 'max:2000'],
         ]);
         $tenantId = $this->tenantId();
         $meetingRecord = $this->meeting($tenantId, $meeting);
@@ -287,6 +287,8 @@ final class GovernanceMeetingAttendanceController extends Controller
             $principalExists = DB::table('shareholders')
                 ->where('tenant_id', $tenantId)
                 ->where('id', $data['principal_id'])
+                ->where('is_active', true)
+                ->whereNull('deleted_at')
                 ->exists();
             if (!$principalExists) {
                 throw ValidationException::withMessages(['principal_id' => 'Shareholder is not registered in this tenant.']);
