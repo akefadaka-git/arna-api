@@ -133,6 +133,9 @@ final class GovernanceMeetingAttendanceController extends Controller
             'subject_type' => ['required', 'in:shareholder,director'],
             'subject_id' => ['required', 'integer', 'min:1'],
             'user_id' => ['nullable', 'integer', 'min:1'],
+            'proxy_id' => ['nullable', 'integer', 'min:1'],
+            'represented_by_user_id' => ['nullable', 'integer', 'min:1'],
+            'represented_by_name' => ['nullable', 'string', 'max:150'],
             'attendance_status' => ['required', 'in:present,late,absent,excused,represented'],
             'arrived_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
@@ -190,12 +193,32 @@ final class GovernanceMeetingAttendanceController extends Controller
             ->where('principal_type', $data['subject_type'])
             ->where('principal_id', $data['subject_id'])
             ->where('status', 'approved')
-            ->exists();
-        if ($status === 'represented' && !$approvedProxy) {
-            throw ValidationException::withMessages(['attendance_status' => 'Represented attendance requires an approved proxy for this principal and meeting.']);
-        }
-        if ($approvedProxy && in_array($status, ['present', 'late'], true)) {
+            ->first();
+        if ($status === 'represented') {
+            if (!$approvedProxy || empty($data['proxy_id']) || (int) $data['proxy_id'] !== (int) $approvedProxy->id) {
+                throw ValidationException::withMessages(['proxy_id' => 'Represented attendance must identify the exact approved proxy instrument for this principal and meeting.']);
+            }
+            if (!$arrivedAt) {
+                throw ValidationException::withMessages(['arrived_at' => 'The proxy arrival time is required for represented attendance.']);
+            }
+            if (!empty($approvedProxy->proxy_user_id)) {
+                if ((int) ($data['represented_by_user_id'] ?? 0) !== (int) $approvedProxy->proxy_user_id) {
+                    throw ValidationException::withMessages(['represented_by_user_id' => 'The attending proxy user does not match the approved proxy instrument.']);
+                }
+            } else {
+                $representedName = trim((string) ($data['represented_by_name'] ?? ''));
+                $allowedNames = array_filter([
+                    trim((string) ($approvedProxy->proxy_name_am ?? '')),
+                    trim((string) ($approvedProxy->proxy_name_en ?? '')),
+                ]);
+                if ($representedName === '' || !in_array($representedName, $allowedNames, true)) {
+                    throw ValidationException::withMessages(['represented_by_name' => 'The attending external proxy name must match the approved proxy instrument.']);
+                }
+            }
+        } elseif ($approvedProxy && in_array($status, ['present', 'late'], true)) {
             throw ValidationException::withMessages(['attendance_status' => 'A principal with an approved proxy cannot also attend personally in the same meeting.']);
+        } elseif (!empty($data['proxy_id']) || !empty($data['represented_by_user_id']) || !empty($data['represented_by_name'])) {
+            throw ValidationException::withMessages(['proxy_id' => 'Proxy identity fields are accepted only for represented attendance.']);
         }
         if ($status === 'excused' && trim((string) ($data['notes'] ?? '')) === '') {
             throw ValidationException::withMessages(['notes' => 'Permission or supporting evidence reference is required for excused absence.']);
@@ -209,6 +232,9 @@ final class GovernanceMeetingAttendanceController extends Controller
                     'subject_type' => $data['subject_type'],
                     'subject_id' => $data['subject_id'],
                     'user_id' => $canonicalUserId,
+                    'proxy_id' => $status === 'represented' ? (int) $data['proxy_id'] : null,
+                    'represented_by_user_id' => $status === 'represented' ? ($data['represented_by_user_id'] ?? null) : null,
+                    'represented_by_name' => $status === 'represented' ? ($data['represented_by_name'] ?? null) : null,
                     'attendance_status' => $status,
                     'arrived_at' => $arrivedAt?->toDateTimeString(),
                     'recorded_by' => $this->actorId(),
