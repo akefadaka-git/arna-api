@@ -270,15 +270,21 @@ final class GovernanceMeetingElectorateController extends Controller
             'meeting_round' => ['required', 'integer', 'min:1', 'max:3'],
             'rule_code' => ['required', 'string', 'max:80'],
             'legal_basis' => ['required', 'string', 'min:5', 'max:1000'],
-            'quorum_numerator' => ['required', 'integer', 'min:1', 'max:100000'],
-            'quorum_denominator' => ['required', 'integer', 'min:1', 'max:100000'],
+            'quorum_mode' => ['required', 'in:capital_threshold,no_capital_threshold'],
+            'quorum_numerator' => ['required_if:quorum_mode,capital_threshold', 'nullable', 'integer', 'min:1', 'max:100000'],
+            'quorum_denominator' => ['required_if:quorum_mode,capital_threshold', 'nullable', 'integer', 'min:1', 'max:100000'],
             'share_class_weights' => ['required', 'array', 'min:1'],
             'share_class_weights.*' => ['required', 'string', 'regex:/^\\d{1,12}(\\.\\d{1,4})?$/', 'gt:0'],
             'effective_from' => ['required', 'date'],
             'effective_until' => ['nullable', 'date', 'after:effective_from'],
         ]);
-        if ($data['quorum_numerator'] > $data['quorum_denominator']) {
+        if ($data['quorum_mode'] === 'capital_threshold'
+            && (int) $data['quorum_numerator'] > (int) $data['quorum_denominator']) {
             throw ValidationException::withMessages(['quorum_numerator' => 'Quorum numerator cannot exceed denominator.']);
+        }
+        if ($data['quorum_mode'] === 'no_capital_threshold'
+            && (isset($data['quorum_numerator']) || isset($data['quorum_denominator']))) {
+            throw ValidationException::withMessages(['quorum_mode' => 'A no-capital-threshold rule must not include a numeric quorum fraction.']);
         }
         $shareClassIds = [];
         foreach (array_keys($data['share_class_weights']) as $classId) {
@@ -298,8 +304,9 @@ final class GovernanceMeetingElectorateController extends Controller
         }
         $meetingRound = (int) $data['meeting_round'];
         $payload = [
-            'quorum_numerator' => (int) $data['quorum_numerator'],
-            'quorum_denominator' => (int) $data['quorum_denominator'],
+            'quorum_mode' => $data['quorum_mode'],
+            'quorum_numerator' => isset($data['quorum_numerator']) ? (int) $data['quorum_numerator'] : null,
+            'quorum_denominator' => isset($data['quorum_denominator']) ? (int) $data['quorum_denominator'] : null,
             'share_class_weights' => $data['share_class_weights'],
             'denominator_basis' => 'total_eligible_voting_units',
             'counted_attendance_statuses' => ['present', 'late', 'represented'],
@@ -475,10 +482,16 @@ final class GovernanceMeetingElectorateController extends Controller
         if (!hash_equals((string) $rule->rule_definition_hash, $recomputedRuleHash)) {
             return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'APPROVED_QUORUM_RULE_HASH_MISMATCH');
         }
+        $quorumMode = (string) ($payload['quorum_mode'] ?? '');
         $numerator = (int) ($payload['quorum_numerator'] ?? 0);
         $denominator = (int) ($payload['quorum_denominator'] ?? 0);
         $weights = $payload['share_class_weights'] ?? null;
-        if ($numerator < 1 || $denominator < 1 || $numerator > $denominator || !is_array($weights) || $weights === []) {
+        $validThreshold = $quorumMode === 'capital_threshold'
+            && $numerator >= 1 && $denominator >= 1 && $numerator <= $denominator;
+        $validNoThreshold = $quorumMode === 'no_capital_threshold'
+            && ($payload['quorum_numerator'] ?? null) === null
+            && ($payload['quorum_denominator'] ?? null) === null;
+        if ((!$validThreshold && !$validNoThreshold) || !is_array($weights) || $weights === []) {
             return $this->blocked($tenantId, $meeting, (int) $snapshot->id, (int) $rule->id, 'APPROVED_QUORUM_RULE_INVALID');
         }
 
@@ -596,9 +609,15 @@ final class GovernanceMeetingElectorateController extends Controller
             $presentUnits = bcadd($presentUnits, $unitsByShareholder[$shareholderId], 4);
         }
 
-        $left = bcmul($presentUnits, (string) $denominator, 4);
-        $right = bcmul($totalUnits, (string) $numerator, 4);
-        $status = bccomp($left, $right, 4) >= 0 ? 'PASS' : 'FAIL';
+        if ($quorumMode === 'capital_threshold') {
+            $left = bcmul($presentUnits, (string) $denominator, 4);
+            $right = bcmul($totalUnits, (string) $numerator, 4);
+            $status = bccomp($left, $right, 4) >= 0 ? 'PASS' : 'FAIL';
+        } else {
+            // No capital threshold is not a default: it is usable only when
+            // the exact approved rule explicitly selects this mode.
+            $status = count($countedShareholders) > 0 && bccomp($presentUnits, '0', 4) > 0 ? 'PASS' : 'FAIL';
+        }
         $result = [
             'status' => $status,
             'meeting_id' => $meeting,
@@ -608,7 +627,8 @@ final class GovernanceMeetingElectorateController extends Controller
             'rule_code' => $rule->rule_code,
             'present_voting_units' => $presentUnits,
             'total_eligible_voting_units' => $totalUnits,
-            'threshold' => $numerator . '/' . $denominator,
+            'quorum_mode' => $quorumMode,
+            'threshold' => $quorumMode === 'capital_threshold' ? ($numerator . '/' . $denominator) : 'No capital threshold (approved rule)',
             'counted_shareholders' => count($countedShareholders),
             'can_open_business' => $status === 'PASS',
         ];
