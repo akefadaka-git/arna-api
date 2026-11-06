@@ -1,6 +1,6 @@
-# ARNA OS — Daily Repository Progress Report (2026-11-05)
+# ARNA OS — Daily Repository Progress Report (2026-11-06)
 
-**Generated:** 2026-11-05T04:15:32.096706+03:00  
+**Generated:** 2026-11-06T04:20:58.213865+03:00  
 **Repositories:** akefadaka-git/arna-api, akefadaka-git/arna-app  
 **Assessment mode:** read-only repository metadata and workflow evidence; no source-code mutation.
 
@@ -50,10 +50,10 @@
 - Default branch: `main`
 - Open PRs: 41
 - PRs merged in last 30 days: 42
-- Failed/action-required workflow runs in last 14 days: 24
+- Failed/action-required workflow runs in last 14 days: 23
 - Cancelled workflow runs in last 14 days: 4
 - Currently queued/in-progress workflow runs in sampled page: 1
-- Most recent commit in sampled 30 commits: 2026-11-04T15:13:01+00:00
+- Most recent commit in sampled 30 commits: 2026-11-05T01:15:39+00:00
 
 **Open pull requests (sample, up to 12):**
 - [WIP] Build ARNA Board Election API foundation
@@ -102,7 +102,7 @@
 - Default branch: `main`
 - Open PRs: 21
 - PRs merged in last 30 days: 18
-- Failed/action-required workflow runs in last 14 days: 23
+- Failed/action-required workflow runs in last 14 days: 43
 - Cancelled workflow runs in last 14 days: 0
 - Currently queued/in-progress workflow runs in sampled page: 0
 - Most recent commit in sampled 30 commits: 2026-11-04T15:12:43+00:00
@@ -136,25 +136,25 @@
 - docs: clarify ARNA frontend repository and contribution guide
 
 **Failed workflows (sample, up to 12):**
-- Frontend verification #944
-- Frontend verification #943
-- Frontend verification #942
-- Frontend verification #941
-- Frontend verification #940
-- Frontend verification #928
-- Frontend verification #922
-- Frontend verification #903
-- Frontend verification #902
-- Frontend verification #901
-- Frontend verification #900
-- Isolated public browser contract integration after card contrast correction #6
+- Frontend verification #983
+- Frontend verification #982
+- Frontend verification #981
+- Frontend verification #980
+- Frontend verification #979
+- Frontend verification #978
+- Frontend verification #977
+- Frontend verification #976
+- Frontend verification #975
+- Frontend verification #974
+- Frontend verification #973
+- Frontend verification #972
 
 ## Recommendations and enhancement priorities
 
-- **akefadaka-git/arna-api:** triage 24 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-api:** triage 23 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
 - **akefadaka-git/arna-api:** inspect 4 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
 - **akefadaka-git/arna-api:** review 41 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
-- **akefadaka-git/arna-app:** triage 23 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-app:** triage 43 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
 - **akefadaka-git/arna-app:** review 21 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - Continue closing domain acceptance gaps before expanding scope: security, tenant isolation, lifecycle, concurrency, clean-install and cross-domain integration.
 - Prioritize Finance accounting integrity, Governance authority lifecycle, Calendar reservations/concurrency and Communication approval/publishing controls.
