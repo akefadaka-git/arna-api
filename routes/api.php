@@ -503,6 +503,77 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
 });
 
 // =============================================================================
+// Admin Console foundation — central tenant directory and tenant-scoped
+// identity/RBAC lifecycle surfaces. Mutations are tenant-scoped, permission-gated,
+// audited, and invalidate affected authorization caches.
+// =============================================================================
+Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access'])
+    ->prefix('admin')
+    ->name('api.admin.foundation.')
+    ->group(static function (): void {
+        Route::get('/tenants', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'tenants'])
+            ->middleware('auth.permission:tenant.list')
+            ->name('tenants.index');
+        Route::get('/tenants/{id}', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'tenant'])
+            ->whereNumber('id')
+            ->middleware('auth.permission:tenant.list')
+            ->name('tenants.show');
+        Route::middleware('tenant.membership')->group(static function (): void {
+            // Central identity lifecycle. Tenant scope is resolved by middleware.
+            Route::get('/identity/users', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'users'])
+                ->middleware('auth.permission:user.list')
+                ->name('users.index');
+            Route::post('/identity/users', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'createUser'])
+                ->middleware('auth.permission:user.create')
+                ->name('users.store');
+            Route::patch('/identity/users/{id}', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'updateUser'])
+                ->whereNumber('id')
+                ->middleware('auth.permission:user.update')
+                ->name('users.update');
+            Route::post('/identity/users/{id}/membership', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'addMembership'])
+                ->whereNumber('id')
+                ->middleware('auth.permission:user.create')
+                ->name('users.membership.store');
+            Route::patch('/identity/users/{id}/membership', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'updateMembership'])
+                ->whereNumber('id')
+                ->middleware('auth.permission:user.update')
+                ->name('users.membership.update');
+            Route::delete('/identity/users/{id}/membership', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'revokeMembership'])
+                ->whereNumber('id')
+                ->middleware('auth.permission:user.delete')
+                ->name('users.membership.destroy');
+            Route::post('/identity/users/{id}/membership/revoke', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'revokeMembership'])
+                ->whereNumber('id')
+                ->middleware('auth.permission:user.delete')
+                ->name('users.membership.revoke');
+
+            // Tenant-scoped RBAC lifecycle; platform roles and system permissions are protected.
+            Route::get('/authorization/roles', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'roles'])
+                ->middleware('auth.permission:role.list')
+                ->name('roles.index');
+            Route::post('/authorization/roles', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'createRole'])
+                ->middleware('auth.permission:role.create')
+                ->name('roles.store');
+            Route::patch('/authorization/roles/{id}', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'updateRole'])
+                ->whereNumber('id')
+                ->middleware('auth.permission:role.update')
+                ->name('roles.update');
+            Route::put('/authorization/roles/{id}/permissions', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'syncRolePermissions'])
+                ->whereNumber('id')
+                ->middleware('auth.permission:role.assign_permissions')
+                ->name('roles.permissions.sync');
+            Route::put('/identity/users/{id}/roles', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'syncUserRoles'])
+                ->whereNumber('id')
+                ->middleware('auth.permission:user.assign_roles')
+                ->name('users.roles.sync');
+
+            Route::get('/authorization/permissions', [\App\Http\Controllers\Admin\AdminFoundationController::class, 'permissions'])
+                ->middleware('auth.permission:permission.list')
+                ->name('permissions.index');
+        });
+    });
+
+// =============================================================================
 // Corporate Site CMS Administration — platform-wide, permission-gated
 // =============================================================================
 Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
