@@ -154,7 +154,8 @@ final class LoanRepaymentMySqlConcurrencyTest extends TestCase
                 if ($pid === 0) {
                     try {
                         DB::purge();
-                        file_put_contents($readyPaths[$index], 'ready');
+                        $connectionId = (int) DB::selectOne('SELECT CONNECTION_ID() AS connection_id')->connection_id;
+                        file_put_contents($readyPaths[$index], (string) $connectionId);
                         $deadline = microtime(true) + 20;
                         while (! is_file($releasePath) && microtime(true) < $deadline) {
                             usleep(10000);
@@ -198,6 +199,15 @@ final class LoanRepaymentMySqlConcurrencyTest extends TestCase
             }
             $this->assertFileExists($readyPaths[0], 'First MySQL worker did not become ready.');
             $this->assertFileExists($readyPaths[1], 'Second MySQL worker did not become ready.');
+            $connectionIds = [
+                trim((string) file_get_contents($readyPaths[0])),
+                trim((string) file_get_contents($readyPaths[1])),
+            ];
+            $this->assertNotSame(
+                $connectionIds[0],
+                $connectionIds[1],
+                'Workers must use distinct MySQL server connections.',
+            );
             file_put_contents($releasePath, 'go');
 
             $exitCodes = [];
