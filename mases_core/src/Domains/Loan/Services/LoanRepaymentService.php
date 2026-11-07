@@ -140,24 +140,28 @@ use MaaleArna\MASES\Core\Domains\Wallet\Services\PaymentService;
  * The operation performs the following steps, in this order, inside ONE
  * transaction:
  *
- *   1. Read the loan without a row lock and reserve the
- *      tenant/loan/idempotency-key tuple in the same transaction. The
- *      database unique constraint arbitrates concurrent same-key requests.
- *   2. Validate the loan state and resolve the borrower and Wallet.
- *   3. Validate currency and the ordered allocation instructions.
- *   4. Record the Wallet payment via `PaymentService::record()`, which
- *      locks the Wallet and writes its ledger entry.
- *   5. Apply each allocation via `AllocationService::allocate()`, locking
+ *   1. Read the loan without a row lock, validate its state, and resolve
+ *      the tenant-scoped borrower Wallet.
+ *   2. Acquire the Wallet row lock before inserting any row with a Wallet
+ *      foreign key. This avoids concurrent FK shared-lock upgrades when
+ *      PaymentService later writes the payment and ledger entry.
+ *   3. Reserve the tenant/loan/idempotency-key tuple in the same transaction.
+ *      The unique constraint arbitrates concurrent same-key requests; the
+ *      Wallet lock serializes repayments that target the same borrower.
+ *   4. Validate currency and the ordered allocation instructions.
+ *   5. Record the Wallet payment via `PaymentService::record()` and write
+ *      its ledger entry under the already-held Wallet lock.
+ *   6. Apply each allocation via `AllocationService::allocate()`, locking
  *      Payment, Obligation, and PaymentAllocation rows in the frozen order.
- *   6. Link the payment to the idempotency reservation.
- *   7. Re-read and lock the Loan only after Wallet → Payment → Obligation
+ *   7. Link the payment to the idempotency reservation.
+ *   8. Re-read and lock the Loan only after Wallet → Payment → Obligation
  *      → PaymentAllocation locks are acquired. Re-check its state, then
  *      increment `settled_amount` from the current persisted value.
- *   8. Recompute the outstanding projections from authoritative Wallet
+ *   9. Recompute the outstanding projections from authoritative Wallet
  *      obligations; settle eligible installments and the loan.
- *   9. Register after-commit events and persist the exact successful
+ *  10. Register after-commit events and persist the exact successful
  *      response snapshot on the idempotency row before transaction commit.
- *  10. Return the refreshed loan. The controller replays the persisted
+ *  11. Return the refreshed loan. The controller replays the persisted
  *      response snapshot for both first response and duplicate-key retries.
  *
  * If any step after step 6 fails, the entire transaction rolls back.
@@ -385,30 +389,16 @@ final class LoanRepaymentService
             $actorUserId,
         ): Loan {
             // -----------------------------------------------------------------
-            // 1. Read the loan (no lock).
+            // 1. Read the loan without a row lock and validate its state.
             // -----------------------------------------------------------------
             /** @var Loan $current */
             $current = Loan::query()
                 ->whereKey($loan->id)
                 ->firstOrFail();
-
-            // The unique tenant/loan/key constraint arbitrates concurrent retries.
-            // This reservation is in the same transaction as every financial write.
-            DB::table('loan_repayment_idempotencies')->insert([
-                'tenant_id'       => (int) $current->tenant_id,
-                'loan_id'         => (int) $current->id,
-                'idempotency_key' => $idempotencyKey,
-                'request_hash'    => $requestHash,
-                'created_at'      => Carbon::now(),
-            ]);
-
-            // -----------------------------------------------------------------
-            // 2. Assert the loan is in a repayable state.
-            // -----------------------------------------------------------------
             $this->assertRepayableStatus($current);
 
             // -----------------------------------------------------------------
-            // 3. Resolve the borrower and Wallet.
+            // 2. Resolve the borrower and tenant-scoped Wallet.
             // -----------------------------------------------------------------
             $current->loadMissing('borrower');
 
@@ -439,8 +429,28 @@ final class LoanRepaymentService
                 );
             }
 
+            // Acquire the canonical Wallet lock before any insert that checks
+            // a Wallet foreign key. PaymentService inserts wallet_payments
+            // before WalletService::recordEntry() locks the Wallet; without
+            // this early lock, concurrent inserts can both hold FK shared
+            // locks and deadlock while upgrading to the Wallet's exclusive lock.
+            $wallet = Wallet::query()
+                ->whereKey($wallet->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // The unique tenant/loan/key constraint arbitrates concurrent retries.
+            // Reserve only after serializing this Wallet's repayment writers.
+            DB::table('loan_repayment_idempotencies')->insert([
+                'tenant_id'       => (int) $current->tenant_id,
+                'loan_id'         => (int) $current->id,
+                'idempotency_key' => $idempotencyKey,
+                'request_hash'    => $requestHash,
+                'created_at'      => Carbon::now(),
+            ]);
+
             // -----------------------------------------------------------------
-            // 4. Assert currency equality (Q8).
+            // 3. Assert currency equality (Q8).
             // -----------------------------------------------------------------
             if ($current->currency === null) {
                 throw new LogicException(
@@ -465,7 +475,7 @@ final class LoanRepaymentService
             }
 
             // -----------------------------------------------------------------
-            // 5. Validate the allocation instructions.
+            // 4. Validate the allocation instructions.
             // -----------------------------------------------------------------
             $this->assertAmountIsWellFormed($amount);
             $this->assertAllocationsWellFormed($current, $wallet, $amount, $allocations);
@@ -473,7 +483,7 @@ final class LoanRepaymentService
             $now = $receivedAt ?? Carbon::now();
 
             // -----------------------------------------------------------------
-            // 6. Record the Wallet payment.
+            // 5. Record the Wallet payment.
             // -----------------------------------------------------------------
             $payment = $this->paymentService->record(
                 wallet: $wallet,
@@ -486,7 +496,7 @@ final class LoanRepaymentService
             );
 
             // -----------------------------------------------------------------
-            // 7. Apply each allocation instruction.
+            // 6. Apply each allocation instruction.
             // -----------------------------------------------------------------
             /** @var list<PaymentAllocation> $allocationRecords */
             $allocationRecords = [];

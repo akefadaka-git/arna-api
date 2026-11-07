@@ -42,8 +42,10 @@ on:
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
-      - "mases_core/src/Domains/Loan/Tests/Unit/**"
-      - "mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php"
+      # Any Loan production code, migration, route, policy, service, or test
+      # change must run this financial-integrity gate.
+      - "mases_core/src/Domains/Loan/**"
+      - "tests/Feature/LoanRepaymentMySqlConcurrencyTest.php"
       - "mases_core/src/Notifications/**"
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
@@ -148,7 +150,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          extensions: bcmath, pcntl, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
           tools: composer:v2
           coverage: none
 
@@ -172,8 +174,6 @@ jobs:
         run: vendor/bin/pint --test mases_core/src/Exceptions/ErrorCodeRegistry.php mases_core/src/Monitoring/ErrorDiagnosticEngine.php tests/Unit/ErrorDiagnosticEngineTest.php
 
 
-      - name: Enforce Composer security advisory gate
-        run: composer audit --format=plain
 
       - name: Run canonical Ethiopian localization regressions
         env:
@@ -198,6 +198,7 @@ jobs:
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php
+
 
       - name: Run Person identity contract regressions
         if: ${{ hashFiles('tests/Feature/PersonIdentityContractTest.php') != '' }}
@@ -404,6 +405,23 @@ jobs:
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
           test "${applied}" -eq 76
+
+      # Run functional regressions before the dependency audit so unrelated
+      # advisories do not suppress financial test evidence. The audit remains
+      # a required, blocking gate and is not skipped or downgraded.
+      - name: Run independent-connection Loan repayment concurrency regression on MySQL
+        env:
+          ARNA_RUN_MYSQL_CONCURRENCY: "1"
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/LoanRepaymentMySqlConcurrencyTest.php
+
+      - name: Enforce Composer security advisory gate
+        run: composer audit --format=plain
 
       - name: Upload migration status evidence
         if: always()
