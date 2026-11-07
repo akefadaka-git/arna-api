@@ -105,6 +105,27 @@ final class LoanRepaymentMySqlConcurrencyTest extends TestCase
         $loan->frozen_policy_version_id = $policy->id;
         $loan->save();
 
+        // Mirror the canonical lifecycle fixture used by LoanRepaymentTest.
+        $history = [
+            [null, LoanStatus::Draft],
+            [LoanStatus::Draft, LoanStatus::Submitted],
+            [LoanStatus::Submitted, LoanStatus::UnderReview],
+            [LoanStatus::UnderReview, LoanStatus::Approved],
+            [LoanStatus::Approved, LoanStatus::Disbursed],
+            [LoanStatus::Disbursed, LoanStatus::Active],
+        ];
+        foreach ($history as [$from, $to]) {
+            LoanStatusHistory::query()->create([
+                'loan_id' => $loan->id,
+                'from_status' => $from?->value,
+                'to_status' => $to->value,
+                'transition_reason' => null,
+                'actor_user_id' => null,
+                'occurred_at' => now(),
+                'created_at' => now(),
+            ]);
+        }
+
         foreach ([1, 2] as $number) {
             LoanInstallment::query()->create([
                 'loan_id' => $loan->id,
