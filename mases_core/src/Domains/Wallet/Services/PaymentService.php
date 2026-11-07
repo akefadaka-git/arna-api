@@ -39,24 +39,26 @@ use MaaleArna\MASES\Core\Domains\Wallet\Models\Wallet;
  *
  *   1. Validates the wallet (persisted, has a non-empty currency).
  *   2. Validates the input (positive amount, optional reference pair).
- *   3. Creates the Payment row with:
+ *   3. Locks and refreshes the Wallet row before any child-row insert.
+ *   4. Creates the Payment row with:
  *         amount            = the caller's amount
  *         unapplied_amount  = the same amount (no allocations yet)
- *         currency          = the wallet's currency (Q8 — inherited,
+ *         currency          = the locked wallet's currency (Q8 — inherited,
  *                             never supplied by the caller)
- *   4. Calls WalletService::recordEntry() (2B.15) to write the ledger
- *      entry:
+ *   5. Calls WalletService::recordEntry() (2B.15) to write the ledger
+ *      entry under the already-held Wallet lock:
  *         entry_type      = payment_received
  *         signed_quantity = +(amount)               [Architecture §4.2]
  *         component       = null                    [payments are not
  *                                                    component-tagged]
  *         reference_type  = 'Payment'
  *         reference_id    = (string) the newly-created payment's id
- *   5. Registers an after-commit dispatch of PaymentReceived.
+ *   6. Registers an after-commit dispatch of PaymentReceived.
  *
- * The wallet row is locked by `recordEntry()` for the duration of the
- * transaction, serialising concurrent payment writes against the same
- * wallet. See Architecture §4.7 for the deterministic lock order.
+ * The exclusive Wallet lock is acquired before inserting `wallet_payments`.
+ * This avoids InnoDB deadlocks caused by concurrent child inserts each
+ * holding a foreign-key shared lock while attempting to upgrade the same
+ * Wallet row to an exclusive lock. See Architecture §4.7 for lock order.
  *
  * =============================================================================
  * Sign convention (Architecture §4.2)
@@ -343,9 +345,10 @@ final class PaymentService
             //
             // `WalletService::recordEntry()` requires a surrounding
             // transaction (its defensive check would throw otherwise) and
-            // acquires the wallet row lock for the duration. The signed
-            // quantity is the positive payment amount: receiving a payment
-            // credits the member's position.
+            // re-acquires the same Wallet row lock within this transaction.
+            // The lock was taken before the Payment insert to avoid an InnoDB
+            // foreign-key shared-lock upgrade deadlock. The signed quantity
+            // is positive: receiving a payment credits the member's position.
             //
             // No component is passed — payments are not component-tagged;
             // the meaning is established later by allocations.
