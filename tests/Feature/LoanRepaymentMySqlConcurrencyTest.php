@@ -177,6 +177,9 @@ final class LoanRepaymentMySqlConcurrencyTest extends TestCase
                     try {
                         DB::purge();
                         $connectionId = (int) DB::selectOne('SELECT CONNECTION_ID() AS connection_id')->connection_id;
+                        // Both workers capture the same pre-repayment projection
+                        // before the barrier, exercising the stale-model race.
+                        $staleLoan = Loan::query()->findOrFail((int) $loan->id);
                         file_put_contents($readyPaths[$index], (string) $connectionId);
                         $deadline = microtime(true) + 20;
                         while (! is_file($releasePath) && microtime(true) < $deadline) {
@@ -186,10 +189,9 @@ final class LoanRepaymentMySqlConcurrencyTest extends TestCase
                             throw new RuntimeException('Timed out waiting for concurrent worker release.');
                         }
 
-                        $freshLoan = Loan::query()->findOrFail((int) $loan->id);
                         $amount = '500.0000';
                         $updated = app(LoanRepaymentService::class)->record(
-                            $freshLoan,
+                            $staleLoan,
                             $amount,
                             [['obligation_id' => (int) $obligation->id, 'amount' => $amount]],
                             'mysql-concurrency-'.$suffix.'-'.$index,
