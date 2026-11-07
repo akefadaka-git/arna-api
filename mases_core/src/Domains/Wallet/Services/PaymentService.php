@@ -39,24 +39,26 @@ use MaaleArna\MASES\Core\Domains\Wallet\Models\Wallet;
  *
  *   1. Validates the wallet (persisted, has a non-empty currency).
  *   2. Validates the input (positive amount, optional reference pair).
- *   3. Creates the Payment row with:
+ *   3. Locks and refreshes the Wallet row before any child-row insert.
+ *   4. Creates the Payment row with:
  *         amount            = the caller's amount
  *         unapplied_amount  = the same amount (no allocations yet)
- *         currency          = the wallet's currency (Q8 — inherited,
+ *         currency          = the locked wallet's currency (Q8 — inherited,
  *                             never supplied by the caller)
- *   4. Calls WalletService::recordEntry() (2B.15) to write the ledger
- *      entry:
+ *   5. Calls WalletService::recordEntry() (2B.15) to write the ledger
+ *      entry under the already-held Wallet lock:
  *         entry_type      = payment_received
  *         signed_quantity = +(amount)               [Architecture §4.2]
  *         component       = null                    [payments are not
  *                                                    component-tagged]
  *         reference_type  = 'Payment'
  *         reference_id    = (string) the newly-created payment's id
- *   5. Registers an after-commit dispatch of PaymentReceived.
+ *   6. Registers an after-commit dispatch of PaymentReceived.
  *
- * The wallet row is locked by `recordEntry()` for the duration of the
- * transaction, serialising concurrent payment writes against the same
- * wallet. See Architecture §4.7 for the deterministic lock order.
+ * The exclusive Wallet lock is acquired before inserting `wallet_payments`.
+ * This avoids InnoDB deadlocks caused by concurrent child inserts each
+ * holding a foreign-key shared lock while attempting to upgrade the same
+ * Wallet row to an exclusive lock. See Architecture §4.7 for lock order.
  *
  * =============================================================================
  * Sign convention (Architecture §4.2)
@@ -246,9 +248,13 @@ final class PaymentService
      *
      * The operation runs inside a single database transaction that:
      *
-     *   1. Creates the Payment row.
-     *   2. Calls WalletService::recordEntry() to write the corresponding
-     *      ledger entry and update the wallet's `current_balance`.
+     *   1. Locks and refreshes the Wallet row before inserting any child
+     *      row with a Wallet foreign key. This avoids concurrent InnoDB
+     *      foreign-key shared-lock upgrades deadlocking on the Wallet.
+     *   2. Creates the Payment row.
+     *   3. Calls WalletService::recordEntry() to write the corresponding
+     *      ledger entry and update the wallet's `current_balance` under
+     *      the already-held Wallet lock.
      *
      * Both writes commit atomically. If the ledger write fails (e.g. a
      * rejected reference pairing), the payment row is rolled back with it
@@ -296,12 +302,23 @@ final class PaymentService
             $description,
             $createdBy,
         ): Payment {
+            // Lock and refresh the Wallet before inserting wallet_payments.
+            // InnoDB takes a shared parent-row lock for the child FK check;
+            // inserting first and then upgrading to FOR UPDATE lets two
+            // concurrent payment writers deadlock while both hold that
+            // shared lock. Taking the exclusive lock first serializes them.
+            /** @var Wallet $lockedWallet */
+            $lockedWallet = Wallet::query()
+                ->whereKey($wallet->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $businessTime = $receivedAt !== null
                 ? Carbon::instance($receivedAt)
                 : Carbon::now();
 
             // -----------------------------------------------------------------
-            // 1. Create the Payment row.
+            // 2. Create the Payment row.
             //
             // `unapplied_amount` starts equal to `amount` because no
             // allocation has yet been recorded against this payment
@@ -312,8 +329,8 @@ final class PaymentService
             // -----------------------------------------------------------------
             /** @var Payment $payment */
             $payment = Payment::create([
-                'wallet_id'        => $wallet->id,
-                'currency'         => $wallet->currency,
+                'wallet_id'        => $lockedWallet->id,
+                'currency'         => $lockedWallet->currency,
                 'amount'           => bcadd('0', $amount, self::MAX_DECIMAL_SCALE),
                 'unapplied_amount' => bcadd('0', $amount, self::MAX_DECIMAL_SCALE),
                 'received_at'      => $businessTime,
@@ -324,19 +341,20 @@ final class PaymentService
             ]);
 
             // -----------------------------------------------------------------
-            // 2. Write the ledger entry.
+            // 3. Write the ledger entry.
             //
             // `WalletService::recordEntry()` requires a surrounding
             // transaction (its defensive check would throw otherwise) and
-            // acquires the wallet row lock for the duration. The signed
-            // quantity is the positive payment amount: receiving a payment
-            // credits the member's position.
+            // re-acquires the same Wallet row lock within this transaction.
+            // The lock was taken before the Payment insert to avoid an InnoDB
+            // foreign-key shared-lock upgrade deadlock. The signed quantity
+            // is positive: receiving a payment credits the member's position.
             //
             // No component is passed — payments are not component-tagged;
             // the meaning is established later by allocations.
             // -----------------------------------------------------------------
             $this->walletService->recordEntry(
-                wallet: $wallet,
+                wallet: $lockedWallet,
                 signedQuantity: $signedQuantity,
                 entryType: WalletEntryType::PaymentReceived,
                 component: null,
@@ -349,7 +367,7 @@ final class PaymentService
             );
 
             // -----------------------------------------------------------------
-            // 3. Dispatch the domain event after commit, subject to the
+            // 4. Dispatch the domain event after commit, subject to the
             //    audit feature flag.
             // -----------------------------------------------------------------
             $this->dispatchAfterCommit(new PaymentReceived($payment));
