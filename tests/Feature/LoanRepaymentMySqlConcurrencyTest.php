@@ -9,6 +9,7 @@ use MaaleArna\MASES\Core\Domains\Loan\Enums\LoanStatus;
 use MaaleArna\MASES\Core\Domains\Loan\Models\Loan;
 use MaaleArna\MASES\Core\Domains\Loan\Models\LoanInstallment;
 use MaaleArna\MASES\Core\Domains\Loan\Models\LoanProduct;
+use MaaleArna\MASES\Core\Domains\Loan\Models\LoanStatusHistory;
 use MaaleArna\MASES\Core\Domains\Loan\Services\LoanRepaymentService;
 use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use MaaleArna\MASES\Core\Domains\Wallet\Enums\ObligationComponent;
