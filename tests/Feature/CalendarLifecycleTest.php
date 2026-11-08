@@ -95,11 +95,11 @@ final class CalendarLifecycleTest extends TestCase
             'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 3],
         ]);
 
-        $before = $service->recurringOccurrences($event->id, '2026-11-01T00:00:00+03:00', '2026-11-04T00:00:00+03:00');
+        $before = $service->recurringOccurrences($actor, $event->id, '2026-11-01T00:00:00+03:00', '2026-11-04T00:00:00+03:00');
         $this->assertCount(3, $before);
 
         $service->cancelOccurrence($actor, $event->id, '2026-11-01T10:00:00+03:00');
-        $after = $service->recurringOccurrences($event->id, '2026-11-01T00:00:00+03:00', '2026-11-04T00:00:00+03:00');
+        $after = $service->recurringOccurrences($actor, $event->id, '2026-11-01T00:00:00+03:00', '2026-11-04T00:00:00+03:00');
         $this->assertCount(2, $after);
     }
 
@@ -119,6 +119,6 @@ final class CalendarLifecycleTest extends TestCase
         ]);
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\BadRequestHttpException::class);
-        $service->recurringOccurrences($event->id, '2026-11-01T00:00:00+03:00', '2027-03-01T00:00:00+03:00');
+        $service->recurringOccurrences($actor, $event->id, '2026-11-01T00:00:00+03:00', '2027-03-01T00:00:00+03:00');
     }
 }
