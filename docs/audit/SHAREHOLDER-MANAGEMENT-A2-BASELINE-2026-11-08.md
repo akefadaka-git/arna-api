@@ -142,7 +142,7 @@ The API main branch contains `docs/PHASE_2_SHAREHOLDER_CHARTER.md`, version 0.4.
 - Status: **DRAFT — NOT APPROVED**
 - Phase 2 implementation: **BLOCKED**
 - The document is a decision register, not a complete specification.
-- Decisions D1–D20 for Shareholder Registry & Capital, D21–D44 for Transfers/Dividends/Meetings/Voting, D57–D104 for Governance & Board and further cross-cutting decisions remain unresolved or deferred in the register.
+- The register identifies D1–D20 for Shareholder Registry & Capital, D21–D44 for Transfers/Dividends/Meetings/Voting, D57–D104 for Governance & Board and further cross-cutting decisions as decision ranges requiring reconciliation. Some model comments cite earlier decisions (for example D8, D9, D11 and D16), so the charter and existing implementation records must be reconciled decision-by-decision rather than assuming every item in a range is unresolved.
 - The charter's source-of-truth hierarchy puts Ethiopian law and regulations, the Articles of Association / Memorandum / bylaws, and approved company policies above the charter and implementation.
 - KYC field requirements and several voting, transfer, dividend and governance rules depend on authoritative decisions.
 
