@@ -421,3 +421,36 @@ A2 cannot legitimately claim that the Organization migration has been repaired, 
 
 
 **Inventory cutoff note:** The 69-PR register above is the complete open-PR inventory captured before this report was published. PR #97 is the subsequent documentation-only A2 evidence PR and is therefore not included in its own 69-item disposition table. The live open-PR population is consequently 70 while #97 remains open; no feature PR has been created by this addendum.
+
+
+### 12.7 Historical failing exact-head workflow root-cause triage
+
+The previously recorded failures were inspected at job/step/log level where the logs remained available:
+
+| PR | Exact-head run | Confirmed failing step | Root cause | Required remediation |
+|---|---|---|---|---|
+| API #73 Calendar | [41275437169](https://github.com/akefadaka-git/arna-api/actions/runs/41275437169) | Fresh disposable MySQL migration test | MySQL error 1059: generated unique index name `calendar_recurrence_exceptions_event_id_original_starts_at_unique` exceeds MySQL's 64-character identifier limit in `2026_11_01_000002_create_calendar_lifecycle_tables.php` | Assign an explicit short stable index name; rerun clean-install, upgrade and Calendar concurrency/lifecycle gates |
+| API #55 Finance | [40936484389](https://github.com/akefadaka-git/arna-api/actions/runs/40936484389) | Fresh disposable MySQL migration test | MySQL error 1553: migration `2026_10_29_000002_harden_finance_proposal_versions.php` attempts to drop `finance_consolidation_mapping_account_status_unique`, which is supporting a foreign-key constraint | Preserve/recreate a valid supporting index or safely alter FK/index dependency before dropping; rerun clean-install and upgrade |
+| App #30 OCR | [41392948962](https://github.com/akefadaka-git/arna-app/actions/runs/41392948962) | Type-check and build all applications | TS6133 unused `previewName` at line 40; TS18048 `previewFile` possibly undefined at lines 317–318 in `DocumentIntelligenceView.vue` | Remove/use the unused variable; narrow/guard `previewFile` before dereference; rerun frontend contract, type-check and full build |
+| App #5 People | [40728793536](https://github.com/akefadaka-git/arna-app/actions/runs/40728793536) | `type-check-and-build` | Job failed; historical job log artifact is no longer retrievable through the available endpoint | Root cause UNKNOWN; obtain failed-step diagnostics and rerun on a fresh exact SHA |
+| App #6 Organization | [40924149477](https://github.com/akefadaka-git/arna-app/actions/runs/40924149477) | `type-check-and-build` | Job failed; historical job log artifact is no longer retrievable through the available endpoint | Root cause UNKNOWN; obtain failed-step diagnostics and rerun on a fresh exact SHA |
+
+The findings above were posted as A2 triage comments on the corresponding PR conversations. They are not code fixes and do not change the source branches.
+
+### 12.8 Updated A2 blocker matrix after log triage
+
+| Blocker | State after this pass |
+|---|---|
+| Files/core People migration path identity | **RESOLVED** at source-diff level; provider/runtime checks remain |
+| Organization migration rewrite | **OPEN / CRITICAL**; needs a forward-only migration in a separately authorized implementation stage |
+| People branch auto-sync and merged-branch cleanup permissions | **OPEN / CRITICAL**; branch writes/deletion must not be merged |
+| Governance duplicate election schemas | **RESOLVED** as A2 source disposition; meeting slice from #52, shareholder-ledger election design candidate #77; implementation/legal evidence still open |
+| Calendar #73 MySQL identifier failure | **ROOT CAUSE CONFIRMED / OPEN**; requires source remediation and rerun |
+| Finance #55 FK-supporting index failure | **ROOT CAUSE CONFIRMED / OPEN**; requires safe migration redesign and rerun |
+| OCR App #30 TypeScript failure | **ROOT CAUSE CONFIRMED / OPEN**; requires source remediation and rerun |
+| People App #5 and Organization App #6 failures | **OPEN / UNKNOWN ROOT CAUSE**; historical logs unavailable |
+| Independent security review | **NOT RUN** |
+| Unified clean-install + upgrade on a rebuilt integration candidate | **NOT RUN** |
+| Repository branch protection configuration | **OWNER GOVERNANCE DECISION REQUIRED** |
+
+**No failure was marked fixed solely because its cause was identified.** A root-cause diagnosis is not a passing regression test. All remediation and exact-SHA reruns remain outstanding.
