@@ -96,10 +96,10 @@ final class CalendarService
 
             // TIMESTAMP columns are persisted in UTC; normalize explicit-offset inputs
             // before Eloquent formats them without an offset for the database driver.
-            $startsAtUtc = $allDay ? null : (new \\DateTimeImmutable($data['starts_at']))
-                ->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-            $endsAtUtc = $allDay ? null : (new \\DateTimeImmutable($data['ends_at']))
-                ->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+            $startsAtUtc = $allDay ? null : (new \DateTimeImmutable($data['starts_at']))
+                ->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+            $endsAtUtc = $allDay ? null : (new \DateTimeImmutable($data['ends_at']))
+                ->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
 
             $id = (string) Str::uuid();
             $event = new CalendarEvent();
@@ -131,7 +131,7 @@ final class CalendarService
                     DB::table('calendar_reminder_outbox')->insert([
                         'id' => $outboxId, 'tenant_id' => $tenantId, 'event_id' => $id,
                         'recipient_user_id' => $userId, 'reminder_type' => 'event_start_15m',
-                        'deliver_at' => $deliverAt->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s'), 'status' => 'pending',
+                        'deliver_at' => $deliverAt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'), 'status' => 'pending',
                         'attempts' => 0, 'idempotency_key' => $id.':'.$userId.':event_start_15m',
                         'created_at' => now(), 'updated_at' => now(),
                     ]);
@@ -197,8 +197,8 @@ final class CalendarService
                 || $start < $event->starts_at || $end > $event->ends_at) {
                 throw new BadRequestHttpException('Reservation interval must be contained within a scheduled timed event.');
             }
-            $startUtc = $start->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-            $endUtc = $end->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+            $startUtc = $start->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+            $endUtc = $end->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
             $overlap = DB::table('calendar_reservations')->where('tenant_id', $tenantId)
                 ->where('resource_id', $resource->id)->where('status', 'confirmed')
                 ->where('starts_at', '<', $endUtc)->where('ends_at', '>', $startUtc)
