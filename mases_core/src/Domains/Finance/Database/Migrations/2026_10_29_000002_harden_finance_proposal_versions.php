@@ -15,6 +15,17 @@ return new class extends Migration
         // rejected proposal for the same natural key. Version proposals
         // instead, while services serialize writes on the parent account or
         // tenant row and refuse competing pending/approved proposals.
+        // Keep a non-unique left-prefix index for the existing composite FK
+        // before dropping the status-based unique index that MySQL currently uses.
+        if (! Schema::hasIndex('finance_consolidation_account_mappings', 'finance_consolidation_mapping_fk_support_index')) {
+            Schema::table('finance_consolidation_account_mappings', function (Blueprint $table): void {
+                $table->index(
+                    ['tenant_id', 'legal_entity_id', 'ledger_account_id'],
+                    'finance_consolidation_mapping_fk_support_index'
+                );
+            });
+        }
+
         Schema::table('finance_consolidation_account_mappings', function (Blueprint $table): void {
             $table->dropUnique('finance_consolidation_mapping_account_status_unique');
             $table->unsignedInteger('proposal_version')->default(1);
@@ -70,6 +81,9 @@ return new class extends Migration
             $table->dropIndex('finance_consolidation_mapping_account_status_index');
             $table->dropColumn('proposal_version');
             $table->unique(['tenant_id', 'legal_entity_id', 'ledger_account_id', 'status'], 'finance_consolidation_mapping_account_status_unique');
+        });
+        Schema::table('finance_consolidation_account_mappings', function (Blueprint $table): void {
+            $table->dropIndex('finance_consolidation_mapping_fk_support_index');
         });
         Schema::table('finance_exchange_rates', function (Blueprint $table): void {
             $table->dropUnique('finance_exchange_rate_proposal_version_unique');
