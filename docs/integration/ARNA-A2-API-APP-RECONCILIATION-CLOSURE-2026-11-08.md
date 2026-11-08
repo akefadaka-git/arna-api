@@ -139,7 +139,7 @@ Compare direction below is measured against the exact current main SHA, not the 
 Workflow references:
 - API #65: [clean-install MySQL](https://github.com/akefadaka-git/arna-api/actions/runs/41205631051), [tenant isolation](https://github.com/akefadaka-git/arna-api/actions/runs/41205631047), [browser session/auth test group](https://github.com/akefadaka-git/arna-api/actions/runs/41205631088).
 - API #85: [clean-install MySQL](https://github.com/akefadaka-git/arna-api/actions/runs/41728884242), [tenant isolation](https://github.com/akefadaka-git/arna-api/actions/runs/41728883869).
-- API #51: [clean-install MySQL](https://github.com/akefadaka-git/arna-api/actions/runs/41167907469), [tenant authorization](https://github.com/akefadaka-git/arna-api/actions/runs/41167907388).
+- API #51: [clean-install MySQL](https://github.com/akefadaka-git/arna-api/actions/runs/41167907469), [tenant authorization](https://github.com/akefadaka-git/arna-api/actions/runs/41167913688).
 - API #49: [clean-install MySQL](https://github.com/akefadaka-git/arna-api/actions/runs/41076115687), [governance authorization](https://github.com/akefadaka-git/arna-api/actions/runs/41076115610).
 - API #54: [clean-install MySQL](https://github.com/akefadaka-git/arna-api/actions/runs/40936994988).
 - API #55: [failed clean-install MySQL](https://github.com/akefadaka-git/arna-api/actions/runs/40936484389).
