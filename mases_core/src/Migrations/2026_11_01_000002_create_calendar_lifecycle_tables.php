@@ -11,7 +11,7 @@ return new class extends Migration {
    $table->timestamp('original_starts_at'); $table->string('status',20)->default('cancelled');
    $table->timestamp('override_starts_at')->nullable(); $table->timestamp('override_ends_at')->nullable();
    $table->foreignId('created_by')->constrained('users')->restrictOnDelete(); $table->timestamps();
-   $table->unique(['event_id','original_starts_at']); $table->index(['tenant_id','event_id']);
+   $table->unique(['event_id','original_starts_at'], 'cal_recur_exc_event_start_unique'); $table->index(['tenant_id','event_id']);
   });
   Schema::create('calendar_reminder_outbox', function (Blueprint $table): void {
    $table->uuid('id')->primary(); $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
