@@ -338,3 +338,83 @@ This package is documentation and reconciliation only. It does not:
 - deploy or perform A5 work.
 
 **Recommended next action:** Owner review of this A2 disposition package. After the remaining source/schema/security evidence is closed, request separate A3 authorization to rebuild Wave 1 (Identity/SSO) from the pinned main SHAs. Each PR merge and A5 deployment remains separately authorized.
+
+
+---
+
+## 12. A2 focused source-review addendum — 2026-11-08
+
+This addendum records direct file-content and GitHub compare evidence obtained after the initial package. It supersedes any broader or less precise migration/workflow statements above.
+
+### 12.1 Migration lineage: verified findings
+
+| PR | Migration | GitHub compare result | Exact source evidence | Decision |
+|---|---|---|---|---|
+| #51 Files | `2026_09_07_000012_create_files_table.php` | Renamed; no content changes | Main and domain-path blob SHA both `428b8cbe5abbc3abac959f7349564fa1a0a910b5` | PASS for migration identity/content preservation. Still require provider discovery and upgrade-path execution. |
+| #31 People | `2026_10_27_000001_create_people_table.php` | Renamed; no content changes | Main and domain-path blob SHA both `db2fd2086639f4581ae0d735434cb8a4bcb9d256` | PASS for identity/content preservation. |
+| #31 People | `2026_10_27_000002_add_person_id_to_people_domains.php` | Renamed; no content changes | Main and domain-path blob SHA both `8aff1d4aebdb147c654965397213e617b69a1027` | PASS for identity/content preservation. |
+| #31 People | `2026_10_27_000003_create_person_tenant_accesses_table.php` | Renamed; no content changes | Main and domain-path blob SHA both `fd280e9b01fa8d7a6b42148950e29e66d8dc5c0d` | PASS for identity/content preservation. |
+| #31 Organization | `2026_10_28_000002_create_organization_units_table.php` | Renamed with content changes (5 additions, 1 deletion) | Main root-path blob SHA `f7ada0d938218a06b76d97acf3879e393fe5de1f`; PR #31 domain-path blob SHA `8d7ffbd6571986ee6efaeb1b12f3997a782ecd04` | BLOCKED: migration rewrite changes deployed-schema semantics. |
+| #49 Organization | Same migration | Renamed with content changes (5 additions, 1 deletion) | Same changed blob as #31 | BLOCKED: #49 and #31 carry the same altered migration; do not integrate either rewritten copy as the original migration. |
+
+**Organization migration semantic delta:** current main's `organization_assignments.assignment_type` default is `member` and the migration constrains `person_id` to `people`. The candidate changes the default to `primary` and adds a composite foreign key from `(person_id, tenant_id)` to `person_tenant_accesses`. This is a meaningful schema/behavior change under an already-existing migration name. On databases where the original migration has already run, editing that migration will not apply the new constraint/default. The safe remediation is to preserve the original migration byte-for-byte and introduce a new, forward-only migration for the additional constraint/default with a verified backfill and rollback strategy. That code remediation is not performed in A2.
+
+The Files and core People migrations are true path relocations with unchanged blob content, not duplicate definitions. PR #31's additional People migrations are distinct full migration names, although two files share the `2026_10_28_000001` timestamp prefix. They create `person_document_links` and add MySQL-only active-person uniqueness constraints respectively. The unique full names avoid a duplicate migration-name collision; clean-install ordering and MySQL execution still require exact-head CI.
+
+### 12.2 People identity and tenant access: static source review
+
+PR #31's `PeopleServiceProvider` loads the domain migration directory and registers the Person policy. The inspected `PersonIdentityService`:
+- checks actor tenant access and permission before creating/linking/unlinking;
+- creates an explicit active `person_tenant_accesses` row with the Person;
+- locks Person/User rows during account linking;
+- rejects linking an inactive or already-associated account and checks tenant compatibility;
+- uses a fixed domain-record lock order during tenant-access revocation.
+
+The inspected `PersonPolicy` requires active tenant access and the `people.view` or `people.manage` permission. These are positive source-level findings, not proof of all API paths or database enforcement. They do not close the missing exact-head workflow, concurrency, cross-tenant negative-test or independent security-review requirements.
+
+### 12.3 PR #31 workflow permissions: confirmed critical blocker
+
+Two workflow changes in PR #31 conflict with the Owner's branch-preservation and least-privilege requirements:
+
+1. **New `.github/workflows/sync-people-integration-branch.yml`:** triggers on PR opened/synchronize/reopened/ready-for-review, grants top-level `contents: write`, merges current `main` into `feat/people-domain-phase-2-api`, and pushes the result to that branch. This is an automatic branch mutation driven by a PR event.
+2. **Modified `.github/workflows/arna-clean-install-mysql.yml`:** adds a post-success cleanup job with job-level `contents: write` and a `git.deleteRef` operation for merged source branches. The current-main version has only `contents: read` and no branch-cleanup job.
+
+**Disposition:** PR #31 is blocked from merge until both automatic write behaviors are removed or redesigned as explicitly authorized, non-destructive, least-privilege operations. The existing branch must be preserved. No branch deletion or automatic branch synchronization is authorized. This A2 assessment does not edit either workflow.
+
+### 12.4 Governance/election migration conflict: confirmed schema incompatibility
+
+Direct migration inspection confirms that PR #52 and PR #77 both attempt to create the same canonical election tables, including:
+- `governance_elections`
+- `governance_election_nominations`
+- `governance_election_ballots`
+
+Their supporting schemas are not interchangeable:
+- PR #52 adds `governance_election_eligible_voters` and `governance_election_audit_events`; the inspected foreign keys tie voter/nomination records to `governance_memberships`.
+- PR #77 adds `governance_election_register_snapshots`, `governance_election_voters` and `governance_election_tallies`; its A1 contract describes a record-date register reconstructed from the shareholder ledger and per-share-class entitlements.
+
+**Recommended A2 source disposition:** retain PR #52's meeting lifecycle slice only; exclude its competing election-table/controller/permission slice from the unified integration. Use PR #77's shareholder-ledger/register architecture as the election design candidate, subject to the requirements and unresolved authority gates below. Do not merge either election migration chain as currently written, and do not combine both.
+
+PR #77's own A1/A2 documents explicitly keep electronic voting disabled pending election-specific legal authority, security and operational acceptance. They also record unresolved company-specific proxy/disqualification rules, challenge/appeal authority and deadline evidence, and register approval/freeze work that remains to be implemented. The Owner's policy record separately sets quorum, majority/runoff and independent-certification rules; the implementation must preserve those exact controls. Therefore the schema choice is clarified, but election readiness/legal clearance is NOT CLOSED.
+
+### 12.5 Updated blocker disposition
+
+| Blocker | Updated result | Evidence/status |
+|---|---|---|
+| Files migration identity | RESOLVED at source-diff level | Same blob SHA after rename; runtime/provider discovery still NOT RUN |
+| Core People migration identity | RESOLVED at source-diff level | Three canonical migrations renamed with identical blob SHAs |
+| Organization migration rewrite | OPEN / CRITICAL | Same migration filename, different blob; preserve old migration and add a new forward migration in a separately authorized implementation stage |
+| People identity/tenant-access architecture | PARTIAL | Static service/policy review positive; exact-head CI and full endpoint/security tests outstanding |
+| Automatic People branch sync | OPEN / CRITICAL | New workflow has `contents: write` and pushes on PR events |
+| Automatic merged-branch cleanup | OPEN / CRITICAL | Modified clean-install workflow adds `contents: write` and branch deletion; main does not contain this job |
+| Governance #52/#77 election collision | RESOLVED as an A2 disposition decision; NOT implemented | Keep #52 meeting slice; use #77 as the shareholder-ledger election design candidate; do not integrate either election migration chain yet |
+| Independent security review | NOT RUN | Requires a genuinely independent reviewer; internal static inspection is not a substitute |
+| Clean-install and upgrade execution | NOT RUN on a unified rebuilt candidate | Requires a separate exact-SHA workflow run against synthetic disposable databases |
+| Main branch protections | OWNER GOVERNANCE DECISION REQUIRED | No repository settings changed |
+
+### 12.6 What A2 can close versus what it cannot
+
+A2 can now close the source-selection ambiguity for Files and core People migration relocation, identify the Organization migration rewrite as unsafe, block the two automatic branch-write behaviors, and select a single Governance election design candidate for subsequent reconciliation.
+
+A2 cannot legitimately claim that the Organization migration has been repaired, workflows have been changed, branch protection is enabled, MySQL clean-install/upgrade behavior is verified, or independent security review is complete. Those require either separately authorized implementation/settings actions or external/runtime evidence. They remain explicit blockers; none is silently treated as PASS.
+
+**Updated A2 status:** source-level reconciliation materially advanced; A2 technical closure remains **PARTIAL / NOT VERIFIED-CLOSED**. No A3 implementation, merge, branch deletion, settings change, migration execution or deployment was performed by this addendum.
