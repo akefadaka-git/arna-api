@@ -147,6 +147,7 @@ use App\Http\Controllers\PersonController;
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\NotificationController;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Calendar\Http\Controllers\CalendarController;
 
 // =============================================================================
 // 1. Public Routes – No authentication required
@@ -550,6 +551,21 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
 
     Route::get('/launcher', [ApplicationController::class, 'index'])
         ->name('api.launcher');
+
+    Route::prefix('/calendar')->name('api.calendar.')->group(static function (): void {
+        Route::get('/calendars', [CalendarController::class, 'calendars'])->middleware('auth.permission:calendar.view')->name('calendars.index');
+        Route::post('/calendars', [CalendarController::class, 'storeCalendar'])->middleware('auth.permission:calendar.create')->name('calendars.store');
+        Route::get('/events', [CalendarController::class, 'events'])->middleware('auth.permission:calendar.view')->name('events.index');
+        Route::post('/events', [CalendarController::class, 'storeEvent'])->middleware('auth.permission:calendar.create')->name('events.store');
+        Route::put('/events/{id}', [CalendarController::class, 'updateEvent'])->whereUuid('id')->middleware('auth.permission:calendar.update')->name('events.update');
+        Route::get('/events/{eventId}/occurrences', [CalendarController::class, 'occurrences'])->whereUuid('eventId')->middleware('auth.permission:calendar.view')->name('events.occurrences');
+        Route::post('/events/{eventId}/occurrences/cancel', [CalendarController::class, 'cancelOccurrence'])->whereUuid('eventId')->middleware('auth.permission:calendar.update')->name('events.occurrences.cancel');
+        Route::post('/events/{eventId}/response', [CalendarController::class, 'respond'])->whereUuid('eventId')->name('events.respond');
+        Route::get('/resources', [CalendarController::class, 'resources'])->middleware('auth.permission:calendar.view')->name('resources.index');
+        Route::post('/resources', [CalendarController::class, 'storeResource'])->middleware('auth.permission:calendar.update')->name('resources.store');
+        Route::put('/resources/{id}', [CalendarController::class, 'updateResource'])->whereUuid('id')->middleware('auth.permission:calendar.update')->name('resources.update');
+        Route::post('/reservations', [CalendarController::class, 'reserve'])->middleware('auth.permission:calendar.reserve')->name('reservations.store');
+    });
 
     // Central notification inbox: active tenant membership is enforced by
     // this enclosing group; the service additionally scopes every record

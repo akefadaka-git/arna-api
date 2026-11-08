@@ -6,7 +6,7 @@ on:
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
-    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/arna-calendar-core-a3]
+    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/arna-calendar-core-a3, feat/arna-calendar-a4-remediation]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - "database/migrations/**"
@@ -42,9 +42,15 @@ on:
       - "mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php"
       - "mases_core/src/Notifications/**"
       - "mases_core/src/Calendar/**"
+      - "database/seeders/Data/PermissionCatalogue.php"
+      - "database/seeders/Data/RolePermissionGrants.php"
+      - "routes/api.php"
       - "mases_core/src/Localization/Calendar/Contracts/**"
       - "mases_core/src/Migrations/*calendar_core_tables.php"
+      - "mases_core/src/Migrations/*calendar_lifecycle_tables.php"
       - "tests/Feature/CalendarCoreSecurityTest.php"
+      - "tests/Feature/CalendarLifecycleTest.php"
+      - "tests/Unit/CalendarPermissionCatalogueTest.php"
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
       - "tests/Feature/CentralNotificationsTest.php"
@@ -225,7 +231,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarReservationConcurrencyTest.php
+        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarReservationConcurrencyTest.php tests/Feature/CalendarLifecycleTest.php tests/Unit/CalendarPermissionCatalogueTest.php
 
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
@@ -286,7 +292,7 @@ jobs:
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 71
+          test "${applied}" -eq 72
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -321,7 +327,7 @@ jobs:
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 71
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 72
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -332,7 +338,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 71
+          test "${applied}" -eq 72
 
       - name: Upload migration status evidence
         if: always()
