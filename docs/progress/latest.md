@@ -1,6 +1,6 @@
-# ARNA OS — Daily Repository Progress Report (2026-11-07)
+# ARNA OS — Daily Repository Progress Report (2026-11-08)
 
-**Generated:** 2026-11-07T03:34:58.428198+03:00  
+**Generated:** 2026-11-08T03:09:18.554549+03:00  
 **Repositories:** akefadaka-git/arna-api, akefadaka-git/arna-app  
 **Assessment mode:** read-only repository metadata and workflow evidence; no source-code mutation.
 
@@ -49,14 +49,14 @@
 
 - Default branch: `main`
 - Open PRs: 43
-- PRs merged in last 30 days: 42
-- Failed/action-required workflow runs in last 14 days: 24
-- Cancelled workflow runs in last 14 days: 5
-- Currently queued/in-progress workflow runs in sampled page: 2
-- Most recent commit in sampled 30 commits: 2026-11-06T01:21:05+00:00
+- PRs merged in last 30 days: 43
+- Failed/action-required workflow runs in last 14 days: 17
+- Cancelled workflow runs in last 14 days: 2
+- Currently queued/in-progress workflow runs in sampled page: 1
+- Most recent commit in sampled 30 commits: 2026-11-07T15:54:02+00:00
 
 **Open pull requests (sample, up to 12):**
-- test(loan): verify concurrent repayments on MySQL
+- docs(operations): assess Wallet and Loan production readiness (A1)
 - docs(finance): add Wallet and cryptocurrency dependency matrix
 - [WIP] Build ARNA Board Election API foundation
 - A2: Admin central identity, RBAC and tenant foundation API
@@ -70,6 +70,7 @@
 - A3.1–A3.2: Calendar temporal foundation and tenant-scoped Core API
 
 **PRs merged in last 30 days (sample, up to 12):**
+- test(loan): verify concurrent repayments on MySQL
 - A1–A5: audit, retire legacy API code and verify
 - fix(errors): complete existing auth tenant and file code catalogue
 - feat(core): centralized error registry and safe diagnostics
@@ -81,9 +82,10 @@
 - Add ARNA OS progress baseline and nightly repository assessment
 - Build centralized tenant-scoped notifications core
 - integration: reconcile Organization with File Management foundation
-- refactor(finance): Finance domain ownership and migration safety
 
 **Failed workflows (sample, up to 12):**
+- ARNA clean-install MySQL verification #1257
+- ARNA clean-install MySQL verification #1256
 - ARNA clean-install MySQL verification #1254
 - ARNA clean-install MySQL verification #1253
 - ARNA clean-install MySQL verification #1251
@@ -94,8 +96,6 @@
 - ARNA G-01 tenant isolation regression gate #1021
 - ARNA Phase 0 effective authorization audit #965
 - ARNA G-01 tenant isolation regression gate #1020
-- ARNA shareholder seed-number initialization regression #1029
-- ARNA Phase 0 effective authorization audit #964
 
 ### akefadaka-git/arna-app
 
@@ -151,8 +151,8 @@
 
 ## Recommendations and enhancement priorities
 
-- **akefadaka-git/arna-api:** triage 24 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-api:** inspect 5 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
+- **akefadaka-git/arna-api:** triage 17 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-api:** inspect 2 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
 - **akefadaka-git/arna-api:** review 43 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - **akefadaka-git/arna-app:** triage 43 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
 - **akefadaka-git/arna-app:** review 22 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
