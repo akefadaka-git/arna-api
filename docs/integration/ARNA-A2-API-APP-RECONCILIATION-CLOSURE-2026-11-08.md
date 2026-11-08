@@ -418,3 +418,6 @@ A2 can now close the source-selection ambiguity for Files and core People migrat
 A2 cannot legitimately claim that the Organization migration has been repaired, workflows have been changed, branch protection is enabled, MySQL clean-install/upgrade behavior is verified, or independent security review is complete. Those require either separately authorized implementation/settings actions or external/runtime evidence. They remain explicit blockers; none is silently treated as PASS.
 
 **Updated A2 status:** source-level reconciliation materially advanced; A2 technical closure remains **PARTIAL / NOT VERIFIED-CLOSED**. No A3 implementation, merge, branch deletion, settings change, migration execution or deployment was performed by this addendum.
+
+
+**Inventory cutoff note:** The 69-PR register above is the complete open-PR inventory captured before this report was published. PR #97 is the subsequent documentation-only A2 evidence PR and is therefore not included in its own 69-item disposition table. The live open-PR population is consequently 70 while #97 remains open; no feature PR has been created by this addendum.
