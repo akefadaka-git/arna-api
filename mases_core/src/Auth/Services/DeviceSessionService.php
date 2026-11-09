@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 use MaaleArna\MASES\Core\Auth\Models\DeviceSession;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -58,6 +60,7 @@ final class DeviceSessionService
             $session->save();
             $session->personal_access_token_id = $newToken->accessToken->getKey();
             $session->save();
+            $this->audit('auth.device_session.created', $user, $session);
 
             return [
                 'token' => $newToken->plainTextToken,
@@ -112,6 +115,7 @@ final class DeviceSessionService
                 'revocation_reason' => 'user_revoked',
                 'personal_access_token_id' => null,
             ])->save();
+            $this->audit('auth.device_session.revoked', $user, $session);
         }, 3);
     }
 
@@ -138,6 +142,7 @@ final class DeviceSessionService
                 'last_seen_at' => now(),
                 'expires_at' => $expiresAt,
             ])->save();
+            $this->audit('auth.device_session.refreshed', $user, $session);
 
             return [
                 'token' => $replacement->plainTextToken,
@@ -164,6 +169,7 @@ final class DeviceSessionService
                     'revocation_reason' => 'logout',
                     'personal_access_token_id' => null,
                 ])->save();
+                $this->audit('auth.device_session.logout', $user, $session);
             }
             PersonalAccessToken::query()->whereKey($currentToken->getKey())->delete();
         }, 3);
@@ -181,5 +187,26 @@ final class DeviceSessionService
             ->where('user_id', $user->getKey())
             ->active()
             ->first();
+    }
+
+    private function audit(string $eventType, User $user, DeviceSession $session): void
+    {
+        try {
+            app(SecurityEventService::class)->log($eventType, [
+                'user_id' => $user->getKey(),
+                'tenant_id' => $session->tenant_id,
+                'session_id' => $session->public_id,
+                'ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        } catch (\\Throwable $exception) {
+            // Never leak credentials or allow an audit transport outage to
+            // corrupt the token/session transaction.
+            Log::error('Device session security audit write failed', [
+                'event_type' => $eventType,
+                'user_id' => $user->getKey(),
+                'exception' => $exception::class,
+            ]);
+        }
     }
 }
