@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Authorization;
+namespace MaaleArna\MASES\Core\Authorization;
 
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
+use MaaleArna\MASES\Core\Auth\Models\User;
 
 /**
  * Owner-frozen audience boundary for the ARNA Executive Overview.
