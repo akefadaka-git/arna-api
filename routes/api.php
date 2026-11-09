@@ -508,7 +508,7 @@ Route::middleware(['auth:sanctum', 'mobile.session'])->group(static function ():
 // =============================================================================
 // Corporate Site CMS Administration — platform-wide, permission-gated
 // =============================================================================
-Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
+Route::middleware(['auth:sanctum', 'mobile.session', 'auth.permission:public-content.review'])
     ->prefix('admin/corporate-site/pages')
     ->name('api.admin.corporate-site.pages.')
     ->group(static function (): void {
@@ -523,7 +523,7 @@ Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
 
 
 // Corporate editorial entries and contact-inquiry administration.
-Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
+Route::middleware(['auth:sanctum', 'mobile.session', 'auth.permission:public-content.review'])
     ->prefix('admin/corporate-site')
     ->name('api.admin.corporate-site.')
     ->group(static function (): void {
@@ -541,7 +541,7 @@ Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
 // =============================================================================
 // Public Content Administration — platform-wide, permission-gated
 // =============================================================================
-Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
+Route::middleware(['auth:sanctum', 'mobile.session', 'auth.permission:public-content.review'])
     ->prefix('admin/public-content')
     ->name('api.admin.public-content.')
     ->group(static function (): void {
@@ -574,7 +574,7 @@ Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
 // `AuthorizationFailureEvent` pipeline (see LogAuthorizationFailureListener).
 // =============================================================================
 
-Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function (): void {
+Route::middleware(['auth:sanctum', 'mobile.session', 'tenant.membership'])->group(static function (): void {
 
     // -------------------------------------------------------------------------
     // Launcher — the caller's launchable application catalog
@@ -750,7 +750,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
  * Organization domain — tenant membership is necessary but not sufficient;
  * each operation also checks an explicit domain permission and tenant boundary.
  */
-Route::middleware(['auth:sanctum', 'tenant.membership'])
+Route::middleware(['auth:sanctum', 'mobile.session', 'tenant.membership'])
     ->prefix('organization')
     ->name('api.organization.')
     ->group(static function (): void {
@@ -795,7 +795,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
 
 // Admin audit and security investigation — read-only audit trail plus
 // explicitly audited security-event resolution. All reads and writes are tenant-bound.
-Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access', 'tenant.membership'])
+Route::middleware(['auth:sanctum', 'mobile.session', 'auth.permission:app.admin.access', 'tenant.membership'])
     ->prefix('admin')
     ->name('api.admin.audit-security.')
     ->group(static function (): void {
