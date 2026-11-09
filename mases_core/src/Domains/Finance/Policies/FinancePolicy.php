@@ -31,6 +31,7 @@ abstract class FinancePolicy
 
         $permissionExists = static function ($query) use ($permission, $target): void {
             $query->where('permissions.slug', $permission)
+                ->where('permissions.scope', 'tenant')
                 ->where('permissions.is_active', true)
                 ->where(function ($scope) use ($target): void {
                     $scope->whereNull('permissions.tenant_id')
@@ -40,6 +41,7 @@ abstract class FinancePolicy
 
         $direct = $user->permissions()
             ->where('permissions.slug', $permission)
+            ->where('permissions.scope', 'tenant')
             ->where('permissions.is_active', true)
             ->where(function ($scope) use ($target): void {
                 $scope->whereNull('permissions.tenant_id')
