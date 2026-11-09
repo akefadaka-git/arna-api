@@ -1,7 +1,7 @@
 # ARNA Executive Overview — A4 Security and Isolation Verification
 
 **Stage:** A4 — verification  
-**Status:** PARTIAL — A4 targeted API suite PASS; full clean-install gate pending; not production-cleared  
+**Status:** PARTIAL — targeted A4 suite and full clean-install/MySQL gate PASS; not production-cleared  
 **Scope:** API authorization, tenant/legal-entity isolation, Finance permission freshness, response disclosure, and reproducible evidence  
 **A3 parent:** `6e8ca660d35caf9fe5e8d66ee34406bf642f2de1`  
 **A4 branch:** `verify/executive-overview-a4`
@@ -22,9 +22,9 @@ This A4 branch is based on the Owner-approved A3 API branch. It does not merge A
 | Control | Evidence in branch | Status |
 |---|---|---|
 | Frozen audience role + tenant-bound entry permission | Existing `ExecutiveOverviewAuthorizationTest` | A4 targeted workflow PASS |
-| Direct grants/platform wildcard do not bypass audience | Existing authorization tests | Existing A3 tests; A4 CI pending |
+| Direct grants/platform wildcard do not bypass audience | Existing authorization tests | A4 targeted workflow PASS |
 | Finance report revocation despite stale cached positive | `ExecutiveOverviewA4FreshAuthorizationTest::finance_report_revocation_is_effective_even_when_a_stale_positive_cache_entry_exists` | Added; PASS on exact A4 HEAD |
-| Cross-tenant legal-entity exclusion | `ExecutiveOverviewA4FreshAuthorizationTest::tenant_a_overview_never_includes_a_legal_entity_from_tenant_b` | Added; CI NOT RUN |
+| Cross-tenant legal-entity exclusion | `ExecutiveOverviewA4FreshAuthorizationTest::tenant_a_overview_never_includes_a_legal_entity_from_tenant_b` | Added; PASS on exact tested SHA |
 | Per-entity Finance authorization | `FinancePolicy::allows` now queries authoritative pivots; existing route fixture | Implemented; PASS in targeted API workflow |
 | Generic denial and hidden metadata | Existing route and middleware tests | A4 targeted workflow PASS |
 | Private/no-store response | Existing Finance route test | Existing A3 tests; CI pending |
@@ -38,7 +38,7 @@ This A4 branch is based on the Owner-approved A3 API branch. It does not merge A
 - A4 branch HEAD: `c17a36e9401347f47345319bffa8b4b83d60871a`
 - Targeted A4 API workflow: [run #A4 security-tests](https://github.com/akefadaka-git/arna-api/actions/runs/42680656797) — **PASS**, job `129373965875`.
 - Exact-head checks completed: PHP lint, clean MySQL migrations, frozen audience/wildcard authorization, route and metadata disclosure/no-store tests, stale-cache revocation, cross-tenant entity isolation, and Finance permission catalogue.
-- Full repository clean-install workflow: [run](https://github.com/akefadaka-git/arna-api/actions/runs/42680668896) — **IN PROGRESS** at time of this update.
+- Full repository clean-install/MySQL workflow: [run #42680980701](https://github.com/akefadaka-git/arna-api/actions/runs/42680980701) — **PASS** on the same tested SHA.
 
 ## Known residual risk
 
@@ -47,7 +47,7 @@ The general-purpose `InvalidateAuthorizationCacheListener` still catches and log
 ## Required next verification
 
 - Complete the full API clean-install/MySQL workflow against exact A4 HEAD and fix any failures.
-- Confirm the new stale-cache revocation and cross-tenant tests pass on that exact HEAD.
+- Keep the new stale-cache revocation and cross-tenant tests in the exact-HEAD regression gate.
 - Expand the entity matrix to include mixed authorized/unauthorized entities and direct endpoint access.
 - Run App browser tests for logout, permission revocation, tenant switching, delayed/out-of-order responses and component unmount.
 - Obtain independent human application-security review before production clearance.
