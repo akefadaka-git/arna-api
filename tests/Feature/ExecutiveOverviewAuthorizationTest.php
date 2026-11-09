@@ -157,6 +157,13 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
             'tenant_id' => $tenantA->id,
             'is_active' => true,
         ]);
+        $permission = Permission::factory()->create([
+            'slug' => 'dashboard.executive.view',
+            'scope' => 'tenant',
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $ceo->permissions()->attach($permission->id);
         $user->roles()->attach($ceo->id);
 
         $policy = new ExecutiveOverviewAccessPolicy();
@@ -180,6 +187,13 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
             'application_id' => $finance->id,
             'is_active' => true,
         ]);
+        $permission = Permission::factory()->create([
+            'slug' => 'dashboard.executive.view',
+            'scope' => 'tenant',
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $validRole->permissions()->attach($permission->id);
         $user->roles()->attach($validRole->id);
 
         $policy = new ExecutiveOverviewAccessPolicy();
