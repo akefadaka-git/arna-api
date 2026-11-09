@@ -22,13 +22,9 @@ final class EnsureMobileDeviceSession
         $user = $request->user();
         $token = $user?->currentAccessToken();
 
-        // Browser and legacy API tokens retain their existing middleware path.
+        // Preserve the existing browser and legacy wildcard-token path.
         if (!$token instanceof PersonalAccessToken || !$this->sessions->isMobileToken($token)) {
-            if ($session->last_seen_at === null || $session->last_seen_at->lt(now()->subMinutes(5))) {
-            $session->forceFill(['last_seen_at' => now()])->save();
-        }
-
-        return $next($request);
+            return $next($request);
         }
 
         $session = $user instanceof User ? $this->sessions->validateToken($user, $token) : null;
@@ -40,6 +36,10 @@ final class EnsureMobileDeviceSession
                     'message' => 'Authentication session is unavailable.',
                 ],
             ], 401);
+        }
+
+        if ($session->last_seen_at === null || $session->last_seen_at->lt(now()->subMinutes(5))) {
+            $session->forceFill(['last_seen_at' => now()])->save();
         }
 
         return $next($request);
