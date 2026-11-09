@@ -2,7 +2,7 @@ name: ARNA clean-install MySQL verification
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/android-device-sessions-a3]
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
