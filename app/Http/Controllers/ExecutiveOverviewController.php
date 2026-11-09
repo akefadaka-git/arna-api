@@ -76,6 +76,13 @@ final class ExecutiveOverviewController
                     $asOf,
                 );
 
+                // An entity with no chart-of-accounts rows has no reportable
+                // trial balance. Do not turn an unconfigured ledger into a
+                // misleading synthetic zero widget.
+                if ($report['accounts']->isEmpty()) {
+                    continue;
+                }
+
                 $widgets[] = [
                     'key' => 'finance.trial_balance',
                     'status' => 'available',
