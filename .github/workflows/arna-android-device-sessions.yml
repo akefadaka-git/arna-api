@@ -1,6 +1,19 @@
 name: ARNA Android device sessions
 
 on:
+  push:
+    branches:
+      - feat/android-device-sessions-a3
+    paths:
+      - "database/migrations/*auth_device*"
+      - "mases_core/src/Auth/Models/DeviceSession.php"
+      - "mases_core/src/Auth/Services/DeviceSessionService.php"
+      - "app/Http/Middleware/EnsureMobileDeviceSession.php"
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "bootstrap/app.php"
+      - "routes/api.php"
+      - "tests/Feature/AndroidDeviceSessionTest.php"
+      - ".github/workflows/arna-android-device-sessions.yml"
   pull_request:
     branches:
       - integration/arna-system-consolidation
