@@ -700,7 +700,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
     // domain permissions are checked here and again by the owning Finance
     // policies in the controller; no dashboard-wide permission is invented.
     Route::prefix('/dashboard/v1')->name('api.dashboard.v1.')->group(static function (): void {
-        Route::get('/overview', [\\App\\Http\\Controllers\\ExecutiveOverviewController::class, 'show'])
+        Route::get('/overview', [\App\Http\Controllers\ExecutiveOverviewController::class, 'show'])
             ->middleware(['auth.permission:finance.entity.view', 'auth.permission:finance.report.view'])
             ->name('overview');
     });
