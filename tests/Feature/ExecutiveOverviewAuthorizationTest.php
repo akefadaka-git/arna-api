@@ -164,6 +164,29 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
     }
 
     #[Test]
+    public function direct_user_grant_cannot_substitute_for_the_approved_role_permission_pivot(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['is_active' => true]);
+        $ceo = Role::factory()->create([
+            'slug' => 'ceo',
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+        $user->roles()->attach($ceo->id);
+
+        $directGrant = Permission::factory()->create([
+            'slug' => 'dashboard.executive.view',
+            'scope' => 'tenant',
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $user->permissions()->attach($directGrant->id);
+
+        $this->assertFalse((new ExecutiveOverviewAccessPolicy())->allows($user, (int) $tenant->id));
+    }
+
     public function direct_permission_or_platform_role_does_not_bypass_the_frozen_audience(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
