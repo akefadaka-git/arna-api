@@ -100,22 +100,18 @@ use RuntimeException;
  * slug, when file.view has scope 'tenant' — is attached once.
  *
  * =============================================================================
- * The sync semantics
+ * The synchronization semantics
  * =============================================================================
- * The final write is `$role->syncPermissions($ids)`. The model delegates to Laravel's
- * sync is REPLACE-with-diff: it attaches missing ids, detaches
- * extra ids, and leaves matching ids in place. It does NOT append.
+ * Canonical catalogue grants are additive. The seeder calls
+ * `Role::grantPermissions()`, which uses syncWithoutDetaching() and
+ * dispatches the role-permission change event for cache invalidation.
+ * Existing grants not represented in the catalogue are preserved.
  *
- * This gives the seeder two properties:
- *
- *   · Idempotent. Running the seeder repeatedly produces the same
- *     pivot state. The second run detaches nothing and attaches
- *     nothing (the diff is empty).
- *
- *   · Correcting. If a role's permission set was manually edited
- *     between runs, the next run restores it to the catalogue's
- *     definition. This is intentional — the catalogue is the
- *     authority for what each role holds.
+ * The Executive Overview permission is the explicit exception: because
+ * its audience is a frozen security boundary, it is removed from every
+ * non-approved role, including legacy/custom assignments. Other
+ * permission removals must use a separately governed revocation workflow;
+ * this seeder is not a general-purpose permission-reconciliation tool.
  *
  * =============================================================================
  * Why seed() returns void
@@ -226,11 +222,12 @@ use RuntimeException;
 final class RolePermissionSeeder extends Seeder
 {
     /**
-     * Resolve each role's grant spec and sync it to the role's
-     * permission pivot.
+     * Resolve each role's grant spec and add canonical grants without
+     * removing permissions assigned by other governed workflows.
      *
-     * Idempotent: sync replaces with diff, so a second run is a
-     * no-op. See the class docblock §"The sync semantics".
+     * Repeated runs are idempotent because grantPermissions() only
+     * attaches missing pivot rows. The Executive Overview audience
+     * exclusion remains an explicit, narrowly scoped revocation.
      *
      * @param array<string, Role>       $roles
      *        the persisted role models, keyed by slug, as returned by
@@ -264,9 +261,9 @@ final class RolePermissionSeeder extends Seeder
             }
 
             /*
-             * Resolve the grant spec to a concrete list of permission
-             * ids, then sync it. sync() replaces with diff — see the
-             * class docblock §"The sync semantics".
+             * Resolve the canonical grant spec to permission ids. These
+             * grants are added without replacing permissions assigned by
+             * administrators or other governed workflows.
              */
             $permissionIds = $this->resolvePermissionIds($grantSpec, $permissions);
 
