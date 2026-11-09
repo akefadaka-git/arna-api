@@ -11,6 +11,7 @@ use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinancialReportContract;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -202,7 +203,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
 
         $expectedIds = [(int) $entityA1->id, (int) $entityA2->id];
         $reports = new \Illuminate\Support\Collection([(object) ['id' => 1]]);
-        $reportService = \Mockery::mock(\MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService::class);
+        $reportService = \Mockery::mock(FinancialReportContract::class);
         $reportService->shouldReceive('trialBalance')
             ->twice()
             ->withArgs(static fn (int $tenantId, int $entityId, string $asOf): bool =>
@@ -222,7 +223,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
                     ],
                 ];
             });
-        app()->instance(\MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService::class, $reportService);
+        app()->instance(FinancialReportContract::class, $reportService);
 
         $response = $this->actingAs($user, 'sanctum')
             ->withHeader('X-Tenant-ID', (string) $tenantA->id)
