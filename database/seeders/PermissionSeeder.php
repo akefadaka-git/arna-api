@@ -20,7 +20,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
  * What this seeder is — and is not
  * =============================================================================
  * This is a DOMAIN SEEDER. Its single responsibility is to write the
- * 57 permission rows and hand the resulting map of persisted models
+ * 61 permission rows and hand the resulting map of persisted models
  * back to the caller. It contains no reference data — that lives in
  * Data\PermissionCatalogue. It contains no other domain's logic — the
  * tenant, applications, roles, and users are seeded by sibling
