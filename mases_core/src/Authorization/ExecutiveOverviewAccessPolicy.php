@@ -32,14 +32,20 @@ final class ExecutiveOverviewAccessPolicy
                     $financeRole
                         ->where('roles.slug', 'finance_manager')
                         ->where('roles.scope', 'application')
-                        ->whereHas('application', static fn ($application) => $application->where('slug', 'finance'));
+                        ->whereHas('application', static fn ($application) => $application
+                            ->where('slug', 'finance')
+                            ->where('is_active', true));
                 });
             })
             ->whereHas('permissions', static function ($permissionQuery): void {
                 $permissionQuery
                     ->where('permissions.slug', 'dashboard.executive.view')
                     ->where('permissions.scope', 'tenant')
-                    ->where('permissions.is_active', true);
+                    ->where('permissions.is_active', true)
+                    ->where(function ($tenantScope) use ($tenantId): void {
+                        $tenantScope->whereNull('permissions.tenant_id')
+                            ->orWhere('permissions.tenant_id', $tenantId);
+                    });
             })
             ->exists();
     }
