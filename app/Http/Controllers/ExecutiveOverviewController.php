@@ -79,6 +79,11 @@ final class ExecutiveOverviewController
                 $widgets[] = [
                     'key' => 'finance.trial_balance',
                     'status' => 'available',
+                    'source' => [
+                        'domain' => 'finance',
+                        'report_key' => 'trial_balance',
+                        'calculation_version' => '1',
+                    ],
                     'entity' => [
                         'code' => (string) $entity->code,
                         'name_am' => (string) $entity->name_am,
