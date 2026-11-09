@@ -133,6 +133,45 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         $afterRevocation->assertOk()->assertJsonPath('data.widgets', []);
     }
 
+
+    #[Test]
+    public function revoked_entry_permission_fails_closed_even_when_middleware_cache_is_stale(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        [$user, $role, $permissions] = $this->financeFixture($tenant);
+        $authorization = new AuthorizationService();
+
+        $this->assertTrue($authorization->hasPermission(
+            'dashboard.executive.view',
+            $user,
+            (int) $tenant->id
+        ));
+
+        $role->revokePermissionTo($permissions['dashboard.executive.view']);
+        $staleKey = sprintf(
+            'auth:permission:%d:dashboard.executive.view:%s:null',
+            $user->id,
+            $tenant->id
+        );
+        Cache::put($staleKey, true, 300);
+
+        // The generic route middleware sees the deliberately stale positive
+        // cache entry; the controller's uncached audience policy must still
+        // deny the request using the current role-permission pivot.
+        $this->assertTrue($authorization->hasPermission(
+            'dashboard.executive.view',
+            $user,
+            (int) $tenant->id
+        ));
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertForbidden()
+            ->assertJsonPath('error.code', 'AUTH_PERMISSION_DENIED');
+    }
+
     #[Test]
     public function tenant_a_overview_never_includes_a_legal_entity_from_tenant_b(): void
     {
