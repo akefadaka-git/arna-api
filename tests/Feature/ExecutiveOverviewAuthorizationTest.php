@@ -14,6 +14,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
+use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -120,6 +121,39 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
 
         $this->assertTrue($policy->allows($user, (int) $tenantA->id));
         $this->assertFalse($policy->allows($user, (int) $tenantB->id));
+    }
+
+    #[Test]
+    public function finance_manager_must_be_bound_to_the_finance_application_and_current_tenant(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $finance = PlatformApplication::factory()->create(['slug' => 'finance']);
+        $wrongApplication = PlatformApplication::factory()->create(['slug' => 'hr']);
+        $user = User::factory()->create(['is_active' => true]);
+
+        $validRole = Role::factory()->create([
+            'slug' => 'finance_manager',
+            'scope' => 'application',
+            'tenant_id' => $tenant->id,
+            'application_id' => $finance->id,
+            'is_active' => true,
+        ]);
+        $user->roles()->attach($validRole->id);
+
+        $policy = new ExecutiveOverviewAccessPolicy();
+        $this->assertTrue($policy->allows($user, (int) $tenant->id));
+
+        $user->roles()->detach($validRole->id);
+        $wrongRole = Role::factory()->create([
+            'slug' => 'finance_manager',
+            'scope' => 'application',
+            'tenant_id' => $tenant->id,
+            'application_id' => $wrongApplication->id,
+            'is_active' => true,
+        ]);
+        $user->roles()->attach($wrongRole->id);
+
+        $this->assertFalse($policy->allows($user, (int) $tenant->id));
     }
 
     #[Test]
