@@ -199,7 +199,7 @@ final class DeviceSessionService
                 'ip' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             // Never leak credentials or allow an audit transport outage to
             // corrupt the token/session transaction.
             Log::error('Device session security audit write failed', [
