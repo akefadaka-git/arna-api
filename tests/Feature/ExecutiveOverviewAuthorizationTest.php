@@ -143,15 +143,7 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
         $policy = new ExecutiveOverviewAccessPolicy();
         $this->assertTrue($policy->allows($user, (int) $tenant->id));
 
-        $user->roles()->detach($validRole->id);
-        $wrongRole = Role::factory()->create([
-            'slug' => 'finance_manager',
-            'scope' => 'application',
-            'tenant_id' => $tenant->id,
-            'application_id' => $wrongApplication->id,
-            'is_active' => true,
-        ]);
-        $user->roles()->attach($wrongRole->id);
+        $validRole->update(['application_id' => $wrongApplication->id]);
 
         $this->assertFalse($policy->allows($user, (int) $tenant->id));
     }
