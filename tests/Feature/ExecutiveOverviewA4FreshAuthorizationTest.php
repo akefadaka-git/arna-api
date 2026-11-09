@@ -339,4 +339,36 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             ->trialBalance((int) $tenantA->id, [(int) $entityA->id, (int) $foreignEntity->id], now()->toDateString());
     }
 
+
+    #[Test]
+    public function finance_report_permission_bound_to_another_tenant_is_not_used_for_this_tenant(): void
+    {
+        $tenantA = Tenant::factory()->create(['is_active' => true]);
+        $tenantB = Tenant::factory()->create(['is_active' => true]);
+        [$user, , $permissions] = $this->financeFixture($tenantA);
+        $this->configuredEntity($tenantA);
+        $permissions['finance.report.view']->update(['tenant_id' => $tenantB->id]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenantA->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertOk()->assertJsonPath('data.widgets', []);
+    }
+
+    #[Test]
+    public function inactive_finance_application_fails_the_frozen_audience_gate(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        [$user] = $this->financeFixture($tenant);
+        PlatformApplication::query()->where('slug', 'finance')->firstOrFail()
+            ->update(['is_active' => false]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertForbidden();
+    }
+
 }
