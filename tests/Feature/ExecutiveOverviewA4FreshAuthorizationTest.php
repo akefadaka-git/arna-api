@@ -65,11 +65,11 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         return [$user, $role, $permissions];
     }
 
-    private function configuredEntity(Tenant $tenant): LegalEntity
+    private function configuredEntity(Tenant $tenant, string $code = 'A4-ENTITY'): LegalEntity
     {
         $entity = LegalEntity::create([
             'tenant_id' => $tenant->id,
-            'code' => 'A4-ENTITY',
+            'code' => $code,
             'name_am' => 'የሙከራ ሕጋዊ አካል',
             'name_en' => 'A4 Test Entity',
             'base_currency' => 'ETB',
@@ -196,12 +196,9 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         $tenantB = Tenant::factory()->create(['is_active' => true]);
         [$user] = $this->financeFixture($tenantA);
 
-        $entityA1 = $this->configuredEntity($tenantA);
-        $entityA1->update(['code' => 'A4-AUTHORIZED-01']);
-        $entityA2 = $this->configuredEntity($tenantA);
-        $entityA2->update(['code' => 'A4-AUTHORIZED-02']);
-        $foreignEntity = $this->configuredEntity($tenantB);
-        $foreignEntity->update(['code' => 'A4-FOREIGN-99']);
+        $entityA1 = $this->configuredEntity($tenantA, 'A4-AUTHORIZED-01');
+        $entityA2 = $this->configuredEntity($tenantA, 'A4-AUTHORIZED-02');
+        $foreignEntity = $this->configuredEntity($tenantB, 'A4-FOREIGN-99');
 
         $expectedIds = [(int) $entityA1->id, (int) $entityA2->id];
         $reports = new \Illuminate\Support\Collection([(object) ['id' => 1]]);
