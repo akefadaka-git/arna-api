@@ -93,7 +93,7 @@ final class CheckPermission
                 'success' => false,
                 'error' => [
                     'code' => 'AUTH_PERMISSION_DENIED',
-                    'message' => sprintf('Permission "%s" is required.', $permissionSlug),
+                    'message' => 'You are not authorized to perform this action.',
                 ],
             ], 403);
         }

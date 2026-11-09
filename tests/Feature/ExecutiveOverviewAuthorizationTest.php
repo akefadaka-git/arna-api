@@ -128,6 +128,13 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
             'is_active' => true,
             'is_system' => false,
         ]);
+        $customPermission = Permission::factory()->create([
+            'slug' => 'custom.audit.export',
+            'scope' => 'tenant',
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $roles['super_admin']->permissions()->attach($customPermission->id);
 
         (new RolePermissionSeeder())->seed(
             $roles,
@@ -142,6 +149,11 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
                 "Unexpected persisted executive permission state for role [{$slug}]."
             );
         }
+
+        $this->assertTrue(
+            $roles['super_admin']->fresh()->hasPermission('custom.audit.export'),
+            'Additive catalogue seeding must preserve unrelated custom role grants.'
+        );
     }
 
     #[Test]

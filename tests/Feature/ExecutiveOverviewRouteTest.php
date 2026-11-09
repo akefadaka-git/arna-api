@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use MaaleArna\MASES\Core\Authorization\Middleware\CheckPermission;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
@@ -150,6 +153,31 @@ final class ExecutiveOverviewRouteTest extends TestCase
         $cacheControl = (string) $response->headers->get('Cache-Control');
         $this->assertStringContainsString('private', $cacheControl);
         $this->assertStringContainsString('no-store', $cacheControl);
+    }
+
+    #[Test]
+    public function generic_permission_denial_does_not_disclose_the_required_permission_slug(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $authorization = new AuthorizationService();
+
+        $request = Request::create('/api/private-resource', 'GET');
+        $request->setUserResolver(static fn () => $user);
+
+        $response = (new CheckPermission($authorization))->handle(
+            $request,
+            static fn () => response()->noContent(),
+            'finance.payroll.secret.view'
+        );
+
+        $this->assertSame(403, $response->getStatusCode());
+        $payload = $response->getData(true);
+        $this->assertSame('AUTH_PERMISSION_DENIED', $payload['error']['code']);
+        $this->assertSame(
+            'You are not authorized to perform this action.',
+            $payload['error']['message']
+        );
+        $this->assertStringNotContainsString('finance.payroll.secret.view', $response->getContent());
     }
 
     #[Test]
