@@ -44,6 +44,10 @@ The Executive Overview API currently returns separate per-entity widgets; it doe
 | Frontend session and tenant race controls | App A4 baseline browser suite | PASS on A4 baseline; R3 browser retest pending |
 | Fresh technical retest | GPT-6 source/test/evidence review of exact R4 heads | PENDING — R5 |
 
+## R4 verification target
+
+R4 target: this verification branch is intended to run on the exact current API commit; the workflow itself must confirm GITHUB_SHA.
+
 ## Baseline evidence — not R3 evidence
 
 - API targeted A4 workflow [#42685935427](https://github.com/akefadaka-git/arna-api/actions/runs/42685935427): PASS on baseline API SHA `9f5ea1ee0e221bca5007890178f249cdba20c992`.
