@@ -77,7 +77,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
  * seeder's loop; that is not this unit's job.
  *
  * =============================================================================
- * The eight categories, and why they are not the same as scope
+ * Categories and scope are orthogonal
  * =============================================================================
  * 'category' groups permissions by the resource they act on, for
  * display and filtering in the management UI. 'scope' describes the
