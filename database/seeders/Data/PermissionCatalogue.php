@@ -47,9 +47,10 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
  *
  *   name_en     — the display name in Latin script.
  *
- *   category    — the permission's functional group. One of:
- *                 'user', 'role', 'permission', 'app_access',
- *                 'file', 'tenant', 'test', 'dashboard'.
+ *   category    — the permission's functional display group. Examples include:
+ *                 'user', 'role', 'permission', 'app_access', 'file',
+ *                 'tenant', 'test', 'security', 'accounting',
+ *                 'public_content', 'announcement', 'dashboard'.
  *
  *   scope       — the permission's scope of applicability. One of:
  *                 'global'      — platform-wide, not tied to a tenant.
