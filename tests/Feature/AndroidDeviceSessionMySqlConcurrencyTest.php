@@ -162,8 +162,10 @@ final class AndroidDeviceSessionMySqlConcurrencyTest extends TestCase
             );
             $this->assertDatabaseMissing('personal_access_tokens', ['id' => $oldTokenId]);
         } finally {
+            // Always release and reap workers, including when a parent assertion fails.
+            @file_put_contents($releasePath, 'go');
             foreach ($children as $pid) {
-                pcntl_waitpid($pid, $status, WNOHANG);
+                pcntl_waitpid($pid, $status);
             }
             DB::purge();
             DB::table('auth_device_sessions')->where('id', $session->getKey())->delete();
