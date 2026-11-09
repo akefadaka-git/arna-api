@@ -23,7 +23,7 @@ final class EnsureMobileDeviceSession
         $token = $user?->currentAccessToken();
 
         // Browser and legacy API tokens retain their existing middleware path.
-        if (!$token instanceof PersonalAccessToken || !$token->can(DeviceSessionService::MOBILE_ABILITY)) {
+        if (!$token instanceof PersonalAccessToken || !$this->sessions->isMobileToken($token)) {
             if ($session->last_seen_at === null || $session->last_seen_at->lt(now()->subMinutes(5))) {
             $session->forceFill(['last_seen_at' => now()])->save();
         }
