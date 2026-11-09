@@ -254,7 +254,50 @@ final class Role extends Model
             : Permission::where('slug', $permission)->value('id');
 
         if ($permissionId) {
-            $this->permissions()->detach($permissionId);
+            $detached = $this->permissions()->detach($permissionId);
+
+            if ($detached > 0) {
+                RolePermissionsChanged::dispatch(
+                    roleId: $this->id,
+                    roleSlug: $this->slug,
+                    permissionIds: [(int) $permissionId],
+                );
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Add permissions without removing existing role grants.
+     *
+     * This is intended for additive catalogue synchronization. Unlike
+     * syncPermissions(), it preserves grants managed outside the canonical
+     * catalogue while still announcing changes for authorization-cache
+     * invalidation.
+     *
+     * @param array<int|string|Permission> $permissions Permission IDs, slugs or models.
+     */
+    public function grantPermissions(array $permissions): self
+    {
+        $permissionIds = collect($permissions)->map(function ($permission) {
+            if ($permission instanceof Permission) {
+                return $permission->id;
+            }
+            if (is_string($permission)) {
+                return Permission::where('slug', $permission)->value('id');
+            }
+            return $permission;
+        })->filter()->unique()->values()->all();
+
+        if ($permissionIds !== []) {
+            $this->permissions()->syncWithoutDetaching($permissionIds);
+
+            RolePermissionsChanged::dispatch(
+                roleId: $this->id,
+                roleSlug: $this->slug,
+                permissionIds: $permissionIds,
+            );
         }
 
         return $this;
