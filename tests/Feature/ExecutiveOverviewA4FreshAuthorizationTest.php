@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
@@ -111,6 +112,14 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         // still contains a positive answer, then prove the Executive
         // Overview path rechecks authoritative Finance pivots.
         $role->revokePermissionTo($permissions['finance.report.view']);
+        // Reinsert a stale positive cache result to model an invalidation
+        // listener/cache-store failure after the authoritative pivot changed.
+        $staleKey = sprintf(
+            'auth:permission:%d:finance.report.view:%s:null',
+            $user->id,
+            $tenant->id
+        );
+        Cache::put($staleKey, true, 300);
         $this->assertTrue($authorization->hasPermission(
             'finance.report.view',
             $user,
