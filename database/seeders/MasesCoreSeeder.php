@@ -89,7 +89,7 @@ use RuntimeException;
  *
  *     Data\TenantProfile          (S-2)  1 tenant
  *     Data\ApplicationRegistry    (S-3)  7 applications
- *     Data\PermissionCatalogue    (S-4)  60 permissions (44 core + 13 Finance + 3 Admin security)
+ *     Data\PermissionCatalogue    (S-4)  61 permissions (45 core + 13 Finance + 3 Admin security)
  *     Data\RoleCatalogue          (S-5)  12 roles
  *     Data\RolePermissionGrants   (S-6)  12 role-grant entries
  *     Data\BootstrapUsers         (S-7)  2 bootstrap admins
