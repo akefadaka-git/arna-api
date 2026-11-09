@@ -870,7 +870,7 @@ final class AuthController extends Controller
         }
 
         $currentToken = $user->currentAccessToken();
-        if ($currentToken instanceof PersonalAccessToken && $currentToken->can(DeviceSessionService::MOBILE_ABILITY)) {
+        if ($currentToken instanceof PersonalAccessToken && $currentToken->name === DeviceSessionService::MOBILE_TOKEN_NAME && $currentToken->can(DeviceSessionService::MOBILE_ABILITY)) {
             return response()->json(['success' => true, 'data' => app(DeviceSessionService::class)->refresh($user, $currentToken)]);
         }
 
