@@ -14,7 +14,7 @@ This A4 branch is based on the Owner-approved A3 API branch. It does not merge A
 
 1. Finance policy authorization reads the current permission and role pivots directly for each decision. It checks active grants, trusted tenant context, tenant scope, and Finance application scope. This removes Finance entity authorization's dependence on a potentially stale permission-result cache.
 2. Executive Overview's Finance report gate reads current database pivots directly. The entry audience is checked through the uncached `ExecutiveOverviewAccessPolicy`, and each entity is checked through the Finance policy before trial-balance reads.
-3. Regression tests deliberately seed a stale positive Finance permission cache entry after revocation and verify the Executive Overview no longer returns Finance widgets.
+3. Regression tests deliberately seed stale positive Finance and Executive Overview entry-permission cache entries after revocation. Finance widget reads are suppressed, and the controller's uncached audience policy returns 403 even when the generic route middleware sees a stale positive cache.
 4. A cross-tenant legal-entity regression test verifies a tenant A request cannot return a tenant B entity.
 5. Existing route tests verify configured entities can appear while same-tenant unconfigured entities are omitted, generic denial responses do not disclose permission slugs, and sensitive responses are private/no-store.
 
@@ -25,6 +25,7 @@ This A4 branch is based on the Owner-approved A3 API branch. It does not merge A
 | Frozen audience role + tenant-bound entry permission | `ExecutiveOverviewAuthorizationTest` | PASS |
 | Direct grants/platform wildcard do not bypass audience | Existing authorization tests | PASS |
 | Finance report revocation despite stale cached positive | `ExecutiveOverviewA4FreshAuthorizationTest` | PASS |
+| Entry permission revocation despite stale middleware cache | `ExecutiveOverviewA4FreshAuthorizationTest::revoked_entry_permission_fails_closed_even_when_middleware_cache_is_stale` | PASS |
 | Cross-tenant legal-entity exclusion | `ExecutiveOverviewA4FreshAuthorizationTest` | PASS |
 | Configured vs unconfigured same-tenant entity | `ExecutiveOverviewRouteTest::finance_manager_receives_only_authorized_entities_with_a_configured_ledger_and_source_lineage` | PASS |
 | Per-entity Finance authorization | `FinancePolicy::allows` reads authoritative pivots | PASS |
