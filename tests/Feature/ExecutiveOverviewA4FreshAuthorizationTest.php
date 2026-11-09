@@ -204,8 +204,8 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         $foreignEntity->update(['code' => 'A4-FOREIGN-99']);
 
         $expectedIds = [(int) $entityA1->id, (int) $entityA2->id];
-        $reports = new \\Illuminate\\Support\\Collection([(object) ['id' => 1]]);
-        $reportService = \\Mockery::mock(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinancialReportService::class);
+        $reports = new \Illuminate\Support\Collection([(object) ['id' => 1]]);
+        $reportService = \Mockery::mock(\MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService::class);
         $reportService->shouldReceive('trialBalance')
             ->twice()
             ->withArgs(static fn (int $tenantId, int $entityId, string $asOf): bool =>
@@ -225,7 +225,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
                     ],
                 ];
             });
-        app()->instance(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinancialReportService::class, $reportService);
+        app()->instance(\MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService::class, $reportService);
 
         $response = $this->actingAs($user, 'sanctum')
             ->withHeader('X-Tenant-ID', (string) $tenantA->id)
@@ -333,9 +333,9 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         $entityA = $this->configuredEntity($tenantA);
         $foreignEntity = $this->configuredEntity($tenantB);
 
-        $this->expectException(\\Illuminate\\Validation\\ValidationException::class);
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
 
-        app(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinanceConsolidationService::class)
+        app(\MaaleArna\MASES\Core\Domains\Finance\Services\FinanceConsolidationService::class)
             ->trialBalance((int) $tenantA->id, [(int) $entityA->id, (int) $foreignEntity->id], now()->toDateString());
     }
 
