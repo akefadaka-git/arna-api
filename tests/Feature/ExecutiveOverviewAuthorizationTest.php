@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use Database\Seeders\Data\PermissionCatalogue;
 use Database\Seeders\Data\RoleCatalogue;
-use Database\Seeders\Data\RoleCatalogue;
 use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
 use Database\Seeders\Data\RolePermissionGrants;
 use Database\Seeders\RolePermissionSeeder;
