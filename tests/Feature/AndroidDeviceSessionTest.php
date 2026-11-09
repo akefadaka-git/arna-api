@@ -59,14 +59,6 @@ final class AndroidDeviceSessionTest extends TestCase
         $this->withToken($deviceB['token'])->getJson('/api/profile')->assertOk();
     }
 
-    #[Test]
-    public function android_mfa_challenge_is_bound_to_the_installation(): void
-    {
-        // The existing TOTP suite covers MFA issuance and completion. This
-        // regression asserts a challenge cannot be completed from another device.
-        $this->markTestIncomplete('Requires enrolled-user MFA fixture helper shared with TotpMfaTest.');
-    }
-
     private function userWithTenant(): array
     {
         $user = User::factory()->create(['is_active' => true]);
