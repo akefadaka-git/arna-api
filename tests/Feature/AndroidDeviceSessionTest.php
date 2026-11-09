@@ -100,6 +100,46 @@ final class AndroidDeviceSessionTest extends TestCase
         ])->assertOk()->assertJsonPath('success', true);
     }
 
+
+    #[Test]
+    public function a_user_cannot_list_or_revoke_another_users_device_session(): void
+    {
+        [$userA, $tenantA] = $this->userWithTenant();
+        [$userB, $tenantB] = $this->userWithTenant();
+        $deviceA = $this->androidLogin($userA, $tenantA, 'installation-identifier-device-A');
+        $deviceB = $this->androidLogin($userB, $tenantB, 'installation-identifier-device-B');
+
+        $list = $this->withToken($deviceA['token'])->getJson('/api/auth/sessions')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.sessions');
+        $this->assertNotContains($deviceB['session_id'], array_column($list->json('data.sessions'), 'session_id'));
+
+        $this->withToken($deviceA['token'])->deleteJson('/api/auth/sessions/'.$deviceB['session_id'])->assertNotFound();
+        $this->withToken($deviceB['token'])->getJson('/api/profile')->assertOk();
+    }
+
+    #[Test]
+    public function expired_device_session_is_rejected_even_if_the_token_row_exists(): void
+    {
+        [$user, $tenant] = $this->userWithTenant();
+        $device = $this->androidLogin($user, $tenant, 'installation-identifier-device-A');
+        DB::table('auth_device_sessions')->where('public_id', $device['session_id'])
+            ->update(['expires_at' => now()->subSecond()]);
+
+        $this->withToken($device['token'])->getJson('/api/profile')->assertUnauthorized();
+    }
+
+    #[Test]
+    public function a_mobile_token_without_its_session_link_fails_closed(): void
+    {
+        [$user, $tenant] = $this->userWithTenant();
+        $device = $this->androidLogin($user, $tenant, 'installation-identifier-device-A');
+        DB::table('auth_device_sessions')->where('public_id', $device['session_id'])
+            ->update(['personal_access_token_id' => null]);
+
+        $this->withToken($device['token'])->getJson('/api/profile')->assertUnauthorized();
+    }
+
     private function currentTotp(string $secret): string
     {
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
