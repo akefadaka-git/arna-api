@@ -32,6 +32,7 @@ final class AndroidDeviceSessionTest extends TestCase
             ->assertJsonPath('success', true);
         $newTokenA = $refresh->json('data.token');
         $this->assertIsString($newTokenA);
+        $this->withToken($deviceA['token'])->postJson('/api/token/refresh')->assertUnauthorized();
 
         // Refreshing A must leave B's bearer token valid.
         $this->withToken($deviceB['token'])->getJson('/api/profile')->assertOk();
