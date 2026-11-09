@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Permission;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Role;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\PlatformApplication;
-use MaaleArna\\MASES\\Core\\Authorization\\Services\\AuthorizationService;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LegalEntity;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LedgerAccount;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Authorization\Models\Role;
+use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
 {
