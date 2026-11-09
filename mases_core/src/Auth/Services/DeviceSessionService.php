@@ -67,7 +67,7 @@ final class DeviceSessionService
         if (str_starts_with($key, 'base64:')) {
             $decodedKey = base64_decode(substr($key, 7), true);
             if (!is_string($decodedKey) || $decodedKey === '') {
-                throw new \\RuntimeException('Application encryption key is invalid.');
+                throw new \RuntimeException('Application encryption key is invalid.');
             }
             $key = $decodedKey;
         }
