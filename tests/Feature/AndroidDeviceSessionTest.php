@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Auth\Services\TotpMfaService;
+use MaaleArna\MASES\Core\Auth\Services\DeviceSessionService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -87,6 +88,15 @@ final class AndroidDeviceSessionTest extends TestCase
         ])->assertOk()->assertJsonPath('data.mfa_required', true);
         $challenge = $first->json('data.challenge_token');
         $code = $recoveryCodes[0];
+        $deviceSessions = app(DeviceSessionService::class);
+        $this->assertTrue($deviceSessions->loginChallengeMatches($challenge, $user, $tenant->id, 'installation-identifier-device-A'));
+        $this->assertFalse($deviceSessions->loginChallengeMatches($challenge, $user, $tenant->id, 'installation-identifier-device-B'));
+        $this->assertDatabaseHas('login_mfa_challenges', [
+            'token_hash' => hash('sha256', $challenge),
+            'user_id' => $user->id,
+            'tenant_id' => $tenant->id,
+            'consumed_at' => null,
+        ]);
 
         $this->postJson('/api/login', [
             'email' => $user->email,
@@ -97,6 +107,12 @@ final class AndroidDeviceSessionTest extends TestCase
             'mfa_challenge_token' => $challenge,
             'mfa_code' => $code,
         ])->assertUnauthorized();
+        $this->assertDatabaseHas('login_mfa_challenges', [
+            'token_hash' => hash('sha256', $challenge),
+            'user_id' => $user->id,
+            'tenant_id' => $tenant->id,
+            'consumed_at' => null,
+        ]);
 
         $this->postJson('/api/login', [
             'email' => $user->email,
