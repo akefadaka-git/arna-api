@@ -311,7 +311,7 @@ Route::post('/verify-email/resend', [AuthController::class, 'resendVerificationE
 // `tenant.membership` middleware, NOT here.
 // =============================================================================
 
-Route::middleware(['auth:sanctum'])->group(static function (): void {
+Route::middleware(['auth:sanctum', 'mobile.session'])->group(static function (): void {
 
     // -------------------------------------------------------------------------
     // Multi-factor Authentication
@@ -346,6 +346,9 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
      *
      * Revokes all tokens belonging to the authenticated user.
      */
+    Route::get('/auth/sessions', [AuthController::class, 'deviceSessions'])->name('api.auth.sessions.index');
+    Route::delete('/auth/sessions/{sessionId}', [AuthController::class, 'revokeDeviceSession'])->whereUuid('sessionId')->middleware('throttle:10,1')->name('api.auth.sessions.revoke');
+
     Route::post('/logout', [AuthController::class, 'logout'])
         ->name('api.auth.logout');
 
