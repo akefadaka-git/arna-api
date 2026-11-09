@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Database\Seeders\Data\PermissionCatalogue;
 use Database\Seeders\Data\RoleCatalogue;
+use Database\Seeders\Data\RoleCatalogue;
 use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
 use Database\Seeders\Data\RolePermissionGrants;
 use Database\Seeders\RolePermissionSeeder;
@@ -36,6 +37,21 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
 
         $allowed = ExecutiveOverviewAccessPolicy::ROLE_SLUGS;
         $this->assertSame(['ceo', 'president', 'finance_manager'], $allowed);
+
+        $roles = RoleCatalogue::ROWS;
+        $this->assertSame('tenant', $roles['ceo']['scope']);
+        $this->assertTrue($roles['ceo']['tenant_bound']);
+        $this->assertSame('tenant', $roles['president']['scope']);
+        $this->assertTrue($roles['president']['tenant_bound']);
+        $this->assertSame('application', $roles['finance_manager']['scope']);
+        $this->assertSame('finance', $roles['finance_manager']['application_slug']);
+        $this->assertTrue($roles['finance_manager']['tenant_bound']);
+
+        $financeGrants = RolePermissionGrants::MAP;
+        $this->assertContains('finance.report.view', $financeGrants['finance_manager']);
+        $this->assertContains('finance.entity.view', $financeGrants['finance_manager']);
+        $this->assertNotContains('finance.report.view', $financeGrants['ceo']);
+        $this->assertNotContains('finance.report.view', $financeGrants['president']);
 
         foreach ($allowed as $slug) {
             $this->assertArrayHasKey($slug, RoleCatalogue::ROWS);
