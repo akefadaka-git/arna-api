@@ -272,10 +272,9 @@ final class RolePermissionSeeder extends Seeder
 
             /*
              * The tenant-scoped Executive Overview permission must never
-             * flow through the platform's legacy wildcard grants. Its
-             * frozen audience is exactly CEO, President and Finance Manager.
-             * This explicit exclusion also protects super_admin ('*'),
-             * platform_admin ('scope:tenant') and tenant_admin ('scope:tenant').
+             * flow through legacy wildcard grants. It is explicitly revoked
+             * below for roles outside the frozen audience, even when it was
+             * previously attached as a direct/custom role grant.
              */
             $executivePermission = $permissions['dashboard.executive.view'] ?? null;
             if (
@@ -289,9 +288,20 @@ final class RolePermissionSeeder extends Seeder
                 ));
             }
 
-            // Use the model mutation contract so role-permission cache
-            // invalidation events fire after the pivot write.
-            $roles[$roleSlug]->syncPermissions($permissionIds);
+            // Catalogue seeding is additive: preserve custom grants that
+            // are not represented in the canonical grant map. The model
+            // dispatches RolePermissionsChanged after a successful write.
+            $roles[$roleSlug]->grantPermissions($permissionIds);
+
+            // The Executive Overview audience is a hard security boundary,
+            // not an additive grant. Remove this one permission from every
+            // role outside the approved audience, including legacy grants.
+            if (
+                $executivePermission !== null
+                && !in_array($roleSlug, ExecutiveOverviewAccessPolicy::ROLE_SLUGS, true)
+            ) {
+                $roles[$roleSlug]->revokePermissionTo($executivePermission);
+            }
         }
     }
 
