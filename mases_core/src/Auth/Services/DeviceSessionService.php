@@ -17,6 +17,13 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 final class DeviceSessionService
 {
     public const MOBILE_ABILITY = 'mobile:api';
+    public const MOBILE_TOKEN_NAME = 'arna-android';
+
+    public function isMobileToken(PersonalAccessToken $token): bool
+    {
+        return $token->name === self::MOBILE_TOKEN_NAME
+            && $token->can(self::MOBILE_ABILITY);
+    }
 
     public function installationHash(string $installationId): string
     {
@@ -45,7 +52,7 @@ final class DeviceSessionService
         return DB::transaction(function () use ($user, $legacy, $device, $tenantId): array {
             $legacy->delete();
             $expiresAt = now()->addMinutes(max(1, (int) config('sanctum.expiration', 10080)));
-            $newToken = $user->createToken('arna-android', [self::MOBILE_ABILITY], $expiresAt);
+            $newToken = $user->createToken(self::MOBILE_TOKEN_NAME, [self::MOBILE_ABILITY], $expiresAt);
 
             $session = new DeviceSession();
             $session->public_id = (string) Str::uuid();
@@ -177,7 +184,7 @@ final class DeviceSessionService
 
     public function validateToken(User $user, PersonalAccessToken $token): ?DeviceSession
     {
-        if (!$token->can(self::MOBILE_ABILITY)) {
+        if (!$this->isMobileToken($token)) {
             return null;
         }
 
