@@ -37,7 +37,7 @@ final class ExecutiveOverviewAccessPolicy
                             ->where('is_active', true));
                 });
             })
-            ->whereHas('permissions', static function ($permissionQuery): void {
+            ->whereHas('permissions', static function ($permissionQuery) use ($tenantId): void {
                 $permissionQuery
                     ->where('permissions.slug', 'dashboard.executive.view')
                     ->where('permissions.scope', 'tenant')
