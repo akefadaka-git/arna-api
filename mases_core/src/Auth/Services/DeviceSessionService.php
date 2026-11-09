@@ -85,7 +85,8 @@ final class DeviceSessionService
             throw new \RuntimeException('Unable to bind authentication token to device session.');
         }
 
-        return DB::transaction(function () use ($user, $legacy, $device, $tenantId): array {
+        try {
+            return DB::transaction(function () use ($user, $legacy, $device, $tenantId): array {
             $legacy->delete();
             $expiresAt = now()->addMinutes(max(1, (int) config('sanctum.expiration', 10080)));
             $newToken = $user->createToken(self::MOBILE_TOKEN_NAME, [self::MOBILE_ABILITY], $expiresAt);
@@ -110,7 +111,13 @@ final class DeviceSessionService
                 'session_id' => $session->public_id,
                 'expires_at' => $expiresAt->toIso8601String(),
             ];
-        }, 3);
+            }, 3);
+        } catch (\\Throwable $exception) {
+            // The original bearer token has not been returned to the client.
+            // If the transaction rolled back, remove it outside that rollback.
+            PersonalAccessToken::query()->whereKey($legacy->getKey())->delete();
+            throw $exception;
+        }
     }
 
     public function listFor(User $user, int|string|null $currentTokenId): array
