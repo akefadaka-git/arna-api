@@ -78,5 +78,5 @@ jobs:
         run: php artisan test --compact tests/Feature/ExecutiveOverviewRouteTest.php
       - name: Run A4 stale-cache revocation and tenant-isolation tests
         run: php artisan test --compact tests/Feature/ExecutiveOverviewA4FreshAuthorizationTest.php
-      - name: Run Finance permission catalogue tests
-        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
+      - name: Run Finance domain regression tests
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests
