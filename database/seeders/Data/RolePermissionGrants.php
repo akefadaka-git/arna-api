@@ -59,6 +59,17 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  *            can be certain of the file state before re-seeding; no
  *            code changed.
  *
+ * 2026-11-09 — A3 Executive Overview audience grant.
+ *
+ *          Adds dashboard.executive.view only to ceo, president and
+ *          finance_manager. The permission is tenant-scoped and does not
+ *          grant access to any domain data.
+ *
+ *          The RolePermissionSeeder applies a post-resolution exclusion
+ *          so super_admin ('*'), platform_admin (scope:tenant), and
+ *          tenant_admin (scope:tenant) do not inherit this permission.
+ *          No other role's permission set is widened by this addition.
+ *
  * =============================================================================
  * What this class is — and is not
  * =============================================================================
