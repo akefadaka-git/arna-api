@@ -1,58 +1,67 @@
 # ARNA Executive Overview — A4 Security and Isolation Verification
 
 **Stage:** A4 — verification  
-**Status:** R3 REMEDIATION IMPLEMENTED; exact-HEAD CI and R5 technical retest PENDING  
-**Scope:** API authorization, tenant/legal-entity isolation, Finance permission freshness, response disclosure, and reproducible evidence  
-**A3 parent:** `6e8ca660d35caf9fe5e8d66ee34406bf642f2de1`  
-**A4 baseline branch:** `verify/executive-overview-a4`  
-**R3 remediation branch:** `remediate/executive-overview-a4-r3`
+**Current status:** R3 IMPLEMENTED; R4 exact-HEAD CI and R5 technical retest PENDING  
+**Scope:** Frozen audience authorization, Finance authorization freshness, tenant/legal-entity isolation, response disclosure, and reproducible evidence  
+**A3 API parent:** `6e8ca660d35caf9fe5e8d66ee34406bf642f2de1`  
+**A4 API baseline:** `9f5ea1ee0e221bca5007890178f249cdba20c992`  
+**R3 branch:** `remediate/executive-overview-a4-r3`
 
 ## Governance boundary
 
-This A4 branch is based on the Owner-approved A3 API branch. It does not merge A3 into main, change production role grants, access production data, or deploy. Tests use synthetic fixtures and RefreshDatabase. Merge and deployment remain separate approvals.
+R3 is a child of the exact A4 baseline. It preserves the original A4 verification branch and PR #101. It uses synthetic fixtures and RefreshDatabase. No production role grants, production data access, merge, or deployment are included. A5 remains separate.
 
-## A4 implementation in this branch
+## R3 remediation
 
-1. Finance policy authorization reads the current permission and role pivots directly for each decision. It checks active grants, trusted tenant context, tenant scope, and Finance application scope. This removes Finance entity authorization's dependence on a potentially stale permission-result cache.
-2. Executive Overview's Finance report gate reads current database pivots directly. The entry audience is checked through the uncached `ExecutiveOverviewAccessPolicy`, and each entity is checked through the Finance policy before trial-balance reads.
-3. Regression tests deliberately seed stale positive Finance and Executive Overview entry-permission cache entries after revocation. Finance widget reads are suppressed, and the controller's uncached audience policy returns 403 even when the generic route middleware sees a stale positive cache.
-4. A cross-tenant legal-entity regression test verifies a tenant A request cannot return a tenant B entity.
-5. Existing route tests verify configured entities can appear while same-tenant unconfigured entities are omitted, generic denial responses do not disclose permission slugs, and sensitive responses are private/no-store.
+The API test suite adds the following adversarial cases:
+
+- Two authorized legal entities in tenant A alongside a foreign-tenant entity. The test verifies that only tenant A entities are queried, that each entity retains its own summary, and that the foreign entity is absent.
+- Consolidation rejects a selected foreign-tenant entity before report generation or aggregate output.
+- A direct Finance report grant remains effective when the equivalent role grant is absent, while the entity permission remains separately required.
+- An inactive Finance report permission fails closed even while its role pivot remains.
+- An inactive Finance Manager role fails the frozen audience gate.
+- A Finance Manager role bound to another application or another tenant fails the frozen audience gate.
+- An inactive Finance application and a Finance report permission scoped to another tenant both fail closed.
+
+The Executive Overview API currently returns separate per-entity widgets; it does not expose a consolidated/aggregate widget or entity-specific grant model. R3 verifies the implemented tenant and permission boundaries and does not invent additional product capabilities.
 
 ## Verification matrix
 
 | Control | Evidence | Status |
 |---|---|---|
-| Frozen audience role + tenant-bound entry permission | `ExecutiveOverviewAuthorizationTest` | PASS |
-| Direct grants/platform wildcard do not bypass audience | Existing authorization tests | PASS |
-| Finance report revocation despite stale cached positive | `ExecutiveOverviewA4FreshAuthorizationTest` | PASS |
-| Entry permission revocation despite stale middleware cache | `ExecutiveOverviewA4FreshAuthorizationTest::revoked_entry_permission_fails_closed_even_when_middleware_cache_is_stale` | PASS |
-| Cross-tenant legal-entity exclusion | `ExecutiveOverviewA4FreshAuthorizationTest` | PASS |
-| Configured vs unconfigured same-tenant entity | `ExecutiveOverviewRouteTest::finance_manager_receives_only_authorized_entities_with_a_configured_ledger_and_source_lineage` | PASS |
-| Per-entity Finance authorization | `FinancePolicy::allows` reads authoritative pivots | PASS |
-| Generic denial and hidden metadata | Existing route and middleware tests | PASS |
-| Private/no-store response | Existing Finance route test | PASS |
-| Mixed authorized/foreign-tenant entity matrix and per-entity summaries | `mixed_entity_overview_returns_only_current_tenant_entities_and_keeps_each_summary_separate` | IMPLEMENTED — R3; CI pending |\n| Consolidation rejects a foreign-tenant member before aggregation | `consolidation_rejects_a_foreign_tenant_entity_before_any_aggregate_is_returned` | IMPLEMENTED — R3; CI pending |\n| Direct Finance report grant without role grant | `direct_finance_report_grant_is_honoured_when_the_role_grant_is_absent` | IMPLEMENTED — R3; CI pending |\n| Inactive Finance permission | `inactive_finance_permission_is_not_authorized_even_when_a_role_pivot_remains` | IMPLEMENTED — R3; CI pending |\n| Inactive audience role | `inactive_finance_manager_role_fails_the_frozen_audience_gate` | IMPLEMENTED — R3; CI pending |\n| Wrong application assignment | `finance_manager_role_bound_to_another_application_fails_the_frozen_audience_gate` | IMPLEMENTED — R3; CI pending |\n| Wrong tenant assignment | `finance_manager_role_bound_to_another_tenant_fails_the_frozen_audience_gate` | IMPLEMENTED — R3; CI pending |
-| Runtime browser session/concurrency | App A4 authenticated browser suite, 8/8 tests | PASS |
-| Fresh independent technical retest | ChatGPT-led source, test, adversarial and evidence review of exact R4 heads | PENDING — R5 |
+| Frozen audience role + tenant-bound entry permission | Existing authorization tests | PASS on A4 baseline |
+| Direct grants/platform wildcard do not bypass frozen audience | Existing authorization tests | PASS on A4 baseline |
+| Finance report revocation despite stale positive cache | `ExecutiveOverviewA4FreshAuthorizationTest` | PASS on A4 baseline |
+| Entry permission revocation despite stale middleware cache | `revoked_entry_permission_fails_closed_even_when_middleware_cache_is_stale` | PASS on A4 baseline |
+| Cross-tenant entity exclusion | Existing A4 regression | PASS on A4 baseline |
+| Mixed authorized/foreign-tenant entities and separate summaries | `mixed_entity_overview_returns_only_current_tenant_entities_and_keeps_each_summary_separate` | R3 IMPLEMENTED; CI pending |
+| Consolidation rejects foreign-tenant member | `consolidation_rejects_a_foreign_tenant_entity_before_any_aggregate_is_returned` | R3 IMPLEMENTED; CI pending |
+| Direct Finance report grant without role grant | `direct_finance_report_grant_is_honoured_when_the_role_grant_is_absent` | R3 IMPLEMENTED; CI pending |
+| Inactive Finance permission / wrong permission tenant | New R3 authorization regressions | R3 IMPLEMENTED; CI pending |
+| Inactive audience role / inactive Finance application | New R3 authorization regressions | R3 IMPLEMENTED; CI pending |
+| Wrong application assignment / wrong tenant assignment | New R3 authorization regressions | R3 IMPLEMENTED; CI pending |
+| Generic denial, hidden metadata, private/no-store | Existing route and middleware tests | PASS on A4 baseline |
+| Frontend session and tenant race controls | App A4 baseline browser suite | PASS on A4 baseline; R3 browser retest pending |
+| Fresh technical retest | GPT-6 source/test/evidence review of exact R4 heads | PENDING — R5 |
 
-## Exact-HEAD evidence
+## Baseline evidence — not R3 evidence
 
-- Targeted A4 API workflow: [run #42682498522](https://github.com/akefadaka-git/arna-api/actions/runs/42682498522) — **PASS** on API evidence SHA `dfad5e2714f44bfca9944b5d756d24007081bb07`.
-- Full clean-install/MySQL workflow: [run #42680980701](https://github.com/akefadaka-git/arna-api/actions/runs/42680980701) — **PASS** on code snapshot `73a20ebb65f8e8e9489e645ae63d2836d461216d`.
-- Authenticated App browser suite: [run #42684395141](https://github.com/akefadaka-git/arna-app/actions/runs/42684395141) — **PASS**, 8/8 tests on App evidence SHA `f2366e7c624d60d69bd4bf03b3152a5847458d40`.
-- The API full clean-install run covered Composer install/advisory checks, PHP lint, clean MySQL migrations and seeds, and the repository's migration/seed/Finance/Governance regression gates. The targeted A4 run separately covered the new stale-cache and cross-tenant tests.
+- API targeted A4 workflow [#42685935427](https://github.com/akefadaka-git/arna-api/actions/runs/42685935427): PASS on baseline API SHA `9f5ea1ee0e221bca5007890178f249cdba20c992`.
+- App targeted A4 workflow [#42685209063](https://github.com/akefadaka-git/arna-app/actions/runs/42685209063): PASS on baseline App SHA `ea2c432ecf1d8d0f02ee7f58984bf8341f8a2bf7`, authenticated browser suite 8/8.
+- Earlier full clean-install/MySQL API workflow [#42680980701](https://github.com/akefadaka-git/arna-api/actions/runs/42680980701): PASS on earlier code snapshot `73a20ebb65f8e8e9489e645ae63d2836d461216d`. It is not exact-head R3 evidence.
 
-## Known residual risk
+R4 must replace these baseline-only references with workflow evidence tied to the final remediation SHAs.
 
-The general-purpose `InvalidateAuthorizationCacheListener` still catches and logs cache invalidation failures. That remains a platform-wide authorization-cache reliability issue for other permission consumers. The Executive Overview's sensitive entry-audience and Finance data decisions now use authoritative, uncached database pivots, so the listener's stale Finance permission cache cannot preserve Finance widget access on this endpoint. This does not claim to solve cache invalidation for unrelated platform routes.
+## Residual risk — RISK-A4-01
 
-## Remaining closure requirements
+The general-purpose `InvalidateAuthorizationCacheListener` still catches and logs invalidation failures. A failed invalidation can leave stale positive cache entries until their TTL expires for other platform permission consumers. This is a platform-wide residual risk and remains OPEN.
 
-- Expand automated API coverage for aggregate and complex mixed-entity combinations where the product contract defines distinct entity grants.
-- Obtain an independent human application-security review with findings tied to exact API and App SHAs.
-- Review the platform-wide cache listener risk separately; do not treat the Executive Overview's uncached checks as a global cache fix.
+The Executive Overview's sensitive audience and Finance data gates re-read authoritative database pivots; stale cached positive permission answers cannot preserve access through this endpoint. R3 does not claim a global cache fix. A cache-generation/version or durable invalidation redesign is outside the frozen Executive Overview A4 scope and must be handled as a separate governed work item. R5 must specifically retest the endpoint's uncached authorization behavior under the stale-cache condition.
 
-## Closure rule
+## Independent technical retest and closure
 
-Automated API and frontend A4 verification is PASS. Overall A4 security closure remains PARTIAL until the remaining adversarial matrix is reconciled and independent human review has no unresolved critical/high findings. A4 closure does not authorize merge or deployment.
+R5 is a fresh ChatGPT-led technical retest of the exact R4-verified API and App heads. It will independently re-read the changed implementation, challenge the new tests and test harness, inspect exact-head CI, and record unresolved findings. The retest will identify itself accurately as a GPT-6 technical assessment, not an external human audit or certification.
+
+An external human reviewer is required only if applicable law, contract, third-party assurance, or an explicit Owner decision mandates one. It is not an automatic prerequisite for this technical A4 closure.
+
+If R4 is PASS and R5 finds no unresolved A4-scoped critical/high issue, the A4 implementation may be marked VERIFIED-CLOSED while RISK-A4-01 remains explicitly OPEN and outside this endpoint's closure scope. Closure does not authorize merge, production role changes, or deployment.
