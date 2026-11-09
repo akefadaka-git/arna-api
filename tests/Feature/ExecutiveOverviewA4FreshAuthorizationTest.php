@@ -211,7 +211,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             ->withArgs(static fn (int $tenantId, int $entityId, string $asOf): bool =>
                 $tenantId === (int) $tenantA->id && in_array($entityId, $expectedIds, true)
             )
-            ->andReturnUsing(static function (int $tenantId, int $entityId, string $asOf) use ($reports): array {
+            ->andReturnUsing(static function (int $tenantId, int $entityId, string $asOf) use ($reports, $expectedIds): array {
                 $debit = $entityId === $expectedIds[0] ? '111.00' : '222.00';
                 return [
                     'as_of' => $asOf,
