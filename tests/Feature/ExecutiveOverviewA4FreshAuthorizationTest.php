@@ -369,4 +369,35 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         $response->assertForbidden();
     }
 
+
+    #[Test]
+    public function application_scoped_finance_report_permission_does_not_satisfy_tenant_report_authorization(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        [$user, , $permissions] = $this->financeFixture($tenant);
+        $this->configuredEntity($tenant);
+        $permissions['finance.report.view']->update(['scope' => 'application']);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertOk()->assertJsonPath('data.widgets', []);
+    }
+
+    #[Test]
+    public function application_scoped_entity_permission_does_not_authorize_tenant_legal_entity_reads(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        [$user, , $permissions] = $this->financeFixture($tenant);
+        $this->configuredEntity($tenant);
+        $permissions['finance.entity.view']->update(['scope' => 'application']);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertOk()->assertJsonPath('data.widgets', []);
+    }
+
 }
