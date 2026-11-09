@@ -197,5 +197,6 @@ final class PermissionCatalogue
             ['slug' => 'announcement.manage', 'name_am' => 'ማስታወቂያ ማዘጋጀትና ለማጽደቅ ማስገባት', 'name_en' => 'Create and Submit Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.approve', 'name_am' => 'ማስታወቂያ ማጽደቅ', 'name_en' => 'Approve Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.publish', 'name_am' => 'ማስታወቂያ ማተም', 'name_en' => 'Publish Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'dashboard.executive.view', 'name_am' => 'የአስፈጻሚ አጠቃላይ እይታን ማየት', 'name_en' => 'View Executive Overview', 'category' => 'dashboard', 'scope' => 'tenant', 'is_system' => false],
 ];
 }
