@@ -147,7 +147,9 @@ final class ExecutiveOverviewRouteTest extends TestCase
             ->assertJsonPath('data.widgets.0.entity.code', 'ENTITY-READY')
             ->assertJsonPath('data.widgets.0.currency', 'ETB')
             ->assertJsonMissing(['code' => 'ENTITY-EMPTY']);
-        $response->assertHeader('Cache-Control', 'private, no-store');
+        $cacheControl = (string) $response->headers->get('Cache-Control');
+        $this->assertStringContainsString('private', $cacheControl);
+        $this->assertStringContainsString('no-store', $cacheControl);
     }
 
     #[Test]
