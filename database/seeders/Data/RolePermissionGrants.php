@@ -39,9 +39,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  *            launcher.
  *
  *          · The change preserves the role hierarchy: super_admin
- *            remains the only role with universal access (its ['*']
- *            wildcard resolves to the permission map, subject to the
- *            explicit Executive Overview audience exclusion), and the four
+ *            remains the only role with wildcard-wide access (subject to
+ *            the explicit Executive Overview audience exclusion), and the four
  *            end-user applications remain exclusive to the roles
  *            whose purpose they serve (tenant_admin for the tenant-
  *            scoped grants, and the end-user roles for their own).
@@ -73,10 +72,11 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  * =============================================================================
  * A grant spec is a STRING. Three forms are recognised by the seeder:
  *
- *   1. '*' — the wildcard grant. Matches every permission in the
- *            catalogue.
+ *   1. '*' — the wildcard grant. Resolves every permission in the
+ *            catalogue before the seeder's explicit policy exclusions.
  *
- *      Used by: super_admin.
+ *      Used by: super_admin. The seeder explicitly excludes
+ *               dashboard.executive.view for this role.
  *
  *   2. 'scope:{scope}' — the scope grant. Matches every permission
  *                        in the catalogue whose `scope` field equals
@@ -88,7 +88,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  *                          scope:application
  *
  *      Used by: platform_admin (scope:global, scope:tenant),
- *               tenant_admin (scope:tenant).
+ *               tenant_admin (scope:tenant). The seeder explicitly excludes
+ *               dashboard.executive.view for both roles.
  *
  *   3. A literal permission slug — the exact grant. Matches the one
  *      permission whose slug equals the string. Every slug used
