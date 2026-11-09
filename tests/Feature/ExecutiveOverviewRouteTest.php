@@ -32,7 +32,9 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'tenant_id' => null,
             'is_active' => true,
         ]);
-        $ceo = Role::factory()->create([
+        $ceo = Role::create([
+            'name_am' => 'fixture',
+            'name_en' => 'fixture',
             'slug' => 'ceo',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
@@ -72,7 +74,9 @@ final class ExecutiveOverviewRouteTest extends TestCase
         ]);
         $user->permissions()->attach($entryPermission->id);
 
-        $manager = Role::factory()->create([
+        $manager = Role::create([
+            'name_am' => 'fixture',
+            'name_en' => 'fixture',
             'slug' => 'manager',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
