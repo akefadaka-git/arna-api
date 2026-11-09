@@ -1,4 +1,4 @@
-name: ARNA TOTP MFA
+name: ARNA Authentication security regression
 
 on:
   pull_request:
@@ -23,10 +23,16 @@ on:
   push:
     branches:
       - codex/arna-totp-mfa
+      - feat/android-device-sessions-a3
     paths:
       - "database/migrations/**"
       - "config/totp-mfa.php"
       - "mases_core/src/Auth/Services/TotpMfaService.php"
+      - "mases_core/src/Auth/Models/DeviceSession.php"
+      - "mases_core/src/Auth/Services/DeviceSessionService.php"
+      - "app/Http/Middleware/EnsureMobileDeviceSession.php"
+      - "bootstrap/app.php"
+      - "tests/Feature/AndroidDeviceSessionTest.php"
       - "mases_core/src/Auth/Services/AuthenticationService.php"
       - "app/Http/Controllers/Auth/AuthController.php"
       - "routes/api.php"
