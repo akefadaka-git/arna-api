@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Support\\Facades\\Route;
-use Tests\\TestCase;
+use Illuminate\Support\Facades\Route;
+use Tests\TestCase;
 
 final class ExecutiveOverviewRouteContractTest extends TestCase
 {
