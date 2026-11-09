@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Policies;
+namespace MaaleArna\MASES\Core\Domains\Finance\Policies;
 
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
+use MaaleArna\MASES\Core\Auth\Models\User;
 
 abstract class FinancePolicy
 {
-    public function __construct(protected readonly \\MaaleArna\\MASES\\Core\\Authorization\\Services\\AuthorizationService $authorization) {}
+    public function __construct(protected readonly \MaaleArna\MASES\Core\Authorization\Services\AuthorizationService $authorization) {}
 
     protected function tenantId(): ?int
     {
