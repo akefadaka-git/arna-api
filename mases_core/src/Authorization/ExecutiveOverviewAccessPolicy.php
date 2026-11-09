@@ -35,6 +35,12 @@ final class ExecutiveOverviewAccessPolicy
                         ->whereHas('application', static fn ($application) => $application->where('slug', 'finance'));
                 });
             })
+            ->whereHas('permissions', static function ($permissionQuery): void {
+                $permissionQuery
+                    ->where('permissions.slug', 'dashboard.executive.view')
+                    ->where('permissions.scope', 'tenant')
+                    ->where('permissions.is_active', true);
+            })
             ->exists();
     }
 }
