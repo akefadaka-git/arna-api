@@ -799,7 +799,7 @@ final class AuthController extends Controller
         $user = $request->user();
 
         $currentToken = $user?->currentAccessToken();
-        if ($user !== null && $currentToken instanceof PersonalAccessToken && $currentToken->can(DeviceSessionService::MOBILE_ABILITY)) {
+        if ($user !== null && $currentToken instanceof PersonalAccessToken && $currentToken->name === DeviceSessionService::MOBILE_TOKEN_NAME && $currentToken->can(DeviceSessionService::MOBILE_ABILITY)) {
             app(DeviceSessionService::class)->logoutCurrent($user, $currentToken);
         } else {
             $this->deleteIncomingBearerToken($request);
