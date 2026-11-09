@@ -102,7 +102,7 @@ use RuntimeException;
  * =============================================================================
  * The sync semantics
  * =============================================================================
- * The final write is `$role->permissions()->sync($ids)`. Laravel's
+ * The final write is `$role->syncPermissions($ids)`. The model delegates to Laravel's
  * sync is REPLACE-with-diff: it attaches missing ids, detaches
  * extra ids, and leaves matching ids in place. It does NOT append.
  *
@@ -289,7 +289,9 @@ final class RolePermissionSeeder extends Seeder
                 ));
             }
 
-            $roles[$roleSlug]->permissions()->sync($permissionIds);
+            // Use the model mutation contract so role-permission cache
+            // invalidation events fire after the pivot write.
+            $roles[$roleSlug]->syncPermissions($permissionIds);
         }
     }
 
