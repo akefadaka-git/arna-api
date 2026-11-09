@@ -188,4 +188,155 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             ->assertJsonPath('data.widgets', [])
             ->assertJsonMissing(['code' => $foreignEntity->code]);
     }
+
+    #[Test]
+    public function mixed_entity_overview_returns_only_current_tenant_entities_and_keeps_each_summary_separate(): void
+    {
+        $tenantA = Tenant::factory()->create(['is_active' => true]);
+        $tenantB = Tenant::factory()->create(['is_active' => true]);
+        [$user] = $this->financeFixture($tenantA);
+
+        $entityA1 = $this->configuredEntity($tenantA);
+        $entityA1->update(['code' => 'A4-AUTHORIZED-01']);
+        $entityA2 = $this->configuredEntity($tenantA);
+        $entityA2->update(['code' => 'A4-AUTHORIZED-02']);
+        $foreignEntity = $this->configuredEntity($tenantB);
+        $foreignEntity->update(['code' => 'A4-FOREIGN-99']);
+
+        $expectedIds = [(int) $entityA1->id, (int) $entityA2->id];
+        $reports = new \\Illuminate\\Support\\Collection([(object) ['id' => 1]]);
+        $reportService = \\Mockery::mock(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinancialReportService::class);
+        $reportService->shouldReceive('trialBalance')
+            ->twice()
+            ->withArgs(static fn (int $tenantId, int $entityId, string $asOf): bool =>
+                $tenantId === (int) $tenantA->id && in_array($entityId, $expectedIds, true)
+            )
+            ->andReturnUsing(static function (int $tenantId, int $entityId, string $asOf) use ($reports): array {
+                $debit = $entityId === $expectedIds[0] ? '111.00' : '222.00';
+                return [
+                    'as_of' => $asOf,
+                    'currency' => 'ETB',
+                    'accounts' => $reports,
+                    'summary' => [
+                        'total_debits' => $debit,
+                        'total_credits' => $debit,
+                        'difference' => '0.00',
+                        'is_balanced' => true,
+                    ],
+                ];
+            });
+        app()->instance(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinancialReportService::class, $reportService);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenantA->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertOk()
+            ->assertJsonCount(2, 'data.widgets')
+            ->assertJsonPath('data.widgets.0.entity.code', 'A4-AUTHORIZED-01')
+            ->assertJsonPath('data.widgets.0.value.total_debits', '111.00')
+            ->assertJsonPath('data.widgets.1.entity.code', 'A4-AUTHORIZED-02')
+            ->assertJsonPath('data.widgets.1.value.total_debits', '222.00')
+            ->assertJsonMissing(['code' => 'A4-FOREIGN-99']);
+    }
+
+    #[Test]
+    public function direct_finance_report_grant_is_honoured_when_the_role_grant_is_absent(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        [$user, $role, $permissions] = $this->financeFixture($tenant);
+        $this->configuredEntity($tenant);
+
+        $role->revokePermissionTo($permissions['finance.report.view']);
+        $user->permissions()->attach($permissions['finance.report.view']->id, [
+            'assigned_at' => now(),
+            'assigned_by' => $user->id,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertOk()->assertJsonCount(1, 'data.widgets');
+    }
+
+    #[Test]
+    public function inactive_finance_permission_is_not_authorized_even_when_a_role_pivot_remains(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        [$user, , $permissions] = $this->financeFixture($tenant);
+        $this->configuredEntity($tenant);
+        $permissions['finance.report.view']->update(['is_active' => false]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertOk()->assertJsonPath('data.widgets', []);
+    }
+
+    #[Test]
+    public function inactive_finance_manager_role_fails_the_frozen_audience_gate(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        [$user, $role] = $this->financeFixture($tenant);
+        $role->update(['is_active' => false]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
+    public function finance_manager_role_bound_to_another_application_fails_the_frozen_audience_gate(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        [$user, $role] = $this->financeFixture($tenant);
+        $otherApplication = PlatformApplication::create([
+            'name_am' => 'Human Resources',
+            'name_en' => 'Human Resources',
+            'slug' => 'human-resources',
+            'domain' => 'hr.example.test',
+            'is_active' => true,
+        ]);
+        $role->update(['application_id' => $otherApplication->id]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
+    public function finance_manager_role_bound_to_another_tenant_fails_the_frozen_audience_gate(): void
+    {
+        $tenantA = Tenant::factory()->create(['is_active' => true]);
+        $tenantB = Tenant::factory()->create(['is_active' => true]);
+        [$user, $role] = $this->financeFixture($tenantA);
+        $role->update(['tenant_id' => $tenantB->id]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenantA->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
+    public function consolidation_rejects_a_foreign_tenant_entity_before_any_aggregate_is_returned(): void
+    {
+        $tenantA = Tenant::factory()->create(['is_active' => true]);
+        $tenantB = Tenant::factory()->create(['is_active' => true]);
+        $entityA = $this->configuredEntity($tenantA);
+        $foreignEntity = $this->configuredEntity($tenantB);
+
+        $this->expectException(\\Illuminate\\Validation\\ValidationException::class);
+
+        app(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinanceConsolidationService::class)
+            ->trialBalance((int) $tenantA->id, [(int) $entityA->id, (int) $foreignEntity->id], now()->toDateString());
+    }
+
 }
