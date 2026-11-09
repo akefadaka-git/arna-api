@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Auth\Services\TotpMfaService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -57,6 +58,70 @@ final class AndroidDeviceSessionTest extends TestCase
 
         $this->withToken($deviceA['token'])->getJson('/api/profile')->assertUnauthorized();
         $this->withToken($deviceB['token'])->getJson('/api/profile')->assertOk();
+    }
+
+
+    #[Test]
+    public function mfa_login_challenge_is_bound_to_the_original_android_installation(): void
+    {
+        [$user, $tenant] = $this->userWithTenant();
+        $mfa = new TotpMfaService();
+        $enrollment = $mfa->beginEnrollment($user);
+        $mfa->confirmEnrollment($user, $this->currentTotp($enrollment['secret']));
+
+        $first = $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'tenant_id' => $tenant->id,
+            'client_type' => 'android',
+            'device_installation_id' => 'installation-identifier-device-A',
+        ])->assertOk()->assertJsonPath('data.mfa_required', true);
+        $challenge = $first->json('data.challenge_token');
+        $code = $this->currentTotp($enrollment['secret']);
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'tenant_id' => $tenant->id,
+            'client_type' => 'android',
+            'device_installation_id' => 'installation-identifier-device-B',
+            'mfa_challenge_token' => $challenge,
+            'mfa_code' => $code,
+        ])->assertUnauthorized();
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'tenant_id' => $tenant->id,
+            'client_type' => 'android',
+            'device_installation_id' => 'installation-identifier-device-A',
+            'mfa_challenge_token' => $challenge,
+            'mfa_code' => $code,
+        ])->assertOk()->assertJsonPath('success', true);
+    }
+
+    private function currentTotp(string $secret): string
+    {
+        $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        $buffer = 0;
+        $bits = 0;
+        $key = '';
+        foreach (str_split($secret) as $char) {
+            $buffer = ($buffer << 5) | strpos($alphabet, $char);
+            $bits += 5;
+            if ($bits >= 8) {
+                $bits -= 8;
+                $key .= chr(($buffer >> $bits) & 0xff);
+            }
+        }
+        $counter = intdiv(now()->timestamp, 30);
+        $hash = hash_hmac('sha1', pack('N2', 0, $counter), $key, true);
+        $offset = ord($hash[19]) & 0x0f;
+        $binary = ((ord($hash[$offset]) & 0x7f) << 24)
+            | ((ord($hash[$offset + 1]) & 0xff) << 16)
+            | ((ord($hash[$offset + 2]) & 0xff) << 8)
+            | (ord($hash[$offset + 3]) & 0xff);
+        return str_pad((string) ($binary % 1_000_000), 6, '0', STR_PAD_LEFT);
     }
 
     private function userWithTenant(): array
