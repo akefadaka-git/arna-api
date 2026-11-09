@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use App\\Http\\Controllers\\Controller;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Gate;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\JournalEntry;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LegalEntity;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Repositories\\LegalEntityRepository;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinancialReportService;
-use MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 
 /**
  * Read-only Executive Overview aggregation.
