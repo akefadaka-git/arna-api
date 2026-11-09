@@ -251,4 +251,41 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
 
         $this->assertFalse((new ExecutiveOverviewAccessPolicy())->allows($user, (int) $tenant->id));
     }
+    #[Test]
+    public function inactive_approved_role_fails_closed(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['is_active' => true]);
+        $role = $this->createRole(['slug' => 'ceo', 'scope' => 'tenant', 'tenant_id' => $tenant->id, 'is_active' => false]);
+        $permission = Permission::factory()->create(['slug' => 'dashboard.executive.view', 'scope' => 'tenant', 'is_active' => true, 'is_system' => false]);
+        $role->permissions()->attach($permission->id);
+        $user->roles()->attach($role->id);
+        $this->assertFalse((new ExecutiveOverviewAccessPolicy())->allows($user, (int) $tenant->id));
+    }
+
+    #[Test]
+    public function inactive_executive_permission_fails_closed(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['is_active' => true]);
+        $role = $this->createRole(['slug' => 'ceo', 'scope' => 'tenant', 'tenant_id' => $tenant->id, 'is_active' => true]);
+        $permission = Permission::factory()->create(['slug' => 'dashboard.executive.view', 'scope' => 'tenant', 'is_active' => false, 'is_system' => false]);
+        $role->permissions()->attach($permission->id);
+        $user->roles()->attach($role->id);
+        $this->assertFalse((new ExecutiveOverviewAccessPolicy())->allows($user, (int) $tenant->id));
+    }
+
+    #[Test]
+    public function executive_permission_bound_to_another_tenant_fails_closed(): void
+    {
+        $tenantA = Tenant::factory()->create(['is_active' => true]);
+        $tenantB = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['is_active' => true]);
+        $role = $this->createRole(['slug' => 'ceo', 'scope' => 'tenant', 'tenant_id' => $tenantA->id, 'is_active' => true]);
+        $permission = Permission::factory()->create(['slug' => 'dashboard.executive.view', 'scope' => 'tenant', 'tenant_id' => $tenantB->id, 'is_active' => true, 'is_system' => false]);
+        $role->permissions()->attach($permission->id);
+        $user->roles()->attach($role->id);
+        $this->assertFalse((new ExecutiveOverviewAccessPolicy())->allows($user, (int) $tenantA->id));
+    }
+
 }
