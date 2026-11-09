@@ -86,7 +86,8 @@ use RuntimeException;
  *                        permission whose `scope` field equals the
  *                        named scope (e.g. 'global', 'tenant',
  *                        'application'). The role receives the ids
- *                        of every matching permission.
+ *                        of matching permissions before the same
+ *                        post-resolution policy exclusion is applied.
  *
  *   3. A literal permission slug — the exact match. The role
  *      receives the id of the single permission whose key equals
