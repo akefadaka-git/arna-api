@@ -25,6 +25,42 @@ final class DeviceSessionService
             && $token->can(self::MOBILE_ABILITY);
     }
 
+    public function bindLoginChallenge(string $challengeToken, User $user, int|string|null $tenantId, string $installationId): void
+    {
+        DB::table('auth_device_login_challenges')->updateOrInsert(
+            ['challenge_hash' => hash('sha256', $challengeToken)],
+            [
+                'user_type' => $user->getMorphClass(),
+                'user_id' => $user->getKey(),
+                'tenant_id' => $tenantId,
+                'installation_hash' => $this->installationHash($installationId),
+                'expires_at' => now()->addMinutes(5),
+                'created_at' => now(),
+            ]
+        );
+    }
+
+    public function loginChallengeMatches(string $challengeToken, User $user, int|string|null $tenantId, string $installationId): bool
+    {
+        $binding = DB::table('auth_device_login_challenges')
+            ->where('challenge_hash', hash('sha256', $challengeToken))
+            ->where('user_type', $user->getMorphClass())
+            ->where('user_id', $user->getKey())
+            ->where('expires_at', '>', now())
+            ->first();
+
+        return $binding !== null
+            && (string) ($binding->tenant_id ?? '') === (string) ($tenantId ?? '')
+            && hash_equals((string) $binding->installation_hash, $this->installationHash($installationId));
+    }
+
+    public function consumeLoginChallenge(string $challengeToken): void
+    {
+        DB::table('auth_device_login_challenges')
+            ->where('challenge_hash', hash('sha256', $challengeToken))
+            ->delete();
+    }
+
     public function installationHash(string $installationId): string
     {
         $key = (string) config('app.key');
