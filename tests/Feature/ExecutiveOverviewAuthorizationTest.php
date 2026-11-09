@@ -34,6 +34,23 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
         $allowed = ExecutiveOverviewAccessPolicy::ROLE_SLUGS;
         $this->assertSame(['ceo', 'president', 'finance_manager'], $allowed);
 
+        foreach ($allowed as $slug) {
+            $this->assertArrayHasKey($slug, RoleCatalogue::ROWS);
+            $this->assertTrue(RoleCatalogue::ROWS[$slug]['tenant_bound']);
+        }
+        $this->assertSame('tenant', RoleCatalogue::ROWS['ceo']['scope']);
+        $this->assertSame('tenant', RoleCatalogue::ROWS['president']['scope']);
+        $this->assertSame('application', RoleCatalogue::ROWS['finance_manager']['scope']);
+        $this->assertSame('finance', RoleCatalogue::ROWS['finance_manager']['application_slug']);
+
+        $financeGrants = FinanceRolePermissionGrants::MAP;
+        $this->assertContains('finance.report.view', $financeGrants['finance_manager']);
+        $this->assertContains('finance.entity.view', $financeGrants['finance_manager']);
+        $this->assertNotContains('finance.report.view', $financeGrants['ceo']);
+        $this->assertNotContains('finance.report.view', $financeGrants['president']);
+        $this->assertNotContains('finance.entity.view', $financeGrants['ceo']);
+        $this->assertNotContains('finance.entity.view', $financeGrants['president']);
+
         foreach (RolePermissionGrants::MAP as $roleSlug => $grants) {
             $this->assertSame(
                 in_array($roleSlug, $allowed, true),
