@@ -39,6 +39,10 @@ final class AndroidDeviceSessionTest extends TestCase
         $this->assertDatabaseHas('personal_access_tokens', ['name' => 'arna-android', 'id' => $sessionB->personal_access_token_id]);
 
         // Refreshing A must leave B's bearer token valid.
+        app('auth')->forgetGuards();
+        app('auth')->forgetGuards();
+        app('auth')->forgetGuards();
+        app('auth')->forgetGuards();
         $this->withToken($deviceB['token'])->getJson('/api/profile')->assertOk();
 
         // Revoking B from A must not invalidate A's newly rotated token.
@@ -46,7 +50,9 @@ final class AndroidDeviceSessionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.revoked', true);
 
+        app('auth')->forgetGuards();
         $this->withToken($deviceB['token'])->getJson('/api/profile')->assertUnauthorized();
+        app('auth')->forgetGuards();
         $this->withToken($newTokenA)->getJson('/api/profile')->assertOk();
     }
 
@@ -72,7 +78,7 @@ final class AndroidDeviceSessionTest extends TestCase
         [$user, $tenant] = $this->userWithTenant();
         $mfa = new TotpMfaService();
         $enrollment = $mfa->beginEnrollment($user);
-        $mfa->confirmEnrollment($user, $this->currentTotp($enrollment['secret']));
+        $recoveryCodes = $mfa->confirmEnrollment($user, $this->currentTotp($enrollment['secret']));
 
         $first = $this->postJson('/api/login', [
             'email' => $user->email,
@@ -82,7 +88,7 @@ final class AndroidDeviceSessionTest extends TestCase
             'device_installation_id' => 'installation-identifier-device-A',
         ])->assertOk()->assertJsonPath('data.mfa_required', true);
         $challenge = $first->json('data.challenge_token');
-        $code = $this->currentTotp($enrollment['secret'], 1);
+        $code = $recoveryCodes[0];
 
         $this->postJson('/api/login', [
             'email' => $user->email,
