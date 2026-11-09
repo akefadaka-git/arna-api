@@ -72,6 +72,21 @@ final class AndroidDeviceSessionTest extends TestCase
 
 
     #[Test]
+    public function legacy_wildcard_web_tokens_bypass_android_device_session_enforcement(): void
+    {
+        [$user, $tenant] = $this->userWithTenant();
+        $legacyToken = $user->createToken('legacy-web-session', ['*']);
+
+        $this->withToken($legacyToken->plainTextToken)->getJson('/api/profile')->assertOk();
+
+        $this->assertSame(
+            0,
+            DB::table('auth_device_sessions')->where('user_id', $user->getKey())->count(),
+            'Legacy browser/SSO tokens must not be forced into Android device-session records.',
+        );
+    }
+
+    #[Test]
     public function mfa_login_challenge_is_bound_to_the_original_android_installation(): void
     {
         [$user, $tenant] = $this->userWithTenant();
