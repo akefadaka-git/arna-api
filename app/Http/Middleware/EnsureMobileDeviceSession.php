@@ -24,10 +24,15 @@ final class EnsureMobileDeviceSession
 
         // Browser and legacy API tokens retain their existing middleware path.
         if (!$token instanceof PersonalAccessToken || !$token->can(DeviceSessionService::MOBILE_ABILITY)) {
-            return $next($request);
+            if ($session->last_seen_at === null || $session->last_seen_at->lt(now()->subMinutes(5))) {
+            $session->forceFill(['last_seen_at' => now()])->save();
         }
 
-        if (!$user instanceof User || !$this->sessions->validateToken($user, $token)) {
+        return $next($request);
+        }
+
+        $session = $user instanceof User ? $this->sessions->validateToken($user, $token) : null;
+        if ($session === null) {
             return response()->json([
                 'success' => false,
                 'error' => [
