@@ -69,10 +69,12 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
         $roles = [];
 
         foreach (array_keys(RolePermissionGrants::MAP) as $slug) {
+            $isPlatformRole = in_array($slug, ['super_admin', 'platform_admin'], true);
+            $isApplicationRole = in_array($slug, ['finance_manager', 'hr_manager'], true);
             $roles[$slug] = Role::factory()->create([
                 'slug' => $slug,
-                'scope' => 'tenant',
-                'tenant_id' => $tenant->id,
+                'scope' => $isPlatformRole ? 'platform' : ($isApplicationRole ? 'application' : 'tenant'),
+                'tenant_id' => $isPlatformRole ? null : $tenant->id,
                 'is_active' => true,
             ]);
         }
