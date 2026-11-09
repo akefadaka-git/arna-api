@@ -418,7 +418,7 @@ final class AuthController extends Controller
         if ($isAndroidClient && $mfaChallengeKey !== null) {
             $bound = Cache::get($mfaChallengeKey);
             $expected = [
-                'user_id' => (string) ($resolution['user']->id ?? ''),
+                'user_id' => (string) ($resolution['user']->id ?? CoreUser::query()->where('email', strtolower(trim($validated['email'])))->value('id') ?? ''),
                 'tenant_id' => (string) ($resolution['tenant_id'] ?? $requestedTenantId ?? ''),
                 'installation_hash' => $deviceSessions->installationHash($deviceContext['device_installation_id']),
             ];
