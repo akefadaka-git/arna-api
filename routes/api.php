@@ -346,10 +346,11 @@ Route::middleware(['auth:sanctum', 'mobile.session'])->group(static function ():
      *
      * Revokes all tokens belonging to the authenticated user.
      */
-    Route::get('/auth/sessions', [AuthController::class, 'deviceSessions'])->name('api.auth.sessions.index');
+    Route::get('/auth/sessions', [AuthController::class, 'deviceSessions'])->middleware('throttle:30,1')->name('api.auth.sessions.index');
     Route::delete('/auth/sessions/{sessionId}', [AuthController::class, 'revokeDeviceSession'])->whereUuid('sessionId')->middleware('throttle:10,1')->name('api.auth.sessions.revoke');
 
     Route::post('/logout', [AuthController::class, 'logout'])
+        ->middleware('throttle:10,1')
         ->name('api.auth.logout');
 
     /**
@@ -366,6 +367,7 @@ Route::middleware(['auth:sanctum', 'mobile.session'])->group(static function ():
      * Revokes the current token and issues a new one.
      */
     Route::post('/token/refresh', [AuthController::class, 'refreshToken'])
+        ->middleware('throttle:10,1')
         ->name('api.auth.token.refresh');
 
     // -------------------------------------------------------------------------
