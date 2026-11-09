@@ -415,16 +415,13 @@ final class AuthController extends Controller
             : null;
 
         if ($isAndroidClient && $mfaChallengeKey !== null) {
-            $bound = Cache::get($mfaChallengeKey);
-            $expected = [
-                'user_id' => (string) ($resolution['user']->id ?? CoreUser::query()->where('email', strtolower(trim($validated['email'])))->value('id') ?? ''),
-                'tenant_id' => (string) ($resolution['tenant_id'] ?? $requestedTenantId ?? ''),
-                'installation_hash' => $deviceSessions->installationHash($deviceContext['device_installation_id']),
-            ];
-            if (!is_array($bound)
-                || (string) ($bound['user_id'] ?? '') !== $expected['user_id']
-                || (string) ($bound['tenant_id'] ?? '') !== $expected['tenant_id']
-                || !hash_equals((string) ($bound['installation_hash'] ?? ''), $expected['installation_hash'])) {
+            $challengeUser = $resolution['user'] ?? CoreUser::query()->where('email', strtolower(trim($validated['email'])))->first();
+            if (!$challengeUser instanceof CoreUser || !$deviceSessions->loginChallengeMatches(
+                $validated['mfa_challenge_token'],
+                $challengeUser,
+                $resolution['tenant_id'] ?? $requestedTenantId,
+                $deviceContext['device_installation_id'],
+            )) {
                 throw new AuthenticationException('Invalid authentication challenge.', 'AUTH_MFA_INVALID', 401);
             }
         }
@@ -514,11 +511,12 @@ final class AuthController extends Controller
 
         if (($result['mfa_required'] ?? false) === true) {
             if ($isAndroidClient) {
-                Cache::put('android_mfa_device:' . hash('sha256', $result['challenge_token']), [
-                    'user_id' => (string) $result['user']->id,
-                    'tenant_id' => (string) ($effectiveTenantId ?? ''),
-                    'installation_hash' => $deviceSessions->installationHash($deviceContext['device_installation_id']),
-                ], now()->addMinutes(5));
+                $deviceSessions->bindLoginChallenge(
+                    $result['challenge_token'],
+                    $result['user'],
+                    $effectiveTenantId,
+                    $deviceContext['device_installation_id'],
+                );
             }
             return response()->json([
                 'success' => true,
@@ -539,7 +537,7 @@ final class AuthController extends Controller
                 isset($effectiveTenantId) ? (int) $effectiveTenantId : null,
             );
             if ($mfaChallengeKey !== null) {
-                Cache::forget($mfaChallengeKey);
+                $deviceSessions->consumeLoginChallenge($validated['mfa_challenge_token']);
             }
         }
 
