@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
+use MaaleArna\MASES\Core\Auth\Services\DeviceSessionService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
@@ -379,6 +381,10 @@ final class AuthController extends Controller
             'tenant_id' => ['sometimes', 'integer', 'exists:tenants,id'],
             'mfa_challenge_token' => ['sometimes', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
             'mfa_code' => ['sometimes', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+            'client_type' => ['sometimes', 'string', 'in:android'],
+            'device_installation_id' => ['required_if:client_type,android', 'string', 'min:16', 'max:128'],
+            'device_label' => ['sometimes', 'string', 'max:100'],
+            'app_version' => ['sometimes', 'string', 'max:40'],
         ]);
 
         /*
@@ -397,6 +403,32 @@ final class AuthController extends Controller
         $requestedTenantId = $bodyTenantId ?? $trustedTenantId;
 
         $resolution = $this->identifierResolver->resolve($validated['email'], $requestedTenantId);
+
+        $isAndroidClient = ($validated['client_type'] ?? null) === 'android';
+        $deviceContext = $isAndroidClient ? [
+            'device_installation_id' => $validated['device_installation_id'],
+            'device_label' => $validated['device_label'] ?? null,
+            'app_version' => $validated['app_version'] ?? null,
+        ] : null;
+        $deviceSessions = $isAndroidClient ? app(DeviceSessionService::class) : null;
+        $mfaChallengeKey = isset($validated['mfa_challenge_token'])
+            ? 'android_mfa_device:' . hash('sha256', $validated['mfa_challenge_token'])
+            : null;
+
+        if ($isAndroidClient && $mfaChallengeKey !== null) {
+            $bound = Cache::get($mfaChallengeKey);
+            $expected = [
+                'user_id' => (string) ($resolution['user']->id ?? ''),
+                'tenant_id' => (string) ($resolution['tenant_id'] ?? $requestedTenantId ?? ''),
+                'installation_hash' => $deviceSessions->installationHash($deviceContext['device_installation_id']),
+            ];
+            if (!is_array($bound)
+                || (string) ($bound['user_id'] ?? '') !== $expected['user_id']
+                || (string) ($bound['tenant_id'] ?? '') !== $expected['tenant_id']
+                || !hash_equals((string) ($bound['installation_hash'] ?? ''), $expected['installation_hash'])) {
+                throw new AuthenticationException('Invalid authentication challenge.', 'AUTH_MFA_INVALID', 401);
+            }
+        }
 
         /*
          * Never pass an unresolved non-email identifier to a service that
@@ -482,6 +514,13 @@ final class AuthController extends Controller
         }
 
         if (($result['mfa_required'] ?? false) === true) {
+            if ($isAndroidClient) {
+                Cache::put('android_mfa_device:' . hash('sha256', $result['challenge_token']), [
+                    'user_id' => (string) $result['user']->id,
+                    'tenant_id' => (string) ($effectiveTenantId ?? ''),
+                    'installation_hash' => $deviceSessions->installationHash($deviceContext['device_installation_id']),
+                ], now()->addMinutes(5));
+            }
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -490,6 +529,19 @@ final class AuthController extends Controller
                     'methods' => ['totp', 'recovery_code'],
                 ],
             ]);
+        }
+
+        $mobileSession = null;
+        if ($isAndroidClient) {
+            $mobileSession = $deviceSessions->establish(
+                $result['user'],
+                $result['token'],
+                $deviceContext,
+                isset($effectiveTenantId) ? (int) $effectiveTenantId : null,
+            );
+            if ($mfaChallengeKey !== null) {
+                Cache::forget($mfaChallengeKey);
+            }
         }
 
         Log::info('Login attempt succeeded', [
@@ -503,8 +555,9 @@ final class AuthController extends Controller
             'success' => true,
             'data'    => [
                 'user'       => $result['user']->only(['id', 'name', 'email', 'locale', 'default_tenant_id']),
-                'token'      => $result['token'],
+                'token'      => $mobileSession['token'] ?? $result['token'],
                 'token_type' => 'Bearer',
+                ...($mobileSession !== null ? ['session_id' => $mobileSession['session_id'], 'expires_at' => $mobileSession['expires_at']] : []),
             ],
         ]);
     }
@@ -745,10 +798,14 @@ final class AuthController extends Controller
     {
         $user = $request->user();
 
-        $this->deleteIncomingBearerToken($request);
-
-        if ($user !== null) {
-            $this->authService->logout($user, revokeTokens: true);
+        $currentToken = $user?->currentAccessToken();
+        if ($user !== null && $currentToken instanceof PersonalAccessToken && $currentToken->can(DeviceSessionService::MOBILE_ABILITY)) {
+            app(DeviceSessionService::class)->logoutCurrent($user, $currentToken);
+        } else {
+            $this->deleteIncomingBearerToken($request);
+            if ($user !== null) {
+                $this->authService->logout($user, revokeTokens: true);
+            }
         }
 
         try {
@@ -815,8 +872,12 @@ final class AuthController extends Controller
             ], 401);
         }
 
-        $this->deleteIncomingBearerToken($request);
+        $currentToken = $user->currentAccessToken();
+        if ($currentToken instanceof PersonalAccessToken && $currentToken->can(DeviceSessionService::MOBILE_ABILITY)) {
+            return response()->json(['success' => true, 'data' => app(DeviceSessionService::class)->refresh($user, $currentToken)]);
+        }
 
+        $this->deleteIncomingBearerToken($request);
         $newToken = $this->authService->refreshToken($user);
 
         return response()->json([
@@ -826,6 +887,38 @@ final class AuthController extends Controller
                 'token_type' => 'Bearer',
             ],
         ]);
+    }
+
+
+    /**
+     * List only the authenticated user's device sessions.
+     */
+    public function deviceSessions(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof CoreUser, 401);
+        $token = $user->currentAccessToken();
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'sessions' => app(DeviceSessionService::class)->listFor(
+                    $user,
+                    $token instanceof PersonalAccessToken ? $token->getKey() : null
+                ),
+            ],
+        ]);
+    }
+
+    /**
+     * Revoke one device session owned by the authenticated user.
+     */
+    public function revokeDeviceSession(Request $request, string $sessionId): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof CoreUser, 401);
+        abort_unless((bool) preg_match('/^[0-9a-f-]{36}$/i', $sessionId), 404);
+        app(DeviceSessionService::class)->revoke($user, $sessionId);
+        return response()->json(['success' => true, 'data' => ['revoked' => true]]);
     }
 
     // =========================================================================
