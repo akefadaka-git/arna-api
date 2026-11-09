@@ -23,6 +23,7 @@ final class ExecutiveOverviewAccessPolicy
         return $user->roles()
             ->whereIn('roles.slug', self::ROLE_SLUGS)
             ->where('roles.is_active', true)
+            ->whereIn('roles.scope', ['tenant', 'application'])
             ->where('roles.tenant_id', $tenantId)
             ->exists();
     }
