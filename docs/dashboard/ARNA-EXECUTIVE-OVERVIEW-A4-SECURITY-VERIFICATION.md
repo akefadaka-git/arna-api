@@ -13,17 +13,17 @@ R3 is a child of the exact A4 baseline. It preserves the original A4 verificatio
 
 ## R3 remediation
 
-The API test suite adds the following adversarial cases:
+The API test suite adds adversarial coverage for:
 
-- Two authorized legal entities in tenant A alongside a foreign-tenant entity. The test verifies that only tenant A entities are queried, that each entity retains its own summary, and that the foreign entity is absent.
+- Two authorized legal entities in tenant A alongside a foreign-tenant entity. The test verifies that only tenant A entities are queried, each entity retains its own summary, and the foreign entity is absent.
 - Consolidation rejects a selected foreign-tenant entity before report generation or aggregate output.
-- A direct Finance report grant remains effective when the equivalent role grant is absent, while the entity permission remains separately required.
+- A direct Finance report grant remains effective when the equivalent role grant is absent, while entity permission remains separately required.
 - An inactive Finance report permission fails closed even while its role pivot remains.
 - An inactive Finance Manager role fails the frozen audience gate.
 - A Finance Manager role bound to another application or another tenant fails the frozen audience gate.
 - An inactive Finance application and a Finance report permission scoped to another tenant both fail closed.
 
-The Executive Overview API currently returns separate per-entity widgets; it does not expose a consolidated/aggregate widget or entity-specific grant model. R3 verifies the implemented tenant and permission boundaries and does not invent additional product capabilities.
+The Executive Overview API currently returns separate per-entity widgets; it does not expose a consolidated/aggregate widget or an entity-specific grant model. R3 verifies the implemented tenant and permission boundaries and does not invent additional product capabilities.
 
 ## Verification matrix
 
@@ -31,15 +31,15 @@ The Executive Overview API currently returns separate per-entity widgets; it doe
 |---|---|---|
 | Frozen audience role + tenant-bound entry permission | Existing authorization tests | PASS on A4 baseline |
 | Direct grants/platform wildcard do not bypass frozen audience | Existing authorization tests | PASS on A4 baseline |
-| Finance report revocation despite stale positive cache | `ExecutiveOverviewA4FreshAuthorizationTest` | PASS on A4 baseline |
-| Entry permission revocation despite stale middleware cache | `revoked_entry_permission_fails_closed_even_when_middleware_cache_is_stale` | PASS on A4 baseline |
+| Finance report revocation despite stale positive cache | Existing A4 regression | PASS on A4 baseline |
+| Entry permission revocation despite stale middleware cache | Existing A4 regression | PASS on A4 baseline |
 | Cross-tenant entity exclusion | Existing A4 regression | PASS on A4 baseline |
-| Mixed authorized/foreign-tenant entities and separate summaries | `mixed_entity_overview_returns_only_current_tenant_entities_and_keeps_each_summary_separate` | R3 IMPLEMENTED; CI pending |
-| Consolidation rejects foreign-tenant member | `consolidation_rejects_a_foreign_tenant_entity_before_any_aggregate_is_returned` | R3 IMPLEMENTED; CI pending |
-| Direct Finance report grant without role grant | `direct_finance_report_grant_is_honoured_when_the_role_grant_is_absent` | R3 IMPLEMENTED; CI pending |
-| Inactive Finance permission / wrong permission tenant | New R3 authorization regressions | R3 IMPLEMENTED; CI pending |
-| Inactive audience role / inactive Finance application | New R3 authorization regressions | R3 IMPLEMENTED; CI pending |
-| Wrong application assignment / wrong tenant assignment | New R3 authorization regressions | R3 IMPLEMENTED; CI pending |
+| Mixed authorized/foreign-tenant entities and separate summaries | `mixed_entity_overview_returns_only_current_tenant_entities_and_keeps_each_summary_separate` | R3 implemented; CI pending |
+| Consolidation rejects foreign-tenant member | `consolidation_rejects_a_foreign_tenant_entity_before_any_aggregate_is_returned` | R3 implemented; CI pending |
+| Direct Finance report grant without role grant | `direct_finance_report_grant_is_honoured_when_the_role_grant_is_absent` | R3 implemented; CI pending |
+| Inactive Finance permission / wrong permission tenant | New R3 authorization regressions | R3 implemented; CI pending |
+| Inactive audience role / inactive Finance application | New R3 authorization regressions | R3 implemented; CI pending |
+| Wrong application assignment / wrong tenant assignment | New R3 authorization regressions | R3 implemented; CI pending |
 | Generic denial, hidden metadata, private/no-store | Existing route and middleware tests | PASS on A4 baseline |
 | Frontend session and tenant race controls | App A4 baseline browser suite | PASS on A4 baseline; R3 browser retest pending |
 | Fresh technical retest | GPT-6 source/test/evidence review of exact R4 heads | PENDING — R5 |
