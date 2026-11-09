@@ -40,7 +40,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  *
  *          · The change preserves the role hierarchy: super_admin
  *            remains the only role with universal access (its ['*']
- *            wildcard resolves to all 51 permissions), and the four
+ *            wildcard resolves to the permission map, subject to the
+ *            explicit Executive Overview audience exclusion), and the four
  *            end-user applications remain exclusive to the roles
  *            whose purpose they serve (tenant_admin for the tenant-
  *            scoped grants, and the end-user roles for their own).
@@ -115,16 +116,16 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  * =============================================================================
  * The twelve roles and their grant strategy
  * =============================================================================
- *   super_admin     — '*'              : every permission
+ *   super_admin     — '*'              : every permission except explicit policy exclusions
  *
- *   platform_admin  — scope:global + scope:tenant
+ *   platform_admin  — scope:global + scope:tenant, subject to explicit policy exclusions
  *                     + app.admin.access + app.app.access
  *                     + app.launcher.access
  *                                      : the two non-application scopes
  *                                        plus the three platform-operation
  *                                        applications
  *
- *   tenant_admin    — scope:tenant + every 'app.*.access'
+ *   tenant_admin    — scope:tenant + every 'app.*.access', subject to explicit policy exclusions
  *                                      : everything scoped to a tenant,
  *                                        plus explicit access to all
  *                                        seven applications
