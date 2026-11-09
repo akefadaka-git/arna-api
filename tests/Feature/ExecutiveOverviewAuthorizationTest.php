@@ -35,7 +35,7 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
         ], $attributes));
     }
 
-    private function createApplication(string $slug): PlatformApplication
+    private function makePlatformApplication(string $slug): PlatformApplication
     {
         return PlatformApplication::create([
             'name_am' => $slug,
@@ -107,8 +107,8 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $roles = [];
 
-        $financeApp = $this->createApplication('finance');
-        $hrApp = $this->createApplication('hr');
+        $financeApp = $this->makePlatformApplication('finance');
+        $hrApp = $this->makePlatformApplication('hr');
 
         foreach (array_keys(RolePermissionGrants::MAP) as $slug) {
             $isPlatformRole = in_array($slug, ['super_admin', 'platform_admin'], true);
@@ -176,8 +176,8 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
     public function finance_manager_must_be_bound_to_the_finance_application_and_current_tenant(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
-        $finance = $this->createApplication('finance');
-        $wrongApplication = $this->createApplication('hr');
+        $finance = $this->makePlatformApplication('finance');
+        $wrongApplication = $this->makePlatformApplication('hr');
         $user = User::factory()->create(['is_active' => true]);
 
         $validRole = $this->createRole([
