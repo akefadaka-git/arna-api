@@ -1,7 +1,7 @@
 # ARNA Executive Overview — A4 Security and Isolation Verification
 
 **Stage:** A4 — verification  
-**Status:** PARTIAL — targeted A4 suite and full clean-install/MySQL gate PASS; not production-cleared  
+**Status:** AUTOMATED API A4 PASS; overall security sign-off remains PARTIAL  
 **Scope:** API authorization, tenant/legal-entity isolation, Finance permission freshness, response disclosure, and reproducible evidence  
 **A3 parent:** `6e8ca660d35caf9fe5e8d66ee34406bf642f2de1`  
 **A4 branch:** `verify/executive-overview-a4`
@@ -12,46 +12,45 @@ This A4 branch is based on the Owner-approved A3 API branch. It does not merge A
 
 ## A4 implementation in this branch
 
-1. Finance policy authorization now reads the current permission and role pivots directly for each decision. It checks active grants, trusted tenant context, tenant scope, and Finance application scope. This removes Finance entity authorization's dependence on a potentially stale permission-result cache.
-2. Executive Overview's Finance report gate now reads the current database pivots directly. The entry audience remains checked through the uncached `ExecutiveOverviewAccessPolicy`, and each entity is checked through the Finance policy before trial-balance reads.
-3. Added regression tests that deliberately warm a stale positive Finance permission cache, revoke the report permission, and verify the Executive Overview no longer returns Finance widgets.
-4. Added a cross-tenant legal-entity regression test: a request in tenant A must not return a tenant B entity.
+1. Finance policy authorization reads the current permission and role pivots directly for each decision. It checks active grants, trusted tenant context, tenant scope, and Finance application scope. This removes Finance entity authorization's dependence on a potentially stale permission-result cache.
+2. Executive Overview's Finance report gate reads current database pivots directly. The entry audience is checked through the uncached `ExecutiveOverviewAccessPolicy`, and each entity is checked through the Finance policy before trial-balance reads.
+3. Regression tests deliberately seed a stale positive Finance permission cache entry after revocation and verify the Executive Overview no longer returns Finance widgets.
+4. A cross-tenant legal-entity regression test verifies a tenant A request cannot return a tenant B entity.
+5. Existing route tests verify configured entities can appear while same-tenant unconfigured entities are omitted, generic denial responses do not disclose permission slugs, and sensitive responses are private/no-store.
 
 ## Verification matrix
 
-| Control | Evidence in branch | Status |
+| Control | Evidence | Status |
 |---|---|---|
-| Frozen audience role + tenant-bound entry permission | Existing `ExecutiveOverviewAuthorizationTest` | A4 targeted workflow PASS |
-| Direct grants/platform wildcard do not bypass audience | Existing authorization tests | A4 targeted workflow PASS |
-| Finance report revocation despite stale cached positive | `ExecutiveOverviewA4FreshAuthorizationTest::finance_report_revocation_is_effective_even_when_a_stale_positive_cache_entry_exists` | Added; PASS on exact A4 HEAD |
-| Cross-tenant legal-entity exclusion | `ExecutiveOverviewA4FreshAuthorizationTest::tenant_a_overview_never_includes_a_legal_entity_from_tenant_b` | Added; PASS on exact tested SHA |
-| Per-entity Finance authorization | `FinancePolicy::allows` now queries authoritative pivots; existing route fixture | Implemented; PASS in targeted API workflow |
-| Generic denial and hidden metadata | Existing route and middleware tests | A4 targeted workflow PASS |
-| Private/no-store response | Existing Finance route test | Existing A3 tests; CI pending |
-| Full adversarial tenant/entity matrix | Additional mixed-entity, aggregate, direct-endpoint and role mutation cases | PARTIAL / NOT RUN |
-| Cache-listener infrastructure failure | Listener still logs and swallows invalidation failure | OPEN platform-level risk; this feature now avoids cached Finance authorization |
-| Runtime browser session/concurrency tests | App A4 package | NOT RUN |
+| Frozen audience role + tenant-bound entry permission | `ExecutiveOverviewAuthorizationTest` | PASS |
+| Direct grants/platform wildcard do not bypass audience | Existing authorization tests | PASS |
+| Finance report revocation despite stale cached positive | `ExecutiveOverviewA4FreshAuthorizationTest` | PASS |
+| Cross-tenant legal-entity exclusion | `ExecutiveOverviewA4FreshAuthorizationTest` | PASS |
+| Configured vs unconfigured same-tenant entity | `ExecutiveOverviewRouteTest::finance_manager_receives_only_authorized_entities_with_a_configured_ledger_and_source_lineage` | PASS |
+| Per-entity Finance authorization | `FinancePolicy::allows` reads authoritative pivots | PASS |
+| Generic denial and hidden metadata | Existing route and middleware tests | PASS |
+| Private/no-store response | Existing Finance route test | PASS |
+| Broader aggregate/mixed-entity and role-mutation matrix | Additional aggregate and complex multi-entity combinations | PARTIAL / NOT RUN |
+| Runtime browser session/concurrency | App A4 authenticated browser suite, 8/8 tests | PASS |
 | Independent human security review | External reviewer required | MISSING |
 
 ## Exact-HEAD evidence
 
-- A4 branch HEAD: `c17a36e9401347f47345319bffa8b4b83d60871a`
-- Targeted A4 API workflow: [run #A4 security-tests](https://github.com/akefadaka-git/arna-api/actions/runs/42680656797) — **PASS**, job `129373965875`.
-- Exact-head checks completed: PHP lint, clean MySQL migrations, frozen audience/wildcard authorization, route and metadata disclosure/no-store tests, stale-cache revocation, cross-tenant entity isolation, and Finance permission catalogue.
-- Full repository clean-install/MySQL workflow: [run #42680980701](https://github.com/akefadaka-git/arna-api/actions/runs/42680980701) — **PASS** on the same tested SHA.
+- Targeted A4 API workflow: [run #42682498522](https://github.com/akefadaka-git/arna-api/actions/runs/42682498522) — **PASS** on API evidence SHA `dfad5e2714f44bfca9944b5d756d24007081bb07`.
+- Full clean-install/MySQL workflow: [run #42680980701](https://github.com/akefadaka-git/arna-api/actions/runs/42680980701) — **PASS** on code snapshot `73a20ebb65f8e8e9489e645ae63d2836d461216d`.
+- Authenticated App browser suite: [run #42684395141](https://github.com/akefadaka-git/arna-app/actions/runs/42684395141) — **PASS**, 8/8 tests on App evidence SHA `f2366e7c624d60d69bd4bf03b3152a5847458d40`.
+- The API full clean-install run covered Composer install/advisory checks, PHP lint, clean MySQL migrations and seeds, and the repository's migration/seed/Finance/Governance regression gates. The targeted A4 run separately covered the new stale-cache and cross-tenant tests.
 
 ## Known residual risk
 
-The general-purpose `InvalidateAuthorizationCacheListener` still catches and logs cache invalidation failures. That remains a platform-wide authorization-cache reliability issue for other permission consumers. The Executive Overview's sensitive entry-audience and Finance data decisions now use authoritative, uncached database pivots, so the listener's stale Finance permission cache cannot preserve Finance widget access on this endpoint. This change does not claim to solve cache invalidation for unrelated platform routes.
+The general-purpose `InvalidateAuthorizationCacheListener` still catches and logs cache invalidation failures. That remains a platform-wide authorization-cache reliability issue for other permission consumers. The Executive Overview's sensitive entry-audience and Finance data decisions now use authoritative, uncached database pivots, so the listener's stale Finance permission cache cannot preserve Finance widget access on this endpoint. This does not claim to solve cache invalidation for unrelated platform routes.
 
-## Required next verification
+## Remaining closure requirements
 
-- Complete the full API clean-install/MySQL workflow against exact A4 HEAD and fix any failures.
-- Keep the new stale-cache revocation and cross-tenant tests in the exact-HEAD regression gate.
-- Expand the entity matrix to include mixed authorized/unauthorized entities and direct endpoint access.
-- Run App browser tests for logout, permission revocation, tenant switching, delayed/out-of-order responses and component unmount.
-- Obtain independent human application-security review before production clearance.
+- Expand automated API coverage for aggregate and complex mixed-entity combinations where the product contract defines distinct entity grants.
+- Obtain an independent human application-security review with findings tied to exact API and App SHAs.
+- Review the platform-wide cache listener risk separately; do not treat the Executive Overview's uncached checks as a global cache fix.
 
 ## Closure rule
 
-A4 is not closed until exact-HEAD API and App CI pass, the required adversarial isolation matrix passes, browser session/concurrency behavior is evidenced, and independent human review has no unresolved critical/high findings. A4 closure does not authorize merge or deployment.
+Automated API and frontend A4 verification is PASS. Overall A4 security closure remains PARTIAL until the remaining adversarial matrix is reconciled and independent human review has no unresolved critical/high findings. A4 closure does not authorize merge or deployment.
