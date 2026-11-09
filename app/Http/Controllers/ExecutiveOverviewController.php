@@ -2,21 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Controllers;
+namespace App\\Http\\Controllers;
 
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
-use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
-use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
-use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
-use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
+use Illuminate\\Http\\JsonResponse;
+use Illuminate\\Http\\Request;
+use Illuminate\\Support\\Facades\\Gate;
+use MaaleArna\\MASES\\Core\\Authorization\\ExecutiveOverviewAccessPolicy;
+use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LegalEntity;
+use MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinancialReportService;
+use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
 
 final class ExecutiveOverviewController
 {
     public function __construct(
         private readonly ExecutiveOverviewAccessPolicy $audience,
-        private readonly AuthorizationService $authorization,
         private readonly FinancialReportService $financialReports,
     ) {}
 
@@ -35,15 +34,15 @@ final class ExecutiveOverviewController
             ], 400);
         }
 
-        // The route permission is the first gate. This role check prevents
-        // direct grants and platform wildcard roles from widening the frozen
-        // initial audience.
+        // The route permission is the first gate. This uncached role-pivot
+        // check is authoritative and prevents direct grants and platform
+        // wildcard roles from widening the frozen audience.
         if (!$this->audience->allows($user, (int) $tenantId)) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'AUTH_PERMISSION_DENIED',
-                    'message' => 'Executive Overview access is not granted.',
+                    'message' => 'You are not authorized to perform this action.',
                 ],
             ], 403);
         }
@@ -54,18 +53,18 @@ final class ExecutiveOverviewController
         $asOf = $validated['as_of'] ?? now()->toDateString();
         $widgets = [];
 
-        // The entry permission is not a Finance data grant. CEO and President
-        // receive no Finance widget unless their existing Finance permission
-        // is independently granted. No role grants are widened here.
-        if ($this->authorization->hasPermission('finance.report.view', $user, (int) $tenantId)) {
+        // Finance report access is evaluated against the current database
+        // pivots, not AuthorizationService's TTL cache. This ensures that a
+        // failed cache invalidation cannot retain access to financial data.
+        if ($this->hasFreshTenantPermission($user, 'finance.report.view', (int) $tenantId)) {
             $entities = LegalEntity::query()
                 ->where('tenant_id', (int) $tenantId)
                 ->orderBy('code')
                 ->get();
 
             foreach ($entities as $entity) {
-                // LegalEntityPolicy independently enforces finance.entity.view
-                // and the trusted tenant/entity boundary before report reads.
+                // FinancePolicy performs an uncached, trusted-tenant check
+                // for finance.entity.view before any report read.
                 if (!Gate::forUser($user)->allows('view', $entity)) {
                     continue;
                 }
@@ -76,9 +75,6 @@ final class ExecutiveOverviewController
                     $asOf,
                 );
 
-                // An entity with no chart-of-accounts rows has no reportable
-                // trial balance. Do not turn an unconfigured ledger into a
-                // misleading synthetic zero widget.
                 if ($report['accounts']->isEmpty()) {
                     continue;
                 }
@@ -114,5 +110,48 @@ final class ExecutiveOverviewController
                 'widgets' => $widgets,
             ],
         ])->header('Cache-Control', 'private, no-store');
+    }
+
+    /**
+     * Check a tenant-scoped permission directly from authoritative pivots.
+     * Both direct grants and role grants are supported; role grants must be
+     * active, tenant-compatible and either global or bound to Finance.
+     */
+    private function hasFreshTenantPermission(User $user, string $permission, int $tenantId): bool
+    {
+        $direct = $user->permissions()
+            ->where('permissions.slug', $permission)
+            ->where('permissions.is_active', true)
+            ->where(function ($scope) use ($tenantId): void {
+                $scope->whereNull('permissions.tenant_id')
+                    ->orWhere('permissions.tenant_id', $tenantId);
+            })
+            ->exists();
+
+        if ($direct) {
+            return true;
+        }
+
+        return $user->roles()
+            ->where('roles.is_active', true)
+            ->where(function ($scope) use ($tenantId): void {
+                $scope->whereNull('roles.tenant_id')
+                    ->orWhere('roles.tenant_id', $tenantId);
+            })
+            ->where(function ($application): void {
+                $application->whereNull('roles.application_id')
+                    ->orWhereHas('application', static fn ($app) => $app
+                        ->where('slug', 'finance')
+                        ->where('is_active', true));
+            })
+            ->whereHas('permissions', static function ($query) use ($permission, $tenantId): void {
+                $query->where('permissions.slug', $permission)
+                    ->where('permissions.is_active', true)
+                    ->where(function ($scope) use ($tenantId): void {
+                        $scope->whereNull('permissions.tenant_id')
+                            ->orWhere('permissions.tenant_id', $tenantId);
+                    });
+            })
+            ->exists();
     }
 }
