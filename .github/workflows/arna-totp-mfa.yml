@@ -9,6 +9,12 @@ on:
       - "database/migrations/**"
       - "config/totp-mfa.php"
       - "mases_core/src/Auth/Services/TotpMfaService.php"
+      - "mases_core/src/Auth/Models/DeviceSession.php"
+      - "mases_core/src/Auth/Services/DeviceSessionService.php"
+      - "app/Http/Middleware/EnsureMobileDeviceSession.php"
+      - "bootstrap/app.php"
+      - "tests/Feature/AndroidDeviceSessionTest.php"
+      - ".github/workflows/arna-android-device-sessions.yml"
       - "mases_core/src/Auth/Services/AuthenticationService.php"
       - "app/Http/Controllers/Auth/AuthController.php"
       - "routes/api.php"
@@ -57,7 +63,18 @@ jobs:
           php -l config/totp-mfa.php
           php -l mases_core/src/Auth/Services/TotpMfaService.php
           php -l tests/Feature/TotpMfaTest.php
+          php -l database/migrations/2026_11_09_000001_create_auth_device_sessions_table.php
+          php -l database/migrations/2026_11_09_000002_create_auth_device_login_challenges_table.php
+          php -l mases_core/src/Auth/Models/DeviceSession.php
+          php -l mases_core/src/Auth/Services/DeviceSessionService.php
+          php -l app/Http/Middleware/EnsureMobileDeviceSession.php
+          php -l app/Http/Controllers/Auth/AuthController.php
+          php -l bootstrap/app.php
+          php -l routes/api.php
+          php -l tests/Feature/AndroidDeviceSessionTest.php
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
-      - name: Run TOTP MFA tests
-        run: vendor/bin/phpunit tests/Feature/TotpMfaTest.php
+      - name: Run authentication and Android device session regression tests
+        run: |
+          vendor/bin/phpunit tests/Feature/TotpMfaTest.php
+          vendor/bin/phpunit tests/Feature/AndroidDeviceSessionTest.php
