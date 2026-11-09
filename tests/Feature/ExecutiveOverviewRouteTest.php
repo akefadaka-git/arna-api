@@ -153,6 +153,35 @@ final class ExecutiveOverviewRouteTest extends TestCase
     }
 
     #[Test]
+    public function generic_permission_denial_does_not_disclose_the_required_permission_slug(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $authorization = $this->mock(AuthorizationService::class);
+        $authorization->shouldReceive('hasPermission')
+            ->once()
+            ->with('finance.payroll.secret.view', $user)
+            ->andReturnFalse();
+
+        $request = Request::create('/api/private-resource', 'GET');
+        $request->setUserResolver(static fn () => $user);
+
+        $response = (new CheckPermission($authorization))->handle(
+            $request,
+            static fn () => response()->noContent(),
+            'finance.payroll.secret.view'
+        );
+
+        $this->assertSame(403, $response->getStatusCode());
+        $payload = $response->getData(true);
+        $this->assertSame('AUTH_PERMISSION_DENIED', $payload['error']['code']);
+        $this->assertSame(
+            'You are not authorized to perform this action.',
+            $payload['error']['message']
+        );
+        $this->assertStringNotContainsString('finance.payroll.secret.view', $response->getContent());
+    }
+
+    #[Test]
     public function a_direct_entry_permission_does_not_admit_an_unapproved_role(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
