@@ -23,6 +23,29 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function createRole(array $attributes): Role
+    {
+        $slug = $attributes['slug'] ?? 'test-role';
+        return Role::create(array_merge([
+            'name_am' => $slug,
+            'name_en' => $slug,
+            'slug' => $slug,
+            'scope' => 'tenant',
+            'is_active' => true,
+        ], $attributes));
+    }
+
+    private function createApplication(string $slug): PlatformApplication
+    {
+        return PlatformApplication::create([
+            'name_am' => $slug,
+            'name_en' => $slug,
+            'slug' => $slug,
+            'domain' => $slug . '.example.test',
+            'is_active' => true,
+        ]);
+    }
+
     #[Test]
     public function executive_permission_is_tenant_scoped_and_declared_for_exactly_the_frozen_roles(): void
     {
@@ -84,13 +107,17 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $roles = [];
 
+        $financeApp = $this->createApplication('finance');
+        $hrApp = $this->createApplication('hr');
+
         foreach (array_keys(RolePermissionGrants::MAP) as $slug) {
             $isPlatformRole = in_array($slug, ['super_admin', 'platform_admin'], true);
             $isApplicationRole = in_array($slug, ['finance_manager', 'hr_manager'], true);
-            $roles[$slug] = Role::factory()->create([
+            $roles[$slug] = $this->createRole([
                 'slug' => $slug,
                 'scope' => $isPlatformRole ? 'platform' : ($isApplicationRole ? 'application' : 'tenant'),
                 'tenant_id' => $isPlatformRole ? null : $tenant->id,
+                'application_id' => $slug === 'finance_manager' ? $financeApp->id : ($slug === 'hr_manager' ? $hrApp->id : null),
                 'is_active' => true,
             ]);
         }
@@ -124,7 +151,7 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
         $tenantB = Tenant::factory()->create(['is_active' => true]);
         $user = User::factory()->create(['is_active' => true]);
 
-        $ceo = Role::factory()->create([
+        $ceo = $this->createRole([
             'slug' => 'ceo',
             'scope' => 'tenant',
             'tenant_id' => $tenantA->id,
@@ -142,11 +169,11 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
     public function finance_manager_must_be_bound_to_the_finance_application_and_current_tenant(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
-        $finance = PlatformApplication::factory()->create(['slug' => 'finance']);
-        $wrongApplication = PlatformApplication::factory()->create(['slug' => 'hr']);
+        $finance = $this->createApplication('finance');
+        $wrongApplication = $this->createApplication('hr');
         $user = User::factory()->create(['is_active' => true]);
 
-        $validRole = Role::factory()->create([
+        $validRole = $this->createRole([
             'slug' => 'finance_manager',
             'scope' => 'application',
             'tenant_id' => $tenant->id,
@@ -168,7 +195,7 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $user = User::factory()->create(['is_active' => true]);
-        $ceo = Role::factory()->create([
+        $ceo = $this->createRole([
             'slug' => 'ceo',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
@@ -187,11 +214,12 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
         $this->assertFalse((new ExecutiveOverviewAccessPolicy())->allows($user, (int) $tenant->id));
     }
 
+    #[Test]
     public function direct_permission_or_platform_role_does_not_bypass_the_frozen_audience(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $user = User::factory()->create(['is_active' => true]);
-        $platformAdmin = Role::factory()->create([
+        $platformAdmin = $this->createRole([
             'slug' => 'platform_admin',
             'scope' => 'platform',
             'tenant_id' => null,
