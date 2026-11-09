@@ -29,4 +29,18 @@ final class LegalEntityRepository
             ->where('tenant_id', $tenantId)
             ->find($entityId);
     }
+
+    /**
+     * Resolve a legal entity by its tenant-scoped business code.
+     *
+     * Dashboard clients use the code as an opaque reference rather than
+     * receiving or submitting the internal database identifier.
+     */
+    public function findByCodeForTenant(int $tenantId, string $code): ?LegalEntity
+    {
+        return LegalEntity::query()
+            ->where('tenant_id', $tenantId)
+            ->where('code', $code)
+            ->first();
+    }
 }
