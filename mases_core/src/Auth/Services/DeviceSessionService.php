@@ -112,7 +112,7 @@ final class DeviceSessionService
                 'expires_at' => $expiresAt->toIso8601String(),
             ];
             }, 3);
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             // The original bearer token has not been returned to the client.
             // If the transaction rolled back, remove it outside that rollback.
             PersonalAccessToken::query()->whereKey($legacy->getKey())->delete();
