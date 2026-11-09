@@ -40,9 +40,6 @@ final class AndroidDeviceSessionTest extends TestCase
 
         // Refreshing A must leave B's bearer token valid.
         app('auth')->forgetGuards();
-        app('auth')->forgetGuards();
-        app('auth')->forgetGuards();
-        app('auth')->forgetGuards();
         $this->withToken($deviceB['token'])->getJson('/api/profile')->assertOk();
 
         // Revoking B from A must not invalidate A's newly rotated token.
@@ -68,6 +65,7 @@ final class AndroidDeviceSessionTest extends TestCase
             ->assertJsonPath('success', true);
 
         $this->withToken($deviceA['token'])->getJson('/api/profile')->assertUnauthorized();
+        app('auth')->forgetGuards();
         $this->withToken($deviceB['token'])->getJson('/api/profile')->assertOk();
     }
 
@@ -126,6 +124,7 @@ final class AndroidDeviceSessionTest extends TestCase
         $this->assertNotContains($deviceB['session_id'], array_column($list->json('data.sessions'), 'session_id'));
 
         $this->withToken($deviceA['token'])->deleteJson('/api/auth/sessions/'.$deviceB['session_id'])->assertNotFound();
+        app('auth')->forgetGuards();
         $this->withToken($deviceB['token'])->getJson('/api/profile')->assertOk();
     }
 
