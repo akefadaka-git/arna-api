@@ -1,10 +1,11 @@
 # ARNA Executive Overview — A4 Security and Isolation Verification
 
 **Stage:** A4 — verification  
-**Status:** AUTOMATED API A4 PASS; overall security sign-off remains PARTIAL  
+**Status:** R3 REMEDIATION IMPLEMENTED; exact-HEAD CI and R5 technical retest PENDING  
 **Scope:** API authorization, tenant/legal-entity isolation, Finance permission freshness, response disclosure, and reproducible evidence  
 **A3 parent:** `6e8ca660d35caf9fe5e8d66ee34406bf642f2de1`  
-**A4 branch:** `verify/executive-overview-a4`
+**A4 baseline branch:** `verify/executive-overview-a4`  
+**R3 remediation branch:** `remediate/executive-overview-a4-r3`
 
 ## Governance boundary
 
@@ -31,9 +32,9 @@ This A4 branch is based on the Owner-approved A3 API branch. It does not merge A
 | Per-entity Finance authorization | `FinancePolicy::allows` reads authoritative pivots | PASS |
 | Generic denial and hidden metadata | Existing route and middleware tests | PASS |
 | Private/no-store response | Existing Finance route test | PASS |
-| Broader aggregate/mixed-entity and role-mutation matrix | Additional aggregate and complex multi-entity combinations | PARTIAL / NOT RUN |
+| Mixed authorized/foreign-tenant entity matrix and per-entity summaries | `mixed_entity_overview_returns_only_current_tenant_entities_and_keeps_each_summary_separate` | IMPLEMENTED — R3; CI pending |\n| Consolidation rejects a foreign-tenant member before aggregation | `consolidation_rejects_a_foreign_tenant_entity_before_any_aggregate_is_returned` | IMPLEMENTED — R3; CI pending |\n| Direct Finance report grant without role grant | `direct_finance_report_grant_is_honoured_when_the_role_grant_is_absent` | IMPLEMENTED — R3; CI pending |\n| Inactive Finance permission | `inactive_finance_permission_is_not_authorized_even_when_a_role_pivot_remains` | IMPLEMENTED — R3; CI pending |\n| Inactive audience role | `inactive_finance_manager_role_fails_the_frozen_audience_gate` | IMPLEMENTED — R3; CI pending |\n| Wrong application assignment | `finance_manager_role_bound_to_another_application_fails_the_frozen_audience_gate` | IMPLEMENTED — R3; CI pending |\n| Wrong tenant assignment | `finance_manager_role_bound_to_another_tenant_fails_the_frozen_audience_gate` | IMPLEMENTED — R3; CI pending |
 | Runtime browser session/concurrency | App A4 authenticated browser suite, 8/8 tests | PASS |
-| Independent human security review | External reviewer required | MISSING |
+| Fresh independent technical retest | ChatGPT-led source, test, adversarial and evidence review of exact R4 heads | PENDING — R5 |
 
 ## Exact-HEAD evidence
 
