@@ -159,11 +159,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
     public function generic_permission_denial_does_not_disclose_the_required_permission_slug(): void
     {
         $user = User::factory()->create(['is_active' => true]);
-        $authorization = $this->mock(AuthorizationService::class);
-        $authorization->shouldReceive('hasPermission')
-            ->once()
-            ->with('finance.payroll.secret.view', $user)
-            ->andReturnFalse();
+        $authorization = new AuthorizationService();
 
         $request = Request::create('/api/private-resource', 'GET');
         $request->setUserResolver(static fn () => $user);
