@@ -72,9 +72,10 @@ use RuntimeException;
  * Each role's grant spec is a list of strings, each of which is one
  * of three forms:
  *
- *   1. '*' — the wildcard. Matches every permission in the
- *            permissions map. The role receives the ids of every
- *            permission passed in.
+ *   1. '*' — the wildcard. Resolves every permission in the
+ *            permissions map. After resolution, the explicit Executive
+ *            Overview audience exclusion removes dashboard.executive.view
+ *            from roles outside ceo, president and finance_manager.
  *
  *      NOTE: '*' is checked FIRST and SHORT-CIRCUITS. If a spec
  *      contains '*' plus any other form, the other forms are
