@@ -9,7 +9,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
 /**
  * PermissionCatalogue
  *
- * The platform's forty-four core permissions plus thirteen Finance permissions and three Admin security permissions (sixty total) — the atomic capabilities
+ * The platform's forty-five core permissions plus thirteen Finance permissions and three Admin security permissions (sixty-one total) — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -49,7 +49,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
  *
  *   category    — the permission's functional group. One of:
  *                 'user', 'role', 'permission', 'app_access',
- *                 'file', 'tenant', 'test'.
+ *                 'file', 'tenant', 'test', 'dashboard'.
  *
  *   scope       — the permission's scope of applicability. One of:
  *                 'global'      — platform-wide, not tied to a tenant.
@@ -77,7 +77,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
  * seeder's loop; that is not this unit's job.
  *
  * =============================================================================
- * The seven categories, and why they are not the same as scope
+ * The eight categories, and why they are not the same as scope
  * =============================================================================
  * 'category' groups permissions by the resource they act on, for
  * display and filtering in the management UI. 'scope' describes the
