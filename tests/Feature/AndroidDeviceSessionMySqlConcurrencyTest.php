@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Support\\Facades\\DB;
-use Laravel\\Sanctum\\PersonalAccessToken;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\DeviceSession;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Auth\\Services\\DeviceSessionService;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
+use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\PersonalAccessToken;
+use MaaleArna\MASES\Core\Auth\Models\DeviceSession;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Auth\Services\DeviceSessionService;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use RuntimeException;
-use Symfony\\Component\\HttpKernel\\Exception\\AccessDeniedHttpException;
-use Tests\\TestCase;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Tests\TestCase;
 use Throwable;
 
 /**
@@ -42,7 +42,7 @@ final class AndroidDeviceSessionMySqlConcurrencyTest extends TestCase
         $oldTokenId = (int) $issued->accessToken->getKey();
 
         $session = new DeviceSession();
-        $session->public_id = (string) \\Illuminate\\Support\\Str::uuid();
+        $session->public_id = (string) \Illuminate\Support\Str::uuid();
         $session->tenant_id = $tenant->getKey();
         $session->installation_hash = app(DeviceSessionService::class)->installationHash('parallel-refresh-installation');
         $session->platform = 'android';
