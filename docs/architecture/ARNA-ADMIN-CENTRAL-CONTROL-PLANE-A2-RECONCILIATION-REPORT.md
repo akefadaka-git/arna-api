@@ -402,3 +402,27 @@ A fresh fetch of current `arna-app/main` `src/router/guards.ts` at the A2 snapsh
 and checks permission metadata on every matched route record. Therefore, the nested parent/child permission-guard improvement visible in the PR #37 patch is already present in current main and must **not** be re-applied as a duplicate change. A3 frontend integration should preserve the current implementation and add/retain focused tests proving both the Admin parent `app.admin.access` gate and the child feature permission gate are enforced.
 
 *End of A2 mutation-audit and frontend-guard addendum.*
+
+
+---
+
+## 16. Role and permission catalogue crosswalk — A2 evidence
+
+The historical SQL dump records 20 distinct `custom_roles` names:
+`admin`, `ceo`, `board`, `cfo`, `cashier`, `shareholder`, `employee`, `manager`, `audit`, `hr`, `project_manager`, `guest`, `president`, `cto`, `secretary`, `user`, `seller`, `farmer`, `rider`, and `nbe_compliance_officer`.
+
+The historical SQL dump contains 53 `custom_permissions` rows in that snapshot. The Migration 002 execution report later recorded 67 `custom_permissions` after application/ARNA permission additions. The current API main central catalogue snapshot contains 60 effective core/Finance permission rows, plus additional domain catalogues.
+
+These counts are not interchangeable:
+- The historical custom role model uses role names and `hierarchy_level`.
+- Current API roles use `slug`, explicit `scope`, `tenant_id`, and `application_id`.
+- Historical application access is separately expressed by `platform_application_roles` and `platform_application_users`.
+- Current application-scoped role rows do not, by themselves, prove parity for historical application access levels or explicit user overrides.
+- Shared labels such as `ceo`, `board`, `cashier`, `shareholder`, `manager`, `president`, and `secretary` are candidates for mapping, not proof of identical grants or hierarchy.
+- Historical `admin` must not be silently equated with current `super_admin`, `platform_admin`, or `tenant_admin`.
+- Historical `cfo` must not be silently equated with current `finance_manager`.
+- Current `hr_manager` and `tenant_admin` have no direct one-to-one historical role name in the captured list.
+
+A safe crosswalk must be built from permission-by-permission and role-by-role effective grant sets, tenant scope, application scope, hierarchy/privilege ceiling, and actual assignments. Do not map numeric IDs, role names, or counts alone. Preserve unmatched roles and permissions until their business owner and disposition are established.
+
+**Disposition:** role and permission crosswalk remains **UNRESOLVED / BLOCKING** for A2 closure and A3 authorization.
