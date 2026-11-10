@@ -12,7 +12,7 @@
 4. Use a production database with TLS where the provider supports it. Configure `MYSQL_ATTR_SSL_CA` to the provider CA file when required.
 5. Configure SMTP using a verified sender and credentials stored only on the server.
 6. Set `APP_DEBUG=false`, `APP_ENV=production`, HTTPS `APP_URL`, encrypted secure HTTP-only session cookies, and the exact approved Sanctum stateful host list.
-7. Keep `config/cors.php`'s explicit origins aligned with deployed browser origins. Do not introduce wildcard origins while credentialed requests are enabled.
+7. Set `CORS_ALLOWED_ORIGINS` to the exact HTTPS origins of approved cookie-authenticated applications and keep it synchronized with `SANCTUM_STATEFUL_DOMAINS`. The initial production allow-list is limited to `app`, `portal`, and `admin`; add another hostname only after its authentication/API requirement is approved. Do not allow localhost or wildcard origins in production while credentialed requests are enabled.
 8. Restrict filesystem permissions: `.env` readable only by the application/deployment identity; `storage/` and `bootstrap/cache/` writable by the runtime identity. Deny web access to source, `.env`, vendor metadata, logs, and backups.
 
 ## 2. Read-only preflight
