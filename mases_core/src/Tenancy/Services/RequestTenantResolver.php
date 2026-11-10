@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Tenancy\\Services;
+namespace MaaleArna\MASES\Core\Tenancy\Services;
 
-use Illuminate\\Http\\Request;
-use MaaleArna\\MASES\\Core\\Platform\\Contracts\\TenantContextResolverInterface;
+use Illuminate\Http\Request;
+use MaaleArna\MASES\Core\Platform\Contracts\TenantContextResolverInterface;
 
 /**
  * Resolves tenant context from an explicit numeric tenant primary key or a
@@ -36,7 +36,7 @@ final class RequestTenantResolver implements TenantContextResolverInterface
         if ($headerTenant !== null && $headerTenant !== '') {
             if (
                 ! is_string($headerTenant)
-                || preg_match('/\\A[1-9][0-9]*\\z/D', $headerTenant) !== 1
+                || preg_match('/\A[1-9][0-9]*\z/D', $headerTenant) !== 1
                 || filter_var($headerTenant, FILTER_VALIDATE_INT, [
                     'options' => ['min_range' => 1],
                 ]) === false
@@ -57,7 +57,7 @@ final class RequestTenantResolver implements TenantContextResolverInterface
             $subdomain = substr($host, 0, -strlen($suffix));
 
             if (
-                preg_match('/\\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\z/D', $subdomain) === 1
+                preg_match('/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/D', $subdomain) === 1
                 && ! in_array($subdomain, $reservedDomains, true)
             ) {
                 return $subdomain;
