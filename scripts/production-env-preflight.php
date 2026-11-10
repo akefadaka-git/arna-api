@@ -9,6 +9,28 @@ declare(strict_types=1);
  * Reads values only; never prints secret values and never modifies the file.
  */
 
+$requiredExtensions = [
+    'ctype',
+    'curl',
+    'dom',
+    'fileinfo',
+    'mbstring',
+    'openssl',
+    'pdo',
+    'pdo_mysql',
+    'tokenizer',
+    'xml',
+];
+$missingExtensions = array_values(array_filter(
+    $requiredExtensions,
+    static fn (string $extension): bool => ! extension_loaded($extension)
+));
+
+fwrite(STDOUT, 'PHP runtime: '.PHP_VERSION.'; SAPI: '.PHP_SAPI."\n");
+if ($missingExtensions !== []) {
+    fwrite(STDERR, 'FAIL: required PHP extensions are not loaded: '.implode(', ', $missingExtensions)."\n");
+}
+
 $envPath = $argv[1] ?? dirname(__DIR__).'/.env';
 if (!is_file($envPath) || !is_readable($envPath)) {
     fwrite(STDERR, "FAIL: environment file is missing or unreadable.\n");
@@ -31,7 +53,7 @@ foreach (file($envPath, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
     $values[$matches[1]] = $value;
 }
 
-$failures = [];
+$failures = $missingExtensions === [] ? [] : ['Required PHP extensions are missing from the PHP runtime executing this script'];
 $require = static function (string $key) use (&$values, &$failures): string {
     $value = trim((string) ($values[$key] ?? ''));
     if ($value === '' || str_contains(strtoupper($value), 'CHANGE-ME')) {
@@ -92,4 +114,5 @@ if ($failures !== []) {
 }
 
 fwrite(STDOUT, "Production environment preflight: PASS\n");
-fwrite(STDOUT, "Validated production mode, HTTPS API URL, non-debug mode, MySQL configuration, Laravel key format, secure session cookie controls, and required SPA stateful hosts. Secret values were not displayed.\n");
+fwrite(STDOUT, "Validated the executing PHP runtime's required extensions, production mode, HTTPS API URL, non-debug mode, MySQL configuration, Laravel key format, secure session cookie controls, and required SPA stateful hosts. Secret values were not displayed.\n");
+fwrite(STDOUT, "NOTE: This reports the PHP runtime executing the script (normally CLI); confirm it matches the domain's PHP-FPM runtime in Plesk.\n");
