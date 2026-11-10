@@ -367,3 +367,38 @@ The preferred non-destructive implementation direction, subject to a later A3 au
 - Current live database state and Migration 002 execution status: **NOT VERIFIED**
 
 *End of schema mapping assessment.*
+
+
+---
+
+## 14. Mutation audit atomicity and test-quality findings
+
+The PR #85 source review shows that audit atomicity is not uniform across the lifecycle:
+
+- `createUser()` wraps user creation, initial membership, and the user-created audit in an outer transaction.
+- `syncRolePermissions()` includes the role-permission update and audit write in one transaction.
+- `TenantMembershipService::attach()` commits the membership insert, then writes security and audit events.
+- `TenantMembershipService::transition()` commits the status change, then writes audit and security events.
+- `updateUser()`, `createRole()`, and `updateRole()` persist the change before writing their audit event.
+- `syncUserRoles()` commits the pivot replacement, then writes its audit event and clears the user authorization cache.
+
+The standalone membership and other post-commit audit paths can produce a persisted state change without its required audit evidence if the subsequent audit/security write fails. A3 must standardize this behavior using a same-transaction audit write where compatible or a durable transactional outbox with idempotent delivery and failure recovery. Do not claim audit atomicity solely because the happy-path test sees an audit row.
+
+### Required failure and concurrency tests
+
+- Inject audit write failure during membership attach, suspend, reactivate and revoke; prove either the mutation rolls back or a durable outbox record guarantees retry.
+- Inject audit write failure during identity update, role create/update and user-role synchronization.
+- Verify authorization cache invalidation occurs after committed mutations and cannot leave stale grants.
+- Race actor permission removal against a role grant operation; prove the privilege ceiling is evaluated atomically or against a stable authorization version.
+- Test role-derived grant ceilings using a real tenant role assignment. The PR #85 test helper grants several permissions directly to the test user through the direct-permission relation; those tests do not alone prove the tenant role-derived grant path.
+- Test tenant A/B role assignment and permission scope with actual seeded/catalogue records, not only synthetic direct grants.
+
+## 15. Frontend guard correction
+
+A fresh fetch of current `arna-app/main` `src/router/guards.ts` at the A2 snapshot confirms it already contains:
+
+`for (const record of to.matched)`
+
+and checks permission metadata on every matched route record. Therefore, the nested parent/child permission-guard improvement visible in the PR #37 patch is already present in current main and must **not** be re-applied as a duplicate change. A3 frontend integration should preserve the current implementation and add/retain focused tests proving both the Admin parent `app.admin.access` gate and the child feature permission gate are enforced.
+
+*End of A2 mutation-audit and frontend-guard addendum.*
