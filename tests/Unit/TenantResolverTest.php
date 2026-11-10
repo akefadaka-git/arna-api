@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Config;
-use MaaleArna\\MASES\\Core\\Tenancy\\Services\\RequestTenantResolver;
-use Tests\\TestCase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
+use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use Tests\TestCase;
 
 final class TenantResolverTest extends TestCase
 {
