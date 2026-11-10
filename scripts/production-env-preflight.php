@@ -96,13 +96,13 @@ foreach ([
 }
 
 $hosts = array_values(array_unique(array_filter(array_map('trim', explode(',', $require('SANCTUM_STATEFUL_DOMAINS'))))));
-$requiredHosts = ['app.maalearna.com.et', 'portal.maalearna.com.et', 'admin.maalearna.com.et'];
+$requiredHosts = ['app.maalearna.com.et', 'portal.maalearna.com.et', 'admin.maalearna.com.et', 'www.maalearna.com.et'];
 $sortedHosts = $hosts;
 $sortedRequiredHosts = $requiredHosts;
 sort($sortedHosts);
 sort($sortedRequiredHosts);
 if ($sortedHosts !== $sortedRequiredHosts) {
-    $failures[] = 'SANCTUM_STATEFUL_DOMAINS must contain only the three approved app, portal, and admin hosts';
+    $failures[] = 'SANCTUM_STATEFUL_DOMAINS must contain exactly the four approved app, portal, admin, and public www hosts';
 }
 foreach ($hosts as $host) {
     if (str_contains($host, '://') || str_contains($host, '/') || str_contains($host, '*') || str_contains($host, ':')) {
@@ -118,7 +118,7 @@ $sortedExpectedOrigins = $expectedOrigins;
 sort($sortedOrigins);
 sort($sortedExpectedOrigins);
 if ($sortedOrigins !== $sortedExpectedOrigins) {
-    $failures[] = 'CORS_ALLOWED_ORIGINS must exactly match the HTTPS origins for the three approved stateful hosts';
+    $failures[] = 'CORS_ALLOWED_ORIGINS must exactly match the HTTPS origins for the four approved stateful hosts';
 }
 foreach ($origins as $origin) {
     $parts = parse_url($origin);
@@ -135,5 +135,5 @@ if ($failures !== []) {
 }
 
 fwrite(STDOUT, "Production environment preflight: PASS\n");
-fwrite(STDOUT, "Validated the executing PHP runtime's required extensions, production mode, HTTPS API URL, non-debug mode, MySQL configuration, Laravel key format, secure session cookie controls, and required SPA stateful hosts. Secret values were not displayed.\n");
+fwrite(STDOUT, "Validated the executing PHP runtime's required extensions, production mode, HTTPS API URL, non-debug mode, MySQL configuration, Laravel key format, secure session cookie controls, and all four approved SPA stateful hosts. Secret values were not displayed.\n");
 fwrite(STDOUT, "NOTE: This reports the PHP runtime executing the script (normally CLI); confirm it matches the domain's PHP-FPM runtime in Plesk.\n");
