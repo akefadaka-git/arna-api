@@ -63,6 +63,8 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           echo "A4 target SHA: ${GITHUB_SHA}"
+      - name: Create empty local environment file for deterministic test bootstrap
+        run: touch .env
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
       - name: Lint A4 PHP files

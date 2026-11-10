@@ -9,14 +9,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
-use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
+use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinancialReportContract;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 final class ExecutiveOverviewController
 {
     public function __construct(
         private readonly ExecutiveOverviewAccessPolicy $audience,
-        private readonly FinancialReportService $financialReports,
+        private readonly FinancialReportContract $financialReports,
     ) {}
 
     public function show(Request $request): JsonResponse
@@ -121,6 +121,7 @@ final class ExecutiveOverviewController
     {
         $direct = $user->permissions()
             ->where('permissions.slug', $permission)
+            ->where('permissions.scope', 'tenant')
             ->where('permissions.is_active', true)
             ->where(function ($scope) use ($tenantId): void {
                 $scope->whereNull('permissions.tenant_id')
@@ -146,6 +147,7 @@ final class ExecutiveOverviewController
             })
             ->whereHas('permissions', static function ($query) use ($permission, $tenantId): void {
                 $query->where('permissions.slug', $permission)
+                    ->where('permissions.scope', 'tenant')
                     ->where('permissions.is_active', true)
                     ->where(function ($scope) use ($tenantId): void {
                         $scope->whereNull('permissions.tenant_id')
