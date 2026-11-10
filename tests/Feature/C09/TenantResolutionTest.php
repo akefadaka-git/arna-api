@@ -7,6 +7,7 @@ namespace Tests\Feature\C09;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -581,6 +582,33 @@ final class TenantResolutionTest extends TestCase
      *     shareholderB: Shareholder,
      * }
      */
+    public function test_revoked_permission_ignores_a_stale_positive_cache_entry(): void
+    {
+        $scenario = $this->scenarioTwoTenants();
+        $user = $scenario['user'];
+        $tenantId = (int) $scenario['tenantA']->id;
+        $role = $user->roles()->firstOrFail();
+        $permission = $role->permissions()->where('slug', 'shareholder.view')->firstOrFail();
+
+        $cacheKey = sprintf(
+            'auth:permission:v2:%d:%s:%s:%s',
+            $user->id,
+            'shareholder.view',
+            $tenantId,
+            'null',
+        );
+
+        // Simulate a positive entry left behind when a cache invalidation
+        // listener fails after the authoritative permission pivot changes.
+        Cache::put($cacheKey, true, 300);
+        $role->permissions()->detach($permission->id);
+
+        $this->assertFalse(
+            app(AuthorizationService::class)->hasPermission('shareholder.view', $user, $tenantId),
+            'A stale positive cache entry must never preserve a revoked permission.',
+        );
+    }
+
     private function scenarioTwoTenants(): array
     {
         $tenantA = Tenant::create([

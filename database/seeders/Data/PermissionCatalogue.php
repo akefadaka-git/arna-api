@@ -9,7 +9,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
 /**
  * PermissionCatalogue
  *
- * The platform's forty-four core permissions plus thirteen Finance permissions and three Admin security permissions (sixty total) — the atomic capabilities
+ * The platform's forty-five core permissions plus thirteen Finance permissions and three Admin security permissions (sixty-one total) — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -47,9 +47,10 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
  *
  *   name_en     — the display name in Latin script.
  *
- *   category    — the permission's functional group. One of:
- *                 'user', 'role', 'permission', 'app_access',
- *                 'file', 'tenant', 'test'.
+ *   category    — the permission's functional display group. Examples include:
+ *                 'user', 'role', 'permission', 'app_access', 'file',
+ *                 'tenant', 'test', 'security', 'accounting',
+ *                 'public_content', 'announcement', 'dashboard'.
  *
  *   scope       — the permission's scope of applicability. One of:
  *                 'global'      — platform-wide, not tied to a tenant.
@@ -77,7 +78,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
  * seeder's loop; that is not this unit's job.
  *
  * =============================================================================
- * The seven categories, and why they are not the same as scope
+ * Categories and scope are orthogonal
  * =============================================================================
  * 'category' groups permissions by the resource they act on, for
  * display and filtering in the management UI. 'scope' describes the
@@ -197,5 +198,6 @@ final class PermissionCatalogue
             ['slug' => 'announcement.manage', 'name_am' => 'ማስታወቂያ ማዘጋጀትና ለማጽደቅ ማስገባት', 'name_en' => 'Create and Submit Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.approve', 'name_am' => 'ማስታወቂያ ማጽደቅ', 'name_en' => 'Approve Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.publish', 'name_am' => 'ማስታወቂያ ማተም', 'name_en' => 'Publish Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'dashboard.executive.view', 'name_am' => 'የአስፈጻሚ አጠቃላይ እይታን ማየት', 'name_en' => 'View Executive Overview', 'category' => 'dashboard', 'scope' => 'tenant', 'is_system' => false],
 ];
 }

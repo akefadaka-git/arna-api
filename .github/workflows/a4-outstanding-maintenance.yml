@@ -1,0 +1,76 @@
+name: ARNA outstanding A4 maintenance verification
+
+on:
+  pull_request:
+    branches:
+      - feat/executive-overview-a3
+    paths:
+      - ".github/workflows/a4-outstanding-maintenance.yml"
+      - "mases_core/src/Authorization/Services/AuthorizationService.php"
+      - "mases_core/src/Domains/Finance/Tests/**"
+      - "tests/Feature/C09/TenantResolutionTest.php"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a4-outstanding-maintenance-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  maintenance-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: arna_maintenance_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: arna_maintenance_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+      - name: Verify exact pull request checkout
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          echo "Maintenance target SHA: ${{ github.event.pull_request.head.sha }}"
+      - name: Create empty local environment file
+        run: touch .env
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Lint authorization service
+        run: php -l mases_core/src/Authorization/Services/AuthorizationService.php
+      - name: Run database migrations
+        run: php artisan migrate --force
+      - name: Run authorization tenant and cache-safety regressions
+        run: php artisan test --compact tests/Feature/C09/TenantResolutionTest.php
+      - name: Run complete Finance domain test suite
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests

@@ -39,8 +39,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  *            launcher.
  *
  *          · The change preserves the role hierarchy: super_admin
- *            remains the only role with universal access (its ['*']
- *            wildcard resolves to all 51 permissions), and the four
+ *            remains the only role with wildcard-wide access (subject to
+ *            the explicit Executive Overview audience exclusion), and the four
  *            end-user applications remain exclusive to the roles
  *            whose purpose they serve (tenant_admin for the tenant-
  *            scoped grants, and the end-user roles for their own).
@@ -59,6 +59,17 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  *            can be certain of the file state before re-seeding; no
  *            code changed.
  *
+ * 2026-11-09 — A3 Executive Overview audience grant.
+ *
+ *          Adds dashboard.executive.view only to ceo, president and
+ *          finance_manager. The permission is tenant-scoped and does not
+ *          grant access to any domain data.
+ *
+ *          The RolePermissionSeeder applies a post-resolution exclusion
+ *          so super_admin ('*'), platform_admin (scope:tenant), and
+ *          tenant_admin (scope:tenant) do not inherit this permission.
+ *          No other role's permission set is widened by this addition.
+ *
  * =============================================================================
  * What this class is — and is not
  * =============================================================================
@@ -72,10 +83,11 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  * =============================================================================
  * A grant spec is a STRING. Three forms are recognised by the seeder:
  *
- *   1. '*' — the wildcard grant. Matches every permission in the
- *            catalogue.
+ *   1. '*' — the wildcard grant. Resolves every permission in the
+ *            catalogue before the seeder's explicit policy exclusions.
  *
- *      Used by: super_admin.
+ *      Used by: super_admin. The seeder explicitly excludes
+ *               dashboard.executive.view for this role.
  *
  *   2. 'scope:{scope}' — the scope grant. Matches every permission
  *                        in the catalogue whose `scope` field equals
@@ -87,7 +99,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  *                          scope:application
  *
  *      Used by: platform_admin (scope:global, scope:tenant),
- *               tenant_admin (scope:tenant).
+ *               tenant_admin (scope:tenant). The seeder explicitly excludes
+ *               dashboard.executive.view for both roles.
  *
  *   3. A literal permission slug — the exact grant. Matches the one
  *      permission whose slug equals the string. Every slug used
@@ -115,16 +128,16 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
  * =============================================================================
  * The twelve roles and their grant strategy
  * =============================================================================
- *   super_admin     — '*'              : every permission
+ *   super_admin     — '*'              : every permission except explicit policy exclusions
  *
- *   platform_admin  — scope:global + scope:tenant
+ *   platform_admin  — scope:global + scope:tenant, subject to explicit policy exclusions
  *                     + app.admin.access + app.app.access
  *                     + app.launcher.access
  *                                      : the two non-application scopes
  *                                        plus the three platform-operation
  *                                        applications
  *
- *   tenant_admin    — scope:tenant + every 'app.*.access'
+ *   tenant_admin    — scope:tenant + every 'app.*.access', subject to explicit policy exclusions
  *                                      : everything scoped to a tenant,
  *                                        plus explicit access to all
  *                                        seven applications
@@ -215,7 +228,7 @@ final class RolePermissionGrants
             'file.list', 'file.view', 'file.download', 'announcement.view',
             ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
         ],
-        'finance_manager' => FinanceRolePermissionGrants::MAP['finance_manager'],
+        'finance_manager' => [...FinanceRolePermissionGrants::MAP['finance_manager'], 'dashboard.executive.view'],
         'hr_manager'      => [
             'app.hr.access',
             'file.upload', 'file.download', 'file.view', 'file.list',
@@ -234,7 +247,7 @@ final class RolePermissionGrants
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['president'], 'app.admin.access',
             'user.profile.view', 'user.list',
             'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish',
-            'role.list', 'permission.list',
+            'role.list', 'permission.list', 'dashboard.executive.view',
         ],
         'secretary'       => [
             'app.portal.access', 'user.profile.view', 'announcement.view', 'announcement.manage',
@@ -244,7 +257,7 @@ final class RolePermissionGrants
         'ceo'             => [
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['ceo'], 'app.hr.access', 'app.admin.access',
             'user.profile.view', 'user.list', 'user.create', 'user.update',
-            'role.list', 'permission.list',
+            'role.list', 'permission.list', 'dashboard.executive.view',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
     ];

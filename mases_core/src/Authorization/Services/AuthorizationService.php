@@ -116,9 +116,10 @@ use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
  *
  *     auth:permission:{userId}:{permissionSlug}:{tenantId}:{applicationId}
  *
- * The cached value is a boolean: `true` or `false`. Both answers are cached,
- * because a negative answer is just as expensive to compute as a positive
- * one and just as valid to cache (until a role or permission change).
+ * Only negative answers are cached. Positive answers are always evaluated
+ * against current database pivots so a failed invalidation cannot preserve
+ * revoked privileges. A stale negative may delay a newly granted permission
+ * until the 300-second TTL expires, but it cannot widen access.
  *
  * Application slug → ID lookups are cached separately:
  *
@@ -146,11 +147,9 @@ use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
  *
  *     auth:user_keys:{userId}  →  [ "auth:permission:1:...", "auth:permission:1:...", ... ]
  *
- * The registry is written by `addUserCacheKey()`, which is called from
- * `hasPermission()` immediately before each `remember()` call. Registration
- * is idempotent: if the key is already listed, no cache write happens. This
- * means the hot path (a repeated permission check) costs one extra cache
- * read for the registry, and no write.
+ * The registry is written by `addUserCacheKey()` only when a negative
+ * permission result is cached. Registration is idempotent: if the key is
+ * already listed, no registry write happens.
  *
  * Invalidation then becomes straightforward:
  *
@@ -298,10 +297,10 @@ final class AuthorizationService
      *   means "not specific to one application".
      *
      * Cache behaviour:
-     *   The result is cached under a key that embeds user, permission, tenant,
-     *   and application — so different contexts do not collide. The key is
-     *   registered with the per-user registry so `clearUserCache()` can find
-     *   and remove it later. See the class docblock.
+     *   Negative results are cached under a key that embeds user, permission,
+     *   tenant, and application. Positive results are re-read from current
+     *   database pivots on every call. The v2 key namespace prevents legacy
+     *   positive entries from being reused.
      *
      * @param string          $permissionSlug    Permission slug, e.g. 'finance.transaction.create'.
      * @param User|null       $user              User to check. Null = current authenticated user.
@@ -342,99 +341,36 @@ final class AuthorizationService
         // Every dimension of the check appears in the key, so different
         // contexts (same user, different tenant) never collide.
         $cacheKey = sprintf(
-            'auth:permission:%d:%s:%s:%s',
+            'auth:permission:v2:%d:%s:%s:%s',
             $user->id,
             $permissionSlug,
             $tenantId ?: 'null',
             $applicationId ?: 'null'
         );
 
-        // Register the key BEFORE the remember() call. Two reasons:
-        //   1. If the closure throws (e.g. DB error), the key was still
-        //      tracked, so an invalidation later will still attempt to
-        //      remove it — harmless if it never got written.
-        //   2. The registry is consulted by addUserCacheKey() to decide
-        //      whether a write is needed; registering first means the very
-        //      first check on a cold cache performs one write, subsequent
-        //      checks on the same key perform zero writes.
-        $this->addUserCacheKey($user, $cacheKey);
+        // Cache denials only. A cached positive authorization result can
+        // preserve revoked access if any invalidation path fails. Positive
+        // grants are therefore re-evaluated against the authoritative pivots
+        // on every call; a stale negative can delay a new grant but cannot
+        // widen privileges.
+        $cached = $this->cache->get($cacheKey);
+        if ($cached === false) {
+            return false;
+        }
 
-        return $this->cache->remember($cacheKey, self::CACHE_DURATION, function () use (
+        $allowed = $this->resolvePermissionFromDatabase(
             $user,
             $permissionSlug,
             $tenantId,
-            $applicationId
-        ) {
-            // ------------------------------------------------------------
-            // Path A — direct permissions.
-            // A user may hold a permission without it being attached to
-            // any of their roles. Check the direct pivot first.
-            // ------------------------------------------------------------
-            $hasDirect = $user->permissions()
-                ->where('slug', $permissionSlug)
-                ->where('is_active', true)
-                ->when(
-                    $tenantId !== null,
-                    function ($query) use ($tenantId) {
-                        $query->where(function ($q) use ($tenantId) {
-                            $q->where('tenant_id', $tenantId)
-                                ->orWhereNull('tenant_id');
-                        });
-                    },
-                    fn ($query) => $query->whereNull('tenant_id')
-                )
-                ->when($applicationId !== null, function ($query) use ($applicationId) {
-                    $query->where(function ($q) use ($applicationId) {
-                        $q->where('application_id', $applicationId)
-                            ->orWhereNull('application_id');
-                    });
-                })
-                ->exists();
+            $applicationId,
+        );
 
-            if ($hasDirect) {
-                return true;
-            }
+        if (!$allowed) {
+            $this->addUserCacheKey($user, $cacheKey);
+            $this->cache->put($cacheKey, false, self::CACHE_DURATION);
+        }
 
-            // ------------------------------------------------------------
-            // Path B — permissions inherited via roles.
-            // For every role the user holds, check if any of its attached
-            // permissions matches the requested slug, subject to the same
-            // tenant and application scoping rules as Path A.
-            // ------------------------------------------------------------
-            return $user->roles()
-                ->where('is_active', true)
-                ->whereHas('permissions', function ($query) use ($permissionSlug, $tenantId) {
-                    $query->where('slug', $permissionSlug)
-                        ->where('is_active', true)
-                        ->when(
-                            $tenantId !== null,
-                            function ($permissionQuery) use ($tenantId) {
-                                $permissionQuery->where(function ($q) use ($tenantId) {
-                                    $q->where('tenant_id', $tenantId)
-                                        ->orWhereNull('tenant_id');
-                                });
-                            },
-                            fn ($permissionQuery) => $permissionQuery->whereNull('tenant_id')
-                        );
-                })
-                ->when(
-                    $tenantId !== null,
-                    function ($query) use ($tenantId) {
-                        $query->where(function ($q) use ($tenantId) {
-                            $q->where('tenant_id', $tenantId)
-                                ->orWhereNull('tenant_id');
-                        });
-                    },
-                    fn ($query) => $query->whereNull('tenant_id')
-                )
-                ->when($applicationId !== null, function ($query) use ($applicationId) {
-                    $query->where(function ($q) use ($applicationId) {
-                        $q->where('application_id', $applicationId)
-                            ->orWhereNull('application_id');
-                    });
-                })
-                ->exists();
-        });
+        return $allowed;
     }
 
     /**
@@ -851,13 +787,82 @@ final class AuthorizationService
     }
 
     /**
+     * Resolve a permission against current database pivots without caching a
+     * positive result. This is the security boundary that prevents a failed
+     * cache invalidation from retaining revoked privileges.
+     */
+    private function resolvePermissionFromDatabase(
+        User $user,
+        string $permissionSlug,
+        int|string|null $tenantId,
+        ?int $applicationId,
+    ): bool {
+        $hasDirect = $user->permissions()
+            ->where('slug', $permissionSlug)
+            ->where('is_active', true)
+            ->when(
+                $tenantId !== null,
+                function ($query) use ($tenantId) {
+                    $query->where(function ($q) use ($tenantId) {
+                        $q->where('tenant_id', $tenantId)
+                            ->orWhereNull('tenant_id');
+                    });
+                },
+                fn ($query) => $query->whereNull('tenant_id')
+            )
+            ->when($applicationId !== null, function ($query) use ($applicationId) {
+                $query->where(function ($q) use ($applicationId) {
+                    $q->where('application_id', $applicationId)
+                        ->orWhereNull('application_id');
+                });
+            })
+            ->exists();
+
+        if ($hasDirect) {
+            return true;
+        }
+
+        return $user->roles()
+            ->where('is_active', true)
+            ->whereHas('permissions', function ($query) use ($permissionSlug, $tenantId) {
+                $query->where('slug', $permissionSlug)
+                    ->where('is_active', true)
+                    ->when(
+                        $tenantId !== null,
+                        function ($permissionQuery) use ($tenantId) {
+                            $permissionQuery->where(function ($q) use ($tenantId) {
+                                $q->where('tenant_id', $tenantId)
+                                    ->orWhereNull('tenant_id');
+                            });
+                        },
+                        fn ($permissionQuery) => $permissionQuery->whereNull('tenant_id')
+                    );
+            })
+            ->when(
+                $tenantId !== null,
+                function ($query) use ($tenantId) {
+                    $query->where(function ($q) use ($tenantId) {
+                        $q->where('tenant_id', $tenantId)
+                            ->orWhereNull('tenant_id');
+                    });
+                },
+                fn ($query) => $query->whereNull('tenant_id')
+            )
+            ->when($applicationId !== null, function ($query) use ($applicationId) {
+                $query->where(function ($q) use ($applicationId) {
+                    $q->where('application_id', $applicationId)
+                        ->orWhereNull('application_id');
+                });
+            })
+            ->exists();
+    }
+
+    /**
      * Register a cache key in the user's invalidation registry.
      *
      * Idempotent: if the key is already present in the registry, nothing is
-     * written. This keeps the hot path cheap — a repeated `hasPermission()`
-     * call for the same (user, permission, tenant, application) tuple does
-     * exactly one cache read (for the registry) and one cache read (for the
-     * boolean result), and zero writes.
+     * written. Only negative permission results are registered because
+     * positive results are deliberately never persisted to the cache.
      *
      * If the registry does not yet exist, it is created with a single-entry
      * list. If it exists but is not an array (possible if something else

@@ -46,6 +46,8 @@ on:
       # change must run this financial-integrity gate.
       - "mases_core/src/Domains/Loan/**"
       - "tests/Feature/LoanRepaymentMySqlConcurrencyTest.php"
+      - "tests/Feature/ExecutiveOverviewAuthorizationTest.php"
+      - "tests/Feature/ExecutiveOverviewRouteTest.php"
       - "mases_core/src/Notifications/**"
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
@@ -240,6 +242,12 @@ jobs:
 
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
+
+      - name: Run Executive Overview canonical RBAC and wildcard regressions on migrated MySQL
+        run: php artisan test --compact tests/Feature/ExecutiveOverviewAuthorizationTest.php
+
+      - name: Run Executive Overview authenticated route and metadata-disclosure regressions on migrated MySQL
+        run: php artisan test --compact tests/Feature/ExecutiveOverviewRouteTest.php
 
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php

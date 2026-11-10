@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Database\Seeders\Data\RolePermissionGrants;
+use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
 use Illuminate\Database\Seeder;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
@@ -14,7 +15,7 @@ use RuntimeException;
  * RolePermissionSeeder
  *
  * Attaches permissions to roles — the join-table writes that turn the
- * twelve role definitions and sixty permissions into a
+ * twelve role definitions and sixty-one permissions into a
  * meaningful authorization graph. Runs after RoleSeeder and
  * PermissionSeeder, before the two user seeders.
  *
@@ -71,9 +72,10 @@ use RuntimeException;
  * Each role's grant spec is a list of strings, each of which is one
  * of three forms:
  *
- *   1. '*' — the wildcard. Matches every permission in the
- *            permissions map. The role receives the ids of every
- *            permission passed in.
+ *   1. '*' — the wildcard. Resolves every permission in the
+ *            permissions map. After resolution, the explicit Executive
+ *            Overview audience exclusion removes dashboard.executive.view
+ *            from roles outside ceo, president and finance_manager.
  *
  *      NOTE: '*' is checked FIRST and SHORT-CIRCUITS. If a spec
  *      contains '*' plus any other form, the other forms are
@@ -84,7 +86,8 @@ use RuntimeException;
  *                        permission whose `scope` field equals the
  *                        named scope (e.g. 'global', 'tenant',
  *                        'application'). The role receives the ids
- *                        of every matching permission.
+ *                        of matching permissions before the same
+ *                        post-resolution policy exclusion is applied.
  *
  *   3. A literal permission slug — the exact match. The role
  *      receives the id of the single permission whose key equals
@@ -97,22 +100,18 @@ use RuntimeException;
  * slug, when file.view has scope 'tenant' — is attached once.
  *
  * =============================================================================
- * The sync semantics
+ * The synchronization semantics
  * =============================================================================
- * The final write is `$role->permissions()->sync($ids)`. Laravel's
- * sync is REPLACE-with-diff: it attaches missing ids, detaches
- * extra ids, and leaves matching ids in place. It does NOT append.
+ * Canonical catalogue grants are additive. The seeder calls
+ * `Role::grantPermissions()`, which uses syncWithoutDetaching() and
+ * dispatches the role-permission change event for cache invalidation.
+ * Existing grants not represented in the catalogue are preserved.
  *
- * This gives the seeder two properties:
- *
- *   · Idempotent. Running the seeder repeatedly produces the same
- *     pivot state. The second run detaches nothing and attaches
- *     nothing (the diff is empty).
- *
- *   · Correcting. If a role's permission set was manually edited
- *     between runs, the next run restores it to the catalogue's
- *     definition. This is intentional — the catalogue is the
- *     authority for what each role holds.
+ * The Executive Overview permission is the explicit exception: because
+ * its audience is a frozen security boundary, it is removed from every
+ * non-approved role, including legacy/custom assignments. Other
+ * permission removals must use a separately governed revocation workflow;
+ * this seeder is not a general-purpose permission-reconciliation tool.
  *
  * =============================================================================
  * Why seed() returns void
@@ -223,11 +222,12 @@ use RuntimeException;
 final class RolePermissionSeeder extends Seeder
 {
     /**
-     * Resolve each role's grant spec and sync it to the role's
-     * permission pivot.
+     * Resolve each role's grant spec and add canonical grants without
+     * removing permissions assigned by other governed workflows.
      *
-     * Idempotent: sync replaces with diff, so a second run is a
-     * no-op. See the class docblock §"The sync semantics".
+     * Repeated runs are idempotent because grantPermissions() only
+     * attaches missing pivot rows. The Executive Overview audience
+     * exclusion remains an explicit, narrowly scoped revocation.
      *
      * @param array<string, Role>       $roles
      *        the persisted role models, keyed by slug, as returned by
@@ -261,13 +261,44 @@ final class RolePermissionSeeder extends Seeder
             }
 
             /*
-             * Resolve the grant spec to a concrete list of permission
-             * ids, then sync it. sync() replaces with diff — see the
-             * class docblock §"The sync semantics".
+             * Resolve the canonical grant spec to permission ids. These
+             * grants are added without replacing permissions assigned by
+             * administrators or other governed workflows.
              */
-            $roles[$roleSlug]->permissions()->sync(
-                $this->resolvePermissionIds($grantSpec, $permissions)
-            );
+            $permissionIds = $this->resolvePermissionIds($grantSpec, $permissions);
+
+            /*
+             * The tenant-scoped Executive Overview permission must never
+             * flow through legacy wildcard grants. It is explicitly revoked
+             * below for roles outside the frozen audience, even when it was
+             * previously attached as a direct/custom role grant.
+             */
+            $executivePermission = $permissions['dashboard.executive.view'] ?? null;
+            if (
+                $executivePermission !== null
+                && !in_array($roleSlug, ExecutiveOverviewAccessPolicy::ROLE_SLUGS, true)
+            ) {
+                $executivePermissionId = (int) $executivePermission->id;
+                $permissionIds = array_values(array_filter(
+                    $permissionIds,
+                    static fn (int $permissionId): bool => $permissionId !== $executivePermissionId
+                ));
+            }
+
+            // Catalogue seeding is additive: preserve custom grants that
+            // are not represented in the canonical grant map. The model
+            // dispatches RolePermissionsChanged after a successful write.
+            $roles[$roleSlug]->grantPermissions($permissionIds);
+
+            // The Executive Overview audience is a hard security boundary,
+            // not an additive grant. Remove this one permission from every
+            // role outside the approved audience, including legacy grants.
+            if (
+                $executivePermission !== null
+                && !in_array($roleSlug, ExecutiveOverviewAccessPolicy::ROLE_SLUGS, true)
+            ) {
+                $roles[$roleSlug]->revokePermissionTo($executivePermission);
+            }
         }
     }
 
