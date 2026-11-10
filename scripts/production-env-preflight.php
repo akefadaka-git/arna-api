@@ -64,7 +64,7 @@ $require = static function (string $key) use (&$values, &$failures): string {
 
 if ($require('APP_ENV') !== 'production') $failures[] = 'APP_ENV must equal production';
 if (strtolower($require('APP_DEBUG')) !== 'false') $failures[] = 'APP_DEBUG must be false';
-if (!str_starts_with($require('APP_URL'), 'https://api.')) $failures[] = 'APP_URL must be the HTTPS API origin';
+if ($require('APP_URL') !== 'https://api.maalearna.com.et') $failures[] = 'APP_URL must equal https://api.maalearna.com.et';
 if ($require('DB_CONNECTION') !== 'mysql') $failures[] = 'DB_CONNECTION must be mysql';
 $require('DB_HOST');
 $require('DB_DATABASE');
