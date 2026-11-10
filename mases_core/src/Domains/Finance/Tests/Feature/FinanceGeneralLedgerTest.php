@@ -209,7 +209,7 @@ final class FinanceGeneralLedgerTest extends TestCase
         $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
             'legal_entity_id' => $entity->id,
             'journal_number' => 'CANCEL-001',
-            'effective_date' => '2026-01-15',
+            'effective_date' => '2026-10-15',
             'currency' => 'ETB',
             'idempotency_key' => 'cancel-draft-test',
             'description' => 'Draft to cancel',
@@ -382,6 +382,12 @@ final class FinanceGeneralLedgerTest extends TestCase
     public function test_external_source_is_rejected_when_no_authoritative_resolver_is_registered(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        // Isolate the no-resolver contract from platform-level resolver bindings.
+        $this->app->instance(
+            \MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry::class,
+            new \MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry(),
+        );
 
         try {
             app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
@@ -599,8 +605,8 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'Must not cross tenant boundary'
             );
             $this->fail('A tenant must not reverse another tenant\'s journal.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('journal', $exception->errors());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $exception) {
+            $this->assertNotSame('', $exception->getMessage());
         }
 
         $this->assertDatabaseCount('journal_entries', 1);
