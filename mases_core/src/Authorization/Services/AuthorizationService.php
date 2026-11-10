@@ -348,16 +348,6 @@ final class AuthorizationService
             $applicationId ?: 'null'
         );
 
-        // Register the key BEFORE the remember() call. Two reasons:
-        //   1. If the closure throws (e.g. DB error), the key was still
-        //      tracked, so an invalidation later will still attempt to
-        //      remove it — harmless if it never got written.
-        //   2. The registry is consulted by addUserCacheKey() to decide
-        //      whether a write is needed; registering first means the very
-        //      first check on a cold cache performs one write, subsequent
-        //      checks on the same key perform zero writes.
-        $this->addUserCacheKey($user, $cacheKey);
-
         // Cache denials only. A cached positive authorization result can
         // preserve revoked access if any invalidation path fails. Positive
         // grants are therefore re-evaluated against the authoritative pivots
@@ -871,10 +861,8 @@ final class AuthorizationService
      * Register a cache key in the user's invalidation registry.
      *
      * Idempotent: if the key is already present in the registry, nothing is
-     * written. This keeps the hot path cheap — a repeated `hasPermission()`
-     * call for the same (user, permission, tenant, application) tuple does
-     * exactly one cache read (for the registry) and one cache read (for the
-     * boolean result), and zero writes.
+     * written. Only negative permission results are registered because
+     * positive results are deliberately never persisted to the cache.
      *
      * If the registry does not yet exist, it is created with a single-entry
      * list. If it exists but is not an array (possible if something else
