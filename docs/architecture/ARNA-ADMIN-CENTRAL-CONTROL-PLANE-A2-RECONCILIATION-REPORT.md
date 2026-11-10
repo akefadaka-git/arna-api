@@ -1,7 +1,7 @@
 # ARNA Admin Central Control Plane — A2 Read-only Reconciliation Report
 
 **Document ID:** ARNA-ADM-CP-A2-RR-001  
-**Version:** 1.0.0  
+**Version:** 1.0.2  
 **Review date:** 10 November 2026  
 **Status:** A2 evidence review completed; schema authority and integration decisions remain open  
 **Owner:** Akefa Ayele Daka  
@@ -316,3 +316,54 @@ The earlier A2 schema disposition remains **UNRESOLVED / BLOCKING**, but the his
 - Production migration or data mutation: **NOT PERFORMED**.
 
 *End of supplemental v1.0.1 correction.*
+
+
+---
+
+## 13. Non-destructive schema mapping assessment — v1.0.2
+
+The historical SQL dump and Migration 002 capture establish that the mismatch is structural, not just a difference between `tenant_key` and `tenant_id`.
+
+| Historical approved structure | Current API main structure | Material difference |
+|---|---|---|
+| `custom_roles`: role name and hierarchy level | `roles`: slug, scope, tenant_id, application_id, active state | Tenant/application scope moved from assignment/application maps into role rows; role hierarchy is not represented equivalently |
+| `custom_permissions`: slug and description | `permissions`: slug, scope, tenant_id, application_id, system/category metadata | Scope and tenant/application ownership are modelled differently |
+| `custom_user_roles`: user_id + role_id + tenant_key | `user_has_roles`: user_id + role_id; tenant scope is on the Role row | Tenant dimension moved out of the assignment key |
+| `custom_role_permissions`: role_id + permission_id + tenant_key | `role_has_permissions`: role_id + permission_id | Tenant dimension moved out of the permission assignment pivot |
+| `custom_user_permissions`: user_id + permission_id + tenant_key | `user_has_permissions`: user_id + permission_id | Tenant dimension is absent from the current direct-permission pivot |
+| `users.tenant_key` | `users.default_tenant_id` | String home-tenant key versus numeric FK |
+| `tenant_memberships.tenant_key` | `tenant_memberships.tenant_id` | String tenant key versus numeric FK; historical membership type/primary flag differ |
+| `platform_application_roles` | `roles.scope='application'` and `roles.application_id` | Current model does not demonstrate historical tenant-specific access_level/enablement semantics |
+| `platform_application_users` | No equivalent current source path found | Explicit per-user application allow/deny, access level, expiry, reason and grantor are not represented |
+| `arna_tool_permission_map` | No equivalent current source path found | ARNA tool-to-MASES permission authorization mapping is not represented |
+| `tenant_context_audit` | Generic audit/security event services | No verified field-for-field or retention-equivalent mapping |
+
+### 13.1 Required mapping rules
+
+1. Resolve each historical `tenant_key` to exactly one canonical tenant record. Reject missing, duplicate, ambiguous, or inactive mappings; never infer a mapping from display names.
+2. Do not map role or permission records by numeric ID across the two schema families. IDs are independently allocated. Use reviewed stable identifiers (permission slug; role name-to-canonical-slug mapping) and record every ambiguous alias.
+3. Preserve the tenant dimension for role assignments and role-permission grants. A mapping that drops `tenant_key` can broaden grants across tenants and is unacceptable.
+4. Preserve the historical application access level, enabled/disabled state, explicit user allow/deny override, expiry, reason, and grantor semantics where those records exist.
+5. Preserve ARNA tool-to-permission mapping and tenant-context audit semantics; generic audit logs are not automatically equivalent.
+6. Keep `custom_user_permissions` records intact. The later Owner deferral of direct per-user tenant permission operations remains binding: this A2 Admin slice must not expose a new mutation endpoint for them.
+7. Keep Laravel-standard `roles`, `permissions`, `model_has_roles`, `model_has_permissions`, and `role_has_permissions` untouched as the historical compatibility requirement specifies.
+8. Do not dual-write or mirror grants between the custom and current model families until a single canonical write authority, consistency/repair protocol, cache behavior, and rollback boundary are approved.
+
+### 13.2 Recommended architecture disposition
+
+The previously approved design remains the authority: MASES/ARNA cross-application and API authorization reads must resolve from the tenant-aware `custom_*` family. The current `AuthorizationService` and the #84/#85 controller proposals currently resolve through the newer `roles`/`permissions` model family and therefore cannot be accepted unchanged.
+
+The preferred non-destructive implementation direction, subject to a later A3 authorization, is a single authorization service backed by the approved custom RBAC tables, with explicit tenant-key resolution and narrowly scoped adapters for any existing application code that still reads the current Laravel-style tables. This is not permission to start that refactor. First obtain the complete approved Migration 002 source and a read-only live schema/data inventory; then produce a row-level mapping and parity test plan for Owner acceptance.
+
+### 13.3 Additional A2 gate status
+
+- Historical/current RBAC structural comparison: **COMPLETED**
+- Canonical authorization authority: **CONFIRMED — historical Owner decision**
+- Tenant-key-to-tenant-ID mapping: **UNRESOLVED**
+- Role and permission crosswalk: **UNRESOLVED**
+- Application access-level and user-override crosswalk: **UNRESOLVED**
+- ARNA tool-permission mapping: **UNRESOLVED**
+- Tenant-context audit equivalence: **UNRESOLVED**
+- Current live database state and Migration 002 execution status: **NOT VERIFIED**
+
+*End of schema mapping assessment.*
