@@ -47,13 +47,13 @@ Do not assume that all four frontend hostnames are already created or point to t
 
 ## 4. Production environment contract
 
-The API hardening PR currently defines the initial cookie-authenticated host set as:
+The approved cookie-authenticated browser-origin allow-list is exactly:
 
-- Sanctum stateful hosts: `app.maalearna.com.et`, `portal.maalearna.com.et`, `admin.maalearna.com.et`
-- CORS origins: `https://app.maalearna.com.et`, `https://portal.maalearna.com.et`, `https://admin.maalearna.com.et`
+- Sanctum stateful hosts: `app.maalearna.com.et`, `portal.maalearna.com.et`, `admin.maalearna.com.et`, `www.maalearna.com.et`
+- CORS origins: `https://app.maalearna.com.et`, `https://portal.maalearna.com.et`, `https://admin.maalearna.com.et`, `https://www.maalearna.com.et`
 - API origin: `https://api.maalearna.com.et`
 
-The public `www` site is not included in the initial cookie-authenticated allow-list. Add any additional hostname only after its API and cookie-authentication requirement is reviewed and the CORS/Sanctum configuration is updated together.
+The public `www` origin is included because the public corporate website calls API content and public contributor verification/submission endpoints. Those routes are explicitly outside authenticated/tenant-scoped route groups and have route-level throttles. This origin allow-list does not grant authenticated Workspace, Portal, or Admin authorization; server-side auth, tenant membership, and permission checks remain mandatory for protected routes. Keep public endpoints validated and abuse-monitored. Do not add wildcard origins.
 
 Before configuration:
 - [ ] Create a least-privilege database account; do not use database root.
@@ -77,7 +77,7 @@ Each frontend must be deployed to its own confirmed document root. Never copy on
 - [ ] Use long-lived immutable caching for fingerprinted assets and short/no-cache behavior for `index.html`.
 - [ ] Keep the previous complete release available until acceptance passes.
 
-**Artifact delivery gap:** the current App A5 workflow builds and verifies the four output directories but does not upload downloadable workflow artifacts. A separate Owner-approved change is required before adding artifact publication/retention to CI. Do not assume a downloadable ZIP is currently available from the successful workflow run.
+**Artifact handling:** App CI currently creates four downloadable ZIP artifacts with hidden files (including `.htaccess`) preserved and a one-day retention period. Retrieve and verify the artifact from the exact approved App workflow run; do not use an expired or mismatched build. Artifact availability is not deployment authorization.
 
 ## 6. Deployment sequence — approval required
 
@@ -95,12 +95,12 @@ Never run `migrate:fresh`, destructive seeders, or unreviewed migrations against
 
 ## 7. Acceptance evidence required
 
-- [ ] Plesk screenshot or written record of current PHP-FPM version/handler and extensions.
+- [ ] Plesk record of current PHP-FPM version/handler and extensions.
 - [ ] Actual document roots for all five hosts.
 - [ ] DNS and HTTPS certificate checks for each hostname.
 - [ ] Redacted preflight result; no secret values.
 - [ ] Database connection and migration-status evidence.
-- [ ] CORS/CSRF cookie and login/logout browser tests.
+- [ ] CORS/CSRF cookie and login/logout browser tests for each applicable first-party origin.
 - [ ] Tenant resolution and authorization tests, including Finance allow/deny cases.
 - [ ] Backup timestamp and successful isolated restore evidence.
 - [ ] Static route refresh, CSP/security headers, and asset-cache checks.
