@@ -95,14 +95,35 @@ foreach ([
     }
 }
 
-$hosts = array_filter(array_map('trim', explode(',', $require('SANCTUM_STATEFUL_DOMAINS'))));
+$hosts = array_values(array_unique(array_filter(array_map('trim', explode(',', $require('SANCTUM_STATEFUL_DOMAINS'))))));
 $requiredHosts = ['app.maalearna.com.et', 'portal.maalearna.com.et', 'admin.maalearna.com.et'];
-foreach ($requiredHosts as $host) {
-    if (!in_array($host, $hosts, true)) $failures[] = "SANCTUM_STATEFUL_DOMAINS is missing {$host}";
+$sortedHosts = $hosts;
+$sortedRequiredHosts = $requiredHosts;
+sort($sortedHosts);
+sort($sortedRequiredHosts);
+if ($sortedHosts !== $sortedRequiredHosts) {
+    $failures[] = 'SANCTUM_STATEFUL_DOMAINS must contain only the three approved app, portal, and admin hosts';
 }
 foreach ($hosts as $host) {
-    if (str_contains($host, '://') || str_contains($host, '/') || str_contains($host, '*')) {
+    if (str_contains($host, '://') || str_contains($host, '/') || str_contains($host, '*') || str_contains($host, ':')) {
         $failures[] = 'SANCTUM_STATEFUL_DOMAINS must contain exact hostnames only';
+        break;
+    }
+}
+
+$origins = array_values(array_unique(array_filter(array_map('trim', explode(',', $require('CORS_ALLOWED_ORIGINS'))))));
+$expectedOrigins = array_map(static fn (string $host): string => 'https://'.$host, $requiredHosts);
+$sortedOrigins = $origins;
+$sortedExpectedOrigins = $expectedOrigins;
+sort($sortedOrigins);
+sort($sortedExpectedOrigins);
+if ($sortedOrigins !== $sortedExpectedOrigins) {
+    $failures[] = 'CORS_ALLOWED_ORIGINS must exactly match the HTTPS origins for the three approved stateful hosts';
+}
+foreach ($origins as $origin) {
+    $parts = parse_url($origin);
+    if ($parts === false || ($parts['scheme'] ?? '') !== 'https' || empty($parts['host']) || isset($parts['user']) || isset($parts['pass']) || isset($parts['port']) || isset($parts['path']) || isset($parts['query']) || isset($parts['fragment']) || str_contains($origin, '*')) {
+        $failures[] = 'CORS_ALLOWED_ORIGINS must contain HTTPS origins with exact hostnames and no path, port, credentials, query, fragment, or wildcard';
         break;
     }
 }
