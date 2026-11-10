@@ -2,7 +2,7 @@
 
 **Status:** implementation guidance and preflight tooling; not evidence of a configured or deployed production server.  
 **API origin:** `https://api.maalearna.com.et`  
-**Frontend hosts:** `app`, `portal`, `admin`, `www`, and other explicitly approved ARNA subdomains.
+**Approved frontend hosts:** `app`, `portal`, `admin`, and `www` on `maalearna.com.et`.
 
 ## 1. Environment provisioning
 
@@ -12,10 +12,15 @@
 4. Use a production database with TLS where the provider supports it. Configure `MYSQL_ATTR_SSL_CA` to the provider CA file when required.
 5. Configure SMTP using a verified sender and credentials stored only on the server.
 6. Set `APP_DEBUG=false`, `APP_ENV=production`, HTTPS `APP_URL`, encrypted secure HTTP-only session cookies, and the exact approved Sanctum stateful host list.
-7. Set `CORS_ALLOWED_ORIGINS` to the exact HTTPS origins of approved cookie-authenticated applications and keep it synchronized with `SANCTUM_STATEFUL_DOMAINS`. The initial production allow-list is limited to `app`, `portal`, and `admin`; add another hostname only after its authentication/API requirement is approved. Do not allow localhost or wildcard origins in production while credentialed requests are enabled.
-8. Restrict filesystem permissions: `.env` readable only by the application/deployment identity; `storage/` and `bootstrap/cache/` writable by the runtime identity. Deny web access to source, `.env`, vendor metadata, logs, and backups.
+7. Set `CORS_ALLOWED_ORIGINS` to the exact HTTPS origins of approved applications and keep it synchronized with `SANCTUM_STATEFUL_DOMAINS`. The exact initial allow-list is `app.maalearna.com.et`, `portal.maalearna.com.et`, `admin.maalearna.com.et`, and `www.maalearna.com.et`. No wildcard, localhost, unapproved origin, port, path, or credential-bearing origin is permitted.
+8. The public `www` host requires cross-origin access for public corporate content and contributor verification/submission flows. Its inclusion in CORS/Sanctum is a browser-origin trust setting only: it does **not** grant access to authenticated Workspace, Portal, or Admin endpoints. Keep business authorization on the API routes/controllers; public endpoints must remain explicitly public, validated, and rate-limited.
+9. Restrict filesystem permissions: `.env` readable only by the application/deployment identity; `storage/` and `bootstrap/cache/` writable by the runtime identity. Deny web access to source, `.env`, vendor metadata, logs, and backups.
 
-## 2. Read-only preflight
+## 2. Public endpoint security review
+
+The public corporate-site API routes are declared in `routes/api.php` outside the authenticated and tenant-scoped route groups. Read routes use `throttle:60,1` (sitemap: `30,1`); public inquiry/submission routes use `throttle:5,10`; contributor verification challenge requests use `throttle:3,15` and verification uses `throttle:5,10`. These are route-level controls observed in the source. They do not replace input validation, abuse monitoring, or controller-level authorization for any privileged action. Re-review route middleware and controller behavior whenever public submission features change.
+
+## 3. Read-only preflight
 
 Run after provisioning and before cache generation or migration:
 
@@ -25,11 +30,11 @@ php artisan about --only=environment
 php artisan migrate:status
 ```
 
-The preflight validates production mode, HTTPS API URL, disabled debug, MySQL selection, non-placeholder database and SMTP credentials, Laravel key format, secure session cookie settings, required SPA hostnames, and the required PHP extensions loaded by the PHP runtime executing the script. It never prints secret values or modifies the environment file.
+The preflight validates production mode, HTTPS API URL, disabled debug, MySQL selection, non-placeholder database and SMTP credentials, Laravel key format, secure session cookie settings, the exact four approved stateful hosts and matching CORS origins, and required PHP extensions loaded by the PHP runtime executing the script. It never prints secret values or modifies the environment file.
 
 **Runtime distinction:** CLI preflight reports the CLI PHP runtime. Plesk may run the website through a separate PHP-FPM handler/configuration. CLI PASS is not proof of PHP-FPM extension availability.
 
-## 3. Temporary PHP-FPM runtime diagnostic (mobile-friendly)
+## 4. Temporary PHP-FPM runtime diagnostic (mobile-friendly)
 
 The file `scripts/a5-php-runtime-diagnostic.php` reports only PHP version, SAPI, and loaded/missing status for the required extensions. It does not read `.env`, inspect filesystem paths, connect to the database, or change server state.
 
@@ -42,7 +47,7 @@ When the Owner is ready to perform this check:
 
 The diagnostic is intentionally temporary and unauthenticated, so it must not be left on the public host. Do not upload it until the Owner is ready to perform the short check. If the output reports a non-FPM SAPI, it did not verify the web PHP-FPM runtime.
 
-## 4. Release sequence
+## 5. Release sequence
 
 1. Confirm a recoverable database backup and record its timestamp and restore owner.
 2. Stage the exact reviewed API artifact and record its commit SHA.
@@ -54,7 +59,7 @@ The diagnostic is intentionally temporary and unauthenticated, so it must not be
 8. Confirm logs contain no secrets, SQL bindings, tokens, or personal data beyond approved retention.
 9. Remove maintenance mode and monitor error rates, queue depth, database connections, and authentication failures.
 
-## 5. Backup, rollback and recovery
+## 6. Backup, rollback and recovery
 
 - Keep encrypted, off-host database backups with retention and access controls.
 - Before each migration, verify a recent backup and periodically perform a restore drill into an isolated database.
@@ -63,7 +68,7 @@ The diagnostic is intentionally temporary and unauthenticated, so it must not be
 - Prefer expand/contract migrations: deploy additive schema first, deploy compatible code, migrate data, and remove obsolete schema only in a later separately approved release.
 - Define rollback triggers, decision owner, maximum recovery time, and communication channel before release.
 
-## 6. Runtime operations
+## 7. Runtime operations
 
 - Configure process supervision for queue workers and scheduler execution; confirm restart behavior after deployment.
 - Configure log rotation, disk-space alerts, uptime checks, TLS expiry alerts, database backup alerts, and queue failure alerts.
@@ -71,8 +76,8 @@ The diagnostic is intentionally temporary and unauthenticated, so it must not be
 - Keep administrative access, database credentials, backups, and deployment secrets outside the public web root.
 - Run a periodic dependency/security review and restore drill.
 
-## 7. A5 evidence required for clearance
+## 8. A5 evidence required for clearance
 
-Attach exact commit SHA, environment preflight output (redacted of all values), PHP CLI and PHP-FPM runtime inventories, migration status, backup/restore evidence, TLS/DNS checks, CORS/CSRF browser evidence, authentication/tenant/Finance acceptance results, monitoring logs, rollback rehearsal, and Owner release authorization.
+Attach exact commit SHA, environment preflight output (redacted of all values), PHP CLI and PHP-FPM runtime inventories, migration status, backup/restore evidence, TLS/DNS checks, CORS/CSRF browser evidence for all four origins, authentication/tenant/Finance acceptance results, monitoring logs, rollback rehearsal, and Owner release authorization.
 
 **No deployment is authorized by this document.** Production configuration, migrations, grants, release, and publication remain separate approval gates.
