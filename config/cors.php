@@ -109,19 +109,10 @@ return [
     | Keep this list in lock-step with SANCTUM_STATEFUL_DOMAINS in .env.
     |
     */
-    'allowed_origins' => [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        'https://www.maalearna.com.et',
-        'https://auth.maalearna.com.et',
-        'https://app.maalearna.com.et',
-        'https://portal.maalearna.com.et',
-        'https://finance.maalearna.com.et',
-        'https://admin.maalearna.com.et',
-        'https://arna.maalearna.com.et',
-        'https://ai.maalearna.com.et',
-        'https://file.maalearna.com.et',
-    ],
+    'allowed_origins' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('CORS_ALLOWED_ORIGINS', ''))
+    ))),
 
     /*
     |--------------------------------------------------------------------------
