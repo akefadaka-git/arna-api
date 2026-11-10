@@ -1,6 +1,6 @@
-# ARNA OS — Daily Repository Progress Report (2026-11-09)
+# ARNA OS — Daily Repository Progress Report (2026-11-10)
 
-**Generated:** 2026-11-09T03:27:17.647676+03:00  
+**Generated:** 2026-11-10T06:07:28.397576+03:00  
 **Repositories:** akefadaka-git/arna-api, akefadaka-git/arna-app  
 **Assessment mode:** read-only repository metadata and workflow evidence; no source-code mutation.
 
@@ -48,14 +48,18 @@
 ### akefadaka-git/arna-api
 
 - Default branch: `main`
-- Open PRs: 48
-- PRs merged in last 30 days: 43
-- Failed/action-required workflow runs in last 14 days: 9
-- Cancelled workflow runs in last 14 days: 2
+- Open PRs: 52
+- PRs merged in last 30 days: 44
+- Failed/action-required workflow runs in last 14 days: 11
+- Cancelled workflow runs in last 14 days: 9
 - Currently queued/in-progress workflow runs in sampled page: 1
-- Most recent commit in sampled 30 commits: 2026-11-08T00:09:26+00:00
+- Most recent commit in sampled 30 commits: 2026-11-09T00:27:25+00:00
 
 **Open pull requests (sample, up to 12):**
+- test(a4): R3 Executive Overview adversarial authorization matrix
+- security(a4): verify Executive Overview authorization and tenant isolation
+- A3: define device-scoped mobile authentication and session contract
+- feat(dashboard): implement tenant-scoped Executive Overview API and frozen RBAC policy
 - fix(finance): repair clean migration and harden approval proposals
 - Organization domain: domain-contained structure and authorization gaps
 - feat(people): add secure contacts and person relationships
@@ -64,12 +68,9 @@
 - [WIP] Build ARNA Board Election API foundation
 - Governance: add tenant-scoped meeting lifecycle foundation
 - docs(integration): add unified ARNA API-App integration plan v1.0
-- docs(roadmap): add accelerated ARNA OS implementation plan v2.0
-- A2: establish ARNA shareholder management implementation baseline
-- docs(operations): add Wallet and Loan A2 read-only production preflight
-- docs(operations): assess Wallet and Loan production readiness (A1)
 
 **PRs merged in last 30 days (sample, up to 12):**
+- fix(auth): generic denials and preserve custom role grants
 - test(loan): verify concurrent repayments on MySQL
 - A1–A5: audit, retire legacy API code and verify
 - fix(errors): complete existing auth tenant and file code catalogue
@@ -81,42 +82,43 @@
 - feat(communication): tenant-scoped announcements and approval workflow
 - Add ARNA OS progress baseline and nightly repository assessment
 - Build centralized tenant-scoped notifications core
-- integration: reconcile Organization with File Management foundation
 
 **Failed workflows (sample, up to 12):**
-- ARNA clean-install MySQL verification #1261
-- ARNA clean-install MySQL verification #1260
-- ARNA clean-install MySQL verification #1257
-- ARNA clean-install MySQL verification #1256
-- ARNA clean-install MySQL verification #1254
-- ARNA clean-install MySQL verification #1253
-- ARNA clean-install MySQL verification #1251
-- ARNA clean-install MySQL verification #1250
-- ARNA clean-install MySQL verification #1249
+- ARNA Executive Overview A4 API security verification #18
+- ARNA Executive Overview A4 API security verification #17
+- ARNA Executive Overview A4 API security verification #12
+- ARNA Executive Overview A4 API security verification #11
+- ARNA Executive Overview A4 API security verification #4
+- ARNA clean-install MySQL verification #1331
+- ARNA Executive Overview A4 API security verification #3
+- ARNA Executive Overview A4 API security verification #2
+- ARNA Phase 0 effective authorization audit #1039
+- ARNA clean-install MySQL verification #1330
+- ARNA Executive Overview A4 API security verification #1
 
 ### akefadaka-git/arna-app
 
 - Default branch: `main`
-- Open PRs: 24
+- Open PRs: 31
 - PRs merged in last 30 days: 18
-- Failed/action-required workflow runs in last 14 days: 41
+- Failed/action-required workflow runs in last 14 days: 31
 - Cancelled workflow runs in last 14 days: 0
 - Currently queued/in-progress workflow runs in sampled page: 0
 - Most recent commit in sampled 30 commits: 2026-11-04T15:12:43+00:00
 
 **Open pull requests (sample, up to 12):**
+- test(a4): R3 Executive Overview non-cancellable session and tenant races
+- test(a4): prepare Executive Overview frontend security verification
+- feat(android): add isolated native Android foundation
+- feat(dashboard): add permission-gated Executive Overview workspace
+- A3: record Owner authorization for ARNA Android implementation
+- A2: ARNA Android read-only repository reconciliation
+- A1: ARNA Android requirements and architecture assessment
 - docs(dashboard): A3 Executive Overview technical specification
 - docs(dashboard): publish ARNA Dashboard A1 baseline and widget register
 - Organization domain UI: dedicated feature folder and workspace integration
 - feat(people): add contact and relationship profile workflows
 - feat(ocr): add bilingual Document Intelligence workspace
-- fix(loan): align loan product route permission
-- [WIP] Add ARNA Board Election frontend contracts
-- A2: Admin central identity, RBAC and tenant directory UI
-- Admin control plane: identity, RBAC and tenant views
-- Complete dividend administration and shareholder portal integration
-- Add shareholder annual dividend statement portal
-- feat(calendar): integrate Amharic-first Calendar workspace
 
 **PRs merged in last 30 days (sample, up to 12):**
 - A1–A5: audit, integrate and verify ARNA app
@@ -133,26 +135,26 @@
 - docs: clarify ARNA frontend repository and contribution guide
 
 **Failed workflows (sample, up to 12):**
-- Frontend verification #991
-- Frontend verification #990
-- Frontend verification #989
-- Frontend verification #987
-- Frontend verification #986
-- Frontend verification #983
-- Frontend verification #982
-- Frontend verification #981
-- Frontend verification #980
-- Frontend verification #979
-- Frontend verification #978
-- Frontend verification #977
+- ARNA Executive Overview A4 frontend verification #18
+- ARNA Executive Overview A4 frontend verification #17
+- ARNA Executive Overview A4 frontend verification #16
+- ARNA Executive Overview A4 frontend verification #15
+- ARNA Executive Overview A4 frontend verification #14
+- ARNA Executive Overview A4 frontend verification #13
+- ARNA Executive Overview A4 frontend verification #7
+- ARNA Executive Overview A4 frontend verification #6
+- ARNA Executive Overview A4 frontend verification #5
+- ARNA Executive Overview A4 frontend verification #4
+- Native Android verification #11
+- Native Android verification #10
 
 ## Recommendations and enhancement priorities
 
-- **akefadaka-git/arna-api:** triage 9 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-api:** inspect 2 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
-- **akefadaka-git/arna-api:** review 48 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
-- **akefadaka-git/arna-app:** triage 41 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-app:** review 24 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-api:** triage 11 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-api:** inspect 9 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
+- **akefadaka-git/arna-api:** review 52 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-app:** triage 31 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-app:** review 31 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - Continue closing domain acceptance gaps before expanding scope: security, tenant isolation, lifecycle, concurrency, clean-install and cross-domain integration.
 - Prioritize Finance accounting integrity, Governance authority lifecycle, Calendar reservations/concurrency and Communication approval/publishing controls.
 - Improve frontend/API contract tests and production observability; require reproducible evidence for every readiness claim.
