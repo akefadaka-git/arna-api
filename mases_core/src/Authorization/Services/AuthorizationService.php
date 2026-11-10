@@ -116,9 +116,10 @@ use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
  *
  *     auth:permission:{userId}:{permissionSlug}:{tenantId}:{applicationId}
  *
- * The cached value is a boolean: `true` or `false`. Both answers are cached,
- * because a negative answer is just as expensive to compute as a positive
- * one and just as valid to cache (until a role or permission change).
+ * Only negative answers are cached. Positive answers are always evaluated
+ * against current database pivots so a failed invalidation cannot preserve
+ * revoked privileges. A stale negative may delay a newly granted permission
+ * until the 300-second TTL expires, but it cannot widen access.
  *
  * Application slug → ID lookups are cached separately:
  *
@@ -146,11 +147,9 @@ use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
  *
  *     auth:user_keys:{userId}  →  [ "auth:permission:1:...", "auth:permission:1:...", ... ]
  *
- * The registry is written by `addUserCacheKey()`, which is called from
- * `hasPermission()` immediately before each `remember()` call. Registration
- * is idempotent: if the key is already listed, no cache write happens. This
- * means the hot path (a repeated permission check) costs one extra cache
- * read for the registry, and no write.
+ * The registry is written by `addUserCacheKey()` only when a negative
+ * permission result is cached. Registration is idempotent: if the key is
+ * already listed, no registry write happens.
  *
  * Invalidation then becomes straightforward:
  *
@@ -298,10 +297,10 @@ final class AuthorizationService
      *   means "not specific to one application".
      *
      * Cache behaviour:
-     *   The result is cached under a key that embeds user, permission, tenant,
-     *   and application — so different contexts do not collide. The key is
-     *   registered with the per-user registry so `clearUserCache()` can find
-     *   and remove it later. See the class docblock.
+     *   Negative results are cached under a key that embeds user, permission,
+     *   tenant, and application. Positive results are re-read from current
+     *   database pivots on every call. The v2 key namespace prevents legacy
+     *   positive entries from being reused.
      *
      * @param string          $permissionSlug    Permission slug, e.g. 'finance.transaction.create'.
      * @param User|null       $user              User to check. Null = current authenticated user.
