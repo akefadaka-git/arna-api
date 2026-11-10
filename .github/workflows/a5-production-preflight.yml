@@ -73,6 +73,7 @@ jobs:
           SESSION_SAME_SITE=lax
           SESSION_DOMAIN=.maalearna.com.et
           SANCTUM_STATEFUL_DOMAINS=app.maalearna.com.et,portal.maalearna.com.et,admin.maalearna.com.et
+          CORS_ALLOWED_ORIGINS=https://app.maalearna.com.et,https://portal.maalearna.com.et,https://admin.maalearna.com.et
           EOF
           php scripts/production-env-preflight.php "${RUNNER_TEMP}/arna-production-test.env"
           sed 's#APP_URL=https://api.maalearna.com.et#APP_URL=https://api.attacker.example#' "${RUNNER_TEMP}/arna-production-test.env" > "${RUNNER_TEMP}/arna-production-wrong-origin.env"
@@ -81,3 +82,9 @@ jobs:
             exit 1
           fi
           echo "Wrong production API origin rejected: PASS"
+          sed 's#CORS_ALLOWED_ORIGINS=https://app.maalearna.com.et,https://portal.maalearna.com.et,https://admin.maalearna.com.et#CORS_ALLOWED_ORIGINS=http://localhost:5173,https://portal.maalearna.com.et,https://admin.maalearna.com.et#' "${RUNNER_TEMP}/arna-production-test.env" > "${RUNNER_TEMP}/arna-production-localhost-cors.env"
+          if php scripts/production-env-preflight.php "${RUNNER_TEMP}/arna-production-localhost-cors.env"; then
+            echo "Unexpected localhost production CORS origin passed preflight."
+            exit 1
+          fi
+          echo "Unapproved localhost production CORS origin rejected: PASS"
