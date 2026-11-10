@@ -78,8 +78,8 @@ jobs:
           SESSION_HTTP_ONLY=true
           SESSION_SAME_SITE=lax
           SESSION_DOMAIN=.maalearna.com.et
-          SANCTUM_STATEFUL_DOMAINS=app.maalearna.com.et,portal.maalearna.com.et,admin.maalearna.com.et
-          CORS_ALLOWED_ORIGINS=https://app.maalearna.com.et,https://portal.maalearna.com.et,https://admin.maalearna.com.et
+          SANCTUM_STATEFUL_DOMAINS=app.maalearna.com.et,portal.maalearna.com.et,admin.maalearna.com.et,www.maalearna.com.et
+          CORS_ALLOWED_ORIGINS=https://app.maalearna.com.et,https://portal.maalearna.com.et,https://admin.maalearna.com.et,https://www.maalearna.com.et
           EOF
           php scripts/production-env-preflight.php "${RUNNER_TEMP}/arna-production-test.env"
           sed 's#APP_URL=https://api.maalearna.com.et#APP_URL=https://api.attacker.example#' "${RUNNER_TEMP}/arna-production-test.env" > "${RUNNER_TEMP}/arna-production-wrong-origin.env"
@@ -94,3 +94,27 @@ jobs:
             exit 1
           fi
           echo "Unapproved localhost production CORS origin rejected: PASS"
+          sed 's#SANCTUM_STATEFUL_DOMAINS=app.maalearna.com.et,portal.maalearna.com.et,admin.maalearna.com.et,www.maalearna.com.et#SANCTUM_STATEFUL_DOMAINS=app.maalearna.com.et,portal.maalearna.com.et,admin.maalearna.com.et#' "${RUNNER_TEMP}/arna-production-test.env" > "${RUNNER_TEMP}/arna-production-missing-www-stateful.env"
+          if php scripts/production-env-preflight.php "${RUNNER_TEMP}/arna-production-missing-www-stateful.env"; then
+            echo "Missing public www Sanctum host unexpectedly passed preflight."
+            exit 1
+          fi
+          echo "Missing public www Sanctum host rejected: PASS"
+          sed 's#CORS_ALLOWED_ORIGINS=https://app.maalearna.com.et,https://portal.maalearna.com.et,https://admin.maalearna.com.et,https://www.maalearna.com.et#CORS_ALLOWED_ORIGINS=https://app.maalearna.com.et,https://portal.maalearna.com.et,https://admin.maalearna.com.et#' "${RUNNER_TEMP}/arna-production-test.env" > "${RUNNER_TEMP}/arna-production-missing-www-cors.env"
+          if php scripts/production-env-preflight.php "${RUNNER_TEMP}/arna-production-missing-www-cors.env"; then
+            echo "Missing public www CORS origin unexpectedly passed preflight."
+            exit 1
+          fi
+          echo "Missing public www CORS origin rejected: PASS"
+          sed 's#CORS_ALLOWED_ORIGINS=https://app.maalearna.com.et,https://portal.maalearna.com.et,https://admin.maalearna.com.et,https://www.maalearna.com.et#CORS_ALLOWED_ORIGINS=https://app.maalearna.com.et,https://portal.maalearna.com.et,https://admin.maalearna.com.et,https://www.maalearna.com.et,http://localhost:5173#' "${RUNNER_TEMP}/arna-production-test.env" > "${RUNNER_TEMP}/arna-production-localhost-cors.env"
+          if php scripts/production-env-preflight.php "${RUNNER_TEMP}/arna-production-localhost-cors.env"; then
+            echo "Unexpected localhost production CORS origin passed preflight."
+            exit 1
+          fi
+          echo "Unapproved localhost production CORS origin rejected: PASS"
+          sed 's#CORS_ALLOWED_ORIGINS=https://app.maalearna.com.et,https://portal.maalearna.com.et,https://admin.maalearna.com.et,https://www.maalearna.com.et#CORS_ALLOWED_ORIGINS=https://app.maalearna.com.et,https://portal.maalearna.com.et,https://admin.maalearna.com.et,https://www.maalearna.com.et,https://evil.example#' "${RUNNER_TEMP}/arna-production-test.env" > "${RUNNER_TEMP}/arna-production-unapproved-cors.env"
+          if php scripts/production-env-preflight.php "${RUNNER_TEMP}/arna-production-unapproved-cors.env"; then
+            echo "Unexpected unapproved CORS origin passed preflight."
+            exit 1
+          fi
+          echo "Unapproved external CORS origin rejected: PASS"
