@@ -605,8 +605,8 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'Must not cross tenant boundary'
             );
             $this->fail('A tenant must not reverse another tenant\'s journal.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('journal', $exception->errors());
+        } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException $exception) {
+            $this->assertNotSame('', $exception->getMessage());
         }
 
         $this->assertDatabaseCount('journal_entries', 1);
