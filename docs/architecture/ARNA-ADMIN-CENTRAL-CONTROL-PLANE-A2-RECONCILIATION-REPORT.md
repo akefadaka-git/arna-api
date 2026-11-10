@@ -261,3 +261,58 @@ PR #37's guard change to inspect every matched route record is a useful candidat
 **Next permitted action:** obtain the exact historical Migration 002 DDL and a read-only current database schema/migration-ledger export, then complete the canonical schema mapping and return the unresolved home-tenant/application mapping decision for Owner review. Until that evidence exists, stop before code or database changes.
 
 *End of A2 reconciliation report.*
+
+
+---
+
+## 12. Supplemental historical artifact review — v1.0.1 correction
+
+A further read-only search of the user's Library located two historical artifacts:
+- `Pasted text(7).txt`: a captured Migration 002 SQL execution transcript/script, `002_identity_tenant_context`, version 1.0.0.
+- `maale_arna_smart_system(1).sql`: a historical database dump containing the pre-existing custom RBAC schema and data.
+
+This corrects the earlier statement that no Migration 002 artifact was available: a **partial captured Migration 002 script is available in the Library**, but its extracted content contains omitted sections (`[...]`) and is not a complete executable DDL source. The SQL dump is historical schema evidence, not a current production database export. Neither artifact proves the current live database state.
+
+### 12.1 Confirmed historical custom RBAC structures
+
+The historical SQL dump confirms:
+- `custom_roles`: `id`, `name`, `description`, `hierarchy_level`, `created_at`, `updated_at`.
+- `custom_permissions`: `id`, `slug`, `description`, timestamps.
+- `custom_user_roles`: `user_id`, `role_id`, `tenant_key` (default `default`), `assigned_at`, `assigned_by`; composite primary key `(user_id, role_id, tenant_key)`.
+- `custom_user_permissions`: `user_id`, `permission_id`, `tenant_key` (default `default`), `granted_at`, `granted_by`; composite primary key `(user_id, permission_id, tenant_key)`.
+- `custom_role_permissions`: `role_id`, `permission_id`, `tenant_key` (default `default`), `granted_at`; composite primary key `(role_id, permission_id, tenant_key)`.
+
+The same historical dump contains the Laravel-standard `roles`, `permissions`, `model_has_roles`, `model_has_permissions`, and `role_has_permissions` tables. This directly supports the September 1 Owner decision to preserve both table families and keep the custom tenant-aware family authoritative for MASES cross-application/API/ARNA authorization.
+
+### 12.2 Confirmed Migration 002 structural intent
+
+The captured Migration 002 script states that `users.tenant_key` remains the primary/home tenant and adds a separate membership relation so one identity can belong to multiple tenants. Its visible DDL specifies:
+- `tenant_memberships` with string `tenant_key`, `user_id`, membership type (`owner`, `admin`, `staff`, `shareholder`, `customer`, `member`, `guest`), and membership status (`invited`, `active`, `suspended`, `revoked`), plus primary-membership and joined-at fields in the visible seed contract.
+- `platform_application_roles` with `tenant_key`, `application_id`, `role_id`, access level (`deny`, `read`, `standard`, `manager`, `admin`), and `is_enabled`.
+- `platform_application_users` for explicit per-user application overrides, with tenant/application/user identifiers, allow/deny type, access level, reason, expiry, and grantor.
+- `arna_tool_permission_map` linking ARNA tool IDs to MASES custom permission IDs per tenant.
+- `tenant_context_audit` recording request ID, tenant key, user/application context, context type, allow/deny outcome, reason, IP address, and timestamp.
+
+The visible Migration 002 script uses `custom_roles` and `custom_permissions` for application access permissions and role-to-application mapping. It distinguishes role-derived application access from explicit per-user application overrides. The script's omitted portions prevent treating this captured transcript as a complete migration source; obtain the complete approved SQL/DDL before any implementation or replay.
+
+### 12.3 Stronger comparison against current API main
+
+The historical schema evidence adds two material differences beyond the earlier summary:
+
+1. **Tenant key versus numeric tenant ID:** historical `users.tenant_key`, `custom_user_roles.tenant_key`, `custom_user_permissions.tenant_key`, `custom_role_permissions.tenant_key`, and Migration 002 `tenant_memberships.tenant_key` use string tenant keys. Current API main uses numeric `tenant_id` foreign keys in `tenant_memberships`, `roles`, and `permissions`.
+2. **Application access semantics:** historical `platform_application_roles` stores tenant-specific role-to-application access levels and enablement; `platform_application_users` stores explicit allow/deny exceptions with expiry and reason. Current API main has `platform_applications` and application-scoped roles via `roles.application_id`, but no source evidence of equivalent application-role access levels or per-user allow/deny override behavior.
+
+The earlier A2 schema disposition remains **UNRESOLVED / BLOCKING**, but the historical design intent is now better evidenced. The correct next step is a mapping/compatibility decision, not a wholesale replacement or silent numeric-ID conversion.
+
+### 12.4 Updated A2 evidence disposition
+
+- Historical custom RBAC table structures: **EVIDENCE FOUND** in Library SQL dump.
+- Historical Migration 002 design intent: **PARTIALLY VERIFIED** from captured script.
+- Complete approved Migration 002 DDL: **MISSING / INCOMPLETE CAPTURE**.
+- Current API main schema: **VERIFIED FROM REPOSITORY MIGRATIONS/MODELS**.
+- Current live database schema and migration ledger: **NOT VERIFIED**.
+- Mapping from historical string tenant keys to current numeric tenant IDs: **UNRESOLVED**.
+- Application access-level and per-user override mapping: **UNRESOLVED**.
+- Production migration or data mutation: **NOT PERFORMED**.
+
+*End of supplemental v1.0.1 correction.*
