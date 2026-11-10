@@ -75,3 +75,9 @@ jobs:
           SANCTUM_STATEFUL_DOMAINS=app.maalearna.com.et,portal.maalearna.com.et,admin.maalearna.com.et
           EOF
           php scripts/production-env-preflight.php "${RUNNER_TEMP}/arna-production-test.env"
+          sed 's#APP_URL=https://api.maalearna.com.et#APP_URL=https://api.attacker.example#' "${RUNNER_TEMP}/arna-production-test.env" > "${RUNNER_TEMP}/arna-production-wrong-origin.env"
+          if php scripts/production-env-preflight.php "${RUNNER_TEMP}/arna-production-wrong-origin.env"; then
+            echo "Unexpected API origin passed production preflight."
+            exit 1
+          fi
+          echo "Wrong production API origin rejected: PASS"
