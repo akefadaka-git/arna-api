@@ -5,6 +5,9 @@ on:
     branches: [ "feat/executive-overview-a3" ]
     paths:
       - ".env.production.example"
+      - "config/cors.php"
+      - "docs/operations/A5-PRODUCTION-ENVIRONMENT-BASELINE.md"
+      - "docs/operations/A5-ETHIOTELECOM-PLESK-DEPLOYMENT-CHECKLIST.md"
       - "scripts/production-env-preflight.php"
       - "scripts/a5-php-runtime-diagnostic.php"
       - ".github/workflows/a5-production-preflight.yml"
@@ -12,6 +15,9 @@ on:
     branches: [ "hardening/**" ]
     paths:
       - ".env.production.example"
+      - "config/cors.php"
+      - "docs/operations/A5-PRODUCTION-ENVIRONMENT-BASELINE.md"
+      - "docs/operations/A5-ETHIOTELECOM-PLESK-DEPLOYMENT-CHECKLIST.md"
       - "scripts/production-env-preflight.php"
       - "scripts/a5-php-runtime-diagnostic.php"
       - ".github/workflows/a5-production-preflight.yml"
