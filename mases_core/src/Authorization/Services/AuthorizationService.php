@@ -342,7 +342,7 @@ final class AuthorizationService
         // Every dimension of the check appears in the key, so different
         // contexts (same user, different tenant) never collide.
         $cacheKey = sprintf(
-            'auth:permission:%d:%s:%s:%s',
+            'auth:permission:v2:%d:%s:%s:%s',
             $user->id,
             $permissionSlug,
             $tenantId ?: 'null',
@@ -359,82 +359,29 @@ final class AuthorizationService
         //      checks on the same key perform zero writes.
         $this->addUserCacheKey($user, $cacheKey);
 
-        return $this->cache->remember($cacheKey, self::CACHE_DURATION, function () use (
+        // Cache denials only. A cached positive authorization result can
+        // preserve revoked access if any invalidation path fails. Positive
+        // grants are therefore re-evaluated against the authoritative pivots
+        // on every call; a stale negative can delay a new grant but cannot
+        // widen privileges.
+        $cached = $this->cache->get($cacheKey);
+        if ($cached === false) {
+            return false;
+        }
+
+        $allowed = $this->resolvePermissionFromDatabase(
             $user,
             $permissionSlug,
             $tenantId,
-            $applicationId
-        ) {
-            // ------------------------------------------------------------
-            // Path A — direct permissions.
-            // A user may hold a permission without it being attached to
-            // any of their roles. Check the direct pivot first.
-            // ------------------------------------------------------------
-            $hasDirect = $user->permissions()
-                ->where('slug', $permissionSlug)
-                ->where('is_active', true)
-                ->when(
-                    $tenantId !== null,
-                    function ($query) use ($tenantId) {
-                        $query->where(function ($q) use ($tenantId) {
-                            $q->where('tenant_id', $tenantId)
-                                ->orWhereNull('tenant_id');
-                        });
-                    },
-                    fn ($query) => $query->whereNull('tenant_id')
-                )
-                ->when($applicationId !== null, function ($query) use ($applicationId) {
-                    $query->where(function ($q) use ($applicationId) {
-                        $q->where('application_id', $applicationId)
-                            ->orWhereNull('application_id');
-                    });
-                })
-                ->exists();
+            $applicationId,
+        );
 
-            if ($hasDirect) {
-                return true;
-            }
+        if (!$allowed) {
+            $this->addUserCacheKey($user, $cacheKey);
+            $this->cache->put($cacheKey, false, self::CACHE_DURATION);
+        }
 
-            // ------------------------------------------------------------
-            // Path B — permissions inherited via roles.
-            // For every role the user holds, check if any of its attached
-            // permissions matches the requested slug, subject to the same
-            // tenant and application scoping rules as Path A.
-            // ------------------------------------------------------------
-            return $user->roles()
-                ->where('is_active', true)
-                ->whereHas('permissions', function ($query) use ($permissionSlug, $tenantId) {
-                    $query->where('slug', $permissionSlug)
-                        ->where('is_active', true)
-                        ->when(
-                            $tenantId !== null,
-                            function ($permissionQuery) use ($tenantId) {
-                                $permissionQuery->where(function ($q) use ($tenantId) {
-                                    $q->where('tenant_id', $tenantId)
-                                        ->orWhereNull('tenant_id');
-                                });
-                            },
-                            fn ($permissionQuery) => $permissionQuery->whereNull('tenant_id')
-                        );
-                })
-                ->when(
-                    $tenantId !== null,
-                    function ($query) use ($tenantId) {
-                        $query->where(function ($q) use ($tenantId) {
-                            $q->where('tenant_id', $tenantId)
-                                ->orWhereNull('tenant_id');
-                        });
-                    },
-                    fn ($query) => $query->whereNull('tenant_id')
-                )
-                ->when($applicationId !== null, function ($query) use ($applicationId) {
-                    $query->where(function ($q) use ($applicationId) {
-                        $q->where('application_id', $applicationId)
-                            ->orWhereNull('application_id');
-                    });
-                })
-                ->exists();
-        });
+        return $allowed;
     }
 
     /**
@@ -848,6 +795,77 @@ final class AuthorizationService
         $keys = $this->cache->get($this->registryKeyFor($user), []);
 
         return is_array($keys) ? array_values($keys) : [];
+    }
+
+    /**
+     * Resolve a permission against current database pivots without caching a
+     * positive result. This is the security boundary that prevents a failed
+     * cache invalidation from retaining revoked privileges.
+     */
+    private function resolvePermissionFromDatabase(
+        User $user,
+        string $permissionSlug,
+        int|string|null $tenantId,
+        ?int $applicationId,
+    ): bool {
+        $hasDirect = $user->permissions()
+            ->where('slug', $permissionSlug)
+            ->where('is_active', true)
+            ->when(
+                $tenantId !== null,
+                function ($query) use ($tenantId) {
+                    $query->where(function ($q) use ($tenantId) {
+                        $q->where('tenant_id', $tenantId)
+                            ->orWhereNull('tenant_id');
+                    });
+                },
+                fn ($query) => $query->whereNull('tenant_id')
+            )
+            ->when($applicationId !== null, function ($query) use ($applicationId) {
+                $query->where(function ($q) use ($applicationId) {
+                    $q->where('application_id', $applicationId)
+                        ->orWhereNull('application_id');
+                });
+            })
+            ->exists();
+
+        if ($hasDirect) {
+            return true;
+        }
+
+        return $user->roles()
+            ->where('is_active', true)
+            ->whereHas('permissions', function ($query) use ($permissionSlug, $tenantId) {
+                $query->where('slug', $permissionSlug)
+                    ->where('is_active', true)
+                    ->when(
+                        $tenantId !== null,
+                        function ($permissionQuery) use ($tenantId) {
+                            $permissionQuery->where(function ($q) use ($tenantId) {
+                                $q->where('tenant_id', $tenantId)
+                                    ->orWhereNull('tenant_id');
+                            });
+                        },
+                        fn ($permissionQuery) => $permissionQuery->whereNull('tenant_id')
+                    );
+            })
+            ->when(
+                $tenantId !== null,
+                function ($query) use ($tenantId) {
+                    $query->where(function ($q) use ($tenantId) {
+                        $q->where('tenant_id', $tenantId)
+                            ->orWhereNull('tenant_id');
+                    });
+                },
+                fn ($query) => $query->whereNull('tenant_id')
+            )
+            ->when($applicationId !== null, function ($query) use ($applicationId) {
+                $query->where(function ($q) use ($applicationId) {
+                    $q->where('application_id', $applicationId)
+                        ->orWhereNull('application_id');
+                });
+            })
+            ->exists();
     }
 
     /**
