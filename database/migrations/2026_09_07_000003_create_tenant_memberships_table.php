@@ -45,6 +45,12 @@ return new class extends Migration
                   ->useCurrent()
                   ->comment('Timestamp when user joined the tenant');
 
+            // Lifecycle state consumed by TenantMembership and TenantMembershipService.
+            // Existing memberships default to active; the service enforces allowed transitions.
+            $table->string('status', 20)
+                  ->default('active')
+                  ->comment('Membership lifecycle state: active, suspended, or revoked');
+
             // Optional JSON for membership‑specific configuration.
             $table->json('settings')
                   ->nullable()
@@ -60,6 +66,8 @@ return new class extends Migration
             $table->index('user_id');
             // Index on joined_at if filtering by join date is common.
             $table->index('joined_at');
+            // Supports active-membership checks and lifecycle administration.
+            $table->index('status');
         });
     }
 
