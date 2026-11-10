@@ -6,12 +6,14 @@ on:
     paths:
       - ".env.production.example"
       - "scripts/production-env-preflight.php"
+      - "scripts/a5-php-runtime-diagnostic.php"
       - ".github/workflows/a5-production-preflight.yml"
   push:
     branches: [ "hardening/**" ]
     paths:
       - ".env.production.example"
       - "scripts/production-env-preflight.php"
+      - "scripts/a5-php-runtime-diagnostic.php"
       - ".github/workflows/a5-production-preflight.yml"
 
 permissions:
@@ -34,8 +36,14 @@ jobs:
         with:
           php-version: "8.3"
           coverage: none
-      - name: Lint preflight script
-        run: php -l scripts/production-env-preflight.php
+      - name: Lint preflight scripts
+        run: |
+          php -l scripts/production-env-preflight.php
+          php -l scripts/a5-php-runtime-diagnostic.php
+      - name: Verify PHP runtime diagnostic output
+        run: |
+          php scripts/a5-php-runtime-diagnostic.php > "${RUNNER_TEMP}/a5-runtime.json"
+          php -r '$d=json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR); if (($d["php_version"] ?? "") === "" || ($d["sapi"] ?? "") !== "cli" || !array_key_exists("curl", $d["required_extensions"] ?? [])) { fwrite(STDERR, "Runtime diagnostic output invalid.\n"); exit(1); } echo "Runtime diagnostic structure: PASS\n";' "${RUNNER_TEMP}/a5-runtime.json"
       - name: Confirm template fails closed
         run: |
           if php scripts/production-env-preflight.php .env.production.example; then
