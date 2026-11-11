@@ -104,6 +104,23 @@ final class CalendarReminderDispatcher
                     continue;
                 }
 
+                // Backfill the original occurrence identity for pre-migration
+                // outbox rows so cancellation and move checks remain effective.
+                $baseStart = (bool) $event->all_day
+                    ? new DateTimeImmutable($event->starts_on, $eventZone)
+                    : new DateTimeImmutable($event->starts_at, new DateTimeZone('UTC'));
+                $baseStartUtc = $baseStart->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+                DB::table('calendar_reminder_outbox')
+                    ->where('tenant_id', $event->tenant_id)
+                    ->where('event_id', $event->id)
+                    ->whereNull('occurrence_key')
+                    ->update([
+                        'occurrence_index' => 0,
+                        'occurrence_starts_at' => $baseStartUtc,
+                        'occurrence_key' => $baseStartUtc,
+                        'updated_at' => now(),
+                    ]);
+
                 $attendees = DB::table('calendar_attendees')
                     ->where('tenant_id', $event->tenant_id)
                     ->where('event_id', $event->id)
