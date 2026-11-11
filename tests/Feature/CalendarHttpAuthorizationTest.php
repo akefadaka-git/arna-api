@@ -134,6 +134,35 @@ final class CalendarHttpAuthorizationTest extends TestCase
         $this->assertStringNotContainsString($privateCalendar->id, $response->getContent());
     }
 
+    public function test_invited_attendee_can_view_private_event_without_browsing_private_calendar(): void
+    {
+        $tenant = $this->tenant();
+        $owner = $this->member($tenant);
+        $attendee = $this->member($tenant);
+        $this->grant($attendee, $tenant, 'calendar.view');
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($owner, ['name' => 'Private board calendar', 'visibility' => 'private']);
+        $event = $service->createEvent($owner, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Invited private session',
+            'starts_at' => '2026-11-20T10:00:00+03:00',
+            'ends_at' => '2026-11-20T11:00:00+03:00',
+            'attendee_user_ids' => [$attendee->id],
+        ]);
+        Sanctum::actingAs($attendee);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/calendar/calendars')
+            ->assertOk()
+            ->assertJsonMissing(['id' => $calendar->id]);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/calendar/events')
+            ->assertOk()
+            ->assertSee($event->id)
+            ->assertSee('Invited private session');
+    }
+
     public function test_cross_tenant_event_update_is_hidden_as_not_found_over_http(): void
     {
         $tenantA = $this->tenant();
