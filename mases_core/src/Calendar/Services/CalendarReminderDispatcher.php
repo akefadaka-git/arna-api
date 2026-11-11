@@ -47,10 +47,9 @@ final class CalendarReminderDispatcher
             ->orderBy('e.tenant_id')
             ->orderBy('e.id')
             ->limit(200)
-            ->get(['e.id', 'e.tenant_id', 'e.all_day', 'e.timezone', 'e.created_by', 'c.owner_user_id']);
+            ->get(['e.id', 'e.tenant_id', 'e.all_day', 'e.starts_on', 'e.starts_at', 'e.timezone', 'e.created_by', 'c.owner_user_id']);
 
-        $from = now()->toDateTimeImmutable();
-        $to = $from->modify('+90 days');
+        $to = now()->toDateTimeImmutable()->modify('+90 days');
 
         foreach ($events as $event) {
             try {
@@ -65,10 +64,15 @@ final class CalendarReminderDispatcher
                     continue;
                 }
 
+                $eventZone = new DateTimeZone($event->timezone ?: 'Africa/Addis_Ababa');
+                $seriesStart = (bool) $event->all_day
+                    ? new DateTimeImmutable($event->starts_on, $eventZone)
+                    : new DateTimeImmutable($event->starts_at, new DateTimeZone('UTC'));
+
                 $occurrences = $this->calendar->recurringOccurrences(
                     $actor,
                     (string) $event->id,
-                    $from->format(DATE_ATOM),
+                    $seriesStart->format(DATE_ATOM),
                     $to->format(DATE_ATOM),
                 );
 
