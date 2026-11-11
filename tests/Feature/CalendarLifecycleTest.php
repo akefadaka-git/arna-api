@@ -83,6 +83,38 @@ final class CalendarLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function domain_links_are_persisted_as_opaque_tenant_scoped_references_only(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Linked agenda']);
+
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Governance meeting agenda',
+            'starts_at' => '2026-11-01T10:00:00+03:00',
+            'ends_at' => '2026-11-01T11:00:00+03:00',
+            'links' => [[
+                'domain' => 'governance',
+                'resource_type' => 'meeting',
+                'resource_id' => 'opaque-meeting-reference',
+                'relationship' => 'agenda',
+            ]],
+        ]);
+
+        $this->assertCount(1, $event->links);
+        $this->assertSame('governance', $event->links[0]->domain);
+        $this->assertSame('opaque-meeting-reference', $event->links[0]->resource_id);
+        $this->assertSame('agenda', $event->links[0]->relationship);
+        $this->assertDatabaseHas('calendar_event_links', [
+            'tenant_id' => $tenant->id,
+            'event_id' => $event->id,
+            'resource_id' => 'opaque-meeting-reference',
+        ]);
+    }
+
+    #[Test]
     public function recurrence_expansion_is_bounded_and_occurrence_cancellation_is_applied(): void
     {
         $tenant = $this->tenant();
