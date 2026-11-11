@@ -51,6 +51,52 @@ final class CalendarLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function calendar_owner_can_update_metadata_with_optimistic_versioning(): void
+    {
+        $tenant = $this->tenant();
+        $owner = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($owner, ['name' => 'Initial name']);
+
+        $updated = $service->updateCalendar($owner, $calendar->id, [
+            'version' => 1,
+            'name' => 'Board calendar',
+            'visibility' => 'private',
+            'timezone' => 'Africa/Addis_Ababa',
+        ]);
+
+        $this->assertSame('Board calendar', $updated->name);
+        $this->assertSame('private', $updated->visibility);
+        $this->assertSame(2, $updated->version);
+        $this->assertDatabaseHas('calendar_calendars', [
+            'id' => $calendar->id,
+            'name' => 'Board calendar',
+            'version' => 2,
+        ]);
+    }
+
+    #[Test]
+    public function calendar_update_rejects_non_owner_and_stale_versions(): void
+    {
+        $tenant = $this->tenant();
+        $owner = User::factory()->create(['is_active' => true]);
+        $other = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($owner, ['name' => 'Owner calendar']);
+
+        try {
+            $service->updateCalendar($other, $calendar->id, ['version' => 1, 'name' => 'Intrusion']);
+            $this->fail('A non-owner must not update a calendar.');
+        } catch (NotFoundHttpException) {
+            $this->assertSame('Owner calendar', $calendar->fresh()->name);
+        }
+
+        $service->updateCalendar($owner, $calendar->id, ['version' => 1, 'name' => 'Updated']);
+        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException::class);
+        $service->updateCalendar($owner, $calendar->id, ['version' => 1, 'name' => 'Stale update']);
+    }
+
+    #[Test]
     public function another_user_cannot_create_an_event_in_a_private_calendar(): void
     {
         $tenant = $this->tenant();
