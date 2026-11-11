@@ -223,10 +223,37 @@ final class CalendarController
     public function moveOccurrence(Request $request, string $eventId): JsonResponse
     {
         $data = $request->validate([
-            'original_starts_at' => ['required', 'date'],
-            'override_starts_at' => ['required', 'date'],
-            'override_ends_at' => ['required', 'date', 'after:override_starts_at'],
+            'original_starts_at' => ['required_without:original_starts_on_ec', 'date'],
+            'override_starts_at' => ['required_without:override_starts_on_ec', 'date'],
+            'override_ends_at' => ['required_without:override_ends_on_ec', 'date'],
+            'original_starts_on_ec' => ['required_without:original_starts_at', 'array:year,month,day'],
+            'original_starts_on_ec.year' => ['required_with:original_starts_on_ec', 'integer', 'min:1', 'max:9999'],
+            'original_starts_on_ec.month' => ['required_with:original_starts_on_ec', 'integer', 'min:1', 'max:13'],
+            'original_starts_on_ec.day' => ['required_with:original_starts_on_ec', 'integer', 'min:1', 'max:30'],
+            'override_starts_on_ec' => ['required_without:override_starts_at', 'array:year,month,day'],
+            'override_starts_on_ec.year' => ['required_with:override_starts_on_ec', 'integer', 'min:1', 'max:9999'],
+            'override_starts_on_ec.month' => ['required_with:override_starts_on_ec', 'integer', 'min:1', 'max:13'],
+            'override_starts_on_ec.day' => ['required_with:override_starts_on_ec', 'integer', 'min:1', 'max:30'],
+            'override_ends_on_ec' => ['required_without:override_ends_at', 'array:year,month,day'],
+            'override_ends_on_ec.year' => ['required_with:override_ends_on_ec', 'integer', 'min:1', 'max:9999'],
+            'override_ends_on_ec.month' => ['required_with:override_ends_on_ec', 'integer', 'min:1', 'max:13'],
+            'override_ends_on_ec.day' => ['required_with:override_ends_on_ec', 'integer', 'min:1', 'max:30'],
         ]);
+        $ecFields = ['original_starts_on_ec', 'override_starts_on_ec', 'override_ends_on_ec'];
+        $gregorianFields = ['original_starts_at', 'override_starts_at', 'override_ends_at'];
+        $hasEc = count(array_filter($ecFields, fn (string $field): bool => isset($data[$field]))) > 0;
+        $hasGregorian = count(array_filter($gregorianFields, fn (string $field): bool => isset($data[$field]))) > 0;
+        if (($hasEc && count(array_filter($ecFields, fn (string $field): bool => isset($data[$field]))) !== 3)
+            || ($hasGregorian && count(array_filter($gregorianFields, fn (string $field): bool => isset($data[$field])) ) !== 3)
+            || ($hasEc && $hasGregorian)) {
+            throw ValidationException::withMessages(['occurrence' => ['Supply all three override dates in one calendar representation only.']]);
+        }
+        if ($hasEc) {
+            foreach ($ecFields as $field) {
+                $data[$field === 'original_starts_on_ec' ? 'original_starts_at' : ($field === 'override_starts_on_ec' ? 'override_starts_at' : 'override_ends_at')] =
+                    $this->ethiopianDateToGregorian($data[$field], $field);
+            }
+        }
         $this->calendar->moveOccurrence(
             $request->user(),
             $eventId,
@@ -239,8 +266,20 @@ final class CalendarController
 
     public function cancelOccurrence(Request $request, string $eventId): JsonResponse
     {
-        $data = $request->validate(['original_starts_at' => ['required', 'date']]);
-        $this->calendar->cancelOccurrence($request->user(), $eventId, $data['original_starts_at']);
+        $data = $request->validate([
+            'original_starts_at' => ['required_without:original_starts_on_ec', 'date'],
+            'original_starts_on_ec' => ['required_without:original_starts_at', 'array:year,month,day'],
+            'original_starts_on_ec.year' => ['required_with:original_starts_on_ec', 'integer', 'min:1', 'max:9999'],
+            'original_starts_on_ec.month' => ['required_with:original_starts_on_ec', 'integer', 'min:1', 'max:13'],
+            'original_starts_on_ec.day' => ['required_with:original_starts_on_ec', 'integer', 'min:1', 'max:30'],
+        ]);
+        if (isset($data['original_starts_at'], $data['original_starts_on_ec'])) {
+            throw ValidationException::withMessages(['original_starts_at' => ['Supply either Gregorian or Ethiopian occurrence date, not both.']]);
+        }
+        $original = isset($data['original_starts_on_ec'])
+            ? $this->ethiopianDateToGregorian($data['original_starts_on_ec'], 'original_starts_on_ec')
+            : $data['original_starts_at'];
+        $this->calendar->cancelOccurrence($request->user(), $eventId, $original);
         return response()->json(['success' => true, 'data' => ['cancelled' => true]]);
     }
 

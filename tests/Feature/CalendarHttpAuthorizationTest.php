@@ -122,7 +122,7 @@ final class CalendarHttpAuthorizationTest extends TestCase
     {
         $tenant = $this->tenant();
         $actor = $this->member($tenant);
-        $this->grant($actor, $tenant, 'calendar.create', 'calendar.view');
+        $this->grant($actor, $tenant, 'calendar.create', 'calendar.view', 'calendar.update');
         $calendar = $this->service($tenant)->createCalendar($actor, ['name' => 'E.C. API calendar']);
         Sanctum::actingAs($actor);
 
@@ -157,6 +157,21 @@ final class CalendarHttpAuthorizationTest extends TestCase
         $this->assertSame(
             ['2015-13-06', '2016-01-06', '2016-02-06'],
             array_map(fn (array $item): string => $item['starts_on_ec']['iso'], $occurrences->json('data')),
+        );
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/events/'.$eventId.'/occurrences/cancel', [
+                'original_starts_on_ec' => ['year' => 2016, 'month' => 1, 'day' => 6],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.cancelled', true);
+
+        $afterCancellation = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/calendar/events/'.$eventId.'/occurrences?from_ec[year]=2015&from_ec[month]=13&from_ec[day]=1&to_ec[year]=2016&to_ec[month]=2&to_ec[day]=10')
+            ->assertOk();
+        $this->assertSame(
+            ['2015-13-06', '2016-02-06'],
+            array_map(fn (array $item): string => $item['starts_on_ec']['iso'], $afterCancellation->json('data')),
         );
     }
 
