@@ -64,7 +64,15 @@ final class CalendarController
                 throw ValidationException::withMessages([$field => ['Supply either Gregorian or Ethiopian date, not both.']]);
             }
             if (isset($data[$ecField])) {
-                $data[$field] = $this->ethiopianDateToGregorian($data[$ecField], $ecField);
+                $civilDate = LocalDate::fromString($this->ethiopianDateToGregorian($data[$ecField], $ecField));
+                $addisZone = new \DateTimeZone('Africa/Addis_Ababa');
+                $boundary = $civilDate->atStartOfDay($addisZone);
+                if ($field === 'to') {
+                    $boundary = $boundary->modify('+1 day')->modify('-1 second');
+                }
+                // Event instants are stored in UTC; convert the inclusive E.C.
+                // civil-day boundary from Addis Ababa to UTC before querying.
+                $data[$field] = $boundary->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
                 unset($data[$ecField]);
             }
         }
