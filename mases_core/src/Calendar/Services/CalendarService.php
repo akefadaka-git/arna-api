@@ -13,6 +13,7 @@ use MaaleArna\MASES\Core\Calendar\Models\CalendarAttendee;
 use MaaleArna\MASES\Core\Calendar\Models\CalendarEvent;
 use MaaleArna\MASES\Core\Calendar\Models\CalendarEventLink;
 use MaaleArna\MASES\Core\Localization\Calendar\Contracts\CalendarInstant;
+use MaaleArna\MASES\Core\Localization\Calendar\Contracts\LocalDate;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -360,54 +361,83 @@ final class CalendarService
 
     public function moveOccurrence(User $actor, string $eventId, string $originalStartsAt, string $newStartsAt, string $newEndsAt): void
     {
-        foreach ([$originalStartsAt, $newStartsAt, $newEndsAt] as $instant) {
-            if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $instant)) {
-                throw new BadRequestHttpException('Recurrence override instants require explicit UTC offsets.');
-            }
-        }
-        $originalUtc = (new \DateTimeImmutable($originalStartsAt))->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-        $newStart = new \DateTimeImmutable($newStartsAt);
-        $newEnd = new \DateTimeImmutable($newEndsAt);
-        if ($newEnd <= $newStart) throw new BadRequestHttpException('Override end must be after its start.');
-
-        DB::transaction(function () use ($actor, $eventId, $originalUtc, $newStart, $newEnd): void {
+        DB::transaction(function () use ($actor, $eventId, $originalStartsAt, $newStartsAt, $newEndsAt): void {
             $event = CalendarEvent::query()->where('tenant_id', $this->tenantId())->whereKey($eventId)->lockForUpdate()->first();
-            if (!$event || !$event->recurrence_rule || $event->all_day) throw new NotFoundHttpException('Timed recurring event not found.');
+            if (!$event || !$event->recurrence_rule) throw new NotFoundHttpException('Recurring event not found.');
             $calendar = Calendar::query()->where('tenant_id', $this->tenantId())->whereKey($event->calendar_id)->first();
             if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) {
                 throw new NotFoundHttpException('Recurring event not found.');
             }
+
+            $zone = new \DateTimeZone($event->timezone);
+            if ($event->all_day) {
+                $original = LocalDate::fromString($originalStartsAt)->atStartOfDay($zone);
+                $newStart = LocalDate::fromString($newStartsAt)->atStartOfDay($zone);
+                $newEnd = LocalDate::fromString($newEndsAt)->atStartOfDay($zone);
+                if ($newEnd < $newStart) throw new BadRequestHttpException('All-day override end date must not precede its start date.');
+            } else {
+                foreach ([$originalStartsAt, $newStartsAt, $newEndsAt] as $instant) {
+                    if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $instant)) {
+                        throw new BadRequestHttpException('Recurrence override instants require explicit UTC offsets.');
+                    }
+                }
+                $original = CalendarInstant::fromString($originalStartsAt, $event->timezone)->utc();
+                $newStart = CalendarInstant::fromString($newStartsAt, $event->timezone)->utc();
+                $newEnd = CalendarInstant::fromString($newEndsAt, $event->timezone)->utc();
+                if ($newEnd <= $newStart) throw new BadRequestHttpException('Override end must be after its start.');
+            }
+
+            $utc = new \DateTimeZone('UTC');
+            $originalUtc = $original->setTimezone($utc)->format('Y-m-d H:i:s');
+            $overrideStartUtc = $newStart->setTimezone($utc)->format('Y-m-d H:i:s');
+            $overrideEndUtc = $newEnd->setTimezone($utc)->format('Y-m-d H:i:s');
+
             DB::table('calendar_recurrence_exceptions')->updateOrInsert(
                 ['event_id' => $eventId, 'original_starts_at' => $originalUtc],
                 [
                     'tenant_id' => $this->tenantId(), 'status' => 'overridden',
-                    'override_starts_at' => $newStart->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
-                    'override_ends_at' => $newEnd->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+                    'override_starts_at' => $overrideStartUtc,
+                    'override_ends_at' => $overrideEndUtc,
                     'created_by' => $actor->getKey(), 'updated_at' => now(), 'created_at' => now(),
                 ]
             );
             $this->audit($actor, 'recurrence_exception', $eventId.':'.$originalUtc, 'overridden', [
                 'original_starts_at' => $originalUtc,
-                'override_starts_at' => $newStart->format(DATE_ATOM),
-                'override_ends_at' => $newEnd->format(DATE_ATOM),
+                'override_starts_at' => $overrideStartUtc,
+                'override_ends_at' => $overrideEndUtc,
+                'all_day' => $event->all_day,
             ]);
         });
     }
 
     public function cancelOccurrence(User $actor, string $eventId, string $originalStartsAt): void
     {
-        if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $originalStartsAt)) throw new BadRequestHttpException('Occurrence instant requires an explicit UTC offset.');
         DB::transaction(function () use ($actor, $eventId, $originalStartsAt): void {
             $event = CalendarEvent::query()->where('tenant_id', $this->tenantId())->whereKey($eventId)->lockForUpdate()->first();
             if (!$event || !$event->recurrence_rule) throw new NotFoundHttpException('Recurring event not found.');
             $calendar = Calendar::query()->where('tenant_id', $this->tenantId())->whereKey($event->calendar_id)->first();
-            if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) throw new NotFoundHttpException('Recurring event not found.');
-            $utc = (new \DateTimeImmutable($originalStartsAt))->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+            if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) {
+                throw new NotFoundHttpException('Recurring event not found.');
+            }
+
+            if ($event->all_day) {
+                $original = LocalDate::fromString($originalStartsAt)->atStartOfDay(new \DateTimeZone($event->timezone));
+            } else {
+                if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $originalStartsAt)) {
+                    throw new BadRequestHttpException('Occurrence instant requires an explicit UTC offset.');
+                }
+                $original = CalendarInstant::fromString($originalStartsAt, $event->timezone)->utc();
+            }
+
+            $utc = $original->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
             DB::table('calendar_recurrence_exceptions')->updateOrInsert(
                 ['event_id' => $eventId, 'original_starts_at' => $utc],
                 ['tenant_id' => $this->tenantId(), 'status' => 'cancelled', 'created_by' => $actor->getKey(), 'updated_at' => now(), 'created_at' => now()]
             );
-            $this->audit($actor, 'recurrence_exception', $eventId.':'.$utc, 'cancelled', ['original_starts_at' => $utc]);
+            $this->audit($actor, 'recurrence_exception', $eventId.':'.$utc, 'cancelled', [
+                'original_starts_at' => $utc,
+                'all_day' => $event->all_day,
+            ]);
         });
     }
 
