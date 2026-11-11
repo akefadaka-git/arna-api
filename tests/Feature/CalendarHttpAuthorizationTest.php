@@ -91,6 +91,31 @@ final class CalendarHttpAuthorizationTest extends TestCase
             ->assertSee($calendar->id);
     }
 
+    public function test_all_day_event_accepts_ethiopian_civil_dates_through_canonical_calendar_conversion(): void
+    {
+        $tenant = $this->tenant();
+        $actor = $this->member($tenant);
+        $this->grant($actor, $tenant, 'calendar.create');
+        $calendar = $this->service($tenant)->createCalendar($actor, ['name' => 'Ethiopian dates']);
+        Sanctum::actingAs($actor);
+
+        $response = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/events', [
+                'calendar_id' => $calendar->id,
+                'title' => 'Meskerem New Year',
+                'all_day' => true,
+                'starts_on_ec' => ['year' => 2016, 'month' => 1, 'day' => 1],
+                'ends_on_ec' => ['year' => 2016, 'month' => 1, 'day' => 1],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.all_day', true);
+
+        $eventId = $response->json('data.id');
+        $this->assertSame('2023-09-12', DB::table('calendar_events')->where('id', $eventId)->value('starts_on'));
+        $this->assertSame('2023-09-12', DB::table('calendar_events')->where('id', $eventId)->value('ends_on'));
+        $this->assertNull(DB::table('calendar_events')->where('id', $eventId)->value('starts_at'));
+    }
+
     public function test_private_calendar_is_not_visible_to_another_member_over_http(): void
     {
         $tenant = $this->tenant();
