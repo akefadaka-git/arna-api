@@ -125,11 +125,83 @@ final class CalendarReminderDispatcherTest extends TestCase
 
         Carbon::setTestNow('2026-11-01 06:12:00');
         $notifications = new NotificationService(app(TenantContextService::class));
-        $dispatcher = new CalendarReminderDispatcher($notifications);
+        $dispatcher = new CalendarReminderDispatcher($notifications, app(CalendarService::class), app(TenantContextService::class));
         $second = $dispatcher->dispatch();
 
         $this->assertSame(1, $second['delivered']);
         $this->assertDatabaseHas('calendar_reminder_outbox', ['event_id' => $event->id, 'status' => 'delivered', 'attempts' => 2]);
         $this->assertSame(1, DB::table('platform_notifications')->where('event_key', 'calendar.event.reminder')->count());
     }
+    public function test_recurring_series_materializes_idempotent_reminders_for_future_instances(): void
+    {
+        Carbon::setTestNow('2026-11-01 06:00:00');
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $recipient = User::factory()->create(['is_active' => true]);
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        app(TenantContextService::class)->setTenantById($tenant->id);
+        $calendar = app(CalendarService::class)->createCalendar($recipient, ['name' => 'Recurring operations']);
+        $event = app(CalendarService::class)->createEvent($recipient, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Daily stand-up',
+            'starts_at' => '2026-11-01T07:00:00+00:00',
+            'ends_at' => '2026-11-01T07:30:00+00:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 3],
+            'attendee_user_ids' => [$recipient->id],
+            'reminders' => [15],
+        ]);
+
+        $first = app(CalendarReminderDispatcher::class)->dispatch();
+        $this->assertSame(0, $first['delivered']);
+        $rows = DB::table('calendar_reminder_outbox')->where('event_id', $event->id)->orderBy('occurrence_index')->get();
+        $this->assertCount(3, $rows);
+        $this->assertSame([0, 1, 2], $rows->pluck('occurrence_index')->map(fn ($value) => (int) $value)->all());
+        $this->assertSame('2026-11-02 06:45:00', $rows[1]->deliver_at);
+        $this->assertSame('2026-11-03 06:45:00', $rows[2]->deliver_at);
+
+        app(CalendarReminderDispatcher::class)->dispatch();
+        $this->assertSame(3, DB::table('calendar_reminder_outbox')->where('event_id', $event->id)->count());
+    }
+
+    public function test_recurring_reminder_tracks_moved_occurrence_and_cancellation(): void
+    {
+        Carbon::setTestNow('2026-11-01 06:00:00');
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $recipient = User::factory()->create(['is_active' => true]);
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        app(TenantContextService::class)->setTenantById($tenant->id);
+        $service = app(CalendarService::class);
+        $calendar = $service->createCalendar($recipient, ['name' => 'Recurring changes']);
+        $event = $service->createEvent($recipient, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Recurring review',
+            'starts_at' => '2026-11-01T07:00:00+00:00',
+            'ends_at' => '2026-11-01T07:30:00+00:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 3],
+            'attendee_user_ids' => [$recipient->id],
+            'reminders' => [15],
+        ]);
+
+        $service->moveOccurrence(
+            $recipient,
+            $event->id,
+            '2026-11-02T07:00:00+00:00',
+            '2026-11-02T08:00:00+00:00',
+            '2026-11-02T08:30:00+00:00',
+        );
+        $service->cancelOccurrence($recipient, $event->id, '2026-11-03T07:00:00+00:00');
+
+        app(CalendarReminderDispatcher::class)->dispatch();
+        $moved = DB::table('calendar_reminder_outbox')
+            ->where('event_id', $event->id)->where('occurrence_index', 1)->first();
+        $this->assertNotNull($moved);
+        $this->assertSame('2026-11-02 08:00:00', $moved->occurrence_starts_at);
+        $this->assertSame('2026-11-02 07:45:00', $moved->deliver_at);
+        $this->assertDatabaseMissing('calendar_reminder_outbox', [
+            'event_id' => $event->id,
+            'occurrence_index' => 2,
+        ]);
+    }
+
 }
