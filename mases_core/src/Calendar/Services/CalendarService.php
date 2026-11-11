@@ -97,6 +97,13 @@ final class CalendarService
                 }
                 $startInstant = CalendarInstant::fromString($data['starts_at'], $eventTimezone);
                 $endInstant = CalendarInstant::fromString($data['ends_at'], $eventTimezone);
+                $reminderBaseInstant = $startInstant->utc();
+            }
+
+            if ($allDay) {
+                $reminderBaseInstant = LocalDate::fromString($data['starts_on'])
+                    ->atStartOfDay(new \\DateTimeZone($eventTimezone))
+                    ->setTimezone(new \\DateTimeZone('UTC'));
             }
 
             $id = (string) Str::uuid();
@@ -123,23 +130,21 @@ final class CalendarService
                     'event_id' => $id, 'tenant_id' => $tenantId, 'user_id' => $userId,
                     'response' => 'pending',
                 ]);
-                if (!$allDay) {
-                    $reminderOffsets = array_values(array_unique(array_map('intval', $data['reminders'] ?? [15])));
-                    foreach ($reminderOffsets as $minutesBefore) {
-                        if ($minutesBefore < 1 || $minutesBefore > 10080) {
-                            throw new BadRequestHttpException('Reminder offsets must be between 1 minute and 7 days.');
-                        }
-                        $reminderType = 'event_start_'.$minutesBefore.'m';
-                        $deliverAt = $startInstant->utc()->modify("-{$minutesBefore} minutes");
-                        $outboxId = (string) Str::uuid();
-                        DB::table('calendar_reminder_outbox')->insert([
-                            'id' => $outboxId, 'tenant_id' => $tenantId, 'event_id' => $id,
-                            'recipient_user_id' => $userId, 'reminder_type' => $reminderType,
-                            'deliver_at' => $deliverAt->format('Y-m-d H:i:s'), 'status' => 'pending',
-                            'attempts' => 0, 'idempotency_key' => $id.':'.$userId.':'.$reminderType,
-                            'created_at' => now(), 'updated_at' => now(),
-                        ]);
+                $reminderOffsets = array_values(array_unique(array_map('intval', $data['reminders'] ?? [15])));
+                foreach ($reminderOffsets as $minutesBefore) {
+                    if ($minutesBefore < 1 || $minutesBefore > 10080) {
+                        throw new BadRequestHttpException('Reminder offsets must be between 1 minute and 7 days.');
                     }
+                    $reminderType = 'event_start_'.$minutesBefore.'m';
+                    $deliverAt = $reminderBaseInstant->modify("-{$minutesBefore} minutes");
+                    $outboxId = (string) Str::uuid();
+                    DB::table('calendar_reminder_outbox')->insert([
+                        'id' => $outboxId, 'tenant_id' => $tenantId, 'event_id' => $id,
+                        'recipient_user_id' => $userId, 'reminder_type' => $reminderType,
+                        'deliver_at' => $deliverAt->format('Y-m-d H:i:s'), 'status' => 'pending',
+                        'attempts' => 0, 'idempotency_key' => $id.':'.$userId.':'.$reminderType,
+                        'created_at' => now(), 'updated_at' => now(),
+                    ]);
                 }
             }
 
