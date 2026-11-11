@@ -146,7 +146,7 @@ final class CalendarHttpAuthorizationTest extends TestCase
         $eventId = $created->json('data.id');
 
         $this->withHeader('X-Tenant-ID', (string) $tenant->id)
-            ->getJson('/api/calendar/events?from_ec[year]=2015&from_ec[month]=13&from_ec[day]=1&to_ec[year]=2015&to_ec[month]=13&to_ec[day]=30')
+            ->getJson('/api/calendar/events?from_ec[year]=2015&from_ec[month]=13&from_ec[day]=1&to_ec[year]=2015&to_ec[month]=13&to_ec[day]=6')
             ->assertOk()
             ->assertJsonPath('data.data.0.starts_on_ec.iso', '2015-13-06');
 
