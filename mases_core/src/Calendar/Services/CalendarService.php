@@ -267,20 +267,55 @@ final class CalendarService
         if (!$event) throw new NotFoundHttpException('Calendar event not found.');
         $calendar = Calendar::query()->where('tenant_id', $this->tenantId())->whereKey($event->calendar_id)->first();
         if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) throw new NotFoundHttpException('Calendar event not found.');
-        if (!$event->recurrence_rule || $event->all_day) return [$event->toArray()];
+        if (!$event->recurrence_rule) return [$event->toArray()];
         $zone = new \DateTimeZone($event->timezone);
-        $start = \DateTimeImmutable::createFromInterface($event->starts_at)->setTimezone($zone);
-        $end = \DateTimeImmutable::createFromInterface($event->ends_at)->setTimezone($zone);
-        $fromDate = new \DateTimeImmutable($from, $zone);
-        $toDate = new \DateTimeImmutable($to, $zone);
+        $fromDate = (new \DateTimeImmutable($from, $zone))->setTimezone($zone);
+        $toDate = (new \DateTimeImmutable($to, $zone))->setTimezone($zone);
         if ($toDate > $fromDate->modify('+90 days')) throw new BadRequestHttpException('Expansion window cannot exceed 90 days.');
+
         $rule = $event->recurrence_rule;
         $frequency = $rule['frequency'] ?? '';
         $step = max(1, min(365, (int) ($rule['interval'] ?? 1)));
         $limit = max(1, min(500, (int) ($rule['count'] ?? 100)));
-        $duration = $end->getTimestamp() - $start->getTimestamp();
-        $exceptions = DB::table('calendar_recurrence_exceptions')->where('tenant_id', $this->tenantId())->where('event_id', $eventId)->get()->keyBy('original_starts_at');
+        $exceptions = DB::table('calendar_recurrence_exceptions')
+            ->where('tenant_id', $this->tenantId())->where('event_id', $eventId)
+            ->get()->keyBy('original_starts_at');
         $items = [];
+
+        if ($event->all_day) {
+            $start = new \DateTimeImmutable($event->starts_on->format('Y-m-d'), $zone);
+            $end = new \DateTimeImmutable($event->ends_on->format('Y-m-d'), $zone);
+            $durationDays = (int) $start->diff($end)->format('%a');
+
+            for ($index = 0; $index < $limit; $index++) {
+                $cursor = $this->recurrenceOccurrenceAt($start, $frequency, $step, $index);
+                if ($cursor > $toDate) break;
+                $occurrenceKey = $cursor->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+                $exception = $exceptions->get($occurrenceKey);
+                if ($cursor >= $fromDate && (!$exception || $exception->status !== 'cancelled')) {
+                    $occurrenceStart = $exception?->override_starts_at
+                        ? (new \DateTimeImmutable($exception->override_starts_at, new \DateTimeZone('UTC')))->setTimezone($zone)
+                        : $cursor;
+                    $occurrenceEnd = $exception?->override_ends_at
+                        ? (new \DateTimeImmutable($exception->override_ends_at, new \DateTimeZone('UTC')))->setTimezone($zone)
+                        : $occurrenceStart->modify("+{$durationDays} days");
+                    $items[] = [
+                        'event_id' => $event->id,
+                        'occurrence' => $index,
+                        'all_day' => true,
+                        'starts_on' => $occurrenceStart->format('Y-m-d'),
+                        'ends_on' => $occurrenceEnd->format('Y-m-d'),
+                        'timezone' => $event->timezone,
+                    ];
+                }
+            }
+
+            return $items;
+        }
+
+        $start = \DateTimeImmutable::createFromInterface($event->starts_at)->setTimezone($zone);
+        $end = \DateTimeImmutable::createFromInterface($event->ends_at)->setTimezone($zone);
+        $duration = $end->getTimestamp() - $start->getTimestamp();
         for ($index = 0; $index < $limit; $index++) {
             $cursor = $this->recurrenceOccurrenceAt($start, $frequency, $step, $index);
             if ($cursor > $toDate) break;
@@ -293,6 +328,7 @@ final class CalendarService
                     'starts_at' => $occurrenceStart->setTimezone($zone)->format(DATE_ATOM), 'ends_at' => $occurrenceEnd->setTimezone($zone)->format(DATE_ATOM), 'timezone' => $event->timezone];
             }
         }
+
         return $items;
     }
 
