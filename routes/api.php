@@ -609,6 +609,8 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->middleware('auth.permission:calendar.view')->name('calendars.index');
         Route::post('/calendars', [$controller, 'storeCalendar'])
             ->middleware('auth.permission:calendar.create')->name('calendars.store');
+        Route::patch('/calendars/{id}', [$controller, 'updateCalendar'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('calendars.update');
         Route::get('/events', [$controller, 'events'])
             ->middleware('auth.permission:calendar.view')->name('events.index');
         Route::post('/events', [$controller, 'storeEvent'])
