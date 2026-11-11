@@ -679,8 +679,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 '172.16.0.0/12',
                 '192.168.0.0/16',
             ],
+            // Deliberately exclude HEADER_X_FORWARDED_HOST: tenant resolution
+            // must use the origin Host header, never a client-influenced forwarded
+            // host. This prevents spoofed proxy metadata from selecting a tenant.
             headers: Request::HEADER_X_FORWARDED_FOR
-                | Request::HEADER_X_FORWARDED_HOST
                 | Request::HEADER_X_FORWARDED_PORT
                 | Request::HEADER_X_FORWARDED_PROTO
                 | Request::HEADER_X_FORWARDED_AWS_ELB,

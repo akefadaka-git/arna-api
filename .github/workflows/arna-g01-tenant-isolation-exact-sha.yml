@@ -74,6 +74,9 @@ jobs:
       - name: Tenant resolver unit tests
         run: php artisan test --compact tests/Unit/TenantResolverTest.php
 
+      - name: Forwarded-host trust regression tests
+        run: php artisan test --compact tests/Unit/ForwardedHostTrustTest.php
+
       - name: Tenant membership regression tests
         run: php artisan test --compact tests/Feature/TenantMembershipTest.php
 
