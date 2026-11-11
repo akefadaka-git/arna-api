@@ -287,6 +287,33 @@ final class CalendarLifecycleTest extends TestCase
         $service->recurringOccurrences($actor, $event->id, '2026-11-01T00:00:00+03:00', '2027-03-01T00:00:00+03:00');
     }
     #[Test]
+    public function cancelling_an_event_retires_its_pending_reminders_atomically(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $attendee = User::factory()->create(['is_active' => true]);
+        $attendee->tenants()->attach($tenant->id, ['status' => 'active']);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Reminder lifecycle']);
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Future meeting',
+            'starts_at' => '2026-11-20T10:00:00+03:00',
+            'ends_at' => '2026-11-20T11:00:00+03:00',
+            'attendee_user_ids' => [$attendee->id],
+        ]);
+
+        $outbox = DB::table('calendar_reminder_outbox')->where('event_id', $event->id)->first();
+        $this->assertNotNull($outbox);
+        $this->assertSame('pending', $outbox->status);
+
+        $service->updateEvent($actor, $event->id, ['version' => 1, 'status' => 'cancelled']);
+
+        $this->assertSame('skipped', DB::table('calendar_reminder_outbox')->where('id', $outbox->id)->value('status'));
+        $this->assertSame('cancelled', DB::table('calendar_events')->where('id', $event->id)->value('status'));
+    }
+
+    #[Test]
     public function event_and_reminder_outbox_roll_back_when_audit_persistence_fails(): void
     {
         $tenant = $this->tenant();
