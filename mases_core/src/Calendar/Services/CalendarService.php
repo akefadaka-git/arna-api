@@ -176,7 +176,20 @@ final class CalendarService
             foreach ($allowed as $key) if (array_key_exists($key, $data)) $event->{$key} = $data[$key];
             $event->version++;
             $event->save();
-            $this->audit($actor, 'event', $id, 'updated', ['version' => $event->version]);
+
+            if (isset($data['status']) && $data['status'] !== 'scheduled') {
+                DB::table('calendar_reminder_outbox')
+                    ->where('tenant_id', $this->tenantId())
+                    ->where('event_id', $id)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => 'skipped',
+                        'last_error' => 'Event is no longer scheduled.',
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            $this->audit($actor, 'event', $id, 'updated', ['version' => $event->version, 'status' => $event->status]);
             return $event->refresh()->load(['attendees', 'links']);
         });
     }
