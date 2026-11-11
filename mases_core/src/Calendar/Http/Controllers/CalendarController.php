@@ -65,6 +65,8 @@ final class CalendarController
             'recurrence_rule.count' => ['sometimes', 'integer', 'min:1', 'max:500'],
             'attendee_user_ids' => ['sometimes', 'array', 'max:200'],
             'attendee_user_ids.*' => ['integer', 'distinct'],
+            'reminders' => ['sometimes', 'array', 'max:10'],
+            'reminders.*' => ['integer', 'min:1', 'max:10080', 'distinct'],
             'links' => ['sometimes', 'array', 'max:30'],
             'links.*.domain' => ['required_with:links', 'string', 'max:64'],
             'links.*.resource_type' => ['required_with:links', 'string', 'max:100'],
