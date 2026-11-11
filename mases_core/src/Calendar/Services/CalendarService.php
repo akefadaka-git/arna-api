@@ -106,7 +106,7 @@ final class CalendarService
                 'description' => $data['description'] ?? null, 'event_type' => $data['event_type'] ?? 'event',
                 'all_day' => $allDay, 'starts_on' => $allDay ? $data['starts_on'] : null,
                 'ends_on' => $allDay ? $data['ends_on'] : null,
-                'starts_at' => $allDay ? null : $startInstant->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'), 'ends_at' => $allDay ? null : $endInstant->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+                'starts_at' => $allDay ? null : $startInstant->utc()->format('Y-m-d H:i:s'), 'ends_at' => $allDay ? null : $endInstant->utc()->format('Y-m-d H:i:s'),
                 'timezone' => $eventTimezone,
                 'status' => 'scheduled', 'recurrence_rule' => $data['recurrence_rule'] ?? null, 'version' => 1,
             ]);
@@ -123,7 +123,7 @@ final class CalendarService
                     'response' => 'pending',
                 ]);
                 if (!$allDay) {
-                    $deliverAt = $startInstant->setTimezone(new \DateTimeZone('UTC'))->modify('-15 minutes');
+                    $deliverAt = $startInstant->utc()->modify('-15 minutes');
                     $outboxId = (string) Str::uuid();
                     DB::table('calendar_reminder_outbox')->insert([
                         'id' => $outboxId, 'tenant_id' => $tenantId, 'event_id' => $id,
