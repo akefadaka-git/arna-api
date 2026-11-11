@@ -197,5 +197,9 @@ final class PermissionCatalogue
             ['slug' => 'announcement.manage', 'name_am' => 'ማስታወቂያ ማዘጋጀትና ለማጽደቅ ማስገባት', 'name_en' => 'Create and Submit Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.approve', 'name_am' => 'ማስታወቂያ ማጽደቅ', 'name_en' => 'Approve Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.publish', 'name_am' => 'ማስታወቂያ ማተም', 'name_en' => 'Publish Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'calendar.view', 'name_am' => 'ቀን መቁጠሪያ ማየት', 'name_en' => 'View Calendar', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'calendar.create', 'name_am' => 'የቀን መቁጠሪያ መፍጠር', 'name_en' => 'Create Calendar Items', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'calendar.update', 'name_am' => 'ቀን መቁጠሪያ ማዘመን', 'name_en' => 'Manage Calendar', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'calendar.reserve', 'name_am' => 'ሀብት ማስያዝ', 'name_en' => 'Reserve Calendar Resources', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
 ];
 }
