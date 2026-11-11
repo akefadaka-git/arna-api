@@ -63,6 +63,7 @@ final class CalendarController
             'recurrence_rule.frequency' => ['required_with:recurrence_rule', 'in:daily,weekly,monthly,yearly'],
             'recurrence_rule.interval' => ['sometimes', 'integer', 'min:1', 'max:365'],
             'recurrence_rule.count' => ['sometimes', 'integer', 'min:1', 'max:500'],
+            'recurrence_rule.until' => ['sometimes', 'date_format:Y-m-d'],
             'attendee_user_ids' => ['sometimes', 'array', 'max:200'],
             'attendee_user_ids.*' => ['integer', 'distinct'],
             'reminders' => ['sometimes', 'array', 'max:10'],
