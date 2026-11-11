@@ -13,6 +13,12 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceTerm;
+use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationUnit;
+use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
+use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Loan\Models\Loan;
 use MaaleArna\MASES\Core\Domains\Loan\Models\LoanCollateral;
 use MaaleArna\MASES\Core\Domains\Loan\Models\LoanProduct;
@@ -39,6 +45,11 @@ final class CalendarDomainResourceAuthorizer
         'governance:membership' => GovernanceMembership::class,
         'governance:position' => GovernancePosition::class,
         'governance:term' => GovernanceTerm::class,
+        'organization:unit' => OrganizationUnit::class,
+        'finance:accounting_period' => AccountingPeriod::class,
+        'finance:journal_entry' => JournalEntry::class,
+        'finance:ledger_account' => LedgerAccount::class,
+        'finance:legal_entity' => LegalEntity::class,
         'loan:loan' => Loan::class,
         'loan:product' => LoanProduct::class,
         'loan:collateral' => LoanCollateral::class,
@@ -63,11 +74,20 @@ final class CalendarDomainResourceAuthorizer
             ->whereKey($resourceId)
             ->first();
 
-        if (!$resource || Gate::getPolicyFor($resource) === null) {
+        if (!$resource) {
             throw new NotFoundHttpException('Linked domain resource not found.');
         }
 
-        Gate::forUser($actor)->authorize('view', $resource);
+        if ($resource instanceof OrganizationUnit) {
+            if (!app(OrganizationUnitPolicy::class)->view($actor, $resource)) {
+                throw new AuthorizationException('The linked organization unit is not visible to this user.');
+            }
+        } else {
+            if (Gate::getPolicyFor($resource) === null) {
+                throw new NotFoundHttpException('Linked domain resource not found.');
+            }
+            Gate::forUser($actor)->authorize('view', $resource);
+        }
 
         return $resource;
     }
