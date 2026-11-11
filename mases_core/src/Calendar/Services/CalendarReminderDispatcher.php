@@ -107,9 +107,6 @@ final class CalendarReminderDispatcher
 
                 foreach ($occurrences as $occurrence) {
                     $index = (int) ($occurrence['occurrence'] ?? 0);
-                    if ($index === 0) {
-                        continue;
-                    }
 
                     $zone = new DateTimeZone($event->timezone ?: 'Africa/Addis_Ababa');
                     if ((bool) $event->all_day) {
@@ -150,31 +147,38 @@ final class CalendarReminderDispatcher
                             $deliverAt = now()->toDateTimeImmutable();
                         }
 
-                        $idempotencyKey = (string) $event->id.':'.$recipientId.':'.$reminderType.':'.$index;
-                        DB::table('calendar_reminder_outbox')->insertOrIgnore([
-                            'id' => (string) Str::uuid(),
-                            'tenant_id' => $event->tenant_id,
-                            'event_id' => $event->id,
-                            'recipient_user_id' => $recipientId,
-                            'reminder_type' => $reminderType,
-                            'occurrence_index' => $index,
-                            'occurrence_starts_at' => $actualStartUtc->format('Y-m-d H:i:s'),
-                            'occurrence_key' => $occurrenceKey,
-                            'deliver_at' => $deliverAt->format('Y-m-d H:i:s'),
-                            'status' => 'pending',
-                            'attempts' => 0,
-                            'idempotency_key' => $idempotencyKey,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
+                        $idempotencyKey = (string) $event->id.':'.$recipientId.':'.$reminderType
+                            .($index === 0 ? '' : ':'.$index);
+                        if ($index > 0) {
+                            DB::table('calendar_reminder_outbox')->insertOrIgnore([
+                                'id' => (string) Str::uuid(),
+                                'tenant_id' => $event->tenant_id,
+                                'event_id' => $event->id,
+                                'recipient_user_id' => $recipientId,
+                                'reminder_type' => $reminderType,
+                                'occurrence_index' => $index,
+                                'occurrence_starts_at' => $actualStartUtc->format('Y-m-d H:i:s'),
+                                'occurrence_key' => $occurrenceKey,
+                                'deliver_at' => $deliverAt->format('Y-m-d H:i:s'),
+                                'status' => 'pending',
+                                'attempts' => 0,
+                                'idempotency_key' => $idempotencyKey,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
 
                         DB::table('calendar_reminder_outbox')
                             ->where('tenant_id', $event->tenant_id)
                             ->where('event_id', $event->id)
                             ->where('idempotency_key', $idempotencyKey)
-                            ->whereIn('status', ['pending', 'skipped'])
+                            ->where(function ($query): void {
+                                $query->where('status', 'pending')
+                                    ->orWhere(fn ($skipped) => $skipped->where('status', 'skipped')->whereNull('last_error'));
+                            })
                             ->update([
                                 'status' => 'pending',
+                                'occurrence_index' => $index,
                                 'occurrence_starts_at' => $actualStartUtc->format('Y-m-d H:i:s'),
                                 'occurrence_key' => $occurrenceKey,
                                 'deliver_at' => $deliverAt->format('Y-m-d H:i:s'),
