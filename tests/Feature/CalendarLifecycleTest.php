@@ -287,6 +287,36 @@ final class CalendarLifecycleTest extends TestCase
         $service->recurringOccurrences($actor, $event->id, '2026-11-01T00:00:00+03:00', '2027-03-01T00:00:00+03:00');
     }
     #[Test]
+    public function timed_events_support_multiple_configurable_reminder_offsets(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $attendee = User::factory()->create(['is_active' => true]);
+        $attendee->tenants()->attach($tenant->id, ['status' => 'active']);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Reminder offsets']);
+
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Multi-reminder meeting',
+            'starts_at' => '2026-11-20T10:00:00+03:00',
+            'ends_at' => '2026-11-20T11:00:00+03:00',
+            'attendee_user_ids' => [$attendee->id],
+            'reminders' => [60, 15],
+        ]);
+
+        $rows = DB::table('calendar_reminder_outbox')
+            ->where('event_id', $event->id)
+            ->orderBy('deliver_at')
+            ->get();
+
+        $this->assertCount(2, $rows);
+        $this->assertSame(['event_start_60m', 'event_start_15m'], $rows->pluck('reminder_type')->all());
+        $this->assertSame(['2026-11-20 06:00:00', '2026-11-20 06:45:00'], $rows->pluck('deliver_at')->all());
+        $this->assertCount(2, $rows->pluck('idempotency_key')->unique());
+    }
+
+    #[Test]
     public function cancelling_an_event_retires_its_pending_reminders_atomically(): void
     {
         $tenant = $this->tenant();
