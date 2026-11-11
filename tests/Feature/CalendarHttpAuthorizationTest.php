@@ -108,12 +108,56 @@ final class CalendarHttpAuthorizationTest extends TestCase
                 'ends_on_ec' => ['year' => 2016, 'month' => 1, 'day' => 1],
             ])
             ->assertCreated()
-            ->assertJsonPath('data.all_day', true);
+            ->assertJsonPath('data.all_day', true)
+            ->assertJsonPath('data.starts_on_ec.iso', '2016-01-01')
+            ->assertJsonPath('data.ends_on_ec.iso', '2016-01-01');
 
         $eventId = $response->json('data.id');
         $this->assertSame('2023-09-12', DB::table('calendar_events')->where('id', $eventId)->value('starts_on'));
         $this->assertSame('2023-09-12', DB::table('calendar_events')->where('id', $eventId)->value('ends_on'));
         $this->assertNull(DB::table('calendar_events')->where('id', $eventId)->value('starts_at'));
+    }
+
+    public function test_ethiopian_event_filters_and_recurrence_ranges_are_supported_over_http(): void
+    {
+        $tenant = $this->tenant();
+        $actor = $this->member($tenant);
+        $this->grant($actor, $tenant, 'calendar.create', 'calendar.view');
+        $calendar = $this->service($tenant)->createCalendar($actor, ['name' => 'E.C. API calendar']);
+        Sanctum::actingAs($actor);
+
+        $created = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/events', [
+                'calendar_id' => $calendar->id,
+                'title' => 'Pagume monthly observance',
+                'all_day' => true,
+                'starts_on_ec' => ['year' => 2015, 'month' => 13, 'day' => 6],
+                'ends_on_ec' => ['year' => 2015, 'month' => 13, 'day' => 6],
+                'recurrence_rule' => [
+                    'frequency' => 'monthly',
+                    'calendar_system' => 'ethiopian',
+                    'count' => 3,
+                    'until_ec' => ['year' => 2016, 'month' => 2, 'day' => 6],
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.starts_on_ec.iso', '2015-13-06');
+
+        $eventId = $created->json('data.id');
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/calendar/events?from_ec[year]=2015&from_ec[month]=13&from_ec[day]=1&to_ec[year]=2015&to_ec[month]=13&to_ec[day]=30')
+            ->assertOk()
+            ->assertJsonPath('data.data.0.starts_on_ec.iso', '2015-13-06');
+
+        $occurrences = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/calendar/events/'.$eventId.'/occurrences?from_ec[year]=2015&from_ec[month]=13&from_ec[day]=1&to_ec[year]=2016&to_ec[month]=2&to_ec[day]=10')
+            ->assertOk();
+
+        $this->assertSame(
+            ['2015-13-06', '2016-01-06', '2016-02-06'],
+            array_map(fn (array $item): string => $item['starts_on_ec']['iso'], $occurrences->json('data')),
+        );
     }
 
     public function test_private_calendar_is_not_visible_to_another_member_over_http(): void
