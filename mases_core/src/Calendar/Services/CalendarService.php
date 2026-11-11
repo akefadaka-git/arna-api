@@ -124,15 +124,22 @@ final class CalendarService
                     'response' => 'pending',
                 ]);
                 if (!$allDay) {
-                    $deliverAt = $startInstant->utc()->modify('-15 minutes');
-                    $outboxId = (string) Str::uuid();
-                    DB::table('calendar_reminder_outbox')->insert([
-                        'id' => $outboxId, 'tenant_id' => $tenantId, 'event_id' => $id,
-                        'recipient_user_id' => $userId, 'reminder_type' => 'event_start_15m',
-                        'deliver_at' => $deliverAt->format('Y-m-d H:i:s'), 'status' => 'pending',
-                        'attempts' => 0, 'idempotency_key' => $id.':'.$userId.':event_start_15m',
-                        'created_at' => now(), 'updated_at' => now(),
-                    ]);
+                    $reminderOffsets = array_values(array_unique(array_map('intval', $data['reminders'] ?? [15])));
+                    foreach ($reminderOffsets as $minutesBefore) {
+                        if ($minutesBefore < 1 || $minutesBefore > 10080) {
+                            throw new BadRequestHttpException('Reminder offsets must be between 1 minute and 7 days.');
+                        }
+                        $reminderType = 'event_start_'.$minutesBefore.'m';
+                        $deliverAt = $startInstant->utc()->modify("-{$minutesBefore} minutes");
+                        $outboxId = (string) Str::uuid();
+                        DB::table('calendar_reminder_outbox')->insert([
+                            'id' => $outboxId, 'tenant_id' => $tenantId, 'event_id' => $id,
+                            'recipient_user_id' => $userId, 'reminder_type' => $reminderType,
+                            'deliver_at' => $deliverAt->format('Y-m-d H:i:s'), 'status' => 'pending',
+                            'attempts' => 0, 'idempotency_key' => $id.':'.$userId.':'.$reminderType,
+                            'created_at' => now(), 'updated_at' => now(),
+                        ]);
+                    }
                 }
             }
 
