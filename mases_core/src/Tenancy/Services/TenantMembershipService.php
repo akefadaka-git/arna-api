@@ -62,7 +62,9 @@ final class TenantMembershipService
             throw new DomainException('Unsupported tenant membership status.');
         }
 
-        $change = DB::transaction(function () use ($tenantId, $userId, $targetStatus): ?array {
+        $actorId = $actor instanceof User ? $actor->id : $actor;
+
+        DB::transaction(function () use ($tenantId, $userId, $targetStatus, $actorId, $reason): void {
             $membership = DB::table('tenant_memberships')
                 ->where('tenant_id', $tenantId)
                 ->where('user_id', $userId)
@@ -76,7 +78,7 @@ final class TenantMembershipService
             $currentStatus = (string) ($membership->status ?? TenantMembership::STATUS_ACTIVE);
 
             if ($currentStatus === $targetStatus) {
-                return null;
+                return;
             }
 
             $allowedTransitions = [
@@ -105,31 +107,30 @@ final class TenantMembershipService
                     'updated_at' => now(),
                 ]);
 
-            return [
-                'previous_status' => $currentStatus,
-                'new_status' => $targetStatus,
-            ];
+            // Persist the security event on the same database transaction as
+            // the membership state change. SecurityEventService deliberately
+            // returns null when persistence fails; treating that as fatal here
+            // prevents an unrecorded lifecycle transition from committing.
+            $event = $this->securityEvents->log(
+                'tenant.membership.status_changed',
+                [
+                    'tenant_id' => $tenantId,
+                    'user_id' => $actorId,
+                    'actor_user_id' => $actorId,
+                    'member_user_id' => $userId,
+                    'previous_status' => $currentStatus,
+                    'new_status' => $targetStatus,
+                    'reason' => $reason,
+                ],
+                'warning',
+                'Tenant membership lifecycle state changed.',
+            );
+
+            if ($event === null) {
+                throw new RuntimeException(
+                    'Tenant membership transition was rolled back because its security event could not be persisted.'
+                );
+            }
         });
-
-        if ($change === null) {
-            return;
-        }
-
-        $actorId = $actor instanceof User ? $actor->id : $actor;
-
-        $this->securityEvents->log(
-            'tenant.membership.status_changed',
-            [
-                'tenant_id' => $tenantId,
-                'user_id' => $actorId,
-                'actor_user_id' => $actorId,
-                'member_user_id' => $userId,
-                'previous_status' => $change['previous_status'],
-                'new_status' => $change['new_status'],
-                'reason' => $reason,
-            ],
-            'warning',
-            'Tenant membership lifecycle state changed.',
-        );
     }
 }
