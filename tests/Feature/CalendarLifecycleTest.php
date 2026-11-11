@@ -179,7 +179,7 @@ final class CalendarLifecycleTest extends TestCase
 
         $this->assertSame('2016-01-01', $event->starts_on_ec['iso']);
         $this->assertSame('2016-01-01', $event->ends_on_ec['iso']);
-        $this->assertSame('መስከረም', $event->starts_on_ec['formatted_am'] === '' ? '' : 'መስከረም');
+        $this->assertStringContainsString('መስከረም', $event->starts_on_ec['formatted_am']);
         $this->assertSame('2023-09-12', $event->starts_on->format('Y-m-d'));
     }
 
@@ -207,8 +207,8 @@ final class CalendarLifecycleTest extends TestCase
 
         $items = $service->recurringOccurrences($actor, $event->id, '2023-09-01', '2023-11-30');
 
-        $this->assertSame(['2015-13-06', '2016-01-06', '2016-02-06'], array_column($items, 'starts_on_ec.iso'));
-        $this->assertSame(['2023-09-11', '2023-09-18', '2023-10-18'], array_column($items, 'starts_on'));
+        $this->assertSame(['2015-13-06', '2016-01-06', '2016-02-06'], array_map(fn (array $item): string => $item['starts_on_ec']['iso'], $items));
+        $this->assertSame(['2023-09-11', '2023-09-17', '2023-10-17'], array_column($items, 'starts_on'));
         $this->assertSame('ethiopian', $items[0]['calendar_system']);
     }
 
@@ -236,7 +236,7 @@ final class CalendarLifecycleTest extends TestCase
 
         $items = $service->recurringOccurrences($actor, $event->id, '2023-09-01', '2026-09-30');
 
-        $this->assertSame(['2015-13-06', '2016-13-05', '2017-13-05'], array_column($items, 'starts_on_ec.iso'));
+        $this->assertSame(['2015-13-06', '2016-13-05', '2017-13-05'], array_map(fn (array $item): string => $item['starts_on_ec']['iso'], $items));
     }
 
     #[Test]
