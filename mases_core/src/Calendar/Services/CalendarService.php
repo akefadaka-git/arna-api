@@ -323,6 +323,9 @@ final class CalendarService
         $frequency = $rule['frequency'] ?? '';
         $step = max(1, min(365, (int) ($rule['interval'] ?? 1)));
         $limit = max(1, min(500, (int) ($rule['count'] ?? 100)));
+        $until = isset($rule['until'])
+            ? (new \\DateTimeImmutable($rule['until'], $zone))->setTime(23, 59, 59, 999999)
+            : null;
         $exceptions = DB::table('calendar_recurrence_exceptions')
             ->where('tenant_id', $this->tenantId())->where('event_id', $eventId)
             ->get()->keyBy('original_starts_at');
@@ -335,7 +338,7 @@ final class CalendarService
 
             for ($index = 0; $index < $limit; $index++) {
                 $cursor = $this->recurrenceOccurrenceAt($start, $frequency, $step, $index);
-                if ($cursor > $toDate) break;
+                if ($cursor > $toDate || ($until !== null && $cursor > $until)) break;
                 $occurrenceKey = $cursor->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
                 $exception = $exceptions->get($occurrenceKey);
                 if ($cursor >= $fromDate && (!$exception || $exception->status !== 'cancelled')) {
@@ -364,7 +367,7 @@ final class CalendarService
         $duration = $end->getTimestamp() - $start->getTimestamp();
         for ($index = 0; $index < $limit; $index++) {
             $cursor = $this->recurrenceOccurrenceAt($start, $frequency, $step, $index);
-            if ($cursor > $toDate) break;
+            if ($cursor > $toDate || ($until !== null && $cursor > $until)) break;
             $occurrenceKey = $cursor->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
             $exception = $exceptions->get($occurrenceKey);
             if ($cursor >= $fromDate && (!$exception || $exception->status !== 'cancelled')) {
