@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\MASES\Core\Security\Models\SecurityEvent;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantMembershipService;
 use RuntimeException;
 use Tests\TestCase;
@@ -38,7 +39,7 @@ final class TenantMembershipLifecycleTest extends TestCase
             $member->activeTenants()->where('tenants.id', $tenant->id)->exists(),
         );
 
-        $event = \\MaaleArna\\MASES\\Core\\Security\\Models\\SecurityEvent::query()
+        $event = SecurityEvent::query()
             ->where('event_type', 'tenant.membership.status_changed')
             ->where('tenant_id', $tenant->id)
             ->where('user_id', $actor->id)
