@@ -186,6 +186,13 @@ final class CalendarReminderDispatcherTest extends TestCase
         $service->moveOccurrence(
             $recipient,
             $event->id,
+            '2026-11-01T07:00:00+00:00',
+            '2026-11-01T07:30:00+00:00',
+            '2026-11-01T08:00:00+00:00',
+        );
+        $service->moveOccurrence(
+            $recipient,
+            $event->id,
             '2026-11-02T07:00:00+00:00',
             '2026-11-02T08:00:00+00:00',
             '2026-11-02T08:30:00+00:00',
@@ -193,6 +200,11 @@ final class CalendarReminderDispatcherTest extends TestCase
         $service->cancelOccurrence($recipient, $event->id, '2026-11-03T07:00:00+00:00');
 
         app(CalendarReminderDispatcher::class)->dispatch();
+        $firstOccurrence = DB::table('calendar_reminder_outbox')
+            ->where('event_id', $event->id)->where('occurrence_index', 0)->first();
+        $this->assertSame('2026-11-01 07:30:00', $firstOccurrence->occurrence_starts_at);
+        $this->assertSame('2026-11-01 07:15:00', $firstOccurrence->deliver_at);
+
         $moved = DB::table('calendar_reminder_outbox')
             ->where('event_id', $event->id)->where('occurrence_index', 1)->first();
         $this->assertNotNull($moved);
