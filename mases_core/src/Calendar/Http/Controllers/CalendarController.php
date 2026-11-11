@@ -32,6 +32,17 @@ final class CalendarController
         return response()->json(['success' => true, 'data' => $this->calendar->createCalendar($request->user(), $data)], 201);
     }
 
+    public function updateCalendar(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'version' => ['required', 'integer', 'min:1'],
+            'name' => ['sometimes', 'string', 'max:160'],
+            'visibility' => ['sometimes', 'in:private,tenant'],
+            'timezone' => ['sometimes', 'timezone'],
+        ]);
+        return response()->json(['success' => true, 'data' => $this->calendar->updateCalendar($request->user(), $id, $data)]);
+    }
+
     public function events(Request $request): JsonResponse
     {
         $data = $request->validate(['from' => ['sometimes', 'date'], 'to' => ['sometimes', 'date', 'after_or_equal:from']]);
