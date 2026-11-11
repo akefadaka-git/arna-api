@@ -58,8 +58,19 @@ final class CalendarService
             ->where(fn ($q) => $q->where('visibility', 'tenant')->orWhere('owner_user_id', $actor->getKey()))
             ->select('id');
 
-        return CalendarEvent::query()->where('tenant_id', $this->tenantId())
-            ->whereIn('calendar_id', $visibleCalendarIds)
+        $tenantId = $this->tenantId();
+        $invitedEventIds = DB::table('calendar_attendees as ca')
+            ->join('calendar_events as ce', 'ce.id', '=', 'ca.event_id')
+            ->join('calendars as c', 'c.id', '=', 'ce.calendar_id')
+            ->where('ca.tenant_id', $tenantId)
+            ->where('ca.user_id', $actor->getKey())
+            ->where('ce.tenant_id', $tenantId)
+            ->where('c.tenant_id', $tenantId)
+            ->where('c.is_active', true)
+            ->select('ca.event_id');
+
+        return CalendarEvent::query()->where('tenant_id', $tenantId)
+            ->where(fn ($q) => $q->whereIn('calendar_id', $visibleCalendarIds)->orWhereIn('id', $invitedEventIds))
             ->when(isset($filters['from']), fn ($q) => $q->where(function ($w) use ($filters) {
                 $w->where('starts_at', '>=', $filters['from'])->orWhere('starts_on', '>=', $filters['from']);
             }))
