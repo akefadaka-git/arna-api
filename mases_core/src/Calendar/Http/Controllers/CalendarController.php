@@ -6,6 +6,9 @@ namespace MaaleArna\MASES\Core\Calendar\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
+use MaaleArna\MASES\Core\Localization\Calendar\Contracts\LocalDate;
 use MaaleArna\MASES\Core\Calendar\Services\CalendarService;
 
 final class CalendarController
@@ -43,8 +46,16 @@ final class CalendarController
             'description' => ['nullable', 'string', 'max:20000'],
             'event_type' => ['sometimes', 'string', 'max:64'],
             'all_day' => ['sometimes', 'boolean'],
-            'starts_on' => ['required_if:all_day,true', 'date_format:Y-m-d'],
-            'ends_on' => ['required_if:all_day,true', 'date_format:Y-m-d'],
+            'starts_on' => ['sometimes', 'date_format:Y-m-d'],
+            'ends_on' => ['sometimes', 'date_format:Y-m-d'],
+            'starts_on_ec' => ['sometimes', 'array:year,month,day'],
+            'starts_on_ec.year' => ['required_with:starts_on_ec', 'integer', 'min:1', 'max:9999'],
+            'starts_on_ec.month' => ['required_with:starts_on_ec', 'integer', 'min:1', 'max:13'],
+            'starts_on_ec.day' => ['required_with:starts_on_ec', 'integer', 'min:1', 'max:30'],
+            'ends_on_ec' => ['sometimes', 'array:year,month,day'],
+            'ends_on_ec.year' => ['required_with:ends_on_ec', 'integer', 'min:1', 'max:9999'],
+            'ends_on_ec.month' => ['required_with:ends_on_ec', 'integer', 'min:1', 'max:13'],
+            'ends_on_ec.day' => ['required_with:ends_on_ec', 'integer', 'min:1', 'max:30'],
             'starts_at' => ['required_unless:all_day,true', 'date'],
             'ends_at' => ['required_unless:all_day,true', 'date', 'after:starts_at'],
             'timezone' => ['sometimes', 'timezone'],
@@ -59,6 +70,34 @@ final class CalendarController
             'links.*.resource_type' => ['required_with:links', 'string', 'max:100'],
             'links.*.resource_id' => ['required_with:links', 'string', 'max:100'],
         ]);
+
+        if (($data['all_day'] ?? false) === true) {
+            foreach (['starts_on', 'ends_on'] as $field) {
+                $ecField = $field.'_ec';
+                if (isset($data[$field], $data[$ecField])) {
+                    throw ValidationException::withMessages([$field => ['Supply either Gregorian date or Ethiopian date, not both.']]);
+                }
+                if (!isset($data[$field]) && !isset($data[$ecField])) {
+                    throw ValidationException::withMessages([$field => ['An all-day event requires both civil dates; Ethiopian date input is also accepted.']]);
+                }
+                if (isset($data[$ecField])) {
+                    try {
+                        $ec = $data[$ecField];
+                        $data[$field] = LocalDate::fromEthiopianDate(
+                            (int) $ec['year'],
+                            (int) $ec['month'],
+                            (int) $ec['day'],
+                        )->value();
+                    } catch (InvalidArgumentException $exception) {
+                        throw ValidationException::withMessages([$ecField => [$exception->getMessage()]]);
+                    }
+                    unset($data[$ecField]);
+                }
+            }
+        } elseif (isset($data['starts_on_ec']) || isset($data['ends_on_ec']) || isset($data['starts_on']) || isset($data['ends_on'])) {
+            throw ValidationException::withMessages(['all_day' => ['Civil-date fields are only valid for all-day events.']]);
+        }
+
         return response()->json(['success' => true, 'data' => $this->calendar->createEvent($request->user(), $data)], 201);
     }
 
