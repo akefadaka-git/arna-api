@@ -187,14 +187,15 @@ final class CalendarService
                     throw new BadRequestHttpException('Reservation instants must include Z or an explicit UTC offset.');
                 }
             }
+            if ($event->status !== 'scheduled' || $event->all_day || $event->starts_at === null || $event->ends_at === null) {
+                throw new BadRequestHttpException('Reservations require a scheduled timed event.');
+            }
             $start = CalendarInstant::fromString($data['starts_at'], $event->timezone)->utc();
             $end = CalendarInstant::fromString($data['ends_at'], $event->timezone)->utc();
             if ($end <= $start) throw new BadRequestHttpException('Reservation end must be after start.');
             $eventStart = CalendarInstant::fromDateTime($event->starts_at, $event->timezone)->utc();
             $eventEnd = CalendarInstant::fromDateTime($event->ends_at, $event->timezone)->utc();
-            if ($event->status !== 'scheduled' || $event->all_day
-                || $start < $eventStart
-                || $end > $eventEnd) {
+            if ($start < $eventStart || $end > $eventEnd) {
                 throw new BadRequestHttpException('Reservation interval must be contained within a scheduled timed event.');
             }
             $startUtc = $start->format('Y-m-d H:i:s');
