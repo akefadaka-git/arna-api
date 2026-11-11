@@ -42,6 +42,7 @@ on:
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Tenancy/Services/TenantMembershipService.php"
       - "tests/Feature/TenantMembershipLifecycleTest.php"
+      - "tests/Feature/TenantMembershipMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
       # Any Loan production code, migration, route, policy, service, or test
@@ -252,6 +253,17 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/TenantMembershipLifecycleTest.php
+
+      - name: Run independent-connection membership lifecycle concurrency regression on MySQL
+        env:
+          ARNA_RUN_MYSQL_CONCURRENCY: "1"
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/TenantMembershipMySqlConcurrencyTest.php
 
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
