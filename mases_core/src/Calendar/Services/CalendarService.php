@@ -12,6 +12,7 @@ use MaaleArna\MASES\Core\Calendar\Models\Calendar;
 use MaaleArna\MASES\Core\Calendar\Models\CalendarAttendee;
 use MaaleArna\MASES\Core\Calendar\Models\CalendarEvent;
 use MaaleArna\MASES\Core\Calendar\Models\CalendarEventLink;
+use MaaleArna\MASES\Core\Localization\Calendar\Contracts\CalendarInstant;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -78,6 +79,7 @@ final class CalendarService
             }
 
             $allDay = (bool) ($data['all_day'] ?? false);
+            $eventTimezone = $data['timezone'] ?? $calendar->timezone;
             if ($allDay) {
                 if (empty($data['starts_on']) || empty($data['ends_on']) || isset($data['starts_at']) || isset($data['ends_at'])) {
                     throw new BadRequestHttpException('All-day events require date-only starts_on and ends_on; instants are not accepted.');
@@ -92,8 +94,8 @@ final class CalendarService
                 if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $data['starts_at']) || !preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $data['ends_at'])) {
                     throw new BadRequestHttpException('Timed event instants must include explicit UTC offsets.');
                 }
-                $startInstant = new \DateTimeImmutable($data['starts_at']);
-                $endInstant = new \DateTimeImmutable($data['ends_at']);
+                $startInstant = CalendarInstant::fromString($data['starts_at'], $eventTimezone);
+                $endInstant = CalendarInstant::fromString($data['ends_at'], $eventTimezone);
             }
 
             $id = (string) Str::uuid();
@@ -105,7 +107,7 @@ final class CalendarService
                 'all_day' => $allDay, 'starts_on' => $allDay ? $data['starts_on'] : null,
                 'ends_on' => $allDay ? $data['ends_on'] : null,
                 'starts_at' => $allDay ? null : $startInstant->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'), 'ends_at' => $allDay ? null : $endInstant->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
-                'timezone' => $data['timezone'] ?? $calendar->timezone,
+                'timezone' => $eventTimezone,
                 'status' => 'scheduled', 'recurrence_rule' => $data['recurrence_rule'] ?? null, 'version' => 1,
             ]);
             $event->save();
