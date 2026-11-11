@@ -78,6 +78,35 @@ final class CalendarReminderDispatcherTest extends TestCase
         $this->assertSame(1, DB::table('platform_notifications')->where('event_key', 'calendar.event.reminder')->count());
     }
 
+    public function test_due_all_day_reminder_uses_event_timezone_midnight(): void
+    {
+        Carbon::setTestNow('2026-10-31 20:50:00');
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $recipient = User::factory()->create(['is_active' => true]);
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+
+        app(TenantContextService::class)->setTenantById($tenant->id);
+        $calendar = app(CalendarService::class)->createCalendar($recipient, ['name' => 'All-day observances']);
+        $event = app(CalendarService::class)->createEvent($recipient, [
+            'calendar_id' => $calendar->id,
+            'title' => 'New year',
+            'all_day' => true,
+            'starts_on' => '2026-11-01',
+            'ends_on' => '2026-11-01',
+            'timezone' => 'Africa/Addis_Ababa',
+            'attendee_user_ids' => [$recipient->id],
+            'reminders' => [15],
+        ]);
+
+        $this->assertSame('2026-10-31 20:45:00', DB::table('calendar_reminder_outbox')
+            ->where('event_id', $event->id)->value('deliver_at'));
+
+        $result = app(CalendarReminderDispatcher::class)->dispatch();
+
+        $this->assertSame(['delivered' => 1, 'skipped' => 0, 'retried' => 0, 'failed' => 0], $result);
+        $this->assertDatabaseHas('calendar_reminder_outbox', ['event_id' => $event->id, 'status' => 'delivered']);
+    }
+
     public function test_failed_delivery_is_retried_with_backoff_and_then_delivered_idempotently(): void
     {
         [, , $event] = $this->createDueReminder();
