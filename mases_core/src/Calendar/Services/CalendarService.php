@@ -102,8 +102,8 @@ final class CalendarService
 
             if ($allDay) {
                 $reminderBaseInstant = LocalDate::fromString($data['starts_on'])
-                    ->atStartOfDay(new \\DateTimeZone($eventTimezone))
-                    ->setTimezone(new \\DateTimeZone('UTC'));
+                    ->atStartOfDay(new \DateTimeZone($eventTimezone))
+                    ->setTimezone(new \DateTimeZone('UTC'));
             }
 
             $id = (string) Str::uuid();
