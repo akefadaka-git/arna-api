@@ -205,7 +205,8 @@ final class CalendarLifecycleTest extends TestCase
             ],
         ]);
 
-        $items = $service->recurringOccurrences($actor, $event->id, '2023-09-01', '2023-11-30');
+        $this->assertSame('2015-13-06', $event->starts_on_ec['iso']);
+        $items = $service->recurringOccurrences($actor, $event->id, '2023-09-01T00:00:00+03:00', '2023-11-30T23:59:59+03:00');
 
         $this->assertSame(['2015-13-06', '2016-01-06', '2016-02-06'], array_map(fn (array $item): string => $item['starts_on_ec']['iso'], $items));
         $this->assertSame(['2023-09-11', '2023-09-17', '2023-10-17'], array_column($items, 'starts_on'));
@@ -234,7 +235,14 @@ final class CalendarLifecycleTest extends TestCase
             ],
         ]);
 
-        $items = $service->recurringOccurrences($actor, $event->id, '2023-09-01', '2026-09-30');
+        $items = [];
+        foreach ([
+            ['2023-09-01', '2023-11-30'],
+            ['2024-09-01', '2024-11-30'],
+            ['2025-09-01', '2025-11-30'],
+        ] as [$from, $to]) {
+            $items = array_merge($items, $service->recurringOccurrences($actor, $event->id, $from, $to));
+        }
 
         $this->assertSame(['2015-13-06', '2016-13-05', '2017-13-05'], array_map(fn (array $item): string => $item['starts_on_ec']['iso'], $items));
     }

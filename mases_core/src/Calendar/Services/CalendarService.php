@@ -356,7 +356,9 @@ final class CalendarService
         $zone = new \DateTimeZone($event->timezone);
         $fromDate = (new \DateTimeImmutable($from, $zone))->setTimezone($zone);
         $toDate = (new \DateTimeImmutable($to, $zone))->setTimezone($zone);
-        if ($toDate > $fromDate->modify('+90 days')) throw new BadRequestHttpException('Expansion window cannot exceed 90 days.');
+        if ($toDate->format('Y-m-d') > $fromDate->modify('+90 days')->format('Y-m-d')) {
+            throw new BadRequestHttpException('Expansion window cannot exceed 90 days.');
+        }
 
         $rule = $event->recurrence_rule;
         $frequency = $rule['frequency'] ?? '';
@@ -375,14 +377,17 @@ final class CalendarService
             $end = new \DateTimeImmutable($event->ends_on->format('Y-m-d'), $zone);
             $durationDays = (int) $start->diff($end)->format('%a');
 
+            $fromCivilDate = $fromDate->format('Y-m-d');
+            $toCivilDate = $toDate->format('Y-m-d');
             for ($index = 0; $index < $limit; $index++) {
                 $cursor = (($rule['calendar_system'] ?? 'gregorian') === 'ethiopian')
                     ? $this->ethiopianRecurrenceOccurrenceAt($start, $frequency, $step, $index, $zone)
                     : $this->recurrenceOccurrenceAt($start, $frequency, $step, $index);
-                if ($cursor > $toDate || ($until !== null && $cursor > $until)) break;
+                $cursorCivilDate = $cursor->format('Y-m-d');
+                if ($cursorCivilDate > $toCivilDate || ($until !== null && $cursor > $until)) break;
                 $occurrenceKey = $cursor->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
                 $exception = $exceptions->get($occurrenceKey);
-                if ($cursor >= $fromDate && (!$exception || $exception->status !== 'cancelled')) {
+                if ($cursorCivilDate >= $fromCivilDate && (!$exception || $exception->status !== 'cancelled')) {
                     $occurrenceStart = $exception?->override_starts_at
                         ? (new \DateTimeImmutable($exception->override_starts_at, new \DateTimeZone('UTC')))->setTimezone($zone)
                         : $cursor;
