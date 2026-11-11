@@ -269,6 +269,33 @@ final class CalendarLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function recurrence_expansion_honors_inclusive_until_date(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Bounded series']);
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Bounded daily briefing',
+            'starts_at' => '2026-11-01T10:00:00+03:00',
+            'ends_at' => '2026-11-01T10:30:00+03:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 10, 'until' => '2026-11-03'],
+        ]);
+
+        $items = $service->recurringOccurrences(
+            $actor, $event->id, '2026-11-01T00:00:00+03:00', '2026-11-10T23:59:59+03:00',
+        );
+
+        $this->assertSame([
+            '2026-11-01T10:00:00+03:00',
+            '2026-11-02T10:00:00+03:00',
+            '2026-11-03T10:00:00+03:00',
+        ], array_column($items, 'starts_at'));
+    }
+
+    #[Test]
     public function recurrence_expansion_rejects_windows_longer_than_ninety_days(): void
     {
         $tenant = $this->tenant();
