@@ -92,7 +92,7 @@ final class CalendarLifecycleTest extends TestCase
         }
 
         $service->updateCalendar($owner, $calendar->id, ['version' => 1, 'name' => 'Updated']);
-        $this->expectException(\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\ConflictHttpException::class);
         $service->updateCalendar($owner, $calendar->id, ['version' => 1, 'name' => 'Stale update']);
     }
 
