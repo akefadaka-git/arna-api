@@ -51,6 +51,33 @@ final class CalendarService
         });
     }
 
+    public function updateCalendar(User $actor, string $id, array $data): Calendar
+    {
+        return DB::transaction(function () use ($actor, $id, $data): Calendar {
+            $calendar = Calendar::query()->where('tenant_id', $this->tenantId())
+                ->whereKey($id)->lockForUpdate()->first();
+            if (!$calendar || (string) $calendar->owner_user_id !== (string) $actor->getKey()) {
+                throw new NotFoundHttpException('Calendar not found.');
+            }
+            if ((int) ($data['version'] ?? 0) !== (int) $calendar->version) {
+                throw new ConflictHttpException('Calendar version conflict; reload before retrying.');
+            }
+
+            $changes = array_intersect_key($data, array_flip(['name', 'visibility', 'timezone']));
+            foreach ($changes as $key => $value) {
+                $calendar->{$key} = $value;
+            }
+            $calendar->version++;
+            $calendar->save();
+            $this->audit($actor, 'calendar', (string) $calendar->id, 'updated', [
+                'version' => $calendar->version,
+                'changes' => $changes,
+            ]);
+
+            return $calendar->refresh();
+        });
+    }
+
     public function events(User $actor, array $filters): mixed
     {
         $visibleCalendarIds = Calendar::query()->where('tenant_id', $this->tenantId())
