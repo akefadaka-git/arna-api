@@ -187,18 +187,18 @@ final class CalendarService
                     throw new BadRequestHttpException('Reservation instants must include Z or an explicit UTC offset.');
                 }
             }
-            $start = new \DateTimeImmutable($data['starts_at']);
-            $end = new \DateTimeImmutable($data['ends_at']);
+            $start = CalendarInstant::fromString($data['starts_at'], $event->timezone)->utc();
+            $end = CalendarInstant::fromString($data['ends_at'], $event->timezone)->utc();
             if ($end <= $start) throw new BadRequestHttpException('Reservation end must be after start.');
-            $eventStart = \DateTimeImmutable::createFromInterface($event->starts_at);
-            $eventEnd = \DateTimeImmutable::createFromInterface($event->ends_at);
+            $eventStart = CalendarInstant::fromDateTime($event->starts_at, $event->timezone)->utc();
+            $eventEnd = CalendarInstant::fromDateTime($event->ends_at, $event->timezone)->utc();
             if ($event->status !== 'scheduled' || $event->all_day
-                || $start->getTimestamp() < $eventStart->getTimestamp()
-                || $end->getTimestamp() > $eventEnd->getTimestamp()) {
+                || $start < $eventStart
+                || $end > $eventEnd) {
                 throw new BadRequestHttpException('Reservation interval must be contained within a scheduled timed event.');
             }
-            $startUtc = $start->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
-            $endUtc = $end->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+            $startUtc = $start->format('Y-m-d H:i:s');
+            $endUtc = $end->format('Y-m-d H:i:s');
             $overlap = DB::table('calendar_reservations')->where('tenant_id', $tenantId)
                 ->where('resource_id', $resource->id)->where('status', 'confirmed')
                 ->where('starts_at', '<', $endUtc)->where('ends_at', '>', $startUtc)
