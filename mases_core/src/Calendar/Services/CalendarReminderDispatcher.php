@@ -72,6 +72,22 @@ final class CalendarReminderDispatcher
                     $to->format(DATE_ATOM),
                 );
 
+                $validIndexes = collect($occurrences)
+                    ->pluck('occurrence')
+                    ->map(fn ($index): int => (int) $index)
+                    ->filter(fn (int $index): bool => $index > 0)
+                    ->values()
+                    ->all();
+                $staleRows = DB::table('calendar_reminder_outbox')
+                    ->where('tenant_id', $event->tenant_id)
+                    ->where('event_id', $event->id)
+                    ->where('occurrence_index', '>', 0)
+                    ->where('status', 'pending');
+                if ($validIndexes !== []) {
+                    $staleRows->whereNotIn('occurrence_index', $validIndexes);
+                }
+                $staleRows->update(['status' => 'skipped', 'updated_at' => now()]);
+
                 $templates = DB::table('calendar_reminder_outbox')
                     ->where('tenant_id', $event->tenant_id)
                     ->where('event_id', $event->id)
@@ -156,8 +172,9 @@ final class CalendarReminderDispatcher
                             ->where('tenant_id', $event->tenant_id)
                             ->where('event_id', $event->id)
                             ->where('idempotency_key', $idempotencyKey)
-                            ->where('status', 'pending')
+                            ->whereIn('status', ['pending', 'skipped'])
                             ->update([
+                                'status' => 'pending',
                                 'occurrence_starts_at' => $actualStartUtc->format('Y-m-d H:i:s'),
                                 'occurrence_key' => $occurrenceKey,
                                 'deliver_at' => $deliverAt->format('Y-m-d H:i:s'),
