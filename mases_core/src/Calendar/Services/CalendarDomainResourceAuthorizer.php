@@ -2,28 +2,28 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Calendar\\Services;
+namespace MaaleArna\MASES\Core\Calendar\Services;
 
-use Illuminate\\Auth\\Access\\AuthorizationException;
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Support\\Facades\\Gate;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceAppointment;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceBody;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceMembership;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernancePosition;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceTerm;
-use MaaleArna\\MASES\\Core\\Domains\\Loan\\Models\\Loan;
-use MaaleArna\\MASES\\Core\\Domains\\Loan\\Models\\LoanCollateral;
-use MaaleArna\\MASES\\Core\\Domains\\Loan\\Models\\LoanProduct;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\ShareCertificate;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\ShareClass;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\ShareHolding;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\Shareholder;
-use MaaleArna\\MASES\\Core\\Domains\\Wallet\\Models\\Obligation;
-use MaaleArna\\MASES\\Core\\Domains\\Wallet\\Models\\Payment;
-use MaaleArna\\MASES\\Core\\Domains\\Wallet\\Models\\Wallet;
-use Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceTerm;
+use MaaleArna\MASES\Core\Domains\Loan\Models\Loan;
+use MaaleArna\MASES\Core\Domains\Loan\Models\LoanCollateral;
+use MaaleArna\MASES\Core\Domains\Loan\Models\LoanProduct;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareCertificate;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareClass;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareHolding;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
+use MaaleArna\MASES\Core\Domains\Wallet\Models\Obligation;
+use MaaleArna\MASES\Core\Domains\Wallet\Models\Payment;
+use MaaleArna\MASES\Core\Domains\Wallet\Models\Wallet;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Resolves Calendar references only through an explicit model allowlist and
