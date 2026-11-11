@@ -19,6 +19,7 @@ on:
       - "tests/Feature/TenantMembershipTest.php"
       - "tests/Unit/ExplicitTenantContextAuthorizationTest.php"
       - "tests/Unit/UserPermissionScopeTest.php"
+      - "tests/Unit/ForwardedHostTrustTest.php"
       - ".github/workflows/arna-membership-authorization-reconcile.yml"
       - "composer.json"
       - "composer.lock"
@@ -121,6 +122,9 @@ jobs:
 
       - name: Run tenant resolver regression
         run: vendor/bin/phpunit tests/Unit/TenantResolverTest.php
+
+      - name: Run forwarded-host trust regression
+        run: vendor/bin/phpunit tests/Unit/ForwardedHostTrustTest.php
 
       - name: Run trusted tenant authorization regression
         run: vendor/bin/phpunit tests/Unit/ExplicitTenantContextAuthorizationTest.php
