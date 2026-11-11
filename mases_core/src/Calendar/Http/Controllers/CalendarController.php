@@ -45,7 +45,33 @@ final class CalendarController
 
     public function events(Request $request): JsonResponse
     {
-        $data = $request->validate(['from' => ['sometimes', 'date'], 'to' => ['sometimes', 'date', 'after_or_equal:from']]);
+        $data = $request->validate([
+            'from' => ['sometimes', 'date'],
+            'to' => ['sometimes', 'date'],
+            'from_ec' => ['sometimes', 'array:year,month,day'],
+            'from_ec.year' => ['required_with:from_ec', 'integer', 'min:1', 'max:9999'],
+            'from_ec.month' => ['required_with:from_ec', 'integer', 'min:1', 'max:13'],
+            'from_ec.day' => ['required_with:from_ec', 'integer', 'min:1', 'max:30'],
+            'to_ec' => ['sometimes', 'array:year,month,day'],
+            'to_ec.year' => ['required_with:to_ec', 'integer', 'min:1', 'max:9999'],
+            'to_ec.month' => ['required_with:to_ec', 'integer', 'min:1', 'max:13'],
+            'to_ec.day' => ['required_with:to_ec', 'integer', 'min:1', 'max:30'],
+        ]);
+
+        foreach (['from', 'to'] as $field) {
+            $ecField = $field.'_ec';
+            if (isset($data[$field], $data[$ecField])) {
+                throw ValidationException::withMessages([$field => ['Supply either Gregorian or Ethiopian date, not both.']]);
+            }
+            if (isset($data[$ecField])) {
+                $data[$field] = $this->ethiopianDateToGregorian($data[$ecField], $ecField);
+                unset($data[$ecField]);
+            }
+        }
+        if (isset($data['from'], $data['to']) && $data['to'] < $data['from']) {
+            throw ValidationException::withMessages(['to' => ['The end date must not precede the start date.']]);
+        }
+
         return response()->json(['success' => true, 'data' => $this->calendar->events($request->user(), $data)]);
     }
 
@@ -75,6 +101,11 @@ final class CalendarController
             'recurrence_rule.interval' => ['sometimes', 'integer', 'min:1', 'max:365'],
             'recurrence_rule.count' => ['sometimes', 'integer', 'min:1', 'max:500'],
             'recurrence_rule.until' => ['sometimes', 'date_format:Y-m-d'],
+            'recurrence_rule.until_ec' => ['sometimes', 'array:year,month,day'],
+            'recurrence_rule.until_ec.year' => ['required_with:recurrence_rule.until_ec', 'integer', 'min:1', 'max:9999'],
+            'recurrence_rule.until_ec.month' => ['required_with:recurrence_rule.until_ec', 'integer', 'min:1', 'max:13'],
+            'recurrence_rule.until_ec.day' => ['required_with:recurrence_rule.until_ec', 'integer', 'min:1', 'max:30'],
+            'recurrence_rule.calendar_system' => ['sometimes', 'in:gregorian,ethiopian'],
             'attendee_user_ids' => ['sometimes', 'array', 'max:200'],
             'attendee_user_ids.*' => ['integer', 'distinct'],
             'reminders' => ['sometimes', 'array', 'max:10'],
@@ -113,6 +144,23 @@ final class CalendarController
             throw ValidationException::withMessages(['all_day' => ['Civil-date fields are only valid for all-day events.']]);
         }
 
+        if (isset($data['recurrence_rule']['until_ec'])) {
+            if (($data['recurrence_rule']['calendar_system'] ?? 'gregorian') !== 'ethiopian') {
+                throw ValidationException::withMessages(['recurrence_rule.until_ec' => ['Ethiopian recurrence end dates require calendar_system=ethiopian.']]);
+            }
+            if (isset($data['recurrence_rule']['until'])) {
+                throw ValidationException::withMessages(['recurrence_rule.until' => ['Supply either Gregorian until or Ethiopian until_ec, not both.']]);
+            }
+            $data['recurrence_rule']['until'] = $this->ethiopianDateToGregorian(
+                $data['recurrence_rule']['until_ec'],
+                'recurrence_rule.until_ec',
+            );
+            unset($data['recurrence_rule']['until_ec']);
+        }
+        if (($data['recurrence_rule']['calendar_system'] ?? 'gregorian') === 'ethiopian' && !($data['all_day'] ?? false)) {
+            throw ValidationException::withMessages(['recurrence_rule.calendar_system' => ['Ethiopian calendar recurrence is supported for all-day civil-date events only.']]);
+        }
+
         return response()->json(['success' => true, 'data' => $this->calendar->createEvent($request->user(), $data)], 201);
     }
 
@@ -149,8 +197,27 @@ final class CalendarController
 
     public function occurrences(Request $request, string $eventId): JsonResponse
     {
-        $data = $request->validate(['from' => ['required', 'date'], 'to' => ['required', 'date', 'after_or_equal:from']]);
-        return response()->json(['success' => true, 'data' => $this->calendar->recurringOccurrences($request->user(), $eventId, $data['from'], $data['to'])]);
+        $data = $request->validate([
+            'from' => ['required_without:from_ec', 'date'],
+            'to' => ['required_without:to_ec', 'date'],
+            'from_ec' => ['required_without:from', 'array:year,month,day'],
+            'from_ec.year' => ['required_with:from_ec', 'integer', 'min:1', 'max:9999'],
+            'from_ec.month' => ['required_with:from_ec', 'integer', 'min:1', 'max:13'],
+            'from_ec.day' => ['required_with:from_ec', 'integer', 'min:1', 'max:30'],
+            'to_ec' => ['required_without:to', 'array:year,month,day'],
+            'to_ec.year' => ['required_with:to_ec', 'integer', 'min:1', 'max:9999'],
+            'to_ec.month' => ['required_with:to_ec', 'integer', 'min:1', 'max:13'],
+            'to_ec.day' => ['required_with:to_ec', 'integer', 'min:1', 'max:30'],
+        ]);
+        if (isset($data['from'], $data['from_ec']) || isset($data['to'], $data['to_ec'])) {
+            throw ValidationException::withMessages(['from' => ['Supply either Gregorian or Ethiopian range dates, not both.']]);
+        }
+        $from = isset($data['from_ec']) ? $this->ethiopianDateToGregorian($data['from_ec'], 'from_ec') : $data['from'];
+        $to = isset($data['to_ec']) ? $this->ethiopianDateToGregorian($data['to_ec'], 'to_ec') : $data['to'];
+        if ($to < $from) {
+            throw ValidationException::withMessages(['to' => ['The end date must not precede the start date.']]);
+        }
+        return response()->json(['success' => true, 'data' => $this->calendar->recurringOccurrences($request->user(), $eventId, $from, $to)]);
     }
 
     public function moveOccurrence(Request $request, string $eventId): JsonResponse
@@ -175,6 +242,19 @@ final class CalendarController
         $data = $request->validate(['original_starts_at' => ['required', 'date']]);
         $this->calendar->cancelOccurrence($request->user(), $eventId, $data['original_starts_at']);
         return response()->json(['success' => true, 'data' => ['cancelled' => true]]);
+    }
+
+    private function ethiopianDateToGregorian(array $parts, string $field): string
+    {
+        try {
+            return LocalDate::fromEthiopianDate(
+                (int) $parts['year'],
+                (int) $parts['month'],
+                (int) $parts['day'],
+            )->value();
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([$field => [$exception->getMessage()]]);
+        }
     }
 
     public function reserve(Request $request): JsonResponse

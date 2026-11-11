@@ -6,6 +6,10 @@ namespace MaaleArna\MASES\Core\Calendar\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use DateTimeImmutable;
+use DateTimeZone;
+use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
+use MaaleArna\MASES\Core\Localization\Calendar\EthiopianDate;
 
 final class CalendarEvent extends Model
 {
@@ -13,6 +17,7 @@ final class CalendarEvent extends Model
     public $incrementing = false;
     protected $keyType = 'string';
     protected $guarded = ['*'];
+    protected $appends = ['starts_on_ec', 'ends_on_ec'];
 
     protected $casts = [
         'all_day' => 'boolean',
@@ -23,6 +28,36 @@ final class CalendarEvent extends Model
         'recurrence_rule' => 'array',
         'version' => 'integer',
     ];
+
+    public function getStartsOnEcAttribute(): ?array
+    {
+        return $this->ethiopianDatePayload($this->starts_on);
+    }
+
+    public function getEndsOnEcAttribute(): ?array
+    {
+        return $this->ethiopianDatePayload($this->ends_on);
+    }
+
+    private function ethiopianDatePayload(mixed $value): ?array
+    {
+        if (!$this->all_day || $value === null) {
+            return null;
+        }
+
+        $timezone = new DateTimeZone($this->timezone ?: 'Africa/Addis_Ababa');
+        $civilDate = new DateTimeImmutable($value instanceof \DateTimeInterface ? $value->format('Y-m-d') : (string) $value, $timezone);
+        $date = EthiopianDate::fromGregorian($civilDate, new EthiopianCalendar($timezone));
+
+        return [
+            'year' => $date->year,
+            'month' => $date->month,
+            'day' => $date->day,
+            'iso' => $date->toIso(),
+            'formatted_am' => $date->formatFull('am', new EthiopianCalendar($timezone)),
+            'formatted_en' => $date->formatFull('en', new EthiopianCalendar($timezone)),
+        ];
+    }
 
     public function attendees(): HasMany
     {

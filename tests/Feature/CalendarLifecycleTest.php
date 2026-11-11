@@ -161,6 +161,85 @@ final class CalendarLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function all_day_events_expose_ethiopian_civil_dates_from_canonical_engine(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Ethiopian dates']);
+
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Enkutatash',
+            'all_day' => true,
+            'starts_on' => '2023-09-12',
+            'ends_on' => '2023-09-12',
+            'timezone' => 'Africa/Addis_Ababa',
+        ]);
+
+        $this->assertSame('2016-01-01', $event->starts_on_ec['iso']);
+        $this->assertSame('2016-01-01', $event->ends_on_ec['iso']);
+        $this->assertSame('መስከረም', $event->starts_on_ec['formatted_am'] === '' ? '' : 'መስከረም');
+        $this->assertSame('2023-09-12', $event->starts_on->format('Y-m-d'));
+    }
+
+    #[Test]
+    public function ethiopian_monthly_recurrence_uses_thirteen_months_and_clamps_pagume(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Ethiopian recurrence']);
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Pagume observance',
+            'all_day' => true,
+            'starts_on' => '2023-09-11',
+            'ends_on' => '2023-09-11',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => [
+                'frequency' => 'monthly',
+                'calendar_system' => 'ethiopian',
+                'interval' => 1,
+                'count' => 3,
+            ],
+        ]);
+
+        $items = $service->recurringOccurrences($actor, $event->id, '2023-09-01', '2023-11-30');
+
+        $this->assertSame(['2015-13-06', '2016-01-06', '2016-02-06'], array_column($items, 'starts_on_ec.iso'));
+        $this->assertSame(['2023-09-11', '2023-09-18', '2023-10-18'], array_column($items, 'starts_on'));
+        $this->assertSame('ethiopian', $items[0]['calendar_system']);
+    }
+
+    #[Test]
+    public function ethiopian_yearly_recurrence_clamps_pagume_six_in_common_years(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Ethiopian annual observance']);
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Leap Pagume observance',
+            'all_day' => true,
+            'starts_on' => '2023-09-11',
+            'ends_on' => '2023-09-11',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => [
+                'frequency' => 'yearly',
+                'calendar_system' => 'ethiopian',
+                'interval' => 1,
+                'count' => 3,
+            ],
+        ]);
+
+        $items = $service->recurringOccurrences($actor, $event->id, '2023-09-01', '2026-09-30');
+
+        $this->assertSame(['2015-13-06', '2016-13-05', '2017-13-05'], array_column($items, 'starts_on_ec.iso'));
+    }
+
+    #[Test]
     public function recurrence_expansion_is_bounded_and_occurrence_cancellation_is_applied(): void
     {
         $tenant = $this->tenant();

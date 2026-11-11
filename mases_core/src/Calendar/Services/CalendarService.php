@@ -14,6 +14,8 @@ use MaaleArna\MASES\Core\Calendar\Models\CalendarEvent;
 use MaaleArna\MASES\Core\Calendar\Models\CalendarEventLink;
 use MaaleArna\MASES\Core\Localization\Calendar\Contracts\CalendarInstant;
 use MaaleArna\MASES\Core\Localization\Calendar\Contracts\LocalDate;
+use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
+use MaaleArna\MASES\Core\Localization\Calendar\EthiopianDate;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -374,7 +376,9 @@ final class CalendarService
             $durationDays = (int) $start->diff($end)->format('%a');
 
             for ($index = 0; $index < $limit; $index++) {
-                $cursor = $this->recurrenceOccurrenceAt($start, $frequency, $step, $index);
+                $cursor = (($rule['calendar_system'] ?? 'gregorian') === 'ethiopian')
+                    ? $this->ethiopianRecurrenceOccurrenceAt($start, $frequency, $step, $index, $zone)
+                    : $this->recurrenceOccurrenceAt($start, $frequency, $step, $index);
                 if ($cursor > $toDate || ($until !== null && $cursor > $until)) break;
                 $occurrenceKey = $cursor->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
                 $exception = $exceptions->get($occurrenceKey);
@@ -391,6 +395,9 @@ final class CalendarService
                         'all_day' => true,
                         'starts_on' => $occurrenceStart->format('Y-m-d'),
                         'ends_on' => $occurrenceEnd->format('Y-m-d'),
+                        'starts_on_ec' => $this->ethiopianDatePayload($occurrenceStart, $zone),
+                        'ends_on_ec' => $this->ethiopianDatePayload($occurrenceEnd, $zone),
+                        'calendar_system' => $rule['calendar_system'] ?? 'gregorian',
                         'timezone' => $event->timezone,
                     ];
                 }
@@ -416,6 +423,50 @@ final class CalendarService
         }
 
         return $items;
+    }
+
+    private function ethiopianRecurrenceOccurrenceAt(
+        \DateTimeImmutable $anchor,
+        string $frequency,
+        int $interval,
+        int $occurrence,
+        \DateTimeZone $timezone,
+    ): \DateTimeImmutable {
+        if (!in_array($frequency, ['monthly', 'yearly'], true)) {
+            return $this->recurrenceOccurrenceAt($anchor, $frequency, $interval, $occurrence);
+        }
+
+        $calendar = new EthiopianCalendar($timezone);
+        $ethiopianAnchor = EthiopianDate::fromGregorian($anchor, $calendar);
+        $offset = $interval * $occurrence;
+        $year = $ethiopianAnchor->year;
+        $month = $ethiopianAnchor->month;
+
+        if ($frequency === 'monthly') {
+            $monthIndex = (($year - 1) * 13) + ($month - 1) + $offset;
+            $year = intdiv($monthIndex, 13) + 1;
+            $month = ($monthIndex % 13) + 1;
+        } else {
+            $year += $offset;
+        }
+
+        $day = min($ethiopianAnchor->day, $calendar->daysInMonth($year, $month));
+        return EthiopianDate::fromComponents($year, $month, $day)->toGregorian($calendar);
+    }
+
+    private function ethiopianDatePayload(\DateTimeInterface $date, \DateTimeZone $timezone): array
+    {
+        $calendar = new EthiopianCalendar($timezone);
+        $ethiopian = EthiopianDate::fromGregorian($date, $calendar);
+
+        return [
+            'year' => $ethiopian->year,
+            'month' => $ethiopian->month,
+            'day' => $ethiopian->day,
+            'iso' => $ethiopian->toIso(),
+            'formatted_am' => $ethiopian->formatFull('am', $calendar),
+            'formatted_en' => $ethiopian->formatFull('en', $calendar),
+        ];
     }
 
     private function recurrenceOccurrenceAt(\DateTimeImmutable $anchor, string $frequency, int $interval, int $occurrence): \DateTimeImmutable
