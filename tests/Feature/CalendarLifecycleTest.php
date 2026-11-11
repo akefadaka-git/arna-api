@@ -147,6 +147,46 @@ final class CalendarLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function all_day_recurrence_expands_and_supports_date_only_cancellation_and_overrides(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'All-day recurrence']);
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Multi-day observance',
+            'all_day' => true,
+            'starts_on' => '2026-11-01',
+            'ends_on' => '2026-11-02',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 3],
+        ]);
+
+        $before = $service->recurringOccurrences($actor, $event->id, '2026-11-01', '2026-11-10');
+        $this->assertCount(3, $before);
+        $this->assertSame(['2026-11-01', '2026-11-02', '2026-11-03'], array_column($before, 'starts_on'));
+        $this->assertSame(['2026-11-02', '2026-11-03', '2026-11-04'], array_column($before, 'ends_on'));
+
+        $service->cancelOccurrence($actor, $event->id, '2026-11-02');
+        $service->moveOccurrence($actor, $event->id, '2026-11-03', '2026-11-05', '2026-11-06');
+
+        $after = $service->recurringOccurrences($actor, $event->id, '2026-11-01', '2026-11-10');
+        $this->assertCount(2, $after);
+        $this->assertSame(['2026-11-01', '2026-11-05'], array_column($after, 'starts_on'));
+        $this->assertSame(['2026-11-02', '2026-11-06'], array_column($after, 'ends_on'));
+        $this->assertTrue(collect($after)->every(fn (array $item): bool => $item['all_day'] === true));
+        $this->assertDatabaseHas('calendar_recurrence_exceptions', [
+            'event_id' => $event->id,
+            'status' => 'cancelled',
+        ]);
+        $this->assertDatabaseHas('calendar_recurrence_exceptions', [
+            'event_id' => $event->id,
+            'status' => 'overridden',
+        ]);
+    }
+
+    #[Test]
     public function monthly_and_yearly_recurrence_clamp_short_month_and_leap_day_without_drift(): void
     {
         $tenant = $this->tenant();
