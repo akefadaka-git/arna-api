@@ -184,6 +184,28 @@ final class CalendarLifecycleTest extends TestCase
     }
 
     #[Test]
+    public function timed_events_expose_ethiopian_date_and_clock_in_event_timezone(): void
+    {
+        $tenant = $this->tenant();
+        $actor = User::factory()->create(['is_active' => true]);
+        $service = $this->service($tenant);
+        $calendar = $service->createCalendar($actor, ['name' => 'Ethiopian clock']);
+
+        $event = $service->createEvent($actor, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Morning meeting',
+            'starts_at' => '2023-09-12T09:00:00+03:00',
+            'ends_at' => '2023-09-12T10:00:00+03:00',
+            'timezone' => 'Africa/Addis_Ababa',
+        ]);
+
+        $this->assertSame('2016-01-01', $event->starts_at_ec['iso']);
+        $this->assertSame('3:00 ጠዋት', $event->starts_at_ec['ethiopian_time']['formatted']);
+        $this->assertSame('4:00 ጠዋት', $event->ends_at_ec['ethiopian_time']['formatted']);
+        $this->assertNull($event->starts_on_ec);
+    }
+
+    #[Test]
     public function ethiopian_monthly_recurrence_uses_thirteen_months_and_clamps_pagume(): void
     {
         $tenant = $this->tenant();

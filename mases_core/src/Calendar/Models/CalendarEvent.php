@@ -17,7 +17,7 @@ final class CalendarEvent extends Model
     public $incrementing = false;
     protected $keyType = 'string';
     protected $guarded = ['*'];
-    protected $appends = ['starts_on_ec', 'ends_on_ec'];
+    protected $appends = ['starts_on_ec', 'ends_on_ec', 'starts_at_ec', 'ends_at_ec'];
 
     protected $casts = [
         'all_day' => 'boolean',
@@ -37,6 +37,40 @@ final class CalendarEvent extends Model
     public function getEndsOnEcAttribute(): ?array
     {
         return $this->ethiopianDatePayload($this->ends_on);
+    }
+
+    public function getStartsAtEcAttribute(): ?array
+    {
+        return $this->ethiopianDateTimePayload($this->starts_at);
+    }
+
+    public function getEndsAtEcAttribute(): ?array
+    {
+        return $this->ethiopianDateTimePayload($this->ends_at);
+    }
+
+    private function ethiopianDateTimePayload(mixed $value): ?array
+    {
+        if ($this->all_day || $value === null) {
+            return null;
+        }
+
+        $timezone = new DateTimeZone($this->timezone ?: 'Africa/Addis_Ababa');
+        $instant = \DateTimeImmutable::createFromInterface($value)->setTimezone($timezone);
+        $calendar = new EthiopianCalendar($timezone);
+        $date = EthiopianDate::fromGregorian($instant, $calendar);
+
+        return [
+            'year' => $date->year,
+            'month' => $date->month,
+            'day' => $date->day,
+            'iso' => $date->toIso(),
+            'formatted_am' => $date->formatFull('am', $calendar),
+            'formatted_en' => $date->formatFull('en', $calendar),
+            'local_time' => $instant->format('H:i:s'),
+            'ethiopian_time' => $calendar->toEthiopianTime($instant),
+            'timezone' => $timezone->getName(),
+        ];
     }
 
     private function ethiopianDatePayload(mixed $value): ?array
