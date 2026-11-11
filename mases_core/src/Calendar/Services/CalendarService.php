@@ -136,13 +136,22 @@ final class CalendarService
                 }
             }
 
-            if (!empty($data['links'])) { throw new BadRequestHttpException('Calendar domain links are disabled until an owning-domain authorization adapter is registered.'); }
-
             foreach ($data['links'] ?? [] as $link) {
+                $domain = (string) ($link['domain'] ?? '');
+                $resourceType = (string) ($link['resource_type'] ?? '');
+                $resourceId = (string) ($link['resource_id'] ?? '');
+                $relationship = (string) ($link['relationship'] ?? 'related');
+                if (!in_array($domain, ['people', 'organization', 'governance', 'finance', 'shareholder', 'wallet', 'loan'], true)
+                    || !preg_match('/^[a-z][a-z0-9_-]{0,99}$/', $resourceType)
+                    || $resourceId === '' || strlen($resourceId) > 100
+                    || !in_array($relationship, ['related', 'agenda', 'attachment', 'context'], true)) {
+                    throw new BadRequestHttpException('Calendar domain links must be valid opaque references in a supported domain.');
+                }
+
                 CalendarEventLink::query()->create([
                     'event_id' => $id, 'tenant_id' => $tenantId,
-                    'domain' => $link['domain'], 'resource_type' => $link['resource_type'],
-                    'resource_id' => (string) $link['resource_id'], 'relationship' => $link['relationship'] ?? 'related',
+                    'domain' => $domain, 'resource_type' => $resourceType,
+                    'resource_id' => $resourceId, 'relationship' => $relationship,
                 ]);
             }
 
