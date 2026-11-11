@@ -38,11 +38,18 @@ final class TenantMembershipLifecycleTest extends TestCase
             $member->activeTenants()->where('tenants.id', $tenant->id)->exists(),
         );
 
-        $this->assertDatabaseHas('security_events', [
-            'event_type' => 'tenant.membership.status_changed',
-            'tenant_id' => $tenant->id,
-            'user_id' => $actor->id,
-        ]);
+        $event = \\MaaleArna\\MASES\\Core\\Security\\Models\\SecurityEvent::query()
+            ->where('event_type', 'tenant.membership.status_changed')
+            ->where('tenant_id', $tenant->id)
+            ->where('user_id', $actor->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($event);
+        $this->assertSame(TenantMembership::STATUS_ACTIVE, $event->event_data['previous_status']);
+        $this->assertSame(TenantMembership::STATUS_SUSPENDED, $event->event_data['new_status']);
+        $this->assertSame($member->id, $event->event_data['member_user_id']);
+        $this->assertSame($actor->id, $event->event_data['actor_user_id']);
     }
 
     public function test_suspended_membership_can_be_reactivated(): void
@@ -79,6 +86,38 @@ final class TenantMembershipLifecycleTest extends TestCase
             $actor,
             'Attempted reactivation',
         );
+    }
+
+    public function test_membership_transition_rolls_back_when_security_event_cannot_be_persisted(): void
+    {
+        [$tenant, $member] = $this->createMembership();
+
+        // The security_events.user_id foreign key rejects this nonexistent
+        // actor. SecurityEventService catches the DB error and returns null;
+        // the lifecycle service must then abort the enclosing transaction.
+        try {
+            app(TenantMembershipService::class)->suspend(
+                (int) $tenant->id,
+                (int) $member->id,
+                999999999,
+                'Invalid actor must not produce an unaudited transition',
+            );
+
+            $this->fail('A transition without a durable security event must fail.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('security event could not be persisted', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('tenant_memberships', [
+            'tenant_id' => $tenant->id,
+            'user_id' => $member->id,
+            'status' => TenantMembership::STATUS_ACTIVE,
+        ]);
+
+        $this->assertDatabaseMissing('security_events', [
+            'event_type' => 'tenant.membership.status_changed',
+            'tenant_id' => $tenant->id,
+        ]);
     }
 
     public function test_transition_fails_when_membership_does_not_exist(): void
