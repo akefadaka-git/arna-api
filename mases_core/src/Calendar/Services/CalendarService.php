@@ -23,8 +23,10 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 final class CalendarService
 {
-    public function __construct(private readonly TenantContextService $tenantContext)
-    {
+    public function __construct(
+        private readonly TenantContextService $tenantContext,
+        private readonly CalendarDomainResourceAuthorizer $domainResourceAuthorizer,
+    ) {
     }
 
     public function calendars(User $actor): mixed
@@ -98,7 +100,7 @@ final class CalendarService
             ->where('c.is_active', true)
             ->select('ca.event_id');
 
-        return CalendarEvent::query()->where('tenant_id', $tenantId)
+        $events = CalendarEvent::query()->where('tenant_id', $tenantId)
             ->where(fn ($q) => $q->whereIn('calendar_id', $visibleCalendarIds)->orWhereIn('id', $invitedEventIds))
             ->when(isset($filters['from']), fn ($q) => $q->where(function ($w) use ($filters) {
                 $w->where('starts_at', '>=', $filters['from'])->orWhere('starts_on', '>=', $filters['from']);
@@ -107,6 +109,17 @@ final class CalendarService
                 $w->where('starts_at', '<=', $filters['to'])->orWhere('starts_on', '<=', $filters['to']);
             }))
             ->with(['attendees', 'links'])->orderByRaw('COALESCE(starts_at, starts_on)')->paginate(100);
+
+        $events->getCollection()->each(function (CalendarEvent $event) use ($actor, $tenantId): void {
+            $visibleLinks = $event->links->filter(fn (CalendarEventLink $link): bool =>
+                $this->domainResourceAuthorizer->canView(
+                    $actor, $tenantId, $link->domain, $link->resource_type, $link->resource_id,
+                )
+            );
+            $event->setRelation('links', $visibleLinks->values());
+        });
+
+        return $events;
     }
 
     public function createEvent(User $actor, array $data): CalendarEvent
@@ -191,6 +204,9 @@ final class CalendarService
                     DB::table('calendar_reminder_outbox')->insert([
                         'id' => $outboxId, 'tenant_id' => $tenantId, 'event_id' => $id,
                         'recipient_user_id' => $userId, 'reminder_type' => $reminderType,
+                        'occurrence_index' => 0,
+                        'occurrence_starts_at' => $reminderBaseInstant->format('Y-m-d H:i:s'),
+                        'occurrence_key' => $reminderBaseInstant->format('Y-m-d H:i:s'),
                         'deliver_at' => $deliverAt->format('Y-m-d H:i:s'), 'status' => 'pending',
                         'attempts' => 0, 'idempotency_key' => $id.':'.$userId.':'.$reminderType,
                         'created_at' => now(), 'updated_at' => now(),
@@ -209,6 +225,10 @@ final class CalendarService
                     || !in_array($relationship, ['related', 'agenda', 'attachment', 'context'], true)) {
                     throw new BadRequestHttpException('Calendar domain links must be valid opaque references in a supported domain.');
                 }
+
+                $this->domainResourceAuthorizer->resolveAndAuthorize(
+                    $actor, $tenantId, $domain, $resourceType, $resourceId,
+                );
 
                 CalendarEventLink::query()->create([
                     'event_id' => $id, 'tenant_id' => $tenantId,
@@ -397,6 +417,7 @@ final class CalendarService
                     $items[] = [
                         'event_id' => $event->id,
                         'occurrence' => $index,
+                        'occurrence_key' => $occurrenceKey,
                         'all_day' => true,
                         'starts_on' => $occurrenceStart->format('Y-m-d'),
                         'ends_on' => $occurrenceEnd->format('Y-m-d'),
@@ -422,7 +443,7 @@ final class CalendarService
             if ($cursor >= $fromDate && (!$exception || $exception->status !== 'cancelled')) {
                 $occurrenceStart = $exception?->override_starts_at ? new \DateTimeImmutable($exception->override_starts_at, new \DateTimeZone('UTC')) : $cursor;
                 $occurrenceEnd = $exception?->override_ends_at ? new \DateTimeImmutable($exception->override_ends_at, new \DateTimeZone('UTC')) : $occurrenceStart->modify("+{$duration} seconds");
-                $items[] = ['event_id' => $event->id, 'occurrence' => $index,
+                $items[] = ['event_id' => $event->id, 'occurrence' => $index, 'occurrence_key' => $occurrenceKey,
                     'starts_at' => $occurrenceStart->setTimezone($zone)->format(DATE_ATOM), 'ends_at' => $occurrenceEnd->setTimezone($zone)->format(DATE_ATOM), 'timezone' => $event->timezone];
             }
         }
