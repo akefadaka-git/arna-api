@@ -324,7 +324,7 @@ final class CalendarService
         $step = max(1, min(365, (int) ($rule['interval'] ?? 1)));
         $limit = max(1, min(500, (int) ($rule['count'] ?? 100)));
         $until = isset($rule['until'])
-            ? (new \\DateTimeImmutable($rule['until'], $zone))->setTime(23, 59, 59, 999999)
+            ? (new \DateTimeImmutable($rule['until'], $zone))->setTime(23, 59, 59, 999999)
             : null;
         $exceptions = DB::table('calendar_recurrence_exceptions')
             ->where('tenant_id', $this->tenantId())->where('event_id', $eventId)
