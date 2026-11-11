@@ -69,6 +69,7 @@ final class CalendarController
             'links.*.domain' => ['required_with:links', 'string', 'max:64'],
             'links.*.resource_type' => ['required_with:links', 'string', 'max:100'],
             'links.*.resource_id' => ['required_with:links', 'string', 'max:100'],
+            'links.*.relationship' => ['sometimes', 'in:related,agenda,attachment,context'],
         ]);
 
         if (($data['all_day'] ?? false) === true) {
