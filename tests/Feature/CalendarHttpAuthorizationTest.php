@@ -192,6 +192,31 @@ final class CalendarHttpAuthorizationTest extends TestCase
         );
     }
 
+    public function test_ethiopian_event_filters_include_the_entire_addis_civil_day_for_timed_events(): void
+    {
+        $tenant = $this->tenant();
+        $actor = $this->member($tenant);
+        $this->grant($actor, $tenant, 'calendar.create', 'calendar.view');
+        $calendar = $this->service($tenant)->createCalendar($actor, ['name' => 'E.C. timed filter']);
+        Sanctum::actingAs($actor);
+
+        $created = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/events', [
+                'calendar_id' => $calendar->id,
+                'title' => 'Late Addis meeting',
+                'starts_at' => '2023-09-12T23:30:00+03:00',
+                'ends_at' => '2023-09-13T00:30:00+03:00',
+            ])
+            ->assertCreated();
+
+        $eventId = $created->json('data.id');
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/calendar/events?from_ec[year]=2016&from_ec[month]=1&from_ec[day]=1&to_ec[year]=2016&to_ec[month]=1&to_ec[day]=1')
+            ->assertOk()
+            ->assertJsonPath('data.data.0.id', $eventId);
+    }
+
     public function test_private_calendar_is_not_visible_to_another_member_over_http(): void
     {
         $tenant = $this->tenant();
