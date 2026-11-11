@@ -59,10 +59,11 @@ final class TenantMembershipMySqlConcurrencyTest extends TestCase
             @unlink($path);
         }
 
+        $children = [];
+
         try {
             // Prevent child processes from inheriting a live parent PDO.
             DB::disconnect();
-            $children = [];
 
             foreach ([0, 1] as $index) {
                 $pid = pcntl_fork();
@@ -193,6 +194,17 @@ final class TenantMembershipMySqlConcurrencyTest extends TestCase
                 $this->assertSame((int) $member->getKey(), (int) $data['member_user_id']);
             }
         } finally {
+            // Always release and reap workers, including when a parent-side
+            // assertion fails before the normal barrier release.
+            if (! is_file($releasePath)) {
+                file_put_contents($releasePath, 'abort');
+            }
+            foreach ($children as $pid) {
+                $waited = pcntl_waitpid($pid, $status, WNOHANG);
+                if ($waited === 0) {
+                    pcntl_waitpid($pid, $status);
+                }
+            }
             DB::purge();
             @unlink($releasePath);
             foreach (array_merge($readyPaths, $resultPaths) as $path) {
