@@ -40,6 +40,8 @@ on:
       - "routes/api.php"
       - "mases_core/src/Domains/People/**"
       - "mases_core/src/Auth/Models/User.php"
+      - "mases_core/src/Tenancy/Services/TenantMembershipService.php"
+      - "tests/Feature/TenantMembershipLifecycleTest.php"
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
       # Any Loan production code, migration, route, policy, service, or test
@@ -240,6 +242,16 @@ jobs:
 
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
+
+      - name: Run tenant membership lifecycle and audit atomicity tests on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/TenantMembershipLifecycleTest.php
 
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
