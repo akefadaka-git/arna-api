@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
-use Illuminate\\Http\\Request;
-use PHPUnit\\Framework\\TestCase;
+use Illuminate\Http\Request;
+use PHPUnit\Framework\TestCase;
 
 final class ForwardedHostTrustTest extends TestCase
 {
