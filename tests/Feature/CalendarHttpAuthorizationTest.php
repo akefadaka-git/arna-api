@@ -173,6 +173,23 @@ final class CalendarHttpAuthorizationTest extends TestCase
             ['2015-13-06', '2016-02-06'],
             array_map(fn (array $item): string => $item['starts_on_ec']['iso'], $afterCancellation->json('data')),
         );
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/events/'.$eventId.'/occurrences/move', [
+                'original_starts_on_ec' => ['year' => 2015, 'month' => 13, 'day' => 6],
+                'override_starts_on_ec' => ['year' => 2016, 'month' => 1, 'day' => 8],
+                'override_ends_on_ec' => ['year' => 2016, 'month' => 1, 'day' => 9],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.overridden', true);
+
+        $afterMove = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/calendar/events/'.$eventId.'/occurrences?from_ec[year]=2015&from_ec[month]=13&from_ec[day]=1&to_ec[year]=2016&to_ec[month]=2&to_ec[day]=10')
+            ->assertOk();
+        $this->assertSame(
+            ['2016-01-08', '2016-02-06'],
+            array_map(fn (array $item): string => $item['starts_on_ec']['iso'], $afterMove->json('data')),
+        );
     }
 
     public function test_private_calendar_is_not_visible_to_another_member_over_http(): void
