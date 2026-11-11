@@ -57,8 +57,17 @@ final class CalendarReminderDispatcher
                         ->where('id', $row->event_id)
                         ->first();
 
-                    if (!$event || $event->status !== 'scheduled' || $event->starts_at === null
-                        || new DateTimeImmutable($event->starts_at, new DateTimeZone('UTC')) <= now()->toDateTimeImmutable()) {
+                    $eventStart = null;
+                    if ($event && $event->status === 'scheduled') {
+                        if ((bool) $event->all_day && $event->starts_on !== null && $event->timezone !== null) {
+                            $eventStart = new DateTimeImmutable($event->starts_on, new DateTimeZone($event->timezone));
+                        } elseif (!(bool) $event->all_day && $event->starts_at !== null) {
+                            $eventStart = new DateTimeImmutable($event->starts_at, new DateTimeZone('UTC'));
+                        }
+                    }
+
+                    if (!$event || $event->status !== 'scheduled' || $eventStart === null
+                        || $eventStart <= now()->toDateTimeImmutable()) {
                         DB::table('calendar_reminder_outbox')->where('id', $row->id)->update([
                             'status' => 'skipped', 'updated_at' => now(),
                         ]);
