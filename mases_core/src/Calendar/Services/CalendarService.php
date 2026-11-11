@@ -148,7 +148,7 @@ final class CalendarService
             if (is_array($recurrenceRule) && isset($recurrenceRule['until'])) {
                 $anchorDate = $allDay
                     ? $data['starts_on']
-                    : $startInstant->setTimezone(new \\DateTimeZone($eventTimezone))->format('Y-m-d');
+                    : $startInstant->setTimezone(new \DateTimeZone($eventTimezone))->format('Y-m-d');
                 if ($recurrenceRule['until'] < $anchorDate) {
                     throw new BadRequestHttpException('Recurrence end date must not precede the first occurrence.');
                 }
