@@ -174,6 +174,7 @@ use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use MaaleArna\MASES\Core\Tenancy\TrustedProxyPolicy;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Exceptions\CoreException;
@@ -672,20 +673,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // LB CIDR if the proxy sits on a public address, and ensure the LB
         // strips client-supplied X-Forwarded-* headers.
         // ---------------------------------------------------------------------
+        // Centralized policy is shared with the regression test so this
+        // test exercises the exact proxy list and header mask used at boot.
         $middleware->trustProxies(
-            at: [
-                '127.0.0.1',
-                '10.0.0.0/8',
-                '172.16.0.0/12',
-                '192.168.0.0/16',
-            ],
-            // Deliberately exclude HEADER_X_FORWARDED_HOST: tenant resolution
-            // must use the origin Host header, never a client-influenced forwarded
-            // host. This prevents spoofed proxy metadata from selecting a tenant.
-            headers: Request::HEADER_X_FORWARDED_FOR
-                | Request::HEADER_X_FORWARDED_PORT
-                | Request::HEADER_X_FORWARDED_PROTO
-                | Request::HEADER_X_FORWARDED_AWS_ELB,
+            at: TrustedProxyPolicy::trustedProxies(),
+            headers: TrustedProxyPolicy::trustedHeaders(),
         );
 
         // ---------------------------------------------------------------------
