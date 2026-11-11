@@ -61,7 +61,7 @@ final class CalendarService
         $tenantId = $this->tenantId();
         $invitedEventIds = DB::table('calendar_attendees as ca')
             ->join('calendar_events as ce', 'ce.id', '=', 'ca.event_id')
-            ->join('calendars as c', 'c.id', '=', 'ce.calendar_id')
+            ->join('calendar_calendars as c', 'c.id', '=', 'ce.calendar_id')
             ->where('ca.tenant_id', $tenantId)
             ->where('ca.user_id', $actor->getKey())
             ->where('ce.tenant_id', $tenantId)
