@@ -1192,6 +1192,59 @@ final class FinanceGeneralLedgerTest extends TestCase
         );
     }
 
+    #[Test]
+    public function test_finance_ai_proposal_review_is_audited_and_content_is_immutable(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('This regression verifies MySQL Finance AI proposal triggers.');
+        }
+
+        [$tenant, $creator, $entity] = $this->ledgerFixture();
+        $reviewer = User::factory()->create();
+        $proposal = FinanceAiProposal::query()->create([
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'requested_by' => $creator->id,
+            'agent_key' => 'test-agent',
+            'task_type' => 'variance_review',
+            'task_template_version' => 'test-v1',
+            'status' => FinanceAiProposal::PROPOSED,
+            'title' => 'Immutable evidence proposal',
+            'summary' => 'Evidence-backed test proposal.',
+            'proposal' => ['recommendation' => 'review'],
+            'evidence_refs' => [['type' => 'finance.trial_balance']],
+            'evidence_sha256' => str_repeat('b', 64),
+            'limitations' => ['test-only evidence'],
+        ]);
+
+        $approved = app(FinanceIntelligenceService::class)->approve(
+            (int) $tenant->id,
+            (int) $proposal->id,
+            (int) $reviewer->id,
+            'Independent reviewer accepted the proposal for human follow-up.',
+        );
+
+        $this->assertSame(FinanceAiProposal::APPROVED, $approved->status);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'actor_id' => $reviewer->id,
+            'event_type' => 'finance.ai_proposal.approved',
+            'subject_id' => $proposal->id,
+        ]);
+
+        try {
+            DB::table('finance_ai_proposals')->where('id', $proposal->id)->update(['title' => 'tampered']);
+            $this->fail('The database must reject mutation of proposal content after creation.');
+        } catch (QueryException) {
+            $this->assertDatabaseHas('finance_ai_proposals', [
+                'id' => $proposal->id,
+                'title' => 'Immutable evidence proposal',
+                'status' => FinanceAiProposal::APPROVED,
+            ]);
+        }
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
