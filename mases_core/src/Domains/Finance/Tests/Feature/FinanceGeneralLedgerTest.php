@@ -12,6 +12,8 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAiProposal;
+use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceInboxEvent;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceSubledgerInboxService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceIntelligenceService;
 use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceOutboxMessage;
@@ -1131,6 +1133,63 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'reviewed_by' => null,
             ]);
         }
+    }
+
+    #[Test]
+    public function test_unmapped_subledger_event_is_quarantined_and_idempotent(): void
+    {
+        [$tenant] = $this->ledgerFixture();
+        $inbox = app(FinanceSubledgerInboxService::class);
+
+        $first = $inbox->receive(
+            (int) $tenant->id,
+            JournalSourceType::WALLET->value,
+            'wallet-event-0001',
+            'v1',
+            'wallet.transaction.posted',
+            ['amount' => '10.0000', 'currency' => 'ETB'],
+        );
+        $replay = $inbox->receive(
+            (int) $tenant->id,
+            JournalSourceType::WALLET->value,
+            'wallet-event-0001',
+            'v1',
+            'wallet.transaction.posted',
+            ['currency' => 'ETB', 'amount' => '10.0000'],
+        );
+
+        $this->assertFalse($first['idempotent_replay']);
+        $this->assertTrue($replay['idempotent_replay']);
+        $this->assertSame($first['event']->id, $replay['event']->id);
+        $this->assertSame(FinanceInboxEvent::QUARANTINED, $first['event']->status);
+        $this->assertNull($first['event']->journal_id);
+        $this->assertStringContainsString('No authoritative source adapter', $first['event']->last_error);
+        $this->assertDatabaseCount('journal_entries', 0);
+    }
+
+    #[Test]
+    public function test_subledger_event_identity_cannot_be_replayed_with_different_payload(): void
+    {
+        [$tenant] = $this->ledgerFixture();
+        $inbox = app(FinanceSubledgerInboxService::class);
+        $inbox->receive(
+            (int) $tenant->id,
+            JournalSourceType::WALLET->value,
+            'wallet-event-0002',
+            'v1',
+            'wallet.transaction.posted',
+            ['amount' => '10.0000', 'currency' => 'ETB'],
+        );
+
+        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException::class);
+        $inbox->receive(
+            (int) $tenant->id,
+            JournalSourceType::WALLET->value,
+            'wallet-event-0002',
+            'v1',
+            'wallet.transaction.posted',
+            ['amount' => '11.0000', 'currency' => 'ETB'],
+        );
     }
 
     private function ledgerFixture(): array
