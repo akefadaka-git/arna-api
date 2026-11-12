@@ -107,7 +107,21 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertSame(1, $claimed->attempts);
         $this->assertNotEmpty($claimed->claim_token);
 
-        $dispatcher->acknowledge((int) $claimed->id, (string) $claimed->claim_token);
+        $firstToken = (string) $claimed->claim_token;
+        $dispatcher->releaseForRetry((int) $claimed->id, $firstToken, 'temporary transport failure');
+        $message->refresh();
+        $this->assertSame(FinanceOutboxMessage::PENDING, $message->status);
+        $this->assertSame('temporary transport failure', $message->last_error);
+        $this->assertNull($dispatcher->claimNext());
+
+        $message->available_at = now()->subSecond();
+        $message->save();
+        $retried = $dispatcher->claimNext();
+        $this->assertNotNull($retried);
+        $this->assertSame(2, $retried->attempts);
+        $this->assertNotSame($firstToken, $retried->claim_token);
+
+        $dispatcher->acknowledge((int) $retried->id, (string) $retried->claim_token);
 
         $this->assertDatabaseHas('finance_outbox_messages', [
             'id' => $message->id,
