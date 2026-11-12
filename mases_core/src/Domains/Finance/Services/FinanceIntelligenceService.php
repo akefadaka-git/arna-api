@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Services;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinanceIntelligenceProviderContract;
+use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAiProposal;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
@@ -21,6 +22,7 @@ final class FinanceIntelligenceService
     public function __construct(
         private readonly FinancialReportService $reports,
         private readonly FinanceIntelligenceProviderContract $provider,
+        private readonly FinanceCalendarDateAdapter $calendar,
     ) {
     }
 
@@ -35,6 +37,7 @@ final class FinanceIntelligenceService
             'legal_entity_id' => $legalEntityId,
             'entity_code' => (string) $entity->code,
             'as_of' => $asOf,
+            'as_of_ec' => $this->calendar->toEthiopianDate($asOf),
             'report' => $normalized,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR);
 
