@@ -128,18 +128,21 @@ final class CorporateSitePublishingTest extends TestCase
     {
         Storage::fake('local');
         Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
+        $signature = $this->signedScannerSignature('clean', 'public-reference', 'test image bytes', $keys['secret']);
         config([
             'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
             'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
         ]);
         Http::fake([
-            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => 'test-signature'], 200),
+            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => $signature], 200),
         ]);
 
         $verdict = app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
 
         $this->assertSame('clean', $verdict['status']);
-        $this->assertSame('test-signature', $verdict['signature']);
+        $this->assertSame($signature, $verdict['signature']);
         Http::assertSent(fn ($request): bool => $request->hasHeader('Authorization', 'Bearer scanner-token'));
     }
 
@@ -171,27 +174,32 @@ final class CorporateSitePublishingTest extends TestCase
     {
         Storage::fake('local');
         Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
+        $signature = $this->signedScannerSignature('infected', 'public-reference', 'test image bytes', $keys['secret']);
         config([
             'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
             'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
         ]);
         Http::fake([
-            'scanner.example.test/*' => Http::response(['status' => 'infected', 'signature' => 'infected-signature'], 200),
+            'scanner.example.test/*' => Http::response(['status' => 'infected', 'signature' => $signature], 200),
         ]);
 
         $verdict = app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
 
         $this->assertSame('infected', $verdict['status']);
-        $this->assertSame('infected-signature', $verdict['signature']);
+        $this->assertSame($signature, $verdict['signature']);
     }
 
     public function test_media_scanner_rejects_http_errors_and_invalid_verdicts(): void
     {
         Storage::fake('local');
         Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
         config([
             'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
             'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
         ]);
 
         Http::fake([
@@ -215,9 +223,11 @@ final class CorporateSitePublishingTest extends TestCase
     {
         Storage::fake('local');
         Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
         config([
             'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
             'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
         ]);
         Http::fake([
             'scanner.example.test/*' => Http::response(['status' => 'clean'], 200),
@@ -231,9 +241,11 @@ final class CorporateSitePublishingTest extends TestCase
     {
         Storage::fake('local');
         Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
         config([
             'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
             'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
         ]);
         Http::fake(static function () {
             throw new ConnectionException('scanner connection timed out');
@@ -241,6 +253,87 @@ final class CorporateSitePublishingTest extends TestCase
 
         $this->expectException(ConnectionException::class);
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_rejects_a_forged_signature(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response([
+                'status' => 'clean',
+                'signature' => base64_encode(str_repeat("\\0", SODIUM_CRYPTO_SIGN_BYTES)),
+            ], 200),
+        ]);
+
+        $this->expectException(\\RuntimeException::class);
+        $this->expectExceptionMessage('signature could not be verified');
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_signature_is_bound_to_the_file_and_reference(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'different file bytes');
+        $keys = $this->scannerKeyPair();
+        $signature = $this->signedScannerSignature('clean', 'another-reference', 'test image bytes', $keys['secret']);
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => $signature], 200),
+        ]);
+
+        $this->expectException(\\RuntimeException::class);
+        $this->expectExceptionMessage('signature could not be verified');
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_fails_closed_without_a_signing_public_key(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => '',
+        ]);
+
+        $this->expectException(\\RuntimeException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    /**
+     * Deterministic test-only Ed25519 key material. Never use this key in production.
+     */
+    private function scannerKeyPair(): array
+    {
+        $keyPair = sodium_crypto_sign_seed_keypair(str_repeat('a', SODIUM_CRYPTO_SIGN_SEEDBYTES));
+
+        return [
+            'public' => sodium_crypto_sign_publickey($keyPair),
+            'secret' => sodium_crypto_sign_secretkey($keyPair),
+        ];
+    }
+
+    private function signedScannerSignature(string $status, string $reference, string $contents, string $secretKey): string
+    {
+        $message = implode("\\n", [
+            'ARNA-CORPORATE-MEDIA-SCAN-V1',
+            $status,
+            $reference,
+            hash('sha256', $contents),
+        ]);
+
+        return base64_encode(sodium_crypto_sign_detached($message, $secretKey));
     }
 
 }
