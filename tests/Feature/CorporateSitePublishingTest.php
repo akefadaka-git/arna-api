@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Client\ConnectionException;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use Laravel\Sanctum\Sanctum;
 use App\Services\CorporateSite\CorporateMediaScanner;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
@@ -309,6 +312,134 @@ final class CorporateSitePublishingTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+
+    public function test_media_scan_is_required_and_post_scan_file_changes_block_publication(): void
+    {
+        Storage::fake('local');
+        $originalContents = 'original media bytes';
+        Storage::disk('local')->put('corporate-quarantine/media.jpg', $originalContents);
+
+        $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $reviewer = $this->corporateSiteReviewer();
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'media',
+            'slug_am' => 'media-am',
+            'slug_en' => 'media-en',
+            'translations' => [
+                'am' => ['title' => 'የሚዲያ ፋይል'],
+                'en' => ['title' => 'Media file'],
+            ],
+            'asset_path' => 'corporate-quarantine/media.jpg',
+            'asset_mime' => 'image/jpeg',
+            'asset_size' => strlen($originalContents),
+            'created_by' => $author->id,
+            'payload' => ['quarantine' => true, 'scan_status' => 'pending'],
+        ]);
+
+        $keys = $this->scannerKeyPair();
+        $signature = $this->signedScannerSignature('clean', $entry->public_id, $originalContents, $keys['secret']);
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => $signature], 200),
+        ]);
+        Sanctum::actingAs($reviewer);
+
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/scan', [
+            'expected_version' => 1,
+        ])->assertOk()->assertJsonPath('data.scan_status', 'clean');
+
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/approve', [
+            'expected_version' => 2,
+        ])->assertOk()->assertJsonPath('data.status', 'approved');
+
+        Storage::disk('local')->put('corporate-quarantine/media.jpg', 'changed after scan');
+
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/publish', [
+            'expected_version' => 3,
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('corporate_site_entries', [
+            'id' => $entry->id,
+            'status' => 'approved',
+            'version' => 3,
+        ]);
+    }
+
+    public function test_media_scan_metadata_cannot_be_forged_through_admin_update(): void
+    {
+        $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $reviewer = $this->corporateSiteReviewer();
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'media',
+            'slug_am' => 'media-am',
+            'slug_en' => 'media-en',
+            'translations' => [
+                'am' => ['title' => 'የሚዲያ ፋይል'],
+                'en' => ['title' => 'Media file'],
+            ],
+            'asset_path' => 'corporate-quarantine/media.jpg',
+            'asset_mime' => 'image/jpeg',
+            'asset_size' => 10,
+            'created_by' => $author->id,
+            'payload' => ['quarantine' => true, 'scan_status' => 'pending'],
+        ]);
+        Sanctum::actingAs($reviewer);
+
+        $this->putJson('/api/admin/corporate-site/entries/' . $entry->id, [
+            'expected_version' => 1,
+            'payload' => [
+                'quarantine' => false,
+                'scan_status' => 'clean',
+                'scan_signature' => 'forged',
+                'scan_sha256' => str_repeat('a', 64),
+            ],
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('corporate_site_entries', [
+            'id' => $entry->id,
+            'version' => 1,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_generic_admin_entry_creation_cannot_create_media_without_quarantine_upload(): void
+    {
+        Sanctum::actingAs($this->corporateSiteReviewer());
+
+        $this->postJson('/api/admin/corporate-site/entries', [
+            'entry_type' => 'media',
+            'translations' => [
+                'am' => ['title' => 'የሚዲያ ፋይል'],
+                'en' => ['title' => 'Media file'],
+            ],
+            'payload' => ['scan_status' => 'clean'],
+        ])->assertUnprocessable();
+    }
+
+    private function corporateSiteReviewer(): User
+    {
+        $user = User::factory()->create([
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'public-content.review'],
+            [
+                'name_am' => 'ይፋዊ ይዘት መገምገምና ማተም',
+                'name_en' => 'Review and publish public content',
+                'scope' => 'global',
+                'is_active' => true,
+            ],
+        );
+        $user->permissions()->attach($permission->id);
+
+        return $user;
     }
 
     /**
