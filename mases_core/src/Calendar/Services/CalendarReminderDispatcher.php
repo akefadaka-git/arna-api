@@ -46,6 +46,7 @@ final class CalendarReminderDispatcher
             ->whereNotNull('e.recurrence_rule')
             ->orderBy('e.tenant_id')
             ->orderBy('e.id')
+            ->select(['e.id', 'e.tenant_id', 'e.all_day', 'e.starts_on', 'e.starts_at', 'e.timezone', 'e.created_by', 'c.owner_user_id'])
             // Use chunked lazy iteration rather than a fixed first-page limit:
             // otherwise recurring events after row 200 would never be materialized.
             ->lazy(100);
