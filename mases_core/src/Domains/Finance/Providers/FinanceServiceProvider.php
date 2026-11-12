@@ -31,6 +31,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Listeners\AuditFinanceLifecycleEvent;
 use MaaleArna\MASES\Core\Domains\Finance\Listeners\PersistFinanceJournalPostedOutbox;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceOutboxDispatcher;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceSubledgerInboxService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceIntegrationHealthService;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinanceIntelligenceProviderContract;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceIntelligenceService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\UnavailableFinanceIntelligenceProvider;
@@ -70,6 +71,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(FinanceCurrencyConverter::class);
         $this->app->singleton(FinanceOutboxDispatcher::class);
         $this->app->singleton(FinanceSubledgerInboxService::class);
+        $this->app->singleton(FinanceIntegrationHealthService::class);
         $this->app->singleton(FinanceIntelligenceProviderContract::class, UnavailableFinanceIntelligenceProvider::class);
         $this->app->singleton(FinanceIntelligenceService::class);
         $this->app->singleton(FinancialReportService::class);
