@@ -131,6 +131,42 @@ final class FinanceGeneralLedgerTest extends TestCase
     }
 
     #[Test]
+    public function test_journal_post_and_outbox_record_roll_back_atomically(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $journals = app(JournalEntryService::class);
+        $draft = $journals->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-OUTBOX-ROLLBACK',
+            'effective_date' => '2026-10-01',
+            'description' => 'Outbox atomicity test',
+            'currency' => 'ETB',
+            'idempotency_key' => 'outbox-journal-rollback',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+        ]);
+
+        try {
+            DB::transaction(function () use ($journals, $tenant, $user, $draft): void {
+                $journals->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+                throw new \RuntimeException('Force outer transaction rollback.');
+            });
+            $this->fail('The outer transaction should have rolled back.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Force outer transaction rollback.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('journal_entries', [
+            'id' => $draft->id,
+            'status' => JournalEntry::DRAFT,
+        ]);
+        $this->assertDatabaseMissing('finance_outbox_messages', [
+            'event_key' => 'finance.journal.posted:'.$tenant->id.':'.$draft->id,
+        ]);
+    }
+
+    #[Test]
     public function test_identical_idempotency_request_returns_the_persisted_journal(): void
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
