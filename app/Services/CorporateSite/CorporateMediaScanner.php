@@ -19,15 +19,16 @@ final class CorporateMediaScanner
     public function scan(string $path, string $reference): array
     {
         $url = (string) config('services.corporate_media_scanner.url');
-        if ($url === '' || !str_starts_with($url, 'https://')) {
-            throw new RuntimeException('A trusted HTTPS media scanner is not configured.');
+        $token = trim((string) config('services.corporate_media_scanner.token'));
+        if ($url === '' || !str_starts_with($url, 'https://') || $token === '') {
+            throw new RuntimeException('A trusted HTTPS media scanner and authentication token are not configured.');
         }
         if (!Storage::disk('local')->exists($path)) {
             throw new RuntimeException('The quarantined media file is missing.');
         }
 
         $response = Http::timeout(45)
-            ->withToken((string) config('services.corporate_media_scanner.token'))
+            ->withToken($token)
             ->attach('file', Storage::disk('local')->get($path), basename($path))
             ->post($url, ['reference' => $reference]);
 
@@ -40,6 +41,11 @@ final class CorporateMediaScanner
             throw new RuntimeException('The media scanner returned an invalid verdict.');
         }
 
-        return ['status' => $status, 'signature' => substr((string) $response->json('signature', ''), 0, 120)];
+        $signature = trim((string) $response->json('signature', ''));
+        if ($signature === '') {
+            throw new RuntimeException('The media scanner did not provide a verifiable scan signature.');
+        }
+
+        return ['status' => $status, 'signature' => substr($signature, 0, 120)];
     }
 }
