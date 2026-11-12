@@ -34,6 +34,14 @@ final class StoreJournalRequest extends FormRequest
         }
     }
 
+    protected function validationData(): array
+    {
+        $data = $this->all();
+        unset($data['effective_date_ec']);
+
+        return $data;
+    }
+
     public function authorize(): bool
     {
         return $this->user() !== null;
@@ -45,7 +53,6 @@ final class StoreJournalRequest extends FormRequest
             'legal_entity_id' => ['required', 'integer', 'min:1'],
             'journal_number' => ['required', 'string', 'max:64'],
             'effective_date' => ['required', 'date'],
-            'effective_date_ec' => ['sometimes', 'string', 'regex:/^\d{1,4}-\d{1,2}-\d{1,2}$/'],
             'currency' => ['sometimes', 'string', 'size:3', Rule::in(['ETB'])],
             'description' => ['required', 'string', 'max:500'],
             'source_type' => ['nullable', 'string', 'max:64'],
