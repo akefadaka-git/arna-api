@@ -44,6 +44,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceConsolidationService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceConsolidationMappingService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceExchangeRateService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceCurrencyConverter;
 
 final class FinanceServiceProvider extends ServiceProvider
 {
@@ -62,6 +63,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(FinanceConsolidationService::class);
         $this->app->singleton(FinanceConsolidationMappingService::class);
         $this->app->singleton(FinanceExchangeRateService::class);
+        $this->app->singleton(FinanceCurrencyConverter::class);
         $this->app->singleton(FinanceOutboxDispatcher::class);
         $this->app->singleton(FinancialReportService::class);
         $this->app->singleton(SubledgerIntegrationService::class);
