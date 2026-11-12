@@ -93,6 +93,6 @@ final class CorporateMediaScanner
             throw new RuntimeException('The media scanner signature could not be verified; the asset remains quarantined.');
         }
 
-        return ['status' => $status, 'signature' => $encodedSignature];
+        return ['status' => $status, 'signature' => $encodedSignature, 'sha256' => $fileDigest];
     }
 }
