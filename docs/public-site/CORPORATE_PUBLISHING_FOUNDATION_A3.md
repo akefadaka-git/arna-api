@@ -46,6 +46,18 @@
 - `CORPORATE_SITE_URL`: canonical public website origin used by sitemap generation.
 - `CORPORATE_MEDIA_SCANNER_URL`: trusted HTTPS scanner endpoint. It must accept multipart `file` and `reference`, and return JSON with `status` equal to `clean` or `infected`. A missing, non-HTTPS, unavailable or invalid scanner fails closed.
 - `CORPORATE_MEDIA_SCANNER_TOKEN`: bearer token for the scanner endpoint.
+- `CORPORATE_MEDIA_SCANNER_PUBLIC_KEY`: base64-encoded 32-byte Ed25519 public key pinned by the API. This is a public verification key, not a secret.
+
+The scanner must return `status` (`clean` or `infected`) and a base64-encoded detached Ed25519 `signature`. The signature must verify against the configured public key over this exact UTF-8 message (LF separators, no trailing newline):
+
+```text
+ARNA-CORPORATE-MEDIA-SCAN-V1
+{status}
+{reference}
+{sha256}
+```
+
+`sha256` is the lowercase hexadecimal SHA-256 digest of the exact uploaded file bytes; `reference` is the request reference. The signature binds the verdict to both the submitted reference and file contents. Missing keys, malformed signatures, mismatched files/references, or failed verification keep the asset quarantined. The bearer token authenticates the request and is never used as a signing key.
 
 No credentials or production values are stored in source control.
 
