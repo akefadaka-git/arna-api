@@ -41,3 +41,10 @@ Route::post('/governance-settlement/dividend-payables/{payableId}/approve', [$se
 Route::post('/governance-settlement/settlements/{settlementId}/cash', [$settlementController, 'executeCash'])->whereNumber('settlementId')->middleware('auth.permission:finance.journal.post')->name('governance-settlement.settlements.cash');
 Route::post('/governance-settlement/settlements/{settlementId}/dividend-offset', [$settlementController, 'executeDividendOffset'])->whereNumber('settlementId')->middleware('auth.permission:finance.journal.post')->name('governance-settlement.settlements.dividend-offset');
 Route::get('/governance-settlement/reconciliation', [$settlementController, 'reconciliation'])->middleware('auth.permission:finance.report.view')->name('governance-settlement.reconciliation');
+
+$intelligenceController = \\MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Controllers\\FinanceIntelligenceController::class;
+Route::get('/intelligence/evidence', [$intelligenceController, 'evidence'])->middleware('auth.permission:finance.ai.view')->name('intelligence.evidence');
+Route::get('/intelligence/proposals', [$intelligenceController, 'proposals'])->middleware('auth.permission:finance.ai.view')->name('intelligence.proposals.index');
+Route::post('/intelligence/proposals', [$intelligenceController, 'generate'])->middleware('auth.permission:finance.ai.propose')->name('intelligence.proposals.store');
+Route::post('/intelligence/proposals/{proposalId}/approve', [$intelligenceController, 'approve'])->whereNumber('proposalId')->middleware('auth.permission:finance.ai.approve')->name('intelligence.proposals.approve');
+Route::post('/intelligence/proposals/{proposalId}/reject', [$intelligenceController, 'reject'])->whereNumber('proposalId')->middleware('auth.permission:finance.ai.approve')->name('intelligence.proposals.reject');
