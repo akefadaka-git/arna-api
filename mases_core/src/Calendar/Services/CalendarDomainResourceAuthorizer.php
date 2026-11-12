@@ -33,6 +33,7 @@ use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Obligation;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Payment;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Wallet;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
