@@ -481,7 +481,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
                 'legal_entity_id' => $entity->id,
                 'journal_number' => 'JV-SOURCE-FAIL-CLOSED',
-                'effective_date' => '2026-10-01',
+                'effective_date' => '2026-10-15',
                 'description' => 'Unknown source must fail closed',
                 'currency' => 'ETB',
                 'source_type' => JournalSourceType::SHAREHOLDER->value,
