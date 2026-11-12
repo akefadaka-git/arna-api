@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Calendar\Services\CalendarDomainResourceAuthorizer;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
@@ -55,7 +56,7 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
         );
 
         $this->assertSame($person->getKey(), $resolved->getKey());
-        $this->assertTrue(\\Illuminate\\Support\\Facades\\Gate::forUser($actor)->allows('viewAny', Person::class));
+        $this->assertTrue(Gate::forUser($actor)->allows('viewAny', Person::class));
         $this->assertFalse($actor->permissions()->where('slug', 'people.manage')->exists());
     }
 
