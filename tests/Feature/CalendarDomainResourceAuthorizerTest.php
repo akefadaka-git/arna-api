@@ -11,6 +11,7 @@ use MaaleArna\MASES\Core\Calendar\Services\CalendarDomainResourceAuthorizer;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 
@@ -32,6 +33,7 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $actor = User::factory()->create(['is_active' => true]);
+        app(TenantContextService::class)->setTenantById($tenant->getKey());
         $person = Person::query()->create([
             'first_name_am' => 'ሙከራ',
             'first_name_en' => 'Test',
@@ -57,6 +59,7 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $actor = User::factory()->create(['is_active' => true]);
+        app(TenantContextService::class)->setTenantById($tenant->getKey());
         $person = Person::query()->create(['first_name_en' => 'Outside tenant']);
 
         $this->expectException(NotFoundHttpException::class);
@@ -64,4 +67,17 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
             $actor, $tenant->getKey(), 'people', 'person', (string) $person->getKey(),
         );
     }
+    public function test_resource_authorization_rejects_a_tenant_context_mismatch(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create(['is_active' => true]);
+        app(TenantContextService::class)->setTenantById($otherTenant->getKey());
+
+        $this->expectException(NotFoundHttpException::class);
+        app(CalendarDomainResourceAuthorizer::class)->resolveAndAuthorize(
+            $actor, $tenant->getKey(), 'finance', 'legal_entity', '1',
+        );
+    }
+
 }
