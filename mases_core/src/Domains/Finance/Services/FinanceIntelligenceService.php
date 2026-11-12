@@ -44,6 +44,7 @@ final class FinanceIntelligenceService
         return [
             'scope' => ['tenant_id' => $tenantId, 'legal_entity_id' => $legalEntityId, 'entity_code' => (string) $entity->code],
             'as_of' => $asOf,
+            'as_of_ec' => $this->calendar->toEthiopianDate($asOf),
             'report' => $normalized,
             'evidence_refs' => [[
                 'type' => 'finance.trial_balance',
