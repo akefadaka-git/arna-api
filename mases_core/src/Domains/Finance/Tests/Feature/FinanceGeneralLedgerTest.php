@@ -793,7 +793,7 @@ final class FinanceGeneralLedgerTest extends TestCase
     #[Test]
     public function test_unconfigured_subledger_integration_fails_closed(): void
     {
-        [$tenant, $user, $entity] = $this->ledgerFixture();
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
 
         try {
             app(SubledgerIntegrationService::class)->postSource(
@@ -957,9 +957,9 @@ final class FinanceGeneralLedgerTest extends TestCase
             'currency' => 'ETB',
             'idempotency_key' => 'negative-line-db-guard',
         ], [
-            ['account_id' => $entity->id ? $this->accountId($tenant->id, $entity->id, '1000') : 0, 'debit_amount' => '10', 'credit_amount' => '0'],
-            ['account_id' => $this->accountId($tenant->id, $entity->id, '3000'), 'debit_amount' => '110', 'credit_amount' => '0'],
-            ['account_id' => $this->accountId($tenant->id, $entity->id, '3000'), 'debit_amount' => '0', 'credit_amount' => '120'],
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '110', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '120'],
         ]);
 
         $lines = $draft->lines()->orderBy('line_number')->get();
@@ -975,15 +975,6 @@ final class FinanceGeneralLedgerTest extends TestCase
         }
 
         $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
-    }
-
-    private function accountId(int $tenantId, int $entityId, string $code): int
-    {
-        return (int) LedgerAccount::query()
-            ->where('tenant_id', $tenantId)
-            ->where('legal_entity_id', $entityId)
-            ->where('code', $code)
-            ->value('id');
     }
 
     private function ledgerFixture(): array
