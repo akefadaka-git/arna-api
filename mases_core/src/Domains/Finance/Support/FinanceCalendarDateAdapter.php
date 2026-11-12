@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Support;
+namespace MaaleArna\MASES\Core\Domains\Finance\Support;
 
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
 use InvalidArgumentException;
-use MaaleArna\\MASES\\Core\\Localization\\Calendar\\EthiopianCalendar;
-use MaaleArna\\MASES\\Core\\Localization\\Calendar\\EthiopianDate;
+use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
+use MaaleArna\MASES\Core\Localization\Calendar\EthiopianDate;
 
 /**
  * Finance boundary adapter for the platform's canonical Ethiopian calendar.
