@@ -67,7 +67,9 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(FinanceConsolidationMappingService::class);
         $this->app->singleton(FinanceExchangeRateService::class);
         $this->app->singleton(FinanceCurrencyConverter::class);
-        $this->app->singleton(FinanceOutboxDispatcher::class);\n        $this->app->singleton(FinanceIntelligenceProviderContract::class, UnavailableFinanceIntelligenceProvider::class);\n        $this->app->singleton(FinanceIntelligenceService::class);
+        $this->app->singleton(FinanceOutboxDispatcher::class);
+        $this->app->singleton(FinanceIntelligenceProviderContract::class, UnavailableFinanceIntelligenceProvider::class);
+        $this->app->singleton(FinanceIntelligenceService::class);
         $this->app->singleton(FinancialReportService::class);
         $this->app->singleton(SubledgerIntegrationService::class);
         $this->app->singleton(SourceLegalEntityMappingContract::class, SourceLegalEntityMappingService::class);
