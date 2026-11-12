@@ -158,6 +158,11 @@ final class CalendarReminderDispatcherTest extends TestCase
         $this->assertSame([0, 1, 2], $rows->pluck('occurrence_index')->map(fn ($value) => (int) $value)->all());
         $this->assertSame('2026-11-02 06:45:00', $rows[1]->deliver_at);
         $this->assertSame('2026-11-03 06:45:00', $rows[2]->deliver_at);
+        $this->assertSame(
+            $event->id.':'.$recipient->id.':event_start_15m:occurrence:2026-11-02 07:00:00',
+            $rows[1]->idempotency_key,
+        );
+        $this->assertNotSame($rows[1]->idempotency_key, $rows[2]->idempotency_key);
 
         app(CalendarReminderDispatcher::class)->dispatch();
         $this->assertSame(3, DB::table('calendar_reminder_outbox')->where('event_id', $event->id)->count());
