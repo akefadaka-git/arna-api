@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Finance\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
+use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
 
 final class StoreAccountingPeriodRequest extends FormRequest
 {
@@ -44,7 +47,9 @@ final class StoreAccountingPeriodRequest extends FormRequest
             'legal_entity_id' => ['required', 'integer', 'min:1'],
             'code' => ['required', 'string', 'max:32'],
             'starts_on' => ['required', 'date'],
-            'ends_on' => ['required', 'date', 'after_or_equal:starts_on'],\n            'starts_on_ec' => ['sometimes', 'string', 'regex:/^\\d{1,4}-\\d{1,2}-\\d{1,2}$/'],\n            'ends_on_ec' => ['sometimes', 'string', 'regex:/^\\d{1,4}-\\d{1,2}-\\d{1,2}$/'],
+            'ends_on' => ['required', 'date', 'after_or_equal:starts_on'],
+            'starts_on_ec' => ['sometimes', 'string', 'regex:/^\d{1,4}-\d{1,2}-\d{1,2}$/'],
+            'ends_on_ec' => ['sometimes', 'string', 'regex:/^\d{1,4}-\d{1,2}-\d{1,2}$/'],
         ];
     }
 }
