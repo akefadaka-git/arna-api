@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Finance\\Tests\\Unit;
+namespace MaaleArna\MASES\Core\Domains\Finance\Tests\Unit;
 
 use InvalidArgumentException;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Support\\FinanceCalendarDateAdapter;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class FinanceCalendarDateAdapterTest extends TestCase
 {
