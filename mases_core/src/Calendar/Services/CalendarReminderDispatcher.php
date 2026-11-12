@@ -288,6 +288,22 @@ final class CalendarReminderDispatcher
                         return 'skipped';
                     }
 
+                    if (!$tenant->is_active) {
+                        DB::table('calendar_reminder_outbox')->where('id', $row->id)->update([
+                            'status' => 'skipped', 'last_error' => 'Tenant is inactive; reminder delivery is prohibited.',
+                            'updated_at' => now(),
+                        ]);
+                        return 'skipped';
+                    }
+
+                    if (!$recipient->is_active) {
+                        DB::table('calendar_reminder_outbox')->where('id', $row->id)->update([
+                            'status' => 'skipped', 'last_error' => 'Recipient account is inactive; reminder delivery is prohibited.',
+                            'updated_at' => now(),
+                        ]);
+                        return 'skipped';
+                    }
+
                     $activeMember = TenantMembership::query()
                         ->where('tenant_id', $tenant->getKey())
                         ->where('user_id', $recipient->getKey())
