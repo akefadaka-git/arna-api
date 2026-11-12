@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Calendar\Services\CalendarDomainResourceAuthorizer;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
@@ -31,11 +32,13 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
         );
     }
 
-    public function test_global_person_reference_requires_active_tenant_access_and_owning_domain_permission(): void
+    public function test_person_reference_uses_canonical_read_policy_without_people_manage_permission(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $actor = User::factory()->create(['is_active' => true]);
         app(TenantContextService::class)->setTenantById($tenant->getKey());
+        $this->grantTenantMembership($tenant, $actor);
+
         $person = Person::query()->create([
             'first_name_am' => 'ሙከራ',
             'first_name_en' => 'Test',
@@ -47,14 +50,31 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
             'status' => 'active',
         ]);
 
-        try {
-            app(CalendarDomainResourceAuthorizer::class)->resolveAndAuthorize(
-                $actor, $tenant->getKey(), 'people', 'person', (string) $person->getKey(),
-            );
-            $this->fail('A person reference must not bypass the owning-domain people.manage permission.');
-        } catch (AuthorizationException) {
-            $this->assertTrue(true);
-        }
+        $resolved = app(CalendarDomainResourceAuthorizer::class)->resolveAndAuthorize(
+            $actor, $tenant->getKey(), 'people', 'person', (string) $person->getKey(),
+        );
+
+        $this->assertSame($person->getKey(), $resolved->getKey());
+        $this->assertFalse($actor->permissions()->where('slug', 'people.manage')->exists());
+    }
+
+    public function test_person_reference_is_denied_without_active_tenant_membership(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create(['is_active' => true]);
+        app(TenantContextService::class)->setTenantById($tenant->getKey());
+        $person = Person::query()->create(['first_name_en' => 'Tenant member required']);
+        PersonTenantAccess::query()->create([
+            'person_id' => $person->getKey(),
+            'tenant_id' => $tenant->getKey(),
+            'created_by' => $actor->getKey(),
+            'status' => 'active',
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+        app(CalendarDomainResourceAuthorizer::class)->resolveAndAuthorize(
+            $actor, $tenant->getKey(), 'people', 'person', (string) $person->getKey(),
+        );
     }
 
     public function test_person_reference_without_tenant_access_is_not_resolvable(): void
@@ -62,6 +82,7 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $actor = User::factory()->create(['is_active' => true]);
         app(TenantContextService::class)->setTenantById($tenant->getKey());
+        $this->grantTenantMembership($tenant, $actor);
         $person = Person::query()->create(['first_name_en' => 'Outside tenant']);
 
         $this->expectException(NotFoundHttpException::class);
@@ -69,6 +90,7 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
             $actor, $tenant->getKey(), 'people', 'person', (string) $person->getKey(),
         );
     }
+
     public function test_resource_authorization_rejects_a_tenant_context_mismatch(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
@@ -82,4 +104,14 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
         );
     }
 
+    private function grantTenantMembership(Tenant $tenant, User $actor): void
+    {
+        DB::table('tenant_memberships')->insert([
+            'tenant_id' => $tenant->getKey(),
+            'user_id' => $actor->getKey(),
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
 }

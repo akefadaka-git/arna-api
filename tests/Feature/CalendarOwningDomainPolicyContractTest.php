@@ -19,6 +19,8 @@ use MaaleArna\MASES\Core\Domains\Loan\Models\LoanCollateral;
 use MaaleArna\MASES\Core\Domains\Loan\Models\LoanProduct;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationAssignmentPolicy;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\People\Policies\PersonPolicy;
 use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareCertificate;
 use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareClass;
 use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareHolding;
@@ -26,7 +28,6 @@ use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Obligation;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Payment;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Wallet;
-use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use Tests\TestCase;
 
 final class CalendarOwningDomainPolicyContractTest extends TestCase
@@ -53,6 +54,7 @@ final class CalendarOwningDomainPolicyContractTest extends TestCase
             Wallet::class,
             Obligation::class,
             Payment::class,
+            Person::class,
         ];
 
         foreach ($models as $model) {
@@ -60,16 +62,15 @@ final class CalendarOwningDomainPolicyContractTest extends TestCase
             $this->assertNotNull($policy, "No owning-domain Gate policy is registered for {$model}.");
             $this->assertTrue(method_exists($policy, 'view'), "The owning-domain policy for {$model} has no view ability.");
         }
+
+        $peoplePolicy = Gate::getPolicyFor(Person::class);
+        $this->assertInstanceOf(PersonPolicy::class, $peoplePolicy);
+        $this->assertTrue(method_exists($peoplePolicy, 'viewAny'));
     }
 
     public function test_non_gate_owned_domains_keep_their_existing_direct_authorization_contracts(): void
     {
         $this->assertTrue(method_exists(app(OrganizationUnitPolicy::class), 'view'));
         $this->assertTrue(method_exists(app(OrganizationAssignmentPolicy::class), 'viewAny'));
-
-        // People currently has no PersonPolicy/read ability. Calendar therefore
-        // requires active PersonTenantAccess plus the conservative people.manage
-        // permission rather than inventing a new People authorization surface.
-        $this->assertNull(Gate::getPolicyFor(Person::class));
     }
 }

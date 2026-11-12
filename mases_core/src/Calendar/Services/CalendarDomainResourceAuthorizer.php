@@ -8,7 +8,6 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationAssignmentPolicy;
@@ -102,11 +101,7 @@ final class CalendarDomainResourceAuthorizer
             throw new NotFoundHttpException('Linked domain resource not found.');
         }
 
-        if ($resource instanceof Person) {
-            if (!app(AuthorizationService::class)->hasPermission('people.manage', $actor, $tenantId)) {
-                throw new AuthorizationException('The linked person is not visible to this user.');
-            }
-        } elseif ($resource instanceof OrganizationAssignment) {
+        if ($resource instanceof OrganizationAssignment) {
             if (!app(OrganizationAssignmentPolicy::class)->viewAny($actor)) {
                 throw new AuthorizationException('The linked organization assignment is not visible to this user.');
             }
