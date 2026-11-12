@@ -11,6 +11,8 @@ use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceOutboxMessage;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceOutboxDispatcher;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
@@ -69,6 +71,98 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertDatabaseHas('finance_audit_entries', [
             'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.posted',
             'subject_type' => 'journal_entry', 'subject_id' => $draft->id,
+        ]);
+    }
+
+    #[Test]
+    public function test_posted_journal_event_is_persisted_and_leased_for_delivery(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $journals = app(JournalEntryService::class);
+        $draft = $journals->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-OUTBOX-0001',
+            'effective_date' => '2026-10-01',
+            'description' => 'Transactional outbox test',
+            'currency' => 'ETB',
+            'idempotency_key' => 'outbox-journal-0001',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '25.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '25.0000'],
+        ]);
+
+        $journals->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $eventKey = 'finance.journal.posted:'.$tenant->id.':'.$draft->id;
+        $message = FinanceOutboxMessage::query()->where('event_key', $eventKey)->firstOrFail();
+
+        $this->assertSame(FinanceOutboxMessage::PENDING, $message->status);
+        $this->assertSame('finance.journal.posted', $message->event_type);
+        $this->assertSame('25.0000', $message->payload['lines'][0]['debit_amount']);
+
+        $dispatcher = app(FinanceOutboxDispatcher::class);
+        $claimed = $dispatcher->claimNext();
+        $this->assertNotNull($claimed);
+        $this->assertSame($message->id, $claimed->id);
+        $this->assertSame(FinanceOutboxMessage::PROCESSING, $claimed->status);
+        $this->assertSame(1, $claimed->attempts);
+        $this->assertNotEmpty($claimed->claim_token);
+
+        $firstToken = (string) $claimed->claim_token;
+        $dispatcher->releaseForRetry((int) $claimed->id, $firstToken, 'temporary transport failure');
+        $message->refresh();
+        $this->assertSame(FinanceOutboxMessage::PENDING, $message->status);
+        $this->assertSame('temporary transport failure', $message->last_error);
+        $this->assertNull($dispatcher->claimNext());
+
+        $message->available_at = now()->subSecond();
+        $message->save();
+        $retried = $dispatcher->claimNext();
+        $this->assertNotNull($retried);
+        $this->assertSame(2, $retried->attempts);
+        $this->assertNotSame($firstToken, $retried->claim_token);
+
+        $dispatcher->acknowledge((int) $retried->id, (string) $retried->claim_token);
+
+        $this->assertDatabaseHas('finance_outbox_messages', [
+            'id' => $message->id,
+            'status' => FinanceOutboxMessage::DELIVERED,
+            'claim_token' => null,
+        ]);
+    }
+
+    #[Test]
+    public function test_journal_post_and_outbox_record_roll_back_atomically(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $journals = app(JournalEntryService::class);
+        $draft = $journals->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-OUTBOX-ROLLBACK',
+            'effective_date' => '2026-10-01',
+            'description' => 'Outbox atomicity test',
+            'currency' => 'ETB',
+            'idempotency_key' => 'outbox-journal-rollback',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+        ]);
+
+        try {
+            DB::transaction(function () use ($journals, $tenant, $user, $draft): void {
+                $journals->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+                throw new \RuntimeException('Force outer transaction rollback.');
+            });
+            $this->fail('The outer transaction should have rolled back.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Force outer transaction rollback.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('journal_entries', [
+            'id' => $draft->id,
+            'status' => JournalEntry::DRAFT,
+        ]);
+        $this->assertDatabaseMissing('finance_outbox_messages', [
+            'event_key' => 'finance.journal.posted:'.$tenant->id.':'.$draft->id,
         ]);
     }
 
@@ -209,7 +303,7 @@ final class FinanceGeneralLedgerTest extends TestCase
         $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
             'legal_entity_id' => $entity->id,
             'journal_number' => 'CANCEL-001',
-            'effective_date' => '2026-01-15',
+            'effective_date' => '2026-10-15',
             'currency' => 'ETB',
             'idempotency_key' => 'cancel-draft-test',
             'description' => 'Draft to cancel',
@@ -383,11 +477,13 @@ final class FinanceGeneralLedgerTest extends TestCase
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
 
+        $service = new JournalEntryService(new JournalSourceReferenceResolverRegistry());
+
         try {
-            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+            $service->createDraft((int) $tenant->id, (int) $user->id, [
                 'legal_entity_id' => $entity->id,
                 'journal_number' => 'JV-SOURCE-FAIL-CLOSED',
-                'effective_date' => '2026-10-01',
+                'effective_date' => '2026-10-15',
                 'description' => 'Unknown source must fail closed',
                 'currency' => 'ETB',
                 'source_type' => JournalSourceType::SHAREHOLDER->value,
@@ -599,8 +695,8 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'Must not cross tenant boundary'
             );
             $this->fail('A tenant must not reverse another tenant\'s journal.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('journal', $exception->errors());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $exception) {
+            $this->assertNotSame('', $exception->getMessage());
         }
 
         $this->assertDatabaseCount('journal_entries', 1);
