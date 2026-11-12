@@ -163,7 +163,7 @@ final class CorporateSitePublishingTest extends TestCase
             'services.corporate_media_scanner.token' => '',
         ]);
 
-        $this->expectException(\\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
     }
 
@@ -200,14 +200,14 @@ final class CorporateSitePublishingTest extends TestCase
         try {
             app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
             $this->fail('A non-success HTTP response must not be accepted.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertStringContainsString('did not return a successful response', $exception->getMessage());
         }
 
         Http::fake([
             'scanner.example.test/*' => Http::response(['status' => 'unknown', 'signature' => 'ignored'], 200),
         ]);
-        $this->expectException(\\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
     }
 
@@ -223,7 +223,7 @@ final class CorporateSitePublishingTest extends TestCase
             'scanner.example.test/*' => Http::response(['status' => 'clean'], 200),
         ]);
 
-        $this->expectException(\\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
     }
 
