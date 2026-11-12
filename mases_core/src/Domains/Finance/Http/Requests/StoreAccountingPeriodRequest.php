@@ -5,9 +5,45 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Finance\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
+use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
 
 final class StoreAccountingPeriodRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        foreach (['starts_on', 'ends_on'] as $field) {
+            $ethiopianField = $field . '_ec';
+            if (!$this->filled($ethiopianField)) {
+                continue;
+            }
+
+            if ($this->filled($field)) {
+                throw ValidationException::withMessages([
+                    $ethiopianField => 'Provide either the Gregorian date or the Ethiopian date, not both.',
+                ]);
+            }
+
+            try {
+                $this->merge([$field => app(FinanceCalendarDateAdapter::class)
+                    ->toGregorianDate((string) $this->input($ethiopianField))]);
+            } catch (InvalidArgumentException) {
+                throw ValidationException::withMessages([
+                    $ethiopianField => 'The Ethiopian date is invalid. Use YYYY-MM-DD and a valid Ethiopian calendar day.',
+                ]);
+            }
+        }
+    }
+
+    protected function validationData(): array
+    {
+        $data = $this->all();
+        unset($data['starts_on_ec'], $data['ends_on_ec']);
+
+        return $data;
+    }
+
     public function authorize(): bool
     {
         return $this->user() !== null;
