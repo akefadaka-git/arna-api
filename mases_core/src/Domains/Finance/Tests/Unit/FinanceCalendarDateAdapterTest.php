@@ -6,6 +6,9 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Tests\Unit;
 
 use InvalidArgumentException;
 use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
+use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Http\Resources\TrialBalanceResource;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -46,4 +49,25 @@ final class FinanceCalendarDateAdapterTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $adapter->toEthiopianDate('2026-02-30');
     }
+    #[Test]
+    public function it_exposes_ethiopian_dates_in_period_journal_and_trial_balance_payloads(): void
+    {
+        $period = new AccountingPeriod([
+            'starts_on' => '2023-09-12',
+            'ends_on' => '2023-09-30',
+        ]);
+        $journal = new JournalEntry(['effective_date' => '2023-09-12']);
+        $trialBalance = new TrialBalanceResource([
+            'as_of' => '2023-09-12',
+            'currency' => 'ETB',
+            'accounts' => [],
+            'summary' => [],
+        ]);
+
+        $this->assertSame('2016-01-01', $period->toArray()['starts_on_ec']);
+        $this->assertSame('2016-01-19', $period->toArray()['ends_on_ec']);
+        $this->assertSame('2016-01-01', $journal->toArray()['effective_date_ec']);
+        $this->assertSame('2016-01-01', $trialBalance->resolve(request())['as_of_ec']);
+    }
+
 }
