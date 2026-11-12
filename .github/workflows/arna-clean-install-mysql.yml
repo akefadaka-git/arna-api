@@ -289,7 +289,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarDomainResourceAuthorizerTest.php tests/Feature/CalendarHttpAuthorizationTest.php tests/Feature/CalendarReservationConcurrencyTest.php tests/Feature/CalendarLifecycleTest.php tests/Feature/CalendarReminderDispatcherTest.php tests/Unit/CalendarPermissionCatalogueTest.php tests/Unit/EthiopianCalendarTest.php
+        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarDomainResourceAuthorizerTest.php tests/Feature/CalendarOwningDomainPolicyContractTest.php tests/Feature/CalendarHttpAuthorizationTest.php tests/Feature/CalendarReservationConcurrencyTest.php tests/Feature/CalendarLifecycleTest.php tests/Feature/CalendarReminderDispatcherTest.php tests/Unit/CalendarPermissionCatalogueTest.php tests/Unit/EthiopianCalendarTest.php
 
       - name: Verify Calendar reminder dispatcher command and scheduler registration
         env:
@@ -413,7 +413,7 @@ jobs:
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 78
+          test "${applied}" -eq 79
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -455,7 +455,7 @@ jobs:
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 78
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 79
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -466,7 +466,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 78
+          test "${applied}" -eq 79
 
       # Run functional regressions before the dependency audit so unrelated
       # advisories do not suppress financial test evidence. The audit remains
