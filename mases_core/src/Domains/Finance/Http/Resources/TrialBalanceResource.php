@@ -6,6 +6,7 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
 
 /**
  * Stable, decimal-string API representation for a trial-balance report.
@@ -20,6 +21,7 @@ final class TrialBalanceResource extends JsonResource
 
         return [
             'as_of' => (string) ($report['as_of'] ?? ''),
+            'as_of_ec' => app(FinanceCalendarDateAdapter::class)->toEthiopianDate((string) ($report['as_of'] ?? '')),
             'currency' => (string) ($report['currency'] ?? 'ETB'),
             'accounts' => collect($report['accounts'] ?? [])->map(static function ($account): array {
                 $account = is_object($account) && method_exists($account, 'toArray')

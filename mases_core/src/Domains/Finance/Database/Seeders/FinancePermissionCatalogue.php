@@ -36,5 +36,11 @@ final class FinancePermissionCatalogue
         ['slug' => 'finance.journal.post', 'name_am' => 'የመዝገብ ማስታወሻ መለጠፍ', 'name_en' => 'Post Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.reverse', 'name_am' => 'የመዝገብ ማስታወሻ መቀልበስ', 'name_en' => 'Reverse Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.report.view', 'name_am' => 'የፋይናንስ ሪፖርቶችን ማየት', 'name_en' => 'View Financial Reports', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.ai.view', 'name_am' => 'የፋይናንስ አይአይ ማስረጃ ማየት', 'name_en' => 'View Finance Intelligence Evidence', 'category' => 'intelligence', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.ai.propose', 'name_am' => 'የፋይናንስ አይአይ ሀሳብ ማመንጨት', 'name_en' => 'Generate Finance AI Proposals', 'category' => 'intelligence', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.ai.approve', 'name_am' => 'የፋይናንስ አይአይ ሀሳቦችን መገምገም', 'name_en' => 'Review Finance AI Proposals', 'category' => 'intelligence', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.subledger.view', 'name_am' => 'የፋይናንስ የምንጭ ክስተቶችን ማየት', 'name_en' => 'View Finance Subledger Inbox', 'category' => 'integration', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.subledger.ingest', 'name_am' => 'የፋይናንስ የምንጭ ክስተት መቀበል', 'name_en' => 'Ingest Finance Subledger Events', 'category' => 'integration', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.integration.view', 'name_am' => 'የፋይናንስ ውህደት ጤና ማየት', 'name_en' => 'View Finance Integration Health', 'category' => 'integration', 'scope' => 'tenant', 'is_system' => false],
     ];
 }

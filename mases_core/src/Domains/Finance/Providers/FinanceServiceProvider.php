@@ -28,6 +28,13 @@ use MaaleArna\MASES\Core\Domains\Finance\Events\JournalReversed;
 use MaaleArna\MASES\Core\Domains\Finance\Events\AccountingPeriodOpened;
 use MaaleArna\MASES\Core\Domains\Finance\Events\AccountingPeriodClosed;
 use MaaleArna\MASES\Core\Domains\Finance\Listeners\AuditFinanceLifecycleEvent;
+use MaaleArna\MASES\Core\Domains\Finance\Listeners\PersistFinanceJournalPostedOutbox;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceOutboxDispatcher;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceSubledgerInboxService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceIntegrationHealthService;
+use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinanceIntelligenceProviderContract;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceIntelligenceService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\UnavailableFinanceIntelligenceProvider;
 use MaaleArna\MASES\Core\Domains\Finance\Services\SubledgerIntegrationService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\SourceLegalEntityMappingService;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\SourceLegalEntityMappingContract;
@@ -42,6 +49,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\TrialBalanceService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceConsolidationService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceConsolidationMappingService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceExchangeRateService;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceCurrencyConverter;
 
 final class FinanceServiceProvider extends ServiceProvider
 {
@@ -60,6 +68,12 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(FinanceConsolidationService::class);
         $this->app->singleton(FinanceConsolidationMappingService::class);
         $this->app->singleton(FinanceExchangeRateService::class);
+        $this->app->singleton(FinanceCurrencyConverter::class);
+        $this->app->singleton(FinanceOutboxDispatcher::class);
+        $this->app->singleton(FinanceSubledgerInboxService::class);
+        $this->app->singleton(FinanceIntegrationHealthService::class);
+        $this->app->singleton(FinanceIntelligenceProviderContract::class, UnavailableFinanceIntelligenceProvider::class);
+        $this->app->singleton(FinanceIntelligenceService::class);
         $this->app->singleton(FinancialReportService::class);
         $this->app->singleton(SubledgerIntegrationService::class);
         $this->app->singleton(SourceLegalEntityMappingContract::class, SourceLegalEntityMappingService::class);
@@ -77,6 +91,7 @@ final class FinanceServiceProvider extends ServiceProvider
         Event::listen(LedgerAccountCreated::class, AuditFinanceLifecycleEvent::class);
         Event::listen(JournalDraftCreated::class, AuditFinanceLifecycleEvent::class);
         Event::listen(JournalPosted::class, AuditFinanceLifecycleEvent::class);
+        Event::listen(JournalPosted::class, PersistFinanceJournalPostedOutbox::class);
         Event::listen(JournalCancelled::class, AuditFinanceLifecycleEvent::class);
         Event::listen(JournalReversed::class, AuditFinanceLifecycleEvent::class);
         Event::listen(AccountingPeriodOpened::class, AuditFinanceLifecycleEvent::class);
