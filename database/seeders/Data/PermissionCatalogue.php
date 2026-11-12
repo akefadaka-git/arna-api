@@ -9,7 +9,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatal
 /**
  * PermissionCatalogue
  *
- * The platform's forty-four core permissions plus eighteen Finance permissions and three Admin security permissions (sixty-five total) — the atomic capabilities
+ * The platform's forty-four core permissions plus nineteen Finance permissions and three Admin security permissions (sixty-six total) — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
