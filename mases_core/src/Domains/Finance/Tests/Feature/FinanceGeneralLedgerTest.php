@@ -941,6 +941,51 @@ final class FinanceGeneralLedgerTest extends TestCase
         ]);
     }
 
+    #[Test]
+    public function test_mysql_posting_trigger_rejects_negative_line_amounts_even_when_totals_balance(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('This regression verifies the MySQL posting trigger.');
+        }
+
+        [$tenant, $user, $entity] = $this->ledgerFixture();
+        $draft = app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-NEGATIVE-LINE-DB-GUARD',
+            'effective_date' => '2026-10-10',
+            'description' => 'Database negative amount invariant',
+            'currency' => 'ETB',
+            'idempotency_key' => 'negative-line-db-guard',
+        ], [
+            ['account_id' => $entity->id ? $this->accountId($tenant->id, $entity->id, '1000') : 0, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $this->accountId($tenant->id, $entity->id, '3000'), 'debit_amount' => '110', 'credit_amount' => '0'],
+            ['account_id' => $this->accountId($tenant->id, $entity->id, '3000'), 'debit_amount' => '0', 'credit_amount' => '120'],
+        ]);
+
+        $lines = $draft->lines()->orderBy('line_number')->get();
+        DB::table('journal_lines')->where('id', $lines[0]->id)->update(['debit_amount' => '-10.0000', 'credit_amount' => '20.0000']);
+        DB::table('journal_lines')->where('id', $lines[1]->id)->update(['debit_amount' => '130.0000', 'credit_amount' => '0.0000']);
+        DB::table('journal_lines')->where('id', $lines[2]->id)->update(['debit_amount' => '0.0000', 'credit_amount' => '100.0000']);
+
+        try {
+            app(JournalEntryService::class)->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('MySQL must reject negative journal-line amounts even when aggregate debits equal credits.');
+        } catch (QueryException $exception) {
+            $this->assertStringContainsString('non-negative positive side', strtolower($exception->getMessage()));
+        }
+
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+    }
+
+    private function accountId(int $tenantId, int $entityId, string $code): int
+    {
+        return (int) LedgerAccount::query()
+            ->where('tenant_id', $tenantId)
+            ->where('legal_entity_id', $entityId)
+            ->where('code', $code)
+            ->value('id');
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
