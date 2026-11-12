@@ -42,6 +42,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 final class CalendarDomainResourceAuthorizer
 {
+    public function __construct(private readonly TenantContextService $tenantContext)
+    {
+    }
+
     /** @var array<string, class-string<Model>> */
     private const MODELS = [
         'governance:appointment' => GovernanceAppointment::class,
@@ -70,6 +74,14 @@ final class CalendarDomainResourceAuthorizer
 
     public function resolveAndAuthorize(User $actor, int|string $tenantId, string $domain, string $resourceType, string $resourceId): Model
     {
+        // Every owning-domain policy resolves permission scope from the active
+        // tenant context. Do not authorize a resource loaded for a caller-supplied
+        // tenant while the canonical policy is evaluating another tenant.
+        $contextTenantId = $this->tenantContext->getTenantId();
+        if ($contextTenantId === null || (string) $contextTenantId !== (string) $tenantId) {
+            throw new NotFoundHttpException('Linked domain resource not found.');
+        }
+
         $modelClass = self::MODELS[$domain.':'.$resourceType] ?? null;
         if ($modelClass === null || !class_exists($modelClass)) {
             throw new NotFoundHttpException('Linked domain resource not found.');
