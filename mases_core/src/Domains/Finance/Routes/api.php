@@ -49,6 +49,6 @@ Route::post('/intelligence/proposals', [$intelligenceController, 'generate'])->m
 Route::post('/intelligence/proposals/{proposalId}/approve', [$intelligenceController, 'approve'])->whereNumber('proposalId')->middleware('auth.permission:finance.ai.approve')->name('intelligence.proposals.approve');
 Route::post('/intelligence/proposals/{proposalId}/reject', [$intelligenceController, 'reject'])->whereNumber('proposalId')->middleware('auth.permission:finance.ai.approve')->name('intelligence.proposals.reject');
 
-$subledgerInboxController = \\MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Controllers\\FinanceSubledgerInboxController::class;
+$subledgerInboxController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\FinanceSubledgerInboxController::class;
 Route::get('/subledger/inbox', [$subledgerInboxController, 'index'])->middleware('auth.permission:finance.subledger.view')->name('subledger.inbox.index');
 Route::post('/subledger/inbox', [$subledgerInboxController, 'receive'])->middleware('auth.permission:finance.subledger.ingest')->name('subledger.inbox.receive');
