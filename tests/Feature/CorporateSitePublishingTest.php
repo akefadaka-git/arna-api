@@ -268,11 +268,11 @@ final class CorporateSitePublishingTest extends TestCase
         Http::fake([
             'scanner.example.test/*' => Http::response([
                 'status' => 'clean',
-                'signature' => base64_encode(str_repeat("\\0", SODIUM_CRYPTO_SIGN_BYTES)),
+                'signature' => base64_encode(str_repeat(chr(0), SODIUM_CRYPTO_SIGN_BYTES)),
             ], 200),
         ]);
 
-        $this->expectException(\\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('signature could not be verified');
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
     }
@@ -292,7 +292,7 @@ final class CorporateSitePublishingTest extends TestCase
             'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => $signature], 200),
         ]);
 
-        $this->expectException(\\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('signature could not be verified');
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
     }
@@ -307,7 +307,7 @@ final class CorporateSitePublishingTest extends TestCase
             'services.corporate_media_scanner.public_key' => '',
         ]);
 
-        $this->expectException(\\RuntimeException::class);
+        $this->expectException(\RuntimeException::class);
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
     }
 
@@ -326,7 +326,7 @@ final class CorporateSitePublishingTest extends TestCase
 
     private function signedScannerSignature(string $status, string $reference, string $contents, string $secretKey): string
     {
-        $message = implode("\\n", [
+        $message = implode("\n", [
             'ARNA-CORPORATE-MEDIA-SCAN-V1',
             $status,
             $reference,
