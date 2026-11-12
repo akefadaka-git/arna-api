@@ -10,6 +10,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinanceIntelligenceProviderCo
 use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAiProposal;
+use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
@@ -122,6 +123,18 @@ final class FinanceIntelligenceService
                 'reviewed_at' => now(),
                 'review_reason' => $reason,
             ])->save();
+            FinanceAuditEntry::query()->create([
+                'tenant_id' => $tenantId,
+                'legal_entity_id' => $proposal->legal_entity_id,
+                'actor_id' => $reviewerId,
+                'event_type' => 'finance.ai_proposal.approved',
+                'subject_type' => 'finance_ai_proposal',
+                'subject_id' => $proposal->id,
+                'before_state' => ['status' => FinanceAiProposal::PROPOSED],
+                'after_state' => ['status' => FinanceAiProposal::APPROVED],
+                'metadata' => ['evidence_sha256' => $proposal->evidence_sha256, 'agent_key' => $proposal->agent_key, 'review_reason' => $reason],
+                'occurred_at' => now(),
+            ]);
 
             return $proposal->fresh();
         });
@@ -140,6 +153,18 @@ final class FinanceIntelligenceService
                 'reviewed_at' => now(),
                 'review_reason' => $reason,
             ])->save();
+            FinanceAuditEntry::query()->create([
+                'tenant_id' => $tenantId,
+                'legal_entity_id' => $proposal->legal_entity_id,
+                'actor_id' => $reviewerId,
+                'event_type' => 'finance.ai_proposal.rejected',
+                'subject_type' => 'finance_ai_proposal',
+                'subject_id' => $proposal->id,
+                'before_state' => ['status' => FinanceAiProposal::PROPOSED],
+                'after_state' => ['status' => FinanceAiProposal::REJECTED],
+                'metadata' => ['evidence_sha256' => $proposal->evidence_sha256, 'agent_key' => $proposal->agent_key, 'review_reason' => $reason],
+                'occurred_at' => now(),
+            ]);
 
             return $proposal->fresh();
         });
