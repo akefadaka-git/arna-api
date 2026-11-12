@@ -14,7 +14,7 @@ on:
       - "mases_core/src/Monitoring/ErrorDiagnosticEngine.php"
       - "tests/Unit/ErrorDiagnosticEngineTest.php"
       - "database/migrations/**"
-      - "mases_core/src/**/Database/Migrations/**"
+      - "mases_core/src/**/Database/Migrations/**"\n      - "mases_core/src/Migrations/**"
       - "mases_core/src/**/Providers/**"
       - "mases_core/src/Domains/Finance/**"
       - "bootstrap/providers.php"
