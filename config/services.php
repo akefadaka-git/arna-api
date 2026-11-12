@@ -35,6 +35,8 @@ return [
     'corporate_media_scanner' => [
         'url' => env('CORPORATE_MEDIA_SCANNER_URL'),
         'token' => env('CORPORATE_MEDIA_SCANNER_TOKEN'),
+        // Base64-encoded Ed25519 public key pinned by the API for scanner verdict verification.
+        'public_key' => env('CORPORATE_MEDIA_SCANNER_PUBLIC_KEY'),
     ],
 
     'slack' => [
