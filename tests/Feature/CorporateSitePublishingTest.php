@@ -371,6 +371,33 @@ final class CorporateSitePublishingTest extends TestCase
         ]);
     }
 
+
+    public function test_published_media_is_not_served_if_file_changes_after_publication(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/published.jpg', 'tampered bytes');
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'media',
+            'slug_am' => 'published-media-am',
+            'slug_en' => 'published-media-en',
+            'translations' => [
+                'am' => ['title' => 'የታተመ ሚዲያ'],
+                'en' => ['title' => 'Published media'],
+            ],
+            'asset_path' => 'corporate-quarantine/published.jpg',
+            'asset_mime' => 'image/jpeg',
+            'asset_size' => strlen('tampered bytes'),
+            'payload' => [
+                'scan_status' => 'clean',
+                'scan_signature' => base64_encode(str_repeat('s', SODIUM_CRYPTO_SIGN_BYTES)),
+                'scan_sha256' => hash('sha256', 'original signed bytes'),
+            ],
+        ]);
+        $entry->forceFill(['status' => 'published', 'published_at' => now()->subMinute()])->save();
+
+        $this->get('/api/public/site/media/' . $entry->public_id . '/asset')->assertNotFound();
+    }
+
     public function test_media_scan_metadata_cannot_be_forged_through_admin_update(): void
     {
         $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
