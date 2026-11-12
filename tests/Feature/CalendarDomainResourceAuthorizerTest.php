@@ -21,6 +21,8 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
 
     public function test_unknown_domain_resource_types_fail_closed(): void
     {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        app(TenantContextService::class)->setTenantById($tenant->getKey());
         $actor = User::factory()->create();
 
         $this->expectException(NotFoundHttpException::class);
