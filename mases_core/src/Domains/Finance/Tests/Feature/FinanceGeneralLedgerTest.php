@@ -1181,7 +1181,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             ['amount' => '10.0000', 'currency' => 'ETB'],
         );
 
-        $this->expectException(\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException::class);
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\ConflictHttpException::class);
         $inbox->receive(
             (int) $tenant->id,
             JournalSourceType::WALLET->value,
