@@ -59,3 +59,7 @@ No production backup or restore drill has been executed by this implementation. 
 - Source-domain control-total reconciliation: NOT IMPLEMENTED.
 
 This document establishes controls and acceptance evidence requirements. It does not declare A3.8 closed or authorize A4/A5.
+
+
+## Current implementation note
+The tenant-scoped integration-health API reports outbox and inbox operational counts. It deliberately reports reconciliation as NOT_RECONCILED while no source-domain control-total adapters are registered.
