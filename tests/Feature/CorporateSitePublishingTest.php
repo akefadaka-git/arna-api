@@ -315,6 +315,45 @@ final class CorporateSitePublishingTest extends TestCase
     }
 
 
+
+    public function test_api_health_endpoint_returns_the_canonical_liveness_envelope(): void
+    {
+        $this->getJson('/api/health')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'ok')
+            ->assertJsonStructure(['success', 'data' => ['status', 'timestamp', 'version', 'environment']]);
+    }
+
+    public function test_due_scheduled_corporate_pages_publish_and_write_an_audit_event(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'scheduled-a4-check',
+            'slug_am' => 'scheduled-a4-am',
+            'slug_en' => 'scheduled-a4-en',
+            'translations' => [
+                'am' => ['title' => 'የተዘጋጀ ገጽ'],
+                'en' => ['title' => 'Scheduled page'],
+            ],
+        ]);
+        $page->forceFill([
+            'status' => 'scheduled',
+            'scheduled_at' => now()->subMinute(),
+        ])->save();
+
+        $this->artisan('corporate-site:publish-scheduled')->assertSuccessful();
+
+        $this->assertDatabaseHas('corporate_site_pages', [
+            'id' => $page->id,
+            'status' => 'published',
+            'scheduled_at' => null,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'corporate_site_page.scheduled_publish',
+            'resource_id' => (string) $page->id,
+        ]);
+    }
+
     public function test_media_scan_is_required_and_post_scan_file_changes_block_publication(): void
     {
         Storage::fake('local');
