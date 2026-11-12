@@ -2,32 +2,32 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Support\\Facades\\Gate;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\AccountingPeriod;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\JournalEntry;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LedgerAccount;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Models\\LegalEntity;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceAppointment;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceBody;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceMembership;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernancePosition;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceTerm;
-use MaaleArna\\MASES\\Core\\Domains\\Loan\\Models\\Loan;
-use MaaleArna\\MASES\\Core\\Domains\\Loan\\Models\\LoanCollateral;
-use MaaleArna\\MASES\\Core\\Domains\\Loan\\Models\\LoanProduct;
-use MaaleArna\\MASES\\Core\\Domains\\Organization\\Policies\\OrganizationAssignmentPolicy;
-use MaaleArna\\MASES\\Core\\Domains\\Organization\\Policies\\OrganizationUnitPolicy;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\ShareCertificate;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\ShareClass;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\ShareHolding;
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Models\\Shareholder;
-use MaaleArna\\MASES\\Core\\Domains\\Wallet\\Models\\Obligation;
-use MaaleArna\\MASES\\Core\\Domains\\Wallet\\Models\\Payment;
-use MaaleArna\\MASES\\Core\\Domains\\Wallet\\Models\\Wallet;
-use MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person;
-use Tests\\TestCase;
+use Illuminate\Support\Facades\Gate;
+use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
+use MaaleArna\MASES\Core\Domains\Finance\Models\JournalEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
+use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceTerm;
+use MaaleArna\MASES\Core\Domains\Loan\Models\Loan;
+use MaaleArna\MASES\Core\Domains\Loan\Models\LoanCollateral;
+use MaaleArna\MASES\Core\Domains\Loan\Models\LoanProduct;
+use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationAssignmentPolicy;
+use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationUnitPolicy;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareCertificate;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareClass;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareHolding;
+use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
+use MaaleArna\MASES\Core\Domains\Wallet\Models\Obligation;
+use MaaleArna\MASES\Core\Domains\Wallet\Models\Payment;
+use MaaleArna\MASES\Core\Domains\Wallet\Models\Wallet;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use Tests\TestCase;
 
 final class CalendarOwningDomainPolicyContractTest extends TestCase
 {
