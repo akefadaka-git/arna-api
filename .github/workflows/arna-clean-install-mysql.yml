@@ -160,7 +160,7 @@ jobs:
       - name: Lint every tracked PHP source file
         shell: bash
         run: |
-          git ls-files -z -- '*.php' | xargs -0 -n1 php -l
+          git ls-files -z -- '*.php' | xargs -0 -n1 -P 4 php -l
 
       - name: Validate Composer manifest and lock
         run: composer validate --no-check-publish
