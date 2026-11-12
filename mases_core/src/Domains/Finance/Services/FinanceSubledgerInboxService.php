@@ -35,6 +35,12 @@ final class FinanceSubledgerInboxService
             throw ValidationException::withMessages(['source_type' => 'Only external subledger source types can enter the Finance inbox.']);
         }
 
+        if (trim($sourceEventId) === '' || mb_strlen($sourceEventId) > 128
+            || trim($sourceVersion) === '' || mb_strlen($sourceVersion) > 64
+            || trim($eventType) === '' || mb_strlen($eventType) > 120) {
+            throw ValidationException::withMessages(['source_event_id' => 'Source event identity, version, and event type must be present and within their limits.']);
+        }
+
         $canonicalPayload = $this->canonicalize($payload);
         $canonicalEnvelope = [
             'source_type' => $sourceType,
@@ -46,6 +52,9 @@ final class FinanceSubledgerInboxService
         ];
         $encoded = json_encode($canonicalEnvelope, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $digest = hash('sha256', $encoded);
+        if (strlen($encoded) > 262144) {
+            throw ValidationException::withMessages(['payload' => 'Source event envelope exceeds the 256 KiB inbox limit.']);
+        }
 
         return DB::transaction(function () use (
             $tenantId, $sourceType, $sourceEventId, $sourceVersion, $eventType,
