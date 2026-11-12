@@ -15,7 +15,6 @@ use MaaleArna\MASES\Core\Notifications\Services\NotificationService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
-use Mockery;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -341,18 +340,11 @@ final class CalendarReminderDispatcherTest extends TestCase
             'reminders' => [15],
         ]);
 
-        $calendarService = Mockery::mock(CalendarService::class);
-        $calendarService->shouldReceive('recurringOccurrences')
-            ->once()
-            ->andThrow(new RuntimeException('simulated recurrence expansion failure'));
-        $context = app(TenantContextService::class);
-        $dispatcher = new CalendarReminderDispatcher(
-            new NotificationService($context),
-            $calendarService,
-            $context,
-        );
+        DB::table('calendar_events')->where('title', 'Recurring failure reporting')->update([
+            'recurrence_rule' => json_encode(['frequency' => 'unsupported', 'interval' => 1, 'count' => 200], JSON_THROW_ON_ERROR),
+        ]);
 
-        $result = $dispatcher->dispatch();
+        $result = app(CalendarReminderDispatcher::class)->dispatch();
 
         $this->assertSame(1, $result['failed']);
     }
