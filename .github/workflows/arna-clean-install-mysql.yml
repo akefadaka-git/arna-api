@@ -2,7 +2,7 @@ name: ARNA clean-install MySQL verification
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/calendar-owning-auth-recurring-outbox]
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
