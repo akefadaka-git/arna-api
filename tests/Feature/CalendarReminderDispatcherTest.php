@@ -78,6 +78,38 @@ final class CalendarReminderDispatcherTest extends TestCase
         $this->assertSame(1, DB::table('platform_notifications')->where('event_key', 'calendar.event.reminder')->count());
     }
 
+    public function test_due_reminder_is_skipped_when_tenant_is_inactive(): void
+    {
+        [$tenant, , $event] = $this->createDueReminder();
+        $tenant->forceFill(['is_active' => false])->save();
+
+        $result = app(CalendarReminderDispatcher::class)->dispatch();
+
+        $this->assertSame(['delivered' => 0, 'skipped' => 1, 'retried' => 0, 'failed' => 0], $result);
+        $this->assertDatabaseHas('calendar_reminder_outbox', [
+            'event_id' => $event->id,
+            'status' => 'skipped',
+            'last_error' => 'Tenant is inactive; reminder delivery is prohibited.',
+        ]);
+        $this->assertSame(0, DB::table('platform_notifications')->where('event_key', 'calendar.event.reminder')->count());
+    }
+
+    public function test_due_reminder_is_skipped_when_recipient_account_is_inactive(): void
+    {
+        [, $recipient, $event] = $this->createDueReminder();
+        $recipient->forceFill(['is_active' => false])->save();
+
+        $result = app(CalendarReminderDispatcher::class)->dispatch();
+
+        $this->assertSame(['delivered' => 0, 'skipped' => 1, 'retried' => 0, 'failed' => 0], $result);
+        $this->assertDatabaseHas('calendar_reminder_outbox', [
+            'event_id' => $event->id,
+            'status' => 'skipped',
+            'last_error' => 'Recipient account is inactive; reminder delivery is prohibited.',
+        ]);
+        $this->assertSame(0, DB::table('platform_notifications')->where('event_key', 'calendar.event.reminder')->count());
+    }
+
     public function test_due_all_day_reminder_uses_event_timezone_midnight(): void
     {
         Carbon::setTestNow('2026-10-31 20:50:00');
