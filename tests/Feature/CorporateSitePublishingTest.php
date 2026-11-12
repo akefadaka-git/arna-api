@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Client\ConnectionException;
 use App\Services\CorporateSite\CorporateMediaScanner;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
@@ -152,5 +153,94 @@ final class CorporateSitePublishingTest extends TestCase
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
     }
 
+
+    public function test_media_scanner_rejects_missing_authentication_token(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => '',
+        ]);
+
+        $this->expectException(\\RuntimeException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_preserves_an_infected_verdict_as_infected(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'infected', 'signature' => 'infected-signature'], 200),
+        ]);
+
+        $verdict = app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+
+        $this->assertSame('infected', $verdict['status']);
+        $this->assertSame('infected-signature', $verdict['signature']);
+    }
+
+    public function test_media_scanner_rejects_http_errors_and_invalid_verdicts(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+        ]);
+
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => 'ignored'], 503),
+        ]);
+        try {
+            app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+            $this->fail('A non-success HTTP response must not be accepted.');
+        } catch (\\RuntimeException $exception) {
+            $this->assertStringContainsString('did not return a successful response', $exception->getMessage());
+        }
+
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'unknown', 'signature' => 'ignored'], 200),
+        ]);
+        $this->expectException(\\RuntimeException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_rejects_missing_scan_signature(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'clean'], 200),
+        ]);
+
+        $this->expectException(\\RuntimeException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_propagates_connection_failures_for_fail_closed_handling(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+        ]);
+        Http::fake(static function () {
+            throw new ConnectionException('scanner connection timed out');
+        });
+
+        $this->expectException(ConnectionException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
 
 }
