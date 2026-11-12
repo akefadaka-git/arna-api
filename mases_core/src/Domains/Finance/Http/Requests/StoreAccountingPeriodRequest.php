@@ -36,6 +36,14 @@ final class StoreAccountingPeriodRequest extends FormRequest
         }
     }
 
+    protected function validationData(): array
+    {
+        $data = $this->all();
+        unset($data['starts_on_ec'], $data['ends_on_ec']);
+
+        return $data;
+    }
+
     public function authorize(): bool
     {
         return $this->user() !== null;
@@ -48,8 +56,6 @@ final class StoreAccountingPeriodRequest extends FormRequest
             'code' => ['required', 'string', 'max:32'],
             'starts_on' => ['required', 'date'],
             'ends_on' => ['required', 'date', 'after_or_equal:starts_on'],
-            'starts_on_ec' => ['sometimes', 'string', 'regex:/^\d{1,4}-\d{1,2}-\d{1,2}$/'],
-            'ends_on_ec' => ['sometimes', 'string', 'regex:/^\d{1,4}-\d{1,2}-\d{1,2}$/'],
         ];
     }
 }
