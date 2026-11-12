@@ -13,7 +13,7 @@
 
 | Domain | Calendar link types | Owning-domain authorization surface |
 |---|---|---|
-| People | person | No registered `PersonPolicy` or read-specific permission exists in the current source. Require active tenant access and the conservative `people.manage` permission through `AuthorizationService`. This is a documented limitation, not a new People policy. |
+| People | person | Registered Laravel `PersonPolicy::viewAny` and `PersonPolicy::view`. Read visibility requires an active caller account, active caller membership in the validated tenant, an active non-deleted Person, and an active `PersonTenantAccess` grant for that tenant. No `people.view` permission is invented: existing People list/detail reads did not require `people.manage`, which remains reserved for identity-management operations. |
 | Organization | unit; assignment | Invoke the existing `OrganizationUnitPolicy::view` and `OrganizationAssignmentPolicy::viewAny` directly. These policies are used as direct service dependencies by the Organization controller; they are not treated as Gate registrations. |
 | Finance | legal_entity; ledger_account; accounting_period; journal_entry | Resolve the explicitly registered Laravel Gate policy and authorize `view`. |
 | Governance | appointment; body; membership; position; term | Resolve the explicitly registered Laravel Gate policy and authorize `view`. |
@@ -21,7 +21,7 @@
 | Shareholder | shareholder; share_holding; share_certificate; share_class | Resolve the explicitly registered Laravel Gate policy and authorize `view`. |
 | Wallet | wallet; obligation; payment | Resolve the explicitly registered Laravel Gate policy and authorize `view`. |
 
-The feature contract test pins every Gate-backed model to a registered policy exposing `view`, and pins the two Organization direct-policy entry points. People read authorization remains conservative until the People domain publishes a canonical read contract.
+The People policy is registered in `AppServiceProvider`. The People list and detail controller actions call the same policy, keeping Calendar resource authorization and the People domain's own read endpoints on one canonical contract. The feature contract test pins every Gate-backed model to a registered policy exposing `view`, and pins the two Organization direct-policy entry points.
 
 ## Recurring reminder outbox persistence
 
@@ -35,4 +35,4 @@ The feature contract test pins every Gate-backed model to a registered policy ex
 
 ## Explicit non-goals and gates
 
-No People read-policy is invented here. No broader RRULE controls are added. Independent security review and production reverse-proxy/Plesk ingress verification remain separate A4 closure gates. This work does not authorize merge, production database operations, signing, release, or deployment.
+No broader RRULE controls are added. Independent security review and production reverse-proxy/Plesk ingress verification remain separate A4 closure gates. This work does not authorize merge, production database operations, signing, release, or deployment.

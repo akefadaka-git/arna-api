@@ -55,6 +55,7 @@ final class CalendarDomainResourceAuthorizerTest extends TestCase
         );
 
         $this->assertSame($person->getKey(), $resolved->getKey());
+        $this->assertTrue(\\Illuminate\\Support\\Facades\\Gate::forUser($actor)->allows('viewAny', Person::class));
         $this->assertFalse($actor->permissions()->where('slug', 'people.manage')->exists());
     }
 
