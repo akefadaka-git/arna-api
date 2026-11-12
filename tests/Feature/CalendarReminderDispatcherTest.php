@@ -253,4 +253,108 @@ final class CalendarReminderDispatcherTest extends TestCase
         ]);
     }
 
+    public function test_old_timed_recurring_series_materializes_only_the_current_rolling_horizon_idempotently(): void
+    {
+        Carbon::setTestNow('2026-11-01 06:00:00');
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $recipient = User::factory()->create(['is_active' => true]);
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        app(TenantContextService::class)->setTenantById($tenant->id);
+        $calendar = app(CalendarService::class)->createCalendar($recipient, ['name' => 'Older timed series']);
+        $event = app(CalendarService::class)->createEvent($recipient, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Long-running timed series',
+            'starts_at' => '2026-07-01T07:00:00+00:00',
+            'ends_at' => '2026-07-01T07:30:00+00:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 200],
+            'attendee_user_ids' => [$recipient->id],
+            'reminders' => [15],
+        ]);
+
+        $first = app(CalendarReminderDispatcher::class)->dispatch();
+        $this->assertSame(0, $first['failed']);
+        $this->assertDatabaseHas('calendar_reminder_outbox', [
+            'event_id' => $event->id,
+            'occurrence_index' => 123,
+            'occurrence_key' => '2026-11-01 07:00:00',
+            'status' => 'pending',
+        ]);
+        $before = DB::table('calendar_reminder_outbox')->where('event_id', $event->id)->count();
+
+        app(CalendarReminderDispatcher::class)->dispatch();
+
+        $this->assertSame($before, DB::table('calendar_reminder_outbox')->where('event_id', $event->id)->count());
+    }
+
+    public function test_old_all_day_recurring_series_materializes_only_the_current_rolling_horizon_idempotently(): void
+    {
+        Carbon::setTestNow('2026-11-01 06:00:00');
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $recipient = User::factory()->create(['is_active' => true]);
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        app(TenantContextService::class)->setTenantById($tenant->id);
+        $calendar = app(CalendarService::class)->createCalendar($recipient, ['name' => 'Older all-day series']);
+        $event = app(CalendarService::class)->createEvent($recipient, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Long-running all-day series',
+            'all_day' => true,
+            'starts_on' => '2026-07-01',
+            'ends_on' => '2026-07-01',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 200],
+            'attendee_user_ids' => [$recipient->id],
+            'reminders' => [15],
+        ]);
+
+        $first = app(CalendarReminderDispatcher::class)->dispatch();
+        $this->assertSame(0, $first['failed']);
+        $this->assertDatabaseHas('calendar_reminder_outbox', [
+            'event_id' => $event->id,
+            'occurrence_index' => 124,
+            'occurrence_key' => '2026-11-02 00:00:00',
+            'status' => 'pending',
+        ]);
+        $before = DB::table('calendar_reminder_outbox')->where('event_id', $event->id)->count();
+
+        app(CalendarReminderDispatcher::class)->dispatch();
+
+        $this->assertSame($before, DB::table('calendar_reminder_outbox')->where('event_id', $event->id)->count());
+    }
+
+    public function test_recurring_materialization_failure_is_counted_in_dispatch_result(): void
+    {
+        Carbon::setTestNow('2026-11-01 06:00:00');
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $recipient = User::factory()->create(['is_active' => true]);
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        app(TenantContextService::class)->setTenantById($tenant->id);
+        $calendar = app(CalendarService::class)->createCalendar($recipient, ['name' => 'Failure reporting']);
+        app(CalendarService::class)->createEvent($recipient, [
+            'calendar_id' => $calendar->id,
+            'title' => 'Recurring failure reporting',
+            'starts_at' => '2026-07-01T07:00:00+00:00',
+            'ends_at' => '2026-07-01T07:30:00+00:00',
+            'timezone' => 'Africa/Addis_Ababa',
+            'recurrence_rule' => ['frequency' => 'daily', 'interval' => 1, 'count' => 200],
+            'attendee_user_ids' => [$recipient->id],
+            'reminders' => [15],
+        ]);
+
+        $calendarService = Mockery::mock(CalendarService::class);
+        $calendarService->shouldReceive('recurringOccurrences')
+            ->once()
+            ->andThrow(new RuntimeException('simulated recurrence expansion failure'));
+        $context = app(TenantContextService::class);
+        $dispatcher = new CalendarReminderDispatcher(
+            new NotificationService($context),
+            $calendarService,
+            $context,
+        );
+
+        $result = $dispatcher->dispatch();
+
+        $this->assertSame(1, $result['failed']);
+    }
+
 }
