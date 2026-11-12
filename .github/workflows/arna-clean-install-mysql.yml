@@ -268,6 +268,13 @@ jobs:
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
 
+      - name: Run Finance Ethiopian calendar boundary regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinanceCalendarDateAdapterTest.php
+
       - name: Lint Finance Governance settlement migration
         run: php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_02_120000_create_governance_settlement_finance_tables.php
 
