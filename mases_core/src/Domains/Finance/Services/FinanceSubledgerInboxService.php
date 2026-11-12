@@ -36,7 +36,15 @@ final class FinanceSubledgerInboxService
         }
 
         $canonicalPayload = $this->canonicalize($payload);
-        $encoded = json_encode($canonicalPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $canonicalEnvelope = [
+            'source_type' => $sourceType,
+            'source_event_id' => $sourceEventId,
+            'source_version' => $sourceVersion,
+            'event_type' => $eventType,
+            'evidence_ref' => $evidenceRef,
+            'payload' => $canonicalPayload,
+        ];
+        $encoded = json_encode($canonicalEnvelope, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $digest = hash('sha256', $encoded);
 
         return DB::transaction(function () use (
