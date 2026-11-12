@@ -8,12 +8,18 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
+use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceIntelligenceService;
 
 final class FinanceIntelligenceController extends Controller
 {
-    public function __construct(private readonly FinanceIntelligenceService $intelligence)
+    public function __construct(
+        private readonly FinanceIntelligenceService $intelligence,
+        private readonly FinanceCalendarDateAdapter $calendar,
+    )
     {
     }
 
@@ -21,13 +27,14 @@ final class FinanceIntelligenceController extends Controller
     {
         $data = $request->validate([
             'legal_entity_id' => ['required', 'integer', 'min:1'],
-            'as_of' => ['required', 'date_format:Y-m-d'],
+            'as_of' => ['required_without:as_of_ec', 'prohibited_with:as_of_ec', 'date_format:Y-m-d'],
+            'as_of_ec' => ['required_without:as_of', 'prohibited_with:as_of', 'string', 'regex:/^\\d{4}-\\d{2}-\\d{2}$/],
         ]);
         $entity = LegalEntity::query()->where('tenant_id', $this->tenantId())->findOrFail((int) $data['legal_entity_id']);
 
         return response()->json([
             'success' => true,
-            'data' => $this->intelligence->evidenceSnapshot((int) $entity->tenant_id, (int) $entity->id, $data['as_of']),
+            'data' => $this->intelligence->evidenceSnapshot((int) $entity->tenant_id, (int) $entity->id, $this->resolveAsOf($data)),
         ]);
     }
 
@@ -47,7 +54,8 @@ final class FinanceIntelligenceController extends Controller
         $data = $request->validate([
             'legal_entity_id' => ['required', 'integer', 'min:1'],
             'task_type' => ['required', 'string', Rule::in(['variance_review', 'cash_flow_review', 'ledger_anomaly_review', 'period_close_review'])],
-            'as_of' => ['required', 'date_format:Y-m-d'],
+            'as_of' => ['required_without:as_of_ec', 'prohibited_with:as_of_ec', 'date_format:Y-m-d'],
+            'as_of_ec' => ['required_without:as_of', 'prohibited_with:as_of', 'string', 'regex:/^\\d{4}-\\d{2}-\\d{2}$/],
             'question' => ['required', 'string', 'min:8', 'max:2000'],
         ]);
         $entity = LegalEntity::query()->where('tenant_id', $this->tenantId())->findOrFail((int) $data['legal_entity_id']);
@@ -56,7 +64,7 @@ final class FinanceIntelligenceController extends Controller
             (int) $entity->id,
             (int) $request->user()->getAuthIdentifier(),
             $data['task_type'],
-            $data['as_of'],
+            $this->resolveAsOf($data),
             $data['question'],
         );
 
@@ -87,6 +95,22 @@ final class FinanceIntelligenceController extends Controller
         );
 
         return response()->json(['success' => true, 'data' => $proposal]);
+    }
+
+
+    private function resolveAsOf(array $data): string
+    {
+        if (isset($data['as_of'])) {
+            return $data['as_of'];
+        }
+
+        try {
+            return $this->calendar->toGregorianDate($data['as_of_ec']);
+        } catch (InvalidArgumentException) {
+            throw ValidationException::withMessages([
+                'as_of_ec' => 'The Ethiopian report date is invalid.',
+            ]);
+        }
     }
 
     private function tenantId(): int
