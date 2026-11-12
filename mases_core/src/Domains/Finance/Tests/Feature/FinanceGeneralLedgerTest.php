@@ -1258,7 +1258,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             ['amount' => '5.0000', 'currency' => 'ETB'],
         );
 
-        $snapshot = app(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinanceIntegrationHealthService::class)
+        $snapshot = app(\MaaleArna\MASES\Core\Domains\Finance\Services\FinanceIntegrationHealthService::class)
             ->snapshot((int) $tenant->id);
 
         $this->assertSame(1, $snapshot['inbox']['counts'][FinanceInboxEvent::QUARANTINED]);
