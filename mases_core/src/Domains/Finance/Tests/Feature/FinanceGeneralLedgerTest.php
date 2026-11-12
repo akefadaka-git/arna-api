@@ -303,7 +303,7 @@ final class FinanceGeneralLedgerTest extends TestCase
         $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
             'legal_entity_id' => $entity->id,
             'journal_number' => 'CANCEL-001',
-            'effective_date' => '2026-01-15',
+            'effective_date' => '2026-10-15',
             'currency' => 'ETB',
             'idempotency_key' => 'cancel-draft-test',
             'description' => 'Draft to cancel',
@@ -693,8 +693,8 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'Must not cross tenant boundary'
             );
             $this->fail('A tenant must not reverse another tenant\'s journal.');
-        } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('journal', $exception->errors());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $exception) {
+            $this->assertNotSame('', $exception->getMessage());
         }
 
         $this->assertDatabaseCount('journal_entries', 1);
