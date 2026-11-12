@@ -28,7 +28,7 @@ final class FinanceIntelligenceController extends Controller
         $data = $request->validate([
             'legal_entity_id' => ['required', 'integer', 'min:1'],
             'as_of' => ['required_without:as_of_ec', 'prohibited_with:as_of_ec', 'date_format:Y-m-d'],
-            'as_of_ec' => ['required_without:as_of', 'prohibited_with:as_of', 'string', 'regex:/^\\d{4}-\\d{2}-\\d{2}$/],
+            'as_of_ec' => ['required_without:as_of', 'prohibited_with:as_of', 'string', 'regex:/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/'],
         ]);
         $entity = LegalEntity::query()->where('tenant_id', $this->tenantId())->findOrFail((int) $data['legal_entity_id']);
 
@@ -55,7 +55,7 @@ final class FinanceIntelligenceController extends Controller
             'legal_entity_id' => ['required', 'integer', 'min:1'],
             'task_type' => ['required', 'string', Rule::in(['variance_review', 'cash_flow_review', 'ledger_anomaly_review', 'period_close_review'])],
             'as_of' => ['required_without:as_of_ec', 'prohibited_with:as_of_ec', 'date_format:Y-m-d'],
-            'as_of_ec' => ['required_without:as_of', 'prohibited_with:as_of', 'string', 'regex:/^\\d{4}-\\d{2}-\\d{2}$/],
+            'as_of_ec' => ['required_without:as_of', 'prohibited_with:as_of', 'string', 'regex:/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/'],
             'question' => ['required', 'string', 'min:8', 'max:2000'],
         ]);
         $entity = LegalEntity::query()->where('tenant_id', $this->tenantId())->findOrFail((int) $data['legal_entity_id']);
