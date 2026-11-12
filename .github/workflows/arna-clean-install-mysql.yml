@@ -53,6 +53,7 @@ on:
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
       - "tests/Feature/CentralNotificationsTest.php"
+      - "tests/Feature/CommunicationAnnouncementsTest.php"
   workflow_dispatch:
     inputs:
       target_sha:
