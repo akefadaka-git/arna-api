@@ -134,6 +134,9 @@ declare(strict_types=1);
 */
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -175,6 +178,46 @@ Route::get('/health', static function (): JsonResponse {
         ],
     ]);
 })->name('api.health');
+
+/**
+ * Readiness Check
+ *
+ * Verifies the database and private local storage can serve application work.
+ * Does not expose exception messages, credentials, hostnames or filesystem paths.
+ */
+Route::get('/ready', static function (): JsonResponse {
+    $probe = 'health-check/'.Str::uuid();
+
+    try {
+        DB::connection()->select('SELECT 1');
+        $disk = Storage::disk('local');
+        if ($disk->put($probe, 'ok') !== true || $disk->get($probe) !== 'ok') {
+            throw new \RuntimeException('Private storage readiness probe failed.');
+        }
+        if (!$disk->delete($probe)) {
+            throw new \RuntimeException('Private storage cleanup probe failed.');
+        }
+    } catch (\Throwable $exception) {
+        report($exception);
+
+        return response()->json([
+            'success' => false,
+            'data' => [
+                'status' => 'not_ready',
+                'checks' => ['database' => 'unavailable', 'private_storage' => 'unavailable'],
+            ],
+        ], 503);
+    }
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'status' => 'ready',
+            'checks' => ['database' => 'ok', 'private_storage' => 'ok'],
+        ],
+    ]);
+})->middleware('throttle:30,1')->name('api.ready');
+
 
 
 // -----------------------------------------------------------------------------
