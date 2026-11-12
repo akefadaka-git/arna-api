@@ -161,6 +161,12 @@ final class CorporateSiteEntryController extends Controller
         $entry = CorporateSiteEntry::query()->published()->where('entry_type', 'media')->where('public_id', $publicId)->firstOrFail();
         abort_unless($entry->asset_path && Storage::disk('local')->exists($entry->asset_path), 404);
         abort_unless(in_array($entry->asset_mime, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4'], true), 404);
+        $verifiedDigest = (string) ($entry->payload['scan_sha256'] ?? '');
+        abort_unless(
+            preg_match('/\\A[a-f0-9]{64}\\z/D', $verifiedDigest) === 1 &&
+            hash_equals($verifiedDigest, hash('sha256', Storage::disk('local')->get($entry->asset_path))),
+            404,
+        );
 
         return response()->file(Storage::disk('local')->path($entry->asset_path), [
             'Content-Type' => $entry->asset_mime,
