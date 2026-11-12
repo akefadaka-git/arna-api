@@ -35,9 +35,17 @@ final class NotificationService
         $created = [];
 
         return DB::transaction(function () use ($tenant, $recipients, $payload, &$created): array {
+            if (!$tenant->exists || !$tenant->is_active) {
+                throw new InvalidArgumentException('Notifications cannot be published for an inactive or unpersisted tenant.');
+            }
+
             foreach ($recipients as $recipient) {
                 if (!$recipient instanceof User || !$recipient->exists) {
                     throw new InvalidArgumentException('Recipients must be persisted canonical User models.');
+                }
+
+                if (!$recipient->is_active) {
+                    throw new InvalidArgumentException('Notifications cannot be published to an inactive recipient account.');
                 }
 
                 $isMember = TenantMembership::query()
