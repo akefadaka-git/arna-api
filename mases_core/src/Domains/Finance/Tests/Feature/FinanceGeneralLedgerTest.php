@@ -948,7 +948,7 @@ final class FinanceGeneralLedgerTest extends TestCase
             $this->markTestSkipped('This regression verifies the MySQL posting trigger.');
         }
 
-        [$tenant, $user, $entity] = $this->ledgerFixture();
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
         $draft = app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
             'legal_entity_id' => $entity->id,
             'journal_number' => 'JV-NEGATIVE-LINE-DB-GUARD',
