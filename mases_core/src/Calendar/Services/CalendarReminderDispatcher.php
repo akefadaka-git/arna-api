@@ -46,8 +46,9 @@ final class CalendarReminderDispatcher
             ->whereNotNull('e.recurrence_rule')
             ->orderBy('e.tenant_id')
             ->orderBy('e.id')
-            ->limit(200)
-            ->get(['e.id', 'e.tenant_id', 'e.all_day', 'e.starts_on', 'e.starts_at', 'e.timezone', 'e.created_by', 'c.owner_user_id']);
+            // Use chunked lazy iteration rather than a fixed first-page limit:
+            // otherwise recurring events after row 200 would never be materialized.
+            ->lazy(100);
 
         $to = now()->toDateTimeImmutable()->modify('+90 days');
 
@@ -168,8 +169,11 @@ final class CalendarReminderDispatcher
                             $deliverAt = now()->toDateTimeImmutable();
                         }
 
+                        // The original occurrence key, not the mutable recurrence
+                        // ordinal, is the durable identity. Changing the rule must not
+                        // let a different occurrence inherit an already-used outbox key.
                         $idempotencyKey = (string) $event->id.':'.$recipientId.':'.$reminderType
-                            .($index === 0 ? '' : ':'.$index);
+                            .($index === 0 ? '' : ':occurrence:'.$occurrenceKey);
                         if ($index > 0) {
                             DB::table('calendar_reminder_outbox')->insertOrIgnore([
                                 'id' => (string) Str::uuid(),
