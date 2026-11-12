@@ -1,0 +1,47 @@
+name: Corporate site media security tests
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/Services/CorporateSite/**'
+      - 'tests/Feature/CorporateSitePublishingTest.php'
+      - '.github/workflows/corporate-site-media-security.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/Services/CorporateSite/**'
+      - 'tests/Feature/CorporateSitePublishingTest.php'
+      - '.github/workflows/corporate-site-media-security.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  corporate-site-media-security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: ctype, curl, dom, fileinfo, mbstring, openssl, pdo, pdo_sqlite, sqlite3, tokenizer, xml
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Clear cached Laravel configuration
+        run: php artisan config:clear
+
+      - name: Run corporate publishing and media scanner security tests
+        run: php artisan test tests/Feature/CorporateSitePublishingTest.php
