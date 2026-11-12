@@ -1124,7 +1124,7 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'Attempted self-approval',
             );
             $this->fail('A proposal creator must not approve their own Finance AI proposal.');
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException) {
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException) {
             $this->assertDatabaseHas('finance_ai_proposals', [
                 'id' => $proposal->id,
                 'status' => FinanceAiProposal::PROPOSED,
