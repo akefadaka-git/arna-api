@@ -94,7 +94,7 @@ final class CentralNotificationsTest extends TestCase
         $staleTenant = clone $tenant;
         $tenant->forceFill(['is_active' => false])->save();
 
-        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
         app(NotificationService::class)->publish($staleTenant, [$recipient], [
             'event_key' => 'test.stale-tenant', 'category' => 'system', 'title' => ['en' => 'Must not publish'],
         ]);
@@ -108,7 +108,7 @@ final class CentralNotificationsTest extends TestCase
         $staleRecipient = clone $recipient;
         $recipient->forceFill(['is_active' => false])->save();
 
-        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
         app(NotificationService::class)->publish($tenant, [$staleRecipient], [
             'event_key' => 'test.stale-recipient', 'category' => 'system', 'title' => ['en' => 'Must not publish'],
         ]);
@@ -120,7 +120,7 @@ final class CentralNotificationsTest extends TestCase
         $recipient = User::factory()->create();
         $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
 
-        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
         app(NotificationService::class)->publish($tenant, [$recipient], [
             'event_key' => 'test.inactive-tenant', 'category' => 'system', 'title' => ['en' => 'Must not publish'],
         ]);
@@ -132,7 +132,7 @@ final class CentralNotificationsTest extends TestCase
         $recipient = User::factory()->create(['is_active' => false]);
         $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
 
-        $this->expectException(\\InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
         app(NotificationService::class)->publish($tenant, [$recipient], [
             'event_key' => 'test.inactive-recipient', 'category' => 'system', 'title' => ['en' => 'Must not publish'],
         ]);
