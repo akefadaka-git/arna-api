@@ -11,6 +11,8 @@ use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceOutboxMessage;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceOutboxDispatcher;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
@@ -69,6 +71,48 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertDatabaseHas('finance_audit_entries', [
             'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.posted',
             'subject_type' => 'journal_entry', 'subject_id' => $draft->id,
+        ]);
+    }
+
+    #[Test]
+    public function test_posted_journal_event_is_persisted_and_leased_for_delivery(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $journals = app(JournalEntryService::class);
+        $draft = $journals->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-OUTBOX-0001',
+            'effective_date' => '2026-10-01',
+            'description' => 'Transactional outbox test',
+            'currency' => 'ETB',
+            'idempotency_key' => 'outbox-journal-0001',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '25.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '25.0000'],
+        ]);
+
+        $journals->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $eventKey = 'finance.journal.posted:'.$tenant->id.':'.$draft->id;
+        $message = FinanceOutboxMessage::query()->where('event_key', $eventKey)->firstOrFail();
+
+        $this->assertSame(FinanceOutboxMessage::PENDING, $message->status);
+        $this->assertSame('finance.journal.posted', $message->event_type);
+        $this->assertSame('25.0000', $message->payload['lines'][0]['debit_amount']);
+
+        $dispatcher = app(FinanceOutboxDispatcher::class);
+        $claimed = $dispatcher->claimNext();
+        $this->assertNotNull($claimed);
+        $this->assertSame($message->id, $claimed->id);
+        $this->assertSame(FinanceOutboxMessage::PROCESSING, $claimed->status);
+        $this->assertSame(1, $claimed->attempts);
+        $this->assertNotEmpty($claimed->claim_token);
+
+        $dispatcher->acknowledge((int) $claimed->id, (string) $claimed->claim_token);
+
+        $this->assertDatabaseHas('finance_outbox_messages', [
+            'id' => $message->id,
+            'status' => FinanceOutboxMessage::DELIVERED,
+            'claim_token' => null,
         ]);
     }
 
