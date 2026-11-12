@@ -477,8 +477,10 @@ final class FinanceGeneralLedgerTest extends TestCase
     {
         [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
 
+        $service = new JournalEntryService(new JournalSourceReferenceResolverRegistry());
+
         try {
-            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+            $service->createDraft((int) $tenant->id, (int) $user->id, [
                 'legal_entity_id' => $entity->id,
                 'journal_number' => 'JV-SOURCE-FAIL-CLOSED',
                 'effective_date' => '2026-10-15',
