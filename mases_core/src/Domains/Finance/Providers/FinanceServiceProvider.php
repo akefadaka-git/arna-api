@@ -28,6 +28,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Events\JournalReversed;
 use MaaleArna\MASES\Core\Domains\Finance\Events\AccountingPeriodOpened;
 use MaaleArna\MASES\Core\Domains\Finance\Events\AccountingPeriodClosed;
 use MaaleArna\MASES\Core\Domains\Finance\Listeners\AuditFinanceLifecycleEvent;
+use MaaleArna\MASES\Core\Domains\Finance\Listeners\PersistFinanceJournalPostedOutbox;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceOutboxDispatcher;
 use MaaleArna\MASES\Core\Domains\Finance\Services\SubledgerIntegrationService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\SourceLegalEntityMappingService;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\SourceLegalEntityMappingContract;
@@ -60,6 +62,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(FinanceConsolidationService::class);
         $this->app->singleton(FinanceConsolidationMappingService::class);
         $this->app->singleton(FinanceExchangeRateService::class);
+        $this->app->singleton(FinanceOutboxDispatcher::class);
         $this->app->singleton(FinancialReportService::class);
         $this->app->singleton(SubledgerIntegrationService::class);
         $this->app->singleton(SourceLegalEntityMappingContract::class, SourceLegalEntityMappingService::class);
@@ -77,6 +80,7 @@ final class FinanceServiceProvider extends ServiceProvider
         Event::listen(LedgerAccountCreated::class, AuditFinanceLifecycleEvent::class);
         Event::listen(JournalDraftCreated::class, AuditFinanceLifecycleEvent::class);
         Event::listen(JournalPosted::class, AuditFinanceLifecycleEvent::class);
+        Event::listen(JournalPosted::class, PersistFinanceJournalPostedOutbox::class);
         Event::listen(JournalCancelled::class, AuditFinanceLifecycleEvent::class);
         Event::listen(JournalReversed::class, AuditFinanceLifecycleEvent::class);
         Event::listen(AccountingPeriodOpened::class, AuditFinanceLifecycleEvent::class);
