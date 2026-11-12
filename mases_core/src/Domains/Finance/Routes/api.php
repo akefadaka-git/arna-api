@@ -53,5 +53,5 @@ $subledgerInboxController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controlle
 Route::get('/subledger/inbox', [$subledgerInboxController, 'index'])->middleware('auth.permission:finance.subledger.view')->name('subledger.inbox.index');
 Route::post('/subledger/inbox', [$subledgerInboxController, 'receive'])->middleware('auth.permission:finance.subledger.ingest')->name('subledger.inbox.receive');
 
-$integrationHealthController = \\MaaleArna\\MASES\\Core\\Domains\\Finance\\Http\\Controllers\\FinanceIntegrationHealthController::class;
+$integrationHealthController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\FinanceIntegrationHealthController::class;
 Route::get('/operations/integration-health', $integrationHealthController)->middleware('auth.permission:finance.integration.view')->name('operations.integration-health');
