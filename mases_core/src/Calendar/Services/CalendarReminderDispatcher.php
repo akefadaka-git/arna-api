@@ -66,9 +66,6 @@ final class CalendarReminderDispatcher
                 }
 
                 $eventZone = new DateTimeZone($event->timezone ?: 'Africa/Addis_Ababa');
-                $seriesStart = (bool) $event->all_day
-                    ? new DateTimeImmutable($event->starts_on, $eventZone)
-                    : new DateTimeImmutable($event->starts_at, new DateTimeZone('UTC'));
 
                 // Request only the rolling horizon. The recurrence expander still
                 // derives every occurrence from the immutable series anchor, preserving
