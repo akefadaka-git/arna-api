@@ -69,7 +69,7 @@ final class NotificationService
                     ->where('user_id', $currentRecipient->getKey())
                     ->where('status', TenantMembership::STATUS_ACTIVE)
                     ->lockForUpdate()
-                    ->exists();
+                    ->first() !== null;
 
                 if (!$isMember) {
                     throw new InvalidArgumentException('Every notification recipient must be an active member of the target tenant.');
