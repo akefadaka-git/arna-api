@@ -4,8 +4,8 @@ on:
   push:
     branches: [main, fix/calendar-owning-auth-recurring-outbox]
   pull_request:
-    # Include the active stacked People implementation PR base as well as main.
-    # This lets the same clean-install gate run automatically for PR #23.
+    # Include active stacked implementation PR bases as well as main.
+    # This keeps the clean-install gate enabled for the current Calendar PR.
     branches: [main, feat/a3-calendar-current-main-integration, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
@@ -14,7 +14,8 @@ on:
       - "mases_core/src/Monitoring/ErrorDiagnosticEngine.php"
       - "tests/Unit/ErrorDiagnosticEngineTest.php"
       - "database/migrations/**"
-      - "mases_core/src/**/Database/Migrations/**"\n      - "mases_core/src/Migrations/**"
+      - "mases_core/src/**/Database/Migrations/**"
+      - "mases_core/src/Migrations/**"
       - "mases_core/src/**/Providers/**"
       - "mases_core/src/Domains/Finance/**"
       - "bootstrap/providers.php"
