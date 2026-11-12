@@ -312,7 +312,7 @@ final class CalendarReminderDispatcherTest extends TestCase
         $this->assertDatabaseHas('calendar_reminder_outbox', [
             'event_id' => $event->id,
             'occurrence_index' => 124,
-            'occurrence_key' => '2026-11-02 00:00:00',
+            'occurrence_key' => '2026-11-01 21:00:00',
             'status' => 'pending',
         ]);
         $before = DB::table('calendar_reminder_outbox')->where('event_id', $event->id)->count();
