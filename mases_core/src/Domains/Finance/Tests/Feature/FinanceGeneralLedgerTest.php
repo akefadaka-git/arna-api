@@ -1245,6 +1245,27 @@ final class FinanceGeneralLedgerTest extends TestCase
         }
     }
 
+    #[Test]
+    public function test_integration_health_is_tenant_scoped_and_discloses_unreconciled_sources(): void
+    {
+        [$tenant] = $this->ledgerFixture();
+        app(FinanceSubledgerInboxService::class)->receive(
+            (int) $tenant->id,
+            JournalSourceType::WALLET->value,
+            'wallet-health-event',
+            'v1',
+            'wallet.transaction.posted',
+            ['amount' => '5.0000', 'currency' => 'ETB'],
+        );
+
+        $snapshot = app(\\MaaleArna\\MASES\\Core\\Domains\\Finance\\Services\\FinanceIntegrationHealthService::class)
+            ->snapshot((int) $tenant->id);
+
+        $this->assertSame(1, $snapshot['inbox']['counts'][FinanceInboxEvent::QUARANTINED]);
+        $this->assertSame('not_reconciled', $snapshot['reconciliation']['status']);
+        $this->assertFalse($snapshot['reconciliation']['source_control_totals_available']);
+    }
+
     private function ledgerFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
