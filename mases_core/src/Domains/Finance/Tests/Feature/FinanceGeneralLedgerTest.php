@@ -11,6 +11,9 @@ use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAuditEntry;
+use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceAiProposal;
+use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceIntelligenceService;
+use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
 use MaaleArna\MASES\Core\Domains\Finance\Models\FinanceOutboxMessage;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinanceOutboxDispatcher;
 use MaaleArna\MASES\Core\Domains\Finance\Services\AccountingPeriodService;
@@ -1071,6 +1074,63 @@ final class FinanceGeneralLedgerTest extends TestCase
         }
 
         $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+    }
+
+    #[Test]
+    public function test_finance_intelligence_evidence_is_tenant_scoped_and_exposes_ethiopian_date(): void
+    {
+        [$tenant, $user, $entity] = $this->ledgerFixture();
+        $snapshot = app(FinanceIntelligenceService::class)->evidenceSnapshot(
+            (int) $tenant->id,
+            (int) $entity->id,
+            '2026-10-15',
+        );
+
+        $this->assertSame((int) $tenant->id, $snapshot['scope']['tenant_id']);
+        $this->assertSame((int) $entity->id, $snapshot['scope']['legal_entity_id']);
+        $this->assertSame(
+            app(FinanceCalendarDateAdapter::class)->toEthiopianDate('2026-10-15'),
+            $snapshot['as_of_ec'],
+        );
+        $this->assertSame(64, strlen($snapshot['evidence_sha256']));
+        $this->assertSame($snapshot['evidence_sha256'], $snapshot['evidence_refs'][0]['sha256']);
+    }
+
+    #[Test]
+    public function test_finance_ai_proposal_creator_cannot_approve_own_proposal(): void
+    {
+        [$tenant, $user, $entity] = $this->ledgerFixture();
+        $proposal = FinanceAiProposal::query()->create([
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'requested_by' => $user->id,
+            'agent_key' => 'test-agent',
+            'task_type' => 'variance_review',
+            'task_template_version' => 'test-v1',
+            'status' => FinanceAiProposal::PROPOSED,
+            'title' => 'Test proposal',
+            'summary' => 'Evidence-backed test proposal.',
+            'proposal' => ['recommendation' => 'review'],
+            'evidence_refs' => [['type' => 'finance.trial_balance']],
+            'evidence_sha256' => str_repeat('a', 64),
+            'limitations' => ['test-only evidence'],
+        ]);
+
+        try {
+            app(FinanceIntelligenceService::class)->approve(
+                (int) $tenant->id,
+                (int) $proposal->id,
+                (int) $user->id,
+                'Attempted self-approval',
+            );
+            $this->fail('A proposal creator must not approve their own Finance AI proposal.');
+        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException) {
+            $this->assertDatabaseHas('finance_ai_proposals', [
+                'id' => $proposal->id,
+                'status' => FinanceAiProposal::PROPOSED,
+                'reviewed_by' => null,
+            ]);
+        }
     }
 
     private function ledgerFixture(): array
