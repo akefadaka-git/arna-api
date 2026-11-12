@@ -407,10 +407,12 @@ final class CalendarService
                 if ($cursorCivilDate > $toCivilDate || ($until !== null && $cursor > $until)) break;
                 $occurrenceKey = $cursor->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
                 $exception = $exceptions->get($occurrenceKey);
-                if ($cursorCivilDate >= $fromCivilDate && (!$exception || $exception->status !== 'cancelled')) {
-                    $occurrenceStart = $exception?->override_starts_at
-                        ? (new \DateTimeImmutable($exception->override_starts_at, new \DateTimeZone('UTC')))->setTimezone($zone)
-                        : $cursor;
+                $occurrenceStart = $exception?->override_starts_at
+                    ? (new \DateTimeImmutable($exception->override_starts_at, new \DateTimeZone('UTC')))->setTimezone($zone)
+                    : $cursor;
+                $occurrenceStartCivilDate = $occurrenceStart->format('Y-m-d');
+                if ($occurrenceStartCivilDate >= $fromCivilDate && $occurrenceStartCivilDate <= $toCivilDate
+                    && (!$exception || $exception->status !== 'cancelled')) {
                     $occurrenceEnd = $exception?->override_ends_at
                         ? (new \DateTimeImmutable($exception->override_ends_at, new \DateTimeZone('UTC')))->setTimezone($zone)
                         : $occurrenceStart->modify("+{$durationDays} days");
@@ -440,8 +442,11 @@ final class CalendarService
             if ($cursor > $toDate || ($until !== null && $cursor > $until)) break;
             $occurrenceKey = $cursor->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
             $exception = $exceptions->get($occurrenceKey);
-            if ($cursor >= $fromDate && (!$exception || $exception->status !== 'cancelled')) {
-                $occurrenceStart = $exception?->override_starts_at ? new \DateTimeImmutable($exception->override_starts_at, new \DateTimeZone('UTC')) : $cursor;
+            $occurrenceStart = $exception?->override_starts_at
+                ? new \DateTimeImmutable($exception->override_starts_at, new \DateTimeZone('UTC'))
+                : $cursor;
+            if ($occurrenceStart >= $fromDate && $occurrenceStart <= $toDate
+                && (!$exception || $exception->status !== 'cancelled')) {
                 $occurrenceEnd = $exception?->override_ends_at ? new \DateTimeImmutable($exception->override_ends_at, new \DateTimeZone('UTC')) : $occurrenceStart->modify("+{$duration} seconds");
                 $items[] = ['event_id' => $event->id, 'occurrence' => $index, 'occurrence_key' => $occurrenceKey,
                     'starts_at' => $occurrenceStart->setTimezone($zone)->format(DATE_ATOM), 'ends_at' => $occurrenceEnd->setTimezone($zone)->format(DATE_ATOM), 'timezone' => $event->timezone];
