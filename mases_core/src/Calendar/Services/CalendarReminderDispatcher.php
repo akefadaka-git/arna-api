@@ -35,7 +35,7 @@ final class CalendarReminderDispatcher
      * Materialize the next 90 days of recurring reminders from the canonical
      * Calendar recurrence expander. The series' first occurrence remains the
      * existing outbox template; subsequent instances receive stable
-     * (event, recipient, reminder type, occurrence index) idempotency keys.
+     * (event, recipient, reminder type, original occurrence key) idempotency keys.
      */
     private function materializeRecurringReminders(): void
     {
