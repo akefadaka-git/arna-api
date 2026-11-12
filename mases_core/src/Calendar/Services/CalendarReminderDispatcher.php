@@ -216,7 +216,7 @@ final class CalendarReminderDispatcher
                 }
             } catch (Throwable $error) {
                 $failures++;
-                report(new RuntimeException(
+                report(new \RuntimeException(
                     'Recurring reminder materialization failed for tenant '.$event->tenant_id.' event '.$event->id,
                     0,
                     $error,
