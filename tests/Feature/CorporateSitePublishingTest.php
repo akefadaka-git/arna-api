@@ -325,6 +325,21 @@ final class CorporateSitePublishingTest extends TestCase
             ->assertJsonStructure(['success', 'data' => ['status', 'timestamp', 'version', 'environment']]);
     }
 
+
+    public function test_readiness_endpoint_checks_database_and_private_storage_without_leaving_probe_files(): void
+    {
+        Storage::fake('local');
+
+        $this->getJson('/api/ready')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'ready')
+            ->assertJsonPath('data.checks.database', 'ok')
+            ->assertJsonPath('data.checks.private_storage', 'ok');
+
+        $this->assertSame([], Storage::disk('local')->allFiles('health-check'));
+    }
+
     public function test_due_scheduled_corporate_pages_publish_and_write_an_audit_event(): void
     {
         $page = CorporateSitePage::query()->create([
