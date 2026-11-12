@@ -90,8 +90,9 @@ final class CalendarDomainResourceAuthorizer
 
         $query = $modelClass::query()->whereKey($resourceId);
         if ($modelClass === Person::class) {
-            $query->whereHas('tenantAccesses', fn ($access) => $access
-                ->where('tenant_id', $tenantId)->where('status', 'active'));
+            $query->where('status', 'active')
+                ->whereHas('tenantAccesses', fn ($access) => $access
+                    ->where('tenant_id', $tenantId)->where('status', 'active'));
         } else {
             $query->where('tenant_id', $tenantId);
         }
