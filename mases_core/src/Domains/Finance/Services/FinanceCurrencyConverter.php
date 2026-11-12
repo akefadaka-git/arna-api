@@ -57,7 +57,7 @@ final class FinanceCurrencyConverter
             : (string) $effectiveOn;
 
         return [
-            'base_amount' => self::formatCurrency($amountUnits, FinanceCurrencyPolicy::minorUnitsFor($base)),
+            'base_amount' => self::formatBaseAmount($amountUnits, FinanceCurrencyPolicy::minorUnitsFor($base)),
             'base_currency' => $base,
             'quote_amount' => self::formatCurrency($minorUnits, $quotePrecision),
             'quote_currency' => $quote,
@@ -97,6 +97,13 @@ final class FinanceCurrencyConverter
         }
 
         return ltrim(implode('', $result), '0') ?: '0';
+    }
+
+    private static function formatBaseAmount(string $fourDecimalUnits, int $precision): string
+    {
+        $formatted = MoneyArithmetic::format($fourDecimalUnits);
+        [$whole, $fraction] = explode('.', $formatted, 2);
+        return $precision === 0 ? $whole : $whole.'.'.substr($fraction, 0, $precision);
     }
 
     private static function formatCurrency(string $units, int $precision): string
