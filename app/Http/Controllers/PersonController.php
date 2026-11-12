@@ -8,6 +8,7 @@ use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService;
@@ -22,6 +23,7 @@ final class PersonController extends Controller
     {
         $tenantId = mases_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
+        Gate::authorize('viewAny', Person::class);
 
         $people = Person::query()
             ->where('people.status', 'active')
@@ -108,6 +110,7 @@ final class PersonController extends Controller
                 ->where('tenant_id', $tenantId)
                 ->where('status', 'active'))
             ->firstOrFail();
+        Gate::authorize('view', $person);
 
         return response()->json([
             'success' => true,

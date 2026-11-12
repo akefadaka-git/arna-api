@@ -85,4 +85,57 @@ final class CentralNotificationsTest extends TestCase
             ->assertStatus(400)
             ->assertJsonPath('error.code', 'TENANT_REQUIRED');
     }
+
+    public function test_publish_rejects_stale_tenant_instance_after_deactivation(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $recipient = User::factory()->create();
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        $staleTenant = clone $tenant;
+        $tenant->forceFill(['is_active' => false])->save();
+
+        $this->expectException(\InvalidArgumentException::class);
+        app(NotificationService::class)->publish($staleTenant, [$recipient], [
+            'event_key' => 'test.stale-tenant', 'category' => 'system', 'title' => ['en' => 'Must not publish'],
+        ]);
+    }
+
+    public function test_publish_rejects_stale_recipient_instance_after_deactivation(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $recipient = User::factory()->create();
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        $staleRecipient = clone $recipient;
+        $recipient->forceFill(['is_active' => false])->save();
+
+        $this->expectException(\InvalidArgumentException::class);
+        app(NotificationService::class)->publish($tenant, [$staleRecipient], [
+            'event_key' => 'test.stale-recipient', 'category' => 'system', 'title' => ['en' => 'Must not publish'],
+        ]);
+    }
+
+    public function test_publish_rejects_inactive_tenant(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => false]);
+        $recipient = User::factory()->create();
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        app(NotificationService::class)->publish($tenant, [$recipient], [
+            'event_key' => 'test.inactive-tenant', 'category' => 'system', 'title' => ['en' => 'Must not publish'],
+        ]);
+    }
+
+    public function test_publish_rejects_inactive_recipient(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $recipient = User::factory()->create(['is_active' => false]);
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        app(NotificationService::class)->publish($tenant, [$recipient], [
+            'event_key' => 'test.inactive-recipient', 'category' => 'system', 'title' => ['en' => 'Must not publish'],
+        ]);
+    }
+
 }

@@ -35,10 +35,11 @@ final class CalendarReminderDispatcher
      * Materialize the next 90 days of recurring reminders from the canonical
      * Calendar recurrence expander. The series' first occurrence remains the
      * existing outbox template; subsequent instances receive stable
-     * (event, recipient, reminder type, occurrence index) idempotency keys.
+     * (event, recipient, reminder type, original occurrence key) idempotency keys.
      */
-    private function materializeRecurringReminders(): void
+    private function materializeRecurringReminders(): int
     {
+        $failures = 0;
         $events = DB::table('calendar_events as e')
             ->join('calendar_calendars as c', 'c.id', '=', 'e.calendar_id')
             ->whereColumn('c.tenant_id', 'e.tenant_id')
@@ -46,10 +47,10 @@ final class CalendarReminderDispatcher
             ->whereNotNull('e.recurrence_rule')
             ->orderBy('e.tenant_id')
             ->orderBy('e.id')
-            ->limit(200)
-            ->get(['e.id', 'e.tenant_id', 'e.all_day', 'e.starts_on', 'e.starts_at', 'e.timezone', 'e.created_by', 'c.owner_user_id']);
-
-        $to = now()->toDateTimeImmutable()->modify('+90 days');
+            ->select(['e.id', 'e.tenant_id', 'e.all_day', 'e.starts_on', 'e.starts_at', 'e.timezone', 'e.created_by', 'c.owner_user_id'])
+            // Use chunked lazy iteration rather than a fixed first-page limit:
+            // otherwise recurring events after row 200 would never be materialized.
+            ->lazy(100);
 
         foreach ($events as $event) {
             try {
@@ -65,14 +66,17 @@ final class CalendarReminderDispatcher
                 }
 
                 $eventZone = new DateTimeZone($event->timezone ?: 'Africa/Addis_Ababa');
-                $seriesStart = (bool) $event->all_day
-                    ? new DateTimeImmutable($event->starts_on, $eventZone)
-                    : new DateTimeImmutable($event->starts_at, new DateTimeZone('UTC'));
 
+                // Request only the rolling horizon. The recurrence expander still
+                // derives every occurrence from the immutable series anchor, preserving
+                // the original occurrence ordinal/key while avoiding an over-90-day
+                // request for older series.
+                $from = now()->toDateTimeImmutable()->setTimezone($eventZone);
+                $to = $from->modify('+90 days');
                 $occurrences = $this->calendar->recurringOccurrences(
                     $actor,
                     (string) $event->id,
-                    $seriesStart->format(DATE_ATOM),
+                    $from->format(DATE_ATOM),
                     $to->format(DATE_ATOM),
                 );
 
@@ -168,8 +172,11 @@ final class CalendarReminderDispatcher
                             $deliverAt = now()->toDateTimeImmutable();
                         }
 
+                        // The original occurrence key, not the mutable recurrence
+                        // ordinal, is the durable identity. Changing the rule must not
+                        // let a different occurrence inherit an already-used outbox key.
                         $idempotencyKey = (string) $event->id.':'.$recipientId.':'.$reminderType
-                            .($index === 0 ? '' : ':'.$index);
+                            .($index === 0 ? '' : ':occurrence:'.$occurrenceKey);
                         if ($index > 0) {
                             DB::table('calendar_reminder_outbox')->insertOrIgnore([
                                 'id' => (string) Str::uuid(),
@@ -208,19 +215,25 @@ final class CalendarReminderDispatcher
                     }
                 }
             } catch (Throwable $error) {
-                report($error);
+                $failures++;
+                report(new \RuntimeException(
+                    'Recurring reminder materialization failed for tenant '.$event->tenant_id.' event '.$event->id,
+                    0,
+                    $error,
+                ));
             } finally {
                 $this->tenantContext->clearTenant();
             }
         }
+
+        return $failures;
     }
 
     /** @return array{delivered:int,skipped:int,retried:int,failed:int} */
     public function dispatch(int $limit = 100): array
     {
         $limit = max(1, min(500, $limit));
-        $this->materializeRecurringReminders();
-        $result = ['delivered' => 0, 'skipped' => 0, 'retried' => 0, 'failed' => 0];
+        $result = ['delivered' => 0, 'skipped' => 0, 'retried' => 0, 'failed' => $this->materializeRecurringReminders()];
 
         for ($processed = 0; $processed < $limit; $processed++) {
             $candidate = DB::table('calendar_reminder_outbox')
@@ -278,6 +291,22 @@ final class CalendarReminderDispatcher
                     if (!$tenant || !$recipient) {
                         DB::table('calendar_reminder_outbox')->where('id', $row->id)->update([
                             'status' => 'skipped', 'last_error' => 'Tenant or recipient no longer exists.',
+                            'updated_at' => now(),
+                        ]);
+                        return 'skipped';
+                    }
+
+                    if (!$tenant->is_active) {
+                        DB::table('calendar_reminder_outbox')->where('id', $row->id)->update([
+                            'status' => 'skipped', 'last_error' => 'Tenant is inactive; reminder delivery is prohibited.',
+                            'updated_at' => now(),
+                        ]);
+                        return 'skipped';
+                    }
+
+                    if (!$recipient->is_active) {
+                        DB::table('calendar_reminder_outbox')->where('id', $row->id)->update([
+                            'status' => 'skipped', 'last_error' => 'Recipient account is inactive; reminder delivery is prohibited.',
                             'updated_at' => now(),
                         ]);
                         return 'skipped';

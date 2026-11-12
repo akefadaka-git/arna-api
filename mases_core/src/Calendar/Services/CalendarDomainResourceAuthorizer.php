@@ -8,7 +8,6 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationAssignmentPolicy;
@@ -33,6 +32,7 @@ use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Obligation;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Payment;
 use MaaleArna\MASES\Core\Domains\Wallet\Models\Wallet;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -42,6 +42,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 final class CalendarDomainResourceAuthorizer
 {
+    public function __construct(private readonly TenantContextService $tenantContext)
+    {
+    }
+
     /** @var array<string, class-string<Model>> */
     private const MODELS = [
         'governance:appointment' => GovernanceAppointment::class,
@@ -70,6 +74,14 @@ final class CalendarDomainResourceAuthorizer
 
     public function resolveAndAuthorize(User $actor, int|string $tenantId, string $domain, string $resourceType, string $resourceId): Model
     {
+        // Every owning-domain policy resolves permission scope from the active
+        // tenant context. Do not authorize a resource loaded for a caller-supplied
+        // tenant while the canonical policy is evaluating another tenant.
+        $contextTenantId = $this->tenantContext->getTenantId();
+        if ($contextTenantId === null || (string) $contextTenantId !== (string) $tenantId) {
+            throw new NotFoundHttpException('Linked domain resource not found.');
+        }
+
         $modelClass = self::MODELS[$domain.':'.$resourceType] ?? null;
         if ($modelClass === null || !class_exists($modelClass)) {
             throw new NotFoundHttpException('Linked domain resource not found.');
@@ -77,8 +89,9 @@ final class CalendarDomainResourceAuthorizer
 
         $query = $modelClass::query()->whereKey($resourceId);
         if ($modelClass === Person::class) {
-            $query->whereHas('tenantAccesses', fn ($access) => $access
-                ->where('tenant_id', $tenantId)->where('status', 'active'));
+            $query->where('status', 'active')
+                ->whereHas('tenantAccesses', fn ($access) => $access
+                    ->where('tenant_id', $tenantId)->where('status', 'active'));
         } else {
             $query->where('tenant_id', $tenantId);
         }
@@ -88,11 +101,7 @@ final class CalendarDomainResourceAuthorizer
             throw new NotFoundHttpException('Linked domain resource not found.');
         }
 
-        if ($resource instanceof Person) {
-            if (!app(AuthorizationService::class)->hasPermission('people.manage', $actor, $tenantId)) {
-                throw new AuthorizationException('The linked person is not visible to this user.');
-            }
-        } elseif ($resource instanceof OrganizationAssignment) {
+        if ($resource instanceof OrganizationAssignment) {
             if (!app(OrganizationAssignmentPolicy::class)->viewAny($actor)) {
                 throw new AuthorizationException('The linked organization assignment is not visible to this user.');
             }
