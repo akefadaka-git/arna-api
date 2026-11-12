@@ -39,5 +39,7 @@ final class FinancePermissionCatalogue
         ['slug' => 'finance.ai.view', 'name_am' => 'የፋይናንስ አይአይ ማስረጃ ማየት', 'name_en' => 'View Finance Intelligence Evidence', 'category' => 'intelligence', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.ai.propose', 'name_am' => 'የፋይናንስ አይአይ ሀሳብ ማመንጨት', 'name_en' => 'Generate Finance AI Proposals', 'category' => 'intelligence', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.ai.approve', 'name_am' => 'የፋይናንስ አይአይ ሀሳቦችን መገምገም', 'name_en' => 'Review Finance AI Proposals', 'category' => 'intelligence', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.subledger.view', 'name_am' => 'የፋይናንስ የምንጭ ክስተቶችን ማየት', 'name_en' => 'View Finance Subledger Inbox', 'category' => 'integration', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.subledger.ingest', 'name_am' => 'የፋይናንስ የምንጭ ክስተት መቀበል', 'name_en' => 'Ingest Finance Subledger Events', 'category' => 'integration', 'scope' => 'tenant', 'is_system' => false],
     ];
 }
