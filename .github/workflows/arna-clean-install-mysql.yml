@@ -268,6 +268,16 @@ jobs:
       - name: Run Finance domain regressions on migrated MySQL
         run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
 
+      - name: Run Finance Ethiopian calendar boundary regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinanceCalendarDateAdapterTest.php
+
+      - name: Run Finance currency precision and FX conversion regressions
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinanceCurrencyConverterTest.php
+
       - name: Run Finance general-ledger and transactional outbox regressions on MySQL
         env:
           DB_CONNECTION: mysql
