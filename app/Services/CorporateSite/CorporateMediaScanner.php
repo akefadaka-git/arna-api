@@ -119,13 +119,6 @@ final class CorporateMediaScanner
             throw new RuntimeException('The media scanner did not provide a valid Ed25519 signature.');
         }
 
-        $signedMessage = implode("\n", [
-            'ARNA-CORPORATE-MEDIA-SCAN-V1',
-            $status,
-            $reference,
-            $fileDigest,
-        ]);
-
         if (!$this->verifyVerdict($status, $reference, $fileDigest, $encodedSignature)) {
             throw new RuntimeException('The media scanner signature could not be verified; the asset remains quarantined.');
         }
