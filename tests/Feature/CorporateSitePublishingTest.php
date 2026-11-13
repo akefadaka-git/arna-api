@@ -44,10 +44,24 @@ final class CorporateSitePublishingTest extends TestCase
             ->assertStatus(503)
             ->assertJsonPath('success', false)
             ->assertJsonPath('data.status', 'not_ready')
-            ->assertJsonPath('data.checks.database', 'unavailable')
+            ->assertJsonPath('data.checks.database', 'ok')
             ->assertJsonPath('data.checks.private_storage', 'unavailable')
             ->assertDontSee('Private storage readiness probe failed')
             ->assertDontSee('health-check/');
+    }
+
+    public function test_readiness_endpoint_reports_database_failure_independently(): void
+    {
+        \\DB::shouldReceive('connection')->once()->andThrow(new \\RuntimeException('database-secret'));
+        Storage::fake('local');
+
+        $this->getJson('/api/ready')
+            ->assertStatus(503)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('data.status', 'not_ready')
+            ->assertJsonPath('data.checks.database', 'unavailable')
+            ->assertJsonPath('data.checks.private_storage', 'ok')
+            ->assertDontSee('database-secret');
     }
 
     public function test_public_home_returns_only_published_localized_content(): void
