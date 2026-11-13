@@ -52,7 +52,7 @@ final class CorporateSitePublishingTest extends TestCase
 
     public function test_readiness_endpoint_reports_database_failure_independently(): void
     {
-        \\DB::shouldReceive('connection')->once()->andThrow(new \\RuntimeException('database-secret'));
+        \DB::shouldReceive('connection')->once()->andThrow(new \RuntimeException('database-secret'));
         Storage::fake('local');
 
         $this->getJson('/api/ready')
