@@ -18,6 +18,43 @@ final class CorporateMediaScanner
      * Signed message (UTF-8, LF separators, no trailing LF):
      * ARNA-CORPORATE-MEDIA-SCAN-V1\n{status}\n{reference}\n{sha256}
      */
+    public function verifyVerdict(string $status, string $reference, string $sha256, string $encodedSignature): bool
+    {
+        $encodedPublicKey = trim((string) config('services.corporate_media_scanner.public_key'));
+        if (
+            !function_exists('sodium_crypto_sign_verify_detached') ||
+            !in_array($status, ['clean', 'infected'], true) ||
+            $reference === '' ||
+            str_contains($reference, "\n") ||
+            str_contains($reference, "\r") ||
+            preg_match('/\\A[a-f0-9]{64}\\z/D', $sha256) !== 1
+        ) {
+            return false;
+        }
+
+        $publicKey = base64_decode($encodedPublicKey, true);
+        $signature = base64_decode($encodedSignature, true);
+        if (
+            $publicKey === false ||
+            base64_encode($publicKey) !== $encodedPublicKey ||
+            strlen($publicKey) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES ||
+            $signature === false ||
+            base64_encode($signature) !== $encodedSignature ||
+            strlen($signature) !== SODIUM_CRYPTO_SIGN_BYTES
+        ) {
+            return false;
+        }
+
+        $signedMessage = implode("\n", [
+            'ARNA-CORPORATE-MEDIA-SCAN-V1',
+            $status,
+            $reference,
+            $sha256,
+        ]);
+
+        return sodium_crypto_sign_verify_detached($signature, $signedMessage, $publicKey);
+    }
+
     public function scan(string $path, string $reference): array
     {
         $url = trim((string) config('services.corporate_media_scanner.url'));
@@ -89,7 +126,7 @@ final class CorporateMediaScanner
             $fileDigest,
         ]);
 
-        if (!sodium_crypto_sign_verify_detached($signature, $signedMessage, $publicKey)) {
+        if (!$this->verifyVerdict($status, $reference, $fileDigest, $encodedSignature)) {
             throw new RuntimeException('The media scanner signature could not be verified; the asset remains quarantined.');
         }
 
