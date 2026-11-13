@@ -36,12 +36,12 @@ final class CorporateSitePublishingTest extends TestCase
 
     public function test_readiness_endpoint_fails_closed_without_exposing_storage_errors(): void
     {
-        $disk = \\Mockery::mock();
+        $disk = \Mockery::mock();
         $disk->shouldReceive('put')->once()->andReturn(false);
         Storage::shouldReceive('disk')->once()->with('local')->andReturn($disk);
 
         $this->getJson('/api/ready')
-            ->assertServiceUnavailable()
+            ->assertStatus(503)
             ->assertJsonPath('success', false)
             ->assertJsonPath('data.status', 'not_ready')
             ->assertJsonPath('data.checks.database', 'unavailable')
