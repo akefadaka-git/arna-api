@@ -22,6 +22,34 @@ final class CorporateSitePublishingTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_readiness_endpoint_checks_database_and_private_storage(): void
+    {
+        Storage::fake('local');
+
+        $this->getJson('/api/ready')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'ready')
+            ->assertJsonPath('data.checks.database', 'ok')
+            ->assertJsonPath('data.checks.private_storage', 'ok');
+    }
+
+    public function test_readiness_endpoint_fails_closed_without_exposing_storage_errors(): void
+    {
+        $disk = \\Mockery::mock();
+        $disk->shouldReceive('put')->once()->andReturn(false);
+        Storage::shouldReceive('disk')->once()->with('local')->andReturn($disk);
+
+        $this->getJson('/api/ready')
+            ->assertServiceUnavailable()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('data.status', 'not_ready')
+            ->assertJsonPath('data.checks.database', 'unavailable')
+            ->assertJsonPath('data.checks.private_storage', 'unavailable')
+            ->assertDontSee('Private storage readiness probe failed')
+            ->assertDontSee('health-check/');
+    }
+
     public function test_public_home_returns_only_published_localized_content(): void
     {
         $page = CorporateSitePage::query()->create([
