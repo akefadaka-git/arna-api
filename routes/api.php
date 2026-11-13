@@ -186,36 +186,47 @@ Route::get('/health', static function (): JsonResponse {
  * Does not expose exception messages, credentials, hostnames or filesystem paths.
  */
 Route::get('/ready', static function (): JsonResponse {
+    $checks = ['database' => 'unavailable', 'private_storage' => 'unavailable'];
     $probe = 'health-check/'.Str::uuid();
 
     try {
         DB::connection()->select('SELECT 1');
-        $disk = Storage::disk('local');
-        if ($disk->put($probe, 'ok') !== true || $disk->get($probe) !== 'ok') {
-            throw new \RuntimeException('Private storage readiness probe failed.');
-        }
-        if (!$disk->delete($probe)) {
-            throw new \RuntimeException('Private storage cleanup probe failed.');
-        }
-    } catch (\Throwable $exception) {
+        $checks['database'] = 'ok';
+    } catch (\\Throwable $exception) {
         report($exception);
-
-        return response()->json([
-            'success' => false,
-            'data' => [
-                'status' => 'not_ready',
-                'checks' => ['database' => 'unavailable', 'private_storage' => 'unavailable'],
-            ],
-        ], 503);
     }
 
+    try {
+        $disk = Storage::disk('local');
+        $written = $disk->put($probe, 'ok') === true;
+        if (!$written) {
+            throw new \\RuntimeException('Private storage readiness probe failed.');
+        }
+
+        try {
+            if ($disk->get($probe) !== 'ok') {
+                throw new \\RuntimeException('Private storage readiness probe failed.');
+            }
+        } finally {
+            if (!$disk->delete($probe)) {
+                throw new \\RuntimeException('Private storage cleanup probe failed.');
+            }
+        }
+
+        $checks['private_storage'] = 'ok';
+    } catch (\\Throwable $exception) {
+        report($exception);
+    }
+
+    $ready = $checks['database'] === 'ok' && $checks['private_storage'] === 'ok';
+
     return response()->json([
-        'success' => true,
+        'success' => $ready,
         'data' => [
-            'status' => 'ready',
-            'checks' => ['database' => 'ok', 'private_storage' => 'ok'],
+            'status' => $ready ? 'ready' : 'not_ready',
+            'checks' => $checks,
         ],
-    ]);
+    ], $ready ? 200 : 503);
 })->middleware('throttle:30,1')->name('api.ready');
 
 
