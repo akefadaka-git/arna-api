@@ -192,7 +192,7 @@ Route::get('/ready', static function (): JsonResponse {
     try {
         DB::connection()->select('SELECT 1');
         $checks['database'] = 'ok';
-    } catch (\\Throwable $exception) {
+    } catch (\Throwable $exception) {
         report($exception);
     }
 
@@ -200,21 +200,21 @@ Route::get('/ready', static function (): JsonResponse {
         $disk = Storage::disk('local');
         $written = $disk->put($probe, 'ok') === true;
         if (!$written) {
-            throw new \\RuntimeException('Private storage readiness probe failed.');
+            throw new \RuntimeException('Private storage readiness probe failed.');
         }
 
         try {
             if ($disk->get($probe) !== 'ok') {
-                throw new \\RuntimeException('Private storage readiness probe failed.');
+                throw new \RuntimeException('Private storage readiness probe failed.');
             }
         } finally {
             if (!$disk->delete($probe)) {
-                throw new \\RuntimeException('Private storage cleanup probe failed.');
+                throw new \RuntimeException('Private storage cleanup probe failed.');
             }
         }
 
         $checks['private_storage'] = 'ok';
-    } catch (\\Throwable $exception) {
+    } catch (\Throwable $exception) {
         report($exception);
     }
 
