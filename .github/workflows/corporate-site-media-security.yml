@@ -22,6 +22,17 @@ permissions:
 jobs:
   corporate-site-media-security:
     runs-on: ubuntu-latest
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "true"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+      DB_FOREIGN_KEYS: "true"
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: null
     steps:
       - name: Check out exact candidate
         uses: actions/checkout@v4
@@ -39,6 +50,12 @@ jobs:
 
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Create empty CI-only environment file
+        run: |
+          # The test environment is supplied entirely by this workflow's env block.
+          # An empty .env prevents dotenv warnings and contains no secrets.
+          : > .env
 
       - name: Clear cached Laravel configuration
         run: php artisan config:clear
