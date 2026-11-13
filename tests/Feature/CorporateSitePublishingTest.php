@@ -452,6 +452,58 @@ final class CorporateSitePublishingTest extends TestCase
         $this->get('/api/public/site/media/' . $entry->public_id . '/asset')->assertNotFound();
     }
 
+    public function test_published_media_requires_a_clean_cryptographically_verified_verdict(): void
+    {
+        Storage::fake('local');
+        $contents = 'published media bytes';
+        Storage::disk('local')->put('corporate-quarantine/verified.jpg', $contents);
+        $keys = $this->scannerKeyPair();
+        $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'media',
+            'slug_am' => 'verified-media-am',
+            'slug_en' => 'verified-media-en',
+            'translations' => [
+                'am' => ['title' => 'የተረጋገጠ ሚዲያ'],
+                'en' => ['title' => 'Verified media'],
+            ],
+            'asset_path' => 'corporate-quarantine/verified.jpg',
+            'asset_mime' => 'image/jpeg',
+            'asset_size' => strlen($contents),
+            'created_by' => $author->id,
+            'payload' => [],
+        ]);
+        $digest = hash('sha256', $contents);
+        $signature = $this->signedScannerSignature('clean', $entry->public_id, $contents, $keys['secret']);
+        config(['services.corporate_media_scanner.public_key' => base64_encode($keys['public'])]);
+        $entry->forceFill([
+            'status' => 'published',
+            'published_at' => now()->subMinute(),
+            'payload' => [
+                'scan_status' => 'clean',
+                'scan_signature' => $signature,
+                'scan_sha256' => $digest,
+            ],
+        ])->save();
+
+        $this->get('/api/public/site/media/' . $entry->public_id . '/asset')->assertOk();
+
+        $entry->forceFill(['payload' => [
+            'scan_status' => 'clean',
+            'scan_signature' => base64_encode(str_repeat(chr(0), SODIUM_CRYPTO_SIGN_BYTES)),
+            'scan_sha256' => $digest,
+        ]])->save();
+        $this->get('/api/public/site/media/' . $entry->public_id . '/asset')->assertNotFound();
+
+        $infectedSignature = $this->signedScannerSignature('infected', $entry->public_id, $contents, $keys['secret']);
+        $entry->forceFill(['payload' => [
+            'scan_status' => 'infected',
+            'scan_signature' => $infectedSignature,
+            'scan_sha256' => $digest,
+        ]])->save();
+        $this->get('/api/public/site/media/' . $entry->public_id . '/asset')->assertNotFound();
+    }
+
     public function test_media_scan_metadata_cannot_be_forged_through_admin_update(): void
     {
         $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
