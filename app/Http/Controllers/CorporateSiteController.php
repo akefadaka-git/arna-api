@@ -200,6 +200,7 @@ final class CorporateSiteController extends Controller
             'alternate_slug' => $locale === 'am' ? $page->slug_en : $page->slug_am,
             'title' => (string) ($translation['title'] ?? ''),
             'summary' => (string) ($translation['summary'] ?? ''),
+            'body' => (string) ($translation['body'] ?? ''),
             'sections' => array_values(array_filter($page->sections ?? [], static fn ($section): bool =>
                 is_array($section) && isset($section['type'], $section['content'][$locale])
             )),
