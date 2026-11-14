@@ -12,6 +12,7 @@ on:
       - "composer.json"
       - "composer.lock"
       - "phpunit.xml"
+      - "docs/public-site/COMMUNITY_RESPONSIBILITY_PUBLICATION_GOVERNANCE.md"
   push:
     branches: [feat/corporate-home-responsibility-invariant]
     paths:
@@ -23,6 +24,7 @@ on:
       - "composer.json"
       - "composer.lock"
       - "phpunit.xml"
+      - "docs/public-site/COMMUNITY_RESPONSIBILITY_PUBLICATION_GOVERNANCE.md"
 
 permissions:
   contents: read
