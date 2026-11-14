@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use App\Http\Controllers\CorporateSiteController;
@@ -187,6 +188,37 @@ final class CorporateSitePublishingTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.sections.0.content.en.projects.0.title', 'Approved')
             ->assertJsonCount(1, 'data.sections.0.content.en.projects');
+    }
+
+    public function test_scheduled_corporate_page_is_private_until_scheduler_publishes_it(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'about',
+            'slug_am' => 'about-am',
+            'slug_en' => 'about',
+            'translations' => [
+                'am' => ['title' => 'ስለ እኛ'],
+                'en' => ['title' => 'About us'],
+            ],
+        ]);
+        $page->forceFill([
+            'status' => 'scheduled',
+            'scheduled_at' => now()->addMinute(),
+            'published_at' => null,
+        ])->save();
+
+        $this->getJson('/api/public/site/pages/en/about')->assertNotFound();
+
+        $this->travelTo(now()->addMinutes(2));
+        Artisan::call('corporate-site:publish-scheduled');
+
+        $this->assertDatabaseHas('corporate_site_pages', [
+            'id' => $page->id,
+            'status' => 'published',
+        ]);
+        $this->getJson('/api/public/site/pages/en/about')
+            ->assertOk()
+            ->assertJsonPath('data.title', 'About us');
     }
 
     public function test_draft_pages_are_not_publicly_readable(): void
