@@ -167,6 +167,9 @@ final class CorporateSitePublishingTest extends TestCase
             ->assertJsonPath('data.body', 'የአማርኛ አካል')
             ->assertJsonPath('data.sections.0.content.am.priorities.0', 'ትምህርት')
             ->assertJsonPath('data.sections.0.content.am.projects.0.title', 'Approved')
+            ->assertJsonPath('data.sections.0.content.am.projects.0.public_approved', true)
+            ->assertJsonMissingPath('data.sections.0.content.am.projects.0.evidence_reference')
+            ->assertJsonMissingPath('data.sections.0.content.am.projects.0.approval_status')
             ->assertJsonCount(1, 'data.sections.0.content.am.projects')
             ->assertJsonMissing(['title' => 'Unapproved'])
             ->assertJsonMissing(['title' => 'No evidence']);
