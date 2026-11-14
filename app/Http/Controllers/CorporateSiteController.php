@@ -206,6 +206,10 @@ final class CorporateSiteController extends Controller
                         is_string($project['evidence_reference'] ?? null) &&
                         trim($project['evidence_reference']) !== ''
                     ));
+                    $items = is_array($content['items'] ?? null) ? $content['items'] : [];
+                    $content['items'] = array_values(array_filter($items, static fn ($item): bool =>
+                        is_array($item) && ($item['kind'] ?? null) === 'priority'
+                    ));
                     $content['projects'] = array_map(static function (array $project): array {
                         unset($project['approval_status'], $project['evidence_reference']);
                         $project['public_approved'] = true;
