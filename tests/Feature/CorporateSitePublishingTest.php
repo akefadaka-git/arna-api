@@ -43,6 +43,7 @@ final class CorporateSitePublishingTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.locale', 'am')
             ->assertJsonPath('data.title', 'ወደ አርና እንኳን በደህና መጡ')
+            ->assertJsonPath('data.body', 'የመነሻ ሙሉ ይዘት')
             ->assertJsonPath('data.sections.0.content.am.title', 'ስለ እኛ');
 
         $this->getJson('/api/public/site/home?locale=en')
