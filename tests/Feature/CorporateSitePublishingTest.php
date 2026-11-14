@@ -148,12 +148,18 @@ final class CorporateSitePublishingTest extends TestCase
             'sections' => [[
                 'type' => 'community_responsibility',
                 'content' => [
-                    'am' => ['title' => 'ማኅበረሰባዊ ኃላፊነት', 'priorities' => ['ትምህርት'], 'projects' => [
+                    'am' => ['title' => 'ማኅበረሰባዊ ኃላፊነት', 'priorities' => ['ትምህርት'], 'items' => [
+                        ['kind' => 'priority', 'title' => 'Education'],
+                        ['kind' => 'project', 'title' => 'Unapproved project card'],
+                    ], 'projects' => [
                         ['title' => 'Approved', 'approval_status' => 'approved', 'evidence_reference' => 'board-resolution-001'],
                         ['title' => 'Unapproved', 'approval_status' => 'draft', 'evidence_reference' => 'draft-note'],
                         ['title' => 'No evidence', 'approval_status' => 'approved', 'evidence_reference' => ' '],
                     ]],
-                    'en' => ['title' => 'Community Responsibility', 'priorities' => ['Education'], 'projects' => [
+                    'en' => ['title' => 'Community Responsibility', 'priorities' => ['Education'], 'items' => [
+                        ['kind' => 'priority', 'title' => 'Education'],
+                        ['kind' => 'project', 'title' => 'Unapproved project card'],
+                    ], 'projects' => [
                         ['title' => 'Approved', 'approval_status' => 'approved', 'evidence_reference' => 'board-resolution-001'],
                         ['title' => 'Unapproved', 'approval_status' => 'draft', 'evidence_reference' => 'draft-note'],
                     ]],
@@ -166,6 +172,9 @@ final class CorporateSitePublishingTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.body', 'የአማርኛ አካል')
             ->assertJsonPath('data.sections.0.content.am.priorities.0', 'ትምህርት')
+            ->assertJsonPath('data.sections.0.content.am.items.0.kind', 'priority')
+            ->assertJsonCount(1, 'data.sections.0.content.am.items')
+            ->assertJsonMissing(['title' => 'Unapproved project card'])
             ->assertJsonPath('data.sections.0.content.am.projects.0.title', 'Approved')
             ->assertJsonPath('data.sections.0.content.am.projects.0.public_approved', true)
             ->assertJsonMissingPath('data.sections.0.content.am.projects.0.evidence_reference')
