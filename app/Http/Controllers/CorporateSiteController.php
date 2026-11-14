@@ -200,12 +200,17 @@ final class CorporateSiteController extends Controller
                     }
                     $content = $section['content'][$language];
                     $projects = is_array($content['projects'] ?? null) ? $content['projects'] : [];
-                    $content['projects'] = array_values(array_filter($projects, static fn ($project): bool =>
+                    $approvedProjects = array_values(array_filter($projects, static fn ($project): bool =>
                         is_array($project) &&
                         ($project['approval_status'] ?? null) === 'approved' &&
                         is_string($project['evidence_reference'] ?? null) &&
                         trim($project['evidence_reference']) !== ''
                     ));
+                    $content['projects'] = array_map(static function (array $project): array {
+                        unset($project['approval_status'], $project['evidence_reference']);
+                        $project['public_approved'] = true;
+                        return $project;
+                    }, $approvedProjects);
                     $section['content'][$language] = $content;
                 }
             }
