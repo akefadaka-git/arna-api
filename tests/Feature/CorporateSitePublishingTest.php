@@ -25,8 +25,8 @@ final class CorporateSitePublishingTest extends TestCase
             'slug_am' => 'ber',
             'slug_en' => 'home',
             'translations' => [
-                'am' => ['title' => 'ወደ አርና እንኳን በደህና መጡ', 'summary' => 'የአርና መነሻ'],
-                'en' => ['title' => 'Welcome to ARNA', 'summary' => 'The ARNA homepage'],
+                'am' => ['title' => 'ወደ አርና እንኳን በደህና መጡ', 'summary' => 'የአርና መነሻ', 'body' => 'የመነሻ ሙሉ ይዘት'],
+                'en' => ['title' => 'Welcome to ARNA', 'summary' => 'The ARNA homepage', 'body' => 'Full homepage body content'],
             ],
             'sections' => [
                 ['type' => 'text', 'content' => [
