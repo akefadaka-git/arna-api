@@ -1,0 +1,73 @@
+name: Corporate homepage responsibility invariant
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/Http/Controllers/CorporateSiteController.php"
+      - "app/Services/CorporateSite/CorporateHomeInvariant.php"
+      - "tests/Feature/CorporateSitePublishingTest.php"
+      - "tests/Unit/CorporateHomeInvariantTest.php"
+      - ".github/workflows/corporate-home-invariant.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+  push:
+    branches: [feat/corporate-home-responsibility-invariant]
+    paths:
+      - "app/Http/Controllers/CorporateSiteController.php"
+      - "app/Services/CorporateSite/CorporateHomeInvariant.php"
+      - "tests/Feature/CorporateSitePublishingTest.php"
+      - "tests/Unit/CorporateHomeInvariantTest.php"
+      - ".github/workflows/corporate-home-invariant.yml"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: PHP 8.3 lint and corporate CMS invariant tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - name: Check out exact pull request revision
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: PHP syntax lint
+        run: |
+          php -l app/Http/Controllers/CorporateSiteController.php
+          php -l app/Services/CorporateSite/CorporateHomeInvariant.php
+          php -l tests/Unit/CorporateHomeInvariantTest.php
+          php -l tests/Feature/CorporateSitePublishingTest.php
+
+      - name: Test Community Responsibility invariant
+        run: vendor/bin/phpunit tests/Unit/CorporateHomeInvariantTest.php
+
+      - name: Test CMS create, update, and approval enforcement
+        run: vendor/bin/phpunit tests/Feature/CorporateSitePublishingTest.php

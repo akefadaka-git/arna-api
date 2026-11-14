@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Services\CorporateSite\CorporateHomeInvariant;
 use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 
@@ -67,6 +68,10 @@ final class CorporateSiteController extends Controller
             'seo' => ['nullable', 'array'],
         ])->validate();
 
+        if ($validated['page_key'] === 'home') {
+            abort_unless(CorporateHomeInvariant::hasRequiredCommunityResponsibilitySection($validated['sections'] ?? []), 422, 'The homepage must retain a bilingual Community Responsibility section.');
+        }
+
         $page = CorporateSitePage::query()->create([
             ...$validated,
             'created_by' => $request->user()->id,
@@ -94,6 +99,10 @@ final class CorporateSiteController extends Controller
 
             $old = ['version' => $page->version, 'status' => $page->status];
             $changes = collect($validated)->except('expected_version')->all();
+            if ($page->page_key === 'home') {
+                $candidateSections = array_key_exists('sections', $changes) ? ($changes['sections'] ?? []) : ($page->sections ?? []);
+                abort_unless(CorporateHomeInvariant::hasRequiredCommunityResponsibilitySection($candidateSections), 422, 'The homepage must retain a bilingual Community Responsibility section.');
+            }
             $page->fill($changes);
             $page->status = 'draft';
             $page->scheduled_at = null;
@@ -121,6 +130,9 @@ final class CorporateSiteController extends Controller
             $page = CorporateSitePage::query()->lockForUpdate()->findOrFail($id);
             abort_unless($page->version === (int) $validated['expected_version'], 409, 'This page changed after it was loaded.');
             $old = ['version' => $page->version, 'status' => $page->status];
+            if ($page->page_key === 'home' && in_array($decision, ['approve', 'publish', 'schedule'], true)) {
+                abort_unless(CorporateHomeInvariant::hasRequiredCommunityResponsibilitySection($page->sections ?? []), 422, 'The homepage must retain a bilingual Community Responsibility section before publication.');
+            }
 
             if ($decision === 'approve') {
                 abort_unless($page->status === 'draft', 422, 'Only draft pages can be approved.');
