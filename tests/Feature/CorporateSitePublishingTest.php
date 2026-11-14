@@ -135,6 +135,48 @@ final class CorporateSitePublishingTest extends TestCase
             ->assertJsonPath('data.title', 'Welcome to ARNA');
     }
 
+    public function test_public_home_exposes_only_approved_documented_community_projects(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'home',
+            'slug_am' => 'ber',
+            'slug_en' => 'home',
+            'translations' => [
+                'am' => ['title' => 'መነሻ', 'body' => 'የአማርኛ አካል'],
+                'en' => ['title' => 'Home', 'body' => 'English body'],
+            ],
+            'sections' => [[
+                'type' => 'community_responsibility',
+                'content' => [
+                    'am' => ['title' => 'ማኅበረሰባዊ ኃላፊነት', 'priorities' => ['ትምህርት'], 'projects' => [
+                        ['title' => 'Approved', 'approval_status' => 'approved', 'evidence_reference' => 'board-resolution-001'],
+                        ['title' => 'Unapproved', 'approval_status' => 'draft', 'evidence_reference' => 'draft-note'],
+                        ['title' => 'No evidence', 'approval_status' => 'approved', 'evidence_reference' => ' '],
+                    ]],
+                    'en' => ['title' => 'Community Responsibility', 'priorities' => ['Education'], 'projects' => [
+                        ['title' => 'Approved', 'approval_status' => 'approved', 'evidence_reference' => 'board-resolution-001'],
+                        ['title' => 'Unapproved', 'approval_status' => 'draft', 'evidence_reference' => 'draft-note'],
+                    ]],
+                ],
+            ]],
+        ]);
+        $page->forceFill(['status' => 'published', 'published_at' => now()->subMinute()])->save();
+
+        $this->getJson('/api/public/site/home?locale=am')
+            ->assertOk()
+            ->assertJsonPath('data.body', 'የአማርኛ አካል')
+            ->assertJsonPath('data.sections.0.content.am.priorities.0', 'ትምህርት')
+            ->assertJsonPath('data.sections.0.content.am.projects.0.title', 'Approved')
+            ->assertJsonCount(1, 'data.sections.0.content.am.projects')
+            ->assertJsonMissing(['title' => 'Unapproved'])
+            ->assertJsonMissing(['title' => 'No evidence']);
+
+        $this->getJson('/api/public/site/home?locale=en')
+            ->assertOk()
+            ->assertJsonPath('data.sections.0.content.en.projects.0.title', 'Approved')
+            ->assertJsonCount(1, 'data.sections.0.content.en.projects');
+    }
+
     public function test_draft_pages_are_not_publicly_readable(): void
     {
         CorporateSitePage::query()->create([
