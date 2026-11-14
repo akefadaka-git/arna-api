@@ -68,9 +68,14 @@ Artisan::command('corporate-site:publish-scheduled', function (): int {
             ->get();
 
         foreach ($pages as $page) {
-            $old = ['status' => $page->status, 'version' => $page->version];
+            $old = [
+                'status' => $page->status,
+                'version' => $page->version,
+                'scheduled_at' => $page->scheduled_at?->toIso8601String(),
+            ];
             $page->status = 'published';
             $page->published_at = now();
+            $page->scheduled_at = null;
             $page->version++;
             $page->save();
 
@@ -81,7 +86,7 @@ Artisan::command('corporate-site:publish-scheduled', function (): int {
                 'resource_type' => 'corporate_site_page',
                 'resource_id' => (string) $page->id,
                 'old_values' => $old,
-                'new_values' => ['status' => 'published', 'version' => $page->version],
+                'new_values' => ['status' => 'published', 'version' => $page->version, 'scheduled_at' => null],
                 'ip_address' => null,
                 'user_agent' => null,
                 'request_id' => null,

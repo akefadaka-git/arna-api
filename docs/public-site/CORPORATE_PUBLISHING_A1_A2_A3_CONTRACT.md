@@ -51,7 +51,8 @@ Protected administration (Sanctum + `public-content.review`):
 - `CORPORATE_SITE_URL`: canonical public website origin used in sitemap URLs.
 - `CORPORATE_MEDIA_SCANNER_URL`: trusted HTTPS malware-scanner endpoint accepting multipart `file` and `reference`, returning `status=clean|infected`.
 - `CORPORATE_MEDIA_SCANNER_TOKEN`: scanner bearer credential.
-- Missing or unavailable scanner keeps media quarantined.
+- `CORPORATE_MEDIA_SCANNER_PUBLIC_KEY`: base64-encoded Ed25519 public key used to verify scanner verdict signatures.
+- Scanner signatures authenticate the exact verdict, public reference and SHA-256 digest of the quarantined file using the documented `ARNA-CORPORATE-MEDIA-SCAN-V1` LF-delimited payload. Missing or invalid verification material keeps media quarantined.
 
 ## Explicit A3 limitations (not to be reported as delivered)
 

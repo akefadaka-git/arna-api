@@ -134,6 +134,9 @@ declare(strict_types=1);
 */
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -175,6 +178,57 @@ Route::get('/health', static function (): JsonResponse {
         ],
     ]);
 })->name('api.health');
+
+/**
+ * Readiness Check
+ *
+ * Verifies the database and private local storage can serve application work.
+ * Does not expose exception messages, credentials, hostnames or filesystem paths.
+ */
+Route::get('/ready', static function (): JsonResponse {
+    $checks = ['database' => 'unavailable', 'private_storage' => 'unavailable'];
+    $probe = 'health-check/'.Str::uuid();
+
+    try {
+        DB::connection()->select('SELECT 1');
+        $checks['database'] = 'ok';
+    } catch (\Throwable $exception) {
+        report($exception);
+    }
+
+    try {
+        $disk = Storage::disk('local');
+        $written = $disk->put($probe, 'ok') === true;
+        if (!$written) {
+            throw new \RuntimeException('Private storage readiness probe failed.');
+        }
+
+        try {
+            if ($disk->get($probe) !== 'ok') {
+                throw new \RuntimeException('Private storage readiness probe failed.');
+            }
+        } finally {
+            if (!$disk->delete($probe)) {
+                throw new \RuntimeException('Private storage cleanup probe failed.');
+            }
+        }
+
+        $checks['private_storage'] = 'ok';
+    } catch (\Throwable $exception) {
+        report($exception);
+    }
+
+    $ready = $checks['database'] === 'ok' && $checks['private_storage'] === 'ok';
+
+    return response()->json([
+        'success' => $ready,
+        'data' => [
+            'status' => $ready ? 'ready' : 'not_ready',
+            'checks' => $checks,
+        ],
+    ], $ready ? 200 : 503);
+})->middleware('throttle:30,1')->name('api.ready');
+
 
 
 // -----------------------------------------------------------------------------
@@ -528,7 +582,10 @@ Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
         Route::get('/entries', [CorporateSiteEntryController::class, 'adminEntries'])->name('entries.index');
         Route::post('/entries', [CorporateSiteEntryController::class, 'adminStore'])->name('entries.store');
         Route::put('/entries/{id}', [CorporateSiteEntryController::class, 'adminUpdate'])->whereNumber('id')->name('entries.update');
-        Route::post('/entries/{id}/scan', [CorporateSiteEntryController::class, 'scanMedia'])->whereNumber('id')->name('entries.scan');
+        Route::post('/entries/{id}/scan', [CorporateSiteEntryController::class, 'scanMedia'])
+            ->whereNumber('id')
+            ->middleware('throttle:10,1')
+            ->name('entries.scan');
         Route::post('/entries/{id}/{decision}', [CorporateSiteEntryController::class, 'review'])
             ->whereNumber('id')->whereIn('decision', ['approve', 'publish', 'reject', 'unpublish'])->name('entries.review');
         Route::get('/inquiries', [CorporateSiteEntryController::class, 'adminInquiries'])->name('inquiries.index');
