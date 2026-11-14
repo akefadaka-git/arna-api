@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use App\Http\Controllers\CorporateSiteController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +21,88 @@ use Tests\TestCase;
 final class CorporateSitePublishingTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_admin_store_rejects_home_without_bilingual_community_responsibility_section(): void
+    {
+        $request = Request::create('/api/admin/corporate-site/pages', 'POST', [
+            'page_key' => 'home',
+            'translations' => [
+                'am' => ['title' => 'መነሻ'],
+                'en' => ['title' => 'Home'],
+            ],
+            'sections' => [
+                ['type' => 'text', 'content' => [
+                    'am' => ['title' => 'ስለ እኛ'],
+                    'en' => ['title' => 'About'],
+                ]],
+            ],
+        ]);
+
+        $this->assertInvariantViolation(
+            fn () => app(CorporateSiteController::class)->adminStore($request),
+        );
+    }
+
+    public function test_admin_update_cannot_remove_home_community_responsibility_section(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'home',
+            'translations' => [
+                'am' => ['title' => 'መነሻ'],
+                'en' => ['title' => 'Home'],
+            ],
+            'sections' => [
+                ['type' => 'community_responsibility', 'content' => [
+                    'am' => ['title' => 'ማኅበረሰባዊ ኃላፊነት'],
+                    'en' => ['title' => 'Community Responsibility'],
+                ]],
+            ],
+        ]);
+
+        $request = Request::create('/api/admin/corporate-site/pages/' . $page->id, 'PUT', [
+            'expected_version' => $page->version,
+            'sections' => [
+                ['type' => 'text', 'content' => [
+                    'am' => ['title' => 'ስለ እኛ'],
+                    'en' => ['title' => 'About'],
+                ]],
+            ],
+        ]);
+
+        $this->assertInvariantViolation(
+            fn () => app(CorporateSiteController::class)->adminUpdate($request, $page->id),
+        );
+    }
+
+    public function test_legacy_home_without_community_section_cannot_be_approved(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'home',
+            'translations' => [
+                'am' => ['title' => 'መነሻ'],
+                'en' => ['title' => 'Home'],
+            ],
+            'sections' => [],
+        ]);
+
+        $request = Request::create('/api/admin/corporate-site/pages/' . $page->id . '/approve', 'POST', [
+            'expected_version' => $page->version,
+        ]);
+
+        $this->assertInvariantViolation(
+            fn () => app(CorporateSiteController::class)->adminReview($request, $page->id, 'approve'),
+        );
+    }
+
+    private function assertInvariantViolation(callable $operation): void
+    {
+        try {
+            $operation();
+            self::fail('Expected the Community Responsibility invariant to reject this homepage mutation.');
+        } catch (HttpException $exception) {
+            self::assertSame(422, $exception->getStatusCode());
+        }
+    }
 
     public function test_public_home_returns_only_published_localized_content(): void
     {
@@ -48,6 +134,91 @@ final class CorporateSitePublishingTest extends TestCase
         $this->getJson('/api/public/site/home?locale=en')
             ->assertOk()
             ->assertJsonPath('data.title', 'Welcome to ARNA');
+    }
+
+    public function test_public_home_exposes_only_approved_documented_community_projects(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'home',
+            'slug_am' => 'ber',
+            'slug_en' => 'home',
+            'translations' => [
+                'am' => ['title' => 'መነሻ', 'body' => 'የአማርኛ አካል'],
+                'en' => ['title' => 'Home', 'body' => 'English body'],
+            ],
+            'sections' => [[
+                'type' => 'community_responsibility',
+                'content' => [
+                    'am' => ['title' => 'ማኅበረሰባዊ ኃላፊነት', 'priorities' => ['ትምህርት'], 'items' => [
+                        ['kind' => 'priority', 'title' => 'Education'],
+                        ['kind' => 'project', 'title' => 'Unapproved project card'],
+                    ], 'projects' => [
+                        ['title' => 'Approved', 'approval_status' => 'approved', 'evidence_reference' => 'board-resolution-001'],
+                        ['title' => 'Unapproved', 'approval_status' => 'draft', 'evidence_reference' => 'draft-note'],
+                        ['title' => 'No evidence', 'approval_status' => 'approved', 'evidence_reference' => ' '],
+                    ]],
+                    'en' => ['title' => 'Community Responsibility', 'priorities' => ['Education'], 'items' => [
+                        ['kind' => 'priority', 'title' => 'Education'],
+                        ['kind' => 'project', 'title' => 'Unapproved project card'],
+                    ], 'projects' => [
+                        ['title' => 'Approved', 'approval_status' => 'approved', 'evidence_reference' => 'board-resolution-001'],
+                        ['title' => 'Unapproved', 'approval_status' => 'draft', 'evidence_reference' => 'draft-note'],
+                    ]],
+                ],
+            ]],
+        ]);
+        $page->forceFill(['status' => 'published', 'published_at' => now()->subMinute()])->save();
+
+        $this->getJson('/api/public/site/home?locale=am')
+            ->assertOk()
+            ->assertJsonPath('data.body', 'የአማርኛ አካል')
+            ->assertJsonPath('data.sections.0.content.am.priorities.0', 'ትምህርት')
+            ->assertJsonPath('data.sections.0.content.am.items.0.kind', 'priority')
+            ->assertJsonCount(1, 'data.sections.0.content.am.items')
+            ->assertJsonMissing(['title' => 'Unapproved project card'])
+            ->assertJsonPath('data.sections.0.content.am.projects.0.title', 'Approved')
+            ->assertJsonPath('data.sections.0.content.am.projects.0.public_approved', true)
+            ->assertJsonMissingPath('data.sections.0.content.am.projects.0.evidence_reference')
+            ->assertJsonMissingPath('data.sections.0.content.am.projects.0.approval_status')
+            ->assertJsonCount(1, 'data.sections.0.content.am.projects')
+            ->assertJsonMissing(['title' => 'Unapproved'])
+            ->assertJsonMissing(['title' => 'No evidence']);
+
+        $this->getJson('/api/public/site/home?locale=en')
+            ->assertOk()
+            ->assertJsonPath('data.sections.0.content.en.projects.0.title', 'Approved')
+            ->assertJsonCount(1, 'data.sections.0.content.en.projects');
+    }
+
+    public function test_scheduled_corporate_page_is_private_until_scheduler_publishes_it(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'about',
+            'slug_am' => 'about-am',
+            'slug_en' => 'about',
+            'translations' => [
+                'am' => ['title' => 'ስለ እኛ'],
+                'en' => ['title' => 'About us'],
+            ],
+        ]);
+        $page->forceFill([
+            'status' => 'scheduled',
+            'scheduled_at' => now()->addMinute(),
+            'published_at' => null,
+        ])->save();
+
+        $this->getJson('/api/public/site/pages/en/about')->assertNotFound();
+
+        $this->travelTo(now()->addMinutes(2));
+        Artisan::call('corporate-site:publish-scheduled');
+
+        $this->assertDatabaseHas('corporate_site_pages', [
+            'id' => $page->id,
+            'status' => 'published',
+        ]);
+        $this->getJson('/api/public/site/pages/en/about')
+            ->assertOk()
+            ->assertJsonPath('data.title', 'About us');
     }
 
     public function test_draft_pages_are_not_publicly_readable(): void
