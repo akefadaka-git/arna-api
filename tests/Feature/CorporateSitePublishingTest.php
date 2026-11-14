@@ -18,6 +18,88 @@ final class CorporateSitePublishingTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_store_rejects_home_without_bilingual_community_responsibility_section(): void
+    {
+        $request = Request::create('/api/admin/corporate-site/pages', 'POST', [
+            'page_key' => 'home',
+            'translations' => [
+                'am' => ['title' => 'መነሻ'],
+                'en' => ['title' => 'Home'],
+            ],
+            'sections' => [
+                ['type' => 'text', 'content' => [
+                    'am' => ['title' => 'ስለ እኛ'],
+                    'en' => ['title' => 'About'],
+                ]],
+            ],
+        ]);
+
+        $this->assertInvariantViolation(
+            fn () => app(CorporateSiteController::class)->adminStore($request),
+        );
+    }
+
+    public function test_admin_update_cannot_remove_home_community_responsibility_section(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'home',
+            'translations' => [
+                'am' => ['title' => 'መነሻ'],
+                'en' => ['title' => 'Home'],
+            ],
+            'sections' => [
+                ['type' => 'community_responsibility', 'content' => [
+                    'am' => ['title' => 'ማኅበረሰባዊ ኃላፊነት'],
+                    'en' => ['title' => 'Community Responsibility'],
+                ]],
+            ],
+        ]);
+
+        $request = Request::create('/api/admin/corporate-site/pages/' . $page->id, 'PUT', [
+            'expected_version' => $page->version,
+            'sections' => [
+                ['type' => 'text', 'content' => [
+                    'am' => ['title' => 'ስለ እኛ'],
+                    'en' => ['title' => 'About'],
+                ]],
+            ],
+        ]);
+
+        $this->assertInvariantViolation(
+            fn () => app(CorporateSiteController::class)->adminUpdate($request, $page->id),
+        );
+    }
+
+    public function test_legacy_home_without_community_section_cannot_be_approved(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'home',
+            'translations' => [
+                'am' => ['title' => 'መነሻ'],
+                'en' => ['title' => 'Home'],
+            ],
+            'sections' => [],
+        ]);
+
+        $request = Request::create('/api/admin/corporate-site/pages/' . $page->id . '/approve', 'POST', [
+            'expected_version' => $page->version,
+        ]);
+
+        $this->assertInvariantViolation(
+            fn () => app(CorporateSiteController::class)->adminReview($request, $page->id, 'approve'),
+        );
+    }
+
+    private function assertInvariantViolation(callable $operation): void
+    {
+        try {
+            $operation();
+            self::fail('Expected the Community Responsibility invariant to reject this homepage mutation.');
+        } catch (HttpException $exception) {
+            self::assertSame(422, $exception->getStatusCode());
+        }
+    }
+
     public function test_public_home_returns_only_published_localized_content(): void
     {
         $page = CorporateSitePage::query()->create([
