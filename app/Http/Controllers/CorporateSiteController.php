@@ -174,6 +174,48 @@ final class CorporateSiteController extends Controller
         });
     }
 
+    /**
+     * Public project claims in the permanent Community Responsibility section
+     * require both an explicit approval state and a documentary evidence reference.
+     * Corporate priorities remain visible independently of project publication.
+     * The homepage's independent reviewer approves the complete version.
+     *
+     * @param array<int, mixed> $sections
+     * @return array<int, array<string, mixed>>
+     */
+    private function publicSections(array $sections, string $locale): array
+    {
+        $public = [];
+        foreach ($sections as $section) {
+            if (!is_array($section) || !isset($section['type'], $section['content'][$locale])) {
+                continue;
+            }
+
+            if (in_array(strtolower(trim((string) $section['type'])), [
+                'community_responsibility', 'community-responsibility', 'responsibility',
+            ], true)) {
+                foreach (['am', 'en'] as $language) {
+                    if (!is_array($section['content'][$language] ?? null)) {
+                        continue;
+                    }
+                    $content = $section['content'][$language];
+                    $projects = is_array($content['projects'] ?? null) ? $content['projects'] : [];
+                    $content['projects'] = array_values(array_filter($projects, static fn ($project): bool =>
+                        is_array($project) &&
+                        ($project['approval_status'] ?? null) === 'approved' &&
+                        is_string($project['evidence_reference'] ?? null) &&
+                        trim($project['evidence_reference']) !== ''
+                    ));
+                    $section['content'][$language] = $content;
+                }
+            }
+
+            $public[] = $section;
+        }
+
+        return $public;
+    }
+
     private function audit(Request $request, string $action, CorporateSitePage $page, ?array $old, array $new): void
     {
         AuditLog::create([
@@ -212,9 +254,8 @@ final class CorporateSiteController extends Controller
             'alternate_slug' => $locale === 'am' ? $page->slug_en : $page->slug_am,
             'title' => (string) ($translation['title'] ?? ''),
             'summary' => (string) ($translation['summary'] ?? ''),
-            'sections' => array_values(array_filter($page->sections ?? [], static fn ($section): bool =>
-                is_array($section) && isset($section['type'], $section['content'][$locale])
-            )),
+            'body' => (string) ($translation['body'] ?? ''),
+            'sections' => $this->publicSections($page->sections ?? [], $locale),
             'seo' => $page->seo[$locale] ?? null,
             'published_at' => $page->published_at?->toIso8601String(),
         ];
