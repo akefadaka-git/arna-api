@@ -25,8 +25,8 @@ final class CorporateSitePublishingTest extends TestCase
             'slug_am' => 'ber',
             'slug_en' => 'home',
             'translations' => [
-                'am' => ['title' => 'ወደ አርና እንኳን በደህና መጡ', 'summary' => 'የአርና መነሻ'],
-                'en' => ['title' => 'Welcome to ARNA', 'summary' => 'The ARNA homepage'],
+                'am' => ['title' => 'ወደ አርና እንኳን በደህና መጡ', 'summary' => 'የአርና መነሻ', 'body' => 'የመነሻ ሙሉ ይዘት'],
+                'en' => ['title' => 'Welcome to ARNA', 'summary' => 'The ARNA homepage', 'body' => 'Full homepage body content'],
             ],
             'sections' => [
                 ['type' => 'text', 'content' => [
@@ -43,6 +43,7 @@ final class CorporateSitePublishingTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.locale', 'am')
             ->assertJsonPath('data.title', 'ወደ አርና እንኳን በደህና መጡ')
+            ->assertJsonPath('data.body', 'የመነሻ ሙሉ ይዘት')
             ->assertJsonPath('data.sections.0.content.am.title', 'ስለ እኛ');
 
         $this->getJson('/api/public/site/home?locale=en')
