@@ -98,6 +98,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             self::assertSame('The approver must be independent of both preparation and reconciliation.', $exception->getMessage());
         }
 
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
         $snapshot = DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->first();
 
