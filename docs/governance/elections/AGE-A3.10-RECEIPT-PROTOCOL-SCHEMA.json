@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arna.example/schemas/governance/age/external-receipt-protocol-1.0.0.json",
+  "title": "AGE external receipt protocol v1.0.0",
+  "description": "Wire-level schema for service-issued append receipts and nonce-bound current-head responses. The example domain in $id is a schema identifier only; it is not a deployed endpoint.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/AppendEventRequest"
+    },
+    {
+      "$ref": "#/$defs/AppendReceipt"
+    },
+    {
+      "$ref": "#/$defs/WitnessCheckpoint"
+    },
+    {
+      "$ref": "#/$defs/HeadChallengeResponse"
+    }
+  ],
+  "$defs": {
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "AppendReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "schema_version",
+        "receipt_id",
+        "stream_id",
+        "tenant_ref",
+        "election_ref",
+        "snapshot_ref",
+        "sequence",
+        "event_type",
+        "event_hash",
+        "previous_receipt_hash",
+        "receipt_hash",
+        "signing_key_id",
+        "issued_at",
+        "signature"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "age-external-receipt/1"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "receipt_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "stream_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "tenant_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "election_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "snapshot_ref": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "event_type": {
+          "enum": [
+            "register.prepared",
+            "register.reconciled",
+            "register.approved_frozen",
+            "register.superseded",
+            "register.voided"
+          ]
+        },
+        "event_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "previous_receipt_hash": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "signing_key_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "signature": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
+        }
+      }
+    },
+    "HeadChallengeResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "schema_version",
+        "stream_id",
+        "tenant_ref",
+        "election_ref",
+        "nonce",
+        "checkpoint",
+        "witness_key_id",
+        "issued_at",
+        "signature"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "age-witness-head/1"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "stream_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "tenant_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "election_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "nonce": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{43}$",
+          "description": "Base64url encoding of exactly 32 random bytes."
+        },
+        "checkpoint": {
+          "$ref": "#/$defs/WitnessCheckpoint"
+        },
+        "witness_key_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "signature": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
+        }
+      }
+    },
+    "WitnessCheckpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "schema_version",
+        "stream_id",
+        "tenant_ref",
+        "election_ref",
+        "sequence",
+        "receipt_hash",
+        "previous_checkpoint_hash",
+        "checkpoint_hash",
+        "witness_key_id",
+        "witnessed_at",
+        "signature"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "age-witness-checkpoint/1"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "stream_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "tenant_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "election_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "receipt_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "previous_checkpoint_hash": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checkpoint_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "witness_key_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "witnessed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "signature": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
+        }
+      }
+    },
+    "AppendEventRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "schema_version",
+        "tenant_ref",
+        "election_ref",
+        "snapshot_ref",
+        "event_type",
+        "event_body",
+        "event_hash",
+        "expected_previous_sequence",
+        "expected_previous_receipt_hash",
+        "idempotency_key"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "age-external-receipt/1"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "election_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "snapshot_ref": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "event_type": {
+          "enum": [
+            "register.prepared",
+            "register.reconciled",
+            "register.approved_frozen"
+          ]
+        },
+        "event_body": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stage",
+            "content_sha256",
+            "voter_count",
+            "actor_ref",
+            "occurred_at"
+          ],
+          "properties": {
+            "stage": {
+              "enum": [
+                "prepared",
+                "reconciled",
+                "approved_frozen"
+              ]
+            },
+            "content_sha256": {
+              "$ref": "#/$defs/Sha256"
+            },
+            "voter_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "actor_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "occurred_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "record_date": {
+              "type": "string",
+              "format": "date"
+            },
+            "voting_rule_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "source_evidence_sha256": {
+              "$ref": "#/$defs/Sha256"
+            },
+            "prepared_attestation_sha256": {
+              "$ref": "#/$defs/Sha256"
+            },
+            "reconciled_attestation_sha256": {
+              "$ref": "#/$defs/Sha256"
+            },
+            "approved_attestation_sha256": {
+              "$ref": "#/$defs/Sha256"
+            }
+          }
+        },
+        "event_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "expected_previous_sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_previous_receipt_hash": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "idempotency_key": {
+          "$ref": "#/$defs/Uuid"
+        }
+      }
+    }
+  }
+}
