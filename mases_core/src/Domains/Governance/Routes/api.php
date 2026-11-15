@@ -595,11 +595,11 @@ Route::name('api.governance.')->group(static function (): void {
 
     // Voter register: preparation, independent reconciliation, then independent approval/freeze.
     Route::post('/elections/{governanceElection}/registers', [GovernanceElectionWorkflowController::class, 'prepareVoterRegister'])
-        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.registers.prepare');
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.register.manage')->name('elections.registers.prepare');
     Route::post('/elections/{governanceElection}/registers/{snapshot}/reconcile', [GovernanceElectionWorkflowController::class, 'reconcileVoterRegister'])
-        ->whereNumber('governanceElection')->whereNumber('snapshot')->middleware('auth.permission:governance.election.manage')->name('elections.registers.reconcile');
+        ->whereNumber('governanceElection')->whereNumber('snapshot')->middleware('auth.permission:governance.election.register.manage')->name('elections.registers.reconcile');
     Route::post('/elections/{governanceElection}/registers/{snapshot}/approve-freeze', [GovernanceElectionWorkflowController::class, 'approveVoterRegister'])
-        ->whereNumber('governanceElection')->whereNumber('snapshot')->middleware('auth.permission:governance.election.manage')->name('elections.registers.approve-freeze');
+        ->whereNumber('governanceElection')->whereNumber('snapshot')->middleware('auth.permission:governance.election.register.manage')->name('elections.registers.approve-freeze');
 
     // Nomination intake and non-binding shareholder consultation.
     Route::post('/elections/{governanceElection}/nominations', [GovernanceElectionWorkflowController::class, 'submitNomination'])
