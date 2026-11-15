@@ -21,7 +21,6 @@ on:
       - ".env.example"
       - "tests/Feature/AgeVoterRegisterMySqlIntegrationTest.php"
       - "tests/Feature/AgeVoterRegisterDatabaseTest.php"
-      - "tests/Feature/AgeVoterRegisterMySqlIntegrationTest.php"
       - "tests/Feature/GovernanceElectionWorkflowHttpTest.php"
       - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php"
       - "mases_core/src/Domains/Governance/Policies/GovernanceElectionPolicy.php"
