@@ -203,10 +203,28 @@ final class GovernanceElectionRegisterService
             usort($normalised, static fn (array $a, array $b): int => [$a['shareholder_id'], $a['share_class_code']] <=> [$b['shareholder_id'], $b['share_class_code']]);
             $contentHash = self::snapshotContentHash($tenantId, $electionId, $recordDate, $sourceReference, $ruleVersion, $normalised);
             $now = Carbon::now();
+            $snapshotUuid = (string) Str::uuid();
+            $preparedPayload = [
+                'snapshot_uuid' => $snapshotUuid,
+                'tenant_id' => $tenantId,
+                'election_id' => (int) $election->id,
+                'record_date' => $recordDate,
+                'source_reference' => $sourceReference,
+                'rule_version' => $ruleVersion,
+                'content_sha256' => $contentHash,
+                'voter_count' => count($normalised),
+                'created_by' => $actorId,
+                'prepared_by' => $actorId,
+                'created_at' => $now->format('Y-m-d H:i:s'),
+            ];
+            $preparedAttestation = AgeRegisterAttestation::signActive($preparedPayload);
             $snapshotId = DB::table('governance_election_register_snapshots')->insertGetId([
                 'tenant_id' => $tenantId, 'election_id' => $election->id, 'record_date' => $recordDate,
                 'source_reference' => $sourceReference, 'rule_version' => $ruleVersion,
-                'content_sha256' => $contentHash, 'voter_count' => count($normalised),
+                'content_sha256' => $contentHash, 'snapshot_uuid' => $snapshotUuid,
+                'prepared_attestation_sha256' => $preparedAttestation['signature'],
+                'prepared_attestation_key_id' => $preparedAttestation['key_id'],
+                'voter_count' => count($normalised),
                 'created_by' => $actorId, 'prepared_by' => $actorId, 'register_status' => 'draft', 'frozen_at' => null, 'created_at' => $now, 'updated_at' => $now,
             ]);
             $rows = array_map(static fn (array $entry): array => [
@@ -235,6 +253,13 @@ final class GovernanceElectionRegisterService
             if ((int) $snapshot->prepared_by === $actorId) {
                 throw new RuntimeException('The register preparer cannot independently reconcile the register.');
             }
+            if (!AgeRegisterAttestation::verify(
+                $snapshot->prepared_attestation_key_id === null ? null : (string) $snapshot->prepared_attestation_key_id,
+                $snapshot->prepared_attestation_sha256 === null ? null : (string) $snapshot->prepared_attestation_sha256,
+                self::preparedAttestationPayload($snapshot),
+            )) {
+                throw new RuntimeException('Prepared register attestation is missing or invalid; reconciliation failed closed.');
+            }
             $rows = DB::table('governance_election_voters')->where('tenant_id', $tenantId)
                 ->where('election_id', $electionId)->where('snapshot_id', $snapshotId)
                 ->orderBy('shareholder_id')->orderBy('share_class_code')
@@ -262,10 +287,25 @@ final class GovernanceElectionRegisterService
             if (!hash_equals((string) $snapshot->content_sha256, $hash)) {
                 throw new RuntimeException('Register content hash mismatch; reconciliation failed closed.');
             }
+            $reconciledAt = Carbon::now();
+            $reconciledAtValue = $reconciledAt->format('Y-m-d H:i:s');
+            $reconciliationPayload = [
+                'snapshot_uuid' => (string) $snapshot->snapshot_uuid,
+                'tenant_id' => (int) $snapshot->tenant_id,
+                'election_id' => (int) $snapshot->election_id,
+                'content_sha256' => (string) $snapshot->content_sha256,
+                'prepared_attestation_sha256' => (string) $snapshot->prepared_attestation_sha256,
+                'reconciled_by' => $actorId,
+                'reconciled_at' => $reconciledAtValue,
+                'integrity_verified_at' => $reconciledAtValue,
+            ];
+            $reconciliationAttestation = AgeRegisterAttestation::signActive($reconciliationPayload);
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
                 'register_status' => 'reconciled', 'reconciled_by' => $actorId,
-                'reconciled_at' => Carbon::now(), 'integrity_verified_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
+                'reconciled_at' => $reconciledAtValue, 'integrity_verified_at' => $reconciledAtValue,
+                'reconciliation_attestation_sha256' => $reconciliationAttestation['signature'],
+                'reconciliation_attestation_key_id' => $reconciliationAttestation['key_id'],
+                'updated_at' => $reconciledAtValue,
             ]);
             return $hash;
         });
@@ -277,7 +317,11 @@ final class GovernanceElectionRegisterService
         $snapshot = DB::table('governance_election_register_snapshots')
             ->where('tenant_id', $tenantId)->where('election_id', $electionId)
             ->where('id', $snapshotId)->first();
-        if ($snapshot === null) {
+        if ($snapshot === null || !AgeRegisterAttestation::verify(
+            $snapshot->prepared_attestation_key_id === null ? null : (string) $snapshot->prepared_attestation_key_id,
+            $snapshot->prepared_attestation_sha256 === null ? null : (string) $snapshot->prepared_attestation_sha256,
+            self::preparedAttestationPayload($snapshot),
+        )) {
             return false;
         }
         $voterQuery = DB::table('governance_election_voters')->where('tenant_id', $tenantId)
@@ -306,7 +350,51 @@ final class GovernanceElectionRegisterService
             (string) $snapshot->rule_version,
             $rows,
         );
-        return hash_equals((string) $snapshot->content_sha256, $hash);
+        if (!hash_equals((string) $snapshot->content_sha256, $hash)) {
+            return false;
+        }
+
+        if (in_array((string) $snapshot->register_status, ['reconciled', 'frozen'], true)) {
+            $reconciliationPayload = [
+                'snapshot_uuid' => (string) $snapshot->snapshot_uuid,
+                'tenant_id' => (int) $snapshot->tenant_id,
+                'election_id' => (int) $snapshot->election_id,
+                'content_sha256' => (string) $snapshot->content_sha256,
+                'prepared_attestation_sha256' => (string) $snapshot->prepared_attestation_sha256,
+                'reconciled_by' => (int) $snapshot->reconciled_by,
+                'reconciled_at' => (string) $snapshot->reconciled_at,
+                'integrity_verified_at' => (string) $snapshot->integrity_verified_at,
+            ];
+            if (!AgeRegisterAttestation::verify(
+                $snapshot->reconciliation_attestation_key_id === null ? null : (string) $snapshot->reconciliation_attestation_key_id,
+                $snapshot->reconciliation_attestation_sha256 === null ? null : (string) $snapshot->reconciliation_attestation_sha256,
+                $reconciliationPayload,
+            )) {
+                return false;
+            }
+        }
+
+        if ((string) $snapshot->register_status === 'frozen') {
+            $approvalPayload = [
+                'snapshot_uuid' => (string) $snapshot->snapshot_uuid,
+                'tenant_id' => (int) $snapshot->tenant_id,
+                'election_id' => (int) $snapshot->election_id,
+                'content_sha256' => (string) $snapshot->content_sha256,
+                'reconciliation_attestation_sha256' => (string) $snapshot->reconciliation_attestation_sha256,
+                'approved_by' => (int) $snapshot->approved_by,
+                'approved_at' => (string) $snapshot->approved_at,
+                'frozen_at' => (string) $snapshot->frozen_at,
+            ];
+            if (!AgeRegisterAttestation::verify(
+                $snapshot->approval_attestation_key_id === null ? null : (string) $snapshot->approval_attestation_key_id,
+                $snapshot->approval_attestation_sha256 === null ? null : (string) $snapshot->approval_attestation_sha256,
+                $approvalPayload,
+            )) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** Approve and freeze only after independent reconciliation and a second actor's approval. */
@@ -333,10 +421,24 @@ final class GovernanceElectionRegisterService
             if (!$election->isAuthorityVerified() || !in_array($election->status, ['planned', 'nominating'], true)) {
                 throw new RuntimeException('Verified authority and a pre-voting election state are required.');
             }
+            $approvedAt = Carbon::now()->format('Y-m-d H:i:s');
+            $approvalPayload = [
+                'snapshot_uuid' => (string) $snapshot->snapshot_uuid,
+                'tenant_id' => (int) $snapshot->tenant_id,
+                'election_id' => (int) $snapshot->election_id,
+                'content_sha256' => (string) $snapshot->content_sha256,
+                'reconciliation_attestation_sha256' => (string) $snapshot->reconciliation_attestation_sha256,
+                'approved_by' => $actorId,
+                'approved_at' => $approvedAt,
+                'frozen_at' => $approvedAt,
+            ];
+            $approvalAttestation = AgeRegisterAttestation::signActive($approvalPayload);
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
                 'register_status' => 'frozen', 'approved_by' => $actorId,
-                'approved_at' => Carbon::now(), 'frozen_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
+                'approved_at' => $approvedAt, 'frozen_at' => $approvedAt,
+                'approval_attestation_sha256' => $approvalAttestation['signature'],
+                'approval_attestation_key_id' => $approvalAttestation['key_id'],
+                'updated_at' => $approvedAt,
             ]);
         });
     }
@@ -382,6 +484,26 @@ final class GovernanceElectionRegisterService
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
 
         return hash('sha256', $canonical);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private static function preparedAttestationPayload(object $snapshot): array
+    {
+        return [
+            'snapshot_uuid' => (string) $snapshot->snapshot_uuid,
+            'tenant_id' => (int) $snapshot->tenant_id,
+            'election_id' => (int) $snapshot->election_id,
+            'record_date' => substr((string) $snapshot->record_date, 0, 10),
+            'source_reference' => (string) $snapshot->source_reference,
+            'rule_version' => (string) $snapshot->rule_version,
+            'content_sha256' => (string) $snapshot->content_sha256,
+            'voter_count' => (int) $snapshot->voter_count,
+            'created_by' => (int) $snapshot->created_by,
+            'prepared_by' => (int) $snapshot->prepared_by,
+            'created_at' => Carbon::parse($snapshot->created_at)->format('Y-m-d H:i:s'),
+        ];
     }
 
     private static function assertDecimalArithmetic(): void
