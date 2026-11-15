@@ -51,8 +51,7 @@ The current MySQL integration class exercises:
 
 ## Explicit remaining gaps
 
-- The test suite has not yet been executed against MySQL.
-- The current suite does not yet run a two-session concurrent approval-versus-voter-write race. MySQL `FOR UPDATE` semantics must be tested with two independent connections before claiming concurrency protection.
+- The test suite, including the new two-process race test, has not yet been executed against MySQL. The race test must pass on the manual MySQL workflow before concurrency protection can be claimed.
 - Full application migration ordering and rollback across the entire AGE stack remain separate from this focused trigger migration test.
 - HTTP authorization, permission-role assignment review, and independent security review remain outstanding.
 
