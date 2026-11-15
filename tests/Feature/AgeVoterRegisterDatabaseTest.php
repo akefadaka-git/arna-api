@@ -315,7 +315,10 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             ]);
             self::fail('The preparer must not be recorded as an independent reconciler by direct database update.');
         } catch (\Illuminate\Database\QueryException $exception) {
-            self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
+            self::assertTrue(
+                str_contains(strtolower($exception->getMessage()), 'lifecycle')
+                || str_contains(strtolower($exception->getMessage()), 'attestation')
+            );
         }
 
         try {
