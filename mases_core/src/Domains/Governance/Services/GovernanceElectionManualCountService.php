@@ -33,10 +33,10 @@ final class GovernanceElectionManualCountService
             }
 
             if ($actorId < 1) {
-                throw AuthorizationException::withMessages(['count_recorder' => 'An authenticated count recorder is required.']);
+                throw new AuthorizationException('An authenticated count recorder is required.');
             }
 
-            $recorder = $this->activeCountMember($tenantId, $electionId, $actorId);
+            $recorder = $this->activeCountMember($tenantId, $electionId, $actorId, true);
             if ($recorder === null) {
                 throw new AuthorizationException('The count recorder must be an active, non-recused committee or supervisory member.');
             }
@@ -150,8 +150,8 @@ final class GovernanceElectionManualCountService
                 throw ValidationException::withMessages(['batch' => 'Only a pending, unattested count batch may be witnessed.']);
             }
 
-            $recorder = $this->activeCountMember($tenantId, $electionId, (int) $batch->entered_by);
-            $witness = $this->activeCountMember($tenantId, $electionId, $witnessUserId);
+            $recorder = $this->activeCountMember($tenantId, $electionId, (int) $batch->entered_by, true);
+            $witness = $this->activeCountMember($tenantId, $electionId, $witnessUserId, true);
             if ($recorder === null || $witness === null) {
                 throw new AuthorizationException('The recorder and witness must remain active, non-recused committee or supervisory members.');
             }
@@ -208,19 +208,24 @@ final class GovernanceElectionManualCountService
         return ['batches' => $batches->all(), 'lines' => $lines->all()];
     }
 
-    private function activeCountMember(int $tenantId, int $electionId, int $userId): ?object
+    private function activeCountMember(int $tenantId, int $electionId, int $userId, bool $lock = false): ?object
     {
         if ($userId < 1) {
             return null;
         }
 
-        return DB::table('governance_election_committee_members')
+        $query = DB::table('governance_election_committee_members')
             ->where('tenant_id', $tenantId)
             ->where('election_id', $electionId)
             ->where('user_id', $userId)
             ->where('status', 'active')
             ->whereNull('recused_at')
-            ->whereIn('member_role', ['committee_member', 'supervisory_member'])
-            ->first(['id', 'person_id', 'user_id']);
+            ->whereIn('member_role', ['committee_member', 'supervisory_member']);
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        return $query->first(['id', 'person_id', 'user_id']);
     }
 }
