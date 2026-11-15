@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
 use RuntimeException;
 use Tests\TestCase;
@@ -415,7 +416,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 'updated_at' => now(),
             ]);
             self::fail('Direct database inserts without an application-held prepared attestation must be rejected.');
-        } catch (\\Illuminate\\Database\\QueryException $exception) {
+        } catch (\Illuminate\\Database\\QueryException $exception) {
             self::assertStringContainsString('prepared application attestation only', strtolower($exception->getMessage()));
         }
 
@@ -432,7 +433,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 'source_reference' => 'DIRECT-INSERT-TEST',
                 'rule_version' => 'AGE-RULES-1',
                 'content_sha256' => str_repeat('a', 64),
-                'snapshot_uuid' => (string) \\Illuminate\\Support\\Str::uuid(),
+                'snapshot_uuid' => (string) \Illuminate\\Support\\Str::uuid()->toString(),
                 'prepared_attestation_sha256' => str_repeat('a', 64),
                 'prepared_attestation_key_id' => 'test-key-v1',
                 'voter_count' => 1,
