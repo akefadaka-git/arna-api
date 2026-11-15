@@ -161,6 +161,8 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             'reconciled_by' => 101,
             'reconciled_at' => now(),
             'integrity_verified_at' => now(),
+            'reconciliation_attestation_sha256' => str_repeat('b', 64),
+            'reconciliation_attestation_key_id' => 'mysql-test-key-v1',
         ]);
 
         $this->assertWriteRejected(function () use ($snapshotId): void {
@@ -178,6 +180,8 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             'approved_by' => 102,
             'approved_at' => now(),
             'frozen_at' => now(),
+            'approval_attestation_sha256' => str_repeat('c', 64),
+            'approval_attestation_key_id' => 'mysql-test-key-v1',
         ]);
 
         self::assertSame('frozen', DB::table('governance_election_register_snapshots')
@@ -229,6 +233,8 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             'reconciled_by' => 101,
             'reconciled_at' => now(),
             'integrity_verified_at' => now(),
+            'reconciliation_attestation_sha256' => str_repeat('b', 64),
+            'reconciliation_attestation_key_id' => 'mysql-test-key-v1',
         ]);
 
         // Freeze timestamp and status change together; the approver is distinct from both prior actors.
@@ -237,6 +243,8 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             'approved_by' => 102,
             'approved_at' => now(),
             'frozen_at' => now(),
+            'approval_attestation_sha256' => str_repeat('c', 64),
+            'approval_attestation_key_id' => 'mysql-test-key-v1',
         ]);
 
         $this->assertWriteRejected(function () use ($snapshotId): void {
