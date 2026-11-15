@@ -326,6 +326,7 @@ PHP;
         $remaining = DB::table('information_schema.triggers')
             ->where('trigger_schema', DB::connection()->getDatabaseName())
             ->whereIn('trigger_name', [
+                'age_register_snapshot_initial_state_guard',
                 'age_voter_register_frozen_insert',
                 'age_voter_register_frozen_update',
                 'age_voter_register_frozen_delete',
