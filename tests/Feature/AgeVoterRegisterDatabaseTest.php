@@ -21,7 +21,8 @@ use Tests\TestCase;
 final class AgeVoterRegisterDatabaseTest extends TestCase
 {
     private GovernanceElectionRegisterService $service;
-    private bool $immutabilityMigrationApplied = false;\n    private bool $attestationMigrationApplied = false;
+    private bool $immutabilityMigrationApplied = false;
+    private bool $attestationMigrationApplied = false;
 
     protected function setUp(): void
     {
