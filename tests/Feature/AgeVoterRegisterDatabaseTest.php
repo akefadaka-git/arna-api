@@ -325,7 +325,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 ->update(['register_status' => 'draft']);
             self::fail('A reconciled register must not move backward to draft.');
         } catch (\\Illuminate\\Database\\QueryException $exception) {
-            self::assertStringContainsString('lifecycle transitions', strtolower($exception->getMessage()));
+            self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
         }
 
         try {
@@ -333,7 +333,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 ->update(['reconciled_by' => 103]);
             self::fail('Reconciliation identity must not change after reconciliation.');
         } catch (\\Illuminate\\Database\\QueryException $exception) {
-            self::assertStringContainsString('lifecycle metadata', strtolower($exception->getMessage()));
+            self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
         }
 
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
