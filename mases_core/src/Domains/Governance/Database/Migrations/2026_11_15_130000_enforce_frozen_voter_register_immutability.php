@@ -21,6 +21,8 @@ return new class extends Migration
         'age_voter_register_frozen_insert',
         'age_voter_register_frozen_update',
         'age_voter_register_frozen_delete',
+        'age_register_snapshot_frozen_update',
+        'age_register_snapshot_frozen_delete',
     ];
 
     public function up(): void
@@ -62,16 +64,59 @@ return new class extends Migration
     private function createMySqlTriggers(): void
     {
         DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_frozen_update
+BEFORE UPDATE ON governance_election_register_snapshots
+FOR EACH ROW
+BEGIN
+    IF OLD.register_status = 'frozen' OR OLD.frozen_at IS NOT NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Frozen voter-register snapshots are immutable.';
+    END IF;
+END
+SQL);
+
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_frozen_delete
+BEFORE DELETE ON governance_election_register_snapshots
+FOR EACH ROW
+BEGIN
+    IF OLD.register_status = 'frozen' OR OLD.frozen_at IS NOT NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Frozen voter-register snapshots are immutable.';
+    END IF;
+END
+SQL);
+
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_frozen_update
+BEFORE UPDATE ON governance_election_register_snapshots
+WHEN OLD.register_status = 'frozen' OR OLD.frozen_at IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'Frozen voter-register snapshots are immutable.');
+END
+SQL);
+
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_frozen_delete
+BEFORE DELETE ON governance_election_register_snapshots
+WHEN OLD.register_status = 'frozen' OR OLD.frozen_at IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'Frozen voter-register snapshots are immutable.');
+END
+SQL);
+
+        DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_voter_register_frozen_insert
 BEFORE INSERT ON governance_election_voters
 FOR EACH ROW
 BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM governance_election_register_snapshots
-        WHERE id = NEW.snapshot_id
-          AND (register_status = 'frozen' OR frozen_at IS NOT NULL)
-    ) THEN
+    DECLARE v_status VARCHAR(24);
+    DECLARE v_frozen_at DATETIME;
+    SELECT register_status, frozen_at INTO v_status, v_frozen_at
+    FROM governance_election_register_snapshots
+    WHERE id = NEW.snapshot_id
+    FOR UPDATE;
+    IF v_status = 'frozen' OR v_frozen_at IS NOT NULL THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Frozen voter registers are immutable.';
     END IF;
@@ -83,12 +128,38 @@ CREATE TRIGGER age_voter_register_frozen_update
 BEFORE UPDATE ON governance_election_voters
 FOR EACH ROW
 BEGIN
-    IF EXISTS (
-        SELECT 1
+    DECLARE v_old_status VARCHAR(24);
+    DECLARE v_new_status VARCHAR(24);
+    DECLARE v_old_frozen_at DATETIME;
+    DECLARE v_new_frozen_at DATETIME;
+    IF OLD.snapshot_id = NEW.snapshot_id THEN
+        SELECT register_status, frozen_at INTO v_old_status, v_old_frozen_at
         FROM governance_election_register_snapshots
-        WHERE id IN (OLD.snapshot_id, NEW.snapshot_id)
-          AND (register_status = 'frozen' OR frozen_at IS NOT NULL)
-    ) THEN
+        WHERE id = OLD.snapshot_id
+        FOR UPDATE;
+        SET v_new_status = v_old_status;
+        SET v_new_frozen_at = v_old_frozen_at;
+    ELSEIF OLD.snapshot_id < NEW.snapshot_id THEN
+        SELECT register_status, frozen_at INTO v_old_status, v_old_frozen_at
+        FROM governance_election_register_snapshots
+        WHERE id = OLD.snapshot_id
+        FOR UPDATE;
+        SELECT register_status, frozen_at INTO v_new_status, v_new_frozen_at
+        FROM governance_election_register_snapshots
+        WHERE id = NEW.snapshot_id
+        FOR UPDATE;
+    ELSE
+        SELECT register_status, frozen_at INTO v_new_status, v_new_frozen_at
+        FROM governance_election_register_snapshots
+        WHERE id = NEW.snapshot_id
+        FOR UPDATE;
+        SELECT register_status, frozen_at INTO v_old_status, v_old_frozen_at
+        FROM governance_election_register_snapshots
+        WHERE id = OLD.snapshot_id
+        FOR UPDATE;
+    END IF;
+    IF v_old_status = 'frozen' OR v_old_frozen_at IS NOT NULL
+       OR v_new_status = 'frozen' OR v_new_frozen_at IS NOT NULL THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Frozen voter registers are immutable.';
     END IF;
@@ -100,12 +171,13 @@ CREATE TRIGGER age_voter_register_frozen_delete
 BEFORE DELETE ON governance_election_voters
 FOR EACH ROW
 BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM governance_election_register_snapshots
-        WHERE id = OLD.snapshot_id
-          AND (register_status = 'frozen' OR frozen_at IS NOT NULL)
-    ) THEN
+    DECLARE v_status VARCHAR(24);
+    DECLARE v_frozen_at DATETIME;
+    SELECT register_status, frozen_at INTO v_status, v_frozen_at
+    FROM governance_election_register_snapshots
+    WHERE id = OLD.snapshot_id
+    FOR UPDATE;
+    IF v_status = 'frozen' OR v_frozen_at IS NOT NULL THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Frozen voter registers are immutable.';
     END IF;
