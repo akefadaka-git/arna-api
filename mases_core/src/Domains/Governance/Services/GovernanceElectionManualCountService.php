@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
@@ -29,7 +30,7 @@ final class GovernanceElectionManualCountService
 
             if (!$election->isAuthorityVerified() || $election->status !== 'counting'
                 || $election->voting_method !== 'physical') {
-                throw new RuntimeException('Manual physical count evidence may be recorded only for an authority-verified physical election in counting status.');
+                throw ValidationException::withMessages(['election' => 'Manual physical count evidence may be recorded only for an authority-verified physical election in counting status.']);
             }
 
             if ($actorId < 1 || $witnessUserId < 1 || $actorId === $witnessUserId) {
@@ -153,7 +154,7 @@ final class GovernanceElectionManualCountService
             ->exists();
 
         if (!$member) {
-            throw new RuntimeException('Active, non-recused count committee membership is required.');
+            throw new AuthorizationException('Active, non-recused count committee membership is required.');
         }
 
         $batches = DB::table('governance_election_manual_count_batches')
