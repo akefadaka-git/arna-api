@@ -81,32 +81,6 @@ END
 SQL);
 
         DB::unprepared(<<<'SQL'
-CREATE TRIGGER age_register_snapshot_freeze_transition_guard
-BEFORE UPDATE ON governance_election_register_snapshots
-WHEN NEW.register_status = 'frozen'
- AND OLD.register_status <> 'frozen'
- AND (
-    OLD.register_status <> 'reconciled'
-    OR NEW.prepared_by IS NULL
-    OR NEW.reconciled_by IS NULL
-    OR NEW.approved_by IS NULL
-    OR NEW.prepared_by = NEW.reconciled_by
-    OR NEW.prepared_by = NEW.approved_by
-    OR NEW.reconciled_by = NEW.approved_by
-    OR NEW.reconciled_at IS NULL
-    OR NEW.approved_at IS NULL
-    OR NEW.integrity_verified_at IS NULL
-    OR NEW.frozen_at IS NULL
-    OR NEW.content_sha256 IS NULL
-    OR NEW.content_sha256 = ''
-    OR NEW.voter_count < 1
- )
-BEGIN
-    SELECT RAISE(ABORT, 'Voter register cannot freeze without independent approval and verified integrity.');
-END
-SQL);
-
-        DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_register_snapshot_frozen_update
 BEFORE UPDATE ON governance_election_register_snapshots
 FOR EACH ROW
@@ -167,7 +141,7 @@ BEGIN
     ELSEIF OLD.snapshot_id < NEW.snapshot_id THEN
         SELECT register_status, frozen_at INTO v_old_status, v_old_frozen_at
         FROM governance_election_register_snapshots
-        WHERE id = OLD.snapshot_id
+        WHERE id = OLD.snapshot_id AND tenant_id = OLD.tenant_id AND election_id = OLD.election_id
         FOR UPDATE;
         SELECT register_status, frozen_at INTO v_new_status, v_new_frozen_at
         FROM governance_election_register_snapshots
@@ -176,7 +150,7 @@ BEGIN
     ELSE
         SELECT register_status, frozen_at INTO v_new_status, v_new_frozen_at
         FROM governance_election_register_snapshots
-        WHERE id = NEW.snapshot_id
+        WHERE id = NEW.snapshot_id AND tenant_id = NEW.tenant_id AND election_id = NEW.election_id
         FOR UPDATE;
         SELECT register_status, frozen_at INTO v_old_status, v_old_frozen_at
         FROM governance_election_register_snapshots
@@ -212,6 +186,32 @@ SQL);
 
     private function createSqliteTriggers(): void
     {
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_freeze_transition_guard
+BEFORE UPDATE ON governance_election_register_snapshots
+WHEN NEW.register_status = 'frozen'
+ AND OLD.register_status <> 'frozen'
+ AND (
+    OLD.register_status <> 'reconciled'
+    OR NEW.prepared_by IS NULL
+    OR NEW.reconciled_by IS NULL
+    OR NEW.approved_by IS NULL
+    OR NEW.prepared_by = NEW.reconciled_by
+    OR NEW.prepared_by = NEW.approved_by
+    OR NEW.reconciled_by = NEW.approved_by
+    OR NEW.reconciled_at IS NULL
+    OR NEW.approved_at IS NULL
+    OR NEW.integrity_verified_at IS NULL
+    OR NEW.frozen_at IS NULL
+    OR NEW.content_sha256 IS NULL
+    OR NEW.content_sha256 = ''
+    OR NEW.voter_count < 1
+ )
+BEGIN
+    SELECT RAISE(ABORT, 'Voter register cannot freeze without independent approval and verified integrity.');
+END
+SQL);
+
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_register_snapshot_frozen_update
 BEFORE UPDATE ON governance_election_register_snapshots
