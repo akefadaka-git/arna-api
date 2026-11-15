@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -432,7 +433,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 'updated_at' => now(),
             ]);
             self::fail('Direct database inserts without an application-held prepared attestation must be rejected.');
-        } catch (\Illuminate\\Database\\QueryException $exception) {
+        } catch (QueryException $exception) {
             self::assertStringContainsString('prepared application attestation only', strtolower($exception->getMessage()));
         }
 
