@@ -76,6 +76,24 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         );
     }
 
+    public function test_mysql_rejects_freeze_timestamp_without_frozen_status(): void
+    {
+        $snapshotId = $this->insertSnapshot();
+
+        try {
+            DB::table('governance_election_register_snapshots')
+                ->where('id', $snapshotId)
+                ->update(['frozen_at' => now()]);
+            self::fail('MySQL must reject a freeze timestamp unless the register enters the validated frozen state.');
+        } catch (QueryException $exception) {
+            self::assertStringContainsString('cannot freeze or set frozen_at', strtolower($exception->getMessage()));
+        }
+
+        $snapshot = DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->first();
+        self::assertSame('draft', $snapshot->register_status);
+        self::assertNull($snapshot->frozen_at);
+    }
+
     public function test_mysql_triggers_reject_missing_cross_tenant_and_frozen_register_writes(): void
     {
         $snapshotId = $this->insertSnapshot();
