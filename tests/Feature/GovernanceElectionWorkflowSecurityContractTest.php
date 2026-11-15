@@ -222,6 +222,8 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('public function prepare(', $service);
         self::assertStringContainsString('public function reconcile(', $service);
         self::assertStringContainsString('public function approveAndFreeze(', $service);
+        self::assertStringContainsString('public function hasValidSnapshotIntegrity(', $service);
+        self::assertStringContainsString('hasValidSnapshotIntegrity($tenantId, $electionId', $lifecycle);
         self::assertStringContainsString('The register preparer cannot independently reconcile the register.', $service);
         self::assertStringContainsString('The approver must be independent of both preparation and reconciliation.', $service);
         self::assertStringContainsString("'register_status' => 'frozen'", $service);
