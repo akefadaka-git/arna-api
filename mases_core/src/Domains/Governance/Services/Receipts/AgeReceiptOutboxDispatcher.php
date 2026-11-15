@@ -67,6 +67,7 @@ final class AgeReceiptOutboxDispatcher
             $eventHash = (string) $event->event_sha256;
             $previousHash = $event->expected_previous_receipt_sha256;
             $receiptHash = (string) ($receipt['receipt_hash'] ?? '');
+            $witnessReceiptHash = (string) ($witness['receipt_hash'] ?? $witness['witness_receipt_hash'] ?? '');
             if (($receipt['stream_id'] ?? null) !== $stream
                 || (int) ($receipt['sequence'] ?? 0) !== $sequence
                 || ($receipt['event_hash'] ?? null) !== $eventHash
@@ -75,7 +76,7 @@ final class AgeReceiptOutboxDispatcher
                 || ($witness['stream_id'] ?? null) !== $stream
                 || (int) ($witness['sequence'] ?? 0) !== $sequence
                 || ($witness['event_hash'] ?? null) !== $eventHash
-                || ($witness['receipt_hash'] ?? null) !== $receiptHash
+                || $witnessReceiptHash !== $receiptHash
                 || ($witness['previous_receipt_hash'] ?? null) !== $previousHash) {
                 throw new AgeReceiptDeliveryFailure('Receipt/witness stream, sequence, event or predecessor commitment mismatch.', false, true, 'HEAD_MISMATCH');
             }
