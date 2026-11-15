@@ -48,6 +48,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             'code' => 'AGE-TEST-01',
             'title' => 'AGE database test',
             'status' => 'planned',
+            'voting_method' => 'physical',
             'authority_reference' => 'AUTH-TEST',
             'authority_verified_at' => now(),
             'authority_verified_by' => 90,
@@ -435,6 +436,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             $table->string('code');
             $table->string('title');
             $table->string('status');
+            $table->string('voting_method', 24)->default('physical');
             $table->date('record_date')->nullable();
             $table->string('authority_reference')->nullable();
             $table->dateTime('authority_verified_at')->nullable();
