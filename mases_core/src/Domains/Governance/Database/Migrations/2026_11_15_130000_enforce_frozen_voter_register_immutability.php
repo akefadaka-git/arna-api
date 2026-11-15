@@ -76,7 +76,7 @@ BEGIN
            OR NEW.content_sha256 IS NULL
            OR NEW.content_sha256 = ''
            OR NEW.voter_count < 1
-       ))
+       )))
     THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Voter register cannot freeze or set frozen_at without independent approval and verified integrity.';
@@ -231,7 +231,7 @@ WHEN (
     OR NEW.content_sha256 IS NULL
     OR NEW.content_sha256 = ''
     OR NEW.voter_count < 1
- ))
+ )))
 BEGIN
     SELECT RAISE(ABORT, 'Voter register cannot freeze or set frozen_at without independent approval and verified integrity.');
 END
