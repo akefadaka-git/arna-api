@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
 use RuntimeException;
 use Tests\TestCase;
@@ -22,6 +24,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
 {
     private GovernanceElectionRegisterService $service;
     private bool $immutabilityMigrationApplied = false;
+    private bool $attestationMigrationApplied = false;
 
     protected function setUp(): void
     {
@@ -31,6 +34,11 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         $migration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_130000_enforce_frozen_voter_register_immutability.php');
         $migration->up();
         $this->immutabilityMigrationApplied = true;
+        $attestationMigration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_140000_add_voter_register_attestations.php');
+        $attestationMigration->up();
+        $this->attestationMigrationApplied = true;
+        config()->set('age.register_attestation.active_key_id', 'test-key-v1');
+        config()->set('age.register_attestation.keys', ['test-key-v1' => base64_encode(str_repeat('k', 32))]);
         config()->set('governance.election_voting.verified_class_entitlements', [
             'ORDINARY' => [
                 'verified' => true,
@@ -307,7 +315,10 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             ]);
             self::fail('The preparer must not be recorded as an independent reconciler by direct database update.');
         } catch (\Illuminate\Database\QueryException $exception) {
-            self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
+            self::assertTrue(
+                str_contains(strtolower($exception->getMessage()), 'lifecycle')
+                || str_contains(strtolower($exception->getMessage()), 'attestation')
+            );
         }
 
         try {
@@ -341,6 +352,97 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             ->where('id', $snapshotId)->value('register_status'));
     }
 
+    public function test_approval_attestation_detects_fabricated_actor_or_timestamp_after_trigger_bypass(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+        self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
+
+        DB::unprepared('DROP TRIGGER IF EXISTS age_register_snapshot_frozen_update');
+        DB::unprepared('DROP TRIGGER IF EXISTS age_register_snapshot_lifecycle_transition_guard');
+        DB::unprepared('DROP TRIGGER IF EXISTS age_register_attestation_update_guard');
+        DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+            ->update(['approved_by' => 103]);
+
+        self::assertFalse($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
+    }
+
+    public function test_prepared_attestation_detects_privileged_database_tampering_after_trigger_bypass(): void
+    {
+        $snapshotId = $this->prepareRegister();
+
+        foreach ([
+            'age_register_snapshot_initial_state_guard',
+            'age_register_snapshot_lifecycle_transition_guard',
+            'age_register_snapshot_freeze_transition_guard',
+            'age_register_snapshot_frozen_update',
+            'age_register_snapshot_frozen_delete',
+            'age_voter_register_frozen_insert',
+            'age_voter_register_frozen_update',
+            'age_voter_register_frozen_delete',
+            'age_register_attestation_insert_guard',
+            'age_register_attestation_update_guard',
+        ] as $trigger) {
+            DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
+        }
+
+        DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+            ->update(['content_sha256' => str_repeat('b', 64)]);
+        DB::table('governance_election_voters')->where('snapshot_id', $snapshotId)
+            ->where('shareholder_id', 21)->update(['share_quantity' => '999.0000']);
+
+        try {
+            $this->service->reconcile(7, 10, $snapshotId, 101);
+            self::fail('A database writer without the application attestation key must not replace the prepared digest and voter rows.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('Prepared register attestation is missing or invalid; reconciliation failed closed.', $exception->getMessage());
+        }
+
+        self::assertSame('draft', DB::table('governance_election_register_snapshots')
+            ->where('id', $snapshotId)->value('register_status'));
+    }
+
+    public function test_register_preparation_fails_closed_without_an_attestation_key(): void
+    {
+        config()->set('age.register_attestation.active_key_id', null);
+
+        try {
+            $this->prepareRegister();
+            self::fail('Register preparation must fail when the application-held attestation key is unavailable.');
+        } catch (RuntimeException $exception) {
+            self::assertStringContainsString('attestation signing is not configured', $exception->getMessage());
+        }
+
+        self::assertSame(0, DB::table('governance_election_register_snapshots')->count());
+    }
+
+    public function test_snapshot_insert_requires_a_prepared_application_attestation(): void
+    {
+        try {
+            DB::table('governance_election_register_snapshots')->insert([
+                'tenant_id' => 7,
+                'election_id' => 10,
+                'record_date' => '2026-01-15',
+                'source_reference' => 'UNATTESTED-DIRECT-INSERT',
+                'rule_version' => 'AGE-RULES-1',
+                'content_sha256' => str_repeat('a', 64),
+                'voter_count' => 1,
+                'created_by' => 100,
+                'prepared_by' => 100,
+                'register_status' => 'draft',
+                'frozen_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            self::fail('Direct database inserts without an application-held prepared attestation must be rejected.');
+        } catch (QueryException $exception) {
+            self::assertStringContainsString('prepared application attestation only', strtolower($exception->getMessage()));
+        }
+
+        self::assertSame(0, DB::table('governance_election_register_snapshots')->count());
+    }
+
     public function test_snapshot_insert_must_begin_in_prepared_draft_state(): void
     {
         $insertSnapshot = static function (array $overrides): void {
@@ -351,6 +453,9 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 'source_reference' => 'DIRECT-INSERT-TEST',
                 'rule_version' => 'AGE-RULES-1',
                 'content_sha256' => str_repeat('a', 64),
+                'snapshot_uuid' => Str::uuid()->toString(),
+                'prepared_attestation_sha256' => str_repeat('a', 64),
+                'prepared_attestation_key_id' => 'test-key-v1',
                 'voter_count' => 1,
                 'created_by' => 100,
                 'prepared_by' => 100,
@@ -415,6 +520,10 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
 
     protected function tearDown(): void
     {
+        if ($this->attestationMigrationApplied) {
+            $attestationMigration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_140000_add_voter_register_attestations.php');
+            $attestationMigration->down();
+        }
         if ($this->immutabilityMigrationApplied) {
             $migration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_130000_enforce_frozen_voter_register_immutability.php');
             $migration->down();

@@ -8,6 +8,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -21,6 +22,8 @@ use Tests\TestCase;
 final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 {
     private string $migrationPath = '';
+    private string $attestationMigrationPath = '';
+    private bool $attestationMigrationApplied = false;
     private bool $fixturesCreated = false;
     private bool $migrationApplied = false;
 
@@ -44,6 +47,9 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         $this->migrationPath = base_path(
             'mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_130000_enforce_frozen_voter_register_immutability.php'
         );
+        $this->attestationMigrationPath = base_path(
+            'mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_140000_add_voter_register_attestations.php'
+        );
 
         $this->dropFixtureTables();
         $this->createFixtureTables();
@@ -52,6 +58,9 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         $migration = require $this->migrationPath;
         $migration->up();
         $this->migrationApplied = true;
+        $attestationMigration = require $this->attestationMigrationPath;
+        $attestationMigration->up();
+        $this->attestationMigrationApplied = true;
     }
 
     public function test_mysql_triggers_reject_invalid_freeze_transition(): void
@@ -152,6 +161,8 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             'reconciled_by' => 101,
             'reconciled_at' => now(),
             'integrity_verified_at' => now(),
+            'reconciliation_attestation_sha256' => str_repeat('b', 64),
+            'reconciliation_attestation_key_id' => 'mysql-test-key-v1',
         ]);
 
         $this->assertWriteRejected(function () use ($snapshotId): void {
@@ -169,7 +180,14 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             'approved_by' => 102,
             'approved_at' => now(),
             'frozen_at' => now(),
+            'approval_attestation_sha256' => str_repeat('c', 64),
+            'approval_attestation_key_id' => 'mysql-test-key-v1',
         ]);
+
+        $this->assertWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['approval_attestation_sha256' => str_repeat('d', 64)]);
+        });
 
         self::assertSame('frozen', DB::table('governance_election_register_snapshots')
             ->where('id', $snapshotId)->value('register_status'));
@@ -220,6 +238,8 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             'reconciled_by' => 101,
             'reconciled_at' => now(),
             'integrity_verified_at' => now(),
+            'reconciliation_attestation_sha256' => str_repeat('b', 64),
+            'reconciliation_attestation_key_id' => 'mysql-test-key-v1',
         ]);
 
         // Freeze timestamp and status change together; the approver is distinct from both prior actors.
@@ -228,6 +248,8 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             'approved_by' => 102,
             'approved_at' => now(),
             'frozen_at' => now(),
+            'approval_attestation_sha256' => str_repeat('c', 64),
+            'approval_attestation_key_id' => 'mysql-test-key-v1',
         ]);
 
         $this->assertWriteRejected(function () use ($snapshotId): void {
@@ -338,12 +360,16 @@ PHP;
                 'reconciled_by' => 101,
                 'reconciled_at' => now(),
                 'integrity_verified_at' => now(),
+                'reconciliation_attestation_sha256' => str_repeat('b', 64),
+                'reconciliation_attestation_key_id' => 'mysql-test-key-v1',
             ]);
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
                 'register_status' => 'frozen',
                 'approved_by' => 102,
                 'approved_at' => now(),
                 'frozen_at' => now(),
+                'approval_attestation_sha256' => str_repeat('c', 64),
+                'approval_attestation_key_id' => 'mysql-test-key-v1',
             ]);
             DB::commit();
 
@@ -365,6 +391,88 @@ PHP;
             @unlink($resultFile);
             @unlink($workerFile);
         }
+    }
+
+    public function test_mysql_attestation_guards_require_forward_stage_signatures_and_preserve_them(): void
+    {
+        $this->assertWriteRejected(function (): void {
+            DB::table('governance_election_register_snapshots')->insert([
+                'tenant_id' => 7,
+                'election_id' => 10,
+                'record_date' => '2026-01-15',
+                'source_reference' => 'UNATTESTED-MYSQL-INSERT',
+                'rule_version' => 'AGE-TEST-1',
+                'content_sha256' => str_repeat('a', 64),
+                'voter_count' => 1,
+                'created_by' => 100,
+                'prepared_by' => 100,
+                'register_status' => 'draft',
+                'frozen_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $snapshotId = $this->insertSnapshot();
+        $this->assertWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['prepared_attestation_sha256' => str_repeat('d', 64)]);
+        });
+
+        $this->assertWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+                'register_status' => 'reconciled',
+                'reconciled_by' => 101,
+                'reconciled_at' => now(),
+                'integrity_verified_at' => now(),
+            ]);
+        });
+
+        DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+            'register_status' => 'reconciled',
+            'reconciled_by' => 101,
+            'reconciled_at' => now(),
+            'integrity_verified_at' => now(),
+            'reconciliation_attestation_sha256' => str_repeat('b', 64),
+            'reconciliation_attestation_key_id' => 'mysql-test-key-v1',
+        ]);
+
+        $this->assertWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+                'register_status' => 'frozen',
+                'approved_by' => 102,
+                'approved_at' => now(),
+                'frozen_at' => now(),
+            ]);
+        });
+
+        DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+            'register_status' => 'frozen',
+            'approved_by' => 102,
+            'approved_at' => now(),
+            'frozen_at' => now(),
+            'approval_attestation_sha256' => str_repeat('c', 64),
+            'approval_attestation_key_id' => 'mysql-test-key-v1',
+        ]);
+
+        self::assertSame('frozen', DB::table('governance_election_register_snapshots')
+            ->where('id', $snapshotId)->value('register_status'));
+    }
+
+    public function test_mysql_attestation_migration_can_be_rolled_back_and_reapplied(): void
+    {
+        $migration = require $this->attestationMigrationPath;
+        $migration->down();
+
+        $remaining = DB::table('information_schema.triggers')
+            ->where('trigger_schema', DB::connection()->getDatabaseName())
+            ->whereIn('trigger_name', [
+                'age_register_attestation_insert_guard',
+                'age_register_attestation_update_guard',
+            ])->count();
+
+        self::assertSame(0, $remaining);
+        $migration->up();
     }
 
     public function test_mysql_trigger_migration_can_be_rolled_back_and_reapplied(): void
@@ -397,6 +505,10 @@ PHP;
             && env('AGE_MYSQL_INTEGRATION') === '1'
             && preg_match('/age[_-]?test/i', (string) DB::connection()->getDatabaseName())) {
             try {
+                if ($this->attestationMigrationApplied && $this->attestationMigrationPath !== '') {
+                    $attestationMigration = require $this->attestationMigrationPath;
+                    $attestationMigration->down();
+                }
                 if ($this->migrationApplied && $this->migrationPath !== '') {
                     $migration = require $this->migrationPath;
                     $migration->down();
@@ -465,6 +577,9 @@ PHP;
             'source_reference' => 'MYSQL-AGE-TEST',
             'rule_version' => 'AGE-TEST-1',
             'content_sha256' => str_repeat('a', 64),
+            'snapshot_uuid' => Str::uuid()->toString(),
+            'prepared_attestation_sha256' => str_repeat('a', 64),
+            'prepared_attestation_key_id' => 'mysql-test-key-v1',
             'voter_count' => 1,
             'created_by' => 100,
             'prepared_by' => 100,

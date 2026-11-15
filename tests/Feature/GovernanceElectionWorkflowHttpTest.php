@@ -17,6 +17,16 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('age.register_attestation.active_key_id', 'http-test-key-v1');
+        config()->set('age.register_attestation.keys', [
+            'http-test-key-v1' => base64_encode(str_repeat('h', 32)),
+        ]);
+    }
+
     private function actor(Tenant $tenant, array $permissions): User
     {
         $user = User::factory()->create();
