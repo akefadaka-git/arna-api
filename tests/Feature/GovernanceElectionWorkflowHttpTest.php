@@ -156,7 +156,7 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
         $this->withHeaders($this->headers($tenant))->postJson($url, $payload)->assertStatus(409);
 
         $candidatePersonId = DB::table('people')->insertGetId([
-            'public_id' => (string) \Illuminate\Support\\Str::uuid(),
+            'public_id' => (string) \Illuminate\Support\Str::uuid(),
             'first_name_en' => 'Election',
             'father_name_en' => 'Test',
             'user_id' => $shareholder->id,
