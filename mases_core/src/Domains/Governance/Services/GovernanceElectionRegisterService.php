@@ -291,7 +291,14 @@ final class GovernanceElectionRegisterService
         if (count($rows) !== (int) $snapshot->voter_count || $rows === []) {
             return false;
         }
-        $hash = hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        $hash = self::snapshotContentHash(
+            (int) $snapshot->tenant_id,
+            (int) $snapshot->election_id,
+            (string) $snapshot->record_date,
+            (string) $snapshot->source_reference,
+            (string) $snapshot->rule_version,
+            $rows,
+        );
         return hash_equals((string) $snapshot->content_sha256, $hash);
     }
 
