@@ -23,6 +23,8 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 {
     private string $migrationPath = '';
     private string $attestationMigrationPath = '';
+    private string $receiptOutboxMigrationPath = '';
+    private bool $receiptOutboxMigrationApplied = false;
     private bool $attestationMigrationApplied = false;
     private bool $fixturesCreated = false;
     private bool $migrationApplied = false;
@@ -50,6 +52,9 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         $this->attestationMigrationPath = base_path(
             'mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_140000_add_voter_register_attestations.php'
         );
+        $this->receiptOutboxMigrationPath = base_path(
+            'mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_150000_create_age_receipt_outbox.php'
+        );
 
         $this->dropFixtureTables();
         $this->createFixtureTables();
@@ -61,6 +66,9 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         $attestationMigration = require $this->attestationMigrationPath;
         $attestationMigration->up();
         $this->attestationMigrationApplied = true;
+        $receiptOutboxMigration = require $this->receiptOutboxMigrationPath;
+        $receiptOutboxMigration->up();
+        $this->receiptOutboxMigrationApplied = true;
     }
 
     public function test_mysql_triggers_reject_invalid_freeze_transition(): void
@@ -505,6 +513,10 @@ PHP;
             && env('AGE_MYSQL_INTEGRATION') === '1'
             && preg_match('/age[_-]?test/i', (string) DB::connection()->getDatabaseName())) {
             try {
+                if ($this->receiptOutboxMigrationApplied && $this->receiptOutboxMigrationPath !== '') {
+                    $receiptOutboxMigration = require $this->receiptOutboxMigrationPath;
+                    $receiptOutboxMigration->down();
+                }
                 if ($this->attestationMigrationApplied && $this->attestationMigrationPath !== '') {
                     $attestationMigration = require $this->attestationMigrationPath;
                     $attestationMigration->down();
