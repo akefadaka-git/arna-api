@@ -262,4 +262,21 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString("->string('recusal_scope', 80)->nullable()", $migration);
         self::assertStringContainsString("->unsignedBigInteger('user_id')->nullable()", $identityMigration);
     }
+
+    public function test_voter_register_rows_are_reconstructed_server_side_not_accepted_from_client(): void
+    {
+        $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
+        $service = $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php');
+        $start = strpos($controller, 'function prepareVoterRegister(');
+        self::assertNotFalse($start);
+        $end = strpos($controller, "\\n    public function ", $start + 1);
+        $action = substr($controller, $start, $end === false ? null : $end - $start);
+
+        self::assertStringContainsString("$register->reconstructAsOf($tenantId, $data['record_date'], $data['source_reference'])", $action);
+        self::assertStringContainsString("$register->prepare($tenantId", $action);
+        self::assertStringNotContainsString("'entries' =>", $action);
+        self::assertStringContainsString('public function reconstructAsOf(', $service);
+        self::assertStringContainsString("DB::table('share_holding_entries')", $service);
+        self::assertStringContainsString("DB::table('share_holdings as h')", $service);
+    }
 }
