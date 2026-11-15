@@ -20,7 +20,9 @@ use Tests\TestCase;
  */
 final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 {
-    private string $migrationPath;
+    private string $migrationPath = '';
+    private bool $fixturesCreated = false;
+    private bool $migrationApplied = false;
 
     protected function setUp(): void
     {
@@ -45,9 +47,11 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 
         $this->dropFixtureTables();
         $this->createFixtureTables();
+        $this->fixturesCreated = true;
 
         $migration = require $this->migrationPath;
         $migration->up();
+        $this->migrationApplied = true;
     }
 
     public function test_mysql_triggers_reject_invalid_freeze_transition(): void
@@ -166,10 +170,14 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             && env('AGE_MYSQL_INTEGRATION') === '1'
             && preg_match('/age[_-]?test/i', (string) DB::connection()->getDatabaseName())) {
             try {
-                $migration = require $this->migrationPath;
-                $migration->down();
+                if ($this->migrationApplied && $this->migrationPath !== '') {
+                    $migration = require $this->migrationPath;
+                    $migration->down();
+                }
             } finally {
-                $this->dropFixtureTables();
+                if ($this->fixturesCreated) {
+                    $this->dropFixtureTables();
+                }
             }
         }
 
