@@ -35,8 +35,13 @@ final class AgeReceiptOutbox
         $streamUuid = (string) $snapshot->snapshot_uuid;
         $previous = DB::table('age_receipt_outbox')
             ->where('stream_uuid', $streamUuid)->orderByDesc('sequence')->lockForUpdate()->first();
+        if ($previous !== null && ($previous->delivery_state !== 'anchored'
+            || !is_string($previous->receipt_sha256)
+            || !preg_match('/^[a-f0-9]{64}$/D', $previous->receipt_sha256))) {
+            throw new RuntimeException('The prior AGE lifecycle event must be independently anchored before the next transition can be recorded.');
+        }
         $previousSequence = $previous === null ? 0 : (int) $previous->sequence;
-        $previousReceiptHash = $previous === null ? null : $previous->receipt_sha256;
+        $previousReceiptHash = $previous === null ? null : (string) $previous->receipt_sha256;
 
         $stage = match ($eventType) {
             'register.prepared' => ['key_id' => $snapshot->prepared_attestation_key_id, 'digest' => $snapshot->prepared_attestation_sha256],
