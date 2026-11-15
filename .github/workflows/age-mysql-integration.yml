@@ -8,15 +8,20 @@ on:
       - fix/age-a3-register-lifecycle-monotonicity
       - fix/age-a3-register-http-authorization
       - fix/age-a3-register-signed-attestations
+      - feat/age-a3-receipt-crypto-outbox
     paths:
       - ".github/workflows/age-mysql-integration.yml"
       - "mases_core/src/Domains/Governance/Database/Migrations/**"
+      - "tests/Unit/AgeReceipt*Test.php"
       - "mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php"
       - "mases_core/src/Domains/Governance/Security/AgeRegisterAttestation.php"
+      - "mases_core/src/Domains/Governance/Security/AgeReceipt*.php"
+      - "mases_core/src/Domains/Governance/Services/Receipts/**"
       - "config/age.php"
       - ".env.example"
       - "tests/Feature/AgeVoterRegisterMySqlIntegrationTest.php"
       - "tests/Feature/AgeVoterRegisterDatabaseTest.php"
+      - "tests/Feature/AgeVoterRegisterMySqlIntegrationTest.php"
       - "tests/Feature/GovernanceElectionWorkflowHttpTest.php"
       - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php"
       - "mases_core/src/Domains/Governance/Policies/GovernanceElectionPolicy.php"
@@ -76,6 +81,12 @@ jobs:
 
       - name: Run AGE MySQL integration tests
         run: vendor/bin/phpunit -c phpunit.age-mysql.xml --testdox
+
+      - name: Run AGE receipt cryptographic unit tests
+        run: vendor/bin/phpunit -c phpunit.xml tests/Unit/AgeReceiptSignatureVerifierTest.php --testdox
+
+      - name: Run AGE receipt adapter unit tests
+        run: vendor/bin/phpunit -c phpunit.xml tests/Unit/AgeReceiptAdapterContractTest.php --testdox
 
       - name: Run AGE SQLite database regression tests
         run: |
