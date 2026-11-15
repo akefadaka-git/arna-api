@@ -13,6 +13,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElectionNomination;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionLifecycleService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionManualCountService;
 
 final class GovernanceElectionWorkflowController extends Controller
 {
@@ -494,6 +495,50 @@ final class GovernanceElectionWorkflowController extends Controller
             'status' => 'submitted', 'created_at' => now(), 'updated_at' => now(),
         ]);
         return response()->json(['data' => ['appeal_id' => $id, 'status' => 'submitted']], 201);
+    }
+
+    public function manualCountBatchIndex(GovernanceElection $governanceElection, GovernanceElectionManualCountService $counts): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+
+        $result = $counts->listForElection($tenantId, (int) $governanceElection->id,
+            (int) auth()->id());
+
+        return response()->json(['data' => $result]);
+    }
+
+    public function storeManualCountBatch(Request $request, GovernanceElection $governanceElection, GovernanceElectionManualCountService $counts): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+
+        $data = $request->validate([
+            'batch_reference' => ['required', 'string', 'min:3', 'max:100'],
+            'polling_station' => ['nullable', 'string', 'max:120'],
+            'ballots_received' => ['required', 'integer', 'min:0'],
+            'ballots_valid' => ['required', 'integer', 'min:0'],
+            'ballots_rejected' => ['required', 'integer', 'min:0'],
+            'sealed_box_reference' => ['required', 'string', 'min:3', 'max:160'],
+            'count_sheet_reference' => ['required', 'string', 'min:3', 'max:160'],
+            'witness_user_id' => ['required', 'integer', 'min:1'],
+            'lines' => ['required', 'array', 'min:1'],
+            'lines.*.candidate_nomination_id' => ['required', 'integer', 'min:1'],
+            'lines.*.ballot_count' => ['required', 'integer', 'min:0'],
+            'lines.*.share_vote_weight' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $result = $counts->record(
+            $tenantId,
+            (int) $governanceElection->id,
+            (int) $request->user()->getAuthIdentifier(),
+            (int) $data['witness_user_id'],
+            $data,
+        );
+
+        return response()->json(['data' => $result], 201);
     }
 
     public function certifyElection(Request $request, GovernanceElection $governanceElection): JsonResponse
