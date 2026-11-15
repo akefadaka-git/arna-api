@@ -124,12 +124,11 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             'approved_by' => 102,
             'approved_at' => now(),
             'integrity_verified_at' => now(),
-            'frozen_at' => now(),
         ]);
 
-        // A valid freeze transition must be allowed; once frozen, all protected DML is rejected.
+        // Freeze timestamp and status change together; a non-null frozen_at is itself immutable.
         DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
-            ->update(['register_status' => 'frozen']);
+            ->update(['register_status' => 'frozen', 'frozen_at' => now()]);
 
         $this->assertWriteRejected(function () use ($snapshotId): void {
             $this->insertVoter($snapshotId, 7, 10, 'AFTER-FREEZE');
@@ -154,8 +153,8 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 
     public function test_mysql_concurrent_voter_insert_waits_for_freeze_and_is_rejected(): void
     {
-        if (!function_exists('pcntl_fork') || !function_exists('pcntl_waitpid')) {
-            self::markTestSkipped('The MySQL race test requires the pcntl extension.');
+        if (!function_exists('pcntl_fork') || !function_exists('pcntl_waitpid') || !function_exists('pcntl_exec')) {
+            self::markTestSkipped('The MySQL race test requires pcntl fork, exec, and waitpid support.');
         }
 
         $snapshotId = $this->insertSnapshot();
@@ -167,42 +166,68 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 
         $startedFile = tempnam(sys_get_temp_dir(), 'age-mysql-start-');
         $resultFile = tempnam(sys_get_temp_dir(), 'age-mysql-result-');
-        if ($startedFile === false || $resultFile === false) {
+        $workerFile = tempnam(sys_get_temp_dir(), 'age-mysql-worker-');
+        if ($startedFile === false || $resultFile === false || $workerFile === false) {
             DB::rollBack();
             self::fail('Unable to create synchronization files for the MySQL race test.');
         }
+
+        $worker = <<<'PHP'
+<?php
+declare(strict_types=1);
+[$script, $snapshotId, $startedFile, $resultFile] = $argv;
+try {
+    $dsn = sprintf(
+        'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
+        getenv('DB_HOST') ?: '127.0.0.1',
+        getenv('DB_PORT') ?: '3306',
+        getenv('DB_DATABASE') ?: ''
+    );
+    $pdo = new PDO($dsn, getenv('DB_USERNAME') ?: '', getenv('DB_PASSWORD') ?: '', [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
+    file_put_contents($startedFile, 'attempting');
+    $statement = $pdo->prepare(
+        'INSERT INTO governance_election_voters
+        (tenant_id, election_id, snapshot_id, shareholder_id, share_class_code,
+         share_quantity, voting_weight, entitlement_reference, proxy_authorized, created_at, updated_at)
+        VALUES (7, 10, ?, 21, "ORDINARY", 1.0000, 1.0000, "CONCURRENT-INSERT", 0, NOW(), NOW())'
+    );
+    $statement->execute([(int) $snapshotId]);
+    file_put_contents($resultFile, 'inserted');
+} catch (Throwable $exception) {
+    file_put_contents($resultFile, 'rejected:' . $exception->getMessage());
+}
+PHP;
+        file_put_contents($workerFile, $worker);
 
         $pid = pcntl_fork();
         if ($pid === -1) {
             DB::rollBack();
             @unlink($startedFile);
             @unlink($resultFile);
+            @unlink($workerFile);
             self::fail('Unable to fork the MySQL race-test worker.');
         }
 
         if ($pid === 0) {
-            try {
-                DB::purge();
-                DB::reconnect();
-                DB::statement('SET SESSION innodb_lock_wait_timeout = 5');
-                file_put_contents($startedFile, 'attempting');
-                $this->insertVoter($snapshotId, 7, 10, 'CONCURRENT-INSERT');
-                file_put_contents($resultFile, 'inserted');
-            } catch (\Throwable $exception) {
-                file_put_contents($resultFile, 'rejected:' . $exception->getMessage());
-            }
-            exit(0);
+            // Replace the forked process image so it cannot run PHP/PDO destructors
+            // against the parent's inherited Laravel connection.
+            pcntl_exec(PHP_BINARY, [$workerFile, (string) $snapshotId, $startedFile, $resultFile]);
+            file_put_contents($resultFile, 'rejected: unable to exec isolated MySQL worker');
+            exit(127);
         }
 
         $childReaped = false;
         try {
-            $deadline = microtime(true) + 5;
+            $deadline = microtime(true) + 10;
             while (!file_exists($startedFile) && microtime(true) < $deadline) {
                 usleep(50000);
             }
-            self::assertFileExists($startedFile, 'The child process did not start its database write.');
+            self::assertFileExists($startedFile, 'The isolated child process did not reach its database write.');
 
-            // The child must still be waiting while this transaction owns the snapshot row lock.
+            // The child has its own PDO connection and must block on the parent's row lock.
             usleep(300000);
             $childStatus = 0;
             $childState = pcntl_waitpid($pid, $childStatus, WNOHANG);
@@ -233,13 +258,13 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             if (DB::transactionLevel() > 0) {
                 DB::rollBack();
             }
-            // Always reap the child after releasing the parent lock, even if an assertion fails.
             if (!$childReaped) {
                 $childStatus = 0;
                 pcntl_waitpid($pid, $childStatus);
             }
             @unlink($startedFile);
             @unlink($resultFile);
+            @unlink($workerFile);
         }
     }
 
