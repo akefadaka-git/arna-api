@@ -21,12 +21,16 @@ use Tests\TestCase;
 final class AgeVoterRegisterDatabaseTest extends TestCase
 {
     private GovernanceElectionRegisterService $service;
+    private bool $immutabilityMigrationApplied = false;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->createSchema();
+        $migration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_130000_enforce_frozen_voter_register_immutability.php');
+        $migration->up();
+        $this->immutabilityMigrationApplied = true;
         config()->set('governance.election_voting.verified_class_entitlements', [
             'ORDINARY' => [
                 'verified' => true,
@@ -145,6 +149,63 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         }
     }
 
+    public function test_frozen_register_and_snapshot_reject_direct_database_mutations(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+
+        $voterId = (int) DB::table('governance_election_voters')
+            ->where('snapshot_id', $snapshotId)->value('id');
+
+        $this->assertFrozenWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_voters')->insert([
+                'tenant_id' => 7,
+                'election_id' => 10,
+                'snapshot_id' => $snapshotId,
+                'shareholder_id' => 21,
+                'share_class_code' => 'ORDINARY',
+                'share_quantity' => '1.0000',
+                'voting_weight' => '1.0000',
+                'entitlement_reference' => 'DIRECT-SQL-ATTEMPT',
+                'proxy_authorized' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($voterId): void {
+            DB::table('governance_election_voters')->where('id', $voterId)
+                ->update(['share_quantity' => '999.0000']);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($voterId): void {
+            DB::table('governance_election_voters')->where('id', $voterId)->delete();
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['source_reference' => 'ALTERED-AFTER-FREEZE']);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->delete();
+        });
+
+        self::assertSame(2, DB::table('governance_election_voters')->where('snapshot_id', $snapshotId)->count());
+        self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
+    }
+
+    private function assertFrozenWriteRejected(callable $write): void
+    {
+        try {
+            $write();
+            self::fail('A direct database mutation of a frozen register must be rejected.');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            self::assertStringContainsString('Frozen voter-register', $exception->getMessage());
+        }
+    }
+
     public function test_register_snapshot_is_not_accessible_across_tenant_boundaries(): void
     {
         $snapshotId = $this->prepareRegister();
@@ -167,6 +228,16 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
 
         self::assertSame('draft', DB::table('governance_election_register_snapshots')
             ->where('id', $snapshotId)->value('register_status'));
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->immutabilityMigrationApplied) {
+            $migration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_130000_enforce_frozen_voter_register_immutability.php');
+            $migration->down();
+        }
+
+        parent::tearDown();
     }
 
     private function prepareRegister(): int
