@@ -1,0 +1,257 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
+use RuntimeException;
+use Tests\TestCase;
+
+/**
+ * Database-backed SQLite coverage for the AGE voter-register lifecycle.
+ *
+ * These tests create only the minimal relational schema required by the
+ * production service. They exercise real query/transaction behavior, but
+ * do not replace full-migration MySQL, HTTP authorization, or concurrency tests.
+ */
+final class AgeVoterRegisterDatabaseTest extends TestCase
+{
+    private GovernanceElectionRegisterService $service;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->createSchema();
+        config()->set('governance.election_voting.verified_class_entitlements', [
+            'ORDINARY' => [
+                'verified' => true,
+                'eligible' => true,
+                'votes_per_share' => '1',
+                'evidence_reference' => 'LEGAL-RULE-ORDINARY',
+            ],
+        ]);
+
+        $this->service = new GovernanceElectionRegisterService();
+        DB::table('governance_elections')->insert([
+            'id' => 10,
+            'tenant_id' => 7,
+            'code' => 'AGE-TEST-01',
+            'title' => 'AGE database test',
+            'status' => 'planned',
+            'authority_reference' => 'AUTH-TEST',
+            'authority_verified_at' => now(),
+            'authority_verified_by' => 90,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('shareholders')->insert([
+            ['id' => 21, 'tenant_id' => 7, 'deleted_at' => null],
+            ['id' => 22, 'tenant_id' => 7, 'deleted_at' => null],
+        ]);
+    }
+
+    public function test_register_requires_three_distinct_actors_and_freezes_only_after_reconciliation(): void
+    {
+        $snapshotId = $this->prepareRegister();
+
+        try {
+            $this->service->reconcile(7, 10, $snapshotId, 100);
+            self::fail('The preparer must not reconcile their own register.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('The register preparer cannot independently reconcile the register.', $exception->getMessage());
+        }
+
+        $hash = $this->service->reconcile(7, 10, $snapshotId, 101);
+        self::assertSame(64, strlen($hash));
+        self::assertSame('reconciled', DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->value('register_status'));
+
+        try {
+            $this->service->approveAndFreeze(7, 10, $snapshotId, 101);
+            self::fail('The reconciler must not approve their own reconciliation.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('The approver must be independent of both preparation and reconciliation.', $exception->getMessage());
+        }
+
+        $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+        $snapshot = DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->first();
+
+        self::assertSame('frozen', $snapshot->register_status);
+        self::assertSame(100, (int) $snapshot->prepared_by);
+        self::assertSame(101, (int) $snapshot->reconciled_by);
+        self::assertSame(102, (int) $snapshot->approved_by);
+        self::assertNotNull($snapshot->frozen_at);
+        self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
+    }
+
+    public function test_tampered_register_rows_fail_integrity_and_cannot_be_frozen(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $this->service->reconcile(7, 10, $snapshotId, 101);
+
+        DB::table('governance_election_voters')
+            ->where('snapshot_id', $snapshotId)
+            ->where('shareholder_id', 21)
+            ->update(['share_quantity' => '99.0000']);
+
+        self::assertFalse($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
+
+        try {
+            $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+            self::fail('Tampered voter rows must prevent approval and freeze.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('Register content changed after reconciliation; approval is blocked.', $exception->getMessage());
+        }
+
+        self::assertSame('reconciled', DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->value('register_status'));
+        self::assertNull(DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->value('frozen_at'));
+    }
+
+    public function test_record_date_entitlements_are_reconstructed_from_ledger_and_projection_mismatch_fails_closed(): void
+    {
+        DB::table('share_classes')->insert(['id' => 3, 'code' => 'ORDINARY']);
+        DB::table('share_holdings')->insert([
+            'id' => 31, 'shareholder_id' => 21, 'share_class_id' => 3, 'current_quantity' => '15.0000',
+        ]);
+        DB::table('share_holding_entries')->insert([
+            [
+                'id' => 41, 'share_holding_id' => 31, 'quantity' => '10.0000',
+                'balance_before' => '0.0000', 'balance_after' => '10.0000',
+                'occurred_at' => '2026-01-01 09:00:00',
+            ],
+            [
+                'id' => 42, 'share_holding_id' => 31, 'quantity' => '5.0000',
+                'balance_before' => '10.0000', 'balance_after' => '15.0000',
+                'occurred_at' => '2026-02-01 09:00:00',
+            ],
+        ]);
+
+        $rows = $this->service->reconstructAsOf(7, '2026-01-15', 'LEDGER-EVIDENCE-01');
+        self::assertCount(1, $rows);
+        self::assertSame(21, $rows[0]['shareholder_id']);
+        self::assertSame('10.0000', $rows[0]['share_quantity']);
+        self::assertSame('10.0000', $rows[0]['voting_weight']);
+
+        DB::table('share_holdings')->where('id', 31)->update(['current_quantity' => '14.0000']);
+        try {
+            $this->service->reconstructAsOf(7, '2026-01-15', 'LEDGER-EVIDENCE-01');
+            self::fail('A current projection that disagrees with the full ledger must be rejected.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            self::assertArrayHasKey('share_projection', $exception->errors());
+        }
+    }
+
+    private function prepareRegister(): int
+    {
+        return $this->service->prepare(
+            7,
+            10,
+            '2026-01-15',
+            'LEDGER-EVIDENCE-01',
+            'AGE-RULES-1',
+            100,
+            [
+                [
+                    'shareholder_id' => 21,
+                    'share_class_code' => 'ORDINARY',
+                    'share_quantity' => '10.0000',
+                    'voting_weight' => '10.0000',
+                    'entitlement_reference' => 'LEDGER-EVIDENCE-01;class:LEGAL-RULE-ORDINARY',
+                ],
+                [
+                    'shareholder_id' => 22,
+                    'share_class_code' => 'ORDINARY',
+                    'share_quantity' => '5.0000',
+                    'voting_weight' => '5.0000',
+                    'entitlement_reference' => 'LEDGER-EVIDENCE-01;class:LEGAL-RULE-ORDINARY',
+                ],
+            ],
+        );
+    }
+
+    private function createSchema(): void
+    {
+        Schema::dropIfExists('share_holding_entries');
+        Schema::dropIfExists('share_holdings');
+        Schema::dropIfExists('share_classes');
+        Schema::dropIfExists('governance_election_voters');
+        Schema::dropIfExists('governance_election_register_snapshots');
+        Schema::dropIfExists('governance_elections');
+        Schema::dropIfExists('shareholders');
+
+        Schema::create('shareholders', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->softDeletes();
+        });
+        Schema::create('governance_elections', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('code');
+            $table->string('title');
+            $table->string('status');
+            $table->date('record_date')->nullable();
+            $table->string('authority_reference')->nullable();
+            $table->dateTime('authority_verified_at')->nullable();
+            $table->unsignedBigInteger('authority_verified_by')->nullable();
+            $table->string('voting_rule_version')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+        Schema::create('governance_election_register_snapshots', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('election_id');
+            $table->date('record_date');
+            $table->string('source_reference');
+            $table->string('rule_version');
+            $table->string('content_sha256', 64);
+            $table->unsignedInteger('voter_count');
+            $table->unsignedBigInteger('created_by');
+            $table->unsignedBigInteger('prepared_by')->nullable();
+            $table->unsignedBigInteger('reconciled_by')->nullable();
+            $table->dateTime('reconciled_at')->nullable();
+            $table->unsignedBigInteger('approved_by')->nullable();
+            $table->dateTime('approved_at')->nullable();
+            $table->dateTime('integrity_verified_at')->nullable();
+            $table->string('register_status', 24)->default('draft');
+            $table->dateTime('frozen_at')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('governance_election_voters', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('election_id');
+            $table->unsignedBigInteger('snapshot_id');
+            $table->unsignedBigInteger('shareholder_id');
+            $table->string('share_class_code');
+            $table->decimal('share_quantity', 20, 4);
+            $table->decimal('voting_weight', 20, 4);
+            $table->text('entitlement_reference');
+            $table->boolean('proxy_authorized')->default(false);
+            $table->timestamps();
+        });
+        Schema::create('share_classes', function (Blueprint $table): void {
+            $table->id();
+            $table->string('code');
+        });
+        Schema::create('share_holdings', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('shareholder_id');
+            $table->unsignedBigInteger('share_class_id');
+            $table->decimal('current_quantity', 20, 4);
+        });
+        Schema::create('share_holding_entries', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('share_holding_id');
+            $table->decimal('quantity', 20, 4);
+            $table->decimal('balance_before', 20, 4);
+            $table->decimal('balance_after', 20, 4);
+            $table->dateTime('occurred_at');
+        });
+    }
+}

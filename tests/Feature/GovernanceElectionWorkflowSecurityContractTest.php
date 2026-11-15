@@ -253,6 +253,14 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString("->sortBy([", $service);
     }
 
+    public function test_register_lifecycle_rollback_refuses_unfrozen_snapshots(): void
+    {
+        $migration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_120000_add_voter_register_approval_lifecycle.php');
+
+        self::assertStringContainsString("whereNull('frozen_at')->exists()", $migration);
+        self::assertStringContainsString('Cannot roll back voter-register lifecycle while draft or unfrozen snapshots exist', $migration);
+    }
+
     public function test_committee_recusal_and_identity_columns_are_persisted(): void
     {
         $migration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_160000_create_governance_election_hybrid_workflow_tables.php');
