@@ -211,7 +211,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 'frozen_at' => now(),
             ]);
             self::fail('A draft register must not be frozen without reconciliation, independent approval and integrity evidence.');
-        } catch (\\Illuminate\\Database\\QueryException $exception) {
+        } catch (\Illuminate\Database\QueryException $exception) {
             self::assertStringContainsString('cannot freeze', strtolower($exception->getMessage()));
         }
 
