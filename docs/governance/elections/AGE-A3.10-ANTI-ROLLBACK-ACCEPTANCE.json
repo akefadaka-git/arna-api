@@ -22,7 +22,8 @@
     "key_custody_and_rotation",
     "archive_immutability",
     "availability_and_disaster_recovery",
-    "operations_and_audit"
+    "operations_and_audit",
+    "independent_witness"
   ],
   "cases": [
     {
@@ -283,6 +284,55 @@
       "level": "operational",
       "scenario": "Inspect production-readiness evidence for legal retention, service SLA, freshness limit, clock skew, RPO/RTO, residency, owners and incident process.",
       "expected": "All values and owners explicitly approved; no placeholder or inferred value."
+    },
+    {
+      "id": "WITNESS-001",
+      "group": "independent_witness",
+      "level": "integration",
+      "scenario": "Witness receives a receipt with valid receipt-service signature, correct stream scope and expected predecessor.",
+      "expected": "Witness validates receipt and appends one checkpoint with the next sequence and prior checkpoint hash."
+    },
+    {
+      "id": "WITNESS-002",
+      "group": "independent_witness",
+      "level": "end_to_end",
+      "scenario": "Witness WORM write fails or times out after receipt service has signed a receipt.",
+      "expected": "ARNA receives no anchored acknowledgement; outbox remains anchor_pending; retry is idempotent."
+    },
+    {
+      "id": "WITNESS-003",
+      "group": "independent_witness",
+      "level": "end_to_end",
+      "scenario": "Roll receipt authority database back to an earlier state while witness WORM log remains current.",
+      "expected": "Direct nonce-bound witness query reports later witnessed head; ARNA detects receipt-service/witness divergence and fails closed."
+    },
+    {
+      "id": "WITNESS-004",
+      "group": "independent_witness",
+      "level": "integration",
+      "scenario": "Receipt authority attempts to submit a fabricated or re-signed replacement receipt to witness.",
+      "expected": "Witness rejects invalid signature or nonmatching predecessor; no checkpoint appended."
+    },
+    {
+      "id": "WITNESS-005",
+      "group": "independent_witness",
+      "level": "integration",
+      "scenario": "Receipt service operator attempts to sign a witness checkpoint or access witness KMS/HSM identity.",
+      "expected": "Denied; witness key is non-exportable and unavailable to receipt service principal."
+    },
+    {
+      "id": "WITNESS-006",
+      "group": "independent_witness",
+      "level": "end_to_end",
+      "scenario": "Replay a prior signed witness head response against a new 256-bit nonce.",
+      "expected": "ARNA rejects nonce mismatch; old checkpoint cannot satisfy currentness check."
+    },
+    {
+      "id": "WITNESS-007",
+      "group": "independent_witness",
+      "level": "operational",
+      "scenario": "Attempt to delete, replace or shorten retention for a witnessed checkpoint.",
+      "expected": "Denied by independently administered WORM retention controls; audit event preserved."
     }
   ],
   "exit_criteria": [
