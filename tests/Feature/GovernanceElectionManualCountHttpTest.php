@@ -116,7 +116,6 @@ final class GovernanceElectionManualCountHttpTest extends TestCase
             'ballots_rejected' => 1,
             'sealed_box_reference' => 'SEALED-BOX-001',
             'count_sheet_reference' => 'COUNT-SHEET-001',
-            'witness_user_id' => 0,
             'lines' => [[
                 'candidate_nomination_id' => $nominationId,
                 'ballot_count' => 6,
@@ -136,7 +135,6 @@ final class GovernanceElectionManualCountHttpTest extends TestCase
         $nominationId = $this->nomination((int) $tenant->id, $electionId);
 
         $payload = $this->payload($nominationId);
-        $payload['witness_user_id'] = $witness->id;
         Sanctum::actingAs($recorder);
 
         $response = $this->withHeaders($this->headers($tenant))
@@ -145,9 +143,11 @@ final class GovernanceElectionManualCountHttpTest extends TestCase
         $response->assertCreated()
             ->assertJsonPath('data.batch.batch_reference', 'COUNT-BATCH-001')
             ->assertJsonPath('data.batch.entered_by', $recorder->id)
-            ->assertJsonPath('data.batch.witnessed_by', $witness->id)
+            ->assertJsonPath('data.batch.witnessed_by', null)
+            ->assertJsonPath('data.batch.status', 'pending_witness')
             ->assertJsonPath('data.lines.0.candidate_nomination_id', $nominationId);
 
+        $batchId = (int) $response->json('data.batch.id');
         $this->assertDatabaseHas('governance_election_manual_count_batches', [
             'tenant_id' => $tenant->id,
             'election_id' => $electionId,
@@ -156,8 +156,23 @@ final class GovernanceElectionManualCountHttpTest extends TestCase
             'ballots_valid' => 9,
             'ballots_rejected' => 1,
             'entered_by' => $recorder->id,
-            'witnessed_by' => $witness->id,
+            'witnessed_by' => null,
+            'status' => 'pending_witness',
         ]);
+
+        Sanctum::actingAs($witness);
+        $this->withHeaders($this->headers($tenant))
+            ->postJson('/api/governance/elections/' . $electionId . '/count-batches/' . $batchId . '/witness')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'witnessed')
+            ->assertJsonPath('data.witnessed_by', $witness->id);
+
+        $this->assertDatabaseHas('governance_election_manual_count_batches', [
+            'id' => $batchId,
+            'witnessed_by' => $witness->id,
+            'status' => 'witnessed',
+        ]);
+        self::assertNotNull(DB::table('governance_election_manual_count_batches')->where('id', $batchId)->value('witnessed_at'));
         $this->assertDatabaseHas('governance_election_manual_count_lines', [
             'tenant_id' => $tenant->id,
             'election_id' => $electionId,
@@ -180,20 +195,25 @@ final class GovernanceElectionManualCountHttpTest extends TestCase
         $payload = $this->payload($nominationId);
         Sanctum::actingAs($recorder);
 
-        $payload['witness_user_id'] = $recorder->id;
-        $this->withHeaders($this->headers($tenant))
+        $created = $this->withHeaders($this->headers($tenant))
             ->postJson('/api/governance/elections/' . $electionId . '/count-batches', $payload)
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('witnessed_by');
+            ->assertCreated();
+        $batchId = (int) $created->json('data.batch.id');
 
-        $payload['witness_user_id'] = $witness->id;
+        Sanctum::actingAs($recorder);
+        $this->withHeaders($this->headers($tenant))
+            ->postJson('/api/governance/elections/' . $electionId . '/count-batches/' . $batchId . '/witness')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('batch');
+
+        $payload['batch_reference'] = 'COUNT-BATCH-002';
         $payload['ballots_valid'] = 8;
         $this->withHeaders($this->headers($tenant))
             ->postJson('/api/governance/elections/' . $electionId . '/count-batches', $payload)
             ->assertUnprocessable()
             ->assertJsonValidationErrors('ballots_received');
 
-        $this->assertDatabaseCount('governance_election_manual_count_batches', 0);
+        $this->assertDatabaseCount('governance_election_manual_count_batches', 1);
     }
 
     public function test_manual_count_rejects_unapproved_candidates_and_non_counting_elections(): void
@@ -206,7 +226,6 @@ final class GovernanceElectionManualCountHttpTest extends TestCase
         $this->appoint($tenant, $electionId, $witness, 8302);
         $nominationId = $this->nomination((int) $tenant->id, $electionId, false);
         $payload = $this->payload($nominationId);
-        $payload['witness_user_id'] = $witness->id;
         Sanctum::actingAs($recorder);
 
         $this->withHeaders($this->headers($tenant))
