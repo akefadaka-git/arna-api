@@ -86,8 +86,8 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             self::assertSame('The register preparer cannot independently reconcile the register.', $exception->getMessage());
         }
 
-        $hash = $this->anchorLatestOutboxForTest($snapshotId);
-        $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->anchorLatestOutboxForTest($snapshotId);
+        $hash = $this->service->reconcile(7, 10, $snapshotId, 101);
         self::assertSame(64, strlen($hash));
         self::assertSame('reconciled', DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->value('register_status'));
 
@@ -259,7 +259,6 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     {
         $snapshotId = $this->prepareRegister();
         $this->anchorLatestOutboxForTest($snapshotId);
-        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
         $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
@@ -361,6 +360,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
         }
 
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
         self::assertSame('frozen', DB::table('governance_election_register_snapshots')
             ->where('id', $snapshotId)->value('register_status'));
