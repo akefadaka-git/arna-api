@@ -144,8 +144,10 @@ BEGIN
             SIGNAL SQLSTATE '45000'
                 SET MESSAGE_TEXT = 'Voter row must reference an existing snapshot in the same tenant and election.';
         END IF;
-        SET v_new_status = v_old_status;
-        SET v_new_frozen_at = v_old_frozen_at;
+        SELECT register_status, frozen_at INTO v_new_status, v_new_frozen_at
+        FROM governance_election_register_snapshots
+        WHERE id = NEW.snapshot_id AND tenant_id = NEW.tenant_id AND election_id = NEW.election_id
+        FOR UPDATE;
     ELSEIF OLD.snapshot_id < NEW.snapshot_id THEN
         SELECT register_status, frozen_at INTO v_old_status, v_old_frozen_at
         FROM governance_election_register_snapshots
