@@ -67,7 +67,7 @@ final class GovernanceElectionWorkflowController extends Controller
 
     public function prepareVoterRegister(Request $request, GovernanceElection $governanceElection, GovernanceElectionRegisterService $register): JsonResponse
     {
-        Gate::authorize('update', $governanceElection);
+        Gate::authorize('manageRegister', $governanceElection);
         $tenantId = $this->tenantId();
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
         $data = $request->validate([
@@ -85,7 +85,7 @@ final class GovernanceElectionWorkflowController extends Controller
 
     public function reconcileVoterRegister(Request $request, GovernanceElection $governanceElection, int $snapshot, GovernanceElectionRegisterService $register): JsonResponse
     {
-        Gate::authorize('update', $governanceElection);
+        Gate::authorize('manageRegister', $governanceElection);
         $tenantId = $this->tenantId();
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
         $hash = $register->reconcile($tenantId, (int) $governanceElection->id, $snapshot,
@@ -95,7 +95,7 @@ final class GovernanceElectionWorkflowController extends Controller
 
     public function approveVoterRegister(Request $request, GovernanceElection $governanceElection, int $snapshot, GovernanceElectionRegisterService $register): JsonResponse
     {
-        Gate::authorize('update', $governanceElection);
+        Gate::authorize('manageRegister', $governanceElection);
         $tenantId = $this->tenantId();
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
         $register->approveAndFreeze($tenantId, (int) $governanceElection->id, $snapshot,
