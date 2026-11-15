@@ -97,7 +97,7 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        return app(\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Services\\GovernanceElectionRegisterService::class)
+        return app(\MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService::class)
             ->prepare(
                 (int) $tenant->id,
                 $electionId,
