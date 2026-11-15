@@ -38,8 +38,8 @@ final class AgeReceiptSignatureVerifier
     /** @param array<string,mixed> $signed */
     private function verify(array $signed, string $purpose, string $domain): bool
     {
-        $keyId = $signed['key_id'] ?? null;
-        $signatureEncoded = $signed['signature'] ?? null;
+        $keyId = $signed['key_id'] ?? $signed['receipt_key_id'] ?? $signed['witness_key_id'] ?? null;
+        $signatureEncoded = $signed['signature'] ?? $signed['receipt_signature'] ?? $signed['witness_signature'] ?? null;
         $signedAt = $signed['signed_at'] ?? $signed['witnessed_at'] ?? $signed['anchored_at'] ?? null;
         if (!is_string($keyId) || !is_string($signatureEncoded) || !is_string($signedAt)) {
             return false;
@@ -52,7 +52,7 @@ final class AgeReceiptSignatureVerifier
                 return false;
             }
 
-            unset($signed['signature']);
+            unset($signed['signature'], $signed['receipt_signature'], $signed['witness_signature']);
             $message = $domain . AgeReceiptCanonicalizer::encode($signed);
 
             return sodium_crypto_sign_verify_detached($signature, $message, $key['public_key']);
