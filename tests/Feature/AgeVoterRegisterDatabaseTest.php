@@ -315,7 +315,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 ->update(['content_sha256' => str_repeat('b', 64)]);
             self::fail('Prepared governing metadata must not be rewritten after snapshot creation.');
         } catch (\Illuminate\Database\QueryException $exception) {
-            self::assertStringContainsString('metadata is immutable', strtolower($exception->getMessage()));
+            self::assertStringContainsString('governing metadata', strtolower($exception->getMessage()));
         }
 
         $this->service->reconcile(7, 10, $snapshotId, 101);
