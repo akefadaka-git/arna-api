@@ -10,18 +10,6 @@ use Tests\TestCase;
 
 final class AgeReceiptSignatureVerifierTest extends TestCase
 {
-    /** @var array<string,string> */
-    private array $receiptKeys = [];
-
-    /** @var array<string,string> */
-    private array $witnessKeys = [];
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->receiptKeys = sodium_crypto_sign_keypair() ? [] : [];
-    }
-
     public function test_receipt_and_witness_signatures_require_separate_keys_and_domains(): void
     {
         $receiptPair = sodium_crypto_sign_keypair();
