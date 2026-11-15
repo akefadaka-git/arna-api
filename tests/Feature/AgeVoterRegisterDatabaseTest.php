@@ -294,6 +294,54 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         }
     }
 
+    public function test_snapshot_insert_must_begin_in_prepared_draft_state(): void
+    {
+        $insertSnapshot = static function (array $overrides): void {
+            DB::table('governance_election_register_snapshots')->insert(array_replace([
+                'tenant_id' => 7,
+                'election_id' => 10,
+                'record_date' => '2026-01-15',
+                'source_reference' => 'DIRECT-INSERT-TEST',
+                'rule_version' => 'AGE-RULES-1',
+                'content_sha256' => str_repeat('a', 64),
+                'voter_count' => 1,
+                'created_by' => 100,
+                'prepared_by' => 100,
+                'register_status' => 'draft',
+                'frozen_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ], $overrides));
+        };
+
+        try {
+            $insertSnapshot([
+                'register_status' => 'frozen',
+                'frozen_at' => now(),
+                'reconciled_by' => 101,
+                'reconciled_at' => now(),
+                'approved_by' => 102,
+                'approved_at' => now(),
+                'integrity_verified_at' => now(),
+            ]);
+            self::fail('A snapshot must not be inserted directly in the frozen state.');
+        } catch (\\Illuminate\\Database\\QueryException $exception) {
+            self::assertStringContainsString('initial prepared draft state', strtolower($exception->getMessage()));
+        }
+
+        try {
+            $insertSnapshot([
+                'register_status' => 'draft',
+                'frozen_at' => now(),
+            ]);
+            self::fail('A draft snapshot must not be inserted with a freeze timestamp.');
+        } catch (\\Illuminate\\Database\\QueryException $exception) {
+            self::assertStringContainsString('initial prepared draft state', strtolower($exception->getMessage()));
+        }
+
+        self::assertSame(0, DB::table('governance_election_register_snapshots')->count());
+    }
+
     public function test_register_snapshot_is_not_accessible_across_tenant_boundaries(): void
     {
         $snapshotId = $this->prepareRegister();
