@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/age-mysql-integration.yml"
       - "mases_core/src/Domains/Governance/Database/Migrations/**"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php"
       - "tests/Feature/AgeVoterRegisterMySqlIntegrationTest.php"
       - "tests/Feature/AgeVoterRegisterDatabaseTest.php"
       - "phpunit.age-mysql.xml"
