@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\Receipts\AgeReceiptGateway;
+use MaaleArna\MASES\Core\Domains\Governance\Services\Receipts\AgeReceiptOutboxDispatcher;
+use MaaleArna\MASES\Core\Domains\Governance\Security\AgeReceiptSignatureVerifier;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -25,6 +28,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     private GovernanceElectionRegisterService $service;
     private bool $immutabilityMigrationApplied = false;
     private bool $attestationMigrationApplied = false;
+    private bool $receiptOutboxMigrationApplied = false;
 
     protected function setUp(): void
     {
@@ -37,6 +41,9 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         $attestationMigration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_140000_add_voter_register_attestations.php');
         $attestationMigration->up();
         $this->attestationMigrationApplied = true;
+        $receiptOutboxMigration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_150000_create_age_receipt_outbox.php');
+        $receiptOutboxMigration->up();
+        $this->receiptOutboxMigrationApplied = true;
         config()->set('age.register_attestation.active_key_id', 'test-key-v1');
         config()->set('age.register_attestation.keys', ['test-key-v1' => base64_encode(str_repeat('k', 32))]);
         config()->set('governance.election_voting.verified_class_entitlements', [
@@ -518,8 +525,85 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             ->where('id', $snapshotId)->value('register_status'));
     }
 
+
+    public function test_lifecycle_transitions_create_ordered_immutable_outbox_events(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $events = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->orderBy('sequence')->get();
+        self::assertCount(1, $events);
+        self::assertSame('register.prepared', $events[0]->event_type);
+        self::assertSame('pending', $events[0]->delivery_state);
+        self::assertSame(0, (int) $events[0]->expected_previous_sequence);
+        self::assertSame(64, strlen($events[0]->event_sha256));
+        self::assertStringNotContainsString('shareholder_id', $events[0]->canonical_event);
+        $firstIdempotencyKey = $events[0]->idempotency_key;
+        $firstPayload = $events[0]->canonical_event;
+
+        $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+
+        $events = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->orderBy('sequence')->get();
+        self::assertCount(3, $events);
+        self::assertSame(['register.prepared', 'register.reconciled', 'register.approved_frozen'], $events->pluck('event_type')->all());
+        self::assertSame([1, 2, 3], $events->pluck('sequence')->map(fn ($v) => (int) $v)->all());
+        self::assertSame(1, (int) $events[1]->expected_previous_sequence);
+        self::assertSame(2, (int) $events[2]->expected_previous_sequence);
+        self::assertNull($events[1]->expected_previous_receipt_sha256);
+        self::assertSame($firstIdempotencyKey, $events[0]->idempotency_key);
+        self::assertSame($firstPayload, $events[0]->canonical_event);
+        self::assertStringNotContainsString('shareholder_id', $events[2]->canonical_event);
+    }
+
+    public function test_outbox_retries_preserve_event_identity_and_protocol_failure_quarantines(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $event = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->first();
+        $originalKey = $event->idempotency_key;
+        $originalPayload = $event->canonical_event;
+        $gateway = new class implements AgeReceiptGateway {
+            public function append(array $request): array
+            {
+                throw new RuntimeException('simulated transport timeout');
+            }
+            public function challengeWitnessHead(array $request): array
+            {
+                throw new RuntimeException('not used');
+            }
+        };
+        $dispatcher = new AgeReceiptOutboxDispatcher();
+        $verifier = new AgeReceiptSignatureVerifier();
+
+        self::assertFalse($dispatcher->dispatch((int) $event->id, $gateway, $verifier));
+        $failed = DB::table('age_receipt_outbox')->where('id', $event->id)->first();
+        self::assertSame('retryable_failure', $failed->delivery_state);
+        self::assertSame(1, (int) $failed->attempt_count);
+        self::assertSame($originalKey, $failed->idempotency_key);
+        self::assertSame($originalPayload, $failed->canonical_event);
+
+        $dispatcher->scheduleRetry((int) $event->id);
+        $invalidGateway = new class implements AgeReceiptGateway {
+            public function append(array $request): array
+            {
+                return ['receipt' => ['key_id' => 'unknown', 'signature' => 'invalid'], 'witness_checkpoint' => []];
+            }
+            public function challengeWitnessHead(array $request): array
+            {
+                throw new RuntimeException('not used');
+            }
+        };
+        self::assertFalse($dispatcher->dispatch((int) $event->id, $invalidGateway, $verifier));
+        $quarantined = DB::table('age_receipt_outbox')->where('id', $event->id)->first();
+        self::assertSame('quarantined', $quarantined->delivery_state);
+        self::assertNotNull($quarantined->quarantined_at);
+        self::assertSame($originalKey, $quarantined->idempotency_key);
+        self::assertSame($originalPayload, $quarantined->canonical_event);
+    }
+
     protected function tearDown(): void
     {
+        if ($this->receiptOutboxMigrationApplied) {
+            Schema::dropIfExists('age_receipt_outbox');
+        }
         if ($this->attestationMigrationApplied) {
             $attestationMigration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_140000_add_voter_register_attestations.php');
             $attestationMigration->down();
