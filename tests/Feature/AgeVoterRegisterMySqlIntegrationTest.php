@@ -197,13 +197,16 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             self::assertSame(0, $childState, 'The voter insert did not wait for the parent snapshot lock.');
 
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
-                'register_status' => 'frozen',
+                'register_status' => 'reconciled',
                 'prepared_by' => 100,
                 'reconciled_by' => 101,
                 'reconciled_at' => now(),
                 'approved_by' => 102,
                 'approved_at' => now(),
                 'integrity_verified_at' => now(),
+            ]);
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+                'register_status' => 'frozen',
                 'frozen_at' => now(),
             ]);
             DB::commit();
