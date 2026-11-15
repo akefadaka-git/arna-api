@@ -122,7 +122,7 @@ final class GovernanceElectionRegisterService
         self::assertDecimalArithmetic();
         return DB::transaction(function () use ($tenantId, $electionId, $recordDate, $sourceReference, $ruleVersion, $actorId, $entries): int {
             $election = GovernanceElection::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($electionId);
-            if (!$election->isAuthorityVerified() || $election->status !== 'planned') {
+            if (!$election->isAuthorityVerified() || !in_array($election->status, ['planned', 'nominating'], true)) {
                 throw new RuntimeException('Verified authority and planned status are required before register freeze.');
             }
             if ($election->record_date !== null && $election->record_date->toDateString() !== $recordDate) {
