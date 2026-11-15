@@ -320,7 +320,7 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             $table->text('entitlement_reference');
             $table->boolean('proxy_authorized')->default(false);
             $table->timestamps();
-            $table->index(['snapshot_id', 'tenant_id', 'election_id']);
+            $table->index(['snapshot_id', 'tenant_id', 'election_id'], 'age_voters_snapshot_scope_idx');
         });
     }
 
