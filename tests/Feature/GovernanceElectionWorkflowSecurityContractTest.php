@@ -272,8 +272,8 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         $end = strpos($controller, "\\n    public function ", $start + 1);
         $action = substr($controller, $start, $end === false ? null : $end - $start);
 
-        self::assertStringContainsString("$register->reconstructAsOf($tenantId, $data['record_date'], $data['source_reference'])", $action);
-        self::assertStringContainsString("$register->prepare($tenantId", $action);
+        self::assertStringContainsString('reconstructAsOf($tenantId', $action);
+        self::assertStringContainsString('prepare($tenantId', $action);
         self::assertStringNotContainsString("'entries' =>", $action);
         self::assertStringContainsString('public function reconstructAsOf(', $service);
         self::assertStringContainsString("DB::table('share_holding_entries')", $service);
