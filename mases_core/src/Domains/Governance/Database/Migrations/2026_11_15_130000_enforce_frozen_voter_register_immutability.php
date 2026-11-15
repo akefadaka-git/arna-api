@@ -12,6 +12,7 @@ return new class extends Migration
         'age_voter_register_frozen_update',
         'age_voter_register_frozen_delete',
         'age_register_snapshot_frozen_update',
+        'age_register_snapshot_freeze_transition_guard',
         'age_register_snapshot_frozen_delete',
     ];
 
@@ -51,6 +52,61 @@ return new class extends Migration
     private function createMySqlTriggers(): void
     {
         DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_freeze_transition_guard
+BEFORE UPDATE ON governance_election_register_snapshots
+FOR EACH ROW
+BEGIN
+    IF NEW.register_status = 'frozen'
+       AND OLD.register_status <> 'frozen'
+       AND (
+           OLD.register_status <> 'reconciled'
+           OR NEW.prepared_by IS NULL
+           OR NEW.reconciled_by IS NULL
+           OR NEW.approved_by IS NULL
+           OR NEW.prepared_by = NEW.reconciled_by
+           OR NEW.prepared_by = NEW.approved_by
+           OR NEW.reconciled_by = NEW.approved_by
+           OR NEW.reconciled_at IS NULL
+           OR NEW.approved_at IS NULL
+           OR NEW.integrity_verified_at IS NULL
+           OR NEW.frozen_at IS NULL
+           OR NEW.content_sha256 IS NULL
+           OR NEW.content_sha256 = ''
+           OR NEW.voter_count < 1
+       ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Voter register cannot freeze without independent approval and verified integrity.';
+    END IF;
+END
+SQL);
+
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_freeze_transition_guard
+BEFORE UPDATE ON governance_election_register_snapshots
+WHEN NEW.register_status = 'frozen'
+ AND OLD.register_status <> 'frozen'
+ AND (
+    OLD.register_status <> 'reconciled'
+    OR NEW.prepared_by IS NULL
+    OR NEW.reconciled_by IS NULL
+    OR NEW.approved_by IS NULL
+    OR NEW.prepared_by = NEW.reconciled_by
+    OR NEW.prepared_by = NEW.approved_by
+    OR NEW.reconciled_by = NEW.approved_by
+    OR NEW.reconciled_at IS NULL
+    OR NEW.approved_at IS NULL
+    OR NEW.integrity_verified_at IS NULL
+    OR NEW.frozen_at IS NULL
+    OR NEW.content_sha256 IS NULL
+    OR NEW.content_sha256 = ''
+    OR NEW.voter_count < 1
+ )
+BEGIN
+    SELECT RAISE(ABORT, 'Voter register cannot freeze without independent approval and verified integrity.');
+END
+SQL);
+
+        DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_register_snapshot_frozen_update
 BEFORE UPDATE ON governance_election_register_snapshots
 FOR EACH ROW
@@ -83,7 +139,7 @@ BEGIN
     DECLARE v_frozen_at DATETIME;
     SELECT register_status, frozen_at INTO v_status, v_frozen_at
     FROM governance_election_register_snapshots
-    WHERE id = NEW.snapshot_id
+    WHERE id = NEW.snapshot_id AND tenant_id = NEW.tenant_id AND election_id = NEW.election_id
     FOR UPDATE;
     IF v_status = 'frozen' OR v_frozen_at IS NOT NULL THEN
         SIGNAL SQLSTATE '45000'
@@ -104,7 +160,7 @@ BEGIN
     IF OLD.snapshot_id = NEW.snapshot_id THEN
         SELECT register_status, frozen_at INTO v_old_status, v_old_frozen_at
         FROM governance_election_register_snapshots
-        WHERE id = OLD.snapshot_id
+        WHERE id = OLD.snapshot_id AND tenant_id = OLD.tenant_id AND election_id = OLD.election_id
         FOR UPDATE;
         SET v_new_status = v_old_status;
         SET v_new_frozen_at = v_old_frozen_at;
@@ -115,7 +171,7 @@ BEGIN
         FOR UPDATE;
         SELECT register_status, frozen_at INTO v_new_status, v_new_frozen_at
         FROM governance_election_register_snapshots
-        WHERE id = NEW.snapshot_id
+        WHERE id = NEW.snapshot_id AND tenant_id = NEW.tenant_id AND election_id = NEW.election_id
         FOR UPDATE;
     ELSE
         SELECT register_status, frozen_at INTO v_new_status, v_new_frozen_at
@@ -144,7 +200,7 @@ BEGIN
     DECLARE v_frozen_at DATETIME;
     SELECT register_status, frozen_at INTO v_status, v_frozen_at
     FROM governance_election_register_snapshots
-    WHERE id = OLD.snapshot_id
+    WHERE id = OLD.snapshot_id AND tenant_id = OLD.tenant_id AND election_id = OLD.election_id
     FOR UPDATE;
     IF v_status = 'frozen' OR v_frozen_at IS NOT NULL THEN
         SIGNAL SQLSTATE '45000'
@@ -177,10 +233,12 @@ SQL);
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_voter_register_frozen_insert
 BEFORE INSERT ON governance_election_voters
-WHEN EXISTS (
-    SELECT 1
-    FROM governance_election_register_snapshots
-    WHERE id = NEW.snapshot_id
+WHEN NOT EXISTS (
+    SELECT 1 FROM governance_election_register_snapshots
+    WHERE id = NEW.snapshot_id AND tenant_id = NEW.tenant_id AND election_id = NEW.election_id
+) OR EXISTS (
+    SELECT 1 FROM governance_election_register_snapshots
+    WHERE id = NEW.snapshot_id AND tenant_id = NEW.tenant_id AND election_id = NEW.election_id
       AND (register_status = 'frozen' OR frozen_at IS NOT NULL)
 )
 BEGIN
@@ -191,10 +249,16 @@ SQL);
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_voter_register_frozen_update
 BEFORE UPDATE ON governance_election_voters
-WHEN EXISTS (
-    SELECT 1
-    FROM governance_election_register_snapshots
-    WHERE id IN (OLD.snapshot_id, NEW.snapshot_id)
+WHEN NOT EXISTS (
+    SELECT 1 FROM governance_election_register_snapshots
+    WHERE id = OLD.snapshot_id AND tenant_id = OLD.tenant_id AND election_id = OLD.election_id
+) OR NOT EXISTS (
+    SELECT 1 FROM governance_election_register_snapshots
+    WHERE id = NEW.snapshot_id AND tenant_id = NEW.tenant_id AND election_id = NEW.election_id
+) OR EXISTS (
+    SELECT 1 FROM governance_election_register_snapshots
+    WHERE (id = OLD.snapshot_id AND tenant_id = OLD.tenant_id AND election_id = OLD.election_id
+           OR id = NEW.snapshot_id AND tenant_id = NEW.tenant_id AND election_id = NEW.election_id)
       AND (register_status = 'frozen' OR frozen_at IS NOT NULL)
 )
 BEGIN
@@ -205,10 +269,12 @@ SQL);
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_voter_register_frozen_delete
 BEFORE DELETE ON governance_election_voters
-WHEN EXISTS (
-    SELECT 1
-    FROM governance_election_register_snapshots
-    WHERE id = OLD.snapshot_id
+WHEN NOT EXISTS (
+    SELECT 1 FROM governance_election_register_snapshots
+    WHERE id = OLD.snapshot_id AND tenant_id = OLD.tenant_id AND election_id = OLD.election_id
+) OR EXISTS (
+    SELECT 1 FROM governance_election_register_snapshots
+    WHERE id = OLD.snapshot_id AND tenant_id = OLD.tenant_id AND election_id = OLD.election_id
       AND (register_status = 'frozen' OR frozen_at IS NOT NULL)
 )
 BEGIN
