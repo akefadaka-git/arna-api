@@ -108,7 +108,7 @@ BEGIN
                OR NEW.frozen_at IS NOT NULL
             THEN
                 SIGNAL SQLSTATE '45000'
-                    SET MESSAGE_TEXT = 'Draft registers may transition only to independently reconciled state.';
+                    SET MESSAGE_TEXT = 'Voter register lifecycle permits draft-to-reconciled only with an independent reconciler.';
             END IF;
         ELSEIF OLD.register_status = 'reconciled' AND NEW.register_status = 'frozen' THEN
             IF OLD.reconciled_by IS NULL
