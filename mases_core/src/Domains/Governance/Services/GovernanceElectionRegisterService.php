@@ -56,7 +56,7 @@ final class GovernanceElectionRegisterService
                     ->whereColumn('e.share_holding_id', 'h.id')
                     ->where('e.occurred_at', '<=', $cutoff);
             })
-            ->select(['h.id as holding_id', 'h.shareholder_id', 'c.code as class_code'])
+            ->select(['h.id as holding_id', 'h.shareholder_id', 'h.current_quantity', 'c.code as class_code'])
             ->orderBy('h.shareholder_id')->orderBy('c.code')->get();
 
         $entries = [];
@@ -70,16 +70,18 @@ final class GovernanceElectionRegisterService
                     'share_class_entitlements' => "Share class {$class} has no verified eligible voting entitlement. Register freeze is blocked.",
                 ]);
             }
+            // Validate the complete append-only ledger against the current-state projection,
+            // while separately capturing the balance at the election record-date cutoff.
             $ledger = DB::table('share_holding_entries')
                 ->where('share_holding_id', $holding->holding_id)
-                ->where('occurred_at', '<=', $cutoff)
                 ->orderBy('occurred_at')->orderBy('id')->get();
             if ($ledger->isEmpty()) {
                 throw ValidationException::withMessages([
-                    'share_ledger' => "Holding {$holding->holding_id} has no ledger history; its record-date entitlement cannot be reconstructed.",
+                    'share_ledger' => "Holding {$holding->holding_id} has no ledger history; its projection cannot be trusted.",
                 ]);
             }
             $balance = '0.0000';
+            $recordDateBalance = '0.0000';
             foreach ($ledger as $entry) {
                 if (bccomp((string) $entry->balance_before, $balance, 4) !== 0) {
                     throw ValidationException::withMessages(['share_ledger' => "Ledger chain is inconsistent for holding {$holding->holding_id}."]);
@@ -89,7 +91,16 @@ final class GovernanceElectionRegisterService
                     throw ValidationException::withMessages(['share_ledger' => "Ledger balance invariant failed for holding {$holding->holding_id}."]);
                 }
                 $balance = $expected;
+                if (Carbon::parse($entry->occurred_at)->lte($cutoff)) {
+                    $recordDateBalance = $balance;
+                }
             }
+            if (bccomp($balance, (string) $holding->current_quantity, 4) !== 0) {
+                throw ValidationException::withMessages([
+                    'share_projection' => "Current holding projection disagrees with its authoritative ledger for holding {$holding->holding_id}.",
+                ]);
+            }
+            $balance = $recordDateBalance;
             if (bccomp($balance, '0', 4) > 0) {
                 $rate = (string) $classRule['votes_per_share'];
                 $entries[] = [
