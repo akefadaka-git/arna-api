@@ -356,6 +356,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
 
         DB::unprepared('DROP TRIGGER IF EXISTS age_register_snapshot_frozen_update');
+        DB::unprepared('DROP TRIGGER IF EXISTS age_register_snapshot_lifecycle_transition_guard');
         DB::unprepared('DROP TRIGGER IF EXISTS age_register_attestation_update_guard');
         DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
             ->update(['approved_by' => 103]);
