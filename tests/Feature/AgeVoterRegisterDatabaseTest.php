@@ -8,6 +8,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionPhysicalBallotService;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -343,7 +344,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             (new GovernanceElectionPhysicalBallotService($this->service))
                 ->issue(7, 10, 999999, 'PAPER-MISSING-01', 103);
             self::fail('A voter outside the frozen register must not receive a physical ballot.');
-        } catch (\\Illuminate\\Validation\\ValidationException $exception) {
+        } catch (\Illuminate\Validation\ValidationException $exception) {
             self::assertArrayHasKey('voter_id', $exception->errors());
         }
 
