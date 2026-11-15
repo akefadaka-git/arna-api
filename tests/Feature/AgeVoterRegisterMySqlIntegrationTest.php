@@ -174,15 +174,17 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             try {
                 DB::purge();
                 DB::reconnect();
+                DB::statement('SET SESSION innodb_lock_wait_timeout = 5');
                 file_put_contents($startedFile, 'attempting');
                 $this->insertVoter($snapshotId, 7, 10, 'CONCURRENT-INSERT');
                 file_put_contents($resultFile, 'inserted');
-            } catch (\Throwable $exception) {
+            } catch (\\Throwable $exception) {
                 file_put_contents($resultFile, 'rejected:' . $exception->getMessage());
             }
             exit(0);
         }
 
+        $childReaped = false;
         try {
             $deadline = microtime(true) + 5;
             while (!file_exists($startedFile) && microtime(true) < $deadline) {
@@ -212,6 +214,7 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             DB::commit();
 
             pcntl_waitpid($pid, $childStatus);
+            $childReaped = true;
             self::assertFileExists($resultFile);
             $result = (string) file_get_contents($resultFile);
             self::assertStringStartsWith('rejected:', $result, 'A concurrent voter insert must observe the committed frozen state and be rejected.');
@@ -219,6 +222,11 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         } finally {
             if (DB::transactionLevel() > 0) {
                 DB::rollBack();
+            }
+            // Always reap the child after releasing the parent lock, even if an assertion fails.
+            if (!$childReaped) {
+                $childStatus = 0;
+                pcntl_waitpid($pid, $childStatus);
             }
             @unlink($startedFile);
             @unlink($resultFile);
