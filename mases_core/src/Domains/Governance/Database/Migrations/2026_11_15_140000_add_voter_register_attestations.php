@@ -16,6 +16,11 @@ return new class extends Migration
 
     public function up(): void
     {
+        $driver = DB::getDriverName();
+        if (!in_array($driver, ['mysql', 'sqlite'], true)) {
+            throw new RuntimeException("AGE register attestations are not implemented for database driver [{$driver}].");
+        }
+
         Schema::table('governance_election_register_snapshots', function (Blueprint $table): void {
             $table->char('snapshot_uuid', 36)->nullable()->after('content_sha256')->unique();
             $table->char('prepared_attestation_sha256', 64)->nullable()->after('snapshot_uuid');
@@ -26,7 +31,6 @@ return new class extends Migration
             $table->string('approval_attestation_key_id', 64)->nullable()->after('approval_attestation_sha256');
         });
 
-        $driver = DB::getDriverName();
         if ($driver === 'mysql') {
             $this->createMySqlTriggers();
             return;
@@ -36,7 +40,6 @@ return new class extends Migration
             return;
         }
 
-        throw new RuntimeException("AGE register attestations are not implemented for database driver [{$driver}].");
     }
 
     public function down(): void
