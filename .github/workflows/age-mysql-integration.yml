@@ -80,7 +80,6 @@ jobs:
 
       - name: Run AGE manual-count HTTP regression tests
         if: success()
-        working-directory: mases_core
         run: |
           DB_CONNECTION=sqlite DB_DATABASE=':memory:' AGE_MYSQL_INTEGRATION=0 vendor/bin/phpunit -c phpunit.xml tests/Feature/GovernanceElectionManualCountHttpTest.php --testdox
 
