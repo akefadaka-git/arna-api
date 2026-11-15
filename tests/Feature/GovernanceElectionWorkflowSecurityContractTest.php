@@ -269,7 +269,7 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         $service = $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php');
         $start = strpos($controller, 'function prepareVoterRegister(');
         self::assertNotFalse($start);
-        $end = strpos($controller, "\\n    public function ", $start + 1);
+        $end = strpos($controller, "\n    public function ", $start + 1);
         $action = substr($controller, $start, $end === false ? null : $end - $start);
 
         self::assertStringContainsString('reconstructAsOf($tenantId', $action);
