@@ -2,12 +2,24 @@ name: AGE MySQL integration
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/age-mysql-integration.yml"
+      - "mases_core/src/Domains/Governance/Database/Migrations/**"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php"
+      - "mases_core/src/Domains/Governance/Security/AgeReceipt*.php"
+      - "mases_core/src/Domains/Governance/Services/Receipts/**"
+      - "config/age.php"
+      - "tests/Feature/AgeVoterRegisterDatabaseTest.php"
+      - "tests/Feature/AgeVoterRegisterMySqlIntegrationTest.php"
+      - "tests/Unit/AgeReceipt*Test.php"
   push:
     branches:
       - fix/age-a3-frozen-register-db-immutability
       - fix/age-a3-register-lifecycle-monotonicity
       - fix/age-a3-register-http-authorization
       - fix/age-a3-register-signed-attestations
+      - feat/age-a3-receipt-crypto-outbox
     paths:
       - ".github/workflows/age-mysql-integration.yml"
       - "mases_core/src/Domains/Governance/Database/Migrations/**"
