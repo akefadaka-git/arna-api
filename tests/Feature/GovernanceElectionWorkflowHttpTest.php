@@ -151,13 +151,25 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
         $shareholder = $this->actor($tenant, ['governance.election.view']);
         Sanctum::actingAs($shareholder);
         $url = '/api/governance/elections/' . $electionId . '/nominations';
-        $payload = ['candidate_person_id' => 91001, 'self_nomination' => true, 'statement' => 'Candidate statement for testing.'];
+        $payload = ['candidate_person_id' => 1, 'self_nomination' => true, 'statement' => 'Candidate statement for testing.'];
 
         $this->withHeaders($this->headers($tenant))->postJson($url, $payload)->assertStatus(409);
+
+        $candidatePersonId = DB::table('people')->insertGetId([
+            'public_id' => (string) \Illuminate\Support\\Str::uuid(),
+            'first_name_en' => 'Election',
+            'father_name_en' => 'Test',
+            'user_id' => $shareholder->id,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $payload['candidate_person_id'] = $candidatePersonId;
 
         DB::table('shareholders')->insert([
             'tenant_id' => $tenant->id, 'shareholder_type' => 'individual',
             'first_name_en' => 'Election', 'father_name_en' => 'Test',
+            'person_id' => $candidatePersonId,
             'user_id' => $shareholder->id, 'is_active' => true,
             'created_at' => now(), 'updated_at' => now(),
         ]);
