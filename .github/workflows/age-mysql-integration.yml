@@ -6,6 +6,7 @@ on:
     branches:
       - fix/age-a3-frozen-register-db-immutability
       - fix/age-a3-register-lifecycle-monotonicity
+      - fix/age-a3-register-http-authorization
     paths:
       - ".github/workflows/age-mysql-integration.yml"
       - "mases_core/src/Domains/Governance/Database/Migrations/**"
