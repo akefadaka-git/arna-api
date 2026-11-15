@@ -145,6 +145,30 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         }
     }
 
+    public function test_register_snapshot_is_not_accessible_across_tenant_boundaries(): void
+    {
+        $snapshotId = $this->prepareRegister();
+
+        self::assertFalse($this->service->hasValidSnapshotIntegrity(8, 10, $snapshotId));
+
+        try {
+            $this->service->reconcile(8, 10, $snapshotId, 101);
+            self::fail('A tenant must not reconcile another tenant election register.');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $exception) {
+            self::assertTrue(true);
+        }
+
+        try {
+            $this->service->approveAndFreeze(8, 10, $snapshotId, 102);
+            self::fail('A tenant must not approve another tenant election register.');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $exception) {
+            self::assertTrue(true);
+        }
+
+        self::assertSame('draft', DB::table('governance_election_register_snapshots')
+            ->where('id', $snapshotId)->value('register_status'));
+    }
+
     private function prepareRegister(): int
     {
         return $this->service->prepare(
