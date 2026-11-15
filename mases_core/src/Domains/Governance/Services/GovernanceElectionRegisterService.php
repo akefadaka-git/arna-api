@@ -233,6 +233,34 @@ final class GovernanceElectionRegisterService
         });
     }
 
+    /** Recheck stored rows at the point of approval and whenever the poll gate is evaluated. */
+    public function hasValidSnapshotIntegrity(int $tenantId, int $electionId, int $snapshotId): bool
+    {
+        $snapshot = DB::table('governance_election_register_snapshots')
+            ->where('tenant_id', $tenantId)->where('election_id', $electionId)
+            ->where('id', $snapshotId)->first();
+        if ($snapshot === null) {
+            return false;
+        }
+        $rows = DB::table('governance_election_voters')->where('tenant_id', $tenantId)
+            ->where('election_id', $electionId)->where('snapshot_id', $snapshotId)
+            ->orderBy('shareholder_id')->orderBy('share_class_code')
+            ->get(['shareholder_id','share_class_code','share_quantity','voting_weight','entitlement_reference','proxy_authorized'])
+            ->map(static fn ($row): array => [
+                'shareholder_id' => (int) $row->shareholder_id,
+                'share_class_code' => (string) $row->share_class_code,
+                'share_quantity' => (string) $row->share_quantity,
+                'voting_weight' => (string) $row->voting_weight,
+                'entitlement_reference' => (string) $row->entitlement_reference,
+                'proxy_authorized' => (bool) $row->proxy_authorized,
+            ])->all();
+        if (count($rows) !== (int) $snapshot->voter_count || $rows === []) {
+            return false;
+        }
+        $hash = hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        return hash_equals((string) $snapshot->content_sha256, $hash);
+    }
+
     /** Approve and freeze only after independent reconciliation and a second actor's approval. */
     public function approveAndFreeze(int $tenantId, int $electionId, int $snapshotId, int $actorId): void
     {
@@ -244,6 +272,9 @@ final class GovernanceElectionRegisterService
             if ($snapshot === null || $snapshot->register_status !== 'reconciled'
                 || $snapshot->integrity_verified_at === null || $snapshot->reconciled_at === null) {
                 throw new RuntimeException('An integrity-verified reconciled register is required before approval.');
+            }
+            if (!$this->hasValidSnapshotIntegrity($tenantId, $electionId, $snapshotId)) {
+                throw new RuntimeException('Register content changed after reconciliation; approval is blocked.');
             }
             if ($actorId < 1 || $actorId === (int) $snapshot->prepared_by || $actorId === (int) $snapshot->reconciled_by) {
                 throw new RuntimeException('The approver must be independent of both preparation and reconciliation.');
