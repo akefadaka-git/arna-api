@@ -166,10 +166,10 @@ For every lifecycle transition:
 1. ARNA transaction writes the lifecycle state, HMAC attestation, and a unique outbox event in the same database transaction.
 2. Outbox worker submits the exact event with a stable idempotency key.
 3. Receipt service appends and returns a signed receipt.
-4. ARNA stores the receipt, verification result, service sequence/hash and acknowledgement timestamp, and marks the outbox item delivered.
+4. ARNA stores the receipt, witness checkpoint, both verification results, service sequence/hash and acknowledgement timestamp, and marks the outbox item delivered.
 5. Retries reuse the same idempotency key and exact request body. A changed body requires a new event and explicit transition; never mutate a pending event.
 
-The outbox is delivery state, not the authoritative receipt history. Restoring or deleting the ARNA database must not affect the external ledger.
+The outbox is delivery state, not the authoritative receipt history. Restoring or deleting the ARNA database must not affect the independent witness log.
 
 ### 5.2 Pending and anchored states
 
@@ -182,14 +182,14 @@ A register may be used to authorize voting only if:
 - the stream is not superseded, voided, revoked or in a security hold;
 - all existing legal, security and operational gates pass.
 
-External unavailability, timeout, invalid signature, stale nonce, sequence gap, previous-hash mismatch, archive-integrity alarm or stream-state disagreement fails closed for voting-open and any operation requiring a current anchor. Do not fall back to a locally cached head.
+Receipt-service or witness unavailability, timeout, invalid signature, stale nonce, sequence gap, previous-hash mismatch, WORM-integrity alarm or stream-state disagreement fails closed for voting-open and any operation requiring a current anchor. Do not fall back to a locally cached head.
 
 ### 5.3 Recovery and reconciliation
 
 After database restore or suspected rollback:
 1. Stop voting-open and register mutation paths.
-2. Authenticate to the receipt service and obtain a fresh signed head challenge.
-3. Download the full signed stream or the required checkpoint/inclusion proofs.
+2. Generate a fresh nonce and query the independent witness directly for its signed current checkpoint.
+3. Download the full signed stream or required checkpoint/inclusion proofs from the witness archive.
 4. Verify signatures, key status, sequence continuity, hash chain, scope and event transition order.
 5. Compare the externally authoritative head with the restored local snapshot, HMAC attestations, outbox and receipt cache.
 6. If local state is behind, rebuild local receipt/outbox projections from the external log; do not recreate or re-sign old lifecycle events.
@@ -262,7 +262,7 @@ No protocol can guarantee availability if the independent receipt service is una
 
 A receipt hash chain alone does not prevent a privileged administrator from replacing the entire chain with a newly fabricated chain. The independent witness must synchronously persist every acknowledged checkpoint to WORM storage and sign it with a separate key. ARNA must query this witness directly for currentness; periodic archive copies alone are insufficient for live anti-rollback. Additional externally held checkpoints and independently controlled retention are mandatory.
 
-A full compromise of both the receipt authority and its key/archive custodians remains a catastrophic trust-domain compromise. Mitigation requires independent copies/checkpoints and incident procedures outside both systems.
+A full compromise of both the receipt authority and the independent witness/key/archive custodians remains a catastrophic trust-domain compromise. Mitigation requires independent copies/checkpoints and incident procedures outside both systems.
 
 ## 8. Retention, availability and recovery objectives
 
