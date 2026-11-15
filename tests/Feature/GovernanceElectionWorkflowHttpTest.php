@@ -231,6 +231,24 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
             'nomination_id' => $nominationId, 'decided_by' => $manager->id, 'decision' => 'approved',
         ]);
     }
+    private function markLatestReceiptAnchoredForTest(int $snapshotId): void
+    {
+        $event = DB::table('age_receipt_outbox')
+            ->where('snapshot_id', $snapshotId)
+            ->orderByDesc('sequence')
+            ->first();
+        self::assertNotNull($event, 'The register transition must create an AGE receipt outbox event.');
+
+        $receiptHash = hash('sha256', 'http-test-anchor:' . $event->sequence);
+        DB::table('age_receipt_outbox')->where('id', $event->id)->update([
+            'delivery_state' => 'anchored',
+            'receipt_payload' => '{"fixture":"receipt"}',
+            'witness_payload' => '{"fixture":"independent-witness"}',
+            'receipt_sha256' => $receiptHash,
+            'anchored_at' => now(),
+        ]);
+    }
+
     public function test_register_http_workflow_uses_dedicated_permission_and_authenticated_separate_actors(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
@@ -244,6 +262,7 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
 
         $electionId = $this->registerElection($tenant, (int) $preparer->id);
         $snapshotId = $this->prepareRegisterSnapshot($tenant, $electionId, (int) $preparer->id);
+        $this->markLatestReceiptAnchoredForTest($snapshotId);
         $reconcileUrl = '/api/governance/elections/' . $electionId . '/registers/' . $snapshotId . '/reconcile';
         $approveUrl = '/api/governance/elections/' . $electionId . '/registers/' . $snapshotId . '/approve-freeze';
 
@@ -275,6 +294,7 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
             'register_status' => 'reconciled',
             'reconciled_by' => $reconciler->id,
         ]);
+        $this->markLatestReceiptAnchoredForTest($snapshotId);
 
         Sanctum::actingAs($approver);
         $this->withHeaders($this->headers($tenant))
