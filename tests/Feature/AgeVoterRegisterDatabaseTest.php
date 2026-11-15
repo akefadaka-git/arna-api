@@ -13,6 +13,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterS
 use MaaleArna\MASES\Core\Domains\Governance\Services\Receipts\AgeReceiptGateway;
 use MaaleArna\MASES\Core\Domains\Governance\Services\Receipts\AgeReceiptOutboxDispatcher;
 use MaaleArna\MASES\Core\Domains\Governance\Security\AgeReceiptSignatureVerifier;
+use MaaleArna\MASES\Core\Domains\Governance\Security\AgeReceiptCanonicalizer;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -571,6 +572,74 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         self::assertStringNotContainsString('shareholder_id', $events[2]->canonical_event);
     }
 
+
+    public function test_valid_independent_ed25519_receipt_and_witness_anchor_outbox_event(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $event = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->first();
+        $receiptPair = sodium_crypto_sign_keypair();
+        $witnessPair = sodium_crypto_sign_keypair();
+        $receiptSecret = sodium_crypto_sign_secretkey($receiptPair);
+        $witnessSecret = sodium_crypto_sign_secretkey($witnessPair);
+
+        config(['age.receipts.trust_bundle' => [
+            'version' => '1.0.0',
+            'keys' => [
+                'receipt-key-v1' => [
+                    'purpose' => 'receipt', 'status' => 'active',
+                    'public_key_base64' => base64_encode(sodium_crypto_sign_publickey($receiptPair)),
+                    'valid_from' => '2020-01-01T00:00:00Z', 'valid_until' => null, 'revoked_at' => null,
+                ],
+                'witness-key-v1' => [
+                    'purpose' => 'witness', 'status' => 'active',
+                    'public_key_base64' => base64_encode(sodium_crypto_sign_publickey($witnessPair)),
+                    'valid_from' => '2020-01-01T00:00:00Z', 'valid_until' => null, 'revoked_at' => null,
+                ],
+            ],
+        ]]);
+
+        $receipt = [
+            'key_id' => 'receipt-key-v1',
+            'stream_id' => $event->stream_uuid,
+            'sequence' => (int) $event->sequence,
+            'event_hash' => $event->event_sha256,
+            'previous_receipt_hash' => null,
+            'receipt_hash' => str_repeat('d', 64),
+            'signed_at' => now()->toIso8601String(),
+        ];
+        $receipt['signature'] = $this->signReceiptPayload($receipt, "arna:age:external-receipt:receipt:v1\\0", $receiptSecret);
+        $witness = [
+            'key_id' => 'witness-key-v1',
+            'stream_id' => $event->stream_uuid,
+            'sequence' => (int) $event->sequence,
+            'event_hash' => $event->event_sha256,
+            'receipt_hash' => str_repeat('d', 64),
+            'previous_receipt_hash' => null,
+            'witnessed_at' => now()->toIso8601String(),
+        ];
+        $witness['signature'] = $this->signReceiptPayload($witness, "arna:age:external-receipt:witness:v1\\0", $witnessSecret);
+
+        $gateway = new class($receipt, $witness) implements AgeReceiptGateway {
+            public function __construct(private array $receipt, private array $witness) {}
+            public function append(array $request): array
+            {
+                return ['receipt' => $this->receipt, 'witness_checkpoint' => $this->witness];
+            }
+            public function challengeWitnessHead(array $request): array
+            {
+                throw new RuntimeException('not used');
+            }
+        };
+
+        $dispatcher = new AgeReceiptOutboxDispatcher();
+        self::assertTrue($dispatcher->dispatch((int) $event->id, $gateway, new AgeReceiptSignatureVerifier()));
+        $anchored = DB::table('age_receipt_outbox')->where('id', $event->id)->first();
+        self::assertSame('anchored', $anchored->delivery_state);
+        self::assertSame(str_repeat('d', 64), $anchored->receipt_sha256);
+        self::assertNotNull($anchored->anchored_at);
+        self::assertSame(1, (int) $anchored->attempt_count);
+    }
+
     public function test_outbox_retries_preserve_event_identity_and_protocol_failure_quarantines(): void
     {
         $snapshotId = $this->prepareRegister();
@@ -633,6 +702,17 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         parent::tearDown();
     }
 
+
+
+    /** @param array<string,mixed> $payload */
+    private function signReceiptPayload(array $payload, string $domain, string $secretKey): string
+    {
+        unset($payload['signature']);
+        return base64_encode(sodium_crypto_sign_detached(
+            $domain . AgeReceiptCanonicalizer::encode($payload),
+            $secretKey,
+        ));
+    }
 
     private function anchorLatestOutboxForTest(int $snapshotId): void
     {
