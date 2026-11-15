@@ -6,13 +6,16 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use RuntimeException;
 
 return new class extends Migration
 {
     private const TRIGGERS = ['age_receipt_outbox_immutable_update', 'age_receipt_outbox_no_delete'];
     public function up(): void
     {
+        $driver = DB::getDriverName();
+        if (!in_array($driver, ['mysql', 'sqlite'], true)) {
+            throw new RuntimeException("AGE receipt outbox guards require MySQL or SQLite; driver [{$driver}] is unsupported.");
+        }
         if (Schema::hasTable('age_receipt_outbox')) {
             throw new RuntimeException('AGE receipt outbox table already exists; reconcile schema ownership before migrating.');
         }
@@ -49,9 +52,9 @@ return new class extends Migration
             $table->index(['tenant_id', 'election_id', 'snapshot_id'], 'age_receipt_scope_idx');
         });
 
-        if (DB::getDriverName() === 'mysql') {
+        if ($driver === 'mysql') {
             $this->createMySqlGuards();
-        } elseif (DB::getDriverName() === 'sqlite') {
+        } elseif ($driver === 'sqlite') {
             $this->createSqliteGuards();
         } else {
             throw new RuntimeException('AGE receipt outbox guards require MySQL or SQLite.');
