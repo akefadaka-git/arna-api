@@ -305,6 +305,16 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
     }
 
+    private function assertOutboxWriteRejected(callable $write): void
+    {
+        try {
+            $write();
+            self::fail('AGE receipt outbox guards must reject payload mutation and deletion.');
+        } catch (QueryException $exception) {
+            self::assertStringContainsString('age receipt outbox', strtolower($exception->getMessage()));
+        }
+    }
+
     private function assertFrozenWriteRejected(callable $write): void
     {
         try {
@@ -572,10 +582,10 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         self::assertSame($firstIdempotencyKey, $events[0]->idempotency_key);
         self::assertSame($firstPayload, $events[0]->canonical_event);
         self::assertStringNotContainsString('shareholder_id', $events[2]->canonical_event);
-        $this->assertFrozenWriteRejected(function () use ($events): void {
+        $this->assertOutboxWriteRejected(function () use ($events): void {
             DB::table('age_receipt_outbox')->where('id', $events[0]->id)->update(['canonical_event' => '{"tampered":true}']);
         });
-        $this->assertFrozenWriteRejected(function () use ($events): void {
+        $this->assertOutboxWriteRejected(function () use ($events): void {
             DB::table('age_receipt_outbox')->where('id', $events[0]->id)->delete();
         });
     }
