@@ -630,6 +630,8 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.count-batches.index');
     Route::post('/elections/{governanceElection}/count-batches', [GovernanceElectionWorkflowController::class, 'storeManualCountBatch'])
         ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.count-batches.store');
+    Route::post('/elections/{governanceElection}/count-batches/{batch}/witness', [GovernanceElectionWorkflowController::class, 'witnessManualCountBatch'])
+        ->whereNumber('governanceElection')->whereNumber('batch')->middleware('auth.permission:governance.election.manage')->name('elections.count-batches.witness');
 
     Route::post('/elections/{governanceElection}/certification', [GovernanceElectionWorkflowController::class, 'certifyElection'])
         ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.certification.store');
