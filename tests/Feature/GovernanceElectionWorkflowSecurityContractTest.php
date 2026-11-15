@@ -195,7 +195,7 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
             self::assertStringContainsString($action, $routes);
             self::assertStringContainsString('function '.$action.'(', $controller);
         }
-        self::assertStringContainsString('A frozen, approved voter register is required before voting.', $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php'));
+        self::assertStringContainsString('An independently approved, integrity-verified and hash-valid frozen voter register is required before voting.', $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php'));
     }
 
     public function test_committee_decisions_require_two_distinct_votes_before_finalizing(): void
@@ -232,6 +232,17 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('elections.registers.prepare', $routes);
         self::assertStringContainsString('elections.registers.reconcile', $routes);
         self::assertStringContainsString('elections.registers.approve-freeze', $routes);
+    }
+
+    public function test_register_reconstruction_checks_full_ledger_against_current_projection(): void
+    {
+        $service = $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php');
+
+        self::assertStringContainsString("'h.current_quantity'", $service);
+        self::assertStringContainsString('share_projection', $service);
+        self::assertStringContainsString('Current holding projection disagrees with its authoritative ledger', $service);
+        self::assertStringContainsString('$recordDateBalance', $service);
+        self::assertStringContainsString('Carbon::parse($entry->occurred_at)->lte($cutoff)', $service);
     }
 
     public function test_committee_recusal_and_identity_columns_are_persisted(): void
