@@ -154,7 +154,7 @@ A head response signed only by the receipt authority is insufficient: its own da
 `GET /v1/streams/{stream_id}/receipts/{sequence}` returns the signed receipt and inclusion proof.  
 `GET /v1/streams/{stream_id}/audit-export` returns a signed, verifiable stream export with all receipts and a signed current-head checkpoint.
 
-The witness's primary append record is itself stored under WORM/retention lock before an event is acknowledged as anchored. The independent archive additionally exports receipt batches plus signed witness checkpoints to a separate retention-locked storage account. Export is verified independently and cannot be rewritten by the receipt service's ordinary application role. Export is verified independently and cannot be rewritten by the receipt service's ordinary application role. Hash-chain verification detects missing, reordered or modified records; independent archive controls prevent a compromised service database from silently replacing history.
+The witness's primary append record is itself stored under WORM/retention lock before an event is acknowledged as anchored. The independent archive additionally exports receipt batches plus signed witness checkpoints to a separate retention-locked storage account. Export is verified independently and cannot be rewritten by the receipt service's ordinary application role. Hash-chain verification detects missing, reordered or modified records; independent archive controls prevent a compromised service database from silently replacing history.
 
 ## 5. ARNA integration and consistency model
 
@@ -165,7 +165,7 @@ Do not make a network call to the external service inside the ARNA database tran
 For every lifecycle transition:
 1. ARNA transaction writes the lifecycle state, HMAC attestation, and a unique outbox event in the same database transaction.
 2. Outbox worker submits the exact event with a stable idempotency key.
-3. Receipt service appends and returns a signed receipt.
+3. Receipt service appends and signs a receipt, then obtains a separately signed WORM witness checkpoint before returning an anchored acknowledgement.
 4. ARNA stores the receipt, witness checkpoint, both verification results, service sequence/hash and acknowledgement timestamp, and marks the outbox item delivered.
 5. Retries reuse the same idempotency key and exact request body. A changed body requires a new event and explicit transition; never mutate a pending event.
 
@@ -302,10 +302,11 @@ The complete test matrix is in `AGE-A3.10-ANTI-ROLLBACK-ACCEPTANCE.json`. All te
 - Canonicalization and hash/signature verification.
 - Append ordering, atomicity, idempotency and concurrent writers.
 - Scope binding and authorization.
-- Nonce freshness and replay rejection.
+- Nonce freshness and replay rejection against the independent witness.
 - Database restore/rollback and local receipt deletion recovery.
-- Key rotation, revocation and historical verification.
-- WORM archive tamper/deletion/retention controls.
+- Receipt-service database rollback detection by direct witness query.
+- Key rotation, revocation and historical verification for both signing domains.
+- Synchronous witness persistence and WORM archive tamper/deletion/retention controls.
 - Receipt service outage, fail-closed behavior and disaster recovery.
 - Independent operator and audit evidence.
 
