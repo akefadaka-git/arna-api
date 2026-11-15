@@ -67,7 +67,8 @@ jobs:
         run: vendor/bin/phpunit -c phpunit.age-mysql.xml --testdox
 
       - name: Run AGE SQLite database regression tests
-        run: DB_CONNECTION=sqlite DB_DATABASE=:memory: AGE_MYSQL_INTEGRATION=0 vendor/bin/phpunit -c phpunit.xml tests/Feature/AgeVoterRegisterDatabaseTest.php --testdox
+        run: |
+          DB_CONNECTION=sqlite DB_DATABASE=':memory:' AGE_MYSQL_INTEGRATION=0 vendor/bin/phpunit -c phpunit.xml tests/Feature/AgeVoterRegisterDatabaseTest.php --testdox
 
       - name: Preserve PHPUnit diagnostics
         if: always()
