@@ -396,6 +396,32 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         self::assertSame(0, DB::table('governance_election_register_snapshots')->count());
     }
 
+    public function test_snapshot_insert_requires_a_prepared_application_attestation(): void
+    {
+        try {
+            DB::table('governance_election_register_snapshots')->insert([
+                'tenant_id' => 7,
+                'election_id' => 10,
+                'record_date' => '2026-01-15',
+                'source_reference' => 'UNATTESTED-DIRECT-INSERT',
+                'rule_version' => 'AGE-RULES-1',
+                'content_sha256' => str_repeat('a', 64),
+                'voter_count' => 1,
+                'created_by' => 100,
+                'prepared_by' => 100,
+                'register_status' => 'draft',
+                'frozen_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            self::fail('Direct database inserts without an application-held prepared attestation must be rejected.');
+        } catch (\\Illuminate\\Database\\QueryException $exception) {
+            self::assertStringContainsString('prepared application attestation only', strtolower($exception->getMessage()));
+        }
+
+        self::assertSame(0, DB::table('governance_election_register_snapshots')->count());
+    }
+
     public function test_snapshot_insert_must_begin_in_prepared_draft_state(): void
     {
         $insertSnapshot = static function (array $overrides): void {
@@ -406,6 +432,9 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 'source_reference' => 'DIRECT-INSERT-TEST',
                 'rule_version' => 'AGE-RULES-1',
                 'content_sha256' => str_repeat('a', 64),
+                'snapshot_uuid' => (string) \\Illuminate\\Support\\Str::uuid(),
+                'prepared_attestation_sha256' => str_repeat('a', 64),
+                'prepared_attestation_key_id' => 'test-key-v1',
                 'voter_count' => 1,
                 'created_by' => 100,
                 'prepared_by' => 100,
