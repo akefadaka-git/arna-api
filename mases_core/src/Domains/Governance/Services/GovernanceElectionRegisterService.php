@@ -356,14 +356,29 @@ final class GovernanceElectionRegisterService
         string $ruleVersion,
         array $rows,
     ): string {
+        // Normalize database DECIMAL values before hashing. SQLite may return
+        // "10" while MySQL returns "10.0000" for the same DECIMAL(20,4) value.
+        // Canonical four-place strings keep preparation and later verification
+        // byte-identical across supported database drivers.
+        $canonicalRows = array_map(static function (array $row): array {
+            $row['shareholder_id'] = (int) $row['shareholder_id'];
+            $row['share_class_code'] = (string) $row['share_class_code'];
+            $row['share_quantity'] = bcadd((string) $row['share_quantity'], '0', 4);
+            $row['voting_weight'] = bcadd((string) $row['voting_weight'], '0', 4);
+            $row['entitlement_reference'] = (string) $row['entitlement_reference'];
+            $row['proxy_authorized'] = (bool) $row['proxy_authorized'];
+
+            return $row;
+        }, $rows);
+
         $canonical = json_encode([
             'tenant_id' => $tenantId,
             'election_id' => $electionId,
             'record_date' => $recordDate,
             'source_reference' => $sourceReference,
             'rule_version' => $ruleVersion,
-            'voter_count' => count($rows),
-            'voters' => $rows,
+            'voter_count' => count($canonicalRows),
+            'voters' => $canonicalRows,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
 
         return hash('sha256', $canonical);
