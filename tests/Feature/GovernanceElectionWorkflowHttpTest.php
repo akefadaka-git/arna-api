@@ -147,7 +147,7 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
     public function test_nomination_submission_requires_one_tenant_scoped_shareholder_identity(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
-        $electionId = $this->election($tenant);
+        $electionId = $this->election($tenant, 'nominating');
         $shareholder = $this->actor($tenant, ['governance.election.view']);
         Sanctum::actingAs($shareholder);
         $url = '/api/governance/elections/' . $electionId . '/nominations';
@@ -180,7 +180,7 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
         $this->assertDatabaseHas('governance_election_nomination_submissions', [
             'tenant_id' => $tenant->id, 'election_id' => $electionId,
             'nominated_by_shareholder_id' => DB::table('shareholders')->where('user_id', $shareholder->id)->value('id'),
-            'candidate_person_id' => 91001,
+            'candidate_person_id' => $candidatePersonId,
         ]);
     }
 
