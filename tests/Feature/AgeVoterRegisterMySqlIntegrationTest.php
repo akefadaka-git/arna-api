@@ -177,7 +177,7 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
                 file_put_contents($startedFile, 'attempting');
                 $this->insertVoter($snapshotId, 7, 10, 'CONCURRENT-INSERT');
                 file_put_contents($resultFile, 'inserted');
-            } catch (\\Throwable $exception) {
+            } catch (\Throwable $exception) {
                 file_put_contents($resultFile, 'rejected:' . $exception->getMessage());
             }
             exit(0);
