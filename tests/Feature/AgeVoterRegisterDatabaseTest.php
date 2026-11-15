@@ -149,6 +149,25 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         }
     }
 
+    public function test_database_rejects_freeze_transition_without_independent_approval(): void
+    {
+        $snapshotId = $this->prepareRegister();
+
+        try {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+                'register_status' => 'frozen',
+                'frozen_at' => now(),
+            ]);
+            self::fail('A draft register must not be frozen without reconciliation, independent approval and integrity evidence.');
+        } catch (\\Illuminate\\Database\\QueryException $exception) {
+            self::assertStringContainsString('cannot freeze', strtolower($exception->getMessage()));
+        }
+
+        $snapshot = DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->first();
+        self::assertSame('draft', $snapshot->register_status);
+        self::assertNull($snapshot->frozen_at);
+    }
+
     public function test_frozen_register_and_snapshot_reject_direct_database_mutations(): void
     {
         $snapshotId = $this->prepareRegister();
