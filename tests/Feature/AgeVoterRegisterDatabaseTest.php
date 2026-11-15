@@ -228,7 +228,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
                 ->update(['frozen_at' => now()]);
             self::fail('A draft register must not receive a freeze timestamp before its status is frozen.');
-        } catch (\\Illuminate\\Database\\QueryException $exception) {
+        } catch (\Illuminate\Database\QueryException $exception) {
             self::assertStringContainsString('cannot freeze or set frozen_at', strtolower($exception->getMessage()));
         }
 
