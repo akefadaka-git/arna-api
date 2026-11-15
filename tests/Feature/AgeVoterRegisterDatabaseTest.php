@@ -722,6 +722,8 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         }
         DB::table('age_receipt_outbox')->where('id', $event->id)->update([
             'delivery_state' => 'anchored',
+            'receipt_payload' => '{"fixture":"receipt"}',
+            'witness_payload' => '{"fixture":"witness"}',
             'receipt_sha256' => str_repeat(chr(96 + (int) $event->sequence), 64),
             'anchored_at' => now(),
         ]);
