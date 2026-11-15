@@ -232,8 +232,11 @@ final class GovernanceElectionRegisterService
             if ((int) $snapshot->prepared_by === $actorId) {
                 throw new RuntimeException('The register preparer cannot independently reconcile the register.');
             }
+            // Lock the exact voter rows while reconciling so a concurrent
+            // writer cannot change the rows between digest verification and status update.
             $rows = DB::table('governance_election_voters')->where('tenant_id', $tenantId)
                 ->where('election_id', $electionId)->where('snapshot_id', $snapshotId)
+                ->lockForUpdate()
                 ->orderBy('shareholder_id')->orderBy('share_class_code')
                 ->get(['shareholder_id','share_class_code','share_quantity','voting_weight','entitlement_reference','proxy_authorized'])
                 ->map(static fn ($row): array => [
@@ -258,7 +261,8 @@ final class GovernanceElectionRegisterService
             if (!hash_equals((string) $snapshot->content_sha256, $hash)) {
                 throw new RuntimeException('Register content hash mismatch; reconciliation failed closed.');
             }
-            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+            DB::table('governance_election_register_snapshots')->where('tenant_id', $tenantId)
+                ->where('election_id', $electionId)->where('id', $snapshotId)->update([
                 'register_status' => 'reconciled', 'reconciled_by' => $actorId,
                 'reconciled_at' => Carbon::now(), 'integrity_verified_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
@@ -268,7 +272,7 @@ final class GovernanceElectionRegisterService
     }
 
     /** Recheck stored rows at the point of approval and whenever the poll gate is evaluated. */
-    public function hasValidSnapshotIntegrity(int $tenantId, int $electionId, int $snapshotId): bool
+    public function hasValidSnapshotIntegrity(int $tenantId, int $electionId, int $snapshotId, bool $lockRows = false): bool
     {
         $snapshot = DB::table('governance_election_register_snapshots')
             ->where('tenant_id', $tenantId)->where('election_id', $electionId)
@@ -276,9 +280,13 @@ final class GovernanceElectionRegisterService
         if ($snapshot === null) {
             return false;
         }
-        $rows = DB::table('governance_election_voters')->where('tenant_id', $tenantId)
-            ->where('election_id', $electionId)->where('snapshot_id', $snapshotId)
-            ->orderBy('shareholder_id')->orderBy('share_class_code')
+        $voterRows = DB::table('governance_election_voters')->where('tenant_id', $tenantId)
+            ->where('election_id', $electionId)->where('snapshot_id', $snapshotId);
+        if ($lockRows) {
+            // Approval calls this inside its transaction; hold row locks through freeze.
+            $voterRows->lockForUpdate();
+        }
+        $rows = $voterRows->orderBy('shareholder_id')->orderBy('share_class_code')
             ->get(['shareholder_id','share_class_code','share_quantity','voting_weight','entitlement_reference','proxy_authorized'])
             ->map(static fn ($row): array => [
                 'shareholder_id' => (int) $row->shareholder_id,
@@ -314,7 +322,7 @@ final class GovernanceElectionRegisterService
                 || $snapshot->integrity_verified_at === null || $snapshot->reconciled_at === null) {
                 throw new RuntimeException('An integrity-verified reconciled register is required before approval.');
             }
-            if (!$this->hasValidSnapshotIntegrity($tenantId, $electionId, $snapshotId)) {
+            if (!$this->hasValidSnapshotIntegrity($tenantId, $electionId, $snapshotId, true)) {
                 throw new RuntimeException('Register content changed after reconciliation; approval is blocked.');
             }
             if ($actorId < 1 || $actorId === (int) $snapshot->prepared_by || $actorId === (int) $snapshot->reconciled_by) {
