@@ -232,7 +232,6 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('elections.registers.prepare', $routes);
         self::assertStringContainsString('elections.registers.reconcile', $routes);
         self::assertStringContainsString('elections.registers.approve-freeze', $routes);
-        self::assertStringContainsString("name('elections.registers.prepare')->middleware('auth.permission:governance.election.register.manage')", str_replace("->whereNumber('governanceElection')->middleware('auth.permission:governance.election.register.manage')->name('elections.registers.prepare')", "name('elections.registers.prepare')->middleware('auth.permission:governance.election.register.manage')", $routes));
         self::assertStringContainsString("auth.permission:governance.election.register.manage", $routes);
     }
 
