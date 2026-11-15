@@ -207,6 +207,7 @@ final class GovernanceElectionRegisterService
             $now = Carbon::now();
             $snapshotUuid = (string) Str::uuid();
             $preparedPayload = [
+                'stage' => 'prepared',
                 'snapshot_uuid' => $snapshotUuid,
                 'tenant_id' => $tenantId,
                 'election_id' => (int) $election->id,
@@ -292,6 +293,7 @@ final class GovernanceElectionRegisterService
             $reconciledAt = Carbon::now();
             $reconciledAtValue = $reconciledAt->format('Y-m-d H:i:s');
             $reconciliationPayload = [
+                'stage' => 'reconciled',
                 'snapshot_uuid' => (string) $snapshot->snapshot_uuid,
                 'tenant_id' => (int) $snapshot->tenant_id,
                 'election_id' => (int) $snapshot->election_id,
@@ -358,6 +360,7 @@ final class GovernanceElectionRegisterService
 
         if (in_array((string) $snapshot->register_status, ['reconciled', 'frozen'], true)) {
             $reconciliationPayload = [
+                'stage' => 'reconciled',
                 'snapshot_uuid' => (string) $snapshot->snapshot_uuid,
                 'tenant_id' => (int) $snapshot->tenant_id,
                 'election_id' => (int) $snapshot->election_id,
@@ -378,6 +381,7 @@ final class GovernanceElectionRegisterService
 
         if ((string) $snapshot->register_status === 'frozen') {
             $approvalPayload = [
+                'stage' => 'approved_frozen',
                 'snapshot_uuid' => (string) $snapshot->snapshot_uuid,
                 'tenant_id' => (int) $snapshot->tenant_id,
                 'election_id' => (int) $snapshot->election_id,
@@ -425,6 +429,7 @@ final class GovernanceElectionRegisterService
             }
             $approvedAt = Carbon::now()->format('Y-m-d H:i:s');
             $approvalPayload = [
+                'stage' => 'approved_frozen',
                 'snapshot_uuid' => (string) $snapshot->snapshot_uuid,
                 'tenant_id' => (int) $snapshot->tenant_id,
                 'election_id' => (int) $snapshot->election_id,
@@ -494,6 +499,7 @@ final class GovernanceElectionRegisterService
     private static function preparedAttestationPayload(object $snapshot): array
     {
         return [
+            'stage' => 'prepared',
             'snapshot_uuid' => (string) $snapshot->snapshot_uuid,
             'tenant_id' => (int) $snapshot->tenant_id,
             'election_id' => (int) $snapshot->election_id,
