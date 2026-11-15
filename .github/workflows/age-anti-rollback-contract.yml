@@ -46,7 +46,9 @@ jobs:
           schema=docs/governance/elections/AGE-A3.10-RECEIPT-PROTOCOL-SCHEMA.json
           jq -e '.["$schema"] == "https://json-schema.org/draft/2020-12/schema"' "$schema"
           jq -e '.["$defs"].AppendReceipt.required | index("signature") != null' "$schema"
+          jq -e '.["$defs"].WitnessCheckpoint.required | index("signature") != null' "$schema"
           jq -e '.["$defs"].HeadChallengeResponse.required | index("nonce") != null' "$schema"
+          jq -e '.["$defs"].HeadChallengeResponse.properties.checkpoint["$ref"] == "#/$defs/WitnessCheckpoint"' "$schema"
           jq -e '.["$defs"].HeadChallengeResponse.properties.nonce.pattern == "^[A-Za-z0-9_-]{43}$"' "$schema"
           jq -e '.["$defs"].AppendReceipt.properties.sequence.minimum == 1' "$schema"
 
