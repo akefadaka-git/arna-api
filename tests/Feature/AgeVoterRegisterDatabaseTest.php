@@ -176,6 +176,27 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 ->update(['tenant_id' => 8]);
         });
 
+        $this->assertFrozenWriteRejected(function () use ($voterId): void {
+            DB::table('governance_election_voters')->where('id', $voterId)
+                ->update(['snapshot_id' => 999999]);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_voters')->insert([
+                'tenant_id' => 7,
+                'election_id' => 10,
+                'snapshot_id' => 999999,
+                'shareholder_id' => 21,
+                'share_class_code' => 'ORDINARY',
+                'share_quantity' => '1.0000',
+                'voting_weight' => '1.0000',
+                'entitlement_reference' => 'MISSING-SNAPSHOT-ATTEMPT',
+                'proxy_authorized' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
         self::assertSame(2, DB::table('governance_election_voters')->where('snapshot_id', $snapshotId)->count());
         self::assertSame(7, (int) DB::table('governance_election_voters')->where('id', $voterId)->value('tenant_id'));
     }
