@@ -59,6 +59,62 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
         return ['X-Tenant-ID' => (string) $tenant->id];
     }
 
+    private function registerElection(Tenant $tenant, int $authorityActorId): int
+    {
+        return DB::table('governance_elections')->insertGetId([
+            'tenant_id' => $tenant->id,
+            'code' => 'AGE-' . $tenant->id . '-' . uniqid(),
+            'title' => 'Register authorization test',
+            'status' => 'nominating',
+            'record_date' => '2026-11-01',
+            'authority_reference' => 'TEST-AUTHORITY-RECORD',
+            'authority_verified_at' => now(),
+            'authority_verified_by' => $authorityActorId,
+            'voting_method' => 'physical',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function prepareRegisterSnapshot(Tenant $tenant, int $electionId, int $preparerId): int
+    {
+        config()->set('governance.election_voting.verified_class_entitlements', [
+            'COMMON' => [
+                'verified' => true,
+                'eligible' => true,
+                'votes_per_share' => '1',
+                'evidence_reference' => 'TEST-CLASS-RIGHT',
+            ],
+        ]);
+
+        $shareholderId = DB::table('shareholders')->insertGetId([
+            'tenant_id' => $tenant->id,
+            'shareholder_type' => 'individual',
+            'first_name_en' => 'Register',
+            'father_name_en' => 'Test',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return app(\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Services\\GovernanceElectionRegisterService::class)
+            ->prepare(
+                (int) $tenant->id,
+                $electionId,
+                '2026-11-01',
+                'TEST-SHARE-LEDGER-RECORD',
+                'AGE-TEST-RULE-1',
+                $preparerId,
+                [[
+                    'shareholder_id' => $shareholderId,
+                    'share_class_code' => 'COMMON',
+                    'share_quantity' => '10',
+                    'entitlement_reference' => 'TEST-LEDGER-ENTRY-1',
+                ]],
+            );
+    }
+
+
     public function test_workflow_endpoints_reject_unauthenticated_and_unprivileged_users(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
@@ -153,4 +209,68 @@ final class GovernanceElectionWorkflowHttpTest extends TestCase
             'nomination_id' => $nominationId, 'decided_by' => $manager->id, 'decision' => 'approved',
         ]);
     }
+    public function test_register_http_workflow_uses_dedicated_permission_and_authenticated_separate_actors(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+
+        $preparer = $this->actor($tenant, ['governance.election.register.manage']);
+        $reconciler = $this->actor($tenant, ['governance.election.register.manage']);
+        $approver = $this->actor($tenant, ['governance.election.register.manage']);
+        $broadElectionManager = $this->actor($tenant, ['governance.election.manage']);
+        $foreignTenantActor = $this->actor($otherTenant, ['governance.election.register.manage']);
+
+        $electionId = $this->registerElection($tenant, (int) $preparer->id);
+        $snapshotId = $this->prepareRegisterSnapshot($tenant, $electionId, (int) $preparer->id);
+        $reconcileUrl = '/api/governance/elections/' . $electionId . '/registers/' . $snapshotId . '/reconcile';
+        $approveUrl = '/api/governance/elections/' . $electionId . '/registers/' . $snapshotId . '/approve-freeze';
+
+        $this->withHeaders($this->headers($tenant))
+            ->postJson($reconcileUrl)
+            ->assertUnauthorized();
+
+        // The broad election-management permission alone must not satisfy
+        // the dedicated register route middleware.
+        Sanctum::actingAs($broadElectionManager);
+        $this->withHeaders($this->headers($tenant))
+            ->postJson($reconcileUrl)
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'AUTH_PERMISSION_DENIED');
+        $this->assertDatabaseHas('governance_election_register_snapshots', [
+            'id' => $snapshotId,
+            'register_status' => 'draft',
+        ]);
+
+        // Register-only actors do not receive the broad election.manage
+        // permission. The dedicated policy ability must authorize them.
+        Sanctum::actingAs($reconciler);
+        $this->withHeaders($this->headers($tenant))
+            ->postJson($reconcileUrl)
+            ->assertOk()
+            ->assertJsonPath('data.status', 'reconciled');
+        $this->assertDatabaseHas('governance_election_register_snapshots', [
+            'id' => $snapshotId,
+            'register_status' => 'reconciled',
+            'reconciled_by' => $reconciler->id,
+        ]);
+
+        Sanctum::actingAs($approver);
+        $this->withHeaders($this->headers($tenant))
+            ->postJson($approveUrl)
+            ->assertOk()
+            ->assertJsonPath('data.status', 'frozen');
+        $this->assertDatabaseHas('governance_election_register_snapshots', [
+            'id' => $snapshotId,
+            'register_status' => 'frozen',
+            'approved_by' => $approver->id,
+        ]);
+
+        // A permission granted in another tenant cannot cross the election boundary.
+        Sanctum::actingAs($foreignTenantActor);
+        $this->withHeaders($this->headers($otherTenant))
+            ->postJson($reconcileUrl)
+            ->assertForbidden();
+    }
+
+
 }
