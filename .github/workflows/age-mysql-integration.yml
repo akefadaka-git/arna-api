@@ -7,10 +7,14 @@ on:
       - fix/age-a3-frozen-register-db-immutability
       - fix/age-a3-register-lifecycle-monotonicity
       - fix/age-a3-register-http-authorization
+      - fix/age-a3-register-signed-attestations
     paths:
       - ".github/workflows/age-mysql-integration.yml"
       - "mases_core/src/Domains/Governance/Database/Migrations/**"
       - "mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php"
+      - "mases_core/src/Domains/Governance/Security/AgeRegisterAttestation.php"
+      - "config/age.php"
+      - ".env.example"
       - "tests/Feature/AgeVoterRegisterMySqlIntegrationTest.php"
       - "tests/Feature/AgeVoterRegisterDatabaseTest.php"
       - "tests/Feature/GovernanceElectionWorkflowHttpTest.php"
