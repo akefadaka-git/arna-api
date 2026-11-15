@@ -74,17 +74,12 @@ final class GovernanceElectionWorkflowController extends Controller
             'record_date' => ['required', 'date'],
             'source_reference' => ['required', 'string', 'min:3', 'max:160'],
             'rule_version' => ['required', 'string', 'min:1', 'max:80'],
-            'entries' => ['required', 'array', 'min:1'],
-            'entries.*.shareholder_id' => ['required', 'integer', 'min:1'],
-            'entries.*.share_class_code' => ['required', 'string', 'max:40'],
-            'entries.*.share_quantity' => ['required', 'numeric', 'gt:0'],
-            'entries.*.voting_weight' => ['nullable', 'numeric', 'gt:0'],
-            'entries.*.entitlement_reference' => ['required', 'string', 'max:160'],
-            'entries.*.proxy_authorized' => ['sometimes', 'boolean'],
         ]);
+        // Never accept client-calculated voter identities, quantities or weights.
+        $entries = $register->reconstructAsOf($tenantId, $data['record_date'], $data['source_reference']);
         $snapshotId = $register->prepare($tenantId, (int) $governanceElection->id,
             $data['record_date'], $data['source_reference'], $data['rule_version'],
-            (int) $request->user()->getAuthIdentifier(), $data['entries']);
+            (int) $request->user()->getAuthIdentifier(), $entries);
         return response()->json(['data' => ['snapshot_id' => $snapshotId, 'status' => 'draft']], 201);
     }
 
