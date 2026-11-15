@@ -243,6 +243,8 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('Current holding projection disagrees with its authoritative ledger', $service);
         self::assertStringContainsString('$recordDateBalance', $service);
         self::assertStringContainsString('Carbon::parse($entry->occurred_at)->lte($cutoff)', $service);
+        self::assertStringContainsString("->orderBy('id')->get()", $service);
+        self::assertStringContainsString("->sortBy([", $service);
     }
 
     public function test_committee_recusal_and_identity_columns_are_persisted(): void
