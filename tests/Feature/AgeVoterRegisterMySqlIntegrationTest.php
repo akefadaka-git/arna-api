@@ -184,6 +184,11 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
             'approval_attestation_key_id' => 'mysql-test-key-v1',
         ]);
 
+        $this->assertWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['approval_attestation_sha256' => str_repeat('d', 64)]);
+        });
+
         self::assertSame('frozen', DB::table('governance_election_register_snapshots')
             ->where('id', $snapshotId)->value('register_status'));
     }
@@ -390,7 +395,29 @@ PHP;
 
     public function test_mysql_attestation_guards_require_forward_stage_signatures_and_preserve_them(): void
     {
+        $this->assertWriteRejected(function (): void {
+            DB::table('governance_election_register_snapshots')->insert([
+                'tenant_id' => 7,
+                'election_id' => 10,
+                'record_date' => '2026-01-15',
+                'source_reference' => 'UNATTESTED-MYSQL-INSERT',
+                'rule_version' => 'AGE-TEST-1',
+                'content_sha256' => str_repeat('a', 64),
+                'voter_count' => 1,
+                'created_by' => 100,
+                'prepared_by' => 100,
+                'register_status' => 'draft',
+                'frozen_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
         $snapshotId = $this->insertSnapshot();
+        $this->assertWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['prepared_attestation_sha256' => str_repeat('d', 64)]);
+        });
 
         $this->assertWriteRejected(function () use ($snapshotId): void {
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
