@@ -368,8 +368,15 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     public function test_approval_attestation_detects_fabricated_actor_or_timestamp_after_trigger_bypass(): void
     {
         $snapshotId = $this->prepareRegister();
+        try {
+            $this->service->reconcile(7, 10, $snapshotId, 101);
+            self::fail('The next lifecycle transition must wait for the prior external anchor.');
+        } catch (RuntimeException $exception) {
+            self::assertStringContainsString('prior AGE lifecycle event must be independently anchored', $exception->getMessage());
+        }
         $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
         self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
 
