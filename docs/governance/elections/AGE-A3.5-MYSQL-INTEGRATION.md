@@ -34,9 +34,19 @@ AGE_MYSQL_INTEGRATION=1 DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_DA
 
 The custom PHPUnit configuration forces the MySQL driver and opt-in flag. Connection credentials remain environment supplied.
 
-## GitHub Actions
+## GitHub Actions remote runner
 
-`.github/workflows/age-mysql-integration.yml` adds a manual-only workflow using a disposable MySQL 8.0 service. It is intentionally `workflow_dispatch` only; it does not run on every push or pull request. Dispatch it from the repository Actions tab when an authorized reviewer is ready to spend a public-repository runner.
+`.github/workflows/age-mysql-integration.yml` uses a disposable MySQL 8.0 service on a GitHub-hosted `ubuntu-latest` runner.
+
+The workflow retains `workflow_dispatch` and now also starts automatically on pushes to
+`fix/age-a3-frozen-register-db-immutability` when one of these paths changes:
+
+- the workflow definition itself;
+- AGE governance database migrations;
+- `AgeVoterRegisterMySqlIntegrationTest.php`;
+- `phpunit.age-mysql.xml`.
+
+It does not run for unrelated branches or unrelated file changes. The job has a 25-minute timeout, installs PHP 8.3 with `pdo_mysql` and `pcntl`, and uploads PHPUnit/log diagnostics as a seven-day artifact when available. The runner uses an isolated MySQL service and does not connect to any ARNA production database.
 
 ## Coverage
 
@@ -52,7 +62,7 @@ The current MySQL integration class exercises:
 
 ## Explicit remaining gaps
 
-- The test suite, including the new two-process race test, has not yet been executed against MySQL. The race test must pass on the manual MySQL workflow before concurrency protection can be claimed.
+- The test suite, including the new two-process race test, has not yet been confirmed executed against MySQL. A successful remote run is required before concurrency protection can be claimed.
 - Full application migration ordering and rollback across the entire AGE stack remain separate from this focused trigger migration test.
 - HTTP authorization, permission-role assignment review, and independent security review remain outstanding.
 
