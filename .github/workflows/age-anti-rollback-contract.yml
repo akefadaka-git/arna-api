@@ -1,0 +1,56 @@
+name: AGE anti-rollback design contract
+
+on:
+  push:
+    branches:
+      - docs/age-a3-anti-rollback-design
+    paths:
+      - ".github/workflows/age-anti-rollback-contract.yml"
+      - "docs/governance/elections/AGE-A3.10-ANTI-ROLLBACK-AND-EXTERNAL-RECEIPTS.md"
+      - "docs/governance/elections/AGE-A3.10-ANTI-ROLLBACK-ACCEPTANCE.json"
+      - "docs/governance/elections/AGE-A3.10-RECEIPT-PROTOCOL-SCHEMA.json"
+  pull_request:
+    paths:
+      - ".github/workflows/age-anti-rollback-contract.yml"
+      - "docs/governance/elections/AGE-A3.10-ANTI-ROLLBACK-AND-EXTERNAL-RECEIPTS.md"
+      - "docs/governance/elections/AGE-A3.10-ANTI-ROLLBACK-ACCEPTANCE.json"
+      - "docs/governance/elections/AGE-A3.10-RECEIPT-PROTOCOL-SCHEMA.json"
+
+permissions:
+  contents: read
+
+jobs:
+  contract-integrity:
+    name: Validate machine-readable AGE anti-rollback contracts
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate JSON syntax
+        run: |
+          jq empty docs/governance/elections/AGE-A3.10-ANTI-ROLLBACK-ACCEPTANCE.json
+          jq empty docs/governance/elections/AGE-A3.10-RECEIPT-PROTOCOL-SCHEMA.json
+
+      - name: Validate acceptance matrix structure
+        run: |
+          matrix=docs/governance/elections/AGE-A3.10-ANTI-ROLLBACK-ACCEPTANCE.json
+          test "$(jq -r '.status' "$matrix")" = "DESIGN_ACCEPTANCE_CONTRACT_NOT_EXECUTED"
+          test "$(jq '.cases | length' "$matrix")" -ge 30
+          test "$(jq '[.cases[].id] | unique | length' "$matrix")" = "$(jq '.cases | length' "$matrix")"
+          jq -e '.required_acceptance_groups as $g | ($g - ([.cases[].group] | unique)) == []' "$matrix"
+          jq -e '.exit_criteria | length >= 7' "$matrix"
+
+      - name: Validate receipt schema invariants
+        run: |
+          schema=docs/governance/elections/AGE-A3.10-RECEIPT-PROTOCOL-SCHEMA.json
+          jq -e '.["$schema"] == "https://json-schema.org/draft/2020-12/schema"' "$schema"
+          jq -e '.["$defs"].AppendReceipt.required | index("signature") != null' "$schema"
+          jq -e '.["$defs"].HeadChallengeResponse.required | index("nonce") != null' "$schema"
+          jq -e '.["$defs"].HeadChallengeResponse.properties.nonce.pattern == "^[A-Za-z0-9_-]{43}$"' "$schema"
+          jq -e '.["$defs"].AppendReceipt.properties.sequence.minimum == 1' "$schema"
+
+      - name: Report scope
+        run: |
+          echo "PASS: design contract JSON and structural invariants are valid."
+          echo "NOT RUN: external service, KMS/HSM, WORM archive, replay, rollback and end-to-end acceptance."
