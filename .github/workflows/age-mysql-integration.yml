@@ -6,11 +6,16 @@ on:
     branches:
       - fix/age-a3-frozen-register-db-immutability
       - feat/age-a3-anonymous-ballot-security
+      - feat/age-a3-manual-count-evidence
     paths:
       - ".github/workflows/age-mysql-integration.yml"
       - "mases_core/src/Domains/Governance/Database/Migrations/**"
       - "mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php"
       - "mases_core/src/Domains/Governance/Services/GovernanceElectionPhysicalBallotService.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionManualCountService.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php"
+      - "mases_core/src/Domains/Governance/Routes/api.php"
+      - "tests/Feature/GovernanceElectionManualCountHttpTest.php"
       - "tests/Feature/AgeVoterRegisterMySqlIntegrationTest.php"
       - "tests/Feature/AgeVoterRegisterDatabaseTest.php"
       - "phpunit.age-mysql.xml"
@@ -72,6 +77,12 @@ jobs:
       - name: Run AGE SQLite database regression tests
         run: |
           DB_CONNECTION=sqlite DB_DATABASE=':memory:' AGE_MYSQL_INTEGRATION=0 vendor/bin/phpunit -c phpunit.xml tests/Feature/AgeVoterRegisterDatabaseTest.php --testdox
+
+      - name: Run AGE manual-count HTTP regression tests
+        if: success()
+        working-directory: mases_core
+        run: |
+          DB_CONNECTION=sqlite DB_DATABASE=':memory:' AGE_MYSQL_INTEGRATION=0 vendor/bin/phpunit -c phpunit.xml tests/Feature/GovernanceElectionManualCountHttpTest.php --testdox
 
       - name: Preserve PHPUnit diagnostics
         if: always()
