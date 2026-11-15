@@ -306,7 +306,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 'integrity_verified_at' => now(),
             ]);
             self::fail('The preparer must not be recorded as an independent reconciler by direct database update.');
-        } catch (\\Illuminate\\Database\\QueryException $exception) {
+        } catch (\Illuminate\Database\QueryException $exception) {
             self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
         }
 
@@ -314,7 +314,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
                 ->update(['content_sha256' => str_repeat('b', 64)]);
             self::fail('Prepared governing metadata must not be rewritten after snapshot creation.');
-        } catch (\\Illuminate\\Database\\QueryException $exception) {
+        } catch (\Illuminate\Database\QueryException $exception) {
             self::assertStringContainsString('metadata is immutable', strtolower($exception->getMessage()));
         }
 
@@ -324,7 +324,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
                 ->update(['register_status' => 'draft']);
             self::fail('A reconciled register must not move backward to draft.');
-        } catch (\\Illuminate\\Database\\QueryException $exception) {
+        } catch (\Illuminate\Database\QueryException $exception) {
             self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
         }
 
@@ -332,7 +332,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
                 ->update(['reconciled_by' => 103]);
             self::fail('Reconciliation identity must not change after reconciliation.');
-        } catch (\\Illuminate\\Database\\QueryException $exception) {
+        } catch (\Illuminate\Database\QueryException $exception) {
             self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
         }
 
