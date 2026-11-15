@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Governance\\Security;
+namespace MaaleArna\MASES\Core\Domains\Governance\Security;
 
 use RuntimeException;
 
@@ -58,7 +58,7 @@ final class AgeRegisterAttestation
             throw new RuntimeException('AGE register attestation key identifier is invalid.');
         }
 
-        $encoded = config('age.register_attestation.keys.' . $keyId);
+        $keyring = (array) config('age.register_attestation.keys', []);\n        $encoded = $keyring[$keyId] ?? null;
         if (!is_string($encoded) || $encoded === '') {
             throw new RuntimeException('AGE register attestation key is unavailable.');
         }
@@ -76,7 +76,7 @@ final class AgeRegisterAttestation
      */
     private static function message(array $payload): string
     {
-        return self::DOMAIN . "\\0" . json_encode(
+        return self::DOMAIN . "\0" . json_encode(
             self::canonicalize(['payload' => $payload]),
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
         );
