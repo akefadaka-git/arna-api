@@ -154,14 +154,14 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         try {
             $this->service->reconcile(8, 10, $snapshotId, 101);
             self::fail('A tenant must not reconcile another tenant election register.');
-        } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException $exception) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $exception) {
             self::assertTrue(true);
         }
 
         try {
             $this->service->approveAndFreeze(8, 10, $snapshotId, 102);
             self::fail('A tenant must not approve another tenant election register.');
-        } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException $exception) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $exception) {
             self::assertTrue(true);
         }
 
