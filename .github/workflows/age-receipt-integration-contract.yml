@@ -1,0 +1,56 @@
+name: AGE receipt integration contract
+
+on:
+  push:
+    branches:
+      - docs/age-a3-receipt-implementation-contracts
+    paths:
+      - ".github/workflows/age-receipt-integration-contract.yml"
+      - "docs/governance/elections/AGE-A3.10-RECEIPT-IMPLEMENTATION-SPEC.md"
+      - "docs/governance/elections/AGE-A3.10-RECEIPT-INTEGRATION-CONTRACTS.schema.json"
+  pull_request:
+    paths:
+      - ".github/workflows/age-receipt-integration-contract.yml"
+      - "docs/governance/elections/AGE-A3.10-RECEIPT-IMPLEMENTATION-SPEC.md"
+      - "docs/governance/elections/AGE-A3.10-RECEIPT-INTEGRATION-CONTRACTS.schema.json"
+
+permissions:
+  contents: read
+
+jobs:
+  contract-integrity:
+    name: Validate AGE receipt integration contracts
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate JSON syntax
+        run: jq empty docs/governance/elections/AGE-A3.10-RECEIPT-INTEGRATION-CONTRACTS.schema.json
+
+      - name: Validate Draft 2020-12 schema
+        run: |
+          python3 -m pip install --disable-pip-version-check jsonschema==4.23.0
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+
+          path = Path("docs/governance/elections/AGE-A3.10-RECEIPT-INTEGRATION-CONTRACTS.schema.json")
+          schema = json.loads(path.read_text(encoding="utf-8"))
+          Draft202012Validator.check_schema(schema)
+          print("PASS: AGE receipt integration contracts are valid Draft 2020-12.")
+          PY
+
+      - name: Validate implementation specification coverage
+        run: |
+          spec=docs/governance/elections/AGE-A3.10-RECEIPT-IMPLEMENTATION-SPEC.md
+          for heading in             "## 1. Implementation boundary"             "## 2. Required ARNA components"             "## 3. Canonical event construction"             "## 4. Append protocol and idempotency"             "## 5. Direct witness head challenge"             "## 6. Failure, retry and quarantine rules"             "## 7. Key and trust-bundle handling"             "## 8. Persistence and migration constraints"             "## 9. Authorization and separation of duties"             "## 10. Observability and operational evidence"             "## 11. Required conformance test suites"             "## 12. Stage gates and acceptance"             "## 13. Explicit unresolved decisions"; do
+            grep -Fq "$heading" "$spec"
+          done
+          echo "PASS: required implementation sections are present."
+
+      - name: Report scope
+        run: |
+          echo "PASS: provider-neutral implementation contracts are structurally valid."
+          echo "NOT RUN: external receipt/witness service, KMS/HSM, WORM retention, database integration, and independent security review."

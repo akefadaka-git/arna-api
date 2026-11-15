@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arna.example/schemas/age/receipt-integration-contracts/v1.0.0",
+  "title": "AGE Receipt Integration Contracts",
+  "description": "Provider-neutral ARNA-side contracts for immutable outbox events, anchored append results, and direct witness head challenges. This schema does not define a provider implementation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "outbox_event", "anchored_receipt_result", "head_challenge_request", "verified_witness_head", "delivery_error"],
+  "properties": {
+    "contract_version": {
+      "const": "1.0.0"
+    },
+    "outbox_event": {
+      "$ref": "#/$defs/OutboxEvent"
+    },
+    "anchored_receipt_result": {
+      "$ref": "#/$defs/AnchoredReceiptResult"
+    },
+    "head_challenge_request": {
+      "$ref": "#/$defs/HeadChallengeRequest"
+    },
+    "verified_witness_head": {
+      "$ref": "#/$defs/VerifiedWitnessHead"
+    },
+    "delivery_error": {
+      "$ref": "#/$defs/DeliveryError"
+    }
+  },
+  "$defs": {
+    "OpaqueRef": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "OutboxEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "stream_id",
+        "snapshot_id",
+        "tenant_ref",
+        "election_ref",
+        "event_type",
+        "protocol_version",
+        "schema_version",
+        "canonical_event",
+        "event_hash",
+        "idempotency_key",
+        "expected_previous_sequence",
+        "expected_previous_receipt_hash",
+        "created_at",
+        "delivery_state"
+      ],
+      "properties": {
+        "event_id": {"$ref": "#/$defs/Uuid"},
+        "stream_id": {"$ref": "#/$defs/Uuid"},
+        "snapshot_id": {"$ref": "#/$defs/Uuid"},
+        "tenant_ref": {"$ref": "#/$defs/OpaqueRef"},
+        "election_ref": {"$ref": "#/$defs/OpaqueRef"},
+        "event_type": {
+          "enum": ["register.prepared", "register.reconciled", "register.approved_frozen"]
+        },
+        "protocol_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "canonical_event": {"type": "object"},
+        "event_hash": {"$ref": "#/$defs/Sha256"},
+        "idempotency_key": {"$ref": "#/$defs/Uuid"},
+        "expected_previous_sequence": {"type": "integer", "minimum": 0},
+        "expected_previous_receipt_hash": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/Sha256"}
+          ]
+        },
+        "created_at": {"type": "string", "format": "date-time"},
+        "delivery_state": {
+          "enum": [
+            "pending",
+            "submitted",
+            "receipt_received",
+            "anchored",
+            "retryable_failure",
+            "quarantined",
+            "permanent_failure"
+          ]
+        }
+      }
+    },
+    "AnchoredReceiptResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stream_id",
+        "snapshot_id",
+        "sequence",
+        "event_hash",
+        "receipt_hash",
+        "previous_receipt_hash",
+        "receipt_key_id",
+        "receipt_signature",
+        "witness_sequence",
+        "witness_receipt_hash",
+        "witness_key_id",
+        "witness_signature",
+        "anchored_at"
+      ],
+      "properties": {
+        "stream_id": {"$ref": "#/$defs/Uuid"},
+        "snapshot_id": {"$ref": "#/$defs/Uuid"},
+        "sequence": {"type": "integer", "minimum": 1},
+        "event_hash": {"$ref": "#/$defs/Sha256"},
+        "receipt_hash": {"$ref": "#/$defs/Sha256"},
+        "previous_receipt_hash": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/Sha256"}
+          ]
+        },
+        "receipt_key_id": {"$ref": "#/$defs/OpaqueRef"},
+        "receipt_signature": {"type": "string", "minLength": 80, "maxLength": 256},
+        "witness_sequence": {"type": "integer", "minimum": 1},
+        "witness_receipt_hash": {"$ref": "#/$defs/Sha256"},
+        "witness_key_id": {"$ref": "#/$defs/OpaqueRef"},
+        "witness_signature": {"type": "string", "minLength": 80, "maxLength": 256},
+        "anchored_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "HeadChallengeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stream_id", "tenant_ref", "election_ref", "nonce", "requested_at"],
+      "properties": {
+        "stream_id": {"$ref": "#/$defs/Uuid"},
+        "tenant_ref": {"$ref": "#/$defs/OpaqueRef"},
+        "election_ref": {"$ref": "#/$defs/OpaqueRef"},
+        "nonce": {"type": "string", "pattern": "^[A-Za-z0-9_-]{43}$"},
+        "requested_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "VerifiedWitnessHead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stream_id",
+        "tenant_ref",
+        "election_ref",
+        "nonce",
+        "sequence",
+        "receipt_hash",
+        "event_hash",
+        "event_type",
+        "witness_checkpoint_hash",
+        "witness_key_id",
+        "signature",
+        "witnessed_at"
+      ],
+      "properties": {
+        "stream_id": {"$ref": "#/$defs/Uuid"},
+        "tenant_ref": {"$ref": "#/$defs/OpaqueRef"},
+        "election_ref": {"$ref": "#/$defs/OpaqueRef"},
+        "nonce": {"type": "string", "pattern": "^[A-Za-z0-9_-]{43}$"},
+        "sequence": {"type": "integer", "minimum": 0},
+        "receipt_hash": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/Sha256"}
+          ]
+        },
+        "event_hash": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/Sha256"}
+          ]
+        },
+        "event_type": {
+          "oneOf": [
+            {"type": "null"},
+            {"enum": ["register.prepared", "register.reconciled", "register.approved_frozen"]}
+          ]
+        },
+        "witness_checkpoint_hash": {"$ref": "#/$defs/Sha256"},
+        "witness_key_id": {"$ref": "#/$defs/OpaqueRef"},
+        "signature": {"type": "string", "minLength": 80, "maxLength": 256},
+        "witnessed_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "DeliveryError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "class", "retryable", "quarantine", "correlation_id"],
+      "properties": {
+        "code": {
+          "enum": [
+            "NETWORK_TIMEOUT",
+            "SERVICE_UNAVAILABLE",
+            "WORKLOAD_AUTH_FAILED",
+            "SCOPE_MISMATCH",
+            "SCHEMA_REJECTED",
+            "IDEMPOTENCY_CONFLICT",
+            "STALE_PREDECESSOR",
+            "SEQUENCE_CONFLICT",
+            "INVALID_RECEIPT_SIGNATURE",
+            "INVALID_WITNESS_SIGNATURE",
+            "UNKNOWN_KEY",
+            "REVOKED_KEY",
+            "NONCE_MISMATCH",
+            "NONCE_REPLAY",
+            "CHALLENGE_STALE",
+            "HEAD_MISMATCH",
+            "PROTOCOL_VIOLATION"
+          ]
+        },
+        "class": {
+          "enum": ["transient", "permanent", "integrity", "authorization"]
+        },
+        "retryable": {"type": "boolean"},
+        "quarantine": {"type": "boolean"},
+        "correlation_id": {"$ref": "#/$defs/Uuid"},
+        "safe_detail": {"type": "string", "maxLength": 512}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"class": {"const": "integrity"}}},
+          "then": {"properties": {"quarantine": {"const": true}, "retryable": {"const": false}}}
+        }
+      ]
+    }
+  }
+}
