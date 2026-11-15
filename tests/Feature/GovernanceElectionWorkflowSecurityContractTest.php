@@ -232,6 +232,7 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('elections.registers.prepare', $routes);
         self::assertStringContainsString('elections.registers.reconcile', $routes);
         self::assertStringContainsString('elections.registers.approve-freeze', $routes);
+        self::assertStringContainsString("auth.permission:governance.election.register.manage", $routes);
     }
 
     public function test_register_reconstruction_checks_full_ledger_against_current_projection(): void
