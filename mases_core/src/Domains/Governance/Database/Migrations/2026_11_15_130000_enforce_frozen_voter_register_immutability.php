@@ -115,6 +115,10 @@ BEGIN
     FROM governance_election_register_snapshots
     WHERE id = NEW.snapshot_id AND tenant_id = NEW.tenant_id AND election_id = NEW.election_id
     FOR UPDATE;
+    IF v_status IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Voter row must reference an existing snapshot in the same tenant and election.';
+    END IF;
     IF v_status = 'frozen' OR v_frozen_at IS NOT NULL THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Frozen voter registers are immutable.';
@@ -136,6 +140,10 @@ BEGIN
         FROM governance_election_register_snapshots
         WHERE id = OLD.snapshot_id AND tenant_id = OLD.tenant_id AND election_id = OLD.election_id
         FOR UPDATE;
+        IF v_old_status IS NULL THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Voter row must reference an existing snapshot in the same tenant and election.';
+        END IF;
         SET v_new_status = v_old_status;
         SET v_new_frozen_at = v_old_frozen_at;
     ELSEIF OLD.snapshot_id < NEW.snapshot_id THEN
@@ -154,8 +162,12 @@ BEGIN
         FOR UPDATE;
         SELECT register_status, frozen_at INTO v_old_status, v_old_frozen_at
         FROM governance_election_register_snapshots
-        WHERE id = OLD.snapshot_id
+        WHERE id = OLD.snapshot_id AND tenant_id = OLD.tenant_id AND election_id = OLD.election_id
         FOR UPDATE;
+    END IF;
+    IF v_old_status IS NULL OR v_new_status IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Voter row must reference an existing snapshot in the same tenant and election.';
     END IF;
     IF v_old_status = 'frozen' OR v_old_frozen_at IS NOT NULL
        OR v_new_status = 'frozen' OR v_new_frozen_at IS NOT NULL THEN
@@ -176,6 +188,10 @@ BEGIN
     FROM governance_election_register_snapshots
     WHERE id = OLD.snapshot_id AND tenant_id = OLD.tenant_id AND election_id = OLD.election_id
     FOR UPDATE;
+    IF v_status IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Voter row must reference an existing snapshot in the same tenant and election.';
+    END IF;
     IF v_status = 'frozen' OR v_frozen_at IS NOT NULL THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Frozen voter registers are immutable.';
