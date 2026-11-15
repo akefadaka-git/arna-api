@@ -577,13 +577,6 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             $table->string('source_reference');
             $table->string('rule_version');
             $table->string('content_sha256', 64);
-            $table->string('snapshot_uuid', 36)->nullable()->unique();
-            $table->string('prepared_attestation_sha256', 64)->nullable();
-            $table->string('prepared_attestation_key_id', 64)->nullable();
-            $table->string('reconciliation_attestation_sha256', 64)->nullable();
-            $table->string('reconciliation_attestation_key_id', 64)->nullable();
-            $table->string('approval_attestation_sha256', 64)->nullable();
-            $table->string('approval_attestation_key_id', 64)->nullable();
             $table->unsignedInteger('voter_count');
             $table->unsignedBigInteger('created_by');
             $table->unsignedBigInteger('prepared_by')->nullable();
