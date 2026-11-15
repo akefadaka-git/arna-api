@@ -45,12 +45,27 @@ jobs:
         run: |
           schema=docs/governance/elections/AGE-A3.10-RECEIPT-PROTOCOL-SCHEMA.json
           jq -e '.["$schema"] == "https://json-schema.org/draft/2020-12/schema"' "$schema"
+          jq -e '.["$defs"].AppendEventRequest.required | index("idempotency_key") != null' "$schema"
           jq -e '.["$defs"].AppendReceipt.required | index("signature") != null' "$schema"
           jq -e '.["$defs"].WitnessCheckpoint.required | index("signature") != null' "$schema"
           jq -e '.["$defs"].HeadChallengeResponse.required | index("nonce") != null' "$schema"
           jq -e '.["$defs"].HeadChallengeResponse.properties.checkpoint["$ref"] == "#/$defs/WitnessCheckpoint"' "$schema"
           jq -e '.["$defs"].HeadChallengeResponse.properties.nonce.pattern == "^[A-Za-z0-9_-]{43}$"' "$schema"
           jq -e '.["$defs"].AppendReceipt.properties.sequence.minimum == 1' "$schema"
+
+      - name: Validate JSON Schema Draft 2020-12
+        run: |
+          python3 -m pip install --disable-pip-version-check jsonschema==4.23.0
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+
+          path = Path("docs/governance/elections/AGE-A3.10-RECEIPT-PROTOCOL-SCHEMA.json")
+          schema = json.loads(path.read_text(encoding="utf-8"))
+          Draft202012Validator.check_schema(schema)
+          print("PASS: receipt protocol schema is valid Draft 2020-12.")
+          PY
 
       - name: Report scope
         run: |
