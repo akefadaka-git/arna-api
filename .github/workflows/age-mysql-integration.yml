@@ -5,10 +5,12 @@ on:
   push:
     branches:
       - fix/age-a3-frozen-register-db-immutability
+      - feat/age-a3-anonymous-ballot-security
     paths:
       - ".github/workflows/age-mysql-integration.yml"
       - "mases_core/src/Domains/Governance/Database/Migrations/**"
       - "mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionPhysicalBallotService.php"
       - "tests/Feature/AgeVoterRegisterMySqlIntegrationTest.php"
       - "tests/Feature/AgeVoterRegisterDatabaseTest.php"
       - "phpunit.age-mysql.xml"
