@@ -2,21 +2,11 @@
 
 declare(strict_types=1);
 
-use Illuminate\\Database\\Migrations\\Migration;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
 
-/**
- * Enforce frozen voter-register immutability at the database boundary.
- *
- * Service checks and row locks protect cooperating application writers.
- * These triggers also reject direct INSERT/UPDATE/DELETE statements against
- * a frozen snapshot, regardless of whether the caller uses Eloquent or the
- * query builder.
- */
 return new class extends Migration
 {
-    private const TABLE = 'governance_election_voters';
-
     private const TRIGGERS = [
         'age_voter_register_frozen_insert',
         'age_voter_register_frozen_update',
@@ -47,17 +37,14 @@ return new class extends Migration
     public function down(): void
     {
         $driver = DB::getDriverName();
+        if (!in_array($driver, ['mysql', 'sqlite'], true)) {
+            throw new RuntimeException(
+                "Cannot safely remove frozen voter-register triggers for database driver [{$driver}]."
+            );
+        }
 
         foreach (self::TRIGGERS as $trigger) {
-            if ($driver === 'mysql') {
-                DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
-            } elseif ($driver === 'sqlite') {
-                DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
-            } else {
-                throw new RuntimeException(
-                    "Cannot safely remove frozen voter-register triggers for database driver [{$driver}]."
-                );
-            }
+            DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
         }
     }
 
@@ -84,24 +71,6 @@ BEGIN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Frozen voter-register snapshots are immutable.';
     END IF;
-END
-SQL);
-
-        DB::unprepared(<<<'SQL'
-CREATE TRIGGER age_register_snapshot_frozen_update
-BEFORE UPDATE ON governance_election_register_snapshots
-WHEN OLD.register_status = 'frozen' OR OLD.frozen_at IS NOT NULL
-BEGIN
-    SELECT RAISE(ABORT, 'Frozen voter-register snapshots are immutable.');
-END
-SQL);
-
-        DB::unprepared(<<<'SQL'
-CREATE TRIGGER age_register_snapshot_frozen_delete
-BEFORE DELETE ON governance_election_register_snapshots
-WHEN OLD.register_status = 'frozen' OR OLD.frozen_at IS NOT NULL
-BEGIN
-    SELECT RAISE(ABORT, 'Frozen voter-register snapshots are immutable.');
 END
 SQL);
 
@@ -187,6 +156,24 @@ SQL);
 
     private function createSqliteTriggers(): void
     {
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_frozen_update
+BEFORE UPDATE ON governance_election_register_snapshots
+WHEN OLD.register_status = 'frozen' OR OLD.frozen_at IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'Frozen voter-register snapshots are immutable.');
+END
+SQL);
+
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_frozen_delete
+BEFORE DELETE ON governance_election_register_snapshots
+WHEN OLD.register_status = 'frozen' OR OLD.frozen_at IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'Frozen voter-register snapshots are immutable.');
+END
+SQL);
+
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_voter_register_frozen_insert
 BEFORE INSERT ON governance_election_voters
