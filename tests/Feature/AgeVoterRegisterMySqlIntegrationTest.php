@@ -8,6 +8,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -20,7 +21,8 @@ use Tests\TestCase;
  */
 final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 {
-    private string $migrationPath = '';\n    private string $attestationMigrationPath = '';\n    private bool $attestationMigrationApplied = false;
+    private string $migrationPath = '';
+    private string $attestationMigrationPath = '';\n    private bool $attestationMigrationApplied = false;
     private bool $fixturesCreated = false;
     private bool $migrationApplied = false;
 
@@ -546,7 +548,7 @@ PHP;
             'source_reference' => 'MYSQL-AGE-TEST',
             'rule_version' => 'AGE-TEST-1',
             'content_sha256' => str_repeat('a', 64),
-            'snapshot_uuid' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'snapshot_uuid' => Str::uuid()->toString(),
             'prepared_attestation_sha256' => str_repeat('a', 64),
             'prepared_attestation_key_id' => 'mysql-test-key-v1',
             'voter_count' => 1,
