@@ -625,6 +625,12 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.view')->name('elections.objections.store');
     Route::post('/elections/{governanceElection}/objections/{objection}/appeals', [GovernanceElectionWorkflowController::class, 'submitAppeal'])
         ->whereNumber('governanceElection')->whereNumber('objection')->middleware('auth.permission:governance.election.view')->name('elections.appeals.store');
+    // Manual physical count evidence is aggregate-only and requires active committee membership plus a distinct witness.
+    Route::get('/elections/{governanceElection}/count-batches', [GovernanceElectionWorkflowController::class, 'manualCountBatchIndex'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.count-batches.index');
+    Route::post('/elections/{governanceElection}/count-batches', [GovernanceElectionWorkflowController::class, 'storeManualCountBatch'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.count-batches.store');
+
     Route::post('/elections/{governanceElection}/certification', [GovernanceElectionWorkflowController::class, 'certifyElection'])
         ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.certification.store');
     Route::post('/elections/{governanceElection}/ratification', [GovernanceElectionWorkflowController::class, 'ratifyElection'])
