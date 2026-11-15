@@ -94,6 +94,38 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         self::assertNull($snapshot->frozen_at);
     }
 
+    public function test_mysql_rejects_snapshot_inserts_that_bypass_initial_draft_state(): void
+    {
+        $base = [
+            'register_status' => 'frozen',
+            'frozen_at' => now(),
+            'reconciled_by' => 101,
+            'reconciled_at' => now(),
+            'approved_by' => 102,
+            'approved_at' => now(),
+            'integrity_verified_at' => now(),
+        ];
+
+        try {
+            $this->insertSnapshot($base);
+            self::fail('MySQL must reject a snapshot inserted directly in the frozen state.');
+        } catch (QueryException $exception) {
+            self::assertStringContainsString('initial prepared draft state', strtolower($exception->getMessage()));
+        }
+
+        try {
+            $this->insertSnapshot([
+                'register_status' => 'draft',
+                'frozen_at' => now(),
+            ]);
+            self::fail('MySQL must reject a draft snapshot inserted with a freeze timestamp.');
+        } catch (QueryException $exception) {
+            self::assertStringContainsString('initial prepared draft state', strtolower($exception->getMessage()));
+        }
+
+        self::assertSame(0, DB::table('governance_election_register_snapshots')->count());
+    }
+
     public function test_mysql_triggers_reject_missing_cross_tenant_and_frozen_register_writes(): void
     {
         $snapshotId = $this->insertSnapshot();
@@ -373,9 +405,9 @@ PHP;
         Schema::dropIfExists('governance_election_register_snapshots');
     }
 
-    private function insertSnapshot(): int
+    private function insertSnapshot(array $overrides = []): int
     {
-        return (int) DB::table('governance_election_register_snapshots')->insertGetId([
+        return (int) DB::table('governance_election_register_snapshots')->insertGetId(array_replace([
             'tenant_id' => 7,
             'election_id' => 10,
             'record_date' => '2026-01-15',
@@ -384,10 +416,12 @@ PHP;
             'content_sha256' => str_repeat('a', 64),
             'voter_count' => 1,
             'created_by' => 100,
-            'prepared_by' => null,
+            'prepared_by' => 100,
+            'register_status' => 'draft',
+            'frozen_at' => null,
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ], $overrides));
     }
 
     private function insertVoter(int $snapshotId, int $tenantId, int $electionId, string $reference): int
