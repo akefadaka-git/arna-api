@@ -224,6 +224,7 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('public function approveAndFreeze(', $service);
         self::assertStringContainsString('public function hasValidSnapshotIntegrity(', $service);
         self::assertStringContainsString('private static function snapshotContentHash(', $service);
+        self::assertGreaterThanOrEqual(3, substr_count($service, 'self::snapshotContentHash('));
         self::assertStringContainsString("'source_reference' => $sourceReference", $service);
         self::assertStringContainsString("'rule_version' => $ruleVersion", $service);
         self::assertStringContainsString("'record_date' => $recordDate", $service);
