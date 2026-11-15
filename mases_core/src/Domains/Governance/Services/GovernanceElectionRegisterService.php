@@ -5,8 +5,10 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
+use MaaleArna\MASES\Core\Domains\Governance\Security\AgeRegisterAttestation;
 use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use RuntimeException;
 
