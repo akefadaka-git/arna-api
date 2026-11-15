@@ -348,6 +348,21 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             ->where('id', $snapshotId)->value('register_status'));
     }
 
+    public function test_approval_attestation_detects_fabricated_actor_or_timestamp_after_trigger_bypass(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+        self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
+
+        DB::unprepared('DROP TRIGGER IF EXISTS age_register_snapshot_frozen_update');
+        DB::unprepared('DROP TRIGGER IF EXISTS age_register_attestation_update_guard');
+        DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+            ->update(['approved_by' => 103]);
+
+        self::assertFalse($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
+    }
+
     public function test_prepared_attestation_detects_privileged_database_tampering_after_trigger_bypass(): void
     {
         $snapshotId = $this->prepareRegister();
