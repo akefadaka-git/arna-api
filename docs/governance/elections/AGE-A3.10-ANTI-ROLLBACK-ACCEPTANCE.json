@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract_version": "1.0.0",
+  "design_document": "AGE-A3.10-ANTI-ROLLBACK-AND-EXTERNAL-RECEIPTS.md",
+  "status": "DESIGN_ACCEPTANCE_CONTRACT_NOT_EXECUTED",
+  "protocol": {
+    "receipt_signature": "Ed25519",
+    "event_hash": "SHA-256",
+    "receipt_hash": "SHA-256",
+    "canonical_json": "RFC8785",
+    "nonce_bits": 256,
+    "first_sequence": 1,
+    "required_durability": "independent_append-only authority commits event and signed receipt before acknowledgement",
+    "voting_open_policy": "fail_closed_without_fresh_verified_external_head"
+  },
+  "required_acceptance_groups": [
+    "canonicalization_and_crypto",
+    "append_ordering_and_idempotency",
+    "scope_and_authorization",
+    "freshness_and_replay",
+    "rollback_and_recovery",
+    "key_custody_and_rotation",
+    "archive_immutability",
+    "availability_and_disaster_recovery",
+    "operations_and_audit"
+  ],
+  "cases": [
+    {
+      "id": "CRYPTO-001",
+      "group": "canonicalization_and_crypto",
+      "level": "unit",
+      "scenario": "Equivalent RFC 8785 canonical objects produce identical event hashes regardless of source key order.",
+      "expected": "PASS; hashes match."
+    },
+    {
+      "id": "CRYPTO-002",
+      "group": "canonicalization_and_crypto",
+      "level": "unit",
+      "scenario": "Duplicate JSON keys, invalid UTF-8, invalid numeric forms and non-canonical payloads are submitted.",
+      "expected": "REJECT; no event or sequence is allocated."
+    },
+    {
+      "id": "CRYPTO-003",
+      "group": "canonicalization_and_crypto",
+      "level": "integration",
+      "scenario": "A receipt is verified with the pinned Ed25519 public key and then one signed field is modified.",
+      "expected": "Original verifies; modified receipt fails signature/hash verification."
+    },
+    {
+      "id": "CRYPTO-004",
+      "group": "canonicalization_and_crypto",
+      "level": "integration",
+      "scenario": "A valid receipt from another stream, tenant, election or snapshot is substituted.",
+      "expected": "REJECT; scope binding mismatch."
+    },
+    {
+      "id": "APPEND-001",
+      "group": "append_ordering_and_idempotency",
+      "level": "integration",
+      "scenario": "Append first prepared event to an empty stream.",
+      "expected": "Durable receipt is returned at sequence 1 with zero/genesis previous hash."
+    },
+    {
+      "id": "APPEND-002",
+      "group": "append_ordering_and_idempotency",
+      "level": "integration",
+      "scenario": "Append reconciled event with exact current sequence and previous receipt hash.",
+      "expected": "Durable receipt at previous sequence plus one; previous hash links to prior receipt."
+    },
+    {
+      "id": "APPEND-003",
+      "group": "append_ordering_and_idempotency",
+      "level": "integration",
+      "scenario": "Append event with stale expected sequence or stale previous receipt hash.",
+      "expected": "CONFLICT; no sequence allocation and no append."
+    },
+    {
+      "id": "APPEND-004",
+      "group": "append_ordering_and_idempotency",
+      "level": "integration",
+      "scenario": "Two concurrent requests append different events to the same expected head.",
+      "expected": "Exactly one succeeds; the other receives conflict; no duplicate sequence or fork."
+    },
+    {
+      "id": "APPEND-005",
+      "group": "append_ordering_and_idempotency",
+      "level": "integration",
+      "scenario": "Retry byte-identical request with same idempotency key after response timeout.",
+      "expected": "Original receipt returned byte-for-byte; no second event."
+    },
+    {
+      "id": "APPEND-006",
+      "group": "append_ordering_and_idempotency",
+      "level": "integration",
+      "scenario": "Reuse an idempotency key with a different event body/hash.",
+      "expected": "REJECT and security alert; no append."
+    },
+    {
+      "id": "APPEND-007",
+      "group": "append_ordering_and_idempotency",
+      "level": "integration",
+      "scenario": "Simulate service crash before durable commit and after durable commit but before response.",
+      "expected": "Before commit: retry appends once. After commit: retry returns same receipt. No acknowledged event is lost."
+    },
+    {
+      "id": "SCOPE-001",
+      "group": "scope_and_authorization",
+      "level": "integration",
+      "scenario": "Untrusted workload, expired workload identity, wrong audience or missing mTLS identity submits append.",
+      "expected": "401/403; no append."
+    },
+    {
+      "id": "SCOPE-002",
+      "group": "scope_and_authorization",
+      "level": "integration",
+      "scenario": "Authenticated ARNA workload attempts to append to a stream outside its tenant/election scope.",
+      "expected": "403; no append; security audit record emitted."
+    },
+    {
+      "id": "SCOPE-003",
+      "group": "scope_and_authorization",
+      "level": "integration",
+      "scenario": "Caller attempts to choose sequence, receipt ID, receipt timestamp, previous hash or signing key ID.",
+      "expected": "REJECT unknown/forbidden fields; server-owned values cannot be caller-controlled."
+    },
+    {
+      "id": "FRESH-001",
+      "group": "freshness_and_replay",
+      "level": "integration",
+      "scenario": "Submit a fresh random 256-bit nonce for current-head challenge.",
+      "expected": "Signed response echoes exact nonce and current stream head."
+    },
+    {
+      "id": "FRESH-002",
+      "group": "freshness_and_replay",
+      "level": "integration",
+      "scenario": "Replay a previously valid signed head response against a new nonce.",
+      "expected": "REJECT; nonce mismatch."
+    },
+    {
+      "id": "FRESH-003",
+      "group": "freshness_and_replay",
+      "level": "integration",
+      "scenario": "Submit expired, reused or malformed nonce.",
+      "expected": "REJECT; no currentness assertion."
+    },
+    {
+      "id": "FRESH-004",
+      "group": "freshness_and_replay",
+      "level": "integration",
+      "scenario": "Return signed head with timestamp outside configured clock-skew/freshness policy.",
+      "expected": "REJECT; fail closed."
+    },
+    {
+      "id": "ROLLBACK-001",
+      "group": "rollback_and_recovery",
+      "level": "end_to_end",
+      "scenario": "Restore ARNA database to a backup that predates one or more externally acknowledged events.",
+      "expected": "Fresh external head is ahead of local state; voting-open blocked; stream quarantined for reconciliation."
+    },
+    {
+      "id": "ROLLBACK-002",
+      "group": "rollback_and_recovery",
+      "level": "end_to_end",
+      "scenario": "Delete local receipt and outbox acknowledgement rows while external stream remains intact.",
+      "expected": "Signed external history rebuilds local receipt projection; no event is re-signed or duplicated."
+    },
+    {
+      "id": "ROLLBACK-003",
+      "group": "rollback_and_recovery",
+      "level": "end_to_end",
+      "scenario": "Modify local snapshot, HMAC attestation, receipt cache or sequence while external head is unchanged.",
+      "expected": "Local/external event commitment mismatch; fail closed and alert."
+    },
+    {
+      "id": "ROLLBACK-004",
+      "group": "rollback_and_recovery",
+      "level": "end_to_end",
+      "scenario": "Local database claims a later event than external authority has acknowledged.",
+      "expected": "Fail closed; do not trust local event or cached receipt."
+    },
+    {
+      "id": "ROLLBACK-005",
+      "group": "rollback_and_recovery",
+      "level": "end_to_end",
+      "scenario": "External stream contains a gap, broken previous hash or invalid signature during recovery.",
+      "expected": "Quarantine stream; no automatic repair or overwrite."
+    },
+    {
+      "id": "KEY-001",
+      "group": "key_custody_and_rotation",
+      "level": "operational",
+      "scenario": "Inspect receipt signing private key from application runtime, service database, logs, backups and CI.",
+      "expected": "Private key is non-exportable and absent from all inspected locations; KMS/HSM audit evidence exists."
+    },
+    {
+      "id": "KEY-002",
+      "group": "key_custody_and_rotation",
+      "level": "integration",
+      "scenario": "Rotate signing key after publishing new trust bundle; verify old and new receipts.",
+      "expected": "New receipts use new key; old receipts remain verifiable with verify-only old public key."
+    },
+    {
+      "id": "KEY-003",
+      "group": "key_custody_and_rotation",
+      "level": "integration",
+      "scenario": "Revoke a compromised signing key and submit a receipt signed by it.",
+      "expected": "New receipt rejected; affected streams placed on security hold; historical verification follows explicit compromise policy."
+    },
+    {
+      "id": "KEY-004",
+      "group": "key_custody_and_rotation",
+      "level": "operational",
+      "scenario": "Attempt key rotation, revocation and export using one operator identity without required second approver.",
+      "expected": "Denied; dual-control and immutable audit evidence recorded."
+    },
+    {
+      "id": "ARCHIVE-001",
+      "group": "archive_immutability",
+      "level": "operational",
+      "scenario": "Attempt to delete, overwrite or shorten retention for archived receipt/checkpoint objects using receipt-service operator credentials.",
+      "expected": "Denied by separate account and WORM retention controls."
+    },
+    {
+      "id": "ARCHIVE-002",
+      "group": "archive_immutability",
+      "level": "operational",
+      "scenario": "Modify or omit a receipt in an exported archive batch.",
+      "expected": "Independent verifier detects hash-chain/checkpoint mismatch."
+    },
+    {
+      "id": "ARCHIVE-003",
+      "group": "archive_immutability",
+      "level": "operational",
+      "scenario": "Restore receipt service database from an older backup while archive/checkpoint has a newer signed head.",
+      "expected": "Restore is rejected or quarantined until independently reconciled to latest external checkpoint."
+    },
+    {
+      "id": "ARCHIVE-004",
+      "group": "archive_immutability",
+      "level": "operational",
+      "scenario": "Verify archive replicas, retention lock, legal hold and access logs from separate custodian account.",
+      "expected": "Evidence proves independent account, approved retention, immutable audit and successful restore test."
+    },
+    {
+      "id": "AVAIL-001",
+      "group": "availability_and_disaster_recovery",
+      "level": "end_to_end",
+      "scenario": "Receipt service is unavailable during prepare/reconcile/freeze append.",
+      "expected": "Local event remains anchor_pending; retries are idempotent; no anchored claim."
+    },
+    {
+      "id": "AVAIL-002",
+      "group": "availability_and_disaster_recovery",
+      "level": "end_to_end",
+      "scenario": "Receipt service is unavailable or head challenge fails when voting is about to open.",
+      "expected": "Voting-open blocked; no cached-head fallback."
+    },
+    {
+      "id": "AVAIL-003",
+      "group": "availability_and_disaster_recovery",
+      "level": "operational",
+      "scenario": "Restore receipt authority and archive from disaster-recovery backups.",
+      "expected": "Signed latest checkpoint and all acknowledged receipts verify; approved RPO/RTO met."
+    },
+    {
+      "id": "OPS-001",
+      "group": "operations_and_audit",
+      "level": "operational",
+      "scenario": "Generate expected-head conflict, invalid signature, nonce replay and archive mismatch.",
+      "expected": "Security alerts identify stream, event, reason and correlation ID without exposing voter PII or secret material."
+    },
+    {
+      "id": "OPS-002",
+      "group": "operations_and_audit",
+      "level": "operational",
+      "scenario": "Auditor verifies exported receipt chain using independently obtained trust bundle.",
+      "expected": "Auditor can validate signatures, sequence continuity, stream scope and current signed checkpoint read-only."
+    },
+    {
+      "id": "OPS-003",
+      "group": "operations_and_audit",
+      "level": "operational",
+      "scenario": "Inspect production-readiness evidence for legal retention, service SLA, freshness limit, clock skew, RPO/RTO, residency, owners and incident process.",
+      "expected": "All values and owners explicitly approved; no placeholder or inferred value."
+    }
+  ],
+  "exit_criteria": [
+    "Every case passes on exact implementation commit.",
+    "End-to-end cases execute against a separately operated staging receipt authority; mocks alone do not satisfy acceptance.",
+    "KMS/HSM non-exportability, policy separation and audit evidence are independently inspected.",
+    "WORM retention and independent archive restore are demonstrated.",
+    "A database rollback simulation proves fresh external-head mismatch blocks voting-open.",
+    "Independent security review accepts threat model and residual risks.",
+    "Legal retention, data residency, service availability, freshness, clock-skew, RPO/RTO and operational ownership are approved."
+  ],
+  "execution_record": {
+    "implementation_sha": null,
+    "test_run_url": null,
+    "passed": [],
+    "failed": [],
+    "not_run": "ALL — protocol/service infrastructure is not implemented or provisioned.",
+    "reviewer": null,
+    "review_date": null
+  }
+}
