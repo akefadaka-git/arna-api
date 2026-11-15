@@ -23,6 +23,8 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 {
     private string $migrationPath = '';
     private string $attestationMigrationPath = '';
+    private string $receiptOutboxMigrationPath = '';
+    private bool $receiptOutboxMigrationApplied = false;
     private bool $attestationMigrationApplied = false;
     private bool $fixturesCreated = false;
     private bool $migrationApplied = false;
@@ -50,6 +52,9 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         $this->attestationMigrationPath = base_path(
             'mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_140000_add_voter_register_attestations.php'
         );
+        $this->receiptOutboxMigrationPath = base_path(
+            'mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_150000_create_age_receipt_outbox.php'
+        );
 
         $this->dropFixtureTables();
         $this->createFixtureTables();
@@ -61,6 +66,57 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         $attestationMigration = require $this->attestationMigrationPath;
         $attestationMigration->up();
         $this->attestationMigrationApplied = true;
+        $receiptOutboxMigration = require $this->receiptOutboxMigrationPath;
+        $receiptOutboxMigration->up();
+        $this->receiptOutboxMigrationApplied = true;
+    }
+
+    public function test_mysql_receipt_outbox_rejects_payload_mutation_and_deletion(): void
+    {
+        $eventId = (int) DB::table('age_receipt_outbox')->insertGetId([
+            'event_uuid' => (string) Str::uuid(),
+            'stream_uuid' => (string) Str::uuid(),
+            'snapshot_uuid' => (string) Str::uuid(),
+            'tenant_id' => 7,
+            'election_id' => 10,
+            'snapshot_id' => 999,
+            'sequence' => 1,
+            'event_type' => 'register.prepared',
+            'canonical_event' => '{"event_type":"register.prepared"}',
+            'event_sha256' => str_repeat('a', 64),
+            'idempotency_key' => (string) Str::uuid(),
+            'expected_previous_sequence' => 0,
+            'expected_previous_receipt_sha256' => null,
+            'delivery_state' => 'pending',
+            'attempt_count' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            $this->assertWriteRejected(function () use ($eventId): void {
+                DB::table('age_receipt_outbox')->where('id', $eventId)->update([
+                    'canonical_event' => '{"event_type":"tampered"}',
+                ]);
+            });
+            $this->assertWriteRejected(function () use ($eventId): void {
+                DB::table('age_receipt_outbox')->where('id', $eventId)->delete();
+            });
+            $this->assertWriteRejected(function () use ($eventId): void {
+                DB::table('age_receipt_outbox')->where('id', $eventId)->update([
+                    'delivery_state' => 'anchored',
+                    'receipt_sha256' => str_repeat('b', 64),
+                    'anchored_at' => now(),
+                ]);
+            });
+            self::assertSame('pending', DB::table('age_receipt_outbox')->where('id', $eventId)->value('delivery_state'));
+        } finally {
+            // This test runs only against the explicitly disposable age_test database.
+            DB::unprepared('DROP TRIGGER IF EXISTS age_receipt_outbox_immutable_update');
+            DB::unprepared('DROP TRIGGER IF EXISTS age_receipt_outbox_no_delete');
+            Schema::dropIfExists('age_receipt_outbox');
+            $this->receiptOutboxMigrationApplied = false;
+        }
     }
 
     public function test_mysql_triggers_reject_invalid_freeze_transition(): void
@@ -505,6 +561,10 @@ PHP;
             && env('AGE_MYSQL_INTEGRATION') === '1'
             && preg_match('/age[_-]?test/i', (string) DB::connection()->getDatabaseName())) {
             try {
+                if ($this->receiptOutboxMigrationApplied && $this->receiptOutboxMigrationPath !== '') {
+                    $receiptOutboxMigration = require $this->receiptOutboxMigrationPath;
+                    $receiptOutboxMigration->down();
+                }
                 if ($this->attestationMigrationApplied && $this->attestationMigrationPath !== '') {
                     $attestationMigration = require $this->attestationMigrationPath;
                     $attestationMigration->down();

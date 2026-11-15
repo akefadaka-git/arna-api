@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\Receipts\AgeReceiptGateway;
+use MaaleArna\MASES\Core\Domains\Governance\Services\Receipts\AgeReceiptOutboxDispatcher;
+use MaaleArna\MASES\Core\Domains\Governance\Security\AgeReceiptSignatureVerifier;
+use MaaleArna\MASES\Core\Domains\Governance\Security\AgeReceiptCanonicalizer;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -25,6 +29,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     private GovernanceElectionRegisterService $service;
     private bool $immutabilityMigrationApplied = false;
     private bool $attestationMigrationApplied = false;
+    private bool $receiptOutboxMigrationApplied = false;
 
     protected function setUp(): void
     {
@@ -37,6 +42,9 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         $attestationMigration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_140000_add_voter_register_attestations.php');
         $attestationMigration->up();
         $this->attestationMigrationApplied = true;
+        $receiptOutboxMigration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_150000_create_age_receipt_outbox.php');
+        $receiptOutboxMigration->up();
+        $this->receiptOutboxMigrationApplied = true;
         config()->set('age.register_attestation.active_key_id', 'test-key-v1');
         config()->set('age.register_attestation.keys', ['test-key-v1' => base64_encode(str_repeat('k', 32))]);
         config()->set('governance.election_voting.verified_class_entitlements', [
@@ -78,6 +86,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             self::assertSame('The register preparer cannot independently reconcile the register.', $exception->getMessage());
         }
 
+        $this->anchorLatestOutboxForTest($snapshotId);
         $hash = $this->service->reconcile(7, 10, $snapshotId, 101);
         self::assertSame(64, strlen($hash));
         self::assertSame('reconciled', DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->value('register_status'));
@@ -89,6 +98,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             self::assertSame('The approver must be independent of both preparation and reconciliation.', $exception->getMessage());
         }
 
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
         $snapshot = DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->first();
 
@@ -103,6 +113,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     public function test_tampered_register_rows_fail_integrity_and_cannot_be_frozen(): void
     {
         $snapshotId = $this->prepareRegister();
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
 
         DB::table('governance_election_voters')
@@ -248,7 +259,9 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     public function test_frozen_register_and_snapshot_reject_direct_database_mutations(): void
     {
         $snapshotId = $this->prepareRegister();
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
 
         $voterId = (int) DB::table('governance_election_voters')
@@ -292,6 +305,16 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
     }
 
+    private function assertOutboxWriteRejected(callable $write): void
+    {
+        try {
+            $write();
+            self::fail('AGE receipt outbox guards must reject payload mutation and deletion.');
+        } catch (QueryException $exception) {
+            self::assertStringContainsString('age receipt outbox', strtolower($exception->getMessage()));
+        }
+    }
+
     private function assertFrozenWriteRejected(callable $write): void
     {
         try {
@@ -329,6 +352,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             self::assertStringContainsString('governing metadata', strtolower($exception->getMessage()));
         }
 
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
 
         try {
@@ -347,6 +371,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
         }
 
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
         self::assertSame('frozen', DB::table('governance_election_register_snapshots')
             ->where('id', $snapshotId)->value('register_status'));
@@ -355,7 +380,15 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     public function test_approval_attestation_detects_fabricated_actor_or_timestamp_after_trigger_bypass(): void
     {
         $snapshotId = $this->prepareRegister();
+        try {
+            $this->service->reconcile(7, 10, $snapshotId, 101);
+            self::fail('The next lifecycle transition must wait for the prior external anchor.');
+        } catch (RuntimeException $exception) {
+            self::assertStringContainsString('prior AGE lifecycle event must be independently anchored', $exception->getMessage());
+        }
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
         self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
 
@@ -393,7 +426,8 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             ->where('shareholder_id', 21)->update(['share_quantity' => '999.0000']);
 
         try {
-            $this->service->reconcile(7, 10, $snapshotId, 101);
+            $this->anchorLatestOutboxForTest($snapshotId);
+        $this->service->reconcile(7, 10, $snapshotId, 101);
             self::fail('A database writer without the application attestation key must not replace the prepared digest and voter rows.');
         } catch (RuntimeException $exception) {
             self::assertSame('Prepared register attestation is missing or invalid; reconciliation failed closed.', $exception->getMessage());
@@ -518,8 +552,179 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             ->where('id', $snapshotId)->value('register_status'));
     }
 
+
+    public function test_lifecycle_transitions_create_ordered_immutable_outbox_events(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $events = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->orderBy('sequence')->get();
+        self::assertCount(1, $events);
+        self::assertSame('register.prepared', $events[0]->event_type);
+        self::assertSame('pending', $events[0]->delivery_state);
+        self::assertSame(0, (int) $events[0]->expected_previous_sequence);
+        self::assertSame(64, strlen($events[0]->event_sha256));
+        self::assertStringNotContainsString('shareholder_id', $events[0]->canonical_event);
+        $firstIdempotencyKey = $events[0]->idempotency_key;
+        $firstPayload = $events[0]->canonical_event;
+
+        $this->anchorLatestOutboxForTest($snapshotId);
+        $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->anchorLatestOutboxForTest($snapshotId);
+        $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+
+        $events = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->orderBy('sequence')->get();
+        self::assertCount(3, $events);
+        self::assertSame(['register.prepared', 'register.reconciled', 'register.approved_frozen'], $events->pluck('event_type')->all());
+        self::assertSame([1, 2, 3], $events->pluck('sequence')->map(fn ($v) => (int) $v)->all());
+        self::assertSame(1, (int) $events[1]->expected_previous_sequence);
+        self::assertSame(2, (int) $events[2]->expected_previous_sequence);
+        self::assertSame(str_repeat('a', 64), $events[1]->expected_previous_receipt_sha256);
+        self::assertSame(str_repeat('b', 64), $events[2]->expected_previous_receipt_sha256);
+        self::assertSame($firstIdempotencyKey, $events[0]->idempotency_key);
+        self::assertSame($firstPayload, $events[0]->canonical_event);
+        self::assertStringNotContainsString('shareholder_id', $events[2]->canonical_event);
+        $this->assertOutboxWriteRejected(function () use ($events): void {
+            DB::table('age_receipt_outbox')->where('id', $events[0]->id)->update(['canonical_event' => '{"tampered":true}']);
+        });
+        $this->assertOutboxWriteRejected(function () use ($events): void {
+            DB::table('age_receipt_outbox')->where('id', $events[0]->id)->delete();
+        });
+    }
+
+
+
+    public function test_outbox_migration_refuses_to_drop_pending_or_anchored_evidence(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $migration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_150000_create_age_receipt_outbox.php');
+
+        try {
+            $migration->down();
+            self::fail('The AGE outbox migration must refuse to drop pending evidence.');
+        } catch (RuntimeException $exception) {
+            self::assertStringContainsString('Refusing to drop non-empty AGE outbox', $exception->getMessage());
+        }
+
+        self::assertTrue(Schema::hasTable('age_receipt_outbox'));
+        self::assertSame(1, DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->count());
+    }
+
+    public function test_valid_independent_ed25519_receipt_and_witness_anchor_outbox_event(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $event = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->first();
+        $receiptPair = sodium_crypto_sign_keypair();
+        $witnessPair = sodium_crypto_sign_keypair();
+        $receiptSecret = sodium_crypto_sign_secretkey($receiptPair);
+        $witnessSecret = sodium_crypto_sign_secretkey($witnessPair);
+
+        config(['age.receipts.trust_bundle' => [
+            'version' => '1.0.0',
+            'keys' => [
+                'receipt-key-v1' => [
+                    'purpose' => 'receipt', 'status' => 'active',
+                    'public_key_base64' => base64_encode(sodium_crypto_sign_publickey($receiptPair)),
+                    'valid_from' => '2020-01-01T00:00:00Z', 'valid_until' => null, 'revoked_at' => null,
+                ],
+                'witness-key-v1' => [
+                    'purpose' => 'witness', 'status' => 'active',
+                    'public_key_base64' => base64_encode(sodium_crypto_sign_publickey($witnessPair)),
+                    'valid_from' => '2020-01-01T00:00:00Z', 'valid_until' => null, 'revoked_at' => null,
+                ],
+            ],
+        ]]);
+
+        $receipt = [
+            'key_id' => 'receipt-key-v1',
+            'stream_id' => $event->stream_uuid,
+            'sequence' => (int) $event->sequence,
+            'event_hash' => $event->event_sha256,
+            'previous_receipt_hash' => null,
+            'receipt_hash' => str_repeat('d', 64),
+            'signed_at' => now()->toIso8601String(),
+        ];
+        $receipt['signature'] = $this->signReceiptPayload($receipt, "arna:age:external-receipt:receipt:v1\0", $receiptSecret);
+        $witness = [
+            'key_id' => 'witness-key-v1',
+            'stream_id' => $event->stream_uuid,
+            'sequence' => (int) $event->sequence,
+            'event_hash' => $event->event_sha256,
+            'receipt_hash' => str_repeat('d', 64),
+            'previous_receipt_hash' => null,
+            'witnessed_at' => now()->toIso8601String(),
+        ];
+        $witness['signature'] = $this->signReceiptPayload($witness, "arna:age:external-receipt:witness:v1\0", $witnessSecret);
+
+        $gateway = new class($receipt, $witness) implements AgeReceiptGateway {
+            public function __construct(private array $receipt, private array $witness) {}
+            public function append(array $request): array
+            {
+                return ['receipt' => $this->receipt, 'witness_checkpoint' => $this->witness];
+            }
+            public function challengeWitnessHead(array $request): array
+            {
+                throw new RuntimeException('not used');
+            }
+        };
+
+        $dispatcher = new AgeReceiptOutboxDispatcher();
+        self::assertTrue($dispatcher->dispatch((int) $event->id, $gateway, new AgeReceiptSignatureVerifier()));
+        $anchored = DB::table('age_receipt_outbox')->where('id', $event->id)->first();
+        self::assertSame('anchored', $anchored->delivery_state);
+        self::assertSame(str_repeat('d', 64), $anchored->receipt_sha256);
+        self::assertNotNull($anchored->anchored_at);
+        self::assertSame(1, (int) $anchored->attempt_count);
+    }
+
+    public function test_outbox_retries_preserve_event_identity_and_protocol_failure_quarantines(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $event = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->first();
+        $originalKey = $event->idempotency_key;
+        $originalPayload = $event->canonical_event;
+        $gateway = new class implements AgeReceiptGateway {
+            public function append(array $request): array
+            {
+                throw new RuntimeException('simulated transport timeout');
+            }
+            public function challengeWitnessHead(array $request): array
+            {
+                throw new RuntimeException('not used');
+            }
+        };
+        $dispatcher = new AgeReceiptOutboxDispatcher();
+        $verifier = new AgeReceiptSignatureVerifier();
+
+        self::assertFalse($dispatcher->dispatch((int) $event->id, $gateway, $verifier));
+        $failed = DB::table('age_receipt_outbox')->where('id', $event->id)->first();
+        self::assertSame('retryable_failure', $failed->delivery_state);
+        self::assertSame(1, (int) $failed->attempt_count);
+        self::assertSame($originalKey, $failed->idempotency_key);
+        self::assertSame($originalPayload, $failed->canonical_event);
+
+        $dispatcher->scheduleRetry((int) $event->id);
+        $invalidGateway = new class implements AgeReceiptGateway {
+            public function append(array $request): array
+            {
+                return ['receipt' => ['key_id' => 'unknown', 'signature' => 'invalid'], 'witness_checkpoint' => []];
+            }
+            public function challengeWitnessHead(array $request): array
+            {
+                throw new RuntimeException('not used');
+            }
+        };
+        self::assertFalse($dispatcher->dispatch((int) $event->id, $invalidGateway, $verifier));
+        $quarantined = DB::table('age_receipt_outbox')->where('id', $event->id)->first();
+        self::assertSame('quarantined', $quarantined->delivery_state);
+        self::assertNotNull($quarantined->quarantined_at);
+        self::assertSame($originalKey, $quarantined->idempotency_key);
+        self::assertSame($originalPayload, $quarantined->canonical_event);
+    }
+
     protected function tearDown(): void
     {
+        if ($this->receiptOutboxMigrationApplied) {
+            Schema::dropIfExists('age_receipt_outbox');
+        }
         if ($this->attestationMigrationApplied) {
             $attestationMigration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_140000_add_voter_register_attestations.php');
             $attestationMigration->down();
@@ -530,6 +735,33 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         }
 
         parent::tearDown();
+    }
+
+
+
+    /** @param array<string,mixed> $payload */
+    private function signReceiptPayload(array $payload, string $domain, string $secretKey): string
+    {
+        unset($payload['signature']);
+        return base64_encode(sodium_crypto_sign_detached(
+            $domain . AgeReceiptCanonicalizer::encode($payload),
+            $secretKey,
+        ));
+    }
+
+    private function anchorLatestOutboxForTest(int $snapshotId): void
+    {
+        $event = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->orderByDesc('sequence')->first();
+        if ($event === null) {
+            throw new RuntimeException('Expected an AGE receipt outbox event in test fixture.');
+        }
+        DB::table('age_receipt_outbox')->where('id', $event->id)->update([
+            'delivery_state' => 'anchored',
+            'receipt_payload' => '{"fixture":"receipt"}',
+            'witness_payload' => '{"fixture":"witness"}',
+            'receipt_sha256' => str_repeat(chr(96 + (int) $event->sequence), 64),
+            'anchored_at' => now(),
+        ]);
     }
 
     private function prepareRegister(): int

@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 use MaaleArna\MASES\Core\Domains\Governance\Security\AgeRegisterAttestation;
+use MaaleArna\MASES\Core\Domains\Governance\Services\Receipts\AgeReceiptOutbox;
 use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use RuntimeException;
 
@@ -236,6 +237,7 @@ final class GovernanceElectionRegisterService
             ], $normalised);
             DB::table('governance_election_voters')->insert($rows);
             $election->forceFill(['record_date' => $recordDate, 'voting_rule_version' => $ruleVersion])->save();
+            AgeReceiptOutbox::enqueue($tenantId, $electionId, $snapshotId, 'register.prepared', $actorId);
             return $snapshotId;
         });
     }
@@ -311,6 +313,7 @@ final class GovernanceElectionRegisterService
                 'reconciliation_attestation_key_id' => $reconciliationAttestation['key_id'],
                 'updated_at' => $reconciledAtValue,
             ]);
+            AgeReceiptOutbox::enqueue($tenantId, $electionId, $snapshotId, 'register.reconciled', $actorId);
             return $hash;
         });
     }
@@ -447,6 +450,7 @@ final class GovernanceElectionRegisterService
                 'approval_attestation_key_id' => $approvalAttestation['key_id'],
                 'updated_at' => $approvedAt,
             ]);
+            AgeReceiptOutbox::enqueue($tenantId, $electionId, $snapshotId, 'register.approved_frozen', $actorId);
         });
     }
 
