@@ -56,7 +56,7 @@ final class GovernanceElectionRegisterService
                     ->whereColumn('e.share_holding_id', 'h.id')
                     ->where('e.occurred_at', '<=', $cutoff);
             })
-            ->select(['h.id as holding_id', 'h.shareholder_id', 'c.code as class_code'])
+            ->select(['h.id as holding_id', 'h.shareholder_id', 'h.current_quantity', 'c.code as class_code'])
             ->orderBy('h.shareholder_id')->orderBy('c.code')->get();
 
         $entries = [];
@@ -70,13 +70,16 @@ final class GovernanceElectionRegisterService
                     'share_class_entitlements' => "Share class {$class} has no verified eligible voting entitlement. Register freeze is blocked.",
                 ]);
             }
+            // Validate the complete append-only ledger against the current-state projection,
+            // while separately capturing the balance at the election record-date cutoff.
+            // The immutable chain is posting order (id), not business-time order:
+            // a valid backfilled entry may have an earlier occurred_at timestamp.
             $ledger = DB::table('share_holding_entries')
                 ->where('share_holding_id', $holding->holding_id)
-                ->where('occurred_at', '<=', $cutoff)
-                ->orderBy('occurred_at')->orderBy('id')->get();
+                ->orderBy('id')->get();
             if ($ledger->isEmpty()) {
                 throw ValidationException::withMessages([
-                    'share_ledger' => "Holding {$holding->holding_id} has no ledger history; its record-date entitlement cannot be reconstructed.",
+                    'share_ledger' => "Holding {$holding->holding_id} has no ledger history; its projection cannot be trusted.",
                 ]);
             }
             $balance = '0.0000';
@@ -90,6 +93,30 @@ final class GovernanceElectionRegisterService
                 }
                 $balance = $expected;
             }
+            if (bccomp($balance, (string) $holding->current_quantity, 4) !== 0) {
+                throw ValidationException::withMessages([
+                    'share_projection' => "Current holding projection disagrees with its authoritative ledger for holding {$holding->holding_id}.",
+                ]);
+            }
+
+            // Reconstruct effective entitlement by business time separately from
+            // the posting-order integrity chain; this supports authorized backfills.
+            $recordDateBalance = '0.0000';
+            $recordDateEntries = $ledger->filter(
+                static fn ($entry): bool => Carbon::parse($entry->occurred_at)->lte($cutoff)
+            )->sortBy([
+                ['occurred_at', 'asc'],
+                ['id', 'asc'],
+            ]);
+            foreach ($recordDateEntries as $entry) {
+                $recordDateBalance = bcadd($recordDateBalance, (string) $entry->quantity, 4);
+                if (bccomp($recordDateBalance, '0', 4) < 0) {
+                    throw ValidationException::withMessages([
+                        'share_ledger' => "Record-date balance becomes negative for holding {$holding->holding_id}.",
+                    ]);
+                }
+            }
+            $balance = $recordDateBalance;
             if (bccomp($balance, '0', 4) > 0) {
                 $rate = (string) $classRule['votes_per_share'];
                 $entries[] = [
