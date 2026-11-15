@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arna.example/schemas/governance/age/external-receipt-protocol-1.0.0.json",
+  "title": "AGE external receipt protocol v1.0.0",
+  "description": "Wire-level schema for service-issued append receipts and nonce-bound current-head responses. The example domain in $id is a schema identifier only; it is not a deployed endpoint.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/AppendReceipt"
+    },
+    {
+      "$ref": "#/$defs/HeadChallengeResponse"
+    }
+  ],
+  "$defs": {
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "AppendReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "schema_version",
+        "receipt_id",
+        "stream_id",
+        "tenant_ref",
+        "election_ref",
+        "snapshot_ref",
+        "sequence",
+        "event_type",
+        "event_hash",
+        "previous_receipt_hash",
+        "receipt_hash",
+        "signing_key_id",
+        "issued_at",
+        "signature"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "age-external-receipt/1"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "receipt_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "stream_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "tenant_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "election_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "snapshot_ref": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "event_type": {
+          "enum": [
+            "register.prepared",
+            "register.reconciled",
+            "register.approved_frozen",
+            "register.superseded",
+            "register.voided"
+          ]
+        },
+        "event_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "previous_receipt_hash": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "signing_key_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "signature": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
+        }
+      }
+    },
+    "HeadChallengeResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "schema_version",
+        "stream_id",
+        "tenant_ref",
+        "election_ref",
+        "nonce",
+        "sequence",
+        "receipt_hash",
+        "event_type",
+        "event_hash",
+        "signing_key_id",
+        "issued_at",
+        "signature"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "age-external-receipt/1"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "stream_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "tenant_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "election_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "nonce": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{43}$",
+          "description": "Base64url encoding of exactly 32 random bytes."
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "receipt_hash": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "event_type": {
+          "oneOf": [
+            {
+              "enum": [
+                "register.prepared",
+                "register.reconciled",
+                "register.approved_frozen",
+                "register.superseded",
+                "register.voided"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "event_hash": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "signing_key_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "signature": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "sequence": {
+                "const": 0
+              }
+            },
+            "required": [
+              "sequence"
+            ]
+          },
+          "then": {
+            "properties": {
+              "receipt_hash": {
+                "type": "null"
+              },
+              "event_type": {
+                "type": "null"
+              },
+              "event_hash": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "sequence": {
+                "minimum": 1
+              }
+            },
+            "required": [
+              "sequence"
+            ]
+          },
+          "then": {
+            "properties": {
+              "receipt_hash": {
+                "$ref": "#/$defs/Sha256"
+              },
+              "event_type": {
+                "enum": [
+                  "register.prepared",
+                  "register.reconciled",
+                  "register.approved_frozen",
+                  "register.superseded",
+                  "register.voided"
+                ]
+              },
+              "event_hash": {
+                "$ref": "#/$defs/Sha256"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
