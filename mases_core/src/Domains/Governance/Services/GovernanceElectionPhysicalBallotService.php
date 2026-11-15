@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Governance\\Services;
+namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
-use Illuminate\\Support\\Carbon;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceElection;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Models\\GovernanceElectionBallot;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElectionBallot;
 use RuntimeException;
 
 final class GovernanceElectionPhysicalBallotService
