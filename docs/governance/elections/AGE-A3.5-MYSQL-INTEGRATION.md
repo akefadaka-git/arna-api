@@ -67,6 +67,19 @@ It does not run for unrelated branches or unrelated file changes. The job has a 
 
 The race worker now runs in a separate PHP process image with its own PDO connection, avoiding destruction of the parent's inherited Laravel connection. The test sets the snapshot lock in the parent, verifies the child remains blocked, commits the frozen state, and asserts the child receives a database rejection and no voter row is inserted.
 
+## Latest expanded regression verification
+
+- Workflow run: [#43715193057](https://github.com/akefadaka-git/arna-api/actions/runs/43715193057)
+- Tested commit: `c4dbd1ac9cdebec695aaa4035bbc3d2c9cbcc632`
+- MySQL 8.0.46 / PHP 8.3.6 / PHPUnit 11.5.56:
+  - **PASS: 5 tests, 23 assertions.**
+  - Includes rejection of a premature `frozen_at` timestamp while the register remains in draft status.
+- SQLite database regression:
+  - **PASS: 8 tests, 42 assertions.**
+  - Includes the same premature timestamp rejection plus prior lifecycle, digest, ledger/projection, tenant-scope and direct-mutation cases.
+- The trigger guard now requires the freeze timestamp and frozen status to transition together; it rejects setting `frozen_at` on a non-frozen register.
+- The MySQL and SQLite trigger expressions were exercised by the exact-head workflow after correcting a syntax defect detected in the first rerun.
+
 ## Explicit remaining gaps
 
 - This is focused trigger/migration integration evidence, not proof of full application migration ordering or rollback across the complete AGE stack.
