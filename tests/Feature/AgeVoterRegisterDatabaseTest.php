@@ -574,6 +574,23 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     }
 
 
+
+    public function test_outbox_migration_refuses_to_drop_pending_or_anchored_evidence(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $migration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_150000_create_age_receipt_outbox.php');
+
+        try {
+            $migration->down();
+            self::fail('The AGE outbox migration must refuse to drop pending evidence.');
+        } catch (RuntimeException $exception) {
+            self::assertStringContainsString('Refusing to drop non-empty AGE outbox', $exception->getMessage());
+        }
+
+        self::assertTrue(Schema::hasTable('age_receipt_outbox'));
+        self::assertSame(1, DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->count());
+    }
+
     public function test_valid_independent_ed25519_receipt_and_witness_anchor_outbox_event(): void
     {
         $snapshotId = $this->prepareRegister();
