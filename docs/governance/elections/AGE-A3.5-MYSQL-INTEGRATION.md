@@ -1,6 +1,6 @@
 # AGE A3.5 — MySQL integration test path
 
-Status: implementation prepared; runtime execution and concurrency verification remain pending.
+Status: **PASS — focused MySQL integration suite executed successfully** on 2026-11-15. Full-stack migration, HTTP authorization, and independent security review remain outstanding.
 
 ## Purpose
 
@@ -36,9 +36,9 @@ The custom PHPUnit configuration forces the MySQL driver and opt-in flag. Connec
 
 ## GitHub Actions remote runner
 
-`.github/workflows/age-mysql-integration.yml` uses a disposable MySQL 8.0 service on a GitHub-hosted `ubuntu-latest` runner.
+`.github/workflows/age-mysql-integration.yml` uses a disposable MySQL 8.0 service on a GitHub-hosted `ubuntu-24.04` runner.
 
-The workflow retains `workflow_dispatch` and now also starts automatically on pushes to
+The workflow retains `workflow_dispatch` and starts automatically on pushes to
 `fix/age-a3-frozen-register-db-immutability` when one of these paths changes:
 
 - the workflow definition itself;
@@ -46,24 +46,32 @@ The workflow retains `workflow_dispatch` and now also starts automatically on pu
 - `AgeVoterRegisterMySqlIntegrationTest.php`;
 - `phpunit.age-mysql.xml`.
 
-It does not run for unrelated branches or unrelated file changes. The job has a 25-minute timeout, installs PHP 8.3 with `pdo_mysql` and `pcntl`, and uploads PHPUnit/log diagnostics as a seven-day artifact when available. The runner uses an isolated MySQL service and does not connect to any ARNA production database.
+It does not run for unrelated branches or unrelated file changes. The job has a 30-minute timeout, installs PHP 8.3 with `pdo_mysql` and `pcntl`, and uploads available PHPUnit/log diagnostics as a seven-day artifact. The runner uses an isolated MySQL service and does not connect to any ARNA production database.
 
-## Coverage
+## Verified execution
 
-The current MySQL integration class exercises:
+- Workflow run: [#43713743319](https://github.com/akefadaka-git/arna-api/actions/runs/43713743319)
+- Tested commit: `dcff3304a9c2513a45385b3a9ada62c768c72f10`
+- MySQL server: `8.0.46`
+- PHP: `8.3.6`
+- PHPUnit: `11.5.56`
+- Result: **4 tests, 20 assertions, all passed**
+- Exact coverage:
+  - invalid draft-to-frozen transition rejected;
+  - missing, cross-tenant, and cross-election references rejected;
+  - direct same-snapshot tenant/election scope tampering rejected;
+  - independent three-actor freeze transition accepted;
+  - post-freeze voter and snapshot mutations rejected;
+  - two-process/two-connection concurrent voter insert waits for freeze and is rejected;
+  - trigger migration rollback and reapplication succeeds.
 
-- MySQL trigger DDL creation through the actual migration;
-- rejection of invalid draft-to-frozen transitions;
-- rejection of missing, cross-tenant, and cross-election snapshot references;
-- acceptance of a structurally valid three-distinct-actor freeze transition;
-- post-freeze voter-row and snapshot mutation rejection;
-- trigger migration rollback and reapplication;
-- a two-process, two-connection freeze-versus-insert race test using InnoDB row locking (requires `pcntl`).
+The race worker now runs in a separate PHP process image with its own PDO connection, avoiding destruction of the parent's inherited Laravel connection. The test sets the snapshot lock in the parent, verifies the child remains blocked, commits the frozen state, and asserts the child receives a database rejection and no voter row is inserted.
 
 ## Explicit remaining gaps
 
-- The test suite, including the new two-process race test, has not yet been confirmed executed against MySQL. A successful remote run is required before concurrency protection can be claimed.
-- Full application migration ordering and rollback across the entire AGE stack remain separate from this focused trigger migration test.
+- This is focused trigger/migration integration evidence, not proof of full application migration ordering or rollback across the complete AGE stack.
+- The full default PHP test suite has not been reported as run by this workflow.
 - HTTP authorization, permission-role assignment review, and independent security review remain outstanding.
+- Production MySQL version/configuration and operational database privilege controls must be validated separately.
 
 No merge, deployment, production migration, role grant, or voting activation is authorized by this test path.
