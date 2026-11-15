@@ -142,6 +142,86 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         self::assertSame(1, DB::table('governance_election_voters')->where('snapshot_id', $snapshotId)->count());
     }
 
+    public function test_mysql_concurrent_voter_insert_waits_for_freeze_and_is_rejected(): void
+    {
+        if (!function_exists('pcntl_fork') || !function_exists('pcntl_waitpid')) {
+            self::markTestSkipped('The MySQL race test requires the pcntl extension.');
+        }
+
+        $snapshotId = $this->insertSnapshot();
+        DB::beginTransaction();
+        DB::table('governance_election_register_snapshots')
+            ->where('id', $snapshotId)
+            ->lockForUpdate()
+            ->first();
+
+        $startedFile = tempnam(sys_get_temp_dir(), 'age-mysql-start-');
+        $resultFile = tempnam(sys_get_temp_dir(), 'age-mysql-result-');
+        if ($startedFile === false || $resultFile === false) {
+            DB::rollBack();
+            self::fail('Unable to create synchronization files for the MySQL race test.');
+        }
+
+        $pid = pcntl_fork();
+        if ($pid === -1) {
+            DB::rollBack();
+            @unlink($startedFile);
+            @unlink($resultFile);
+            self::fail('Unable to fork the MySQL race-test worker.');
+        }
+
+        if ($pid === 0) {
+            try {
+                DB::purge();
+                DB::reconnect();
+                file_put_contents($startedFile, 'attempting');
+                $this->insertVoter($snapshotId, 7, 10, 'CONCURRENT-INSERT');
+                file_put_contents($resultFile, 'inserted');
+            } catch (\\Throwable $exception) {
+                file_put_contents($resultFile, 'rejected:' . $exception->getMessage());
+            }
+            exit(0);
+        }
+
+        try {
+            $deadline = microtime(true) + 5;
+            while (!file_exists($startedFile) && microtime(true) < $deadline) {
+                usleep(50000);
+            }
+            self::assertFileExists($startedFile, 'The child process did not start its database write.');
+
+            // The child must still be waiting while this transaction owns the snapshot row lock.
+            usleep(300000);
+            $childStatus = 0;
+            $childState = pcntl_waitpid($pid, $childStatus, WNOHANG);
+            self::assertSame(0, $childState, 'The voter insert did not wait for the parent snapshot lock.');
+
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+                'register_status' => 'frozen',
+                'prepared_by' => 100,
+                'reconciled_by' => 101,
+                'reconciled_at' => now(),
+                'approved_by' => 102,
+                'approved_at' => now(),
+                'integrity_verified_at' => now(),
+                'frozen_at' => now(),
+            ]);
+            DB::commit();
+
+            pcntl_waitpid($pid, $childStatus);
+            self::assertFileExists($resultFile);
+            $result = (string) file_get_contents($resultFile);
+            self::assertStringStartsWith('rejected:', $result, 'A concurrent voter insert must observe the committed frozen state and be rejected.');
+            self::assertSame(0, DB::table('governance_election_voters')->where('snapshot_id', $snapshotId)->count());
+        } finally {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            @unlink($startedFile);
+            @unlink($resultFile);
+        }
+    }
+
     public function test_mysql_trigger_migration_can_be_rolled_back_and_reapplied(): void
     {
         $migration = require $this->migrationPath;
