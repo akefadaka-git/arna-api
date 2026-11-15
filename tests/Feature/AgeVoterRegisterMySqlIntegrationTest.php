@@ -22,7 +22,8 @@ use Tests\TestCase;
 final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 {
     private string $migrationPath = '';
-    private string $attestationMigrationPath = '';\n    private bool $attestationMigrationApplied = false;
+    private string $attestationMigrationPath = '';
+    private bool $attestationMigrationApplied = false;
     private bool $fixturesCreated = false;
     private bool $migrationApplied = false;
 
