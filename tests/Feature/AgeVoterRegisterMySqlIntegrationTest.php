@@ -106,6 +106,16 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 
         $voterId = $this->insertVoter($snapshotId, 7, 10, 'VALID-ROW');
 
+        // Updating scope columns while retaining snapshot_id must still validate the NEW scope.
+        $this->assertWriteRejected(function () use ($voterId): void {
+            DB::table('governance_election_voters')->where('id', $voterId)->update(['tenant_id' => 8]);
+        });
+        $this->assertWriteRejected(function () use ($voterId): void {
+            DB::table('governance_election_voters')->where('id', $voterId)->update(['election_id' => 11]);
+        });
+        self::assertSame(7, (int) DB::table('governance_election_voters')->where('id', $voterId)->value('tenant_id'));
+        self::assertSame(10, (int) DB::table('governance_election_voters')->where('id', $voterId)->value('election_id'));
+
         DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
             'register_status' => 'reconciled',
             'prepared_by' => 100,
