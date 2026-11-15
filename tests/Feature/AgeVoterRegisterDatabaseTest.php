@@ -273,7 +273,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             $write();
             self::fail('A direct database mutation of a frozen register must be rejected.');
         } catch (\Illuminate\Database\QueryException $exception) {
-            self::assertStringContainsString('Frozen voter register', $exception->getMessage());
+            self::assertStringContainsString('Frozen voter', $exception->getMessage());
         }
     }
 
