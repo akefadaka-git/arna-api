@@ -72,16 +72,17 @@ final class GovernanceElectionRegisterService
             }
             // Validate the complete append-only ledger against the current-state projection,
             // while separately capturing the balance at the election record-date cutoff.
+            // The immutable chain is posting order (id), not business-time order:
+            // a valid backfilled entry may have an earlier occurred_at timestamp.
             $ledger = DB::table('share_holding_entries')
                 ->where('share_holding_id', $holding->holding_id)
-                ->orderBy('occurred_at')->orderBy('id')->get();
+                ->orderBy('id')->get();
             if ($ledger->isEmpty()) {
                 throw ValidationException::withMessages([
                     'share_ledger' => "Holding {$holding->holding_id} has no ledger history; its projection cannot be trusted.",
                 ]);
             }
             $balance = '0.0000';
-            $recordDateBalance = '0.0000';
             foreach ($ledger as $entry) {
                 if (bccomp((string) $entry->balance_before, $balance, 4) !== 0) {
                     throw ValidationException::withMessages(['share_ledger' => "Ledger chain is inconsistent for holding {$holding->holding_id}."]);
@@ -91,14 +92,29 @@ final class GovernanceElectionRegisterService
                     throw ValidationException::withMessages(['share_ledger' => "Ledger balance invariant failed for holding {$holding->holding_id}."]);
                 }
                 $balance = $expected;
-                if (Carbon::parse($entry->occurred_at)->lte($cutoff)) {
-                    $recordDateBalance = $balance;
-                }
             }
             if (bccomp($balance, (string) $holding->current_quantity, 4) !== 0) {
                 throw ValidationException::withMessages([
                     'share_projection' => "Current holding projection disagrees with its authoritative ledger for holding {$holding->holding_id}.",
                 ]);
+            }
+
+            // Reconstruct effective entitlement by business time separately from
+            // the posting-order integrity chain; this supports authorized backfills.
+            $recordDateBalance = '0.0000';
+            $recordDateEntries = $ledger->filter(
+                static fn ($entry): bool => Carbon::parse($entry->occurred_at)->lte($cutoff)
+            )->sortBy([
+                ['occurred_at', 'asc'],
+                ['id', 'asc'],
+            ]);
+            foreach ($recordDateEntries as $entry) {
+                $recordDateBalance = bcadd($recordDateBalance, (string) $entry->quantity, 4);
+                if (bccomp($recordDateBalance, '0', 4) < 0) {
+                    throw ValidationException::withMessages([
+                        'share_ledger' => "Record-date balance becomes negative for holding {$holding->holding_id}.",
+                    ]);
+                }
             }
             $balance = $recordDateBalance;
             if (bccomp($balance, '0', 4) > 0) {
