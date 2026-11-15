@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration
 {
     private const TRIGGERS = [
+        'age_register_snapshot_initial_state_guard',
         'age_voter_register_frozen_insert',
         'age_voter_register_frozen_update',
         'age_voter_register_frozen_delete',
@@ -51,6 +52,30 @@ return new class extends Migration
 
     private function createMySqlTriggers(): void
     {
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_initial_state_guard
+BEFORE INSERT ON governance_election_register_snapshots
+FOR EACH ROW
+BEGIN
+    IF NEW.register_status <> 'draft'
+       OR NEW.frozen_at IS NOT NULL
+       OR NEW.prepared_by IS NULL
+       OR NEW.prepared_by <> NEW.created_by
+       OR NEW.reconciled_by IS NOT NULL
+       OR NEW.reconciled_at IS NOT NULL
+       OR NEW.approved_by IS NOT NULL
+       OR NEW.approved_at IS NOT NULL
+       OR NEW.integrity_verified_at IS NOT NULL
+       OR NEW.content_sha256 IS NULL
+       OR NEW.content_sha256 = ''
+       OR NEW.voter_count < 1
+    THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Voter register snapshots must be inserted in the initial prepared draft state.';
+    END IF;
+END
+SQL);
+
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_register_snapshot_freeze_transition_guard
 BEFORE UPDATE ON governance_election_register_snapshots
@@ -208,6 +233,26 @@ SQL);
 
     private function createSqliteTriggers(): void
     {
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_initial_state_guard
+BEFORE INSERT ON governance_election_register_snapshots
+WHEN NEW.register_status <> 'draft'
+ OR NEW.frozen_at IS NOT NULL
+ OR NEW.prepared_by IS NULL
+ OR NEW.prepared_by <> NEW.created_by
+ OR NEW.reconciled_by IS NOT NULL
+ OR NEW.reconciled_at IS NOT NULL
+ OR NEW.approved_by IS NOT NULL
+ OR NEW.approved_at IS NOT NULL
+ OR NEW.integrity_verified_at IS NOT NULL
+ OR NEW.content_sha256 IS NULL
+ OR NEW.content_sha256 = ''
+ OR NEW.voter_count < 1
+BEGIN
+    SELECT RAISE(ABORT, 'Voter register snapshots must be inserted in the initial prepared draft state.');
+END
+SQL);
+
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_register_snapshot_freeze_transition_guard
 BEFORE UPDATE ON governance_election_register_snapshots
