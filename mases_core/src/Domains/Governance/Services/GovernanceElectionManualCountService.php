@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
-use Illuminate\Support\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
@@ -13,15 +13,15 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 final class GovernanceElectionManualCountService
 {
     /**
-     * Record an aggregate physical count batch. This persists evidence only:
-     * it does not calculate winners, resolve disputed rules, or certify a tally.
+     * Record aggregate physical count evidence. The batch remains pending until
+     * a second, independently authenticated committee member attests it.
      *
      * @param array{batch_reference:string,polling_station?:?string,ballots_received:int,ballots_valid:int,ballots_rejected:int,sealed_box_reference:string,count_sheet_reference:string,lines:array<int,array{candidate_nomination_id:int,ballot_count:int,share_vote_weight:string|int|float}>} $data
      * @return array{batch:object,lines:array<int,object>}
      */
-    public function record(int $tenantId, int $electionId, int $actorId, int $witnessUserId, array $data): array
+    public function record(int $tenantId, int $electionId, int $actorId, array $data): array
     {
-        return DB::transaction(function () use ($tenantId, $electionId, $actorId, $witnessUserId, $data): array {
+        return DB::transaction(function () use ($tenantId, $electionId, $actorId, $data): array {
             $election = GovernanceElection::query()
                 ->where('tenant_id', $tenantId)
                 ->lockForUpdate()
@@ -32,27 +32,13 @@ final class GovernanceElectionManualCountService
                 throw ValidationException::withMessages(['election' => 'Manual physical count evidence may be recorded only for an authority-verified physical election in counting status.']);
             }
 
-            if ($actorId < 1 || $witnessUserId < 1 || $actorId === $witnessUserId) {
-                throw ValidationException::withMessages(['witnessed_by' => 'The count recorder and independent witness must be two distinct users.']);
+            if ($actorId < 1) {
+                throw AuthorizationException::withMessages(['count_recorder' => 'An authenticated count recorder is required.']);
             }
 
-            $members = DB::table('governance_election_committee_members')
-                ->where('tenant_id', $tenantId)
-                ->where('election_id', $electionId)
-                ->where('status', 'active')
-                ->whereNull('recused_at')
-                ->whereIn('member_role', ['committee_member', 'supervisory_member']);
-
-            $recorder = (clone $members)->where('user_id', $actorId)->first(['id', 'person_id', 'user_id']);
-            $witness = (clone $members)->where('user_id', $witnessUserId)->first(['id', 'person_id', 'user_id']);
-
-            if ($recorder === null || $witness === null) {
-                throw ValidationException::withMessages(['witnessed_by' => 'The recorder and witness must both be active, non-recused committee or supervisory members of this election.']);
-            }
-            if ((int) $recorder->id === (int) $witness->id
-                || ($recorder->person_id !== null && $witness->person_id !== null
-                    && (int) $recorder->person_id === (int) $witness->person_id)) {
-                throw ValidationException::withMessages(['witnessed_by' => 'The count recorder and witness must be independent persons.']);
+            $recorder = $this->activeCountMember($tenantId, $electionId, $actorId);
+            if ($recorder === null) {
+                throw new AuthorizationException('The count recorder must be an active, non-recused committee or supervisory member.');
             }
 
             $received = (int) $data['ballots_received'];
@@ -99,6 +85,7 @@ final class GovernanceElectionManualCountService
                 }
             }
 
+            $now = Carbon::now();
             $batchId = DB::table('governance_election_manual_count_batches')->insertGetId([
                 'tenant_id' => $tenantId,
                 'election_id' => $electionId,
@@ -110,13 +97,14 @@ final class GovernanceElectionManualCountService
                 'sealed_box_reference' => $sealedBox,
                 'count_sheet_reference' => $countSheet,
                 'entered_by' => $actorId,
-                'witnessed_by' => $witnessUserId,
-                'counted_at' => Carbon::now(),
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
+                'witnessed_by' => null,
+                'witnessed_at' => null,
+                'status' => 'pending_witness',
+                'counted_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
             ]);
 
-            $now = Carbon::now();
             $lineRows = array_map(static fn (array $line): array => [
                 'tenant_id' => $tenantId,
                 'election_id' => $electionId,
@@ -138,21 +126,68 @@ final class GovernanceElectionManualCountService
         });
     }
 
+    /** A separate authenticated actor attests the pending count batch. */
+    public function witness(int $tenantId, int $electionId, int $batchId, int $witnessUserId): object
+    {
+        return DB::transaction(function () use ($tenantId, $electionId, $batchId, $witnessUserId): object {
+            $election = GovernanceElection::query()
+                ->where('tenant_id', $tenantId)
+                ->lockForUpdate()
+                ->findOrFail($electionId);
+
+            if (!$election->isAuthorityVerified() || $election->status !== 'counting'
+                || $election->voting_method !== 'physical') {
+                throw ValidationException::withMessages(['election' => 'Witness attestation is available only while an authority-verified physical election is in counting status.']);
+            }
+
+            $batch = DB::table('governance_election_manual_count_batches')
+                ->where('tenant_id', $tenantId)
+                ->where('election_id', $electionId)
+                ->lockForUpdate()
+                ->find($batchId);
+
+            if ($batch === null || $batch->status !== 'pending_witness' || $batch->witnessed_by !== null) {
+                throw ValidationException::withMessages(['batch' => 'Only a pending, unattested count batch may be witnessed.']);
+            }
+
+            $recorder = $this->activeCountMember($tenantId, $electionId, (int) $batch->entered_by);
+            $witness = $this->activeCountMember($tenantId, $electionId, $witnessUserId);
+            if ($recorder === null || $witness === null) {
+                throw new AuthorizationException('The recorder and witness must remain active, non-recused committee or supervisory members.');
+            }
+            if ((int) $batch->entered_by === $witnessUserId
+                || ($recorder->person_id !== null && $witness->person_id !== null
+                    && (int) $recorder->person_id === (int) $witness->person_id)) {
+                throw ValidationException::withMessages(['batch' => 'The witness must be a different person from the count recorder.']);
+            }
+
+            $now = Carbon::now();
+            DB::table('governance_election_manual_count_batches')
+                ->where('tenant_id', $tenantId)
+                ->where('election_id', $electionId)
+                ->where('id', $batchId)
+                ->where('status', 'pending_witness')
+                ->update([
+                    'witnessed_by' => $witnessUserId,
+                    'witnessed_at' => $now,
+                    'status' => 'witnessed',
+                    'updated_at' => $now,
+                ]);
+
+            return DB::table('governance_election_manual_count_batches')
+                ->where('tenant_id', $tenantId)
+                ->where('election_id', $electionId)
+                ->where('id', $batchId)
+                ->first();
+        });
+    }
+
     /**
      * @return array{batches:array<int,object>,lines:array<int,object>}
      */
     public function listForElection(int $tenantId, int $electionId, int $actorId): array
     {
-        $member = DB::table('governance_election_committee_members')
-            ->where('tenant_id', $tenantId)
-            ->where('election_id', $electionId)
-            ->where('user_id', $actorId)
-            ->where('status', 'active')
-            ->whereNull('recused_at')
-            ->whereIn('member_role', ['committee_member', 'supervisory_member'])
-            ->exists();
-
-        if (!$member) {
+        if ($this->activeCountMember($tenantId, $electionId, $actorId) === null) {
             throw new AuthorizationException('Active, non-recused count committee membership is required.');
         }
 
@@ -171,5 +206,21 @@ final class GovernanceElectionManualCountService
             ->get();
 
         return ['batches' => $batches->all(), 'lines' => $lines->all()];
+    }
+
+    private function activeCountMember(int $tenantId, int $electionId, int $userId): ?object
+    {
+        if ($userId < 1) {
+            return null;
+        }
+
+        return DB::table('governance_election_committee_members')
+            ->where('tenant_id', $tenantId)
+            ->where('election_id', $electionId)
+            ->where('user_id', $userId)
+            ->where('status', 'active')
+            ->whereNull('recused_at')
+            ->whereIn('member_role', ['committee_member', 'supervisory_member'])
+            ->first(['id', 'person_id', 'user_id']);
     }
 }
