@@ -87,10 +87,15 @@ final class GovernanceElectionLifecycleService
             if ($election->voting_rule_version === null || Carbon::parse($opensAt)->gte(Carbon::parse($closesAt))) {
                 throw ValidationException::withMessages(['schedule' => 'A rule version and valid voting window are required.']);
             }
-            $snapshotExists = DB::table('governance_election_register_snapshots')
-                ->where('tenant_id', $tenantId)->where('election_id', $electionId)->exists();
-            if (!$snapshotExists) {
-                throw new RuntimeException('A frozen, approved voter register is required before voting.');
+            $snapshot = DB::table('governance_election_register_snapshots')
+                ->where('tenant_id', $tenantId)->where('election_id', $electionId)
+                ->where('register_status', 'frozen')
+                ->whereNotNull('approved_by')->whereNotNull('approved_at')
+                ->whereNotNull('integrity_verified_at')->whereNotNull('frozen_at')
+                ->first();
+            if ($snapshot === null || !app(GovernanceElectionRegisterService::class)
+                ->hasValidSnapshotIntegrity($tenantId, $electionId, (int) $snapshot->id)) {
+                throw new RuntimeException('An independently approved, integrity-verified and hash-valid frozen voter register is required before voting.');
             }
             $before = $election->only(['status', 'authority_reference', 'authority_verified_at', 'authority_verified_by', 'voting_rule_version', 'nominations_open_at', 'nominations_close_at', 'poll_open_at', 'poll_close_at']);
             $election->forceFill([

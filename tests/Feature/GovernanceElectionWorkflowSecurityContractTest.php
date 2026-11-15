@@ -213,6 +213,27 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString("->boolean('final_ballot_approved')->default(false)", $ballotMigration);
     }
 
+    public function test_register_requires_separate_preparation_reconciliation_and_independent_approval(): void
+    {
+        $service = $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php');
+        $lifecycle = $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php');
+        $routes = $this->source('mases_core/src/Domains/Governance/Routes/api.php');
+
+        self::assertStringContainsString('public function prepare(', $service);
+        self::assertStringContainsString('public function reconcile(', $service);
+        self::assertStringContainsString('public function approveAndFreeze(', $service);
+        self::assertStringContainsString('public function hasValidSnapshotIntegrity(', $service);
+        self::assertStringContainsString('hasValidSnapshotIntegrity($tenantId, $electionId', $lifecycle);
+        self::assertStringContainsString('The register preparer cannot independently reconcile the register.', $service);
+        self::assertStringContainsString('The approver must be independent of both preparation and reconciliation.', $service);
+        self::assertStringContainsString("'register_status' => 'frozen'", $service);
+        self::assertStringContainsString("->where('register_status', 'frozen')", $lifecycle);
+        self::assertStringContainsString("->whereNotNull('integrity_verified_at')->whereNotNull('frozen_at')", $lifecycle);
+        self::assertStringContainsString('elections.registers.prepare', $routes);
+        self::assertStringContainsString('elections.registers.reconcile', $routes);
+        self::assertStringContainsString('elections.registers.approve-freeze', $routes);
+    }
+
     public function test_committee_recusal_and_identity_columns_are_persisted(): void
     {
         $migration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_160000_create_governance_election_hybrid_workflow_tables.php');

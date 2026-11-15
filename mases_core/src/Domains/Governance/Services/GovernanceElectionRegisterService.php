@@ -114,7 +114,7 @@ final class GovernanceElectionRegisterService
      *
      * @param array<int,array{shareholder_id:int,share_class_code:string,share_quantity:string|int|float,voting_weight?:string|int|float,entitlement_reference:string,proxy_authorized?:bool}> $entries
      */
-    public function freeze(int $tenantId, int $electionId, string $recordDate, string $sourceReference, string $ruleVersion, int $actorId, array $entries): int
+    public function prepare(int $tenantId, int $electionId, string $recordDate, string $sourceReference, string $ruleVersion, int $actorId, array $entries): int
     {
         if ($entries === []) {
             throw ValidationException::withMessages(['entries' => 'The approved voter register cannot be empty.']);
@@ -122,7 +122,7 @@ final class GovernanceElectionRegisterService
         self::assertDecimalArithmetic();
         return DB::transaction(function () use ($tenantId, $electionId, $recordDate, $sourceReference, $ruleVersion, $actorId, $entries): int {
             $election = GovernanceElection::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($electionId);
-            if (!$election->isAuthorityVerified() || $election->status !== 'planned') {
+            if (!$election->isAuthorityVerified() || !in_array($election->status, ['planned', 'nominating'], true)) {
                 throw new RuntimeException('Verified authority and planned status are required before register freeze.');
             }
             if ($election->record_date !== null && $election->record_date->toDateString() !== $recordDate) {
@@ -132,7 +132,7 @@ final class GovernanceElectionRegisterService
                 throw ValidationException::withMessages(['source_reference' => 'Evidence, rule version and actor are required.']);
             }
             if (DB::table('governance_election_register_snapshots')->where('tenant_id', $tenantId)->where('election_id', $electionId)->exists()) {
-                throw new RuntimeException('An election register snapshot is immutable and may only be frozen once.');
+                throw new RuntimeException('A prepared register already exists; corrections require a separately versioned superseding snapshot.');
             }
 
             $rates = (array) config('governance.election_voting.verified_class_entitlements', []);
@@ -180,7 +180,7 @@ final class GovernanceElectionRegisterService
                 'tenant_id' => $tenantId, 'election_id' => $election->id, 'record_date' => $recordDate,
                 'source_reference' => $sourceReference, 'rule_version' => $ruleVersion,
                 'content_sha256' => hash('sha256', $canonical), 'voter_count' => count($normalised),
-                'created_by' => $actorId, 'frozen_at' => $now, 'created_at' => $now, 'updated_at' => $now,
+                'created_by' => $actorId, 'prepared_by' => $actorId, 'register_status' => 'draft', 'frozen_at' => null, 'created_at' => $now, 'updated_at' => $now,
             ]);
             $rows = array_map(static fn (array $entry): array => [
                 'tenant_id' => $tenantId, 'election_id' => $election->id, 'snapshot_id' => $snapshotId,
@@ -189,6 +189,104 @@ final class GovernanceElectionRegisterService
             DB::table('governance_election_voters')->insert($rows);
             $election->forceFill(['record_date' => $recordDate, 'voting_rule_version' => $ruleVersion])->save();
             return $snapshotId;
+        });
+    }
+
+    /** Independently reconcile the prepared snapshot and record the reconciler. */
+    public function reconcile(int $tenantId, int $electionId, int $snapshotId, int $actorId): string
+    {
+        return DB::transaction(function () use ($tenantId, $electionId, $snapshotId, $actorId): string {
+            $snapshot = DB::table('governance_election_register_snapshots')
+                ->where('tenant_id', $tenantId)->where('election_id', $electionId)
+                ->lockForUpdate()->find($snapshotId);
+            if ($snapshot === null || $snapshot->register_status !== 'draft' || $actorId < 1) {
+                throw new RuntimeException('A draft register and authenticated reconciler are required.');
+            }
+            if ((int) $snapshot->prepared_by === $actorId) {
+                throw new RuntimeException('The register preparer cannot independently reconcile the register.');
+            }
+            $rows = DB::table('governance_election_voters')->where('tenant_id', $tenantId)
+                ->where('election_id', $electionId)->where('snapshot_id', $snapshotId)
+                ->orderBy('shareholder_id')->orderBy('share_class_code')
+                ->get(['shareholder_id','share_class_code','share_quantity','voting_weight','entitlement_reference','proxy_authorized'])
+                ->map(static fn ($row): array => [
+                    'shareholder_id' => (int) $row->shareholder_id,
+                    'share_class_code' => (string) $row->share_class_code,
+                    'share_quantity' => (string) $row->share_quantity,
+                    'voting_weight' => (string) $row->voting_weight,
+                    'entitlement_reference' => (string) $row->entitlement_reference,
+                    'proxy_authorized' => (bool) $row->proxy_authorized,
+                ])->all();
+            if (count($rows) !== (int) $snapshot->voter_count || $rows === []) {
+                throw new RuntimeException('Register row count does not match the prepared snapshot.');
+            }
+            $hash = hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+            if (!hash_equals((string) $snapshot->content_sha256, $hash)) {
+                throw new RuntimeException('Register content hash mismatch; reconciliation failed closed.');
+            }
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+                'register_status' => 'reconciled', 'reconciled_by' => $actorId,
+                'reconciled_at' => Carbon::now(), 'integrity_verified_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+            return $hash;
+        });
+    }
+
+    /** Recheck stored rows at the point of approval and whenever the poll gate is evaluated. */
+    public function hasValidSnapshotIntegrity(int $tenantId, int $electionId, int $snapshotId): bool
+    {
+        $snapshot = DB::table('governance_election_register_snapshots')
+            ->where('tenant_id', $tenantId)->where('election_id', $electionId)
+            ->where('id', $snapshotId)->first();
+        if ($snapshot === null) {
+            return false;
+        }
+        $rows = DB::table('governance_election_voters')->where('tenant_id', $tenantId)
+            ->where('election_id', $electionId)->where('snapshot_id', $snapshotId)
+            ->orderBy('shareholder_id')->orderBy('share_class_code')
+            ->get(['shareholder_id','share_class_code','share_quantity','voting_weight','entitlement_reference','proxy_authorized'])
+            ->map(static fn ($row): array => [
+                'shareholder_id' => (int) $row->shareholder_id,
+                'share_class_code' => (string) $row->share_class_code,
+                'share_quantity' => (string) $row->share_quantity,
+                'voting_weight' => (string) $row->voting_weight,
+                'entitlement_reference' => (string) $row->entitlement_reference,
+                'proxy_authorized' => (bool) $row->proxy_authorized,
+            ])->all();
+        if (count($rows) !== (int) $snapshot->voter_count || $rows === []) {
+            return false;
+        }
+        $hash = hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        return hash_equals((string) $snapshot->content_sha256, $hash);
+    }
+
+    /** Approve and freeze only after independent reconciliation and a second actor's approval. */
+    public function approveAndFreeze(int $tenantId, int $electionId, int $snapshotId, int $actorId): void
+    {
+        DB::transaction(function () use ($tenantId, $electionId, $snapshotId, $actorId): void {
+            $election = GovernanceElection::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($electionId);
+            $snapshot = DB::table('governance_election_register_snapshots')
+                ->where('tenant_id', $tenantId)->where('election_id', $electionId)
+                ->lockForUpdate()->find($snapshotId);
+            if ($snapshot === null || $snapshot->register_status !== 'reconciled'
+                || $snapshot->integrity_verified_at === null || $snapshot->reconciled_at === null) {
+                throw new RuntimeException('An integrity-verified reconciled register is required before approval.');
+            }
+            if (!$this->hasValidSnapshotIntegrity($tenantId, $electionId, $snapshotId)) {
+                throw new RuntimeException('Register content changed after reconciliation; approval is blocked.');
+            }
+            if ($actorId < 1 || $actorId === (int) $snapshot->prepared_by || $actorId === (int) $snapshot->reconciled_by) {
+                throw new RuntimeException('The approver must be independent of both preparation and reconciliation.');
+            }
+            if (!$election->isAuthorityVerified() || !in_array($election->status, ['planned', 'nominating'], true)) {
+                throw new RuntimeException('Verified authority and a pre-voting election state are required.');
+            }
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+                'register_status' => 'frozen', 'approved_by' => $actorId,
+                'approved_at' => Carbon::now(), 'frozen_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
         });
     }
 
