@@ -126,6 +126,55 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
         self::assertSame(0, DB::table('governance_election_register_snapshots')->count());
     }
 
+    public function test_mysql_enforces_monotonic_lifecycle_and_immutable_governing_metadata(): void
+    {
+        $snapshotId = $this->insertSnapshot();
+
+        try {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+                'register_status' => 'reconciled',
+                'reconciled_by' => 100,
+                'reconciled_at' => now(),
+                'integrity_verified_at' => now(),
+            ]);
+            self::fail('MySQL must reject the preparer acting as reconciler.');
+        } catch (QueryException $exception) {
+            self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
+        }
+
+        $this->assertWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['content_sha256' => str_repeat('b', 64)]);
+        });
+
+        DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+            'register_status' => 'reconciled',
+            'reconciled_by' => 101,
+            'reconciled_at' => now(),
+            'integrity_verified_at' => now(),
+        ]);
+
+        $this->assertWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['register_status' => 'draft']);
+        });
+
+        $this->assertWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['reconciled_by' => 103]);
+        });
+
+        DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+            'register_status' => 'frozen',
+            'approved_by' => 102,
+            'approved_at' => now(),
+            'frozen_at' => now(),
+        ]);
+
+        self::assertSame('frozen', DB::table('governance_election_register_snapshots')
+            ->where('id', $snapshotId)->value('register_status'));
+    }
+
     public function test_mysql_triggers_reject_missing_cross_tenant_and_frozen_register_writes(): void
     {
         $snapshotId = $this->insertSnapshot();
@@ -168,17 +217,18 @@ final class AgeVoterRegisterMySqlIntegrationTest extends TestCase
 
         DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
             'register_status' => 'reconciled',
-            'prepared_by' => 100,
             'reconciled_by' => 101,
             'reconciled_at' => now(),
-            'approved_by' => 102,
-            'approved_at' => now(),
             'integrity_verified_at' => now(),
         ]);
 
-        // Freeze timestamp and status change together; a non-null frozen_at is itself immutable.
-        DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
-            ->update(['register_status' => 'frozen', 'frozen_at' => now()]);
+        // Freeze timestamp and status change together; the approver is distinct from both prior actors.
+        DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+            'register_status' => 'frozen',
+            'approved_by' => 102,
+            'approved_at' => now(),
+            'frozen_at' => now(),
+        ]);
 
         $this->assertWriteRejected(function () use ($snapshotId): void {
             $this->insertVoter($snapshotId, 7, 10, 'AFTER-FREEZE');
@@ -285,15 +335,14 @@ PHP;
 
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
                 'register_status' => 'reconciled',
-                'prepared_by' => 100,
                 'reconciled_by' => 101,
                 'reconciled_at' => now(),
-                'approved_by' => 102,
-                'approved_at' => now(),
                 'integrity_verified_at' => now(),
             ]);
             DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
                 'register_status' => 'frozen',
+                'approved_by' => 102,
+                'approved_at' => now(),
                 'frozen_at' => now(),
             ]);
             DB::commit();
@@ -327,6 +376,7 @@ PHP;
             ->where('trigger_schema', DB::connection()->getDatabaseName())
             ->whereIn('trigger_name', [
                 'age_register_snapshot_initial_state_guard',
+                'age_register_snapshot_lifecycle_transition_guard',
                 'age_voter_register_frozen_insert',
                 'age_voter_register_frozen_update',
                 'age_voter_register_frozen_delete',
