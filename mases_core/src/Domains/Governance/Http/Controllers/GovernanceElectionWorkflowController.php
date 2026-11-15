@@ -523,7 +523,6 @@ final class GovernanceElectionWorkflowController extends Controller
             'ballots_rejected' => ['required', 'integer', 'min:0'],
             'sealed_box_reference' => ['required', 'string', 'min:3', 'max:160'],
             'count_sheet_reference' => ['required', 'string', 'min:3', 'max:160'],
-            'witness_user_id' => ['required', 'integer', 'min:1'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.candidate_nomination_id' => ['required', 'integer', 'min:1'],
             'lines.*.ballot_count' => ['required', 'integer', 'min:0'],
@@ -534,11 +533,26 @@ final class GovernanceElectionWorkflowController extends Controller
             $tenantId,
             (int) $governanceElection->id,
             (int) $request->user()->getAuthIdentifier(),
-            (int) $data['witness_user_id'],
             $data,
         );
 
         return response()->json(['data' => $result], 201);
+    }
+
+    public function witnessManualCountBatch(Request $request, GovernanceElection $governanceElection, int $batch, GovernanceElectionManualCountService $counts): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+
+        $attested = $counts->witness(
+            $tenantId,
+            (int) $governanceElection->id,
+            $batch,
+            (int) $request->user()->getAuthIdentifier(),
+        );
+
+        return response()->json(['data' => $attested]);
     }
 
     public function certifyElection(Request $request, GovernanceElection $governanceElection): JsonResponse
