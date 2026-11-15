@@ -79,18 +79,36 @@ final class GovernanceElectionWorkflowController extends Controller
         ]);
 
         $self = (bool) ($data['self_nomination'] ?? false);
-        $candidateShareholders = DB::table('shareholders')
+
+        // A1 permits qualified non-shareholders to stand as candidates.
+        // Nomination intake verifies canonical identity and tenant association,
+        // but deliberately does not decide legal qualification; that remains
+        // a separately evidenced committee screening decision.
+        $candidatePerson = DB::table('people')
+            ->where('id', $data['candidate_person_id'])
+            ->whereNull('deleted_at')
+            ->first(['id']);
+        abort_unless($candidatePerson !== null, 422, 'Candidate must resolve to an active canonical Person.');
+
+        $candidateShareholderCount = DB::table('shareholders')
             ->where('tenant_id', $tenantId)
             ->where('person_id', $data['candidate_person_id'])
             ->where('shareholder_type', 'individual')
             ->where('is_active', true)
             ->whereNull('deleted_at')
-            ->limit(2)
-            ->get(['id', 'person_id']);
-        abort_unless($candidateShareholders->count() === 1, 422, 'Candidate must resolve to exactly one active natural-person shareholder in this tenant.');
+            ->count();
+        $candidateHasTenantAccess = DB::table('person_tenant_accesses')
+            ->where('person_id', $data['candidate_person_id'])
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'active')
+            ->exists();
+        abort_unless($candidateShareholderCount === 1 || $candidateHasTenantAccess, 422,
+            'Candidate must have a canonical active Person record and an established tenant relationship.');
+
         if ($self) {
             $nominator = DB::table('shareholders')->where('tenant_id', $tenantId)->where('id', $shareholderId)->first(['person_id']);
-            abort_unless($nominator !== null && (int) ($nominator->person_id ?? 0) === (int) $data['candidate_person_id'], 422, 'Self-nomination must identify the authenticated shareholder person.');
+            abort_unless($nominator !== null && (int) ($nominator->person_id ?? 0) === (int) $data['candidate_person_id'], 422,
+                'Self-nomination is available only when the authenticated shareholder is the candidate.');
         }
         $submission = DB::table('governance_election_nomination_submissions')->updateOrInsert(
             [
