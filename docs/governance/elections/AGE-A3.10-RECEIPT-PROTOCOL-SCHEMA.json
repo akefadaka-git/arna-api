@@ -8,6 +8,9 @@
       "$ref": "#/$defs/AppendReceipt"
     },
     {
+      "$ref": "#/$defs/WitnessCheckpoint"
+    },
+    {
       "$ref": "#/$defs/HeadChallengeResponse"
     }
   ],
@@ -120,17 +123,14 @@
         "tenant_ref",
         "election_ref",
         "nonce",
-        "sequence",
-        "receipt_hash",
-        "event_type",
-        "event_hash",
-        "signing_key_id",
+        "checkpoint",
+        "witness_key_id",
         "issued_at",
         "signature"
       ],
       "properties": {
         "protocol_version": {
-          "const": "age-external-receipt/1"
+          "const": "age-witness-head/1"
         },
         "schema_version": {
           "const": "1.0.0"
@@ -153,47 +153,10 @@
           "pattern": "^[A-Za-z0-9_-]{43}$",
           "description": "Base64url encoding of exactly 32 random bytes."
         },
-        "sequence": {
-          "type": "integer",
-          "minimum": 0
+        "checkpoint": {
+          "$ref": "#/$defs/WitnessCheckpoint"
         },
-        "receipt_hash": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/Sha256"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "event_type": {
-          "oneOf": [
-            {
-              "enum": [
-                "register.prepared",
-                "register.reconciled",
-                "register.approved_frozen",
-                "register.superseded",
-                "register.voided"
-              ]
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "event_hash": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/Sha256"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "signing_key_id": {
+        "witness_key_id": {
           "type": "string",
           "pattern": "^[A-Za-z0-9._-]{1,64}$"
         },
@@ -206,65 +169,79 @@
           "contentEncoding": "base64",
           "pattern": "^[A-Za-z0-9+/]{86}==$"
         }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "sequence": {
-                "const": 0
-              }
-            },
-            "required": [
-              "sequence"
-            ]
-          },
-          "then": {
-            "properties": {
-              "receipt_hash": {
-                "type": "null"
-              },
-              "event_type": {
-                "type": "null"
-              },
-              "event_hash": {
-                "type": "null"
-              }
-            }
-          }
+      }
+    },
+    "WitnessCheckpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "schema_version",
+        "stream_id",
+        "tenant_ref",
+        "election_ref",
+        "sequence",
+        "receipt_hash",
+        "previous_checkpoint_hash",
+        "checkpoint_hash",
+        "witness_key_id",
+        "witnessed_at",
+        "signature"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "age-witness-checkpoint/1"
         },
-        {
-          "if": {
-            "properties": {
-              "sequence": {
-                "minimum": 1
-              }
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "stream_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "tenant_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "election_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "receipt_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "previous_checkpoint_hash": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Sha256"
             },
-            "required": [
-              "sequence"
-            ]
-          },
-          "then": {
-            "properties": {
-              "receipt_hash": {
-                "$ref": "#/$defs/Sha256"
-              },
-              "event_type": {
-                "enum": [
-                  "register.prepared",
-                  "register.reconciled",
-                  "register.approved_frozen",
-                  "register.superseded",
-                  "register.voided"
-                ]
-              },
-              "event_hash": {
-                "$ref": "#/$defs/Sha256"
-              }
+            {
+              "type": "null"
             }
-          }
+          ]
+        },
+        "checkpoint_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "witness_key_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "witnessed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "signature": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
         }
-      ]
+      }
     }
   }
 }
