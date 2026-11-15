@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElectionNomination;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionLifecycleService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
 
 final class GovernanceElectionWorkflowController extends Controller
 {
@@ -62,6 +63,49 @@ final class GovernanceElectionWorkflowController extends Controller
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
         $election = $lifecycle->closeVoting($tenantId, (int) $governanceElection->id);
         return response()->json(['data' => $election]);
+    }
+
+    public function prepareVoterRegister(Request $request, GovernanceElection $governanceElection, GovernanceElectionRegisterService $register): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $data = $request->validate([
+            'record_date' => ['required', 'date'],
+            'source_reference' => ['required', 'string', 'min:3', 'max:160'],
+            'rule_version' => ['required', 'string', 'min:1', 'max:80'],
+            'entries' => ['required', 'array', 'min:1'],
+            'entries.*.shareholder_id' => ['required', 'integer', 'min:1'],
+            'entries.*.share_class_code' => ['required', 'string', 'max:40'],
+            'entries.*.share_quantity' => ['required', 'numeric', 'gt:0'],
+            'entries.*.voting_weight' => ['nullable', 'numeric', 'gt:0'],
+            'entries.*.entitlement_reference' => ['required', 'string', 'max:160'],
+            'entries.*.proxy_authorized' => ['sometimes', 'boolean'],
+        ]);
+        $snapshotId = $register->prepare($tenantId, (int) $governanceElection->id,
+            $data['record_date'], $data['source_reference'], $data['rule_version'],
+            (int) $request->user()->getAuthIdentifier(), $data['entries']);
+        return response()->json(['data' => ['snapshot_id' => $snapshotId, 'status' => 'draft']], 201);
+    }
+
+    public function reconcileVoterRegister(Request $request, GovernanceElection $governanceElection, int $snapshot, GovernanceElectionRegisterService $register): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $hash = $register->reconcile($tenantId, (int) $governanceElection->id, $snapshot,
+            (int) $request->user()->getAuthIdentifier());
+        return response()->json(['data' => ['snapshot_id' => $snapshot, 'status' => 'reconciled', 'content_sha256' => $hash]]);
+    }
+
+    public function approveVoterRegister(Request $request, GovernanceElection $governanceElection, int $snapshot, GovernanceElectionRegisterService $register): JsonResponse
+    {
+        Gate::authorize('update', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $register->approveAndFreeze($tenantId, (int) $governanceElection->id, $snapshot,
+            (int) $request->user()->getAuthIdentifier());
+        return response()->json(['data' => ['snapshot_id' => $snapshot, 'status' => 'frozen']]);
     }
 
     public function submitNomination(Request $request, GovernanceElection $governanceElection): JsonResponse
