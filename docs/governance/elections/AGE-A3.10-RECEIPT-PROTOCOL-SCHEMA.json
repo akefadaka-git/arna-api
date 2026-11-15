@@ -5,6 +5,9 @@
   "description": "Wire-level schema for service-issued append receipts and nonce-bound current-head responses. The example domain in $id is a schema identifier only; it is not a deployed endpoint.",
   "oneOf": [
     {
+      "$ref": "#/$defs/AppendEventRequest"
+    },
+    {
       "$ref": "#/$defs/AppendReceipt"
     },
     {
@@ -240,6 +243,128 @@
           "type": "string",
           "contentEncoding": "base64",
           "pattern": "^[A-Za-z0-9+/]{86}==$"
+        }
+      }
+    },
+    "AppendEventRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol_version",
+        "schema_version",
+        "tenant_ref",
+        "election_ref",
+        "snapshot_ref",
+        "event_type",
+        "event_body",
+        "event_hash",
+        "expected_previous_sequence",
+        "expected_previous_receipt_hash",
+        "idempotency_key"
+      ],
+      "properties": {
+        "protocol_version": {
+          "const": "age-external-receipt/1"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "election_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "snapshot_ref": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "event_type": {
+          "enum": [
+            "register.prepared",
+            "register.reconciled",
+            "register.approved_frozen"
+          ]
+        },
+        "event_body": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stage",
+            "content_sha256",
+            "voter_count",
+            "actor_ref",
+            "occurred_at"
+          ],
+          "properties": {
+            "stage": {
+              "enum": [
+                "prepared",
+                "reconciled",
+                "approved_frozen"
+              ]
+            },
+            "content_sha256": {
+              "$ref": "#/$defs/Sha256"
+            },
+            "voter_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "actor_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "occurred_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "record_date": {
+              "type": "string",
+              "format": "date"
+            },
+            "voting_rule_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "source_evidence_sha256": {
+              "$ref": "#/$defs/Sha256"
+            },
+            "prepared_attestation_sha256": {
+              "$ref": "#/$defs/Sha256"
+            },
+            "reconciled_attestation_sha256": {
+              "$ref": "#/$defs/Sha256"
+            },
+            "approved_attestation_sha256": {
+              "$ref": "#/$defs/Sha256"
+            }
+          }
+        },
+        "event_hash": {
+          "$ref": "#/$defs/Sha256"
+        },
+        "expected_previous_sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_previous_receipt_hash": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "idempotency_key": {
+          "$ref": "#/$defs/Uuid"
         }
       }
     }
