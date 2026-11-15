@@ -607,7 +607,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             'receipt_hash' => str_repeat('d', 64),
             'signed_at' => now()->toIso8601String(),
         ];
-        $receipt['signature'] = $this->signReceiptPayload($receipt, "arna:age:external-receipt:receipt:v1\\0", $receiptSecret);
+        $receipt['signature'] = $this->signReceiptPayload($receipt, "arna:age:external-receipt:receipt:v1\0", $receiptSecret);
         $witness = [
             'key_id' => 'witness-key-v1',
             'stream_id' => $event->stream_uuid,
@@ -617,7 +617,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             'previous_receipt_hash' => null,
             'witnessed_at' => now()->toIso8601String(),
         ];
-        $witness['signature'] = $this->signReceiptPayload($witness, "arna:age:external-receipt:witness:v1\\0", $witnessSecret);
+        $witness['signature'] = $this->signReceiptPayload($witness, "arna:age:external-receipt:witness:v1\0", $witnessSecret);
 
         $gateway = new class($receipt, $witness) implements AgeReceiptGateway {
             public function __construct(private array $receipt, private array $witness) {}
