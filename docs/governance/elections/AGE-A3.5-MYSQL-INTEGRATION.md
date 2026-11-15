@@ -47,7 +47,7 @@ The current MySQL integration class exercises:
 - rejection of missing, cross-tenant, and cross-election snapshot references;
 - acceptance of a structurally valid three-distinct-actor freeze transition;
 - post-freeze voter-row and snapshot mutation rejection;
-- trigger migration rollback and reapplication.
+- trigger migration rollback and reapplication;\n- a two-process, two-connection freeze-versus-insert race test using InnoDB row locking (requires `pcntl`).
 
 ## Explicit remaining gaps
 
