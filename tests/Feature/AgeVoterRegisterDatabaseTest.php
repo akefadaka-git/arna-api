@@ -433,7 +433,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 'source_reference' => 'DIRECT-INSERT-TEST',
                 'rule_version' => 'AGE-RULES-1',
                 'content_sha256' => str_repeat('a', 64),
-                'snapshot_uuid' => (string) \Illuminate\\Support\\Str::uuid()->toString(),
+                'snapshot_uuid' => Str::uuid()->toString(),
                 'prepared_attestation_sha256' => str_repeat('a', 64),
                 'prepared_attestation_key_id' => 'test-key-v1',
                 'voter_count' => 1,
