@@ -56,7 +56,10 @@ CREATE TRIGGER age_register_snapshot_freeze_transition_guard
 BEFORE UPDATE ON governance_election_register_snapshots
 FOR EACH ROW
 BEGIN
-    IF NEW.register_status = 'frozen'
+    IF (
+       (NEW.frozen_at IS NOT NULL AND OLD.frozen_at IS NULL AND NEW.register_status <> 'frozen')
+       OR (
+       NEW.register_status = 'frozen'
        AND OLD.register_status <> 'frozen'
        AND (
            OLD.register_status <> 'reconciled'
@@ -73,9 +76,10 @@ BEGIN
            OR NEW.content_sha256 IS NULL
            OR NEW.content_sha256 = ''
            OR NEW.voter_count < 1
-       ) THEN
+       ))
+    THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Voter register cannot freeze without independent approval and verified integrity.';
+            SET MESSAGE_TEXT = 'Voter register cannot freeze or set frozen_at without independent approval and verified integrity.';
     END IF;
 END
 SQL);
@@ -207,7 +211,10 @@ SQL);
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_register_snapshot_freeze_transition_guard
 BEFORE UPDATE ON governance_election_register_snapshots
-WHEN NEW.register_status = 'frozen'
+WHEN (
+ (NEW.frozen_at IS NOT NULL AND OLD.frozen_at IS NULL AND NEW.register_status <> 'frozen')
+ OR (
+ NEW.register_status = 'frozen'
  AND OLD.register_status <> 'frozen'
  AND (
     OLD.register_status <> 'reconciled'
@@ -224,9 +231,9 @@ WHEN NEW.register_status = 'frozen'
     OR NEW.content_sha256 IS NULL
     OR NEW.content_sha256 = ''
     OR NEW.voter_count < 1
- )
+ ))
 BEGIN
-    SELECT RAISE(ABORT, 'Voter register cannot freeze without independent approval and verified integrity.');
+    SELECT RAISE(ABORT, 'Voter register cannot freeze or set frozen_at without independent approval and verified integrity.');
 END
 SQL);
 
