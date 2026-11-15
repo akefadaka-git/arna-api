@@ -21,12 +21,16 @@ use Tests\TestCase;
 final class AgeVoterRegisterDatabaseTest extends TestCase
 {
     private GovernanceElectionRegisterService $service;
+    private bool $immutabilityMigrationApplied = false;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->createSchema();
+        $migration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_130000_enforce_frozen_voter_register_immutability.php');
+        $migration->up();
+        $this->immutabilityMigrationApplied = true;
         config()->set('governance.election_voting.verified_class_entitlements', [
             'ORDINARY' => [
                 'verified' => true,
@@ -145,6 +149,199 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         }
     }
 
+    public function test_voter_rows_reject_missing_or_cross_tenant_snapshot_references(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $voterId = (int) DB::table('governance_election_voters')
+            ->where('snapshot_id', $snapshotId)->value('id');
+
+        $this->assertFrozenWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_voters')->insert([
+                'tenant_id' => 8,
+                'election_id' => 10,
+                'snapshot_id' => $snapshotId,
+                'shareholder_id' => 21,
+                'share_class_code' => 'ORDINARY',
+                'share_quantity' => '1.0000',
+                'voting_weight' => '1.0000',
+                'entitlement_reference' => 'CROSS-TENANT-ATTEMPT',
+                'proxy_authorized' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($voterId): void {
+            DB::table('governance_election_voters')->where('id', $voterId)
+                ->update(['tenant_id' => 8]);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($voterId): void {
+            DB::table('governance_election_voters')->where('id', $voterId)
+                ->update(['snapshot_id' => 999999]);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_voters')->insert([
+                'tenant_id' => 7,
+                'election_id' => 10,
+                'snapshot_id' => 999999,
+                'shareholder_id' => 21,
+                'share_class_code' => 'ORDINARY',
+                'share_quantity' => '1.0000',
+                'voting_weight' => '1.0000',
+                'entitlement_reference' => 'MISSING-SNAPSHOT-ATTEMPT',
+                'proxy_authorized' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        self::assertSame(2, DB::table('governance_election_voters')->where('snapshot_id', $snapshotId)->count());
+        self::assertSame(7, (int) DB::table('governance_election_voters')->where('id', $voterId)->value('tenant_id'));
+    }
+
+    public function test_database_rejects_freeze_transition_without_independent_approval(): void
+    {
+        $snapshotId = $this->prepareRegister();
+
+        try {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+                'register_status' => 'frozen',
+                'frozen_at' => now(),
+            ]);
+            self::fail('A draft register must not be frozen without reconciliation, independent approval and integrity evidence.');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            self::assertStringContainsString('cannot freeze', strtolower($exception->getMessage()));
+        }
+
+        $snapshot = DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->first();
+        self::assertSame('draft', $snapshot->register_status);
+        self::assertNull($snapshot->frozen_at);
+    }
+
+    public function test_database_rejects_freeze_timestamp_without_frozen_status(): void
+    {
+        $snapshotId = $this->prepareRegister();
+
+        try {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['frozen_at' => now()]);
+            self::fail('A draft register must not receive a freeze timestamp before its status is frozen.');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            self::assertStringContainsString('cannot freeze or set frozen_at', strtolower($exception->getMessage()));
+        }
+
+        $snapshot = DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->first();
+        self::assertSame('draft', $snapshot->register_status);
+        self::assertNull($snapshot->frozen_at);
+    }
+
+    public function test_frozen_register_and_snapshot_reject_direct_database_mutations(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+
+        $voterId = (int) DB::table('governance_election_voters')
+            ->where('snapshot_id', $snapshotId)->value('id');
+
+        $this->assertFrozenWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_voters')->insert([
+                'tenant_id' => 7,
+                'election_id' => 10,
+                'snapshot_id' => $snapshotId,
+                'shareholder_id' => 21,
+                'share_class_code' => 'ORDINARY',
+                'share_quantity' => '1.0000',
+                'voting_weight' => '1.0000',
+                'entitlement_reference' => 'DIRECT-SQL-ATTEMPT',
+                'proxy_authorized' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($voterId): void {
+            DB::table('governance_election_voters')->where('id', $voterId)
+                ->update(['share_quantity' => '999.0000']);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($voterId): void {
+            DB::table('governance_election_voters')->where('id', $voterId)->delete();
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['source_reference' => 'ALTERED-AFTER-FREEZE']);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->delete();
+        });
+
+        self::assertSame(2, DB::table('governance_election_voters')->where('snapshot_id', $snapshotId)->count());
+        self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
+    }
+
+    private function assertFrozenWriteRejected(callable $write): void
+    {
+        try {
+            $write();
+            self::fail('A direct database mutation of a frozen register must be rejected.');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            self::assertStringContainsString('Frozen voter', $exception->getMessage());
+        }
+    }
+
+    public function test_snapshot_insert_must_begin_in_prepared_draft_state(): void
+    {
+        $insertSnapshot = static function (array $overrides): void {
+            DB::table('governance_election_register_snapshots')->insert(array_replace([
+                'tenant_id' => 7,
+                'election_id' => 10,
+                'record_date' => '2026-01-15',
+                'source_reference' => 'DIRECT-INSERT-TEST',
+                'rule_version' => 'AGE-RULES-1',
+                'content_sha256' => str_repeat('a', 64),
+                'voter_count' => 1,
+                'created_by' => 100,
+                'prepared_by' => 100,
+                'register_status' => 'draft',
+                'frozen_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ], $overrides));
+        };
+
+        try {
+            $insertSnapshot([
+                'register_status' => 'frozen',
+                'frozen_at' => now(),
+                'reconciled_by' => 101,
+                'reconciled_at' => now(),
+                'approved_by' => 102,
+                'approved_at' => now(),
+                'integrity_verified_at' => now(),
+            ]);
+            self::fail('A snapshot must not be inserted directly in the frozen state.');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            self::assertStringContainsString('initial prepared draft state', strtolower($exception->getMessage()));
+        }
+
+        try {
+            $insertSnapshot([
+                'register_status' => 'draft',
+                'frozen_at' => now(),
+            ]);
+            self::fail('A draft snapshot must not be inserted with a freeze timestamp.');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            self::assertStringContainsString('initial prepared draft state', strtolower($exception->getMessage()));
+        }
+
+        self::assertSame(0, DB::table('governance_election_register_snapshots')->count());
+    }
+
     public function test_register_snapshot_is_not_accessible_across_tenant_boundaries(): void
     {
         $snapshotId = $this->prepareRegister();
@@ -167,6 +364,16 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
 
         self::assertSame('draft', DB::table('governance_election_register_snapshots')
             ->where('id', $snapshotId)->value('register_status'));
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->immutabilityMigrationApplied) {
+            $migration = require base_path('mases_core/src/Domains/Governance/Database/Migrations/2026_11_15_130000_enforce_frozen_voter_register_immutability.php');
+            $migration->down();
+        }
+
+        parent::tearDown();
     }
 
     private function prepareRegister(): int
