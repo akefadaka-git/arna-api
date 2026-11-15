@@ -1,0 +1,53 @@
+name: AGE receipt adapter contract
+
+on:
+  push:
+    branches:
+      - feat/age-a3-receipt-adapter-contract
+    paths:
+      - ".github/workflows/age-receipt-adapter.yml"
+      - "mases_core/src/Domains/Governance/Security/AgeReceiptCanonicalizer.php"
+      - "mases_core/src/Domains/Governance/Services/Receipts/**"
+      - "tests/Unit/AgeReceiptAdapterContractTest.php"
+  pull_request:
+    paths:
+      - ".github/workflows/age-receipt-adapter.yml"
+      - "mases_core/src/Domains/Governance/Security/AgeReceiptCanonicalizer.php"
+      - "mases_core/src/Domains/Governance/Services/Receipts/**"
+      - "tests/Unit/AgeReceiptAdapterContractTest.php"
+
+permissions:
+  contents: read
+
+jobs:
+  adapter-contract:
+    name: Validate AGE receipt adapter boundary
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PHP 8.3
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y php8.3-cli php8.3-bcmath php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip composer
+          php --version
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Lint AGE receipt adapter files
+        run: |
+          php -l mases_core/src/Domains/Governance/Security/AgeReceiptCanonicalizer.php
+          php -l mases_core/src/Domains/Governance/Services/Receipts/AgeReceiptGateway.php
+          php -l mases_core/src/Domains/Governance/Services/Receipts/AgeReceiptUnavailable.php
+          php -l mases_core/src/Domains/Governance/Services/Receipts/UnconfiguredAgeReceiptGateway.php
+          php -l tests/Unit/AgeReceiptAdapterContractTest.php
+
+      - name: Run AGE receipt adapter contract tests
+        run: vendor/bin/phpunit -c phpunit.xml tests/Unit/AgeReceiptAdapterContractTest.php --testdox
+
+      - name: Report implementation boundary
+        run: |
+          echo "PASS: provider-neutral canonicalizer and fail-closed gateway boundary are tested."
+          echo "NOT IMPLEMENTED: external transport, transactional outbox, production trust bundles, KMS/HSM and witness service."
