@@ -58,7 +58,8 @@ final class AgeRegisterAttestation
             throw new RuntimeException('AGE register attestation key identifier is invalid.');
         }
 
-        $keyring = (array) config('age.register_attestation.keys', []);\n        $encoded = $keyring[$keyId] ?? null;
+        $keyring = (array) config('age.register_attestation.keys', []);
+        $encoded = $keyring[$keyId] ?? null;
         if (!is_string($encoded) || $encoded === '') {
             throw new RuntimeException('AGE register attestation key is unavailable.');
         }
