@@ -149,6 +149,37 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         }
     }
 
+    public function test_voter_rows_reject_missing_or_cross_tenant_snapshot_references(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $voterId = (int) DB::table('governance_election_voters')
+            ->where('snapshot_id', $snapshotId)->value('id');
+
+        $this->assertFrozenWriteRejected(function () use ($snapshotId): void {
+            DB::table('governance_election_voters')->insert([
+                'tenant_id' => 8,
+                'election_id' => 10,
+                'snapshot_id' => $snapshotId,
+                'shareholder_id' => 21,
+                'share_class_code' => 'ORDINARY',
+                'share_quantity' => '1.0000',
+                'voting_weight' => '1.0000',
+                'entitlement_reference' => 'CROSS-TENANT-ATTEMPT',
+                'proxy_authorized' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        $this->assertFrozenWriteRejected(function () use ($voterId): void {
+            DB::table('governance_election_voters')->where('id', $voterId)
+                ->update(['tenant_id' => 8]);
+        });
+
+        self::assertSame(2, DB::table('governance_election_voters')->where('snapshot_id', $snapshotId)->count());
+        self::assertSame(7, (int) DB::table('governance_election_voters')->where('id', $voterId)->value('tenant_id'));
+    }
+
     public function test_database_rejects_freeze_transition_without_independent_approval(): void
     {
         $snapshotId = $this->prepareRegister();
