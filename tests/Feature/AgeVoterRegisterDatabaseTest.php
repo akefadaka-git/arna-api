@@ -558,6 +558,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
 
         $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
 
         $events = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->orderBy('sequence')->get();
@@ -571,6 +572,12 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         self::assertSame($firstIdempotencyKey, $events[0]->idempotency_key);
         self::assertSame($firstPayload, $events[0]->canonical_event);
         self::assertStringNotContainsString('shareholder_id', $events[2]->canonical_event);
+        $this->assertFrozenWriteRejected(function () use ($events): void {
+            DB::table('age_receipt_outbox')->where('id', $events[0]->id)->update(['canonical_event' => '{"tampered":true}']);
+        });
+        $this->assertFrozenWriteRejected(function () use ($events): void {
+            DB::table('age_receipt_outbox')->where('id', $events[0]->id)->delete();
+        });
     }
 
 
