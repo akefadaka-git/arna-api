@@ -325,7 +325,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 'integrity_verified_at' => now(),
             ]);
             self::fail('A snapshot must not be inserted directly in the frozen state.');
-        } catch (\\Illuminate\\Database\\QueryException $exception) {
+        } catch (\Illuminate\Database\QueryException $exception) {
             self::assertStringContainsString('initial prepared draft state', strtolower($exception->getMessage()));
         }
 
@@ -335,7 +335,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 'frozen_at' => now(),
             ]);
             self::fail('A draft snapshot must not be inserted with a freeze timestamp.');
-        } catch (\\Illuminate\\Database\\QueryException $exception) {
+        } catch (\Illuminate\Database\QueryException $exception) {
             self::assertStringContainsString('initial prepared draft state', strtolower($exception->getMessage()));
         }
 
