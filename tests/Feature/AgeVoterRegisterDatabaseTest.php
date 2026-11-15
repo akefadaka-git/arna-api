@@ -85,7 +85,8 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             self::assertSame('The register preparer cannot independently reconcile the register.', $exception->getMessage());
         }
 
-        $hash = $this->service->reconcile(7, 10, $snapshotId, 101);
+        $hash = $this->anchorLatestOutboxForTest($snapshotId);
+        $this->service->reconcile(7, 10, $snapshotId, 101);
         self::assertSame(64, strlen($hash));
         self::assertSame('reconciled', DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->value('register_status'));
 
@@ -110,6 +111,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     public function test_tampered_register_rows_fail_integrity_and_cannot_be_frozen(): void
     {
         $snapshotId = $this->prepareRegister();
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
 
         DB::table('governance_election_voters')
@@ -255,7 +257,10 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     public function test_frozen_register_and_snapshot_reject_direct_database_mutations(): void
     {
         $snapshotId = $this->prepareRegister();
+        $this->anchorLatestOutboxForTest($snapshotId);
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
 
         $voterId = (int) DB::table('governance_election_voters')
@@ -336,6 +341,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             self::assertStringContainsString('governing metadata', strtolower($exception->getMessage()));
         }
 
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
 
         try {
@@ -362,6 +368,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
     public function test_approval_attestation_detects_fabricated_actor_or_timestamp_after_trigger_bypass(): void
     {
         $snapshotId = $this->prepareRegister();
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
         self::assertTrue($this->service->hasValidSnapshotIntegrity(7, 10, $snapshotId));
@@ -400,7 +407,8 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             ->where('shareholder_id', 21)->update(['share_quantity' => '999.0000']);
 
         try {
-            $this->service->reconcile(7, 10, $snapshotId, 101);
+            $this->anchorLatestOutboxForTest($snapshotId);
+        $this->service->reconcile(7, 10, $snapshotId, 101);
             self::fail('A database writer without the application attestation key must not replace the prepared digest and voter rows.');
         } catch (RuntimeException $exception) {
             self::assertSame('Prepared register attestation is missing or invalid; reconciliation failed closed.', $exception->getMessage());
@@ -539,6 +547,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         $firstIdempotencyKey = $events[0]->idempotency_key;
         $firstPayload = $events[0]->canonical_event;
 
+        $this->anchorLatestOutboxForTest($snapshotId);
         $this->service->reconcile(7, 10, $snapshotId, 101);
         $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
 
@@ -548,7 +557,8 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         self::assertSame([1, 2, 3], $events->pluck('sequence')->map(fn ($v) => (int) $v)->all());
         self::assertSame(1, (int) $events[1]->expected_previous_sequence);
         self::assertSame(2, (int) $events[2]->expected_previous_sequence);
-        self::assertNull($events[1]->expected_previous_receipt_sha256);
+        self::assertSame(str_repeat('a', 64), $events[1]->expected_previous_receipt_sha256);
+        self::assertSame(str_repeat('b', 64), $events[2]->expected_previous_receipt_sha256);
         self::assertSame($firstIdempotencyKey, $events[0]->idempotency_key);
         self::assertSame($firstPayload, $events[0]->canonical_event);
         self::assertStringNotContainsString('shareholder_id', $events[2]->canonical_event);
@@ -614,6 +624,20 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         }
 
         parent::tearDown();
+    }
+
+
+    private function anchorLatestOutboxForTest(int $snapshotId): void
+    {
+        $event = DB::table('age_receipt_outbox')->where('snapshot_id', $snapshotId)->orderByDesc('sequence')->first();
+        if ($event === null) {
+            throw new RuntimeException('Expected an AGE receipt outbox event in test fixture.');
+        }
+        DB::table('age_receipt_outbox')->where('id', $event->id)->update([
+            'delivery_state' => 'anchored',
+            'receipt_sha256' => str_repeat(chr(96 + (int) $event->sequence), 64),
+            'anchored_at' => now(),
+        ]);
     }
 
     private function prepareRegister(): int
