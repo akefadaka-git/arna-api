@@ -9,6 +9,7 @@ return new class extends Migration
 {
     private const TRIGGERS = [
         'age_register_snapshot_initial_state_guard',
+        'age_register_snapshot_lifecycle_transition_guard',
         'age_voter_register_frozen_insert',
         'age_voter_register_frozen_update',
         'age_voter_register_frozen_delete',
@@ -75,6 +76,75 @@ BEGIN
     END IF;
 END
 SQL);
+
+        DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_lifecycle_transition_guard
+BEFORE UPDATE ON governance_election_register_snapshots
+FOR EACH ROW
+BEGIN
+    IF NOT (NEW.tenant_id <=> OLD.tenant_id)
+       OR NOT (NEW.election_id <=> OLD.election_id)
+       OR NOT (NEW.record_date <=> OLD.record_date)
+       OR NOT (NEW.source_reference <=> OLD.source_reference)
+       OR NOT (NEW.rule_version <=> OLD.rule_version)
+       OR NOT (NEW.content_sha256 <=> OLD.content_sha256)
+       OR NOT (NEW.voter_count <=> OLD.voter_count)
+       OR NOT (NEW.created_by <=> OLD.created_by)
+       OR NOT (NEW.prepared_by <=> OLD.prepared_by)
+       OR NOT (NEW.created_at <=> OLD.created_at)
+    THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Voter register governing metadata is immutable after preparation.';
+    END IF;
+
+    IF NEW.register_status <> OLD.register_status THEN
+        IF OLD.register_status = 'draft' AND NEW.register_status = 'reconciled' THEN
+            IF NEW.reconciled_by IS NULL
+               OR NEW.reconciled_by = OLD.prepared_by
+               OR NEW.reconciled_at IS NULL
+               OR NEW.integrity_verified_at IS NULL
+               OR NEW.approved_by IS NOT NULL
+               OR NEW.approved_at IS NOT NULL
+               OR NEW.frozen_at IS NOT NULL
+            THEN
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'Voter register lifecycle permits draft-to-reconciled only with an independent reconciler.';
+            END IF;
+        ELSEIF OLD.register_status = 'reconciled' AND NEW.register_status = 'frozen' THEN
+            IF OLD.reconciled_by IS NULL
+               OR OLD.reconciled_by = OLD.prepared_by
+               OR OLD.reconciled_at IS NULL
+               OR OLD.integrity_verified_at IS NULL
+               OR NOT (NEW.reconciled_by <=> OLD.reconciled_by)
+               OR NOT (NEW.reconciled_at <=> OLD.reconciled_at)
+               OR NOT (NEW.integrity_verified_at <=> OLD.integrity_verified_at)
+               OR NEW.approved_by IS NULL
+               OR NEW.approved_by = OLD.prepared_by
+               OR NEW.approved_by = OLD.reconciled_by
+               OR NEW.approved_at IS NULL
+               OR NEW.frozen_at IS NULL
+            THEN
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'Reconciled registers may freeze only with preserved reconciliation and an independent approver.';
+            END IF;
+        ELSE
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Voter register lifecycle transitions must be draft to reconciled to frozen.';
+        END IF;
+    ELSEIF NOT (NEW.reconciled_by <=> OLD.reconciled_by)
+       OR NOT (NEW.reconciled_at <=> OLD.reconciled_at)
+       OR NOT (NEW.approved_by <=> OLD.approved_by)
+       OR NOT (NEW.approved_at <=> OLD.approved_at)
+       OR NOT (NEW.integrity_verified_at <=> OLD.integrity_verified_at)
+       OR NOT (NEW.frozen_at <=> OLD.frozen_at)
+    THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Voter register lifecycle metadata may change only during a valid forward transition.';
+    END IF;
+END
+SQL);
+
+
 
         DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_register_snapshot_freeze_transition_guard
@@ -254,6 +324,67 @@ END
 SQL);
 
         DB::unprepared(<<<'SQL'
+CREATE TRIGGER age_register_snapshot_lifecycle_transition_guard
+BEFORE UPDATE ON governance_election_register_snapshots
+WHEN NEW.tenant_id IS NOT OLD.tenant_id
+ OR NEW.election_id IS NOT OLD.election_id
+ OR NEW.record_date IS NOT OLD.record_date
+ OR NEW.source_reference IS NOT OLD.source_reference
+ OR NEW.rule_version IS NOT OLD.rule_version
+ OR NEW.content_sha256 IS NOT OLD.content_sha256
+ OR NEW.voter_count IS NOT OLD.voter_count
+ OR NEW.created_by IS NOT OLD.created_by
+ OR NEW.prepared_by IS NOT OLD.prepared_by
+ OR NEW.created_at IS NOT OLD.created_at
+ OR (
+    NEW.register_status <> OLD.register_status
+    AND NOT (
+        (
+            OLD.register_status = 'draft'
+            AND NEW.register_status = 'reconciled'
+            AND NEW.reconciled_by IS NOT NULL
+            AND NEW.reconciled_by <> OLD.prepared_by
+            AND NEW.reconciled_at IS NOT NULL
+            AND NEW.integrity_verified_at IS NOT NULL
+            AND NEW.approved_by IS NULL
+            AND NEW.approved_at IS NULL
+            AND NEW.frozen_at IS NULL
+        )
+        OR (
+            OLD.register_status = 'reconciled'
+            AND NEW.register_status = 'frozen'
+            AND OLD.reconciled_by IS NOT NULL
+            AND OLD.reconciled_by <> OLD.prepared_by
+            AND OLD.reconciled_at IS NOT NULL
+            AND OLD.integrity_verified_at IS NOT NULL
+            AND NEW.reconciled_by IS OLD.reconciled_by
+            AND NEW.reconciled_at IS OLD.reconciled_at
+            AND NEW.integrity_verified_at IS OLD.integrity_verified_at
+            AND NEW.approved_by IS NOT NULL
+            AND NEW.approved_by <> OLD.prepared_by
+            AND NEW.approved_by <> OLD.reconciled_by
+            AND NEW.approved_at IS NOT NULL
+            AND NEW.frozen_at IS NOT NULL
+        )
+    )
+ )
+ OR (
+    NEW.register_status = OLD.register_status
+    AND (
+        NEW.reconciled_by IS NOT OLD.reconciled_by
+        OR NEW.reconciled_at IS NOT OLD.reconciled_at
+        OR NEW.approved_by IS NOT OLD.approved_by
+        OR NEW.approved_at IS NOT OLD.approved_at
+        OR NEW.integrity_verified_at IS NOT OLD.integrity_verified_at
+        OR NEW.frozen_at IS NOT OLD.frozen_at
+    )
+ )
+BEGIN
+    SELECT RAISE(ABORT, 'Voter register lifecycle or governing metadata mutation is invalid.');
+END
+SQL);
+
+                DB::unprepared(<<<'SQL'
 CREATE TRIGGER age_register_snapshot_freeze_transition_guard
 BEFORE UPDATE ON governance_election_register_snapshots
 WHEN (

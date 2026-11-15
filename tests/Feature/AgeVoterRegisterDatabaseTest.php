@@ -212,7 +212,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             ]);
             self::fail('A draft register must not be frozen without reconciliation, independent approval and integrity evidence.');
         } catch (\Illuminate\Database\QueryException $exception) {
-            self::assertStringContainsString('cannot freeze', strtolower($exception->getMessage()));
+            self::assertTrue(str_contains(strtolower($exception->getMessage()), 'cannot freeze') || str_contains(strtolower($exception->getMessage()), 'lifecycle'));
         }
 
         $snapshot = DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->first();
@@ -229,7 +229,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
                 ->update(['frozen_at' => now()]);
             self::fail('A draft register must not receive a freeze timestamp before its status is frozen.');
         } catch (\Illuminate\Database\QueryException $exception) {
-            self::assertStringContainsString('cannot freeze or set frozen_at', strtolower($exception->getMessage()));
+            self::assertTrue(str_contains(strtolower($exception->getMessage()), 'cannot freeze') || str_contains(strtolower($exception->getMessage()), 'lifecycle'));
         }
 
         $snapshot = DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->first();
@@ -292,6 +292,53 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         } catch (\Illuminate\Database\QueryException $exception) {
             self::assertStringContainsString('Frozen voter', $exception->getMessage());
         }
+    }
+
+    public function test_snapshot_lifecycle_transitions_are_monotonic_and_metadata_is_immutable(): void
+    {
+        $snapshotId = $this->prepareRegister();
+
+        try {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)->update([
+                'register_status' => 'reconciled',
+                'reconciled_by' => 100,
+                'reconciled_at' => now(),
+                'integrity_verified_at' => now(),
+            ]);
+            self::fail('The preparer must not be recorded as an independent reconciler by direct database update.');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
+        }
+
+        try {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['content_sha256' => str_repeat('b', 64)]);
+            self::fail('Prepared governing metadata must not be rewritten after snapshot creation.');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            self::assertStringContainsString('governing metadata', strtolower($exception->getMessage()));
+        }
+
+        $this->service->reconcile(7, 10, $snapshotId, 101);
+
+        try {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['register_status' => 'draft']);
+            self::fail('A reconciled register must not move backward to draft.');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
+        }
+
+        try {
+            DB::table('governance_election_register_snapshots')->where('id', $snapshotId)
+                ->update(['reconciled_by' => 103]);
+            self::fail('Reconciliation identity must not change after reconciliation.');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            self::assertStringContainsString('lifecycle', strtolower($exception->getMessage()));
+        }
+
+        $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+        self::assertSame('frozen', DB::table('governance_election_register_snapshots')
+            ->where('id', $snapshotId)->value('register_status'));
     }
 
     public function test_snapshot_insert_must_begin_in_prepared_draft_state(): void
