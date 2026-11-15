@@ -201,12 +201,12 @@ final class GovernanceElectionRegisterService
                 throw ValidationException::withMessages(['entries' => 'One or more shareholders are unavailable in this tenant.']);
             }
             usort($normalised, static fn (array $a, array $b): int => [$a['shareholder_id'], $a['share_class_code']] <=> [$b['shareholder_id'], $b['share_class_code']]);
-            $canonical = json_encode($normalised, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            $contentHash = self::snapshotContentHash($tenantId, $electionId, $recordDate, $sourceReference, $ruleVersion, $normalised);
             $now = Carbon::now();
             $snapshotId = DB::table('governance_election_register_snapshots')->insertGetId([
                 'tenant_id' => $tenantId, 'election_id' => $election->id, 'record_date' => $recordDate,
                 'source_reference' => $sourceReference, 'rule_version' => $ruleVersion,
-                'content_sha256' => hash('sha256', $canonical), 'voter_count' => count($normalised),
+                'content_sha256' => $contentHash, 'voter_count' => count($normalised),
                 'created_by' => $actorId, 'prepared_by' => $actorId, 'register_status' => 'draft', 'frozen_at' => null, 'created_at' => $now, 'updated_at' => $now,
             ]);
             $rows = array_map(static fn (array $entry): array => [
@@ -247,7 +247,14 @@ final class GovernanceElectionRegisterService
             if (count($rows) !== (int) $snapshot->voter_count || $rows === []) {
                 throw new RuntimeException('Register row count does not match the prepared snapshot.');
             }
-            $hash = hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+            $hash = self::snapshotContentHash(
+                (int) $snapshot->tenant_id,
+                (int) $snapshot->election_id,
+                (string) $snapshot->record_date,
+                (string) $snapshot->source_reference,
+                (string) $snapshot->rule_version,
+                $rows,
+            );
             if (!hash_equals((string) $snapshot->content_sha256, $hash)) {
                 throw new RuntimeException('Register content hash mismatch; reconciliation failed closed.');
             }
@@ -284,7 +291,14 @@ final class GovernanceElectionRegisterService
         if (count($rows) !== (int) $snapshot->voter_count || $rows === []) {
             return false;
         }
-        $hash = hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        $hash = self::snapshotContentHash(
+            (int) $snapshot->tenant_id,
+            (int) $snapshot->election_id,
+            (string) $snapshot->record_date,
+            (string) $snapshot->source_reference,
+            (string) $snapshot->rule_version,
+            $rows,
+        );
         return hash_equals((string) $snapshot->content_sha256, $hash);
     }
 
@@ -315,6 +329,34 @@ final class GovernanceElectionRegisterService
                 'updated_at' => Carbon::now(),
             ]);
         });
+    }
+
+    /**
+     * Bind both voter rows and the register's governing metadata into one
+     * canonical digest so record-date, evidence-reference or rule-version
+     * edits are detected as integrity failures too.
+     *
+     * @param array<int,array{shareholder_id:int,share_class_code:string,share_quantity:string,voting_weight:string,entitlement_reference:string,proxy_authorized:bool}> $rows
+     */
+    private static function snapshotContentHash(
+        int $tenantId,
+        int $electionId,
+        string $recordDate,
+        string $sourceReference,
+        string $ruleVersion,
+        array $rows,
+    ): string {
+        $canonical = json_encode([
+            'tenant_id' => $tenantId,
+            'election_id' => $electionId,
+            'record_date' => $recordDate,
+            'source_reference' => $sourceReference,
+            'rule_version' => $ruleVersion,
+            'voter_count' => count($rows),
+            'voters' => $rows,
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+
+        return hash('sha256', $canonical);
     }
 
     private static function assertDecimalArithmetic(): void
