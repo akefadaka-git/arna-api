@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers;
+namespace App\Http\Controllers;
 
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use MaaleArna\MASES\Core\Auth\Models\User;
 
 final class LocalePreferenceController
 {
