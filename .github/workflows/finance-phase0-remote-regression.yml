@@ -1,0 +1,177 @@
+name: ARNA Finance Phase 0 Remote Regression Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Exact approved commit SHA (must match the allowlist below)"
+        required: true
+        type: string
+      suite:
+        description: "Regression suite to run"
+        required: true
+        type: choice
+        options:
+          - finance-general-ledger
+        default: finance-general-ledger
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-phase0-regression-${{ inputs.commit_sha }}
+  cancel-in-progress: false
+
+jobs:
+  finance-regression:
+    name: Finance Phase 0 regression / approved SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APPROVED_COMMIT_SHA: 2868a3ddaf15742e67e3a33aa3e697f650d7cdcc
+      REQUESTED_COMMIT_SHA: ${{ inputs.commit_sha }}
+      TEST_SUITE: ${{ inputs.suite }}
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+
+    steps:
+      - name: Validate approved commit SHA and suite
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$REQUESTED_COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::commit_sha must be a full 40-character lowercase hexadecimal SHA."
+            exit 1
+          fi
+          if [[ "$REQUESTED_COMMIT_SHA" != "$APPROVED_COMMIT_SHA" ]]; then
+            echo "::error::Requested SHA is not in this workflow's approved SHA allowlist."
+            exit 1
+          fi
+          if [[ "$TEST_SUITE" != "finance-general-ledger" ]]; then
+            echo "::error::Requested suite is not allowlisted."
+            exit 1
+          fi
+          echo "Approved exact SHA: $REQUESTED_COMMIT_SHA"
+          echo "Suite: $TEST_SUITE"
+
+      - name: Checkout only the approved source revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          submodules: false
+
+      - name: Verify checked-out SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$APPROVED_COMMIT_SHA" || "$actual" != "$REQUESTED_COMMIT_SHA" ]]; then
+            echo "::error::Checked-out revision does not exactly match the approved SHA."
+            exit 1
+          fi
+          printf 'Checked out exact approved SHA: %s\n' "$actual" | tee checkout-verification.log
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          tools: composer:v2
+          coverage: none
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, intl, mbstring, openssl, pcre, PDO, pdo_sqlite, session, tokenizer, xml
+
+      - name: Prepare isolated test environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f .env.example ]]; then
+            cp .env.example .env
+          else
+            printf 'APP_NAME=ARNA\nAPP_ENV=testing\nAPP_KEY=\nAPP_DEBUG=false\nAPP_URL=http://localhost\n' > .env
+          fi
+          {
+            printf '\nAPP_ENV=testing\nAPP_DEBUG=false\n'
+            printf 'DB_CONNECTION=sqlite\nDB_DATABASE=:memory:\n'
+            printf 'CACHE_STORE=array\nSESSION_DRIVER=array\nQUEUE_CONNECTION=sync\nMAIL_MAILER=array\n'
+          } >> .env
+          php -v
+          composer --version
+
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          composer dump-autoload --no-interaction --no-scripts
+          php artisan key:generate --force
+
+      - name: Run selected Finance regression suite
+        id: regression
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p test-results
+          {
+            echo "Approved SHA: $REQUESTED_COMMIT_SHA"
+            echo "Suite: $TEST_SUITE"
+            echo "PHP: $(php -r 'echo PHP_VERSION;')"
+            echo "Started UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } | tee test-results/run-metadata.txt
+          set +e
+          if [[ "$TEST_SUITE" == "finance-general-ledger" ]]; then
+            vendor/bin/phpunit tests/Feature/FinanceGeneralLedgerTest.php 2>&1 | tee test-results/finance-general-ledger.log
+            test_rc=${PIPESTATUS[0]}
+          else
+            echo "No executable mapping for selected suite." | tee test-results/finance-general-ledger.log
+            test_rc=2
+          fi
+          set -e
+          printf '%s\n' "$test_rc" > test-results/test-exit-code.txt
+          echo "Finished UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a test-results/run-metadata.txt
+          exit "$test_rc"
+
+      - name: Write pass/fail summary
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          {
+            echo "## ARNA Finance Phase 0 remote regression"
+            echo
+            echo "- Requested SHA: `$REQUESTED_COMMIT_SHA`"
+            echo "- Allowlisted SHA: `$APPROVED_COMMIT_SHA`"
+            echo "- Suite: `$TEST_SUITE`"
+            echo "- Workflow result: **${{ job.status }}**"
+            if [[ -f test-results/test-exit-code.txt ]]; then
+              rc="$(cat test-results/test-exit-code.txt)"
+              if [[ "$rc" == "0" ]]; then
+                echo "- Regression result: **PASS** (exit code 0)"
+              else
+                echo "- Regression result: **FAIL** (exit code $rc)"
+              fi
+            else
+              echo "- Regression result: **NOT RUN / setup or validation failed**"
+            fi
+            echo
+            echo "Source is checked out only on the remote runner. No source artifact is uploaded."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test logs and run metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arna-finance-phase0-regression-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            test-results/**
+            checkout-verification.log
+          if-no-files-found: warn
+          retention-days: 14
