@@ -1,6 +1,6 @@
-# ARNA OS — Daily Repository Progress Report (2026-11-15)
+# ARNA OS — Daily Repository Progress Report (2026-11-16)
 
-**Generated:** 2026-11-15T03:40:33.879471+03:00  
+**Generated:** 2026-11-16T03:40:15.534197+03:00  
 **Repositories:** akefadaka-git/arna-api, akefadaka-git/arna-app  
 **Assessment mode:** read-only repository metadata and workflow evidence; no source-code mutation.
 
@@ -48,26 +48,26 @@
 ### akefadaka-git/arna-api
 
 - Default branch: `main`
-- Open PRs: 61
-- PRs merged in last 30 days: 30
-- Failed/action-required workflow runs in last 14 days: 5
-- Cancelled workflow runs in last 14 days: 4
+- Open PRs: 62
+- PRs merged in last 30 days: 29
+- Failed/action-required workflow runs in last 14 days: 33
+- Cancelled workflow runs in last 14 days: 15
 - Currently queued/in-progress workflow runs in sampled page: 1
-- Most recent commit in sampled 30 commits: 2026-11-14T19:16:45+00:00
+- Most recent commit in sampled 30 commits: 2026-11-15T00:40:42+00:00
 
 **Open pull requests (sample, up to 12):**
-- A4 security: fail-closed corporate media scanner verification
-- A3 Finance — integrated current-main implementation candidate
-- fix(calendar): bind domain authorization and stable recurring reminders
-- A3.5 — Persist posted journals through a transactional Finance outbox
-- A3.4 — Add governed currency precision and deterministic FX conversion
-- A3.3 — Integrate Finance dates with canonical Ethiopian calendar
-- A3.2 — Enforce non-negative journal line amounts at database posting
-- A3.1 — ARNA Finance current-main implementation baseline
-- feat(calendar): current-main integration with native E.C. support
-- A3.1 — Fail-closed tenant header validation
-- docs: Owner-approved ARNA Admin A2 control-plane contract v1.1.0
-- A5: harden production environment configuration and preflight
+- feat(governance): verify AGE receipts and persist transactional outbox
+- feat(governance): add AGE receipt adapter boundary
+- docs(governance): specify AGE receipt integration contracts
+- docs(governance): design AGE independent receipt anti-rollback
+- feat(governance): attest AGE voter-register lifecycle
+- docs(governance): reconcile AGE register role grants
+- fix(governance): align register HTTP authorization with dedicated policy
+- fix(governance): enforce monotonic voter-register lifecycle
+- fix(governance): enforce frozen voter-register immutability
+- feat(governance): add witnessed manual election count evidence
+- fix(governance): gate physical ballot custody on frozen register integrity
+- fix(governance): lock voter register rows during approval
 
 **PRs merged in last 30 days (sample, up to 12):**
 - fix(deps): update Laravel framework security patch
@@ -84,35 +84,42 @@
 - feat(admin): audit and security investigation foundation (A2-03)
 
 **Failed workflows (sample, up to 12):**
-- ARNA clean-install MySQL verification #1504
-- Corporate homepage responsibility invariant #6
-- Corporate homepage responsibility invariant #5
-- Corporate homepage responsibility invariant #2
-- Corporate homepage responsibility invariant #1
+- AGE MySQL integration #70
+- AGE MySQL integration #69
+- AGE MySQL integration #68
+- AGE MySQL integration #67
+- AGE MySQL integration #66
+- AGE MySQL integration #65
+- AGE MySQL integration #64
+- AGE MySQL integration #63
+- AGE MySQL integration #62
+- AGE MySQL integration #60
+- AGE MySQL integration #58
+- AGE MySQL integration #54
 
 ### akefadaka-git/arna-app
 
 - Default branch: `main`
-- Open PRs: 34
+- Open PRs: 41
 - PRs merged in last 30 days: 23
-- Failed/action-required workflow runs in last 14 days: 40
+- Failed/action-required workflow runs in last 14 days: 60
 - Cancelled workflow runs in last 14 days: 0
 - Currently queued/in-progress workflow runs in sampled page: 0
 - Most recent commit in sampled 30 commits: 2026-11-14T19:09:49+00:00
 
 **Open pull requests (sample, up to 12):**
+- [Draft] A3 — ARNA brand unification and acceptance
+- ARNA Next-Generation UI — foundation, accessibility and bilingual navigation
+- ARNA Unified Shell Parity — A1 assessment
+- Extract PR #65 original responsive header change only
+- Integrate ARNA visual library with 2D and CSS 3D panels
+- feat(elections): align frontend contracts with AGE A1 voting scope
+- Add ARNA Visual, Media & Motion Library foundation
 - UI file 1: preserve responsive header navigation
 - A1/A2: reconcile ARNA GUI specification and read-only baseline
 - Ops: add guarded Plesk deployment workflow for public website
 - A3.7 Finance workspace — Amharic-first current API contracts
 - feat(calendar): integrate native Ethiopian Calendar API
-- feat(android): tenant discovery, selection and native ARNA workspace
-- feat(android): harden native session lifecycle and emulator verification
-- docs: ARNA Admin A2 frontend control-plane reference v1.1.0
-- A5: define secure static production hosting and rollback
-- feat(dashboard): add permission-gated Executive Overview workspace
-- feat(android): add isolated native Android foundation
-- A3: record Owner authorization for ARNA Android implementation
 
 **PRs merged in last 30 days (sample, up to 12):**
 - A3: Maale Arna corporate content and full CMS editing
@@ -129,26 +136,26 @@
 - Phase 1 A3: add persistent theme preferences and authentication accessibility
 
 **Failed workflows (sample, up to 12):**
-- Frontend verification #1514
-- Frontend verification #1513
-- Frontend verification #1508
-- Frontend verification #1507
-- Frontend verification #1506
-- Frontend verification #1505
-- Frontend verification #1504
-- Frontend verification #1503
-- Frontend verification #1502
-- Frontend verification #1501
-- Frontend verification #1500
-- Frontend verification #1499
+- Frontend verification #2135
+- Frontend verification #2134
+- Frontend verification #2133
+- Frontend verification #2132
+- Frontend verification #2131
+- Frontend verification #2130
+- Frontend verification #2129
+- Frontend verification #2128
+- Frontend verification #2127
+- Frontend verification #2126
+- Frontend verification #2125
+- Frontend verification #2124
 
 ## Recommendations and enhancement priorities
 
-- **akefadaka-git/arna-api:** triage 5 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-api:** inspect 4 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
-- **akefadaka-git/arna-api:** review 61 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
-- **akefadaka-git/arna-app:** triage 40 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-app:** review 34 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-api:** triage 33 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-api:** inspect 15 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
+- **akefadaka-git/arna-api:** review 62 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-app:** triage 60 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-app:** review 41 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - Continue closing domain acceptance gaps before expanding scope: security, tenant isolation, lifecycle, concurrency, clean-install and cross-domain integration.
 - Prioritize Finance accounting integrity, Governance authority lifecycle, Calendar reservations/concurrency and Communication approval/publishing controls.
 - Improve frontend/API contract tests and production observability; require reproducible evidence for every readiness claim.
