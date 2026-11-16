@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use Tests\TestCase;
 
 final class LocalePreferenceTest extends TestCase
 {
