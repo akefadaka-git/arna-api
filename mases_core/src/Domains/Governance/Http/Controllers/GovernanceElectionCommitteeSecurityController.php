@@ -83,10 +83,14 @@ final class GovernanceElectionCommitteeSecurityController extends Controller
         return response()->json(['data' => $conflict], 201);
     }
 
-    public function securityEvents(Request $request, int $election): JsonResponse
-    {
+    public function securityEvents(
+        Request $request,
+        int $election,
+        GovernanceElectionCommitteeSecurityService $security,
+    ): JsonResponse {
         $tenantId = $this->tenantId();
         $this->assertElection($tenantId, $election);
+        $integrity = $security->verifySecurityEventChain($tenantId, $election);
 
         $events = DB::table('governance_election_committee_security_events')
             ->where('tenant_id', $tenantId)
@@ -101,7 +105,12 @@ final class GovernanceElectionCommitteeSecurityController extends Controller
 
         return response()->json([
             'data' => $events,
-            'meta' => ['limit' => 200, 'append_only' => true, 'hash_chain' => 'sha256'],
+            'meta' => [
+                'limit' => 200,
+                'append_only' => true,
+                'hash_chain' => 'sha256',
+                'integrity' => $integrity,
+            ],
         ]);
     }
 
