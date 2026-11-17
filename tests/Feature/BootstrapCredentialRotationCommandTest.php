@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -61,6 +62,23 @@ final class BootstrapCredentialRotationCommandTest extends TestCase
     }
 
     #[Test]
+    public function apply_fails_closed_for_non_database_sessions_without_mutating_accounts_or_tokens(): void
+    {
+        $user = User::factory()->create();
+        $user->forceFill(['password' => Hash::make(self::COMPROMISED_TEST_CREDENTIAL)])->save();
+        $token = $user->createToken('p0-9-non-database-session')->accessToken;
+
+        config(['session.driver' => 'array']);
+
+        $exitCode = Artisan::call('arna:rotate-compromised-bootstrap-credentials', ['--apply' => true]);
+
+        self::assertSame(1, $exitCode);
+        self::assertStringContainsString('session driver [array] is not database-backed', Artisan::output());
+        self::assertTrue(Hash::check(self::COMPROMISED_TEST_CREDENTIAL, $user->fresh()->password));
+        $this->assertDatabaseHas('personal_access_tokens', ['id' => $token->id]);
+    }
+
+    #[Test]
     public function apply_rotates_matching_passwords_and_revokes_only_their_api_tokens(): void
     {
         $affected = User::factory()->create();
@@ -70,10 +88,18 @@ final class BootstrapCredentialRotationCommandTest extends TestCase
 
         config([
             'session.driver' => 'database',
-            'session.table' => 'sessions',
+            'session.table' => 'p0_9_sessions',
             'session.connection' => config('database.default'),
         ]);
-        DB::table('sessions')->insert([
+        Schema::create('p0_9_sessions', function ($table): void {
+            $table->string('id')->primary();
+            $table->foreignId('user_id')->nullable()->index();
+            $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->longText('payload');
+            $table->integer('last_activity')->index();
+        });
+        DB::table('p0_9_sessions')->insert([
             [
                 'id' => 'p0-9-affected-session',
                 'user_id' => $affected->id,
@@ -85,7 +111,7 @@ final class BootstrapCredentialRotationCommandTest extends TestCase
         ]);
 
         $unaffected = User::factory()->create();
-        DB::table('sessions')->insert([
+        DB::table('p0_9_sessions')->insert([
             [
                 'id' => 'p0-9-unaffected-session',
                 'user_id' => $unaffected->id,
@@ -107,7 +133,7 @@ final class BootstrapCredentialRotationCommandTest extends TestCase
         self::assertTrue(Hash::check($unaffectedPassword, $unaffected->fresh()->password));
         $this->assertDatabaseMissing('personal_access_tokens', ['id' => $affectedToken->id]);
         $this->assertDatabaseHas('personal_access_tokens', ['id' => $unaffectedToken->id]);
-        $this->assertDatabaseMissing('sessions', ['id' => 'p0-9-affected-session']);
-        $this->assertDatabaseHas('sessions', ['id' => 'p0-9-unaffected-session']);
+        $this->assertDatabaseMissing('p0_9_sessions', ['id' => 'p0-9-affected-session']);
+        $this->assertDatabaseHas('p0_9_sessions', ['id' => 'p0-9-unaffected-session']);
     }
 }
