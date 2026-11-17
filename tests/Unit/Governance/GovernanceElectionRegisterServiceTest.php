@@ -95,7 +95,7 @@ final class GovernanceElectionRegisterServiceTest extends TestCase
         string $after,
         string $occurredAt,
         ?int $reversedEntryId = null,
-    ): \\stdClass {
+    ): \stdClass {
         return (object) [
             'id' => $id,
             'entry_type' => $type,
