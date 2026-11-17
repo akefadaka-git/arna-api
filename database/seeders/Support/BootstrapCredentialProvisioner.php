@@ -11,8 +11,9 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 /**
  * Assigns a one-time, per-account random credential to newly seeded users.
  *
- * The plaintext is never returned, persisted, or logged. Existing accounts
- * retain their current credential on reseed; operators and users establish
+ * The plaintext is never returned, persisted, or logged. Persisted User models
+ * are left unchanged; a higher-level orchestrator may intentionally delete
+ * and recreate seeded rows before this provisioner is called. Users establish
  * access through the normal password-reset flow.
  */
 final class BootstrapCredentialProvisioner
