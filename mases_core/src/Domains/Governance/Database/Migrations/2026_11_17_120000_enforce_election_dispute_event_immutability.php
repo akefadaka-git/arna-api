@@ -26,6 +26,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RAISE EXCEPTION 'Election dispute events are append-only';
+    RETURN OLD;
 END;
 $$
 SQL);
