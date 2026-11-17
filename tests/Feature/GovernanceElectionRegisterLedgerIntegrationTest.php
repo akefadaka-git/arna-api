@@ -169,7 +169,7 @@ final class GovernanceElectionRegisterLedgerIntegrationTest extends TestCase
         $holdingId = $this->createHolding($shareholderId, '10.0000');
         $this->appendEntry($holdingId, 'subscription', '10.0000', '0.0000', '10.0000', '2026-01-01 09:00:00');
         DB::table('shareholders')->where('id', $shareholderId)->update([
-            'deleted_at' => '2026-02-01 00:00:00',
+            'deleted_at' => '2026-01-15 00:00:00',
         ]);
 
         try {
@@ -183,6 +183,26 @@ final class GovernanceElectionRegisterLedgerIntegrationTest extends TestCase
             self::assertArrayHasKey('shareholder_eligibility', $exception->errors());
             self::assertStringContainsString('eligibility must be resolved', $exception->errors()['shareholder_eligibility'][0]);
         }
+    }
+
+    public function test_shareholder_deleted_after_record_date_remains_in_historical_register(): void
+    {
+        $shareholderId = $this->createShareholder('SH-REG-DELETED-AFTER-' . $this->tenant->id);
+        $holdingId = $this->createHolding($shareholderId, '10.0000');
+        $this->appendEntry($holdingId, 'subscription', '10.0000', '0.0000', '10.0000', '2026-01-01 09:00:00');
+        DB::table('shareholders')->where('id', $shareholderId)->update([
+            'deleted_at' => '2026-02-01 00:00:00',
+        ]);
+
+        $entries = app(GovernanceElectionRegisterService::class)->reconstructAsOf(
+            (int) $this->tenant->id,
+            '2026-01-31',
+            'APPROVED-RECORD-DATE-REGISTER',
+        );
+
+        self::assertCount(1, $entries);
+        self::assertSame($shareholderId, $entries[0]['shareholder_id']);
+        self::assertSame('10.0000', $entries[0]['share_quantity']);
     }
 
     public function test_zero_projection_without_any_ledger_history_is_not_counted_as_a_voter(): void
