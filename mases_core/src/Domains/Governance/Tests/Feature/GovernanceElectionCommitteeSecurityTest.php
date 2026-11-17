@@ -87,6 +87,12 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
         $this->assertSame($events[0]->event_hash, $events[1]->previous_hash);
         $this->assertSame(64, strlen($events[0]->event_hash));
         $this->assertSame(64, strlen($events[1]->event_hash));
+
+        $integrity = app(GovernanceElectionCommitteeSecurityService::class)
+            ->verifySecurityEventChain((int) $this->tenant->id, $this->electionId);
+        $this->assertTrue($integrity['valid']);
+        $this->assertSame(2, $integrity['verified_events']);
+        $this->assertNull($integrity['first_invalid_sequence']);
     }
 
     public function test_immediate_family_conflict_is_recorded_and_blocks_candidate_decision(): void
