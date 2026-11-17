@@ -44,6 +44,7 @@ final class GovernanceElectionCommitteeSecurityService
         User $actor,
     ): object {
         $this->assertAdministrator($actor, $tenantId);
+        $this->assertElectionTenant($tenantId, $electionId);
         $actorId = (int) $actor->getAuthIdentifier();
 
         if ($tenantId < 1 || $electionId < 1 || $personId < 1 || $userId < 1) {
@@ -57,6 +58,11 @@ final class GovernanceElectionCommitteeSecurityService
         $person = DB::table('people')->where('id', $personId)->whereNull('deleted_at')->first(['id', 'user_id']);
         if ($person === null || (int) ($person->user_id ?? 0) !== $userId) {
             throw ValidationException::withMessages(['person_id' => 'The administrator must resolve to the canonical Person linked to the supplied account.']);
+        }
+
+        $targetUser = DB::table('users')->where('id', $userId)->where('is_active', true)->whereNull('deleted_at')->exists();
+        if (!$targetUser) {
+            throw ValidationException::withMessages(['user_id' => 'The linked user account must be active.']);
         }
 
         $hasTenantAccess = DB::table('person_tenant_accesses')
@@ -130,6 +136,7 @@ final class GovernanceElectionCommitteeSecurityService
         string $reason,
     ): void {
         $this->assertAdministrator($actor, $tenantId);
+        $this->assertElectionTenant($tenantId, $electionId);
         $actorId = (int) $actor->getAuthIdentifier();
 
         if (trim($reason) === '' || mb_strlen($reason) < 5 || mb_strlen($reason) > 2000) {
@@ -183,6 +190,7 @@ final class GovernanceElectionCommitteeSecurityService
         User $actor,
     ): object {
         $actorId = (int) $actor->getAuthIdentifier();
+        $this->assertElectionTenant($tenantId, $electionId);
         if ($tenantId < 1 || $electionId < 1 || !$this->authorization->hasPermission(
             permissionSlug: 'governance.election.committee.conflict.declare',
             user: $actor,
@@ -283,6 +291,7 @@ final class GovernanceElectionCommitteeSecurityService
         User $actor,
     ): void {
         $actorId = (int) $actor->getAuthIdentifier();
+        $this->assertElectionTenant($tenantId, $electionId);
         if ($tenantId < 1 || $electionId < 1 || $candidatePersonId < 1 || !$this->authorization->hasPermission(
             permissionSlug: 'governance.election.committee.decide',
             user: $actor,
@@ -300,6 +309,21 @@ final class GovernanceElectionCommitteeSecurityService
 
         if ($member === null || $member->member_role !== 'committee_member') {
             throw new AuthorizationException('An active voting committee-member appointment is required.');
+        }
+
+        $canonicalPerson = DB::table('people')
+            ->where('id', $member->person_id)
+            ->where('user_id', $actorId)
+            ->where('status', 'active')
+            ->whereNull('deleted_at')
+            ->exists();
+        $tenantAccess = DB::table('person_tenant_accesses')
+            ->where('person_id', $member->person_id)
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'active')
+            ->exists();
+        if (!$canonicalPerson || !$tenantAccess) {
+            throw new AuthorizationException('Committee member identity or tenant access is no longer valid.');
         }
 
         if ((int) ($member->person_id ?? 0) === $candidatePersonId) {
@@ -413,6 +437,16 @@ final class GovernanceElectionCommitteeSecurityService
             tenantId: $tenantId,
         )) {
             throw new AuthorizationException('Election committee administrator authority is required in this tenant.');
+        }
+    }
+
+    private function assertElectionTenant(int $tenantId, int $electionId): void
+    {
+        if ($tenantId < 1 || $electionId < 1 || !DB::table('governance_elections')
+            ->where('tenant_id', $tenantId)
+            ->where('id', $electionId)
+            ->exists()) {
+            throw new AuthorizationException('The election is not available in the resolved tenant.');
         }
     }
 
