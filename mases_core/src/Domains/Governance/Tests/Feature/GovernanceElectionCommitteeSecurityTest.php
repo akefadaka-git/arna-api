@@ -303,4 +303,32 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
         );
     }
 
+
+    public function test_malformed_candidate_recusal_scope_fails_closed(): void
+    {
+        DB::table('governance_election_committee_members')->insert([
+            'tenant_id' => $this->tenant->id,
+            'election_id' => $this->electionId,
+            'person_id' => $this->committeePerson->id,
+            'user_id' => $this->committeeMember->id,
+            'member_role' => 'committee_member',
+            'ex_officio' => false,
+            'status' => 'active',
+            'appointed_at' => now(),
+            'recused_at' => now(),
+            'recusal_scope' => 'candidate:not-a-person-id',
+            'appointment_reference' => 'GA-RESOLUTION-TEST-005',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+        app(GovernanceElectionCommitteeSecurityService::class)->assertMayDecide(
+            (int) $this->tenant->id,
+            $this->electionId,
+            (int) $this->candidate->id,
+            $this->committeeMember,
+        );
+    }
+
 }
