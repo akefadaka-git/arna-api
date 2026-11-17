@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Illuminate\\Database\\Migrations\\Migration;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\Schema;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Evidence-neutral A3 foundation for election objection and appeal intake.
@@ -39,8 +39,8 @@ return new class extends Migration
             $table->unsignedBigInteger('election_id');
             $table->string('subject_type', 16);
             $table->unsignedBigInteger('subject_id');
-            $table->string('storage_disk', 80);
-            $table->string('storage_key', 512);
+            $table->string('storage_disk', 50);
+            $table->string('storage_key', 191);
             $table->string('original_filename', 255);
             $table->string('detected_mime_type', 160)->nullable();
             $table->unsignedBigInteger('byte_size');
