@@ -220,6 +220,7 @@ final class GovernanceElectionDisputeEvidenceService
             $disk->delete($key);
             throw $exception;
         }
+    }
 
     private function hasValidContentSignature(string $path, string $mime): bool
     {
@@ -257,6 +258,5 @@ final class GovernanceElectionDisputeEvidenceService
         } finally {
             $archive->close();
         }
-    }
     }
 }
