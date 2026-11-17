@@ -92,8 +92,9 @@ use RuntimeException;
  * =============================================================================
  * New accounts receive independent, cryptographically random credentials.
  * The plaintext is discarded immediately; users establish access through
- * the password-reset flow. Existing accounts retain their credentials when
- * the seeder is rerun.
+ * the password-reset flow. Existing rows retain credentials when this domain
+ * seeder runs without a preceding clear; MasesCoreSeeder intentionally clears
+ * and recreates the seeded user cohort before invoking this seeder.
  *
  * The upsert pattern
  * =============================================================================
