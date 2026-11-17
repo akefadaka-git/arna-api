@@ -94,7 +94,6 @@ final class GovernanceElectionCommitteeDecisionHttpTest extends TestCase
             'disclosure' => 'The candidate is an immediate family member.',
             'declared_at' => now(),
             'status' => 'active',
-            'joined_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -186,6 +185,7 @@ final class GovernanceElectionCommitteeDecisionHttpTest extends TestCase
             'user_id' => $user->id,
             'tenant_id' => $this->tenant->id,
             'status' => 'active',
+            'joined_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
