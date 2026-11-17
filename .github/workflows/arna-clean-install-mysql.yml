@@ -46,6 +46,7 @@ on:
       - "tests/Feature/TenantMembershipMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionDispute*.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
       - "mases_core/src/Domains/Loan/**"
