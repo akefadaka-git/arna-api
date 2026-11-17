@@ -22,6 +22,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolver
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Tests\TestCase;
 
 final class GovernancePenaltySettlementAccountingTest extends TestCase
@@ -169,5 +170,23 @@ final class GovernancePenaltySettlementAccountingTest extends TestCase
         $resolver=app(JournalSourceEntityMappingResolver::class);
         $registry=new JournalSourceReferenceResolverRegistry([$resolver]);
         return new GovernancePenaltySettlementService(new JournalEntryService($registry));
+    }
+
+    #[Test]
+    public function settlement_mapping_approver_cannot_also_execute_the_settlement(): void
+    {
+        [$tenant,$entity,$maker,$checker,$executor,$accounts,$meetingId,$attendanceId,$penaltyId] = $this->fixture();
+        $settlementId = $this->createSettlement((int)$tenant->id,$penaltyId,(int)$maker->id,2000,'cash');
+        $this->approveSource((int)$tenant->id,(int)$entity->id,$settlementId,(int)$checker->id);
+
+        $this->expectException(ConflictHttpException::class);
+        $this->expectExceptionMessage('Settlement execution must be performed by an officer other than the mapping configurator and approver.');
+        $this->settlementService()->executeCashSettlement(
+            (int)$tenant->id,
+            $settlementId,
+            (int)$checker->id,
+            today()->toDateString(),
+            'same-actor-approval-execution',
+        );
     }
 }
