@@ -236,6 +236,7 @@ final class GovernanceElectionRegisterService
                 $original = $byId[$originalId] ?? null;
                 if ($original === null || (int) $original->id >= $id
                     || (string) $original->entry_type === 'reversal'
+                    || bccomp(bcadd($quantity, (string) $original->quantity, 4), '0', 4) !== 0
                     || isset($reversed[$originalId])) {
                     throw ValidationException::withMessages(['share_ledger' => "Reversal linkage is invalid at entry {$id}."]);
                 }
