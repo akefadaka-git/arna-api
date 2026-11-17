@@ -2,7 +2,7 @@
 
 **Approval:** Owner-approved A3 implementation  
 **Legal evidence status:** BLOCKED  
-**Implementation slice:** A3.1 intake identity, A3.2 private evidence storage and integrity ledger, A3.3 database-enforced append-only ledger  
+**Implementation slice:** A3.1 intake identity, A3.2 private evidence storage and integrity ledger, A3.3 database-enforced append-only ledger, A3.4 read-only evidence integrity inspection  
 **Branch:** `feat/a3-election-objections-foundation`  
 **Parent:** PR #151 head `582bee84e64deaee445439b580c6ab1b1523c82c`
 
@@ -13,6 +13,7 @@
 - Add a dispute event ledger with tenant/election/subject scope, actor, event payload, previous-event digest, event digest, and occurrence time.
 - Implement a serialized event-ledger service: election-row locking prevents concurrent chain forks; versioned canonical JSON is hashed with tenant, election, subject, actor, event type, timestamp, and previous digest; verification replays the chain and detects payload/hash tampering.
 - Enforce event-ledger append-only behavior in the database with `BEFORE UPDATE` and `BEFORE DELETE` triggers for MySQL, PostgreSQL, and SQLite. The service remains insert-only; database triggers now reject mutation attempts that bypass Eloquent or the service layer.
+- Add a read-only evidence integrity inspector. It scopes lookup by tenant, checks object existence and private visibility, streams stored bytes to recompute SHA-256 and byte size, and reports `intact`, `mismatch`, `missing`, `unreadable`, or `not_private`. It never changes evidence metadata or workflow state, rewrites or deletes objects, or emits a scanner/admissibility verdict.
 - Implement private evidence storage: allowlisted detected MIME types, content-signature and filename-extension checks, bounded file size, server-generated object keys, forced private visibility, read-after-write SHA-256 verification, tenant membership validation for the uploader, transactional metadata/event writes, and object cleanup on failure. New evidence remains `pending`.
 - Add uniqueness and lookup indexes for tenant-scoped receipt references, private storage object identities, event digests, and subject event history.
 - Exercise tenant-scoped uniqueness: duplicate evidence storage identities and event digests are rejected within one tenant, while the same identity/digest remains valid in another tenant.
@@ -53,6 +54,7 @@ These values must remain unresolved. No defaults, legal conclusions, or automati
 
 - Validate migration up/down against the supported MySQL and PostgreSQL versions.
 - MySQL and PostgreSQL CI must both prove direct UPDATE/DELETE rejection, valid event-chain replay, and detection of a deliberately malformed event digest.
+- Read-only integrity inspection must distinguish intact, corrupted, missing, unreadable, and non-private objects without changing evidence state.
 - Test legacy rows with null receipt metadata and duplicate non-null receipt rejection within a tenant.
 - MySQL CI run #1614 passed on exact SHA `b5157d4c6b91c3785a8b15da3f4583e14d612e54`: 5 dispute tests / 17 assertions, clean migrations, migration idempotence, fresh migration/seed, and dependency audit. The next exact-head run must verify the new database triggers and PostgreSQL migration/test path. Scanner integration and HTTP endpoint security remain open gates.
 - Keep legal decision paths disabled until authoritative documents are reconciled and separately approved.
