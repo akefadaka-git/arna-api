@@ -41,7 +41,7 @@ final class BootstrapCredentialProvisionerTest extends TestCase
     }
 
     #[Test]
-    public function it_preserves_existing_credentials_on_reseed(): void
+    public function it_leaves_credentials_unchanged_for_an_existing_user_model(): void
     {
         Hash::shouldReceive('make')->never();
 
