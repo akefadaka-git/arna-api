@@ -409,6 +409,32 @@ final class GovernanceElectionWorkflowController extends Controller
         });
     }
 
+    public function objectionIndex(GovernanceElection $governanceElection): JsonResponse
+    {
+        Gate::authorize('view', $governanceElection);
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        $shareholderId = $this->authenticatedShareholderId($tenantId);
+
+        $objections = DB::table('governance_election_objections')
+            ->where('tenant_id', $tenantId)
+            ->where('election_id', $governanceElection->id)
+            ->where('submitted_by_shareholder_id', $shareholderId)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get(['id', 'nomination_id', 'category', 'grounds', 'evidence_reference', 'status', 'created_at']);
+
+        $appeals = DB::table('governance_election_appeals')
+            ->where('tenant_id', $tenantId)
+            ->where('election_id', $governanceElection->id)
+            ->where('appellant_shareholder_id', $shareholderId)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get(['id', 'objection_id', 'grounds', 'evidence_reference', 'status', 'created_at']);
+
+        return response()->json(['data' => ['objections' => $objections, 'appeals' => $appeals]]);
+    }
+
     public function submitObjection(Request $request, GovernanceElection $governanceElection): JsonResponse
     {
         Gate::authorize('view', $governanceElection);
@@ -430,7 +456,7 @@ final class GovernanceElectionWorkflowController extends Controller
             'nomination_id' => $data['nomination_id'] ?? null,
             'submitted_by_shareholder_id' => $shareholderId, 'category' => $data['category'],
             'grounds' => $data['grounds'], 'evidence_reference' => $data['evidence_reference'] ?? null,
-            'status' => 'submitted', 'created_at' => now(), 'updated_at' => now(),
+            'status' => 'received_pending_rules', 'created_at' => now(), 'updated_at' => now(),
         ]);
         return response()->json(['data' => ['objection_id' => $id, 'status' => 'submitted']], 201);
     }
@@ -440,22 +466,9 @@ final class GovernanceElectionWorkflowController extends Controller
         Gate::authorize('view', $governanceElection);
         $tenantId = $this->tenantId();
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
-        $shareholderId = $this->authenticatedShareholderId($tenantId);
-        $data = $request->validate([
-            'grounds' => ['required', 'string', 'min:20', 'max:10000'],
-            'evidence_reference' => ['nullable', 'string', 'max:160'],
-        ]);
-        $record = DB::table('governance_election_objections')->where('tenant_id', $tenantId)
-            ->where('election_id', $governanceElection->id)->where('id', $objection)->first();
-        abort_if($record === null || !in_array($record->status, ['upheld', 'dismissed'], true), 409,
-            'An appeal may be submitted only after a reasoned objection decision.');
-        $id = DB::table('governance_election_appeals')->insertGetId([
-            'tenant_id' => $tenantId, 'election_id' => $governanceElection->id,
-            'objection_id' => $objection, 'appellant_shareholder_id' => $shareholderId,
-            'grounds' => $data['grounds'], 'evidence_reference' => $data['evidence_reference'] ?? null,
-            'status' => 'submitted', 'created_at' => now(), 'updated_at' => now(),
-        ]);
-        return response()->json(['data' => ['appeal_id' => $id, 'status' => 'submitted']], 201);
+        $this->authenticatedShareholderId($tenantId);
+
+        abort(409, 'Appeal intake is unavailable until authoritative appeal standing, a legally admissible first-instance decision, appellate authority, and the applicable deadline are verified.');
     }
 
     public function certifyElection(Request $request, GovernanceElection $governanceElection): JsonResponse
