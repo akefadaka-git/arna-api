@@ -23,6 +23,7 @@ final class GovernanceElectionCommitteeDecisionHttpTest extends TestCase
     private User $decisionMaker;
     private Person $decisionMakerPerson;
     private Person $candidate;
+    private User $committeeMemberWithoutDecision;
     private int $nominationId;
 
     protected function setUp(): void
@@ -44,10 +45,10 @@ final class GovernanceElectionCommitteeDecisionHttpTest extends TestCase
             'decision-maker@example.test',
             ['governance.election.manage', 'governance.election.committee.decide'],
         );
-        $this->createMember('committee-two@example.test', []);
+        [$this->committeeMemberWithoutDecision] = $this->createMember('committee-two@example.test', ['governance.election.manage']);
         $this->createMember('committee-three@example.test', []);
 
-        [, $this->candidate] = $this->createMember('candidate@example.test', []);
+        $this->candidate = $this->createCandidate('candidate@example.test');
 
         $this->nominationId = (int) DB::table('governance_election_nominations')->insertGetId([
             'tenant_id' => $this->tenant->id,
@@ -68,38 +69,7 @@ final class GovernanceElectionCommitteeDecisionHttpTest extends TestCase
 
     public function test_real_nomination_decision_route_denies_member_without_dedicated_decision_permission(): void
     {
-        $actor = User::query()->create([
-            'first_name_en' => 'Committee',
-            'father_name_en' => 'Member',
-            'email' => 'manage-only@example.test',
-            'password' => bcrypt('not-used-in-test'),
-            'locale' => 'am',
-            'is_active' => true,
-            'default_tenant_id' => $this->tenant->id,
-        ]);
-        DB::table('tenant_memberships')->insert([
-            'user_id' => $actor->id,
-            'tenant_id' => $this->tenant->id,
-            'status' => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $person = $this->makePerson($actor);
-        DB::table('governance_election_committee_members')->insert([
-            'tenant_id' => $this->tenant->id,
-            'election_id' => $this->electionId,
-            'person_id' => $person->id,
-            'user_id' => $actor->id,
-            'member_role' => 'committee_member',
-            'ex_officio' => false,
-            'status' => 'active',
-            'appointed_at' => now(),
-            'appointment_reference' => 'GA-HTTP-TEST-MANAGE-ONLY',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $this->grant($actor, 'governance.election.manage');
-
+        $actor = $this->committeeMemberWithoutDecision;
         Sanctum::actingAs($actor, ['*']);
         $this->decisionRequest()->assertForbidden();
 
