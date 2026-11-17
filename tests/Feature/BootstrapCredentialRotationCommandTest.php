@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use PHPUnit\Framework\Attributes\Test;
@@ -67,7 +68,33 @@ final class BootstrapCredentialRotationCommandTest extends TestCase
         $affected->forceFill(['password' => Hash::make(self::COMPROMISED_TEST_CREDENTIAL)])->save();
         $affectedToken = $affected->createToken('p0-9-affected')->accessToken;
 
+        config([
+            'session.driver' => 'database',
+            'session.table' => 'sessions',
+            'session.connection' => config('database.default'),
+        ]);
+        DB::table('sessions')->insert([
+            [
+                'id' => 'p0-9-affected-session',
+                'user_id' => $affected->id,
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'P0.9 test',
+                'payload' => 'affected-session-payload',
+                'last_activity' => time(),
+            ],
+        ]);
+
         $unaffected = User::factory()->create();
+        DB::table('sessions')->insert([
+            [
+                'id' => 'p0-9-unaffected-session',
+                'user_id' => $unaffected->id,
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'P0.9 test',
+                'payload' => 'unaffected-session-payload',
+                'last_activity' => time(),
+            ],
+        ]);
         $unaffectedPassword = 'unaffected-user-test-password';
         $unaffected->forceFill(['password' => Hash::make($unaffectedPassword)])->save();
         $unaffectedToken = $unaffected->createToken('p0-9-unaffected')->accessToken;
@@ -80,5 +107,7 @@ final class BootstrapCredentialRotationCommandTest extends TestCase
         self::assertTrue(Hash::check($unaffectedPassword, $unaffected->fresh()->password));
         $this->assertDatabaseMissing('personal_access_tokens', ['id' => $affectedToken->id]);
         $this->assertDatabaseHas('personal_access_tokens', ['id' => $unaffectedToken->id]);
+        $this->assertDatabaseMissing('sessions', ['id' => 'p0-9-affected-session']);
+        $this->assertDatabaseHas('sessions', ['id' => 'p0-9-unaffected-session']);
     }
 }
