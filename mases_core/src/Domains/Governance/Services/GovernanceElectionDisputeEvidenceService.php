@@ -80,6 +80,10 @@ final class GovernanceElectionDisputeEvidenceService
             throw new InvalidArgumentException('Evidence file type is not permitted.');
         }
 
+        if (!$this->hasValidContentSignature($realPath, $mime)) {
+            throw new InvalidArgumentException('Evidence content signature does not match its detected file type.');
+        }
+
         $sha256 = hash_file('sha256', $realPath);
         if (!is_string($sha256) || strlen($sha256) !== 64) {
             throw new RuntimeException('Evidence SHA-256 digest could not be calculated.');
@@ -208,5 +212,43 @@ final class GovernanceElectionDisputeEvidenceService
             $disk->delete($key);
             throw $exception;
         }
+
+    private function hasValidContentSignature(string $path, string $mime): bool
+    {
+        $sample = file_get_contents($path, false, null, 0, 4096);
+        if (!is_string($sample)) {
+            return false;
+        }
+
+        return match ($mime) {
+            'application/pdf' => str_starts_with($sample, '%PDF-'),
+            'image/jpeg' => str_starts_with($sample, "\xFF\xD8\xFF"),
+            'image/png' => str_starts_with($sample, "\x89PNG\r\n\x1A\n"),
+            'image/webp' => str_starts_with($sample, 'RIFF') && substr($sample, 8, 4) === 'WEBP',
+            'text/plain' => !str_contains($sample, "\0"),
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => $this->isOfficeArchive($path, 'word/document.xml'),
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => $this->isOfficeArchive($path, 'xl/workbook.xml'),
+            default => false,
+        };
+    }
+
+    private function isOfficeArchive(string $path, string $requiredPart): bool
+    {
+        if (!class_exists(\ZipArchive::class)) {
+            return false;
+        }
+
+        $archive = new \ZipArchive();
+        if ($archive->open($path) !== true) {
+            return false;
+        }
+
+        try {
+            return $archive->locateName('[Content_Types].xml') !== false
+                && $archive->locateName($requiredPart) !== false;
+        } finally {
+            $archive->close();
+        }
+    }
     }
 }
