@@ -107,4 +107,27 @@ final class GovernanceElectionRegisterServiceTest extends TestCase
         ];
     }
 
+
+    public function test_record_date_running_balance_is_checked_in_business_time_order(): void
+    {
+        $ledger = [
+            $this->entry(1, 'subscription', '10.0000', '0.0000', '10.0000', '2026-01-20 09:00:00'),
+            $this->entry(2, 'transfer_out', '-10.0000', '10.0000', '0.0000', '2026-01-10 09:00:00'),
+        ];
+
+        $this->expectException(ValidationException::class);
+        GovernanceElectionRegisterService::reconstructHistoricalHoldingBalance($ledger, '2026-01-31', '0.0000');
+    }
+
+    public function test_reversal_quantity_must_exactly_offset_the_original_entry(): void
+    {
+        $ledger = [
+            $this->entry(1, 'subscription', '10.0000', '0.0000', '10.0000', '2026-01-01 09:00:00'),
+            $this->entry(2, 'reversal', '-9.0000', '10.0000', '1.0000', '2026-02-01 09:00:00', 1),
+        ];
+
+        $this->expectException(ValidationException::class);
+        GovernanceElectionRegisterService::reconstructHistoricalHoldingBalance($ledger, '2026-02-28', '1.0000');
+    }
+
 }
