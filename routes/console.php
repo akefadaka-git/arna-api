@@ -6,6 +6,10 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 
@@ -96,3 +100,72 @@ Artisan::command('corporate-site:publish-scheduled', function (): int {
     return 0;
 })->purpose('Publish approved corporate pages whose schedule time has arrived');
 
+
+
+/*
+ * P0.9 incident response: rotate only accounts whose stored password hash
+ * matches the compromised legacy bootstrap credential. The secret is supplied
+ * at runtime through ARNA_COMPROMISED_BOOTSTRAP_PASSWORD and is never emitted.
+ * Dry-run is the default; --apply is required to rotate and revoke API tokens.
+ */
+Artisan::command('arna:rotate-compromised-bootstrap-credentials {--apply : Rotate matching credentials and revoke their API tokens}', function (): int {
+    $compromisedPassword = getenv('ARNA_COMPROMISED_BOOTSTRAP_PASSWORD');
+
+    if (!is_string($compromisedPassword) || $compromisedPassword === '') {
+        $this->error('ARNA_COMPROMISED_BOOTSTRAP_PASSWORD must be set in the process environment.');
+        return 1;
+    }
+
+    $apply = (bool) $this->option('apply');
+    $matches = 0;
+    $rotated = 0;
+    $tokensRevoked = 0;
+    $hasPasswordChangedAt = Schema::hasColumn('users', 'password_changed_at');
+    $hasPersonalAccessTokens = Schema::hasTable('personal_access_tokens');
+
+    User::query()->select(['id', 'password'])->chunkById(200, function ($users) use (
+        $compromisedPassword,
+        $apply,
+        &$matches,
+        &$rotated,
+        &$tokensRevoked,
+        $hasPasswordChangedAt,
+        $hasPersonalAccessTokens,
+    ): void {
+        foreach ($users as $user) {
+            if (!Hash::check($compromisedPassword, (string) $user->password)) {
+                continue;
+            }
+
+            $matches++;
+
+            if (!$apply) {
+                continue;
+            }
+
+            $user->password = Hash::make(Str::random(64));
+            if ($hasPasswordChangedAt) {
+                $user->password_changed_at = null;
+            }
+            $user->save();
+            $rotated++;
+
+            if ($hasPersonalAccessTokens) {
+                $tokensRevoked += DB::table('personal_access_tokens')
+                    ->where('tokenable_type', $user->getMorphClass())
+                    ->where('tokenable_id', $user->getKey())
+                    ->delete();
+            }
+        }
+    });
+
+    if (!$apply) {
+        $this->info("Dry run complete: {$matches} account(s) match the compromised credential. No accounts or tokens were changed.");
+        $this->comment('Re-run with --apply after confirming the target environment and recovery-email readiness.');
+        return 0;
+    }
+
+    $this->info("Rotation complete: {$rotated} account(s) rotated; {$tokensRevoked} personal access token(s) revoked.");
+    $this->comment('Affected users must establish a new password through the normal password-reset flow.');
+    return 0;
+})->purpose('Rotate accounts matching the compromised legacy bootstrap credential and revoke their API tokens');
