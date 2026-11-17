@@ -75,7 +75,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('tenant_id')->index();
             $table->unsignedBigInteger('election_id')->index();
-            $table->unsignedBigInteger('candidate_nomination_id')->index();
+            $table->unsignedBigInteger('candidate_nomination_id')->index('gov_elec_feedback_candidate_idx');
             $table->unsignedBigInteger('shareholder_id')->index();
             $table->unsignedTinyInteger('rating');
             $table->text('comment')->nullable();
@@ -88,7 +88,7 @@ return new class extends Migration
             $table->unsignedBigInteger('tenant_id')->index();
             $table->unsignedBigInteger('election_id')->index();
             $table->unsignedBigInteger('shareholder_id')->index();
-            $table->unsignedBigInteger('candidate_nomination_id')->index();
+            $table->unsignedBigInteger('candidate_nomination_id')->index('gov_elec_pref_candidate_idx');
             $table->timestamps();
             $table->unique(['tenant_id', 'election_id', 'shareholder_id', 'candidate_nomination_id'], 'gov_elec_preference_once');
         });
