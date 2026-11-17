@@ -59,6 +59,17 @@ final class GovernanceElectionRegisterService
         }
         $cutoff = $recordDateValue->endOfDay();
         $rates = (array) config('governance.election_voting.verified_class_entitlements', []);
+        if (DB::transactionLevel() > 0) {
+            // ShareHoldingService locks the shareholder before creating a
+            // holding. Locking the tenant's shareholder range prevents a
+            // concurrent new holding from appearing outside this snapshot.
+            DB::table('shareholders')
+                ->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get(['id']);
+        }
         // Inspect every current holding, not only rows that happen to have
         // an entry before the record date. Otherwise a positive projection
         // with a missing ledger could be silently omitted when other valid
@@ -83,13 +94,12 @@ final class GovernanceElectionRegisterService
             // Validate the complete immutable ledger in append order, then
             // calculate the record-date balance by business time. A backfilled
             // entry may have an earlier occurred_at but a later id.
-            $ledgerQuery = DB::table('share_holding_entries')
+            // Ledger rows are append-only. The locked holding row serializes
+            // all domain writes; a consistent read avoids lock-order inversion
+            // with reversal operations, which first lock the original entry.
+            $ledger = DB::table('share_holding_entries')
                 ->where('share_holding_id', $holding->holding_id)
-                ->orderBy('id');
-            if (DB::transactionLevel() > 0) {
-                $ledgerQuery->lockForUpdate();
-            }
-            $ledger = $ledgerQuery->get();
+                ->orderBy('id')->get();
 
             if ($ledger->isEmpty()) {
                 if (bccomp((string) $holding->current_quantity, '0', 4) !== 0
