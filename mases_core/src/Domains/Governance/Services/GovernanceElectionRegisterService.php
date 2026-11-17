@@ -7,7 +7,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
-use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
 use RuntimeException;
 
 /**
@@ -222,7 +221,7 @@ final class GovernanceElectionRegisterService
                     'proxy_authorized' => (bool) ($entry['proxy_authorized'] ?? false),
                 ];
             }
-            $found = Shareholder::query()->where('tenant_id', $tenantId)->whereIn('id', array_keys($holderIds))->count();
+            $found = DB::table('shareholders')->where('tenant_id', $tenantId)->whereIn('id', array_keys($holderIds))->count();
             if ($found !== count($holderIds)) {
                 throw ValidationException::withMessages(['entries' => 'One or more shareholders are unavailable in this tenant.']);
             }
