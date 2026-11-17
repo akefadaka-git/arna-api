@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-    # Include the active stacked People implementation PR base as well as main.
-    # This lets the same clean-install gate run automatically for PR #23.
+    # Include main, active stacked implementation PR bases, and the election
+    # integration branch. Dispute schema/service changes are included below.
     branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/board-election-core-integration-a3]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
