@@ -122,6 +122,31 @@ Artisan::command('arna:rotate-compromised-bootstrap-credentials {--apply : Rotat
     $tokensRevoked = 0;
     $hasPasswordChangedAt = Schema::hasColumn('users', 'password_changed_at');
     $hasPersonalAccessTokens = Schema::hasTable('personal_access_tokens');
+    $sessionsRevoked = 0;
+    $sessionDriver = (string) config('session.driver');
+    $sessionTable = (string) config('session.table', 'sessions');
+    $userConnection = (new User())->getConnection();
+    $sessionConnection = DB::connection(config('session.connection'));
+
+    // Browser-session revocation is supported only for Laravel's database
+    // session driver. Validate the complete target before changing any account.
+    if ($apply) {
+        if ($sessionDriver !== 'database') {
+            $this->error("Cannot apply credential rotation: session driver [{$sessionDriver}] is not database-backed; no accounts or tokens were changed.");
+            return 1;
+        }
+
+        if ($sessionConnection->getName() !== $userConnection->getName()) {
+            $this->error('Cannot apply credential rotation: session and user records use different database connections; no accounts or tokens were changed.');
+            return 1;
+        }
+
+        $sessionSchema = Schema::connection($sessionConnection->getName());
+        if (!$sessionSchema->hasTable($sessionTable) || !$sessionSchema->hasColumn($sessionTable, 'user_id')) {
+            $this->error("Cannot apply credential rotation: configured session table [{$sessionTable}] is missing or has no user_id column; no accounts or tokens were changed.");
+            return 1;
+        }
+    }
 
     User::query()->select(['id', 'password'])->chunkById(200, function ($users) use (
         $compromisedPassword,
@@ -129,8 +154,11 @@ Artisan::command('arna:rotate-compromised-bootstrap-credentials {--apply : Rotat
         &$matches,
         &$rotated,
         &$tokensRevoked,
+        &$sessionsRevoked,
         $hasPasswordChangedAt,
         $hasPersonalAccessTokens,
+        $sessionTable,
+        $userConnection,
     ): void {
         foreach ($users as $user) {
             if (!Hash::check($compromisedPassword, (string) $user->password)) {
@@ -143,12 +171,15 @@ Artisan::command('arna:rotate-compromised-bootstrap-credentials {--apply : Rotat
                 continue;
             }
 
-            DB::transaction(function () use (
+            $userConnection->transaction(function () use (
                 $user,
                 $hasPasswordChangedAt,
                 $hasPersonalAccessTokens,
+                $sessionTable,
+                $userConnection,
                 &$rotated,
                 &$tokensRevoked,
+                &$sessionsRevoked,
             ): void {
                 $user->password = Hash::make(Str::random(64));
                 $user->remember_token = Str::random(60);
@@ -159,11 +190,17 @@ Artisan::command('arna:rotate-compromised-bootstrap-credentials {--apply : Rotat
                 $rotated++;
 
                 if ($hasPersonalAccessTokens) {
-                    $tokensRevoked += DB::table('personal_access_tokens')
+                    $tokensRevoked += $userConnection->table('personal_access_tokens')
                         ->where('tokenable_type', $user->getMorphClass())
                         ->where('tokenable_id', $user->getKey())
                         ->delete();
                 }
+
+                // Laravel's database session handler stores the authenticated
+                // user ID in sessions.user_id. Delete only this account's rows.
+                $sessionsRevoked += $userConnection->table($sessionTable)
+                    ->where('user_id', $user->getKey())
+                    ->delete();
             });
         }
     });
@@ -174,7 +211,7 @@ Artisan::command('arna:rotate-compromised-bootstrap-credentials {--apply : Rotat
         return 0;
     }
 
-    $this->info("Rotation complete: {$rotated} account(s) rotated; {$tokensRevoked} personal access token(s) revoked.");
+    $this->info("Rotation complete: {$rotated} account(s) rotated; {$tokensRevoked} personal access token(s) revoked; {$sessionsRevoked} browser session(s) invalidated.");
     $this->comment('Affected users must establish a new password through the normal password-reset flow.');
     return 0;
 })->purpose('Rotate accounts matching the compromised legacy bootstrap credential and revoke their API tokens');
