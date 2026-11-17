@@ -97,7 +97,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('tenant_id')->index();
             $table->unsignedBigInteger('election_id')->index();
-            $table->unsignedBigInteger('voter_entitlement_id')->unique();
+            $table->unsignedBigInteger('voter_entitlement_id');
             $table->string('channel', 16);
             $table->char('credential_hash', 64)->unique();
             $table->dateTime('issued_at');
@@ -144,7 +144,7 @@ return new class extends Migration
             $table->unsignedBigInteger('tenant_id')->index();
             $table->unsignedBigInteger('election_id')->index();
             $table->unsignedBigInteger('batch_id')->index();
-            $table->unsignedBigInteger('candidate_nomination_id')->nullable()->index();
+            $table->unsignedBigInteger('candidate_nomination_id')->nullable()->index('gov_elec_manual_line_candidate_idx');
             $table->string('line_type', 24)->default('candidate');
             $table->unsignedInteger('ballot_count');
             $table->decimal('share_vote_weight', 20, 4)->default(0);
