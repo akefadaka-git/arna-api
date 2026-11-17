@@ -178,10 +178,15 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         foreach (['governance_election_objections', 'governance_election_appeals', 'governance_election_certifications'] as $table) {
             self::assertStringContainsString($table, $migration);
         }
-        foreach (['submitObjection', 'submitAppeal', 'certifyElection', 'ratifyElection'] as $action) {
-            self::assertStringNotContainsString($action, $routes, 'Deferred dispute/certification actions must not be routable yet.');
+        self::assertStringContainsString('objectionIndex', $routes);
+        self::assertStringContainsString('submitObjection', $routes);
+        self::assertStringNotContainsString('submitAppeal', $routes, 'Appeal intake remains blocked until legal rules are verified.');
+        foreach (['submitAppeal', 'certifyElection', 'ratifyElection'] as $action) {
+            self::assertStringNotContainsString($action, $routes, 'Legally gated actions must not be routable.');
             self::assertStringContainsString('function '.$action.'(', $controller);
         }
+        self::assertStringContainsString("'status' => 'received_pending_rules'", $controller);
+        self::assertStringContainsString('Appeal intake is unavailable until authoritative appeal standing', $controller);
         self::assertStringContainsString('The tally preparer cannot independently certify the tally.', $controller);
         self::assertStringContainsString('All objections and appeals must receive a recorded outcome before certification.', $controller);
         self::assertStringContainsString('The certifier cannot ratify the same election.', $controller);
