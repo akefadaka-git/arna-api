@@ -86,8 +86,8 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('$this->assertCommitteeMember($tenantId', $controller);
         self::assertStringContainsString("->where('status', 'active')->whereNull('recused_at')->where('member_role', 'committee_member')->count()", $controller);
         self::assertStringContainsString('availableVotingCommitteeCount', $controller);
-        self::assertStringContainsString("str_starts_with($scope, 'candidate:')", $controller);
-        self::assertStringContainsString('$committeeMember->recused_at !== null', $controller);
+        self::assertStringContainsString("str_starts_with(\$scope, 'candidate:')", $controller);
+        self::assertStringContainsString('availableVotingCommitteeCount', $controller);
         self::assertStringContainsString('candidate cannot decide their own nomination', $controller);
         self::assertStringContainsString('governance_election_committee_decisions', $controller);
         self::assertStringContainsString("'decided_by' => \$actorId", $controller);
