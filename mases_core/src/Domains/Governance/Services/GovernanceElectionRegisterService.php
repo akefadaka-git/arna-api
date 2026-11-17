@@ -47,8 +47,17 @@ final class GovernanceElectionRegisterService
         if ($tenantId < 1 || trim($evidenceReference) === '') {
             throw ValidationException::withMessages(['register' => 'Tenant and authoritative ledger evidence are required.']);
         }
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $recordDate)) {
+            throw ValidationException::withMessages(['record_date' => 'The register record date must use YYYY-MM-DD.']);
+        }
+        $recordDateValue = Carbon::createFromFormat('!Y-m-d', $recordDate);
+        if ($recordDateValue === false || $recordDateValue->format('Y-m-d') !== $recordDate) {
+            throw ValidationException::withMessages(['record_date' => 'The register record date is not a valid calendar date.']);
+        }
+        if (mb_strlen(trim($evidenceReference)) > 120) {
+            throw ValidationException::withMessages(['register' => 'The authoritative ledger evidence reference is too long for the voter register.']);
+        }
         $rates = (array) config('governance.election_voting.verified_class_entitlements', []);
-        $cutoff = Carbon::parse($recordDate)->endOfDay();
         // Inspect every current holding, not only rows that happen to have
         // an entry before the record date. Otherwise a positive projection
         // with a missing ledger could be silently omitted when other valid
