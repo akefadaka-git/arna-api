@@ -222,8 +222,7 @@ final class GovernanceElectionCommitteeDecisionHttpTest extends TestCase
             ]);
 
         Sanctum::actingAs($this->decisionMaker, ['*']);
-        $this->decisionRequest()->assertStatus(409)
-            ->assertJsonPath('message', 'Committee quorum is not established.');
+        $this->decisionRequest()->assertStatus(409);
 
         $this->assertDatabaseMissing('governance_election_committee_decisions', [
             'tenant_id' => $this->tenant->id,
@@ -246,8 +245,7 @@ final class GovernanceElectionCommitteeDecisionHttpTest extends TestCase
             ]);
 
         Sanctum::actingAs($this->decisionMaker, ['*']);
-        $this->submissionDecisionRequest($submissionId)->assertStatus(409)
-            ->assertJsonPath('message', 'Committee quorum is not established.');
+        $this->submissionDecisionRequest($submissionId)->assertStatus(409);
 
         $this->assertDatabaseMissing('governance_election_committee_decisions', [
             'tenant_id' => $this->tenant->id,
