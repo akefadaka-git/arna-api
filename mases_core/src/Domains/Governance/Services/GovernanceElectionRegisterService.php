@@ -121,9 +121,10 @@ final class GovernanceElectionRegisterService
             if (bccomp($balance, '0', 4) <= 0) {
                 continue;
             }
-            if ($holding->shareholder_deleted_at !== null) {
+            if ($holding->shareholder_deleted_at !== null
+                && Carbon::parse($holding->shareholder_deleted_at)->lessThanOrEqualTo($cutoff)) {
                 throw ValidationException::withMessages([
-                    'shareholder_eligibility' => "Shareholder {$holding->shareholder_id} is soft-deleted but has a positive record-date holding; eligibility must be resolved from the authoritative register before freeze.",
+                    'shareholder_eligibility' => "Shareholder {$holding->shareholder_id} was soft-deleted on or before the record date but has a positive holding; eligibility must be resolved from the authoritative register before freeze.",
                 ]);
             }
 
