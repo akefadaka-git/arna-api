@@ -1,0 +1,75 @@
+name: ARNA Android device sessions
+
+on:
+  push:
+    branches:
+      - feat/android-device-sessions-a3
+    paths:
+      - "database/migrations/*auth_device*"
+      - "mases_core/src/Auth/Models/DeviceSession.php"
+      - "mases_core/src/Auth/Services/DeviceSessionService.php"
+      - "app/Http/Middleware/EnsureMobileDeviceSession.php"
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "bootstrap/app.php"
+      - "routes/api.php"
+      - "tests/Feature/AndroidDeviceSessionTest.php"
+      - ".github/workflows/arna-android-device-sessions.yml"
+  pull_request:
+    branches:
+      - integration/arna-system-consolidation
+      - main
+    paths:
+      - "database/migrations/*auth_device*"
+      - "mases_core/src/Auth/Models/DeviceSession.php"
+      - "mases_core/src/Auth/Services/DeviceSessionService.php"
+      - "app/Http/Middleware/EnsureMobileDeviceSession.php"
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "bootstrap/app.php"
+      - "routes/api.php"
+      - "tests/Feature/AndroidDeviceSessionTest.php"
+      - ".github/workflows/arna-android-device-sessions.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-android-device-sessions-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android-device-sessions:
+    name: Android device session lifecycle (SQLite, PHP 8.3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref == 'main' && github.sha || github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify exact checkout
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.ref == 'main' && github.sha || github.event.pull_request.head.sha || github.sha }}"
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Validate changed PHP syntax
+        run: |
+          php -l database/migrations/2026_11_09_000001_create_auth_device_sessions_table.php
+          php -l database/migrations/2026_11_09_000002_create_auth_device_login_challenges_table.php
+          php -l mases_core/src/Auth/Models/DeviceSession.php
+          php -l mases_core/src/Auth/Services/DeviceSessionService.php
+          php -l app/Http/Middleware/EnsureMobileDeviceSession.php
+          php -l app/Http/Controllers/Auth/AuthController.php
+          php -l bootstrap/app.php
+          php -l routes/api.php
+          php -l tests/Feature/AndroidDeviceSessionTest.php
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run Android device session regression tests
+        run: vendor/bin/phpunit tests/Feature/AndroidDeviceSessionTest.php

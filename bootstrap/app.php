@@ -722,6 +722,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.permission'   => \MaaleArna\MASES\Core\Authorization\Middleware\AuthorizationMiddleware::class,
             'auth.role'         => \MaaleArna\MASES\Core\Authorization\Middleware\AuthorizationMiddleware::class,
             'auth.application'  => \MaaleArna\MASES\Core\Authorization\Middleware\AuthorizationMiddleware::class,
+            'mobile.session'    => \App\Http\Middleware\EnsureMobileDeviceSession::class,
             'tenant.membership' => \MaaleArna\MASES\Core\Tenancy\Middleware\TenantMembershipMiddleware::class,
         ]);
     })
