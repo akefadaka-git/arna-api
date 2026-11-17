@@ -217,7 +217,7 @@ final class GovernanceElectionRegisterService
         }
 
         $balance = '0.0000';
-        $historicalBalance = '0.0000';
+        $eligibleEntries = [];
         $reversed = [];
         foreach ($entries as $entry) {
             $id = (int) $entry->id;
@@ -245,12 +245,25 @@ final class GovernanceElectionRegisterService
             }
 
             if (Carbon::parse($entry->occurred_at)->lessThanOrEqualTo($cutoff)) {
-                $historicalBalance = bcadd($historicalBalance, $quantity, 4);
-                if (bccomp($historicalBalance, '0', 4) < 0) {
-                    throw ValidationException::withMessages(['share_ledger' => "Historical balance becomes negative at entry {$id}."]);
-                }
+                $eligibleEntries[] = $entry;
             }
             $balance = $expected;
+        }
+
+        // Validate the record-date running balance in business-time order,
+        // independently from append-order chain validation above.
+        usort($eligibleEntries, static fn (object $a, object $b): int =>
+            [Carbon::parse($a->occurred_at)->getTimestamp(), (int) $a->id]
+            <=> [Carbon::parse($b->occurred_at)->getTimestamp(), (int) $b->id]
+        );
+        $historicalBalance = '0.0000';
+        foreach ($eligibleEntries as $entry) {
+            $historicalBalance = bcadd($historicalBalance, (string) $entry->quantity, 4);
+            if (bccomp($historicalBalance, '0', 4) < 0) {
+                throw ValidationException::withMessages([
+                    'share_ledger' => "Historical balance becomes negative at entry " . (int) $entry->id . ".",
+                ]);
+            }
         }
 
         if (bccomp($balance, $currentProjection, 4) !== 0) {
