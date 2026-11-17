@@ -531,7 +531,7 @@ final class GovernanceElectionWorkflowController extends Controller
             }
 
             $scope = (string) ($member->recusal_scope ?? '');
-            return str_starts_with($scope, 'candidate:')
+            return preg_match('/^candidate:[1-9][0-9]*$/', $scope) === 1
                 && $scope !== 'candidate:' . $candidatePersonId;
         })->count();
     }
