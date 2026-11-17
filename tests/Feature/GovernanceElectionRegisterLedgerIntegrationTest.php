@@ -107,6 +107,28 @@ final class GovernanceElectionRegisterLedgerIntegrationTest extends TestCase
         }
     }
 
+    public function test_zero_projection_with_pre_record_date_holding_and_missing_ledger_blocks_reconstruction(): void
+    {
+        $shareholderId = $this->createShareholder('SH-REG-OLD-EMPTY-' . $this->tenant->id);
+        $holdingId = $this->createHolding($shareholderId, '0.0000');
+        DB::table('share_holdings')->where('id', $holdingId)->update([
+            'created_at' => '2025-12-01 00:00:00',
+            'updated_at' => '2025-12-01 00:00:00',
+        ]);
+
+        try {
+            app(GovernanceElectionRegisterService::class)->reconstructAsOf(
+                (int) $this->tenant->id,
+                '2026-01-31',
+                'APPROVED-RECORD-DATE-REGISTER',
+            );
+            self::fail('A pre-record-date holding without immutable history must block reconstruction.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('share_ledger', $exception->errors());
+            self::assertStringContainsString('record-date balance', $exception->errors()['share_ledger'][0]);
+        }
+    }
+
     private function createShareholder(string $number): int
     {
         return (int) DB::table('shareholders')->insertGetId([
