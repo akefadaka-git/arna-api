@@ -110,6 +110,7 @@ jobs:
           php -l tests/Unit/Governance/GovernanceElectionLifecycleServiceTest.php
           php -l tests/Unit/Governance/GovernanceElectionRegisterServiceTest.php
           php -l tests/Feature/GovernanceElectionCurrentMainIntegrationTest.php
+          php -l tests/Feature/GovernanceElectionCommitteeDecisionHttpTest.php
           php -l mases_core/src/Domains/Governance/Models/GovernanceAuthorityGrant.php
           php -l mases_core/src/Domains/Governance/Services/GovernanceAuthorityGrantService.php
           php -l mases_core/src/Domains/Governance/Models/GovernanceSeat.php
@@ -182,3 +183,4 @@ jobs:
           php artisan test --compact tests/Unit/Governance/GovernanceElectionLifecycleServiceTest.php
           php artisan test --compact tests/Unit/Governance/GovernanceElectionRegisterServiceTest.php
           php artisan test --compact tests/Feature/GovernanceElectionCurrentMainIntegrationTest.php
+          php artisan test --compact tests/Feature/GovernanceElectionCommitteeDecisionHttpTest.php
