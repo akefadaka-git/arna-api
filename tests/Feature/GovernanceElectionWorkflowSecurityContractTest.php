@@ -107,7 +107,7 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         $migration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_160000_create_governance_election_hybrid_workflow_tables.php');
 
         self::assertStringContainsString("electronic_voting_authorized')->default(false)", $migration);
-        self::assertStringContainsString("'voter_entitlement_id')->unique()", $migration);
+        self::assertStringContainsString("'tenant_id', 'election_id', 'voter_entitlement_id'", $migration);
         self::assertStringContainsString("->unique(['tenant_id', 'election_id', 'voter_entitlement_id']", $migration);
         self::assertStringContainsString('governance_election_secret_ballots', $migration);
     }
