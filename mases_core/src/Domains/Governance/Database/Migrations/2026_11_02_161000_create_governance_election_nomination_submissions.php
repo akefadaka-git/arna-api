@@ -16,8 +16,8 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('tenant_id')->index();
             $table->unsignedBigInteger('election_id')->index();
-            $table->unsignedBigInteger('candidate_person_id')->index('gov_elec_nom_candidate_person_idx');
-            $table->unsignedBigInteger('nominated_by_shareholder_id')->index('gov_elec_nom_nominated_by_idx');
+            $table->unsignedBigInteger('candidate_person_id')->index('gov_elec_subm_candidate_person_idx');
+            $table->unsignedBigInteger('nominated_by_shareholder_id')->index('gov_elec_subm_nominated_by_idx');
             $table->boolean('self_nomination')->default(false);
             $table->text('statement')->nullable();
             $table->string('status', 24)->default('submitted')->index();
