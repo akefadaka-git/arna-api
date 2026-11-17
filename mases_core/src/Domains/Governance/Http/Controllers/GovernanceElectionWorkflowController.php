@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
@@ -360,12 +361,12 @@ final class GovernanceElectionWorkflowController extends Controller
                 ->lockForUpdate()->findOrFail($nomination);
             $actor = $request->user();
             abort_unless($actor instanceof User, 401);
-            $committeeSecurity->assertMayDecide($tenantId, (int) $governanceElection->id, (int) ($candidate->candidate_person_id ?? 0), $actor);
             $members = DB::table('governance_election_committee_members')
                 ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
                 ->where('status', 'active')->where('member_role', 'committee_member')->lockForUpdate()->get(['recused_at', 'recusal_scope']);
             $members = $this->availableVotingCommitteeCount($members, (int) ($candidate->candidate_person_id ?? 0));
             abort_if($members < 3, 409, 'Committee quorum is not established.');
+            $committeeSecurity->assertMayDecide($tenantId, (int) $governanceElection->id, (int) ($candidate->candidate_person_id ?? 0), $actor);
             $actorId = (int) $request->user()->getAuthIdentifier();
             $alreadyVoted = DB::table('governance_election_committee_decisions')
                 ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
@@ -522,7 +523,7 @@ final class GovernanceElectionWorkflowController extends Controller
         });
     }
 
-    private function availableVotingCommitteeCount(\\Illuminate\\Support\\Collection $members, int $candidatePersonId): int
+    private function availableVotingCommitteeCount(Collection $members, int $candidatePersonId): int
     {
         return $members->filter(static function (object $member) use ($candidatePersonId): bool {
             if ($member->recused_at === null) {
