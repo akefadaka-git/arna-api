@@ -333,8 +333,7 @@ final class GovernanceElectionCommitteeSecurityService
 
         $recusal = (string) ($member->recusal_scope ?? '');
         if ($member->recused_at !== null && (
-            $recusal === ''
-            || $recusal === 'all'
+            preg_match('/^candidate:[1-9][0-9]*$/', $recusal) !== 1
             || $recusal === 'candidate:' . $candidatePersonId
         )) {
             // Legacy or incomplete recusal records with no scope fail closed.
