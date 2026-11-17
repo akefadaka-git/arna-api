@@ -59,7 +59,7 @@ final class GovernanceElectionRegisterService
                     ->whereColumn('e.share_holding_id', 'h.id')
                     ->where('e.occurred_at', '<=', $cutoff);
             })
-            ->select(['h.id as holding_id', 'h.shareholder_id', 'c.code as class_code'])
+            ->select(['h.id as holding_id', 'h.shareholder_id', 'h.current_quantity', 'c.code as class_code'])
             ->orderBy('h.shareholder_id')->orderBy('c.code')->get();
 
         $entries = [];
@@ -73,26 +73,23 @@ final class GovernanceElectionRegisterService
                     'share_class_entitlements' => "Share class {$class} has no verified eligible voting entitlement. Register freeze is blocked.",
                 ]);
             }
+            // Validate the complete immutable ledger in append order, then
+            // calculate the record-date balance by business time. A backfilled
+            // entry may have an earlier occurred_at but a later id; ordering
+            // the chain by occurred_at would falsely break balance_before/after.
             $ledger = DB::table('share_holding_entries')
                 ->where('share_holding_id', $holding->holding_id)
-                ->where('occurred_at', '<=', $cutoff)
-                ->orderBy('occurred_at')->orderBy('id')->get();
+                ->orderBy('id')->get();
             if ($ledger->isEmpty()) {
                 throw ValidationException::withMessages([
                     'share_ledger' => "Holding {$holding->holding_id} has no ledger history; its record-date entitlement cannot be reconstructed.",
                 ]);
             }
-            $balance = '0.0000';
-            foreach ($ledger as $entry) {
-                if (bccomp((string) $entry->balance_before, $balance, 4) !== 0) {
-                    throw ValidationException::withMessages(['share_ledger' => "Ledger chain is inconsistent for holding {$holding->holding_id}."]);
-                }
-                $expected = bcadd($balance, (string) $entry->quantity, 4);
-                if (bccomp($expected, (string) $entry->balance_after, 4) !== 0 || bccomp($expected, '0', 4) < 0) {
-                    throw ValidationException::withMessages(['share_ledger' => "Ledger balance invariant failed for holding {$holding->holding_id}."]);
-                }
-                $balance = $expected;
-            }
+            $balance = self::reconstructHistoricalHoldingBalance(
+                $ledger,
+                $recordDate,
+                (string) $holding->current_quantity,
+            );
             if (bccomp($balance, '0', 4) > 0) {
                 $rate = (string) $classRule['votes_per_share'];
                 $entries[] = [
@@ -193,6 +190,74 @@ final class GovernanceElectionRegisterService
             $election->forceFill(['record_date' => $recordDate, 'voting_rule_version' => $ruleVersion])->save();
             return $snapshotId;
         });
+    }
+
+    /**
+     * Validate the append-order balance chain and calculate a historical
+     * balance using business-time occurred_at. This distinction is required
+     * for valid backdated ledger corrections.
+     *
+     * @param iterable<object> $ledgerEntries Ordered by immutable entry id.
+     */
+    public static function reconstructHistoricalHoldingBalance(
+        iterable $ledgerEntries,
+        string $recordDate,
+        string $currentProjection,
+    ): string {
+        self::assertDecimalArithmetic();
+        $cutoff = Carbon::parse($recordDate)->endOfDay();
+        $entries = is_array($ledgerEntries) ? $ledgerEntries : iterator_to_array($ledgerEntries);
+        if ($entries === []) {
+            throw ValidationException::withMessages(['share_ledger' => 'A complete ledger history is required.']);
+        }
+
+        $byId = [];
+        foreach ($entries as $entry) {
+            $byId[(int) $entry->id] = $entry;
+        }
+
+        $balance = '0.0000';
+        $historicalBalance = '0.0000';
+        $reversed = [];
+        foreach ($entries as $entry) {
+            $id = (int) $entry->id;
+            $quantity = (string) $entry->quantity;
+            if (bccomp((string) $entry->balance_before, $balance, 4) !== 0) {
+                throw ValidationException::withMessages(['share_ledger' => "Ledger append-order chain is inconsistent at entry {$id}."]);
+            }
+            $expected = bcadd($balance, $quantity, 4);
+            if (bccomp($expected, (string) $entry->balance_after, 4) !== 0 || bccomp($expected, '0', 4) < 0) {
+                throw ValidationException::withMessages(['share_ledger' => "Ledger balance invariant failed at entry {$id}."]);
+            }
+
+            $reversalId = $entry->reversed_entry_id ?? null;
+            if ((string) $entry->entry_type === 'reversal') {
+                $originalId = (int) ($reversalId ?? 0);
+                $original = $byId[$originalId] ?? null;
+                if ($original === null || (int) $original->id >= $id
+                    || (string) $original->entry_type === 'reversal'
+                    || isset($reversed[$originalId])) {
+                    throw ValidationException::withMessages(['share_ledger' => "Reversal linkage is invalid at entry {$id}."]);
+                }
+                $reversed[$originalId] = true;
+            } elseif ($reversalId !== null) {
+                throw ValidationException::withMessages(['share_ledger' => "Non-reversal entry {$id} has a reversal reference."]);
+            }
+
+            if (Carbon::parse($entry->occurred_at)->lessThanOrEqualTo($cutoff)) {
+                $historicalBalance = bcadd($historicalBalance, $quantity, 4);
+                if (bccomp($historicalBalance, '0', 4) < 0) {
+                    throw ValidationException::withMessages(['share_ledger' => "Historical balance becomes negative at entry {$id}."]);
+                }
+            }
+            $balance = $expected;
+        }
+
+        if (bccomp($balance, $currentProjection, 4) !== 0) {
+            throw ValidationException::withMessages(['share_ledger' => 'The current share-holding projection does not reconcile to the complete ledger.']);
+        }
+
+        return $historicalBalance;
     }
 
     private static function assertDecimalArithmetic(): void
