@@ -27,8 +27,7 @@ use RuntimeException;
  * =============================================================================
  * 1.0.0  — initial delivery. Two users, five roles.
  *
- * 1.1.0  — shareholder cohort: 100 shareholders, eight new roles,
- *          default password Arna@2019.
+ * 1.1.0  — shareholder cohort: 100 shareholders and eight new roles.
  *
  * 1.1.1  — pivot table discovery: clears user pivot tables by
  *          discovering their names from the User model rather than
