@@ -256,4 +256,35 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
 
         return $person;
     }
+
+    public function test_candidate_scoped_recusal_only_blocks_the_affected_candidate(): void
+    {
+        DB::table('governance_election_committee_members')
+            ->where('tenant_id', $this->tenant->id)
+            ->where('election_id', $this->electionId)
+            ->where('user_id', $this->committeeMember->id)
+            ->update([
+                'recused_at' => now(),
+                'recusal_scope' => 'candidate:' . $this->candidate->id,
+            ]);
+
+        $security = app(GovernanceElectionCommitteeSecurityService::class);
+        $unaffectedCandidate = $this->makePerson($this->makeUser('unaffected-candidate@example.test'));
+
+        $security->assertMayDecide(
+            (int) $this->tenant->id,
+            $this->electionId,
+            (int) $unaffectedCandidate->id,
+            $this->committeeMember,
+        );
+
+        $this->expectException(AuthorizationException::class);
+        $security->assertMayDecide(
+            (int) $this->tenant->id,
+            $this->electionId,
+            (int) $this->candidate->id,
+            $this->committeeMember,
+        );
+    }
+
 }
