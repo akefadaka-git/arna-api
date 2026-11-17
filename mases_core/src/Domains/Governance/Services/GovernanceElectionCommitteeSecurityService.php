@@ -287,8 +287,17 @@ final class GovernanceElectionCommitteeSecurityService
             throw new AuthorizationException('An active voting committee-member appointment is required.');
         }
 
+        if ((int) ($member->person_id ?? 0) === $candidatePersonId) {
+            throw new AuthorizationException('A candidate cannot participate in the decision concerning their own candidacy.');
+        }
+
         $recusal = (string) ($member->recusal_scope ?? '');
-        if ($member->recused_at !== null && ($recusal === 'all' || $recusal === 'candidate:' . $candidatePersonId)) {
+        if ($member->recused_at !== null && (
+            $recusal === ''
+            || $recusal === 'all'
+            || $recusal === 'candidate:' . $candidatePersonId
+        )) {
+            // Legacy or incomplete recusal records with no scope fail closed.
             throw new AuthorizationException('The committee member is recused from this decision.');
         }
 
