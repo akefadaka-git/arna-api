@@ -305,6 +305,7 @@ final class GovernanceElectionCommitteeSecurityService
             ->where('election_id', $electionId)
             ->where('user_id', $actorId)
             ->where('status', 'active')
+            ->lockForUpdate()
             ->first();
 
         if ($member === null || $member->member_role !== 'committee_member') {
