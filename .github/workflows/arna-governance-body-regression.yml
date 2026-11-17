@@ -159,6 +159,7 @@ jobs:
       - name: Run Governance authorization feature tests
         run: |
           set -euo pipefail
+          touch .env
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceBodyTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernancePositionTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceTermTest.php
