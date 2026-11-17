@@ -49,58 +49,74 @@ final class GovernanceElectionRegisterService
         }
         $rates = (array) config('governance.election_voting.verified_class_entitlements', []);
         $cutoff = Carbon::parse($recordDate)->endOfDay();
+        // Inspect every current holding, not only rows that happen to have
+        // an entry before the record date. Otherwise a positive projection
+        // with a missing ledger could be silently omitted when other valid
+        // holdings exist in the same register.
         $holdings = DB::table('share_holdings as h')
             ->join('shareholders as s', 's.id', '=', 'h.shareholder_id')
             ->join('share_classes as c', 'c.id', '=', 'h.share_class_id')
             ->where('s.tenant_id', $tenantId)
             ->whereNull('s.deleted_at')
-            ->whereExists(function ($query) use ($cutoff): void {
-                $query->selectRaw('1')->from('share_holding_entries as e')
-                    ->whereColumn('e.share_holding_id', 'h.id')
-                    ->where('e.occurred_at', '<=', $cutoff);
-            })
             ->select(['h.id as holding_id', 'h.shareholder_id', 'h.current_quantity', 'c.code as class_code'])
             ->orderBy('h.shareholder_id')->orderBy('c.code')->get();
 
         $entries = [];
         foreach ($holdings as $holding) {
-            $class = strtoupper((string) $holding->class_code);
-            $classRule = $rates[$class] ?? null;
-            if (!is_array($classRule) || ($classRule['verified'] ?? false) !== true
-                || ($classRule['eligible'] ?? false) !== true
-                || !isset($classRule['votes_per_share'], $classRule['evidence_reference'])) {
-                throw ValidationException::withMessages([
-                    'share_class_entitlements' => "Share class {$class} has no verified eligible voting entitlement. Register freeze is blocked.",
-                ]);
-            }
             // Validate the complete immutable ledger in append order, then
             // calculate the record-date balance by business time. A backfilled
-            // entry may have an earlier occurred_at but a later id; ordering
-            // the chain by occurred_at would falsely break balance_before/after.
+            // entry may have an earlier occurred_at but a later id.
             $ledger = DB::table('share_holding_entries')
                 ->where('share_holding_id', $holding->holding_id)
                 ->orderBy('id')->get();
+
             if ($ledger->isEmpty()) {
-                throw ValidationException::withMessages([
-                    'share_ledger' => "Holding {$holding->holding_id} has no ledger history; its record-date entitlement cannot be reconstructed.",
-                ]);
+                if (bccomp((string) $holding->current_quantity, '0', 4) !== 0) {
+                    throw ValidationException::withMessages([
+                        'share_ledger' => "Holding {$holding->holding_id} has a non-zero current projection but no immutable ledger history.",
+                    ]);
+                }
+
+                // A zero-balance holding with no ledger rows carries no
+                // reconstructable entitlement and is not silently counted.
+                continue;
             }
+
             $balance = self::reconstructHistoricalHoldingBalance(
                 $ledger,
                 $recordDate,
                 (string) $holding->current_quantity,
             );
-            if (bccomp($balance, '0', 4) > 0) {
-                $rate = (string) $classRule['votes_per_share'];
-                $entries[] = [
-                    'shareholder_id' => (int) $holding->shareholder_id,
-                    'share_class_code' => $class,
-                    'share_quantity' => $balance,
-                    'voting_weight' => self::defaultVotingWeight($balance, $rate),
-                    'entitlement_reference' => $evidenceReference . ';class:' . (string) $classRule['evidence_reference'],
-                    'proxy_authorized' => false,
-                ];
+            if (bccomp($balance, '0', 4) <= 0) {
+                continue;
             }
+
+            $class = strtoupper((string) $holding->class_code);
+            $classRule = $rates[$class] ?? null;
+            if (!is_array($classRule) || ($classRule['verified'] ?? false) !== true
+                || ($classRule['eligible'] ?? false) !== true
+                || !isset($classRule['votes_per_share'], $classRule['evidence_reference'])
+                || trim((string) $classRule['evidence_reference']) === '') {
+                throw ValidationException::withMessages([
+                    'share_class_entitlements' => "Share class {$class} has no verified eligible voting entitlement. Register freeze is blocked.",
+                ]);
+            }
+
+            $rate = (string) $classRule['votes_per_share'];
+            $entitlementReference = $evidenceReference . ';class:' . trim((string) $classRule['evidence_reference']);
+            if (mb_strlen($entitlementReference) > 160) {
+                throw ValidationException::withMessages([
+                    'share_class_entitlements' => "The combined entitlement evidence reference for share class {$class} exceeds the register field limit.",
+                ]);
+            }
+            $entries[] = [
+                'shareholder_id' => (int) $holding->shareholder_id,
+                'share_class_code' => $class,
+                'share_quantity' => $balance,
+                'voting_weight' => self::defaultVotingWeight($balance, $rate),
+                'entitlement_reference' => $entitlementReference,
+                'proxy_authorized' => false,
+            ];
         }
         if ($entries === []) {
             throw ValidationException::withMessages(['entries' => 'No eligible positive share entitlements exist at the record date.']);
@@ -205,23 +221,53 @@ final class GovernanceElectionRegisterService
         string $currentProjection,
     ): string {
         self::assertDecimalArithmetic();
-        $cutoff = Carbon::parse($recordDate)->endOfDay();
-        $entries = is_array($ledgerEntries) ? $ledgerEntries : iterator_to_array($ledgerEntries);
+        if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $recordDate)) {
+            throw ValidationException::withMessages(['record_date' => 'The register record date must use YYYY-MM-DD.']);
+        }
+        $cutoffDate = Carbon::createFromFormat('!Y-m-d', $recordDate);
+        if ($cutoffDate === false || $cutoffDate->format('Y-m-d') !== $recordDate) {
+            throw ValidationException::withMessages(['record_date' => 'The register record date is not a valid calendar date.']);
+        }
+        $cutoff = $cutoffDate->endOfDay();
+        $entries = is_array($ledgerEntries) ? array_values($ledgerEntries) : array_values(iterator_to_array($ledgerEntries));
         if ($entries === []) {
             throw ValidationException::withMessages(['share_ledger' => 'A complete ledger history is required.']);
         }
 
+        // The append-only chain is ordered by immutable insertion id. Business
+        // time is a separate axis used only for the record-date reconstruction.
+        usort($entries, static fn (object $a, object $b): int => (int) $a->id <=> (int) $b->id);
         $byId = [];
         foreach ($entries as $entry) {
-            $byId[(int) $entry->id] = $entry;
+            $id = (int) $entry->id;
+            if ($id < 1 || isset($byId[$id])) {
+                throw ValidationException::withMessages(['share_ledger' => 'Ledger entry identifiers must be positive and unique.']);
+            }
+            $byId[$id] = $entry;
+        }
+
+        if (!preg_match('/^-?\\d+(?:\\.\\d{1,4})?$/', $currentProjection)) {
+            throw ValidationException::withMessages(['share_ledger' => 'The current holding projection is not a valid decimal quantity.']);
         }
 
         $balance = '0.0000';
         $eligibleEntries = [];
         $reversed = [];
+        $allowedTypes = ['subscription', 'transfer_in', 'transfer_out', 'allocation', 'adjustment', 'reversal'];
         foreach ($entries as $entry) {
             $id = (int) $entry->id;
+            $type = (string) $entry->entry_type;
             $quantity = (string) $entry->quantity;
+            if (!in_array($type, $allowedTypes, true)
+                || !preg_match('/^-?\\d+(?:\\.\\d{1,4})?$/', $quantity)
+                || !preg_match('/^-?\\d+(?:\\.\\d{1,4})?$/', (string) $entry->balance_before)
+                || !preg_match('/^-?\\d+(?:\\.\\d{1,4})?$/', (string) $entry->balance_after)) {
+                throw ValidationException::withMessages(['share_ledger' => "Ledger entry {$id} contains an invalid type or decimal value."]);
+            }
+            if ((in_array($type, ['subscription', 'transfer_in', 'allocation'], true) && bccomp($quantity, '0', 4) <= 0)
+                || ($type === 'transfer_out' && bccomp($quantity, '0', 4) >= 0)) {
+                throw ValidationException::withMessages(['share_ledger' => "Ledger entry {$id} has a quantity sign inconsistent with its entry type."]);
+            }
             if (bccomp((string) $entry->balance_before, $balance, 4) !== 0) {
                 throw ValidationException::withMessages(['share_ledger' => "Ledger append-order chain is inconsistent at entry {$id}."]);
             }
@@ -231,14 +277,15 @@ final class GovernanceElectionRegisterService
             }
 
             $reversalId = $entry->reversed_entry_id ?? null;
-            if ((string) $entry->entry_type === 'reversal') {
+            if ($type === 'reversal') {
                 $originalId = (int) ($reversalId ?? 0);
                 $original = $byId[$originalId] ?? null;
                 if ($original === null || (int) $original->id >= $id
                     || (string) $original->entry_type === 'reversal'
                     || bccomp(bcadd($quantity, (string) $original->quantity, 4), '0', 4) !== 0
+                    || Carbon::parse($entry->occurred_at)->lessThan(Carbon::parse($original->occurred_at))
                     || isset($reversed[$originalId])) {
-                    throw ValidationException::withMessages(['share_ledger' => "Reversal linkage is invalid at entry {$id}."]);
+                    throw ValidationException::withMessages(['share_ledger' => "Reversal linkage or business chronology is invalid at entry {$id}."]);
                 }
                 $reversed[$originalId] = true;
             } elseif ($reversalId !== null) {
