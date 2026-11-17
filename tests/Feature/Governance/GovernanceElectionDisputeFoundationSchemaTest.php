@@ -6,7 +6,15 @@ namespace Tests\Feature\Governance;
 
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionDisputeEvidenceService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionDisputeEventLedger;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
 
 final class GovernanceElectionDisputeFoundationSchemaTest extends TestCase
@@ -176,8 +184,7 @@ final class GovernanceElectionDisputeFoundationSchemaTest extends TestCase
         $bytes = 'ARNA election evidence fixture';
         $file = UploadedFile::fake()->createWithContent('evidence.txt', $bytes);
         $evidenceId = null;
-        $eventIds = [];
-
+        
         try {
             $evidence = app(GovernanceElectionDisputeEvidenceService::class)->store(
                 $file,
@@ -196,7 +203,7 @@ final class GovernanceElectionDisputeFoundationSchemaTest extends TestCase
             $this->assertTrue(Storage::disk('local')->exists($evidence->storage_key));
             $this->assertSame('private', Storage::disk('local')->getVisibility($evidence->storage_key));
 
-            $ledger = app(\MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionDisputeEventLedger::class);
+            $ledger = app(GovernanceElectionDisputeEventLedger::class);
             $this->assertTrue($ledger->verify((int) $tenant->id, (int) $electionId, 'objection', (int) $objectionId));
 
             $event = DB::table('governance_election_dispute_events')
@@ -206,8 +213,7 @@ final class GovernanceElectionDisputeFoundationSchemaTest extends TestCase
                 ->where('subject_id', $objectionId)
                 ->first(['id', 'event_payload']);
             $this->assertNotNull($event);
-            $eventIds[] = (int) $event->id;
-
+            
             DB::table('governance_election_dispute_events')->where('id', $event->id)->update([
                 'event_payload' => json_encode(['tampered' => true], JSON_THROW_ON_ERROR),
             ]);
