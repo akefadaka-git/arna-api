@@ -63,22 +63,33 @@ final class GovernanceElectionRegisterService
         // an entry before the record date. Otherwise a positive projection
         // with a missing ledger could be silently omitted when other valid
         // holdings exist in the same register.
-        $holdings = DB::table('share_holdings as h')
+        $holdingsQuery = DB::table('share_holdings as h')
             ->join('shareholders as s', 's.id', '=', 'h.shareholder_id')
             ->join('share_classes as c', 'c.id', '=', 'h.share_class_id')
             ->where('s.tenant_id', $tenantId)
             ->whereNull('s.deleted_at')
             ->select(['h.id as holding_id', 'h.shareholder_id', 'h.current_quantity', 'h.created_at as holding_created_at', 'c.code as class_code'])
-            ->orderBy('h.shareholder_id')->orderBy('c.code')->get();
+            ->orderBy('h.shareholder_id')->orderBy('c.code');
+        if (DB::transactionLevel() > 0) {
+            // ShareHoldingService locks the same projection row before
+            // appending a ledger entry; freezing holds that lock through the
+            // snapshot write so the reconstructed balance cannot race.
+            $holdingsQuery->lockForUpdate();
+        }
+        $holdings = $holdingsQuery->get();
 
         $entries = [];
         foreach ($holdings as $holding) {
             // Validate the complete immutable ledger in append order, then
             // calculate the record-date balance by business time. A backfilled
             // entry may have an earlier occurred_at but a later id.
-            $ledger = DB::table('share_holding_entries')
+            $ledgerQuery = DB::table('share_holding_entries')
                 ->where('share_holding_id', $holding->holding_id)
-                ->orderBy('id')->get();
+                ->orderBy('id');
+            if (DB::transactionLevel() > 0) {
+                $ledgerQuery->lockForUpdate();
+            }
+            $ledger = $ledgerQuery->get();
 
             if ($ledger->isEmpty()) {
                 if (bccomp((string) $holding->current_quantity, '0', 4) !== 0
@@ -202,7 +213,22 @@ final class GovernanceElectionRegisterService
                 throw ValidationException::withMessages(['entries' => 'One or more shareholders are unavailable in this tenant.']);
             }
             usort($normalised, static fn (array $a, array $b): int => [$a['shareholder_id'], $a['share_class_code']] <=> [$b['shareholder_id'], $b['share_class_code']]);
-            $canonical = json_encode($normalised, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+
+            // Do not freeze caller-supplied quantities or proxy flags merely
+            // because their arithmetic is internally consistent. Rebuild the
+            // register under the same transaction and require exact equality
+            // with the authoritative immutable ledger.
+            $reconstructed = $this->reconstructAsOf($tenantId, $recordDate, $sourceReference);
+            usort($reconstructed, static fn (array $a, array $b): int => [$a['shareholder_id'], $a['share_class_code']] <=> [$b['shareholder_id'], $b['share_class_code']]);
+            $expectedCanonical = json_encode($reconstructed, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            $submittedCanonical = json_encode($normalised, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            if (!hash_equals(hash('sha256', $expectedCanonical), hash('sha256', $submittedCanonical))) {
+                throw ValidationException::withMessages([
+                    'entries' => 'The proposed voter register does not exactly match the authoritative record-date share ledger reconstruction.',
+                ]);
+            }
+
+            $canonical = $submittedCanonical;
             $now = Carbon::now();
             $snapshotId = DB::table('governance_election_register_snapshots')->insertGetId([
                 'tenant_id' => $tenantId, 'election_id' => $election->id, 'record_date' => $recordDate,
