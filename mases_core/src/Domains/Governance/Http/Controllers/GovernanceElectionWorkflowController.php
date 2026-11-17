@@ -276,7 +276,7 @@ final class GovernanceElectionWorkflowController extends Controller
             abort_if($item === null || $item->status !== 'submitted', 404, 'Open nomination submission not found.');
             $members = DB::table('governance_election_committee_members')
                 ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
-                ->where('status', 'active')->where('member_role', 'committee_member')->lockForUpdate()->get(['recused_at', 'recusal_scope']);
+                ->where('status', 'active')->where('member_role', 'committee_member')->orderBy('id')->lockForUpdate()->get(['recused_at', 'recusal_scope']);
             $members = $this->availableVotingCommitteeCount($members, (int) $item->candidate_person_id);
             abort_if($members < 3, 409, 'Committee quorum is not established.');
             $candidate = DB::table('shareholders')->where('tenant_id', $tenantId)
@@ -363,7 +363,7 @@ final class GovernanceElectionWorkflowController extends Controller
             abort_unless($actor instanceof User, 401);
             $members = DB::table('governance_election_committee_members')
                 ->where('tenant_id', $tenantId)->where('election_id', $governanceElection->id)
-                ->where('status', 'active')->where('member_role', 'committee_member')->lockForUpdate()->get(['recused_at', 'recusal_scope']);
+                ->where('status', 'active')->where('member_role', 'committee_member')->orderBy('id')->lockForUpdate()->get(['recused_at', 'recusal_scope']);
             $members = $this->availableVotingCommitteeCount($members, (int) ($candidate->candidate_person_id ?? 0));
             abort_if($members < 3, 409, 'Committee quorum is not established.');
             $committeeSecurity->assertMayDecide($tenantId, (int) $governanceElection->id, (int) ($candidate->candidate_person_id ?? 0), $actor);
