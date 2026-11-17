@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionDisputeEvidenceService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionDisputeEvidenceIntegrityService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionDisputeEventLedger;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
@@ -203,6 +204,26 @@ final class GovernanceElectionDisputeFoundationSchemaTest extends TestCase
             $this->assertSame((int) $tenant->id, (int) $evidence->tenant_id);
             $this->assertTrue(Storage::disk('local')->exists($evidence->storage_key));
             $this->assertSame('private', Storage::disk('local')->getVisibility($evidence->storage_key));
+
+            $integrityService = app(GovernanceElectionDisputeEvidenceIntegrityService::class);
+            $inspection = $integrityService->inspect((int) $tenant->id, $evidenceId);
+            $this->assertSame('intact', $inspection['integrity_state']);
+            $this->assertTrue($inspection['private_visibility']);
+            $this->assertSame(strlen($bytes), $inspection['actual_byte_size']);
+
+            // Simulate storage corruption. The inspector must report it without
+            // mutating the evidence workflow state or repairing/deleting bytes.
+            Storage::disk('local')->put($evidence->storage_key, 'altered evidence bytes', ['visibility' => 'private']);
+            $inspection = $integrityService->inspect((int) $tenant->id, $evidenceId);
+            $this->assertSame('mismatch', $inspection['integrity_state']);
+            $this->assertNotSame($inspection['expected_sha256'], $inspection['actual_sha256']);
+            $this->assertSame('pending', DB::table('governance_election_dispute_evidence')
+                ->where('id', $evidenceId)
+                ->value('verification_status'));
+
+            Storage::disk('local')->delete($evidence->storage_key);
+            $inspection = $integrityService->inspect((int) $tenant->id, $evidenceId);
+            $this->assertSame('missing', $inspection['integrity_state']);
 
             $ledger = app(GovernanceElectionDisputeEventLedger::class);
             $this->assertTrue($ledger->verify((int) $tenant->id, (int) $electionId, 'objection', (int) $objectionId));
