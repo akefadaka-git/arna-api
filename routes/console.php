@@ -143,20 +143,28 @@ Artisan::command('arna:rotate-compromised-bootstrap-credentials {--apply : Rotat
                 continue;
             }
 
-            $user->password = Hash::make(Str::random(64));
-            $user->remember_token = Str::random(60);
-            if ($hasPasswordChangedAt) {
-                $user->password_changed_at = null;
-            }
-            $user->save();
-            $rotated++;
+            DB::transaction(function () use (
+                $user,
+                $hasPasswordChangedAt,
+                $hasPersonalAccessTokens,
+                &$rotated,
+                &$tokensRevoked,
+            ): void {
+                $user->password = Hash::make(Str::random(64));
+                $user->remember_token = Str::random(60);
+                if ($hasPasswordChangedAt) {
+                    $user->password_changed_at = null;
+                }
+                $user->save();
+                $rotated++;
 
-            if ($hasPersonalAccessTokens) {
-                $tokensRevoked += DB::table('personal_access_tokens')
-                    ->where('tokenable_type', $user->getMorphClass())
-                    ->where('tokenable_id', $user->getKey())
-                    ->delete();
-            }
+                if ($hasPersonalAccessTokens) {
+                    $tokensRevoked += DB::table('personal_access_tokens')
+                        ->where('tokenable_type', $user->getMorphClass())
+                        ->where('tokenable_id', $user->getKey())
+                        ->delete();
+                }
+            });
         }
     });
 
