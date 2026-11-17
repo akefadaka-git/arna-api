@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Tests\\TestCase;
+use Tests\TestCase;
 
 final class GovernanceElectionCurrentMainIntegrationTest extends TestCase
 {
