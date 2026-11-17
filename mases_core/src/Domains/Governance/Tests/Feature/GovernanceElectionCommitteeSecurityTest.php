@@ -165,7 +165,10 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             Schema::create('governance_elections', function (Blueprint $table): void {
                 $table->id();
                 $table->unsignedBigInteger('tenant_id')->index();
-                $table->string('name', 120)->nullable();
+                $table->string('code', 80);
+                $table->string('title');
+                $table->string('status', 24)->default('planned');
+                $table->string('voting_method', 32)->default('physical');
                 $table->timestamps();
             });
         }
@@ -190,7 +193,10 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
 
         $this->electionId = (int) DB::table('governance_elections')->insertGetId([
             'tenant_id' => $this->tenant->id,
-            'name' => 'Committee Security Test',
+            'code' => 'SECURITY-TEST-' . $this->tenant->id,
+            'title' => 'Committee Security Test',
+            'status' => 'planned',
+            'voting_method' => 'physical',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
