@@ -178,7 +178,7 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
             self::assertStringContainsString($table, $migration);
         }
         foreach (['submitObjection', 'submitAppeal', 'certifyElection', 'ratifyElection'] as $action) {
-            self::assertStringContainsString($action, $routes);
+            self::assertStringNotContainsString($action, $routes, 'Deferred dispute/certification actions must not be routable yet.');
             self::assertStringContainsString('function '.$action.'(', $controller);
         }
         self::assertStringContainsString('The tally preparer cannot independently certify the tally.', $controller);
@@ -198,7 +198,7 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         self::assertStringContainsString('A frozen, approved voter register is required before voting.', $this->source('mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php'));
     }
 
-    public function test_committee_decisions_require_two_distinct_votes_before_finalizing(): void
+    public function test_committee_decisions_require_distinct_votes_and_a_verified_authority_threshold(): void
     {
         $controller = $this->source('mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php');
         $voteMigration = $this->source('mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_164000_add_committee_vote_idempotency.php');
@@ -206,8 +206,10 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
 
         self::assertStringContainsString('already voted on this submission', $controller);
         self::assertStringContainsString('already voted on this candidate', $controller);
-        self::assertStringContainsString('$votes < 2', $controller);
-        self::assertStringContainsString('awaiting_committee_majority', $controller);
+        self::assertStringNotContainsString('$votes < 2', $controller);
+        self::assertStringNotContainsString('awaiting_committee_majority', $controller);
+        self::assertStringContainsString('awaiting_authority_defined_decision_rule', $controller);
+        self::assertStringContainsString('verifiedCommitteeDecisionThreshold', $controller);
         self::assertStringContainsString('gov_elec_submission_vote_once', $voteMigration);
         self::assertStringContainsString('gov_elec_candidate_vote_once', $voteMigration);
         self::assertStringContainsString("->boolean('final_ballot_approved')->default(false)", $ballotMigration);
@@ -230,7 +232,7 @@ final class GovernanceElectionWorkflowSecurityContractTest extends TestCase
         foreach (['decideNominationSubmission', 'decideNomination'] as $action) {
             $start = strpos($controller, 'function '.$action.'(');
             self::assertNotFalse($start, "Missing decision action: {$action}");
-            $next = strpos($controller, "\\n    public function ", $start + 1);
+            $next = strpos($controller, "\n    public function ", $start + 1);
             $method = substr($controller, $start, $next === false ? null : $next - $start);
             self::assertStringContainsString('GovernanceElectionCommitteeSecurityService $committeeSecurity', $method);
             self::assertStringContainsString('$committeeSecurity->assertMayDecide(', $method);
