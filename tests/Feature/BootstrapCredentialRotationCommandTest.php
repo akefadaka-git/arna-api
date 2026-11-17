@@ -48,6 +48,7 @@ final class BootstrapCredentialRotationCommandTest extends TestCase
     public function apply_rotates_matching_passwords_and_revokes_only_their_api_tokens(): void
     {
         $affected = User::factory()->create();
+        $oldRememberToken = $affected->remember_token;
         $affected->forceFill(['password' => Hash::make(self::COMPROMISED_TEST_CREDENTIAL)])->save();
         $affectedToken = $affected->createToken('p0-9-affected')->accessToken;
 
@@ -60,6 +61,7 @@ final class BootstrapCredentialRotationCommandTest extends TestCase
 
         self::assertSame(0, $exitCode);
         self::assertFalse(Hash::check(self::COMPROMISED_TEST_CREDENTIAL, $affected->fresh()->password));
+        self::assertNotSame($oldRememberToken, $affected->fresh()->remember_token);
         self::assertTrue(Hash::check($unaffectedPassword, $unaffected->fresh()->password));
         $this->assertDatabaseMissing('personal_access_tokens', ['id' => $affectedToken->id]);
         $this->assertDatabaseHas('personal_access_tokens', ['id' => $unaffectedToken->id]);
