@@ -259,6 +259,18 @@ jobs:
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
 
+      - name: Verify dispute immutability migration rollback and reapply on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: |
+          php artisan migrate:rollback --step=1 --force -vvv
+          php artisan migrate --force -vvv
+
       - name: Run tenant membership lifecycle and audit atomicity tests on MySQL
         env:
           DB_CONNECTION: mysql
@@ -343,6 +355,18 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
         run: php artisan migrate --force -vvv
+
+      - name: Verify dispute immutability migration rollback and reapply on PostgreSQL
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: "5432"
+          DB_DATABASE: arna_dispute_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+        run: |
+          php artisan migrate:rollback --step=1 --force -vvv
+          php artisan migrate --force -vvv
 
       - name: Run election dispute immutability and evidence regressions on PostgreSQL
         env:
