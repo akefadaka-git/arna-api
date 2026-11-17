@@ -50,6 +50,20 @@ final class GovernanceElectionDisputeEvidenceService
             throw new InvalidArgumentException('A valid tenant, election, dispute subject, and authenticated actor are required.');
         }
 
+        $actor = DB::table('users')->where('id', $actorUserId)->where('is_active', true)->whereNull('deleted_at')->first(['id']);
+        if ($actor === null) {
+            throw new InvalidArgumentException('The evidence uploader must be an active account.');
+        }
+
+        $person = DB::table('people')->where('user_id', $actorUserId)->whereNull('deleted_at')->first(['id']);
+        if ($person === null || !DB::table('person_tenant_accesses')
+            ->where('person_id', $person->id)
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'active')
+            ->exists()) {
+            throw new InvalidArgumentException('The evidence uploader must have active access to the requested tenant.');
+        }
+
         $maxBytes = (int) config('mases.governance.dispute_evidence_max_bytes', 20 * 1024 * 1024);
         $size = (int) $file->getSize();
         if ($size < 1 || $size > $maxBytes) {
@@ -135,6 +149,18 @@ final class GovernanceElectionDisputeEvidenceService
                 $diskName,
                 $key,
             ): object {
+                // Keep lock ordering consistent with the event ledger:
+                // election first, then dispute subject, to avoid deadlocks.
+                $election = DB::table('governance_elections')
+                    ->where('id', $electionId)
+                    ->where('tenant_id', $tenantId)
+                    ->lockForUpdate()
+                    ->first(['id']);
+
+                if ($election === null) {
+                    throw new RuntimeException('Election does not exist in the requested tenant.');
+                }
+
                 $subject = DB::table(self::SUBJECT_TABLES[$subjectType])
                     ->where('id', $subjectId)
                     ->where('tenant_id', $tenantId)
