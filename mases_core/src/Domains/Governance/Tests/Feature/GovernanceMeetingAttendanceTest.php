@@ -364,7 +364,7 @@ final class GovernanceMeetingAttendanceTest extends TestCase
         ]);
     }
 
-    public function test_penalty_dispute_blocks_settlement_until_reviewed(): void
+    public function test_penalty_dispute_blocks_settlement_until_reviewed_and_requires_independent_reviewer(): void
     {
         Sanctum::actingAs($this->admin, ['*']);
         $meetingId = $this->createMeeting('BOARD-DISPUTE');
@@ -389,6 +389,14 @@ final class GovernanceMeetingAttendanceTest extends TestCase
         $disputeId = (int) $dispute->json('data.id');
 
         $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.penalties.settlements.store', ['penalty' => $penaltyId]), [
+                'method' => 'cash', 'amount_cents' => 5000,
+            ])->assertConflict();
+        $this->assertDatabaseHas('governance_meeting_penalties', [
+            'id' => $penaltyId, 'status' => 'disputed',
+        ]);
+
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
             ->patchJson(route('api.governance.penalty-disputes.review', ['dispute' => $disputeId]), [
                 'decision' => 'upheld',
                 'reason' => 'The submitter cannot review their own dispute.',
@@ -405,13 +413,8 @@ final class GovernanceMeetingAttendanceTest extends TestCase
                 'reason' => 'Independently reviewed against the attendance register.',
             ])->assertOk()->assertJsonPath('data.status', 'upheld');
 
-        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
-            ->postJson(route('api.governance.penalties.settlements.store', ['penalty' => $penaltyId]), [
-                'method' => 'cash', 'amount_cents' => 5000,
-            ])->assertConflict();
-
         $this->assertDatabaseHas('governance_meeting_penalties', [
-            'id' => $penaltyId, 'status' => 'disputed',
+            'id' => $penaltyId, 'status' => 'assessed',
         ]);
     }
 
