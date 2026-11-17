@@ -776,6 +776,48 @@ return [
     | ARNA integration CR's approval.
     |
     */
+
+    'election_committee' => [
+        'authority_record' => 'ARNA-GOV-ELE-AUTH-001',
+        'adoption_date_ec' => 'ነሐሴ 01/2018',
+        'composition' => [
+            'general_assembly_non_board_members' => 3,
+            'legal_advisor' => [
+                'count' => 1,
+                'capacity' => 'ex_officio',
+                'voting_eligibility' => 'unresolved_requires_instrument',
+            ],
+            'supervisory_committee_member' => 1,
+        ],
+        'quorum' => 3,
+        'decision_rule' => [
+            'verified' => false,
+            'minimum_votes' => null,
+            'authority_reference' => null,
+        ],
+        'conflict_of_interest' => [
+            'candidate_member_must_recuse' => true,
+            'immediate_family_of_candidate_must_recuse' => true,
+            'recusal_scope' => 'affected_decision',
+        ],
+        'dissolution_days_after_results_ratified' => 30,
+        'general_assembly_post_election_review' => true,
+    ],
+
+    'election_voting' => [
+        'enabled' => false,
+        'basis' => 'eligible_share_entitlement',
+        'default_votes_per_share' => null,
+        'one_holder_one_vote' => false,
+        'aggregate_by_registered_holder' => true,
+        'holder_type_neutral' => true,
+        'share_class_rights' => 'enforce_verified_class_entitlements',
+        'legally_disqualified_shares' => 'exclude_from_voting_entitlement',
+        'record_date_snapshot_required' => true,
+        'articles_override' => 'require_verified_operative_articles',
+        'verified_class_entitlements' => [],
+    ],
+
     'features' => [
         'notifications_enabled'      => (bool) env('MASES_GOVERNANCE_NOTIFICATIONS', false),
         'electronic_voting_enabled'  => false,
