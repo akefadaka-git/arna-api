@@ -259,6 +259,22 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
 
     public function test_candidate_scoped_recusal_only_blocks_the_affected_candidate(): void
     {
+        DB::table('governance_election_committee_members')->insert([
+            'tenant_id' => $this->tenant->id,
+            'election_id' => $this->electionId,
+            'person_id' => $this->committeePerson->id,
+            'user_id' => $this->committeeMember->id,
+            'member_role' => 'committee_member',
+            'ex_officio' => false,
+            'status' => 'active',
+            'appointed_at' => now(),
+            'recused_at' => null,
+            'recusal_scope' => null,
+            'appointment_reference' => 'GA-RESOLUTION-TEST-004',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         DB::table('governance_election_committee_members')
             ->where('tenant_id', $this->tenant->id)
             ->where('election_id', $this->electionId)
