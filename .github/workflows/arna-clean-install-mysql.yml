@@ -6,7 +6,7 @@ on:
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
-    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api]
+    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/board-election-core-integration-a3]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - "bootstrap/app.php"
@@ -308,6 +308,16 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
+
+      - name: Run election dispute foundation schema regressions on migrated MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/Governance/GovernanceElectionDisputeFoundationSchemaTest.php
 
       - name: Run centralized notification tenant-isolation feature tests on MySQL
         if: ${{ hashFiles('tests/Feature/CentralNotificationsTest.php') != '' }}
