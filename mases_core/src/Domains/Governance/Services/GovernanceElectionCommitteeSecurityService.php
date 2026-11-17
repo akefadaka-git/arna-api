@@ -335,6 +335,76 @@ final class GovernanceElectionCommitteeSecurityService
         }
     }
 
+    /**
+     * Verify the complete per-election event chain from sequence 1.
+     *
+     * A successful result proves consistency with the stored chain, not
+     * protection against a database owner who can rewrite every row and hash.
+     *
+     * @return array{valid: bool, verified_events: int, first_invalid_sequence: int|null}
+     */
+    public function verifySecurityEventChain(int $tenantId, int $electionId): array
+    {
+        if ($tenantId < 1 || $electionId < 1) {
+            throw new RuntimeException('A valid tenant and election are required to verify the security event chain.');
+        }
+
+        $events = DB::table('governance_election_committee_security_events')
+            ->where('tenant_id', $tenantId)
+            ->where('election_id', $electionId)
+            ->orderBy('sequence')
+            ->get();
+
+        $expectedSequence = 1;
+        $previousHash = null;
+
+        foreach ($events as $event) {
+            if ((int) $event->sequence !== $expectedSequence || $event->previous_hash !== $previousHash) {
+                return [
+                    'valid' => false,
+                    'verified_events' => $expectedSequence - 1,
+                    'first_invalid_sequence' => (int) $event->sequence,
+                ];
+            }
+
+            $payload = json_decode((string) $event->payload, true, 512, JSON_THROW_ON_ERROR);
+            $hashInput = [
+                'tenant_id' => (int) $event->tenant_id,
+                'election_id' => (int) $event->election_id,
+                'sequence' => (int) $event->sequence,
+                'event_type' => (string) $event->event_type,
+                'actor_user_id' => (int) $event->actor_user_id,
+                'subject_user_id' => $event->subject_user_id === null ? null : (int) $event->subject_user_id,
+                'subject_person_id' => $event->subject_person_id === null ? null : (int) $event->subject_person_id,
+                'reference' => $event->reference,
+                'payload' => $this->canonicalize($payload),
+                'previous_hash' => $event->previous_hash,
+                'occurred_at' => (string) $event->occurred_at,
+            ];
+            $expectedHash = hash('sha256', json_encode(
+                $hashInput,
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+            ));
+
+            if (!hash_equals((string) $event->event_hash, $expectedHash)) {
+                return [
+                    'valid' => false,
+                    'verified_events' => $expectedSequence - 1,
+                    'first_invalid_sequence' => (int) $event->sequence,
+                ];
+            }
+
+            $previousHash = (string) $event->event_hash;
+            $expectedSequence++;
+        }
+
+        return [
+            'valid' => true,
+            'verified_events' => $expectedSequence - 1,
+            'first_invalid_sequence' => null,
+        ];
+    }
+
     private function assertAdministrator(User $actor, int $tenantId): void
     {
         if ($tenantId < 1 || !$this->authorization->hasPermission(
