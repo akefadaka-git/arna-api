@@ -404,14 +404,11 @@ final class MasesCoreSeeder extends Seeder
         $this->command->line('  Shareholders: ' . count(ShareholderRegister::ROWS));
         $this->command->line('  Users total:  ' . (2 + count(ShareholderRegister::ROWS)));
         $this->command->line('');
-        $this->command->line('  Super admin: ' . BootstrapUsers::SUPER_ADMIN['email'] . ' / ' . AdminUserSeeder::DEFAULT_PASSWORD);
-        $this->command->line('  Admin:       ' . BootstrapUsers::PLATFORM_ADMIN['email'] . ' / ' . AdminUserSeeder::DEFAULT_PASSWORD);
-        $this->command->line('');
-        $this->command->line('  All shareholders share the password: ' . AdminUserSeeder::DEFAULT_PASSWORD);
+        $this->command->line('  Credentials: no shared or default passwords are provisioned.');
+        $this->command->line('  New users must establish access through the password-reset flow.');
         $this->command->line('  Usernames are derived from the first name (lowercase).');
         $this->command->line('  Emails follow {firstname}{fathername}@maalearna.com.et.');
         $this->command->line('  Example: SH-0009 Gelebo Gelefa → gelebo / gelebogelefa@maalearna.com.et');
         $this->command->line('');
-        $this->command->warn('Change all passwords immediately — this is a bootstrap credential.');
     }
 }
