@@ -12,6 +12,8 @@
 - Add tenant/election/subject-scoped evidence metadata with a private storage disk/key, original filename, detected MIME type, byte size, SHA-256 digest, uploader, upload time, and pending/verified/quarantined/rejected verification state.
 - Add a dispute event ledger with tenant/election/subject scope, actor, event payload, previous-event digest, event digest, and occurrence time.
 - Add uniqueness and lookup indexes for tenant-scoped receipt references, private storage object identities, event digests, and subject event history.
+- Exercise tenant-scoped uniqueness: duplicate evidence storage identities and event digests are rejected within one tenant, while the same identity/digest remains valid in another tenant.
+- Keep the clean-install inventory aligned with the two new tables and the additional migration record.
 
 ## Required application invariants before endpoints are exposed
 
