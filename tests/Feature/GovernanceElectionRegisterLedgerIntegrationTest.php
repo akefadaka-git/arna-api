@@ -66,6 +66,80 @@ final class GovernanceElectionRegisterLedgerIntegrationTest extends TestCase
         self::assertFalse($entries[0]['proxy_authorized']);
     }
 
+    public function test_freeze_recomputes_and_matches_the_locked_ledger_instead_of_trusting_submitted_rows(): void
+    {
+        $shareholderId = $this->createShareholder('SH-REG-FREEZE-' . $this->tenant->id);
+        $holdingId = $this->createHolding($shareholderId, '10.0000');
+        $this->appendEntry($holdingId, 'subscription', '10.0000', '0.0000', '10.0000', '2026-01-01 09:00:00');
+
+        $electionId = (int) DB::table('governance_elections')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'code' => 'REGISTER-FREEZE-' . $this->tenant->id,
+            'title' => 'Register freeze test',
+            'status' => 'planned',
+            'record_date' => '2026-01-31',
+            'authority_reference' => 'GA-RESOLUTION-TEST',
+            'authority_verified_at' => now(),
+            'authority_verified_by' => 1,
+            'voting_method' => 'physical',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $service = app(GovernanceElectionRegisterService::class);
+        $entries = $service->reconstructAsOf(
+            (int) $this->tenant->id,
+            '2026-01-31',
+            'APPROVED-RECORD-DATE-REGISTER',
+        );
+
+        $forged = $entries;
+        $forged[0]['share_quantity'] = '11.0000';
+        $forged[0]['voting_weight'] = '11.0000';
+
+        try {
+            $service->freeze(
+                (int) $this->tenant->id,
+                $electionId,
+                '2026-01-31',
+                'APPROVED-RECORD-DATE-REGISTER',
+                'VOTING-RULE-V1',
+                1,
+                $forged,
+            );
+            self::fail('A caller-supplied register that differs from the ledger must not be frozen.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('entries', $exception->errors());
+            self::assertStringContainsString('does not exactly match', $exception->errors()['entries'][0]);
+        }
+
+        $snapshotId = $service->freeze(
+            (int) $this->tenant->id,
+            $electionId,
+            '2026-01-31',
+            'APPROVED-RECORD-DATE-REGISTER',
+            'VOTING-RULE-V1',
+            1,
+            $entries,
+        );
+
+        $this->assertDatabaseHas('governance_election_register_snapshots', [
+            'id' => $snapshotId,
+            'tenant_id' => $this->tenant->id,
+            'election_id' => $electionId,
+            'record_date' => '2026-01-31',
+            'voter_count' => 1,
+        ]);
+        $this->assertDatabaseHas('governance_election_voters', [
+            'snapshot_id' => $snapshotId,
+            'shareholder_id' => $shareholderId,
+            'share_class_code' => 'ELECT-STD-' . $this->tenant->id,
+            'share_quantity' => '10.0000',
+            'voting_weight' => '10.0000',
+            'proxy_authorized' => false,
+        ]);
+    }
+
     public function test_nonzero_projection_without_ledger_is_not_silently_omitted_from_a_register_with_other_valid_holders(): void
     {
         $validShareholderId = $this->createShareholder('SH-REG-VALID-' . $this->tenant->id);
