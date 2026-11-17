@@ -215,6 +215,8 @@ final class GovernanceElectionDisputeFoundationSchemaTest extends TestCase
                 ->first(['id', 'event_sha256']);
             $this->assertNotNull($event);
 
+            // Query-builder writes bypass Eloquent hooks, so these assertions
+            // prove the database triggers enforce immutability at the storage boundary.
             try {
                 DB::table('governance_election_dispute_events')->where('id', $event->id)->update([
                     'event_payload' => json_encode(['tampered' => true], JSON_THROW_ON_ERROR),
