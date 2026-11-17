@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use MaaleArna\MASES\Core\Calendar\Services\CalendarReminderDispatcher;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
@@ -55,6 +56,18 @@ Schedule::command('loan:accrue-interest')->daily();
 Schedule::command('loan:detect-arrears')->daily();
 Schedule::command('public-content:publish-scheduled')->everyMinute()->withoutOverlapping();
 Schedule::command('corporate-site:publish-scheduled')->everyMinute()->withoutOverlapping();
+
+Artisan::command('calendar:dispatch-reminders {--limit=100}', function (CalendarReminderDispatcher $dispatcher): int {
+    $result = $dispatcher->dispatch((int) $this->option('limit'));
+    $this->info(sprintf(
+        'Calendar reminders: %d delivered, %d skipped, %d retried, %d failed.',
+        $result['delivered'], $result['skipped'], $result['retried'], $result['failed'],
+    ));
+
+    return $result['failed'] > 0 ? 1 : 0;
+})->purpose('Dispatch due tenant-scoped Calendar reminder notifications');
+
+Schedule::command('calendar:dispatch-reminders --limit=100')->everyMinute()->withoutOverlapping();
 
 Artisan::command('corporate-site:publish-scheduled', function (): int {
     $published = DB::transaction(function (): int {
