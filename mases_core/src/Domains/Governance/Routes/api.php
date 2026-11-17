@@ -661,6 +661,11 @@ Route::name('api.governance.')->group(static function (): void {
     Route::post('/elections/{governanceElection}/voting/close', [GovernanceElectionWorkflowController::class, 'closeElectionVoting'])
         ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.manage')->name('elections.voting.close');
 
+    Route::get('/elections/{governanceElection}/objections', [GovernanceElectionWorkflowController::class, 'objectionIndex'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.view')->name('elections.objections.index');
+    Route::post('/elections/{governanceElection}/objections', [GovernanceElectionWorkflowController::class, 'submitObjection'])
+        ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.view')->name('elections.objections.store');
+
     Route::post('/elections/{governanceElection}/nominations', [GovernanceElectionWorkflowController::class, 'submitNomination'])
         ->whereNumber('governanceElection')->middleware('auth.permission:governance.election.view')->name('elections.nominations.submit');
     Route::get('/elections/{governanceElection}/candidate-review', [GovernanceElectionWorkflowController::class, 'candidateReviewIndex'])
