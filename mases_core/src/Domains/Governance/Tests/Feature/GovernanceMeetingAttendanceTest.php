@@ -254,6 +254,57 @@ final class GovernanceMeetingAttendanceTest extends TestCase
             ->assertJsonPath('data.status', 'submitted');
     }
 
+    public function test_proxy_submitter_cannot_review_own_submission_but_independent_reviewer_can(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+        $assembly = GovernanceBody::create([
+            'tenant_id' => $this->tenant->id,
+            'code' => 'MEETING-GA-PROXY-REVIEW',
+            'body_type' => 'assembly',
+            'name_am' => 'ጠቅላላ ጉባኤ',
+            'name_en' => 'General Assembly',
+            'is_active' => true,
+        ]);
+        $meetingId = (int) DB::table('governance_meetings')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $assembly->id,
+            'meeting_code' => 'GA-PROXY-REVIEW',
+            'meeting_kind' => 'general_assembly',
+            'starts_at' => now()->addDays(5)->setTime(9, 0)->toDateTimeString(),
+            'status' => 'scheduled',
+            'created_by' => $this->admin->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $submitted = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.proxies.store', ['meeting' => $meetingId]), [
+                'principal_type' => 'shareholder',
+                'principal_id' => $this->shareholderId,
+                'proxy_name_am' => 'ውክልና ተወካይ',
+                'proxy_reference' => 'ID-SELF-REVIEW-01',
+            ])->assertCreated();
+        $proxyId = (int) $submitted->json('data.id');
+
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->patchJson(route('api.governance.proxies.review', ['proxy' => $proxyId]), [
+                'decision' => 'approved',
+                'reason' => 'Self-review must be rejected.',
+            ])->assertConflict();
+
+        $reviewer = $this->createUser('proxy-reviewer');
+        $reviewer->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+        $reviewer->permissions()->attach($this->admin->permissions->pluck('id')->all());
+        $reviewer->load('permissions');
+        Sanctum::actingAs($reviewer, ['*']);
+
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->patchJson(route('api.governance.proxies.review', ['proxy' => $proxyId]), [
+                'decision' => 'approved',
+                'reason' => 'Reviewed by an independent governance officer.',
+            ])->assertOk()->assertJsonPath('data.status', 'approved');
+    }
+
     public function test_caller_without_manage_permission_cannot_record_attendance(): void
     {
         Sanctum::actingAs($this->plainUser, ['*']);
