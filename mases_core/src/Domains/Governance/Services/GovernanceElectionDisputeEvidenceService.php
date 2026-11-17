@@ -84,6 +84,14 @@ final class GovernanceElectionDisputeEvidenceService
             throw new InvalidArgumentException('Evidence content signature does not match its detected file type.');
         }
 
+        $clientExtension = strtolower($file->getClientOriginalExtension());
+        $expectedExtensions = $mime === 'image/jpeg'
+            ? ['jpg', 'jpeg']
+            : [self::ALLOWED_MIME_TYPES[$mime]];
+        if (!in_array($clientExtension, $expectedExtensions, true)) {
+            throw new InvalidArgumentException('Evidence filename extension does not match its detected content type.');
+        }
+
         $sha256 = hash_file('sha256', $realPath);
         if (!is_string($sha256) || strlen($sha256) !== 64) {
             throw new RuntimeException('Evidence SHA-256 digest could not be calculated.');
