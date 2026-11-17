@@ -54,6 +54,29 @@ final class GovernanceElectionDisputeEventLedger
                 throw (new ModelNotFoundException())->setModel('GovernanceElection');
             }
 
+            if ($actorUserId !== null) {
+                $person = DB::table('people')
+                    ->where('user_id', $actorUserId)
+                    ->whereNull('deleted_at')
+                    ->first(['id']);
+
+                $actorIsActive = DB::table('users')
+                    ->where('id', $actorUserId)
+                    ->where('is_active', true)
+                    ->whereNull('deleted_at')
+                    ->exists();
+
+                $actorHasTenantAccess = $person !== null && DB::table('person_tenant_accesses')
+                    ->where('person_id', $person->id)
+                    ->where('tenant_id', $tenantId)
+                    ->where('status', 'active')
+                    ->exists();
+
+                if (!$actorIsActive || !$actorHasTenantAccess) {
+                    throw new InvalidArgumentException('Event actor must be an active account with active access to the event tenant.');
+                }
+            }
+
             $subject = DB::table(self::SUBJECT_TABLES[$subjectType])
                 ->where('id', $subjectId)
                 ->where('tenant_id', $tenantId)
