@@ -125,8 +125,8 @@ use RuntimeException;
  * Three audit columns are nulled on each upsert, guarded by
  * Schema::hasColumn():
  *
- *   · password_changed_at — nulled so that the operator is prompted
- *     to change the bootstrap password on first login.
+ *   · password_changed_at — reset to null so the audit field does not
+ *     claim that a password change occurred during this seeding run.
  *
  *   · last_login_at       — nulled so that a reseed resets the
  *     "last seen" state. On a fresh install these columns are
