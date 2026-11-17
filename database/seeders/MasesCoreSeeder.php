@@ -317,7 +317,7 @@ final class MasesCoreSeeder extends Seeder
          * seeder, which resolves each role's grant spec against it.
          */
         $permissions = (new PermissionSeeder())->seed($applications);
-        app(\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernanceElectionCommitteePermissionsSeeder::class)->run();
+        app(\MaaleArna\MASES\Core\Domains\Governance\Database\Seeders\GovernanceElectionCommitteePermissionsSeeder::class)->run();
 
         /*
          * Step 5 — roles.
