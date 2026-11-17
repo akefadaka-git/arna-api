@@ -210,6 +210,69 @@ final class GovernanceElectionCommitteeDecisionHttpTest extends TestCase
         ]);
     }
 
+    public function test_real_nomination_decision_route_blocks_active_candidate_scoped_recusal(): void
+    {
+        DB::table('governance_election_committee_members')
+            ->where('tenant_id', $this->tenant->id)
+            ->where('election_id', $this->electionId)
+            ->where('user_id', $this->decisionMaker->id)
+            ->update([
+                'recused_at' => now(),
+                'recusal_scope' => 'candidate:' . $this->candidate->id,
+            ]);
+
+        Sanctum::actingAs($this->decisionMaker, ['*']);
+        $this->decisionRequest()->assertStatus(409)
+            ->assertJsonPath('message', 'Committee quorum is not established.');
+
+        $this->assertDatabaseMissing('governance_election_committee_decisions', [
+            'tenant_id' => $this->tenant->id,
+            'election_id' => $this->electionId,
+            'nomination_id' => $this->nominationId,
+            'decided_by' => $this->decisionMaker->id,
+        ]);
+    }
+
+    public function test_real_nomination_submission_decision_route_blocks_active_candidate_scoped_recusal(): void
+    {
+        $submissionId = $this->createSubmission();
+        DB::table('governance_election_committee_members')
+            ->where('tenant_id', $this->tenant->id)
+            ->where('election_id', $this->electionId)
+            ->where('user_id', $this->decisionMaker->id)
+            ->update([
+                'recused_at' => now(),
+                'recusal_scope' => 'candidate:' . $this->candidate->id,
+            ]);
+
+        Sanctum::actingAs($this->decisionMaker, ['*']);
+        $this->submissionDecisionRequest($submissionId)->assertStatus(409)
+            ->assertJsonPath('message', 'Committee quorum is not established.');
+
+        $this->assertDatabaseMissing('governance_election_committee_decisions', [
+            'tenant_id' => $this->tenant->id,
+            'election_id' => $this->electionId,
+            'submission_id' => $submissionId,
+            'decided_by' => $this->decisionMaker->id,
+        ]);
+    }
+
+    public function test_real_nomination_submission_decision_route_blocks_self_candidacy(): void
+    {
+        $this->createShareholderForPerson($this->decisionMakerPerson, 'SH-SELF-' . $this->tenant->id);
+        $submissionId = $this->createSubmission($this->decisionMakerPerson);
+
+        Sanctum::actingAs($this->decisionMaker, ['*']);
+        $this->submissionDecisionRequest($submissionId)->assertForbidden();
+
+        $this->assertDatabaseMissing('governance_election_committee_decisions', [
+            'tenant_id' => $this->tenant->id,
+            'election_id' => $this->electionId,
+            'submission_id' => $submissionId,
+            'decided_by' => $this->decisionMaker->id,
+        ]);
+    }
+
     public function test_real_nomination_submission_decision_route_records_vote_but_does_not_finalize_without_authority_rule(): void
     {
         $submissionId = $this->createSubmission();
@@ -257,17 +320,31 @@ final class GovernanceElectionCommitteeDecisionHttpTest extends TestCase
     }
 
 
-    private function createSubmission(): int
+    private function createSubmission(?Person $candidate = null): int
     {
         return (int) DB::table('governance_election_nomination_submissions')->insertGetId([
             'tenant_id' => $this->tenant->id,
             'election_id' => $this->electionId,
-            'candidate_person_id' => $this->candidate->id,
+            'candidate_person_id' => ($candidate ?? $this->candidate)->id,
             'nominated_by_shareholder_id' => $this->candidateShareholderId,
             'self_nomination' => false,
             'statement' => 'Nomination submission HTTP security test.',
             'status' => 'submitted',
             'submitted_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function createShareholderForPerson(Person $person, string $number): int
+    {
+        return (int) DB::table('shareholders')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'shareholder_number' => $number,
+            'shareholder_type' => 'individual',
+            'first_name_en' => 'Linked committee candidate',
+            'person_id' => $person->id,
+            'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
