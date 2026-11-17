@@ -87,6 +87,61 @@ final class GovernanceElectionRegisterServiceTest extends TestCase
         GovernanceElectionRegisterService::reconstructHistoricalHoldingBalance($ledger, '2026-02-28', '0.0000');
     }
 
+    public function test_record_date_reconstruction_sorts_append_chain_by_immutable_id(): void
+    {
+        $ledger = [
+            $this->entry(2, 'transfer_out', '-10.0000', '10.0000', '0.0000', '2026-02-01 09:00:00'),
+            $this->entry(1, 'subscription', '10.0000', '0.0000', '10.0000', '2026-01-01 09:00:00'),
+        ];
+
+        self::assertSame(
+            '10.0000',
+            GovernanceElectionRegisterService::reconstructHistoricalHoldingBalance($ledger, '2026-01-31', '0.0000')
+        );
+    }
+
+    public function test_reversal_business_time_cannot_precede_the_original_entry(): void
+    {
+        $ledger = [
+            $this->entry(1, 'subscription', '10.0000', '0.0000', '10.0000', '2026-02-01 09:00:00'),
+            $this->entry(2, 'reversal', '-10.0000', '10.0000', '0.0000', '2026-01-31 09:00:00', 1),
+        ];
+
+        $this->expectException(ValidationException::class);
+        GovernanceElectionRegisterService::reconstructHistoricalHoldingBalance($ledger, '2026-02-28', '0.0000');
+    }
+
+    public function test_unknown_ledger_entry_types_fail_closed(): void
+    {
+        $ledger = [
+            $this->entry(1, 'unrecognized_adjustment', '10.0000', '0.0000', '10.0000', '2026-01-01 09:00:00'),
+        ];
+
+        $this->expectException(ValidationException::class);
+        GovernanceElectionRegisterService::reconstructHistoricalHoldingBalance($ledger, '2026-01-31', '10.0000');
+    }
+
+    public function test_duplicate_ledger_entry_ids_fail_closed(): void
+    {
+        $ledger = [
+            $this->entry(1, 'subscription', '10.0000', '0.0000', '10.0000', '2026-01-01 09:00:00'),
+            $this->entry(1, 'transfer_out', '-10.0000', '10.0000', '0.0000', '2026-01-02 09:00:00'),
+        ];
+
+        $this->expectException(ValidationException::class);
+        GovernanceElectionRegisterService::reconstructHistoricalHoldingBalance($ledger, '2026-01-31', '0.0000');
+    }
+
+    public function test_record_date_must_be_a_valid_calendar_date(): void
+    {
+        $ledger = [
+            $this->entry(1, 'subscription', '10.0000', '0.0000', '10.0000', '2026-01-01 09:00:00'),
+        ];
+
+        $this->expectException(ValidationException::class);
+        GovernanceElectionRegisterService::reconstructHistoricalHoldingBalance($ledger, '2026-02-31', '10.0000');
+    }
+
     private function entry(
         int $id,
         string $type,
