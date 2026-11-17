@@ -65,7 +65,6 @@ final class GovernanceElectionRegisterService
             // concurrent new holding from appearing outside this snapshot.
             DB::table('shareholders')
                 ->where('tenant_id', $tenantId)
-                ->whereNull('deleted_at')
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get(['id']);
@@ -78,8 +77,7 @@ final class GovernanceElectionRegisterService
             ->join('shareholders as s', 's.id', '=', 'h.shareholder_id')
             ->join('share_classes as c', 'c.id', '=', 'h.share_class_id')
             ->where('s.tenant_id', $tenantId)
-            ->whereNull('s.deleted_at')
-            ->select(['h.id as holding_id', 'h.shareholder_id', 'h.current_quantity', 'h.created_at as holding_created_at', 'c.code as class_code'])
+            ->select(['h.id as holding_id', 'h.shareholder_id', 'h.current_quantity', 'h.created_at as holding_created_at', 's.deleted_at as shareholder_deleted_at', 'c.code as class_code'])
             ->orderBy('h.shareholder_id')->orderBy('c.code');
         if (DB::transactionLevel() > 0) {
             // ShareHoldingService locks the same projection row before
@@ -122,6 +120,11 @@ final class GovernanceElectionRegisterService
             );
             if (bccomp($balance, '0', 4) <= 0) {
                 continue;
+            }
+            if ($holding->shareholder_deleted_at !== null) {
+                throw ValidationException::withMessages([
+                    'shareholder_eligibility' => "Shareholder {$holding->shareholder_id} is soft-deleted but has a positive record-date holding; eligibility must be resolved from the authoritative register before freeze.",
+                ]);
             }
 
             $class = strtoupper((string) $holding->class_code);
