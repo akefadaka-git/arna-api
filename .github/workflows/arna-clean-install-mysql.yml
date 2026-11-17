@@ -89,6 +89,19 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=20
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arna_dispute_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d arna_dispute_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
     env:
       APP_ENV: testing
       APP_DEBUG: "false"
@@ -155,7 +168,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: bcmath, pcntl, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          extensions: bcmath, pcntl, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, pdo_pgsql, session, tokenizer, xml, zip
           tools: composer:v2
           coverage: none
 
@@ -319,6 +332,26 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/Governance/GovernanceElectionDisputeFoundationSchemaTest.php
+
+      - name: Run full migrations on disposable PostgreSQL
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: "5432"
+          DB_DATABASE: arna_dispute_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+        run: php artisan migrate --force -vvv
+
+      - name: Run election dispute immutability and evidence regressions on PostgreSQL
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: "5432"
+          DB_DATABASE: arna_dispute_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
         run: php artisan test --compact tests/Feature/Governance/GovernanceElectionDisputeFoundationSchemaTest.php
 
       - name: Run centralized notification tenant-isolation feature tests on MySQL
