@@ -100,6 +100,7 @@ final class GovernanceElectionRegisterService
 
             if ($ledger->isEmpty()) {
                 if (bccomp((string) $holding->current_quantity, '0', 4) !== 0
+                    || $holding->holding_created_at === null
                     || Carbon::parse($holding->holding_created_at)->lessThanOrEqualTo($cutoff)) {
                     throw ValidationException::withMessages([
                         'share_ledger' => "Holding {$holding->holding_id} has no immutable ledger history sufficient to prove its record-date balance.",
