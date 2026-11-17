@@ -473,7 +473,9 @@ final class FileService
         $file = $this->resolveFile($file);
         $user = $user ?? mases_user();
 
-        $this->authorizeAction('file.delete', $file, $user);
+        // Permanent deletion is a distinct destructive capability.
+        // Soft deletion remains governed by file.delete.
+        $this->authorizeAction('file.force_delete', $file, $user);
 
         if (Storage::disk($file->disk)->exists($file->path)) {
             Storage::disk($file->disk)->delete($file->path);
