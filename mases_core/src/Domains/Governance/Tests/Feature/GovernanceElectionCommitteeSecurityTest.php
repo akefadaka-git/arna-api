@@ -51,6 +51,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
 
         $this->grantPermission($this->administrator, 'governance.election.committee.administer');
         $this->grantPermission($this->committeeMember, 'governance.election.committee.conflict.declare');
+        $this->grantPermission($this->committeeMember, 'governance.election.committee.decide');
 
         $this->createElectionFixtures();
     }
