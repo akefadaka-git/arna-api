@@ -144,6 +144,7 @@ Artisan::command('arna:rotate-compromised-bootstrap-credentials {--apply : Rotat
             }
 
             $user->password = Hash::make(Str::random(64));
+            $user->remember_token = Str::random(60);
             if ($hasPasswordChangedAt) {
                 $user->password_changed_at = null;
             }
