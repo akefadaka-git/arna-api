@@ -57,6 +57,7 @@ final class GovernanceElectionRegisterService
         if (mb_strlen(trim($evidenceReference)) > 120) {
             throw ValidationException::withMessages(['register' => 'The authoritative ledger evidence reference is too long for the voter register.']);
         }
+        $cutoff = $recordDateValue->endOfDay();
         $rates = (array) config('governance.election_voting.verified_class_entitlements', []);
         // Inspect every current holding, not only rows that happen to have
         // an entry before the record date. Otherwise a positive projection
@@ -67,7 +68,7 @@ final class GovernanceElectionRegisterService
             ->join('share_classes as c', 'c.id', '=', 'h.share_class_id')
             ->where('s.tenant_id', $tenantId)
             ->whereNull('s.deleted_at')
-            ->select(['h.id as holding_id', 'h.shareholder_id', 'h.current_quantity', 'c.code as class_code'])
+            ->select(['h.id as holding_id', 'h.shareholder_id', 'h.current_quantity', 'h.created_at as holding_created_at', 'c.code as class_code'])
             ->orderBy('h.shareholder_id')->orderBy('c.code')->get();
 
         $entries = [];
@@ -80,14 +81,16 @@ final class GovernanceElectionRegisterService
                 ->orderBy('id')->get();
 
             if ($ledger->isEmpty()) {
-                if (bccomp((string) $holding->current_quantity, '0', 4) !== 0) {
+                if (bccomp((string) $holding->current_quantity, '0', 4) !== 0
+                    || Carbon::parse($holding->holding_created_at)->lessThanOrEqualTo($cutoff)) {
                     throw ValidationException::withMessages([
-                        'share_ledger' => "Holding {$holding->holding_id} has a non-zero current projection but no immutable ledger history.",
+                        'share_ledger' => "Holding {$holding->holding_id} has no immutable ledger history sufficient to prove its record-date balance.",
                     ]);
                 }
 
-                // A zero-balance holding with no ledger rows carries no
-                // reconstructable entitlement and is not silently counted.
+                // A zero-balance holding created after the record date could
+                // not have held shares on that date; an older empty ledger is
+                // unresolved and must block reconstruction.
                 continue;
             }
 
@@ -112,7 +115,7 @@ final class GovernanceElectionRegisterService
             }
 
             $rate = (string) $classRule['votes_per_share'];
-            $entitlementReference = $evidenceReference . ';class:' . trim((string) $classRule['evidence_reference']);
+            $entitlementReference = trim($evidenceReference) . ';class:' . trim((string) $classRule['evidence_reference']);
             if (mb_strlen($entitlementReference) > 160) {
                 throw ValidationException::withMessages([
                     'share_class_entitlements' => "The combined entitlement evidence reference for share class {$class} exceeds the register field limit.",
