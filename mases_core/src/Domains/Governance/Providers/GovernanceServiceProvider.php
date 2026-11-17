@@ -200,6 +200,13 @@ use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionUpdated;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermUpdated;
 use MaaleArna\MASES\Core\Domains\Governance\Listeners\AuditGovernanceEvent;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceElectionLifecycleChanged;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
+use MaaleArna\MASES\Core\Domains\Governance\Policies\GovernanceElectionPolicy;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionLifecycleService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionPhysicalBallotService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionCommitteeSecurityService;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
@@ -525,6 +532,11 @@ final class GovernanceServiceProvider extends ServiceProvider
 
         // P1.3-B3 — explicit position-scoped authority grants.
         $this->app->singleton(GovernanceAuthorityGrantService::class);
+
+        $this->app->singleton(GovernanceElectionLifecycleService::class);
+        $this->app->singleton(GovernanceElectionRegisterService::class);
+        $this->app->singleton(GovernanceElectionPhysicalBallotService::class);
+        $this->app->singleton(GovernanceElectionCommitteeSecurityService::class);
     }
 
     // =========================================================================
@@ -582,6 +594,7 @@ final class GovernanceServiceProvider extends ServiceProvider
 
         // G2c — membership policy.
         Gate::policy(GovernanceMembership::class, GovernanceMembershipPolicy::class);
+        Gate::policy(GovernanceElection::class, GovernanceElectionPolicy::class);
     }
 
     // =========================================================================
@@ -622,6 +635,7 @@ final class GovernanceServiceProvider extends ServiceProvider
         // G2c — membership events.
         Event::listen(GovernanceMembershipRegistered::class,  AuditGovernanceEvent::class);
         Event::listen(GovernanceMembershipUpdated::class,     AuditGovernanceEvent::class);
+        Event::listen(GovernanceElectionLifecycleChanged::class, AuditGovernanceEvent::class);
     }
 
     // =========================================================================

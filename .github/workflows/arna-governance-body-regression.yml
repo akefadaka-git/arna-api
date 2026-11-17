@@ -102,6 +102,16 @@ jobs:
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceTermTest.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceAppointmentTest.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceMembershipTest.php
+          php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionController.php
+          php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionWorkflowController.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceElectionCommitteeSecurityService.php
+          php -l tests/Feature/GovernanceElectionWorkflowSecurityContractTest.php
+          php -l tests/Feature/Governance/GovernanceElectionEndpointsTest.php
+          php -l tests/Unit/Governance/GovernanceElectionLifecycleServiceTest.php
+          php -l tests/Unit/Governance/GovernanceElectionRegisterServiceTest.php
+          php -l tests/Feature/GovernanceElectionCurrentMainIntegrationTest.php
+          php -l tests/Feature/GovernanceElectionCommitteeDecisionHttpTest.php
+          php -l tests/Feature/GovernanceElectionRegisterLedgerIntegrationTest.php
           php -l mases_core/src/Domains/Governance/Models/GovernanceAuthorityGrant.php
           php -l mases_core/src/Domains/Governance/Services/GovernanceAuthorityGrantService.php
           php -l mases_core/src/Domains/Governance/Models/GovernanceSeat.php
@@ -118,6 +128,11 @@ jobs:
           php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_110000_create_governance_attendance_review_tables.php
           php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_100000_create_governance_meeting_attendance_tables.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
+          php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_17_100000_create_election_committee_security_foundation.php
+          php -l mases_core/src/Domains/Governance/Database/Seeders/GovernanceElectionCommitteePermissionsSeeder.php
+          php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCommitteeSecurityController.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceElectionCommitteeSecurityService.php
+          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
           php -l mases_core/src/Domains/Finance/Enums/JournalSourceType.php
           php -l mases_core/src/Domains/Finance/Services/JournalSourceEntityMappingResolver.php
           php -l mases_core/src/Domains/Finance/Services/SourceLegalEntityMappingService.php
@@ -145,6 +160,7 @@ jobs:
       - name: Run Governance authorization feature tests
         run: |
           set -euo pipefail
+          touch .env
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceBodyTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernancePositionTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceTermTest.php
@@ -152,7 +168,22 @@ jobs:
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMembershipTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
+          vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/FinanceSourceEntityMappingResolverTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAccountingTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAuthorizationTest.php
+
+      - name: Run election current-main integration and fail-closed contract tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: |
+          php artisan test --compact tests/Feature/GovernanceElectionWorkflowSecurityContractTest.php
+          php artisan test --compact tests/Feature/Governance/GovernanceElectionEndpointsTest.php
+          php artisan test --compact tests/Unit/Governance/GovernanceElectionLifecycleServiceTest.php
+          php artisan test --compact tests/Unit/Governance/GovernanceElectionRegisterServiceTest.php
+          php artisan test --compact tests/Feature/GovernanceElectionCurrentMainIntegrationTest.php
+          php artisan test --compact tests/Feature/GovernanceElectionCommitteeDecisionHttpTest.php
+          php artisan test --compact tests/Feature/GovernanceElectionRegisterLedgerIntegrationTest.php
