@@ -163,6 +163,27 @@ final class GovernanceElectionRegisterLedgerIntegrationTest extends TestCase
         }
     }
 
+    public function test_zero_projection_with_empty_ledger_and_missing_holding_creation_date_blocks_reconstruction(): void
+    {
+        $shareholderId = $this->createShareholder('SH-REG-NODATE-' . $this->tenant->id);
+        $holdingId = $this->createHolding($shareholderId, '0.0000');
+        DB::table('share_holdings')->where('id', $holdingId)->update([
+            'created_at' => null,
+        ]);
+
+        try {
+            app(GovernanceElectionRegisterService::class)->reconstructAsOf(
+                (int) $this->tenant->id,
+                '2026-01-31',
+                'APPROVED-RECORD-DATE-REGISTER',
+            );
+            self::fail('An empty ledger with no holding creation date cannot prove the record-date balance.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('share_ledger', $exception->errors());
+            self::assertStringContainsString('record-date balance', $exception->errors()['share_ledger'][0]);
+        }
+    }
+
     public function test_soft_deleted_shareholder_with_positive_record_date_balance_blocks_register_freeze(): void
     {
         $shareholderId = $this->createShareholder('SH-REG-DELETED-' . $this->tenant->id);
