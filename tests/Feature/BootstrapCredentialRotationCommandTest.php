@@ -29,6 +29,21 @@ final class BootstrapCredentialRotationCommandTest extends TestCase
         parent::tearDown();
     }
 
+
+    #[Test]
+    public function it_fails_closed_when_the_incident_credential_is_not_supplied(): void
+    {
+        putenv('ARNA_COMPROMISED_BOOTSTRAP_PASSWORD');
+
+        $exitCode = Artisan::call('arna:rotate-compromised-bootstrap-credentials');
+
+        self::assertSame(1, $exitCode);
+        self::assertStringContainsString(
+            'ARNA_COMPROMISED_BOOTSTRAP_PASSWORD must be set',
+            Artisan::output(),
+        );
+    }
+
     #[Test]
     public function dry_run_reports_matches_without_changing_passwords_or_tokens(): void
     {
