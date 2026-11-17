@@ -133,7 +133,9 @@ final class GovernanceElectionDisputeFoundationSchemaTest extends TestCase
                 ->insertGetId($base + ['tenant_id' => 900002]);
             $this->assertGreaterThan(0, $otherTenantId);
         } finally {
-            DB::table('governance_election_dispute_events')->whereIn('id', array_filter([$firstId, $otherTenantId]))->delete();
+            $this->withoutDisputeEventAppendOnlyTriggers(function () use ($firstId, $otherTenantId): void {
+                DB::table('governance_election_dispute_events')->whereIn('id', array_filter([$firstId, $otherTenantId]))->delete();
+            });
         }
     }
 
@@ -210,33 +212,91 @@ final class GovernanceElectionDisputeFoundationSchemaTest extends TestCase
                 ->where('election_id', $electionId)
                 ->where('subject_type', 'objection')
                 ->where('subject_id', $objectionId)
-                ->first(['id', 'event_payload']);
+                ->first(['id', 'event_sha256']);
             $this->assertNotNull($event);
-            
-            DB::table('governance_election_dispute_events')->where('id', $event->id)->update([
+
+            try {
+                DB::table('governance_election_dispute_events')->where('id', $event->id)->update([
+                    'event_payload' => json_encode(['tampered' => true], JSON_THROW_ON_ERROR),
+                ]);
+                $this->fail('Direct updates to the dispute event ledger must be rejected by the database.');
+            } catch (QueryException) {
+                $this->assertTrue(true);
+            }
+
+            try {
+                DB::table('governance_election_dispute_events')->where('id', $event->id)->delete();
+                $this->fail('Direct deletes from the dispute event ledger must be rejected by the database.');
+            } catch (QueryException) {
+                $this->assertTrue(true);
+            }
+
+            DB::table('governance_election_dispute_events')->insert([
+                'tenant_id' => $tenant->id,
+                'election_id' => $electionId,
+                'subject_type' => 'objection',
+                'subject_id' => $objectionId,
+                'event_type' => 'test.corrupt',
+                'actor_user_id' => $user->id,
                 'event_payload' => json_encode(['tampered' => true], JSON_THROW_ON_ERROR),
+                'previous_event_sha256' => $event->event_sha256,
+                'event_sha256' => str_repeat('c', 64),
+                'occurred_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
             $this->assertFalse($ledger->verify((int) $tenant->id, (int) $electionId, 'objection', (int) $objectionId));
         } finally {
-            if ($evidenceId !== null) {
-                $evidenceRow = DB::table('governance_election_dispute_evidence')->where('id', $evidenceId)->first(['storage_key']);
-                if ($evidenceRow !== null) {
-                    Storage::disk('local')->delete($evidenceRow->storage_key);
+            $this->withoutDisputeEventAppendOnlyTriggers(function () use ($tenant, $electionId, $objectionId, $evidenceId, $personId, $user): void {
+                if ($evidenceId !== null) {
+                    $evidenceRow = DB::table('governance_election_dispute_evidence')->where('id', $evidenceId)->first(['storage_key']);
+                    if ($evidenceRow !== null) {
+                        Storage::disk('local')->delete($evidenceRow->storage_key);
+                    }
+                    DB::table('governance_election_dispute_evidence')->where('id', $evidenceId)->delete();
                 }
-                DB::table('governance_election_dispute_evidence')->where('id', $evidenceId)->delete();
+                DB::table('governance_election_dispute_events')
+                    ->where('tenant_id', $tenant->id)
+                    ->where('election_id', $electionId)
+                    ->where('subject_type', 'objection')
+                    ->where('subject_id', $objectionId)
+                    ->delete();
+                DB::table('governance_election_objections')->where('id', $objectionId)->delete();
+                DB::table('governance_elections')->where('id', $electionId)->delete();
+                DB::table('person_tenant_accesses')->where('person_id', $personId)->delete();
+                DB::table('people')->where('id', $personId)->delete();
+                $user->delete();
+                $tenant->delete();
+            });
+        }
+    }
+
+    private function withoutDisputeEventAppendOnlyTriggers(callable $callback): void
+    {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'mysql') {
+            DB::unprepared('DROP TRIGGER IF EXISTS governance_election_dispute_events_no_update');
+            DB::unprepared('DROP TRIGGER IF EXISTS governance_election_dispute_events_no_delete');
+        } elseif ($driver === 'pgsql') {
+            DB::unprepared('DROP TRIGGER IF EXISTS governance_election_dispute_events_no_mutation ON governance_election_dispute_events');
+        } elseif ($driver === 'sqlite') {
+            DB::unprepared('DROP TRIGGER IF EXISTS governance_election_dispute_events_no_update');
+            DB::unprepared('DROP TRIGGER IF EXISTS governance_election_dispute_events_no_delete');
+        }
+
+        try {
+            $callback();
+        } finally {
+            if ($driver === 'mysql') {
+                DB::unprepared("CREATE TRIGGER governance_election_dispute_events_no_update BEFORE UPDATE ON governance_election_dispute_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Election dispute events are append-only'");
+                DB::unprepared("CREATE TRIGGER governance_election_dispute_events_no_delete BEFORE DELETE ON governance_election_dispute_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Election dispute events are append-only'");
+            } elseif ($driver === 'pgsql') {
+                DB::unprepared('CREATE TRIGGER governance_election_dispute_events_no_mutation BEFORE UPDATE OR DELETE ON governance_election_dispute_events FOR EACH ROW EXECUTE FUNCTION arna_reject_election_dispute_event_mutation()');
+            } elseif ($driver === 'sqlite') {
+                DB::unprepared("CREATE TRIGGER governance_election_dispute_events_no_update BEFORE UPDATE ON governance_election_dispute_events BEGIN SELECT RAISE(ABORT, 'Election dispute events are append-only'); END");
+                DB::unprepared("CREATE TRIGGER governance_election_dispute_events_no_delete BEFORE DELETE ON governance_election_dispute_events BEGIN SELECT RAISE(ABORT, 'Election dispute events are append-only'); END");
             }
-            DB::table('governance_election_dispute_events')
-                ->where('tenant_id', $tenant->id)
-                ->where('election_id', $electionId)
-                ->where('subject_type', 'objection')
-                ->where('subject_id', $objectionId)
-                ->delete();
-            DB::table('governance_election_objections')->where('id', $objectionId)->delete();
-            DB::table('governance_elections')->where('id', $electionId)->delete();
-            DB::table('person_tenant_accesses')->where('person_id', $personId)->delete();
-            DB::table('people')->where('id', $personId)->delete();
-            $user->delete();
-            $tenant->delete();
         }
     }
 
