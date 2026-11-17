@@ -183,6 +183,13 @@ final class GovernanceElectionCommitteeSecurityService
         User $actor,
     ): object {
         $actorId = (int) $actor->getAuthIdentifier();
+        if ($tenantId < 1 || $electionId < 1 || !$this->authorization->hasPermission(
+            permissionSlug: 'governance.election.committee.conflict.declare',
+            user: $actor,
+            tenantId: $tenantId,
+        )) {
+            throw new AuthorizationException('Committee conflict-declaration permission is required in this tenant.');
+        }
 
         if (!in_array($conflictType, ['self', 'immediate_family', 'financial', 'professional', 'personal', 'other'], true)) {
             throw ValidationException::withMessages(['conflict_type' => 'Unsupported conflict category.']);
@@ -276,6 +283,14 @@ final class GovernanceElectionCommitteeSecurityService
         User $actor,
     ): void {
         $actorId = (int) $actor->getAuthIdentifier();
+        if ($tenantId < 1 || $electionId < 1 || $candidatePersonId < 1 || !$this->authorization->hasPermission(
+            permissionSlug: 'governance.election.committee.decide',
+            user: $actor,
+            tenantId: $tenantId,
+        )) {
+            throw new AuthorizationException('Committee decision permission is required in this tenant.');
+        }
+
         $member = DB::table('governance_election_committee_members')
             ->where('tenant_id', $tenantId)
             ->where('election_id', $electionId)
