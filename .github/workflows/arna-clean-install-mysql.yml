@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
-    # Include the active stacked People implementation PR base as well as main.
-    # This lets the same clean-install gate run automatically for PR #23.
-    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api]
+    # Include main, active stacked implementation PR bases, and the election
+    # integration branch. Dispute schema/service changes are included below.
+    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/board-election-core-integration-a3]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - "bootstrap/app.php"
@@ -29,6 +29,8 @@ on:
       - "tests/Feature/PersonApiIntegrationTest.php"
       - "tests/Feature/PersonIdentityMySqlConcurrencyTest.php"
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
+      - "tests/Feature/Governance/GovernanceElectionDisputeFoundationSchemaTest.php"
+      - "docs/governance/A3-OBJECTIONS-APPEALS-EVIDENCE-NEUTRAL-FOUNDATION.md"
       - "tests/Feature/OrganizationDomainTest.php"
       - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/**"
@@ -45,6 +47,7 @@ on:
       - "tests/Feature/TenantMembershipMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionDispute*.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
       - "mases_core/src/Domains/Loan/**"
@@ -84,6 +87,19 @@ jobs:
           - 3306:3306
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arna_dispute_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d arna_dispute_test"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=20
@@ -153,7 +169,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: bcmath, pcntl, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          extensions: bcmath, pcntl, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, pdo_pgsql, session, tokenizer, xml, zip
           tools: composer:v2
           coverage: none
 
@@ -244,6 +260,18 @@ jobs:
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
 
+      - name: Verify dispute immutability migration rollback and reapply on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: |
+          php artisan migrate:rollback --step=1 --force -vvv
+          php artisan migrate --force -vvv
+
       - name: Run tenant membership lifecycle and audit atomicity tests on MySQL
         env:
           DB_CONNECTION: mysql
@@ -309,6 +337,48 @@ jobs:
           DB_PASSWORD: root
         run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
 
+      - name: Run election dispute foundation schema regressions on migrated MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/Governance/GovernanceElectionDisputeFoundationSchemaTest.php
+
+      - name: Run full migrations on disposable PostgreSQL
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: "5432"
+          DB_DATABASE: arna_dispute_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+        run: php artisan migrate --force -vvv
+
+      - name: Verify dispute immutability migration rollback and reapply on PostgreSQL
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: "5432"
+          DB_DATABASE: arna_dispute_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+        run: |
+          php artisan migrate:rollback --step=1 --force -vvv
+          php artisan migrate --force -vvv
+
+      - name: Run election dispute immutability and evidence regressions on PostgreSQL
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: "5432"
+          DB_DATABASE: arna_dispute_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+        run: php artisan test --compact tests/Feature/Governance/GovernanceElectionDisputeFoundationSchemaTest.php
+
       - name: Run centralized notification tenant-isolation feature tests on MySQL
         if: ${{ hashFiles('tests/Feature/CentralNotificationsTest.php') != '' }}
         env:
@@ -368,14 +438,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates corporate_site_pages corporate_site_entries corporate_site_inquiries governance_election_committee_admins governance_election_committee_conflicts governance_election_committee_security_events governance_elections governance_election_register_snapshots governance_election_voters governance_election_nominations governance_election_ballots governance_election_tallies governance_election_committee_members governance_election_committee_decisions governance_election_candidate_feedback governance_election_candidate_preferences governance_election_voting_credentials governance_election_secret_ballots governance_election_manual_count_batches governance_election_manual_count_lines governance_election_nomination_submissions governance_election_objections governance_election_appeals governance_election_certifications; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates corporate_site_pages corporate_site_entries corporate_site_inquiries governance_election_committee_admins governance_election_committee_conflicts governance_election_committee_security_events governance_elections governance_election_register_snapshots governance_election_voters governance_election_nominations governance_election_ballots governance_election_tallies governance_election_committee_members governance_election_committee_decisions governance_election_candidate_feedback governance_election_candidate_preferences governance_election_voting_credentials governance_election_secret_ballots governance_election_manual_count_batches governance_election_manual_count_lines governance_election_nomination_submissions governance_election_objections governance_election_appeals governance_election_certifications governance_election_dispute_evidence governance_election_dispute_events; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 84
+          test "${applied}" -eq 86
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -417,7 +487,7 @@ jobs:
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 84
+          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 86
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -428,7 +498,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 84
+          test "${applied}" -eq 86
 
       # Run functional regressions before the dependency audit so unrelated
       # advisories do not suppress financial test evidence. The audit remains
