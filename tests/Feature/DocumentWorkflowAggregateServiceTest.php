@@ -92,7 +92,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             self::assertSame('draft', $workflow->fresh()->status);
         }
 
-        $this->expectException(NotFoundHttpException::class);
+        $this->expectException(ModelNotFoundException::class);
         $service->transition($actor, $tenantB, (int) $workflow->id, 'submit', 0);
     }
 
