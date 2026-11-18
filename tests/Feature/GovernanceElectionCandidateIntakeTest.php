@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -69,6 +70,52 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             'resource_id' => (string) $amended->id,
             'action' => 'governance.election.nomination.amended',
         ]);
+    }
+
+    public function test_self_nomination_is_derived_from_canonical_shareholder_person_identity(): void
+    {
+        $tenant = $this->tenant();
+        $admin = $this->user($tenant, 'self-admin@example.test');
+        $reviewer = $this->user($tenant, 'self-reviewer@example.test');
+        $verifier = $this->user($tenant, 'self-verifier@example.test');
+        $nominator = $this->user($tenant, 'self-nominator@example.test');
+        $person = $this->person($tenant, $nominator);
+        $shareholderId = $this->shareholder($tenant, $nominator, $person);
+        $this->grant($nominator, 'governance.election.nomination.submit');
+        [$election] = $this->verifiedElection($tenant, $admin, $reviewer, $verifier, 'SELF-' . $tenant->id);
+
+        $result = app(GovernanceElectionCandidateIntakeService::class)->submitNomination(
+            (int) $tenant->id, (int) $election->id, (int) $person->id,
+            $shareholderId, 'self-nomination-001', null, $nominator,
+        );
+
+        $this->assertTrue($result['nomination']->self_nomination);
+        $this->assertSame('shareholder', $result['candidate']->candidate_type);
+    }
+
+    public function test_suspended_tenant_member_cannot_submit_a_nomination(): void
+    {
+        $tenant = $this->tenant();
+        $admin = $this->user($tenant, 'suspended-admin@example.test');
+        $reviewer = $this->user($tenant, 'suspended-reviewer@example.test');
+        $verifier = $this->user($tenant, 'suspended-verifier@example.test');
+        $nominator = $this->user($tenant, 'suspended-nominator@example.test');
+        $nominatorPerson = $this->person($tenant, $nominator);
+        $candidatePerson = $this->person($tenant, null);
+        $shareholderId = $this->shareholder($tenant, $nominator, $nominatorPerson);
+        $this->grant($nominator, 'governance.election.nomination.submit');
+        [$election] = $this->verifiedElection($tenant, $admin, $reviewer, $verifier, 'SUSPENDED-' . $tenant->id);
+        $nominator->memberships()->update(['status' => 'suspended']);
+
+        try {
+            app(GovernanceElectionCandidateIntakeService::class)->submitNomination(
+                (int) $tenant->id, (int) $election->id, (int) $candidatePerson->id,
+                $shareholderId, 'suspended-nomination-001', null, $nominator,
+            );
+            $this->fail('A suspended tenant member must not submit a nomination.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseMissing('governance_election_candidates', ['election_id' => $election->id]);
+        }
     }
 
     public function test_nomination_window_and_active_shareholder_are_enforced(): void
