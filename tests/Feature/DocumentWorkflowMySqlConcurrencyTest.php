@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Storage;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Domains\\Documents\\Contracts\\DocumentWorkflowAuthorizer;
-use MaaleArna\\MASES\\Core\\Domains\\Documents\\Services\\DocumentWorkflowAggregateService;
-use MaaleArna\\MASES\\Core\\Domains\\Documents\\Services\\SodiumDocumentSignatureEvidenceVerifier;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException;
-use Tests\\TestCase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
+use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
+use MaaleArna\MASES\Core\Domains\Documents\Services\SodiumDocumentSignatureEvidenceVerifier;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Tests\TestCase;
 
 final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
 {
@@ -95,7 +95,7 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
         $signatureEvidence = [
             'key_id' => $keyId,
             'signature' => base64_encode(sodium_crypto_sign_detached($payload, $secretKey)),
-            'signed_at' => $signedAt->format('Y-m-d\\TH:i:s\\Z'),
+            'signed_at' => $signedAt->format('Y-m-d\TH:i:s\Z'),
         ];
 
         $release = tempnam(sys_get_temp_dir(), 'arna-doc-issue-release-');
@@ -114,7 +114,7 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
             foreach ([0, 1] as $index) {
                 $pid = pcntl_fork();
                 if ($pid === -1) {
-                    throw new \\RuntimeException('Unable to fork document issuance concurrency worker.');
+                    throw new \RuntimeException('Unable to fork document issuance concurrency worker.');
                 }
                 if ($pid === 0) {
                     DB::purge();
@@ -142,7 +142,7 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
                     } catch (ConflictHttpException) {
                         file_put_contents($results[$index], 'conflict');
                         exit(0);
-                    } catch (\\Throwable $exception) {
+                    } catch (\Throwable $exception) {
                         file_put_contents($results[$index], 'error:'.get_class($exception).':'.$exception->getMessage());
                         exit(3);
                     }
