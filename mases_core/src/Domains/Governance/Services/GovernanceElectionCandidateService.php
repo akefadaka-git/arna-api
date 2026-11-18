@@ -117,7 +117,7 @@ final class GovernanceElectionCandidateService
             }
             $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->lockForUpdate()->first();
             $now = now('UTC');
-            if ($now->lt($window->opens_at) || $now->gte($window->closes_at)) {
+            if (!$this->isWithinWindow($window)) {
                 throw new ConflictHttpException('The configured opening time has not arrived or the closing time has passed.');
             }
             if (!$election || !in_array($election->status, ['authorized', 'scheduled'], true)
@@ -156,7 +156,7 @@ final class GovernanceElectionCandidateService
             }
             $window->status = 'closed';
             $window->closed_by = (int) $actor->getAuthIdentifier();
-            $window->closed_at = now();
+            $window->closed_at = now('UTC');
             $window->closure_reason = trim($reason);
             $window->version = $expectedVersion + 1;
             $window->save();
@@ -192,8 +192,7 @@ final class GovernanceElectionCandidateService
             }
             $window = GovernanceElectionNominationWindow::query()->where('tenant_id', $tenantId)
                 ->where('election_id', $electionId)->lockForUpdate()->first();
-            $now = now('UTC');
-            if (!$window || $window->status !== 'open' || $now->lt($window->opens_at) || $now->gte($window->closes_at)
+            if (!$window || $window->status !== 'open' || !$this->isWithinWindow($window)
                 || !in_array($election->status, ['authorized', 'scheduled'], true)) {
                 throw new ConflictHttpException('The authoritative nomination window is not open.');
             }
@@ -279,9 +278,9 @@ final class GovernanceElectionCandidateService
                 'rule_set_version' => $window->rule_set_version,
                 'rule_set_digest' => $window->rule_set_digest,
                 'statement' => $statement,
-                'submitted_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
+                'submitted_at' => now('UTC'),
+                'created_at' => now('UTC'),
+                'updated_at' => now('UTC'),
             ]);
             $this->appendNominationEvent($tenantId, $electionId, (int) $candidate->id, $submissionId, 'submitted', $actor, [
                 'payload_digest' => $payloadDigest,
@@ -298,7 +297,7 @@ final class GovernanceElectionCandidateService
                 'candidate_id' => (int) $candidate->id,
                 'status' => 'submitted',
                 'self_nomination' => $selfNomination,
-                'submitted_at' => now()->toDateTimeString(),
+                'submitted_at' => now('UTC')->toDateTimeString(),
             ];
         });
     }
@@ -347,7 +346,7 @@ final class GovernanceElectionCandidateService
 
             $candidate->consent_status = 'accepted';
             $candidate->consent_method = $method;
-            $candidate->consented_at = now();
+            $candidate->consented_at = now('UTC');
             $candidate->consented_by = (int) $actor->getAuthIdentifier();
             $candidate->status = 'eligibility_pending';
             $candidate->version = (int) $candidate->version + 1;
@@ -442,9 +441,9 @@ final class GovernanceElectionCandidateService
                 'evidence_references' => json_encode($evidence, JSON_THROW_ON_ERROR),
                 'decided_by' => $actor->getAuthIdentifier(),
                 'aggregate_version' => $nextVersion,
-                'decided_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
+                'decided_at' => now('UTC'),
+                'created_at' => now('UTC'),
+                'updated_at' => now('UTC'),
             ]);
             $candidate->status = $outcome;
             $candidate->version = $nextVersion;
@@ -517,8 +516,10 @@ final class GovernanceElectionCandidateService
             }
             $withdrawn = DB::table('governance_election_nomination_events')->where('nomination_submission_id', $submissionId)
                 ->where('event_type', 'withdrawn')->exists();
-            if ($withdrawn) {
-                throw new ConflictHttpException('A withdrawn nomination cannot be corrected.');
+            $window = GovernanceElectionNominationWindow::query()->where('tenant_id', $tenantId)
+                ->where('election_id', $electionId)->first();
+            if ($withdrawn || !$window || $window->status !== 'open' || !$this->isWithinWindow($window)) {
+                throw new ConflictHttpException('A withdrawn nomination or a nomination outside the open correction window cannot be corrected.');
             }
             $this->appendNominationEvent($tenantId, $electionId, (int) $submission->candidate_id, $submissionId, 'corrected', $actor, [
                 'statement' => $statement,
@@ -598,9 +599,9 @@ final class GovernanceElectionCandidateService
             'evidence_type' => $evidenceType,
             'metadata_digest' => $metadataDigest,
             'attached_by' => $actor->getAuthIdentifier(),
-            'attached_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
+            'attached_at' => now('UTC'),
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
         ]);
         $this->appendCandidateEvent($tenantId, $electionId, (int) $candidate->id, 'candidate.evidence.attached', $actor, [
             'evidence_id' => $id,
@@ -609,6 +610,15 @@ final class GovernanceElectionCandidateService
             'metadata_digest' => $metadataDigest,
         ]);
         return DB::table('governance_election_candidate_evidence')->where('id', $id)->first();
+    }
+
+    private function isWithinWindow(GovernanceElectionNominationWindow $window): bool
+    {
+        $utc = new \DateTimeZone('UTC');
+        $opensAt = new \DateTimeImmutable((string) $window->getRawOriginal('opens_at'), $utc);
+        $closesAt = new \DateTimeImmutable((string) $window->getRawOriginal('closes_at'), $utc);
+        $now = new \DateTimeImmutable('now', $utc);
+        return $now >= $opensAt && $now < $closesAt;
     }
 
     private function hasActiveNomination(int $tenantId, int $electionId, int $candidateId): bool
@@ -638,9 +648,9 @@ final class GovernanceElectionCandidateService
             'event_type' => $eventType,
             'actor_user_id' => $actor->getAuthIdentifier(),
             'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
-            'occurred_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
+            'occurred_at' => now('UTC'),
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
         ]);
     }
 
@@ -665,9 +675,9 @@ final class GovernanceElectionCandidateService
             'event_type' => $eventType,
             'actor_user_id' => $actor->getAuthIdentifier(),
             'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
-            'occurred_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
+            'occurred_at' => now('UTC'),
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
         ]);
     }
 
@@ -684,9 +694,9 @@ final class GovernanceElectionCandidateService
             'event_type' => $eventType,
             'actor_user_id' => $actor->getAuthIdentifier(),
             'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
-            'occurred_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
+            'occurred_at' => now('UTC'),
+            'created_at' => now('UTC'),
+            'updated_at' => now('UTC'),
         ]);
     }
 
