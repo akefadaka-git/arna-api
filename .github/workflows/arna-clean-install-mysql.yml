@@ -249,7 +249,7 @@ jobs:
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
 
-      - name: Run election committee security and tenant-isolation tests on migrated MySQL
+      - name: Run election committee security, authority and tenant-isolation tests on migrated MySQL
         env:
           DB_CONNECTION: mysql
           DB_DATABASE: arna_migration_test

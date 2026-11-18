@@ -92,7 +92,7 @@ final class GovernanceElectionAuthorityController extends Controller
     {
         $tenantId = $this->tenantId();
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
-        Gate::authorize('view', $governanceElection);
+        Gate::authorize('reviewAuthorityEvidence', $governanceElection);
 
         $evidence = $governanceElection->authorityEvidence()
             ->where('tenant_id', $tenantId)
