@@ -33,7 +33,7 @@ declare(strict_types=1);
  *
  *   What the seeder writes:
  *
- *     · 36 tenant-scoped permissions with the `governance.` prefix.
+ *     · 41 tenant-scoped permissions with the `governance.` prefix.
  *       Each carries `scope = 'tenant'`, `tenant_id = null`,
  *       `application_id = null`, `is_active = true`,
  *       `is_system = true`.
@@ -46,7 +46,7 @@ declare(strict_types=1);
  *       other six `app.*.access` rows, all of which are
  *       `is_system = 0` except `app.admin.access`.
  *
- *   Total: 37 permission rows.
+ *   Total: 42 permission rows.
  *
  *   What the seeder deliberately does NOT do:
  *
@@ -88,7 +88,7 @@ declare(strict_types=1);
  * seeder writes.
  *
  * =============================================================================
- * The 36-slug inventory (by group)
+ * The 41-slug inventory (by group)
  * =============================================================================
  * Grouped by the resource noun the slug addresses. Counts:
  *
@@ -103,17 +103,17 @@ declare(strict_types=1);
  *     governance.action        4  (view, create, manage, verify)
  *     governance.delegation    2  (view, manage)
  *     governance.declaration   2  (view, manage)
- *     governance.election      2  (view, manage)
+ *     governance.election      7  (view, manage, authorize, schedule, suspend, cancel, archive)
  *     governance.document      3  (view, upload, download)
  *     governance.report        2  (view, generate)
  *                              ──
- *                              36
+ *                              41
  *
  * Plus:
  *
  *     app.governance.access    1  (application-scoped launcher gate)
  *                              ──
- *                              37 total
+ *                              42 total
  *
  * The `verify` verb on the action group is the only verb in the
  * inventory that is not one of the four standard verbs (view,
@@ -651,6 +651,36 @@ final class GovernancePermissionsSeeder extends Seeder
             'slug'     => 'governance.election.manage',
             'name_am'  => 'ምርጫዎችን ማስተዳደር',
             'name_en'  => 'Manage elections',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.authorize',
+            'name_am'  => 'ምርጫን ማጽደቅ',
+            'name_en'  => 'Authorize elections',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.schedule',
+            'name_am'  => 'የምርጫ መርሐ ግብር ማውጣት',
+            'name_en'  => 'Schedule elections',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.suspend',
+            'name_am'  => 'ምርጫን ማገድ እና ማስቀጠል',
+            'name_en'  => 'Suspend and resume elections',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.cancel',
+            'name_am'  => 'ምርጫን መሰረዝ',
+            'name_en'  => 'Cancel elections',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.archive',
+            'name_am'  => 'ምርጫን ወደ ማህደር ማስገባት',
+            'name_en'  => 'Archive elections',
             'category' => 'governance',
         ],
 
