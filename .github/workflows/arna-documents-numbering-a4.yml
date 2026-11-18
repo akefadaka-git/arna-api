@@ -111,7 +111,14 @@ jobs:
         run: |
           vendor/bin/pint database/migrations/2026_11_18_000001_create_documents_registry_and_numbering_tables.php mases_core/src/Domains/Documents/Services/DocumentNumberAllocator.php mases_core/src/Domains/Documents/Services/DocumentNumberFormatter.php tests/Unit/Documents/DocumentNumberAllocatorTest.php tests/Unit/Documents/DocumentNumberAllocatorTransactionGuardTest.php tests/Unit/Documents/DocumentNumberingContractTest.php tests/Unit/Documents/DocumentNumberingSchemaTest.php
           vendor/bin/pint --test database/migrations/2026_11_18_000001_create_documents_registry_and_numbering_tables.php mases_core/src/Domains/Documents/Services/DocumentNumberAllocator.php mases_core/src/Domains/Documents/Services/DocumentNumberFormatter.php tests/Unit/Documents/DocumentNumberAllocatorTest.php tests/Unit/Documents/DocumentNumberAllocatorTransactionGuardTest.php tests/Unit/Documents/DocumentNumberingContractTest.php tests/Unit/Documents/DocumentNumberingSchemaTest.php
-          git diff --binary > documents-pint-fixes.patch
+          mkdir -p pint-output
+          cp database/migrations/2026_11_18_000001_create_documents_registry_and_numbering_tables.php pint-output/
+          cp mases_core/src/Domains/Documents/Services/DocumentNumberAllocator.php pint-output/
+          cp mases_core/src/Domains/Documents/Services/DocumentNumberFormatter.php pint-output/
+          cp tests/Unit/Documents/DocumentNumberAllocatorTest.php pint-output/
+          cp tests/Unit/Documents/DocumentNumberAllocatorTransactionGuardTest.php pint-output/
+          cp tests/Unit/Documents/DocumentNumberingContractTest.php pint-output/
+          cp tests/Unit/Documents/DocumentNumberingSchemaTest.php
 
       - name: Run all migrations on clean MySQL
         run: php artisan migrate:fresh --force -vvv
