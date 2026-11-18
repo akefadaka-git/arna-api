@@ -129,6 +129,10 @@ jobs:
         id: module2_tests
         run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCandidateIntakeTest.php
 
+      - name: Run true parallel nomination race regression on MySQL
+        id: nomination_concurrency
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionNominationConcurrencyTest.php
+
       - name: Run committee conflict and tenant-security regressions on MySQL
         id: committee_tests
         run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
@@ -155,6 +159,7 @@ jobs:
         env:
           FRESH_MIGRATIONS: ${{ steps.fresh_migrations.outcome }}
           MODULE2_TESTS: ${{ steps.module2_tests.outcome }}
+          NOMINATION_CONCURRENCY: ${{ steps.nomination_concurrency.outcome }}
           COMMITTEE_TESTS: ${{ steps.committee_tests.outcome }}
           MODULE1_TESTS: ${{ steps.module1_tests.outcome }}
           MIGRATION_IDEMPOTENCE: ${{ steps.migration_idempotence.outcome }}
@@ -172,6 +177,7 @@ jobs:
             echo "checked_out_sha=$(git rev-parse HEAD)"
             echo "fresh_mysql_migrations=${FRESH_MIGRATIONS:-not_run}"
             echo "module2_candidate_tests=${MODULE2_TESTS:-not_run}"
+            echo "nomination_concurrency_regression=${NOMINATION_CONCURRENCY:-not_run}"
             echo "committee_security_regressions=${COMMITTEE_TESTS:-not_run}"
             echo "module1_lifecycle_regressions=${MODULE1_TESTS:-not_run}"
             echo "migration_idempotence=${MIGRATION_IDEMPOTENCE:-not_run}"
