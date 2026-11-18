@@ -85,7 +85,7 @@ The A3.2 migration now creates:
 
 Composite foreign keys bind code assignments to the same tenant, legal entity and Organization unit. The migration adds the required parent key for the legal-entity/Organization-unit pair and preserves the same-tenant File Management reference. The A2 PR #53 old/v2 counter migration pair remains excluded.
 
-The allocator resolves EE and DD from active code-assignment records; callers cannot supply or override issuer codes. It validates active tenant/entity/unit/type, requires the issuance transaction, locks issuer and counter records, and fails closed on missing assignments or sequence exhaustion. The formatter emits exactly `ማዓ/EE/DD/TT/YYYY/NNNN`, with 01–99 issuer codes, a four-digit full EC year and a four-digit sequence.
+The allocator resolves EE and DD from active code-assignment records; callers cannot supply or override issuer codes. It validates active tenant/entity/unit/type, requires the issuance transaction, locks issuer and counter records, and fails closed on missing assignments or sequence exhaustion. The formatter emits exactly `ማዓ/EE/DD/TT/YYYY/NNNN`, with 01–99 issuer codes, a four-digit full EC year and a four-digit sequence. The exact-SHA workflow includes PHP lint, Composer validation, Pint formatting, clean MySQL migration, catalogue/FK assertions, focused Documents tests and migration rerun.
 
 No legal entity or department code is preassigned by this migration. Code assignments must be created only after the Organization registry and supporting legal evidence are approved. The code-assignment rows are separate from the source Organization identifiers so the numbering standard does not overload or mutate existing business codes.
 
