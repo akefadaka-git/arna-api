@@ -476,13 +476,13 @@ final class GovernanceAuthorityGrantTest extends TestCase
         ]);
         $this->grantee->permissions()->attach($permission->id, ['assigned_at' => now()]);
 
-        $this->service->grant($this->administrator, (int) $this->tenant->id, [
+        $this->postJson(route('api.governance.authority-grants.store'), [
             'governance_position_id' => (int) $this->position->id,
             'grantee_person_id' => (int) $this->granteePerson->id,
             'action' => 'documents.approve',
             'effective_from' => CarbonImmutable::today()->toDateString(),
             'reason' => 'Board-authorized document approval delegation',
-        ]);
+        ])->assertCreated();
 
         $authorization = app(DocumentWorkflowAuthorizationService::class);
         $this->assertTrue($authorization->allowsGovernedAction(
