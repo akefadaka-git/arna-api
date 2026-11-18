@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Documents\\Services;
+namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 
-use Illuminate\\Support\\Facades\\Storage;
-use Illuminate\\Support\\Str;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -35,7 +35,7 @@ final class ImmutableDocumentBinaryStore
         $targetDisk = Storage::disk($targetDiskName);
         try {
             $root = $targetDisk->path('');
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             fclose($source);
             throw new RuntimeException('The configured evidence disk does not support local write-once semantics.', 0, $exception);
         }
@@ -83,7 +83,7 @@ final class ImmutableDocumentBinaryStore
             if (function_exists('fsync')) {
                 fsync($output);
             }
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             fclose($source);
             fclose($output);
             @unlink($temporary);
@@ -119,7 +119,7 @@ final class ImmutableDocumentBinaryStore
         try {
             $filesystem = Storage::disk($disk);
             $absolute = $filesystem->path($path);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return false;
         }
 
