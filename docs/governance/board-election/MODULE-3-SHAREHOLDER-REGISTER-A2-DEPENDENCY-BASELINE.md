@@ -399,3 +399,68 @@ Before A3 implementation, the design must specify the normalized database schema
 
 **Disposition:** Owner architecture direction RECORDED. Existing seeder confirmed as static bootstrap data, not accepted as the live runtime source of truth. Database/policy-driven implementation is a binding A3 design constraint. No runtime code, migration, seed data, production data, main branch, merge, or deployment is changed by this A2 documentation amendment.
 
+## 12. A2 technical inspection — database, configuration, and policy gaps
+
+This inspection was performed against the A2 branch after the Owner's database/policy-driven direction. It is read-only. It identifies which existing capabilities can be reused and which current implementation details must not be carried forward as authoritative Module 3 rules.
+
+### 12.1 Existing database-backed capabilities
+
+| Existing component | Verified capability | Module 3 assessment |
+|---|---|---|
+| `shareholders` / `Shareholder` | Persisted holder identity, type, individual/entity names, user and representative links, active flag, soft-delete timestamps | Reuse as an identity foundation, but it is not yet a complete Article 274 register |
+| `share_holdings` / `ShareHolding` | Current quantity projection per shareholder and share class | Reuse only as a current-state projection |
+| `share_holding_entries` / `ShareHoldingEntry` | Append-only signed quantity ledger, before/after balances, business-effective `occurred_at`, references and reversal link | Reuse as historical quantity source, subject to transfer-operation gap below |
+| `share_certificates` | Certificate number, status, issue/cancellation times and links to holder/class/holding | Reuse as certificate lifecycle foundation; it does not itself preserve certified quantity or primary certificate evidence |
+| `versioned_policies` / `VersionedPolicyRegistry` | Append-only, immutable policy versions with type, version, effective window and opaque JSON payload | Potential policy storage foundation; not yet a complete approved legal-policy registry |
+
+The shareholder identity table currently has no direct address field, share serial/numeration field, paid-up amount, or register-entry date. Its present columns therefore do not independently satisfy the full Article 274 register particulars. Current holdings and ledger rows are separate from identity, as they should be.
+
+### 12.2 Existing configuration and seeder hard-coding that must be removed from legal decision paths
+
+The current shareholder domain configuration is not yet fully database/policy-driven:
+
+- `Config/shareholder.php` declares `FOUNDERS` and `STANDARD` class codes, a default class, and a founder class code.
+- The same config declares ETB 10,000 par value and ETB currency; six shareholder types; representative requirements and a one-active-representative cap; quantity/fractional-share rules; and ledger entry-type vocabulary.
+- The configuration's explanatory text embeds the 29-founder / 145-share figure as a seed/reference fact.
+- `ShareClassSeeder.php` contains a PHP constant with the two class codes and bilingual labels, then applies the configured par value/currency to both rows.
+- `ShareholderRegister.php` contains the 100 static identity rows, and `ShareholderSeeder.php` materializes them and derives usernames/emails.
+
+These files are legitimate places to hold bootstrap fixtures and technical enum/validation vocabulary where appropriate. They are **not** acceptable authorities for current holder facts, registered share-class rights, par-value history, founder eligibility, ownership, or election entitlement. Module 3 must not treat `FOUNDERS` as proof of a legally distinct class or infer a voting right from the seed label. Legal/economic parameters must be loaded from approved, effective-dated database records whose provenance points to the governing instrument. Where the instrument is unavailable, the rule remains unresolved and entitlement must fail closed.
+
+### 12.3 Existing generic policy capability is insufficient without extension/contract
+
+The current `versioned_policies` table stores `policy_type`, `version`, `effective_from`, `effective_until`, and opaque `payload`; its migration documents the currently declared types as `kyc`, `interest`, and `allocation`. `VersionedPolicyRegistry` creates append-only versions and resolves temporal applicability, while the model prevents updates/deletes.
+
+This is useful infrastructure, but it does not currently establish a shareholder-voting policy contract. The table has no first-class authority instrument, clause/reference, approval actor/body, approval timestamp/resolution, evidence attachment/hash, supersession reason, or publication state. The registry also does not validate a consumer-specific payload schema. A future voting policy must therefore add a validated domain contract and auditable approval/provenance layer; it must not accept an arbitrary JSON payload as legally approved policy.
+
+### 12.4 Additional domain integrity gaps relevant to the target architecture
+
+1. **Transfers:** the ledger service posts a single holding entry per call. `transfer_out` and `transfer_in` are valid entry types, but the inspected public API does not expose one atomic transfer aggregate that debits the transferor and credits the transferee under one immutable transfer identity and one transaction. A shared free-form reference is not proof of a valid transfer instrument or paired posting.
+2. **Representatives:** the shareholder row stores only the current representative user link. The event/audit mechanism is not a temporal mandate register and does not itself establish appointment authority, effective dates, revocation or replacement evidence.
+3. **Audit failure mode:** `AuditShareholderEvent::handle()` catches `Throwable`, logs, and returns after the business transaction has committed. This is fail-open. It is not sufficient as the sole mandatory evidence trail for legal-register amendments, transfers, mandate changes, policy approval or election snapshot approval.
+4. **Share classes and rights:** the current ShareClass model stores code, bilingual labels, par value, currency, active and treasury flags; no class-specific voting rights, vote multipliers, caps or restrictions are represented.
+5. **Certificates:** the certificate table records lifecycle metadata but has no quantity snapshot or explicit cryptographic/evidence-verification contract. A certificate row alone cannot prove a signed original instrument.
+6. **Temporal register facts:** `is_active` and soft deletion are current-state fields, not effective-dated legal status history. Historical record-date reconstruction cannot rely on these fields alone.
+
+### 12.5 Reconciliation of the 100 application rows to the historical 29-person schedule
+
+The 100-row application dataset is confirmed at `database/seeders/Data/ShareholderRegister.php` (blob `8e387599ab75db23d58db963b56a96df5d6c67b5`). It contains 98 individual rows and two entity rows (SH-0023 Maale Hibret and SH-0088 Sarangi), each with identity/name and free-form address data. It does not carry per-holder share quantity, share class, paid-up amount, certificate, register-entry date, or transfer history.
+
+The recovered 17-page bylaws transcription records 29 entries on printed pages 9–10 and aggregate figures on page 11 (29 holders, 5 shares each, 145 shares, ETB 10,000 nominal value, ETB 1,023,000 paid and ETB 427,000 unpaid). However, that transcription explicitly records the 29 names and individual allocation rows as **not transcribed**; the original scanned pages remain necessary for exact matching. The available text therefore supports an aggregate comparison only, not a defensible 29-to-100 identity join. Do not infer matches from similar names, signature lists, seeder ordering, or the first 29 SH-IDs.
+
+**Current reconciliation result:** 100 application identity rows FOUND; 29 historical schedule rows COUNT/AGGREGATES FOUND; exact identity crosswalk NOT POSSIBLE from currently recovered text; per-holder share/payment match NOT POSSIBLE; additional 71 rows are not thereby proven later shareholders or invalid holders. The statutory head-office register and original Memorandum remain independent evidence requirements.
+
+### 12.6 Required A3 design consequences (not implementation authorization)
+
+The eventual design must:
+- make the database register the only operational source for holder facts and ownership;
+- store share classes, economic terms, legal rights, and meeting-specific rules as governed records, with policy versions and evidence-backed approvals;
+- model shareholder address and all Article 274 particulars, certificate particulars, effective-dated identity/status/mandate events, and full transfer instruments;
+- implement paired transfer postings atomically, with one transfer aggregate, immutable instrument evidence, and ledger reconciliation;
+- provide a fail-closed mandatory audit/outbox or same-transaction evidence mechanism for legally material operations;
+- validate policy payloads against a versioned shareholder-voting schema and require authority/evidence/approval provenance before a policy can be applied;
+- calculate entitlement from the approved policy plus database facts at a defined record date, then persist an immutable, reproducible snapshot and exceptions;
+- isolate seeders to fixtures or explicitly approved import paths, with no silent overwrite of live legal records.
+
+**A2 disposition:** existing database foundations FOUND; full Article 274 register schema PARTIAL; generic versioned-policy infrastructure FOUND but voting-policy governance MISSING; hard-coded bootstrap/config values IDENTIFIED and must not govern legal/election outcomes; 29-to-100 identity crosswalk UNRESOLVED because source names/rows are not transcribed; transfer pairing, effective-dated mandate history and fail-closed legal audit MISSING. No runtime code, migration, test, seed data, production data, main branch, merge or deployment was changed by this inspection or this documentation update.
+
