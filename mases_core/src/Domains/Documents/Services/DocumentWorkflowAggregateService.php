@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
+use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentSignatureEvidenceVerifier;
 use MaaleArna\MASES\Core\Domains\Documents\Models\Document;
 use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentLifecycleEvent;
 use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentWorkflowAggregate;
