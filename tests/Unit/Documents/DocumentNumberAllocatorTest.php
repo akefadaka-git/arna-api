@@ -6,7 +6,6 @@ namespace Tests\Unit\Documents;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use LogicException;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentNumberAllocator;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentNumberFormatter;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -22,7 +21,7 @@ final class DocumentNumberAllocatorTest extends TestCase
     public function it_allocates_and_increments_the_exact_entity_department_type_and_ec_year_scope(): void
     {
         [$tenantId, $entityId, $unitId] = $this->registeredIssuer('01', '03');
-        $allocator = new DocumentNumberAllocator(new DocumentNumberFormatter());
+        $allocator = new DocumentNumberAllocator(new DocumentNumberFormatter);
 
         $first = DB::transaction(fn () => $allocator->allocate($tenantId, $entityId, $unitId, 'INV', 2019));
         $second = DB::transaction(fn () => $allocator->allocate($tenantId, $entityId, $unitId, 'INV', 2019));
@@ -43,7 +42,7 @@ final class DocumentNumberAllocatorTest extends TestCase
     {
         [$tenantId, $entityId, $unitId] = $this->registeredIssuer('01', '03');
         $otherUnitId = $this->registerDepartment($tenantId, $entityId, '04');
-        $allocator = new DocumentNumberAllocator(new DocumentNumberFormatter());
+        $allocator = new DocumentNumberAllocator(new DocumentNumberFormatter);
 
         $first = DB::transaction(fn () => $allocator->allocate($tenantId, $entityId, $unitId, 'LET', 2019));
         $other = DB::transaction(fn () => $allocator->allocate($tenantId, $entityId, $otherUnitId, 'LET', 2019));
@@ -71,7 +70,7 @@ final class DocumentNumberAllocatorTest extends TestCase
         ]);
 
         $this->expectException(ConflictHttpException::class);
-        DB::transaction(fn () => (new DocumentNumberAllocator(new DocumentNumberFormatter()))
+        DB::transaction(fn () => (new DocumentNumberAllocator(new DocumentNumberFormatter))
             ->allocate($tenantId, $entityId, $unitId, 'LET', 2019));
     }
 
@@ -100,7 +99,7 @@ final class DocumentNumberAllocatorTest extends TestCase
         ]);
 
         $this->expectException(ConflictHttpException::class);
-        DB::transaction(fn () => (new DocumentNumberAllocator(new DocumentNumberFormatter()))
+        DB::transaction(fn () => (new DocumentNumberAllocator(new DocumentNumberFormatter))
             ->allocate((int) $tenant->id, $entityId, $unitId, 'LET', 2019));
     }
 
@@ -110,7 +109,7 @@ final class DocumentNumberAllocatorTest extends TestCase
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $entityId = DB::table('legal_entities')->insertGetId([
             'tenant_id' => $tenant->id,
-            'code' => 'ENTITY-' . $entityCode,
+            'code' => 'ENTITY-'.$entityCode,
             'name_en' => 'Test Legal Entity',
             'base_currency' => 'ETB',
             'status' => 'active',
@@ -120,7 +119,7 @@ final class DocumentNumberAllocatorTest extends TestCase
         $unitId = DB::table('organization_units')->insertGetId([
             'tenant_id' => $tenant->id,
             'legal_entity_id' => $entityId,
-            'code' => 'UNIT-' . $departmentCode,
+            'code' => 'UNIT-'.$departmentCode,
             'unit_type' => 'department',
             'name_en' => 'Test Department',
             'status' => 'active',
@@ -147,9 +146,9 @@ final class DocumentNumberAllocatorTest extends TestCase
             $unitId = DB::table('organization_units')->insertGetId([
                 'tenant_id' => $tenantId,
                 'legal_entity_id' => $entityId,
-                'code' => 'UNIT-' . $departmentCode,
+                'code' => 'UNIT-'.$departmentCode,
                 'unit_type' => 'department',
-                'name_en' => 'Department ' . $departmentCode,
+                'name_en' => 'Department '.$departmentCode,
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),

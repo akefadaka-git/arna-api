@@ -15,7 +15,7 @@ final class DocumentNumberingContractTest extends TestCase
     #[Test]
     public function it_formats_the_canonical_amharic_number_with_all_six_segments(): void
     {
-        $formatter = new DocumentNumberFormatter();
+        $formatter = new DocumentNumberFormatter;
 
         $this->assertSame('ማዓ/01/03/04/2019/0001', $formatter->format('01', '03', 'INV', 2019, 1));
         $this->assertSame('ማዓ/99/12/15/2000/9999', $formatter->format('99', '12', 'RCT', 2000, 9999));
@@ -35,7 +35,7 @@ final class DocumentNumberingContractTest extends TestCase
     #[Test]
     public function it_rejects_invalid_entity_department_type_sequence_and_year_values(): void
     {
-        $formatter = new DocumentNumberFormatter();
+        $formatter = new DocumentNumberFormatter;
 
         foreach ([
             ['00', '03', 'INV', 2019, 1],

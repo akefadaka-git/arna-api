@@ -7,9 +7,9 @@ namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use LogicException;
+use MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
-use MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry;
 
 /**
  * Allocates within tenant + EE + DD + TT + full EC year.
@@ -17,9 +17,7 @@ use MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry;
  */
 final class DocumentNumberAllocator
 {
-    public function __construct(private readonly DocumentNumberFormatter $formatter)
-    {
-    }
+    public function __construct(private readonly DocumentNumberFormatter $formatter) {}
 
     /**
      * @return array{
@@ -141,7 +139,7 @@ final class DocumentNumberAllocator
             ->lockForUpdate()
             ->first();
 
-        if ($counter === null || !(bool) $counter->is_active) {
+        if ($counter === null || ! (bool) $counter->is_active) {
             throw new ConflictHttpException('The canonical numbering scope is unavailable or disabled.');
         }
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 
 use InvalidArgumentException;
-use MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry;
+use MaaleArna\MASES\Core\Domains\Domains\Documents\Registries\DocumentTypeRegistry;
 
 /**
  * Formats the canonical ARNA identifier: ማዓ/EE/DD/TT/YYYY/NNNN.
@@ -13,20 +13,21 @@ use MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry;
 final class DocumentNumberFormatter
 {
     public const PREFIX = 'ማዓ';
+
     public const MAX_SEQUENCE = 9999;
 
     public function format(
         string $entityCode,
         string $departmentCode,
         string $documentTypeCode,
-        int $ethiopianYear,
+        int $ethopianYear,
         int $sequence,
     ): string {
         $entity = $this->normalizeIssuerCode($entityCode, 'EE');
         $department = $this->normalizeIssuerCode($departmentCode, 'DD');
         $type = DocumentTypeRegistry::numericCode($documentTypeCode);
 
-        if ($ethiopianYear < 1000 || $ethiopianYear > 9999) {
+        if ($ethiopianYear < 1000 || $ethopianYear > 9999) {
             throw new InvalidArgumentException('The full Ethiopian Calendar year must contain exactly four digits.');
         }
 
@@ -40,8 +41,8 @@ final class DocumentNumberFormatter
     private function normalizeIssuerCode(string $code, string $segment): string
     {
         $normalized = trim($code);
-        if (!preg_match('/^(0[1-9]|[1-9][0-9])$/', $normalized)) {
-            throw new InvalidArgumentException($segment . ' must be a registered two-digit code from 01 to 99.');
+        if (! preg_match('/^(0[1-9]|[1-9][0-9])$/', $normalized)) {
+            throw new InvalidArgumentException($segment.' must be a registered two-digit code from 01 to 99.');
         }
 
         return $normalized;

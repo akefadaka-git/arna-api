@@ -18,7 +18,7 @@ final class DocumentNumberAllocatorTransactionGuardTest extends TestCase
         $this->assertSame(0, app('db')->connection()->transactionLevel());
 
         $this->expectException(LogicException::class);
-        (new DocumentNumberAllocator(new DocumentNumberFormatter()))
+        (new DocumentNumberAllocator(new DocumentNumberFormatter))
             ->allocate(1, 1, 1, 'LET', 2019);
     }
 }

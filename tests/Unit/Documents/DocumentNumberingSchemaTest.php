@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Documents;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
@@ -75,7 +75,7 @@ final class DocumentNumberingSchemaTest extends TestCase
         $tenant = $tenantId ?? (int) Tenant::factory()->create(['is_active' => true])->id;
         $entityId = DB::table('legal_entities')->insertGetId([
             'tenant_id' => $tenant,
-            'code' => 'LEGAL-' . uniqid(),
+            'code' => 'LEGAL-'.uniqid(),
             'name_en' => 'Test Legal Entity',
             'base_currency' => 'ETB',
             'status' => 'active',
@@ -91,7 +91,7 @@ final class DocumentNumberingSchemaTest extends TestCase
         return DB::table('organization_units')->insertGetId([
             'tenant_id' => $tenantId,
             'legal_entity_id' => $entityId,
-            'code' => $code . '-' . uniqid(),
+            'code' => $code.'-'.uniqid(),
             'unit_type' => 'department',
             'name_en' => $code,
             'status' => 'active',
