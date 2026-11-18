@@ -11,7 +11,7 @@ final class GovernanceElectionNominationWindow extends Model
 {
     protected $table = 'governance_election_nomination_windows';
 
-    protected $guarded = ['id', 'tenant_id', 'election_id', 'version', 'created_at', 'updated_at'];
+    protected $guarded = ['id', 'created_at', 'updated_at'];
 
     protected function casts(): array
     {
