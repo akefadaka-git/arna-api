@@ -122,7 +122,7 @@ final class GovernanceElectionCandidateService
             }
             if (!$election || !in_array($election->status, ['authorized', 'scheduled'], true)
                 || !hash_equals((string) $election->rule_set_version, (string) $window->rule_set_version)
-                || !hash_equals((string) $election->rule_set_digest, (string) $window->rule_set_digest)) {
+                || !hash_equals(strtolower((string) $election->rule_set_digest), strtolower((string) $window->rule_set_digest))) {
                 throw new ConflictHttpException('Election authority or rule-set evidence no longer matches the configured nomination window.');
             }
             $window->status = 'open';
@@ -538,6 +538,7 @@ final class GovernanceElectionCandidateService
             ->with([
                 'person:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en',
                 'nominations:id,candidate_id,status,self_nomination,statement,submitted_at',
+                'nominations.events:id,nomination_submission_id,sequence,event_type,payload,occurred_at',
                 'evidence:id,candidate_id,evidence_type,attached_at',
                 'decisions:id,candidate_id,outcome,rationale,rule_set_version,decided_at',
             ])
