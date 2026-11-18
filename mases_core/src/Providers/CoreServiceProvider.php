@@ -16,7 +16,7 @@ use MaaleArna\MASES\Core\Auth\Events\FailedLogin;
 use MaaleArna\MASES\Core\Authorization\Events\RolePermissionsChanged;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Events\AuthorizationFailureEvent;
-use MaaleArna\MASES\Core\Files\Services\FileService;
+use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceEntityMappingResolver;
 use MaaleArna\MASES\Core\Listeners\InvalidateAuthorizationCacheListener;
@@ -247,6 +247,13 @@ final class CoreServiceProvider extends ServiceProvider
             static fn($app): FileService => new FileService(
                 $app->make(AuditService::class)
             )
+        );
+
+        // Preserve the legacy Core\\Files service identifier as a container
+        // alias. There is one implementation and one singleton instance.
+        $this->app->alias(
+            FileService::class,
+            \\MaaleArna\\MASES\\Core\\Files\\Services\\FileService::class
         );
 
         // --- Finance source-reference validation ----------------------------
