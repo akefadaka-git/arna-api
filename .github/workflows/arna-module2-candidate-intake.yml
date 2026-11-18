@@ -177,7 +177,7 @@ jobs:
             echo "migration_idempotence=${MIGRATION_IDEMPOTENCE:-not_run}"
             echo "composer_security_audit=${COMPOSER_AUDIT:-not_run}"
             echo "php_version=$(php -r 'echo PHP_VERSION;')"
-            echo "composer_version=$(composer --version --no-ansi)"
+            echo "composer_version=$(composer --version --no-ansi 2>/dev/null || echo not_installed)"
             echo "migration_status:"
             php artisan migrate:status --no-ansi
           } > storage/logs/age-module2-verification.txt
