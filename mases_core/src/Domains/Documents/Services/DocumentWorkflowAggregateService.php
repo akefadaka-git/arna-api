@@ -190,14 +190,50 @@ final class DocumentWorkflowAggregateService
                 $metadata = ['issued_document_id' => $documentId];
             }
 
+            if ($action === 'revoke') {
+                $issued = Document::query()->where('tenant_id', $tenantId)
+                    ->whereKey((int) $workflow->issued_document_id)->where('status', 'issued')
+                    ->lockForUpdate()->first();
+                if ($issued === null) {
+                    throw new ConflictHttpException('The linked issued document is missing or is no longer revocable.');
+                }
+                $issued->status = 'revoked';
+                $issued->revoked_by = $actor->getKey();
+                $issued->revoked_at = $now;
+                $issued->revoke_reason = trim((string) $reason);
+                $issued->save();
+                DocumentLifecycleEvent::query()->create([
+                    'document_id' => $issued->getKey(),
+                    'tenant_id' => $tenantId,
+                    'event_type' => 'revoked',
+                    'actor_user_id' => $actor->getKey(),
+                    'reason' => trim((string) $reason),
+                    'metadata' => ['workflow_id' => $workflow->getKey()],
+                    'occurred_at' => $now,
+                ]);
+            }
+
             if ($action === 'supersede') {
                 $replacementId = (int) ($evidence['replacement_document_id'] ?? 0);
                 $originalId = (int) $workflow->issued_document_id;
                 $replacement = Document::query()->where('tenant_id', $tenantId)->whereKey($replacementId)
                     ->where('status', 'issued')->where('replaces_document_id', $originalId)->first();
-                if ($originalId < 1 || $replacement === null) {
+                $original = Document::query()->where('tenant_id', $tenantId)->whereKey($originalId)
+                    ->where('status', 'issued')->lockForUpdate()->first();
+                if ($originalId < 1 || $replacement === null || $original === null) {
                     throw new UnprocessableEntityHttpException('Supersession requires a separately issued replacement that explicitly references the original document.');
                 }
+                $original->status = 'superseded';
+                $original->save();
+                DocumentLifecycleEvent::query()->create([
+                    'document_id' => $original->getKey(),
+                    'tenant_id' => $tenantId,
+                    'event_type' => 'superseded',
+                    'actor_user_id' => $actor->getKey(),
+                    'reason' => trim((string) $reason),
+                    'metadata' => ['workflow_id' => $workflow->getKey(), 'replacement_document_id' => $replacementId],
+                    'occurred_at' => $now,
+                ]);
                 $metadata = ['replacement_document_id' => $replacementId];
             }
 
