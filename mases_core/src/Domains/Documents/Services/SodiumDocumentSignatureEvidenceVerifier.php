@@ -82,6 +82,7 @@ final class SodiumDocumentSignatureEvidenceVerifier implements DocumentSignature
                 $query->selectRaw('1')->from('document_signing_key_revocations')
                     ->whereColumn('document_signing_key_revocations.signing_key_id', 'document_signing_keys.id');
             })
+            ->lockForUpdate()
             ->first(['id', 'public_key_base64']);
 
         if ($key === null) {
