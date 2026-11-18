@@ -19,6 +19,7 @@ jobs:
           MYSQL_USER: arna
           MYSQL_PASSWORD: arna
           MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_HOST: '%'
         ports:
           - 3306:3306
         options: >-
@@ -58,6 +59,8 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
+      - name: Allow trigger creation in disposable MySQL
+        run: php -r '$pdo = new PDO("mysql:host=127.0.0.1;port=3306", "root", "root"); $pdo->exec("SET GLOBAL log_bin_trust_function_creators = 1");'
       - name: Run fresh MySQL migrations
         run: php artisan migrate --force
       - name: PHP syntax lint for A3.3.2 files
