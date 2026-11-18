@@ -225,7 +225,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
                 'signature_evidence' => $signature,
             ]);
             self::fail('An invalid Ed25519 signature must never issue a document.');
-        } catch (\\Illuminate\\Auth\\Access\\AuthorizationException) {
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
             self::assertSame('signing', $workflow->fresh()->status);
             self::assertSame(0, DB::table('documents')->where('tenant_id', $tenantId)->count());
             self::assertSame(0, DB::table('document_number_counters')->where('tenant_id', $tenantId)->count());
@@ -495,7 +495,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             self::assertSame(1, (int) $workflow->fresh()->revision);
         }
 
-        $person = \\MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person::query()->create([
+        $person = \MaaleArna\MASES\Core\Domains\People\Models\Person::query()->create([
             'first_name_en' => 'Governance signatory',
         ]);
         DB::table('people')->where('id', $person->getKey())->update(['user_id' => $actor->getKey()]);
@@ -507,7 +507,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        $grantor = \\MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person::query()->create([
+        $grantor = \MaaleArna\MASES\Core\Domains\People\Models\Person::query()->create([
             'first_name_en' => 'Independent grantor',
         ]);
         DB::table('person_tenant_accesses')->insert([
@@ -576,7 +576,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $publicKey = sodium_crypto_sign_publickey($pair);
         $secretKey = sodium_crypto_sign_secretkey($pair);
         $keyId = 'test-ed25519-'.$tenantId.'-'.bin2hex(random_bytes(5));
-        $signedAt = new \\DateTimeImmutable('now', new \\DateTimeZone('UTC'));
+        $signedAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         DB::table('document_signing_keys')->insert([
             'tenant_id' => $tenantId,
             'key_id' => $keyId,
@@ -598,7 +598,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         return [
             'key_id' => $keyId,
             'signature' => base64_encode(sodium_crypto_sign_detached($payload, $secretKey)),
-            'signed_at' => $signedAt->format('Y-m-d\\TH:i:s\\Z'),
+            'signed_at' => $signedAt->format('Y-m-d\TH:i:s\Z'),
         ];
     }
 
