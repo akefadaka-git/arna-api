@@ -367,7 +367,7 @@ final class GovernanceElectionCandidateIntakeService
 
     private function authorize(int $tenantId, User $actor, string $permission): void
     {
-        $member = $actor->tenants()->where('tenant_id', $tenantId)->exists();
+        $member = $actor->activeTenants()->where('tenant_id', $tenantId)->exists();
         if ($tenantId < 1 || !$actor->isActive() || !$member
             || !$this->authorization->hasPermission(permissionSlug: $permission, user: $actor, tenantId: $tenantId)) {
             throw new AuthorizationException('The requested candidate workflow permission is not available in this tenant.');
