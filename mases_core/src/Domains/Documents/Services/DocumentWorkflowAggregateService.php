@@ -210,6 +210,37 @@ final class DocumentWorkflowAggregateService
             }
 
             if ($action === 'issue') {
+                // Re-read and hash the submitted bytes at issuance time. A
+                // changed path, version, or binary must fail closed rather
+                // than allowing the original submission hash to mask drift.
+                $submittedFile = DB::table('files')
+                    ->where('id', (int) $workflow->submitted_file_id)
+                    ->where('tenant_id', $tenantId)
+                    ->where('version', (int) $workflow->submitted_file_version)
+                    ->whereNull('deleted_at')
+                    ->lockForUpdate()
+                    ->first(['disk', 'path']);
+                if ($submittedFile === null) {
+                    throw new UnprocessableEntityHttpException('The submitted immutable file version is no longer available.');
+                }
+                $submittedStream = Storage::disk((string) $submittedFile->disk)->readStream((string) $submittedFile->path);
+                if (! is_resource($submittedStream)) {
+                    throw new UnprocessableEntityHttpException('The submitted file binary is unavailable at issuance.');
+                }
+                $submittedHashContext = hash_init('sha256');
+                try {
+                    if (hash_update_stream($submittedHashContext, $submittedStream) === false) {
+                        throw new UnprocessableEntityHttpException('The submitted file binary could not be revalidated at issuance.');
+                    }
+                } finally {
+                    fclose($submittedStream);
+                }
+                $currentSubmittedSha256 = hash_final($submittedHashContext);
+                if (! is_string($workflow->submitted_file_sha256)
+                    || ! hash_equals((string) $workflow->submitted_file_sha256, $currentSubmittedSha256)) {
+                    throw new UnprocessableEntityHttpException('The submitted file binary changed after submission; issuance is blocked.');
+                }
+
                 $documentId = (int) ($evidence['issued_document_id'] ?? 0);
                 $document = Document::query()->where('tenant_id', $tenantId)->whereKey($documentId)
                     ->where('status', 'issued')->lockForUpdate()->first();
