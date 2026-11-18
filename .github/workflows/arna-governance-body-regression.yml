@@ -8,7 +8,6 @@ on:
     paths:
       - ".github/workflows/arna-governance-body-regression.yml"
       - "mases_core/src/Domains/Governance/**"
-      - "tests/Feature/GovernanceElectionCandidateIntakeTest.php"
       - "tests/Feature/GovernanceElectionAuthorityTest.php"
       - "tests/Feature/GovernanceElectionCommitteeAppointmentTest.php"
       - "tests/Feature/GovernanceElectionCandidateIntakeTest.php"
@@ -24,6 +23,7 @@ on:
     paths:
       - ".github/workflows/arna-governance-body-regression.yml"
       - "mases_core/src/Domains/Governance/**"
+      - "tests/Feature/GovernanceElectionCandidateIntakeTest.php"
       - "composer.json"
       - "composer.lock"
       - "phpunit.xml"
