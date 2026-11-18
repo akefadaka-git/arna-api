@@ -14,6 +14,7 @@ use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElectionLifecycleTransition;
+use MaaleArna\MASES\Core\Files\Models\File;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceElectionLifecycleChanged;
 
 final class GovernanceElectionLifecycleService
@@ -82,6 +83,9 @@ final class GovernanceElectionLifecycleService
             default => throw ValidationException::withMessages(['action' => 'Unsupported lifecycle action.']),
         };
         $this->authorize($actor, $tenantId, $permission);
+        if (trim((string) $reason) === '' || mb_strlen(trim((string) $reason)) < 5) {
+            throw ValidationException::withMessages(['reason' => 'A meaningful reason of at least five characters is required for every lifecycle transition.']);
+        }
 
         return DB::transaction(function () use ($tenantId, $electionId, $actor, $action, $expectedVersion, $reason, $evidenceReferences, $authority, $schedule): GovernanceElection {
             $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->lockForUpdate()->first();
@@ -94,7 +98,7 @@ final class GovernanceElectionLifecycleService
 
             $from = $election->status;
             $to = match ($action) {
-                'authorize' => $this->authorizeElection($election, $authority),
+                'authorize' => $this->authorizeElection($election, $tenantId, $authority),
                 'schedule' => $this->scheduleElection($election, $schedule),
                 'suspend' => $this->suspendElection($election, $reason),
                 'resume' => $this->resumeElection($election),
@@ -140,7 +144,7 @@ final class GovernanceElectionLifecycleService
         }, 3);
     }
 
-    private function authorizeElection(GovernanceElection $election, array $authority): string
+    private function authorizeElection(GovernanceElection $election, int $tenantId, array $authority): string
     {
         if ($election->status !== 'draft') {
             throw ValidationException::withMessages(['status' => 'Only a draft election can be authorized.']);
@@ -148,6 +152,15 @@ final class GovernanceElectionLifecycleService
         foreach (['authority_reference', 'authority_evidence_digest', 'authority_version', 'rule_set_version', 'rule_set_digest'] as $key) {
             if (trim((string) ($authority[$key] ?? '')) === '') {
                 throw ValidationException::withMessages([$key => 'Authoritative source and versioned rule evidence are required before authorization.']);
+            }
+        }
+        if (isset($authority['authority_document_id'])) {
+            $document = File::query()->inTenant($tenantId)
+                ->whereKey((int) $authority['authority_document_id'])
+                ->where('status', 'published')
+                ->first();
+            if (!$document) {
+                throw ValidationException::withMessages(['authority_document_id' => 'The authority evidence file must be a published, non-deleted file belonging to this tenant.']);
             }
         }
         foreach (['authority_evidence_digest', 'rule_set_digest'] as $key) {
@@ -184,8 +197,11 @@ final class GovernanceElectionLifecycleService
         }
         try {
             $zone = new DateTimeZone($timezone);
-            $startAt = $start ? new DateTimeImmutable((string) $start, $zone) : null;
-            $endAt = $end ? new DateTimeImmutable((string) $end, $zone) : null;
+            // Inputs with an explicit offset represent an instant. Convert that
+            // instant to the selected IANA zone before persisting local wall time.
+            // Inputs without an offset are interpreted directly in that zone.
+            $startAt = $start ? (new DateTimeImmutable((string) $start, $zone))->setTimezone($zone) : null;
+            $endAt = $end ? (new DateTimeImmutable((string) $end, $zone))->setTimezone($zone) : null;
         } catch (Throwable) {
             throw ValidationException::withMessages(['scheduled_start_at' => 'Valid start and end date-times are required.']);
         }
