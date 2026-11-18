@@ -67,6 +67,19 @@ final class GovernanceElectionCandidateController extends Controller
         return response()->json(['success' => true, 'data' => $result]);
     }
 
+    public function correctNomination(Request $request, int $election, int $submission, GovernanceElectionCandidateService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'statement' => ['required', 'string', 'min:1', 'max:10000'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+        $result = $service->correctNomination(
+            $this->tenantId(), $election, $submission, $this->actor($request),
+            $data['statement'], $data['reason'],
+        );
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
     public function index(Request $request, int $election, GovernanceElectionCandidateService $service): JsonResponse
     {
         $candidates = $service->listCandidates($this->tenantId(), $election, $this->actor($request));
