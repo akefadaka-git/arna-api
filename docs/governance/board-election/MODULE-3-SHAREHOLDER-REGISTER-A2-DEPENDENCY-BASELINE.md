@@ -464,3 +464,97 @@ The eventual design must:
 
 **A2 disposition:** existing database foundations FOUND; full Article 274 register schema PARTIAL; generic versioned-policy infrastructure FOUND but voting-policy governance MISSING; hard-coded bootstrap/config values IDENTIFIED and must not govern legal/election outcomes; 29-to-100 identity crosswalk UNRESOLVED because source names/rows are not transcribed; transfer pairing, effective-dated mandate history and fail-closed legal audit MISSING. No runtime code, migration, test, seed data, production data, main branch, merge or deployment was changed by this inspection or this documentation update.
 
+
+
+## 13. A2 source recovery — original 29-holder schedule and capital allocations
+
+This section supersedes the earlier provisional statements in §12.5 that the 29-holder identity crosswalk and individual allocation transcription were not possible. The original scan was subsequently located in the Owner's Library and inspected directly.
+
+### 13.1 Original source identity and integrity
+
+- Original file: `maale_arna_bylaws_original_scan.pdf` (17-page Amharic scanned bylaws/internal-regulations document).
+- Printed pages inspected: 9, 10 and 11; a separate three-page extract of those exact pages is also preserved in the Library.
+- SHA-256 independently computed from the original PDF bytes: `8df31ad217b2221f42b3e0e1154007bdd5d2ab003df0e1ad3dc7f17c03b61183`, matching the Owner-supplied checksum recorded in the P2.5 evidence index.
+- This confirms byte-integrity against the supplied checksum. It does not independently authenticate the issuing authority, signatures, registration, legal effect, or whether later amendments exist.
+- The document title is `የመተዳደሪያ ደንብ` (bylaws/internal regulations). It is not the separate registered Memorandum/Articles and must not be represented as such.
+
+### 13.2 Identity crosswalk to the repository seeder
+
+Visual comparison of the 29 schedule rows on printed pages 9–10 against `database/seeders/Data/ShareholderRegister.php` at main blob `8e387599ab75db23d58db963b56a96df5d6c67b5` establishes an ordered identity crosswalk:
+
+- Historical schedule rows 1–29 correspond, in sequence, to application seed IDs SH-0001 through SH-0029.
+- The Amharic personal-name and parent-name components match across the schedule and the corresponding first 29 seeder rows, subject to abbreviation/orthographic variation in the entity row and minor spelling variation in some names.
+- Schedule row 23 is the Maale Hibret church-union/entity entry corresponding to SH-0023. The identity match does not resolve the entity's legal classification or whether the correct legal form is cooperative or religious_body.
+- The 29-row schedule contains no application SH-ID field; the crosswalk is based on name sequence and visible name components, not on a shared unique legal identifier. It is therefore a strong documentary identity match, not a substitute for a current certified register or primary identity documents.
+- The remaining 71 seeder identities (SH-0030–SH-0100) do not appear in this 29-row schedule. Their later admission, transfer, validity, current status, and legal ownership are neither proved nor disproved by this comparison.
+
+No shareholder names, signatures, identity-document numbers, or per-holder financial amounts are copied into this public engineering record.
+
+### 13.3 Individual allocation schedule — manual transcription and arithmetic
+
+The page 11 table was manually inspected at high resolution. All 29 individual rows state five shares at ETB 10,000 nominal value per share, giving ETB 50,000 subscribed allocation per row. The individual paid and unpaid amounts were read from the original image, not inferred from OCR.
+
+Independent arithmetic over all 29 rows gives:
+
+- 29 × 5 shares = 145 shares.
+- 145 × ETB 10,000 = ETB 1,450,000 subscribed/stated capital.
+- Sum of the 29 paid cells = ETB 1,023,000.
+- Sum of the 29 unpaid cells = ETB 427,000.
+- Paid plus unpaid = ETB 1,450,000.
+
+All four source-table totals reconcile exactly. This establishes what the historical bylaws schedule records. It does not establish receipts, bank deposits, later payments, calls, forfeitures, transfers, or present unpaid balances.
+
+The per-holder values are retained in the original source table and the Owner-facing A2 reconciliation, not duplicated in this public repository document because they are personal financial data linked to identifiable shareholder rows.
+
+### 13.4 Cross-check against the separate legacy SQL export
+
+A separate Library artifact, `maale_arna_smart_system(1).sql`, was inspected as a secondary historical application-data lead. Its header identifies a phpMyAdmin dump generated 1 September 2026 from database `maale_arna_smart_system`; its SHA-256 is `19092485d36469b836ac43225b683525984b565037904f7b0d4e1d2611d67d7e`.
+
+The dump is not a certified Article 274 extract and its provenance does not establish it as the current statutory register. It nevertheless exposes material internal conflicts:
+
+- Its legacy `shareholders` table contains 40 rows (SH-0001–SH-0040), including share quantity, paid value and unpaid amount.
+- For the first 29 IDs, 27 of the 29 summary rows disagree with the original bylaws schedule on at least one of share quantity, paid value or unpaid amount. Only two rows match all three numeric fields.
+- Its `share_transactions` table contains 123 rows: 54 Purchase and 69 Payment entries. Of the 29 Purchase entries associated with SH-0001–SH-0029, only 9 agree with the bylaws schedule on all of share quantity, paid amount and unpaid amount; 20 conflict.
+- The legacy summary and transaction tables also disagree with each other for multiple holder IDs. Transaction status labels include pending and partial entries; these are database status values, not bank receipts or proof of cleared funds.
+- The export therefore cannot be used to overwrite the historical schedule or certify current holdings. It is a reconciliation exception source requiring transaction-level accounting evidence, receipts/bank statements, journal records, transfer instruments and a current statutory register.
+
+### 13.5 Reconciliation disposition
+
+| Item | Finding | Status |
+|---|---|---|
+| Original 17-page bylaws scan | Located; 17 pages inspected for identity; checksum matches Owner-supplied SHA-256 | SOURCE INTEGRITY VERIFIED |
+| Historical schedule count | 29 rows | VERIFIED FROM SCAN |
+| Identity crosswalk | Schedule rows 1–29 map in order to SH-0001–SH-0029 | MATCHED — UNIQUE-ID LIMITATION |
+| Per-holder historical allocations | 29 rows manually inspected; all 5 shares / ETB 50,000 nominal each | TRANSCRIBED |
+| Aggregate subscribed capital | ETB 1,450,000 | RECONCILED |
+| Aggregate paid/unpaid schedule | ETB 1,023,000 / ETB 427,000 | RECONCILED AS HISTORICAL TABLE ONLY |
+| Seeder rows SH-0030–SH-0100 | Not present in this 29-row schedule | UNRESOLVED — NOT INVALIDATED |
+| Legacy SQL summary | 27/29 first-row numeric mismatches | CONFLICTING SECONDARY DATA |
+| Legacy SQL purchase entries | 20/29 numeric mismatches | CONFLICTING SECONDARY DATA |
+| Current ownership and paid-up status | No certified current register or cleared-payment proof | UNRESOLVED |
+
+## 14. Statutory register and separate Memorandum — evidence resolution
+
+### 14.1 Commercial Code Article 274 register
+
+The legal source hierarchy is resolved: the company's shareholder register maintained at its head office under Commercial Code Article 274 is the controlling statutory register. The historical bylaws schedule and application seeder are not substitutes for it.
+
+The located bylaws pages 9–11 provide a historical 29-holder schedule and capital allocations, but do not establish the current Article 274 register particulars for every holder, including current names/addresses, share numbers and numeration, paid-up amount, and date of entry. They also do not establish post-schedule admissions, transfers, cancellations, changes of address, legal status, or current registered ownership.
+
+**No head-office Article 274(4) request or delivery receipt is present in the accessible evidence.** The fifteen-day period is the company's response period after a request for a copy/extract; it is not a statutory record-date cutoff. The current statutory extract therefore remains MISSING. The earlier request instruction is recorded, but this A2 inspection has not sent a request or claimed that one was sent.
+
+### 14.2 Separate registered Memorandum / Articles
+
+The original Memorandum/Articles remains Owner-reported as an image-scanned document historically described as dated 16/12/2016 E.C., executed, notarized and sealed, and reportedly supplied in a prior ChatGPT conversation on 11 September 2026. The accessible Library catalog and destination repository were searched; no matching original binary or verifiable registered copy was located. Existing repository legal-source notes likewise record the original as not preserved or inspected.
+
+The bylaws PDF inspected in §13 is a different document and cannot cure this gap. Historical summaries attributing capital, register, proxy or fifteen-day clauses to the Memorandum remain provisional until the actual registered instrument and amendments are inspected. No Memorandum clause, registration number, notarial authentication, amendment history, or operative legal effect is verified by this A2 pass.
+
+No request is made for another upload. The source remains Owner-held/reported but unavailable for direct inspection in the accessible workspace.
+
+### 14.3 What is now resolved, and what is not
+
+**Resolved in A2:** historical 29-row identity crosswalk to SH-0001–SH-0029; individual historical allocation transcription; aggregate capital arithmetic; original bylaws file checksum; identification of material conflicts in the separate legacy SQL export; legal hierarchy identifying the Article 274 head-office register as controlling.
+
+**Still unresolved / blocking final register and entitlement:** current certified Article 274 extract; registered Memorandum/Articles and amendments; current per-holder cleared payment evidence; transfer and certificate instruments/history; legal form and authority for entity shareholders and their representatives; status of the additional 71 seeder rows; election-specific record date and exact cutoff; any company-specific share class/voting restrictions.
+
+**A2 remains PARTIAL — not closed.** The 29-row historical schedule is now reconciled to the first 29 seeder identities and its individual allocation totals. Current statutory ownership, current paid-up status and operative company-specific voting rules remain unverified. A3 remains NOT STARTED. No application code, schema, migration, test, seed data, production data, main branch, merge or deployment was changed by this reconciliation.
