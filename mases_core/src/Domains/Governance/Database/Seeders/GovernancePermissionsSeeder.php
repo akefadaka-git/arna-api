@@ -33,7 +33,7 @@ declare(strict_types=1);
  *
  *   What the seeder writes:
  *
- *     · 36 tenant-scoped permissions with the `governance.` prefix.
+ *     · 37 tenant-scoped permissions with the `governance.` prefix.
  *       Each carries `scope = 'tenant'`, `tenant_id = null`,
  *       `application_id = null`, `is_active = true`,
  *       `is_system = true`.
@@ -46,7 +46,7 @@ declare(strict_types=1);
  *       other six `app.*.access` rows, all of which are
  *       `is_system = 0` except `app.admin.access`.
  *
- *   Total: 37 permission rows.
+ *   Total: 38 permission rows.
  *
  *   What the seeder deliberately does NOT do:
  *
@@ -103,7 +103,7 @@ declare(strict_types=1);
  *     governance.action        4  (view, create, manage, verify)
  *     governance.delegation    2  (view, manage)
  *     governance.declaration   2  (view, manage)
- *     governance.election      2  (view, manage)
+ *     governance.election      3  (view, manage, authority.review)
  *     governance.document      3  (view, upload, download)
  *     governance.report        2  (view, generate)
  *                              ──
@@ -392,7 +392,7 @@ use RuntimeException;
  *
  * Expected output:
  *
- *     Governance permissions seeded: 37 entries (36 tenant + 1 application).
+ *     Governance permissions seeded: 38 entries (37 tenant + 1 application).
  *
  * @package MaaleArna\MASES\Core\Domains\Governance\Database\Seeders
  * @version 1.0.0
@@ -400,7 +400,7 @@ use RuntimeException;
 final class GovernancePermissionsSeeder extends Seeder
 {
     /**
-     * The 36 tenant-scoped permissions this seeder manages.
+     * The 37 tenant-scoped permissions this seeder manages.
      *
      * Each entry carries a slug, an Amharic label, an English label,
      * and a category. The `scope` is uniform across the set
@@ -654,6 +654,13 @@ final class GovernancePermissionsSeeder extends Seeder
             'category' => 'governance',
         ],
 
+        [
+            'slug'     => 'governance.election.authority.review',
+            'name_am'  => 'የምርጫ ሥልጣን ማስረጃን መገምገም',
+            'name_en'  => 'Review election authority evidence',
+            'category' => 'governance',
+        ],
+
         // ---------------------------------------------------------------------
         // Documents
         // ---------------------------------------------------------------------
@@ -708,7 +715,7 @@ final class GovernancePermissionsSeeder extends Seeder
     /**
      * Run the database seeds.
      *
-     * Writes the 36 tenant-scoped permissions, then resolves the
+     * Writes the 37 tenant-scoped permissions, then resolves the
      * Governance platform application and writes the
      * application-scoped permission. Fails loudly if the
      * application row is missing.

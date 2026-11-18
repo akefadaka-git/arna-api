@@ -225,6 +225,7 @@ declare(strict_types=1);
  */
 
 use Illuminate\Support\Facades\Route;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionAuthorityController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAppointmentController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
@@ -619,4 +620,25 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.body.manage')
         ->name('penalty-disputes.review');
 
+
+    // P2.1 — tenant-scoped election record and evidence-neutral authority register.
+    Route::get('/elections', [GovernanceElectionAuthorityController::class, 'index'])
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.index');
+    Route::post('/elections', [GovernanceElectionAuthorityController::class, 'store'])
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.store');
+    Route::get('/elections/{governanceElection}', [GovernanceElectionAuthorityController::class, 'show'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.show');
+    Route::post('/elections/{governanceElection}/authority-evidence', [GovernanceElectionAuthorityController::class, 'recordAuthorityEvidence'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.authority-evidence.store');
+    Route::patch('/elections/{governanceElection}/authority-evidence/{evidence}/review', [GovernanceElectionAuthorityController::class, 'reviewAuthorityEvidence'])
+        ->whereNumber('governanceElection')
+        ->whereNumber('evidence')
+        ->middleware('auth.permission:governance.election.authority.review')
+        ->name('elections.authority-evidence.review');
 });

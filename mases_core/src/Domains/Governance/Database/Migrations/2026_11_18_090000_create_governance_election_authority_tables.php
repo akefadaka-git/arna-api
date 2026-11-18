@@ -1,0 +1,53 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('governance_elections', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->foreignId('governance_body_id')->nullable()->constrained('governance_bodies')->restrictOnDelete();
+            $table->string('code', 80);
+            $table->string('title', 255);
+            $table->string('status', 24)->default('planned')->index();
+            $table->string('authority_status', 24)->default('unverified')->index();
+            $table->date('record_date')->nullable();
+            $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
+            $table->timestamps();
+            $table->softDeletes();
+            $table->unique(['tenant_id', 'code'], 'gov_elections_tenant_code_uq');
+            $table->index(['tenant_id', 'status'], 'gov_elections_tenant_status_idx');
+        });
+
+        Schema::create('governance_election_authority_evidence', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->foreignId('election_id')->constrained('governance_elections')->restrictOnDelete();
+            $table->string('instrument_type', 48);
+            $table->string('instrument_reference', 180);
+            $table->date('instrument_date')->nullable();
+            $table->string('storage_reference', 255);
+            $table->char('content_sha256', 64);
+            $table->string('status', 24)->default('pending_review')->index();
+            $table->foreignId('recorded_by')->constrained('users')->restrictOnDelete();
+            $table->foreignId('reviewed_by')->nullable()->constrained('users')->restrictOnDelete();
+            $table->dateTime('reviewed_at')->nullable();
+            $table->text('review_reason')->nullable();
+            $table->timestamps();
+            $table->index(['tenant_id', 'election_id', 'status'], 'gov_elec_auth_evidence_scope_idx');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('governance_election_authority_evidence');
+        Schema::dropIfExists('governance_elections');
+    }
+};
