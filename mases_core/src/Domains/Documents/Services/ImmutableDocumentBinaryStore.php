@@ -40,14 +40,17 @@ final class ImmutableDocumentBinaryStore
             throw new RuntimeException('The configured evidence disk does not support local write-once semantics.', 0, $exception);
         }
 
-        $directory = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'document-evidence'
-            . DIRECTORY_SEPARATOR . $tenantId . DIRECTORY_SEPARATOR . $fileId . DIRECTORY_SEPARATOR . $version;
-        if (! is_dir($directory) && ! mkdir($directory, 0700, true) && ! is_dir($directory)) {
+        $fileDirectory = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'document-evidence'
+            . DIRECTORY_SEPARATOR . $tenantId . DIRECTORY_SEPARATOR . $fileId;
+        if (! is_dir($fileDirectory) && ! mkdir($fileDirectory, 0700, true) && ! is_dir($fileDirectory)) {
             fclose($source);
-            throw new RuntimeException('The immutable evidence directory could not be created.');
+            throw new RuntimeException('The immutable evidence parent directory could not be created.');
         }
 
-        $temporary = $directory . DIRECTORY_SEPARATOR . '.capture-' . Str::uuid();
+        // The temporary file is outside the sealed version directory so a
+        // repeated identical capture can be verified after that directory is
+        // made read-only. A changed binary for the same version cannot be linked.
+        $temporary = $fileDirectory . DIRECTORY_SEPARATOR . '.capture-' . Str::uuid();
         $output = fopen($temporary, 'x+b');
         if (! is_resource($output)) {
             fclose($source);
@@ -93,19 +96,38 @@ final class ImmutableDocumentBinaryStore
         fclose($output);
 
         $sha256 = hash_final($context);
-        $relative = 'document-evidence/' . $tenantId . '/' . $fileId . '/' . $version . '/' . $sha256;
-        $destination = $directory . DIRECTORY_SEPARATOR . $sha256;
+        $versionDirectory = $fileDirectory . DIRECTORY_SEPARATOR . $version;
+        if (! is_dir($versionDirectory) && ! mkdir($versionDirectory, 0700, true) && ! is_dir($versionDirectory)) {
+            @unlink($temporary);
+            throw new RuntimeException('The immutable evidence version directory could not be created.');
+        }
 
-        // link() is atomic and refuses to replace an existing inode. A prior
-        // object is accepted only when its content digest is exactly identical.
-        if (! @link($temporary, $destination)) {
-            if (! is_file($destination) || ! hash_equals($sha256, (string) hash_file('sha256', $destination))) {
+        $relative = 'document-evidence/' . $tenantId . '/' . $fileId . '/' . $version . '/' . $sha256;
+        $destination = $versionDirectory . DIRECTORY_SEPARATOR . $sha256;
+
+        if (is_file($destination)) {
+            if (filesize($destination) !== $size || ! hash_equals($sha256, (string) hash_file('sha256', $destination))) {
                 @unlink($temporary);
-                throw new RuntimeException('An existing content-addressed evidence object conflicts with the expected digest.');
+                throw new RuntimeException('An existing immutable evidence object does not match its content address.');
             }
+            @unlink($temporary);
+            return ['disk' => $targetDiskName, 'path' => $relative, 'sha256' => $sha256, 'size' => $size];
+        }
+
+        // link() is atomic and refuses to replace an existing inode. Once the
+        // version directory is sealed read/execute-only, this process cannot
+        // add another digest for that File Management version.
+        if (! @link($temporary, $destination)) {
+            @unlink($temporary);
+            throw new RuntimeException('The File Management version is already sealed or the filesystem cannot guarantee atomic no-overwrite creation.');
         }
         @chmod($destination, 0400);
         @unlink($temporary);
+        @chmod($versionDirectory, 0500);
+
+        if (! $this->verify($targetDiskName, $relative, $sha256, $size)) {
+            throw new RuntimeException('The immutable evidence object failed its post-write integrity check.');
+        }
 
         return ['disk' => $targetDiskName, 'path' => $relative, 'sha256' => $sha256, 'size' => $size];
     }
