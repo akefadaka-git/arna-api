@@ -107,6 +107,13 @@ final class GovernanceElectionCandidateService
     {
         $this->authorize($actor, $tenantId, 'governance.election.manage');
         return DB::transaction(function () use ($tenantId, $electionId, $actor, $expectedVersion): GovernanceElectionNominationWindow {
+            // Keep the same election -> nomination-window lock order used by
+            // configureNominationWindow() and submitNomination() to prevent
+            // a boundary-time deadlock while intake is being activated.
+            $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->lockForUpdate()->first();
+            if (!$election) {
+                throw new NotFoundHttpException('Election not found in this tenant.');
+            }
             $window = GovernanceElectionNominationWindow::query()->where('tenant_id', $tenantId)
                 ->where('election_id', $electionId)->lockForUpdate()->first();
             if (!$window) {
@@ -115,7 +122,6 @@ final class GovernanceElectionCandidateService
             if ((int) $window->version !== $expectedVersion || $window->status !== 'draft') {
                 throw new ConflictHttpException('Nomination window changed or is not in draft state.');
             }
-            $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->lockForUpdate()->first();
             $now = now('UTC');
             if (!$this->isWithinWindow($window)) {
                 throw new ConflictHttpException('The configured opening time has not arrived or the closing time has passed.');
@@ -596,7 +602,12 @@ final class GovernanceElectionCandidateService
             if (!$this->hasActiveNomination($tenantId, $electionId, (int) $candidate->id)) {
                 // A nominator withdraws only their submission, not the candidate.
                 // Keep the candidate intake aggregate available for other nominators.
-                $candidate->status = 'intake_pending';
+                // Withdrawing the last nomination does not erase consent.
+                // Preserve the aggregate's eligibility-ready state so a later
+                // valid nomination can resume review without inconsistent status.
+                $candidate->status = $candidate->consent_status === 'accepted'
+                    ? 'eligibility_pending'
+                    : 'intake_pending';
                 $candidate->version = (int) $candidate->version + 1;
                 $candidate->save();
             }
