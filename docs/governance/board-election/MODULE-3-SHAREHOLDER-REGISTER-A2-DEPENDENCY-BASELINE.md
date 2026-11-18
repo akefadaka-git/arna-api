@@ -29,7 +29,7 @@ The following six shareholder-domain source files were compared at current main 
 | Source | Blob SHA | Contract / disposition |
 |---|---|---|
 | mases_core/src/Domains/Shareholder/Models/Shareholder.php | c2bd05abab1364537ea6531916daa28f3ddb3f0c | Canonical holder identity in the official shareholder register; individual and legal-entity types; direct user vs authorized representative are distinct; soft deletion preserves identity history |
-| mases_core/src/Domains/Shareholder/Models/ShareClass.php | b1ed73163a4122b43489429d0f06049f16d39ee3 | Share-class identity and attributes; no voting-right or vote-weight fields currently exist |
+| mases_core/src/Domains/Shareholder/Models/ShareClass.php | b1ed73163a4122b43489429d0f06049f16d39ee3 | Share-class identity and attributes; no class-specific voting-right or vote-weight fields currently exist |
 | mases_core/src/Domains/Shareholder/Models/ShareHolding.php | f3bb01411824ce95a7c2e25111b84671b8ada9fe | Current-state projection of one shareholder/share-class pair; not the authoritative historical source |
 | mases_core/src/Domains/Shareholder/Models/ShareHoldingEntry.php | 7c30f03dffaf6635128f7d03aed06231b9030f9a | Append-only signed share-quantity ledger; carries before/after balances, entry type, business time, references and reversal link |
 | mases_core/src/Domains/Shareholder/Services/ShareHoldingService.php | 02de3196184f310afc81da219043d61cf057bb80 | Sole supported holding writer; transactions, row locks, append-only entries and reversal operations |
@@ -54,6 +54,33 @@ Related shareholder migrations currently present:
 6. Reversals are new ledger rows linked to the original entry; the original entry is not overwritten.
 7. The business-effective timestamp is occurred_at, distinct from row creation time created_at. The ledger can represent backfilled historical business events.
 8. Current ShareHoldingService accepts whole-number share magnitudes; stored quantity columns are DECIMAL(20,4). Module 3 must not silently introduce fractional-share entitlement.
+
+### 2.2 Legal-source and statutory baseline found during A2
+
+Current main contains two relevant A2 evidence records, inspected at main SHA d978ba742de7859405bfe48a219df9d96b1f778a:
+
+- docs/governance/elections/P2.5-SOURCE-AND-STATUTORY-RECONCILIATION-v1.0.md — blob 8101ccbd3a9fbdc194c5a51aef34e0e458c11132. This is an A2 source/statutory issue register, not a legal opinion.
+- docs/legal/articles-of-association/HISTORICAL-RECONCILIATION-NOTES.md — blob 856cd6afbcfd16f26b26c98d91850ebd82fcd29a.
+- docs/legal/articles-of-association/README.md — blob c90f607d818304eaa44921d2bc05188a7e4da878. It records that the separate original Articles of Association PDF has not been preserved or verified in the repository.
+
+The P2.5 record documents an Owner-confirmed 17-page scanned Amharic bylaws/internal-regulations source named የማሌ_ዓርና_አክሲዮን_ማኅበር_መተዳደሪያ_ደንብ.pdf, with Owner-supplied SHA-256 8df31ad217b2221f42b3e0e1154007bdd5d2ab003df0e1ad3dc7f17c03b61183. It is reported as the latest complete approved version, signed by ደቡብ ኢትዮጵያ ንግድ እና ገበያ ቢሮ. The original PDF is not committed in this repository; the P2.5 document is a redacted evidence index and provisional transcription summary. This bylaws scan is distinct from the separate statutory Articles/Memorandum and must not be substituted for them.
+
+P2.5 records statutory research on Commercial Code Proclamation No. 1243/2021:
+- Article 383(1): ordinary/dividend-share voting weight is proportional to the amount of capital represented.
+- Article 383(2): absent legal deprivation, each share carries at least one vote.
+- Article 384: the Memorandum may limit the maximum votes exercisable at meetings; the limit must be equal for all shares without distinction of class.
+
+These provisions narrow the statutory baseline but do not establish the operative registered Memorandum, any company-specific vote cap, class-specific rights, record date, or current electorate. The current ShareClass model has no fields for voting rights or vote multipliers. Do not invent a class multiplier or maximum-vote cap. The final rule must reconcile the current registered Memorandum, operative bylaws, applicable law and election-specific resolution with qualified Ethiopian legal review.
+
+The same P2.5 source record provisionally reports shareholder rights, a written/dated/signed proxy clause, secret ballot, separate votes for each director where multiple directors are elected, a three-year term, and a 3–8 board-size clause. Exact Amharic wording and legal identity/effect remain subject to source verification. The possible one-share director qualification remains unverified and is primarily a candidate-eligibility issue, not a voter-register default.
+
+Historical register/capital notes are also explicitly provisional:
+- The 17-page bylaws schedule is reported as 29 listed holders, 145 shares, ETB 10,000 nominal value per share, ETB 1,450,000 stated capital, ETB 1,023,000 paid and ETB 427,000 unpaid. The arithmetic reconciles, but does not prove current ownership, paid-up status, share classes or current voting entitlement.
+- The Owner previously reported official shareholder-register pages 9–11 as uploaded in an earlier conversation; those page images were not recovered or inspected in this repository A2 task.
+- Historical application seed data was reported as 100 entries across FOUNDERS and STANDARD. Those are application records, not the official legal register.
+- Shareholder SH-0023 was reported as religious_body in one seed context and cooperative in another; the conflict remains unresolved.
+
+Accordingly, the source evidence narrows the legal framework but does not close record-date, register identity, paid-up capital, classification, voting cap, or temporal-history blockers. Do not treat OCR, seed data, the bylaws summary or historical arithmetic as the operative statutory register.
 
 ## 3. Module 1 and Module 2 dependency contracts
 
@@ -133,8 +160,8 @@ These are blockers to final legal entitlement, not permission to invent defaults
 | ID | Unresolved input / gap | Required authoritative evidence or control |
 |---|---|---|
 | M3-01 | Operative record date and exact cutoff time | Election authorization/resolution and applicable governing instrument |
-| M3-02 | Which shareholder categories/classes have voting rights | Current Articles of Association, applicable law and approved election rule set |
-| M3-03 | Whether all share classes carry equal votes per share or have different rights | Explicit class-rights schedule and approved vote-weight formula; ShareClass currently has no voting-right fields |
+| M3-02 | Operative voting entitlement and any company-specific vote cap/class rights | Commercial Code Articles 383–384 provide a statutory baseline; registered Memorandum, current bylaws and election resolution must confirm any lawful deprivation, maximum-vote cap or class-specific rule |
+| M3-03 | Whether any class-specific rights or different nominal capital affect the vote calculation | Current ShareClass has no voting-right fields; statutory proportional-capital rule and equal-across-classes cap rule must be reconciled with the registered Memorandum and class instruments |
 | M3-04 | Treatment of treasury/buyback-held shares, pledged shares, disputed or suspended holdings | Authoritative company/legal rule and source evidence; do not infer from is_treasury_eligible |
 | M3-05 | Shareholder active/deleted status as-of the historical record date | Durable temporal status history or a formally approved current-register cut; current is_active/soft-delete state alone cannot prove historical status |
 | M3-06 | Representative authority as-of record date for non-individual holders | Authoritative appointment/mandate and effective-time history; current representative link alone is not historical proof |
@@ -171,7 +198,7 @@ Historical PR #128 (feat/age-a3-voter-register-approval, head 1a157aaa1a06788e33
 
 **Module 2:** VERIFIED-CLOSED at implementation SHA 2ed14eae55604337518b17ce62b572b275e4e8d3.  
 **Module 3 dependency baseline:** ESTABLISHED — read-only source and dependency reconciliation recorded here.  
-**Module 3 A2:** PARTIAL — technical source baseline is reconciled; authoritative record-date, voting-rights and temporal identity inputs remain unresolved.  
+**Module 3 A2:** PARTIAL — technical source baseline and statutory voting framework are reconciled; the registered Memorandum, record-date authority, current official register, paid-up/capital reconciliation and temporal identity inputs remain unresolved.  
 **Module 3 A3:** NOT STARTED. No application source, migration, route, permission or test was changed.  
 **A5 / production:** NOT AUTHORIZED.
 
