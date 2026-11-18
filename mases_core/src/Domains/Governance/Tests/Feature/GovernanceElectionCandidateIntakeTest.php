@@ -8,6 +8,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionCandidateService;
@@ -125,6 +126,31 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         } catch (ConflictHttpException) {
             $this->assertSame(1, DB::table('governance_election_nomination_submissions')
                 ->where('candidate_id', $first->candidate_id)->count());
+        }
+    }
+
+    public function test_mysql_unique_indexes_reject_duplicate_nomination_receipts(): void
+    {
+        $nominator = $this->makeUser('unique-index-nominator');
+        $nominatorPerson = $this->makePerson($nominator);
+        $this->makeShareholder($nominator, $nominatorPerson, 'individual');
+        $candidatePerson = $this->makePerson($this->makeUser('unique-index-candidate'));
+
+        Auth::login($nominator);
+        $submission = app(GovernanceElectionCandidateService::class)->submitNomination(
+            (int) $this->tenant->id, $this->electionId, $nominator,
+            (int) $candidatePerson->id, 'unique-index-nomination-001', 'Unique receipt test.',
+        );
+        $receipt = (array) DB::table('governance_election_nomination_submissions')
+            ->where('id', $submission->id)->first();
+        unset($receipt['id']);
+
+        try {
+            DB::table('governance_election_nomination_submissions')->insert($receipt);
+            $this->fail('MySQL unique constraints must reject a duplicate nomination receipt.');
+        } catch (QueryException) {
+            $this->assertSame(1, DB::table('governance_election_nomination_submissions')
+                ->where('tenant_id', $this->tenant->id)->where('election_id', $this->electionId)->count());
         }
     }
 
