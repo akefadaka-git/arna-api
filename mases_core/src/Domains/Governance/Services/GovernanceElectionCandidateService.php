@@ -655,7 +655,7 @@ final class GovernanceElectionCandidateService
         $this->authorize($actor, $tenantId, 'governance.election.view');
         GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->firstOrFail();
         return GovernanceElectionCandidate::query()->forElection($tenantId, $electionId)
-            ->select(['id', 'tenant_id', 'election_id', 'person_id', 'status', 'consent_status', 'version', 'created_at'])
+            ->select(['id', 'tenant_id', 'election_id', 'person_id', 'status', 'consent_status', 'declarations', 'version', 'created_at'])
             ->with([
                 'person:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en',
                 'nominations:id,candidate_id,status,self_nomination,statement,submitted_at',
