@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Governance\Listeners;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Audit\Services\AuditService;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceElectionLifecycleChanged;
 use Throwable;
@@ -45,7 +46,7 @@ final class AuditGovernanceElectionLifecycleEvent
                 ],
                 ipAddress: request()->ip(),
                 userAgent: request()->userAgent(),
-                requestId: (string) request()->header('X-Request-ID', request()->header('X-Correlation-ID', '')),
+                requestId: (string) request()->header('X-Request-ID', request()->header('X-Correlation-ID', (string) Str::uuid())),
             );
         } catch (Throwable $exception) {
             // The lifecycle transition is already committed and independently
