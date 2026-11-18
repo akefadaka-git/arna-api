@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Documents\\Services;
+namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 
 use InvalidArgumentException;
-use MaaleArna\\MASES\\Core\\Domains\\Documents\\Registries\\DocumentTypeRegistry;
+use MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry;
 
 /**
  * Formats the canonical ARNA identifier: ማዓ/EE/DD/TT/YYYY/NNNN.
