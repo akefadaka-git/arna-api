@@ -74,8 +74,8 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $service = app(GovernanceElectionCandidateService::class);
         $service->configureNominationWindow(
             (int) $this->tenant->id, $this->electionId, $this->manager,
-            now()->subMinute()->toDateTimeString(),
-            now()->addDay()->toDateTimeString(),
+            now()->subMinute()->toIso8601String(),
+            now()->addDay()->toIso8601String(),
             'NOM-1.0',
             $this->ruleDigest,
             'GA-RESOLUTION-CANDIDATE',
@@ -224,7 +224,7 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $this->assertSame('eligible', $decided->status);
         $this->assertSame(1, DB::table('governance_election_candidate_decisions')
             ->where('candidate_id', $candidate->id)->count());
-        $this->assertSame(3, DB::table('governance_election_candidate_events')
+        $this->assertSame(4, DB::table('governance_election_candidate_events')
             ->where('candidate_id', $candidate->id)->count());
     }
 
