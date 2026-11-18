@@ -1108,3 +1108,56 @@ This pass improves source coverage and identifies page-specific OCR failure mode
 The supplied text ends mid-sentence after “ስምንት ቀን በፊት”. The next words have not been supplied or reconstructed. The exact printed page break(s) for this passage are **NOT YET MAPPED**.
 
 **Status:** Owner-supplied text captured verbatim; source-image line-by-line reconciliation and continuation remain open.
+
+
+## Owner-provided line-by-line transcription — continuation of Article 4(2) through Article 9(1)
+
+**Provenance:** The following Amharic text was supplied directly by the Owner in the conversation on 2026-11-18. It is preserved verbatim, including spelling, punctuation, numbering, apparent heading irregularities, and the final sentence. It continues the prior Owner-supplied transcription immediately after Article 4(2)'s words “ስምንት ቀን በፊት”. Printed page mapping remains pending.
+
+```text
+ይተላለፋል በሁለተኛው ስብሰባ ጥሪ ምልዓተ ጉባዔ ካልሞላ ስብሰባዉ ቀጥሎ ውሳኔዎችን ማስተላለፍ ይችላል፡፡
+
+3. አግባብ ባለው ሕግ፣ በመመሥረቻ ጽሑፍ በዚህ መተዳደሪያ ደንብ መሠረት በሌላ ጉባኤዎች ይውላሉ ከሚባሉ ጉዳዮች በስተቀር ዓመታዊ ጠቅላላ ጉባኤ በማንኛውም ጉዳዮች ላይ መወያየት ውሳኔ ማስተላለፈ ይችላል፡፡
+
+አንቀጽ አምስት
+
+ጠቅላላ ጉባኤ እንዲሰበሰብ የሚደረግ ጥሪ
+
+1. መደበኛም ሆነ ድንገተኛ ጠቅላላ ጉባዔ እንዲሰበሰብ ጥሪ የሚደረገሙ ከስብሰባው 30 ቀናት በፊት ቦርዱ በሚያወጣዉ የጊዜ ሰሌዳ መሰረት በደብዳቤዎች ወይም በሌሎች የመገናኛ ዘዴዎች ጥሪ በማድረግ ይሆናል፤
+2. የጥሪዉ መልእክት አግባብ ባለዉ ሕግ የመመስረቻ ጽሁፍና የመተዳደሪያ ደንብ የሚጠየቀዉን መረጃ ሁሉ ያሟላ መሆን ይኖርበታል።
+
+አንቀጽ ስድስት
+
+በጉባኤዉ ላይ ስለመገኘት፣ መቆጣጠሪያ እና ቃለ ጉባኤዎች
+
+1. በንግድ ሕጉ አንቀጽ 403 መሠረት በእያንዳንዱ ጉባኤ ላይ የተገኙትን ባለ አክሲዮኖች የድምጽ ቆጠራ መደረግ አለበት፣
+2. በስብሰባዉ ላይ የተያዙ አጀንዳዎችና የተደረጉ ዉይይቶች በንግድ ህጉ መሰረት በቃለ ጉባኤ ተመዝግበዉ እንዲቀመጡ ይደረጋል።
+
+አንቀጽ ሰበት የማህበሩን ሰነዶች የመመርመር መብት
+
+ማንኛውም ባለአክሲዮን በማህበሩ ዋና መሰሪያ ቤት በመገኘት ከዚህ ቀጥሎ ያሉትን ሰነዶች በማንኛውም ጊዜ ለመመርመር ወይም ኮፒዎችን የመውስድ መብት አለው። ሊሰጡት የሚችሉ ሰነዶች የሚከተሉት ናቸው፡-
+
+1. የሂሳብ ሚዛን የትርፍና ከሳራ መግለጫዎች፣
+2. ያለፉትን ሦስት የሂሳብ አመታት በሚመለከት ዳይሬክተሮች ኦዲተሮች ለጠቅላላ ጉባኤው ያቀረቧቸው ሪፖርቶች፣
+3. በነዚሁ ጠቅላላ ጉባኤዎች የተያዘ ቃለ ጉባዔዎችና የተገኙ አባላት ዝርዝር።
+
+አንቀጽ ስምንት የእንደራሴነት ስልጣን
+
+1. እንድ ባለ አክሲዮን ማኅበርተኛ ያልሆነ ሌላ ሰው በምትኩ በስብሰባዎች ላይ እንዲገኝ የእንደራሴነት ሥልጣን ሊሰጥ ይችላል።
+2. ሥልጣኑ በግልጽ በወካዮ ካልተገለጠ በቀር በጉባዔው በእንደራሴነት የተገኘው ሰው መብት ግዴታ በሚመለከት ከባለ አክሲዮኑ እንደ አንዱ ይቆጠራል።
+3. በጉባዔ የመተካት ውክልና በጽሑፍ ሆኖ ቀን የተጻፈበትና በወካዩ ባለአክሲዮን የተፈረመ መሆን አለበት።
+
+አንቀጽ ዘጠኝ አጀንዳ
+
+1. የአጀንዳው ግልባጭ ከመጥሪያው ጋር ተያይዞ ለባለ አክሲዮኖች ይላካል።
+```
+
+### Boundary / reconciliation notes
+
+- This passage starts as the continuation of Article 4(2), following the preceding Owner-supplied words “ስምንት ቀን በፊት”.
+- The supplied headings skip from Article 6 to “አንቀጽ ሰበት” and then to Article 8. This sequence is preserved exactly as supplied; it is **not** silently renumbered.
+- The heading “አንቀጽ ሰበት” is preserved verbatim and flagged for later comparison against the scan.
+- The passage ends at Article 9(1). Further clauses have not been supplied or inferred.
+- Exact printed page boundaries for this passage remain **NOT YET MAPPED**.
+
+**Status:** Owner-supplied text captured verbatim. Source-image line-by-line reconciliation and page mapping remain open.
