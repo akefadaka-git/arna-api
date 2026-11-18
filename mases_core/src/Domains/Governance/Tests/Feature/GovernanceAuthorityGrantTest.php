@@ -533,6 +533,8 @@ final class GovernanceAuthorityGrantTest extends TestCase
         // Revoking the RBAC permission also denies the action even while
         // the separate Governance grant remains active.
         $this->grantee->permissions()->detach($permission->id);
+        app(\MaaleArna\MASES\Core\Authorization\Services\AuthorizationService::class)
+            ->clearUserCache($this->grantee);
         $this->assertFalse($authorization->allowsGovernedAction(
             $this->grantee,
             (int) $this->tenant->id,
