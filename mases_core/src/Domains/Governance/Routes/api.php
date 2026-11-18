@@ -627,6 +627,14 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.election.committee.administer')
         ->name('elections.committee.admins.store');
 
+    Route::post('/elections/{election}/committee/members', [GovernanceElectionCommitteeSecurityController::class, 'appointMember'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.committee.administer')
+        ->name('elections.committee.members.store');
+    Route::patch('/elections/{election}/committee/members/{userId}/revoke', [GovernanceElectionCommitteeSecurityController::class, 'revokeMember'])
+        ->whereNumber('election')->whereNumber('userId')
+        ->middleware('auth.permission:governance.election.committee.administer')
+        ->name('elections.committee.members.revoke');
     Route::patch('/elections/{election}/committee/admins/{userId}/revoke', [GovernanceElectionCommitteeSecurityController::class, 'revokeAdministrator'])
         ->whereNumber('election')
         ->whereNumber('userId')
