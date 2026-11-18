@@ -10,6 +10,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Composite key supports tenant-safe nomination references.
+        Schema::table('shareholders', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'id'], 'shareholders_tenant_id_uq');
+        });
+
         Schema::create('governance_election_nomination_windows', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -74,11 +79,12 @@ return new class extends Migration
             $table->dateTime('submitted_at');
             $table->timestamps();
             $table->unique(['tenant_id', 'election_id', 'idempotency_key'], 'gov_nom_idempotency_uq');
+            $table->unique(['tenant_id', 'election_id', 'id'], 'gov_nom_tenant_id_uq');
             $table->unique(['tenant_id', 'election_id', 'candidate_id', 'nominated_by_shareholder_id'], 'gov_nom_holder_candidate_uq');
             $table->foreign(['tenant_id', 'election_id', 'candidate_id'], 'gov_nom_candidate_fk')
                 ->references(['tenant_id', 'election_id', 'id'])->on('governance_election_candidates')->restrictOnDelete();
-            $table->foreign('nominated_by_shareholder_id', 'gov_nom_shareholder_fk')
-                ->references('id')->on('shareholders')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'nominated_by_shareholder_id'], 'gov_nom_shareholder_fk')
+                ->references(['tenant_id', 'id'])->on('shareholders')->restrictOnDelete();
             $table->foreign('submitted_by_user_id', 'gov_nom_submitter_fk')
                 ->references('id')->on('users')->restrictOnDelete();
             $table->index(['tenant_id', 'election_id', 'status'], 'gov_nom_status_idx');
@@ -153,5 +159,8 @@ return new class extends Migration
         Schema::dropIfExists('governance_election_nomination_submissions');
         Schema::dropIfExists('governance_election_candidates');
         Schema::dropIfExists('governance_election_nomination_windows');
+        Schema::table('shareholders', function (Blueprint $table): void {
+            $table->dropUnique('shareholders_tenant_id_uq');
+        });
     }
 };
