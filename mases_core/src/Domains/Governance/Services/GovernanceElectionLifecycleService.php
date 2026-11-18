@@ -51,6 +51,10 @@ final class GovernanceElectionLifecycleService
             'title_en' => $data['title_en'] ?? null,
             'election_scope' => $data['election_scope'],
             'election_type' => $data['election_type'],
+            'governance_model' => 'share_company',
+            'electorate_basis' => 'shareholders_on_record_date',
+            'vote_weight_basis' => 'eligible_shares',
+            'ballot_secrecy' => 'secret',
             'timezone' => $data['timezone'] ?? 'Africa/Addis_Ababa',
             'status' => 'draft',
         ]);
