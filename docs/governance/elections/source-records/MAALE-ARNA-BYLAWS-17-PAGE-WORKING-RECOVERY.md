@@ -200,8 +200,4 @@ Contains a handwritten signature, official-looking stamps/seals and a revenue/st
 
 ## Source preservation
 
-The original 17-page scan is preserved separately as:
-
-`maale_arna_bylaws_original_scan.pdf`
-
-The three-page extract previously produced for register pages 9–11 is a partial extract only; this Markdown recovery covers all 17 source pages at a page-index / content-recovery level and records the legible OCR and key verified aggregates. It does not replace the original scan.
+The original 17-page PDF was supplied in an earlier conversation and its SHA-256 is recorded in the P2.5 evidence index. The original PDF bytes were not found in the current Library search and are not included in this repository commit. This Markdown is the persistent working recovery available to this repository workflow; it does not replace the original scan. The three-page extract previously produced for register pages 9–11 is a partial extract only.
