@@ -187,6 +187,74 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         }
     }
 
+    public function test_revoke_and_supersede_update_issued_documents_and_append_lifecycle_events(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $sha = hash('sha256', 'immutable source bytes');
+        $revocable = $this->issuedDocument($tenantId, $entityId, $unitId, $fileId, (int) $actor->getKey(), $sha, 1);
+        $original = $this->issuedDocument($tenantId, $entityId, $unitId, $fileId, (int) $actor->getKey(), $sha, 2);
+        $replacement = $this->issuedDocument($tenantId, $entityId, $unitId, $fileId, (int) $actor->getKey(), $sha, 3, (int) $original);
+
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->times(4);
+        $authorization->shouldReceive('requireGovernedAction')->times(12);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+
+        $revokeFlow = $this->workflowReadyToIssue($service, $actor, $tenantId, $entityId, $unitId, $fileId, 'Revoke test');
+        $revokeFlow = $service->transition($actor, $tenantId, (int) $revokeFlow->id, 'issue', 4, null, [
+            'issued_document_id' => $revocable,
+        ]);
+        $revokeFlow = $service->transition($actor, $tenantId, (int) $revokeFlow->id, 'revoke', 5, 'Authority withdrawn');
+        self::assertSame('revoked', $revokeFlow->status);
+        self::assertSame('revoked', DB::table('documents')->where('id', $revocable)->value('status'));
+        self::assertDatabaseHas('document_lifecycle_events', [
+            'document_id' => $revocable,
+            'event_type' => 'revoked',
+            'reason' => 'Authority withdrawn',
+        ]);
+
+        $supersedeFlow = $this->workflowReadyToIssue($service, $actor, $tenantId, $entityId, $unitId, $fileId, 'Supersede test');
+        $supersedeFlow = $service->transition($actor, $tenantId, (int) $supersedeFlow->id, 'issue', 4, null, [
+            'issued_document_id' => $original,
+        ]);
+        $supersedeFlow = $service->transition($actor, $tenantId, (int) $supersedeFlow->id, 'supersede', 5, 'Replacement formally issued', [
+            'replacement_document_id' => $replacement,
+        ]);
+        self::assertSame('superseded', $supersedeFlow->status);
+        self::assertSame('superseded', DB::table('documents')->where('id', $original)->value('status'));
+        self::assertDatabaseHas('document_lifecycle_events', [
+            'document_id' => $original,
+            'event_type' => 'superseded',
+            'reason' => 'Replacement formally issued',
+        ]);
+    }
+
+    public function test_issue_rejects_file_binary_drift_after_submission(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->twice();
+        $authorization->shouldReceive('requireGovernedAction')->times(4);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $this->workflowReadyToIssue($service, $actor, $tenantId, $entityId, $unitId, $fileId, 'Binary drift');
+        Storage::disk('local')->put('documents/source.pdf', 'changed bytes');
+
+        try {
+            $service->transition($actor, $tenantId, (int) $workflow->id, 'issue', 4, null, ['issued_document_id' => 999999]);
+            self::fail('Issuance must reject a changed submitted binary.');
+        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException) {
+            self::assertSame('signing', $workflow->fresh()->status);
+            self::assertSame(4, (int) $workflow->fresh()->revision);
+        }
+    }
+
     public function test_submitted_file_is_bound_to_server_computed_sha256_and_tenant_fk_rejects_cross_tenant_linkage(): void
     {
         [$tenantA, $entityA, $unitA] = $this->issuer();
@@ -302,6 +370,77 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         }
 
         self::assertInstanceOf(DocumentWorkflowAuthorizationService::class, $this->app->make(DocumentWorkflowAuthorizer::class));
+    }
+
+    private function workflowReadyToIssue(
+        DocumentWorkflowAggregateService $service,
+        User $actor,
+        int $tenantId,
+        int $entityId,
+        int $unitId,
+        int $fileId,
+        string $title,
+    ): \\MaaleArna\\MASES\\Core\\Domains\\Documents\\Models\\DocumentWorkflowAggregate {
+        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', $title, 9, 4);
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
+            'submitted_file_id' => $fileId,
+            'submitted_file_version' => 1,
+        ]);
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'approve', 2);
+        return $service->transition($actor, $tenantId, (int) $workflow->id, 'begin_signing', 3);
+    }
+
+    private function issuedDocument(
+        int $tenantId,
+        int $entityId,
+        int $unitId,
+        int $fileId,
+        int $actorId,
+        string $sha256,
+        int $sequence,
+        ?int $replacesDocumentId = null,
+    ): int {
+        if (! DB::table('document_entity_code_assignments')->where('tenant_id', $tenantId)->where('legal_entity_id', $entityId)->exists()) {
+            DB::table('document_entity_code_assignments')->insert([
+                'tenant_id' => $tenantId, 'legal_entity_id' => $entityId, 'entity_code' => '01',
+                'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+        if (! DB::table('document_department_code_assignments')->where('tenant_id', $tenantId)->where('legal_entity_id', $entityId)->where('organization_unit_id', $unitId)->exists()) {
+            DB::table('document_department_code_assignments')->insert([
+                'tenant_id' => $tenantId, 'legal_entity_id' => $entityId, 'organization_unit_id' => $unitId,
+                'entity_code' => '01', 'department_code' => '01', 'is_active' => true,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        return (int) DB::table('documents')->insertGetId([
+            'uuid' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'tenant_id' => $tenantId,
+            'legal_entity_id' => $entityId,
+            'organization_unit_id' => $unitId,
+            'entity_code' => '01',
+            'department_code' => '01',
+            'document_type_code' => 'LET',
+            'document_type_number' => '01',
+            'ec_year' => 2019,
+            'sequence_number' => $sequence,
+            'canonical_number' => sprintf('ማዓ/01/01/01/2019/%04d', $sequence),
+            'replaces_document_id' => $replacesDocumentId,
+            'title' => 'Issued test document '.$sequence,
+            'file_id' => $fileId,
+            'file_version' => 1,
+            'file_sha256' => $sha256,
+            'status' => 'issued',
+            'request_hash' => hash('sha256', 'request-'.$sequence.'-'.uniqid()),
+            'idempotency_key' => 'workflow-test-'.$tenantId.'-'.$sequence.'-'.uniqid(),
+            'metadata' => null,
+            'issued_by' => $actorId,
+            'issued_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /** @return array{int,int,int} */
