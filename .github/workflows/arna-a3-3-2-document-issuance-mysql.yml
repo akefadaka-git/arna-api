@@ -78,6 +78,9 @@ jobs:
           echo "Actual:   ${actual}"
           test "${actual}" = "${EXPECTED_SHA}"
 
+      - name: Create runner-local environment file
+        run: touch .env
+
       - name: Set up PHP 8.3 with MySQL and Sodium
         uses: shivammathur/setup-php@v2
         with:
