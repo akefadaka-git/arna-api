@@ -61,7 +61,7 @@ final class GovernanceElectionCandidateService
                 throw new ConflictHttpException('The election must be authorized with the same authoritative, versioned rule set before nomination intake can be configured.');
             }
 
-            $timezone = new \DateTimeZone((string) $election->timezone);
+            $timezone = new \DateTimeZone('UTC');
             $opens = $opensInput->setTimezone($timezone);
             $closes = $closesInput->setTimezone($timezone);
             if ($opens >= $closes) {
@@ -116,7 +116,7 @@ final class GovernanceElectionCandidateService
                 throw new ConflictHttpException('Nomination window changed or is not in draft state.');
             }
             $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->lockForUpdate()->first();
-            $now = now($election?->timezone ?: config('app.timezone'));
+            $now = now('UTC');
             if ($now->lt($window->opens_at) || $now->gte($window->closes_at)) {
                 throw new ConflictHttpException('The configured opening time has not arrived or the closing time has passed.');
             }
@@ -192,7 +192,7 @@ final class GovernanceElectionCandidateService
             }
             $window = GovernanceElectionNominationWindow::query()->where('tenant_id', $tenantId)
                 ->where('election_id', $electionId)->lockForUpdate()->first();
-            $now = now($election->timezone ?: config('app.timezone'));
+            $now = now('UTC');
             if (!$window || $window->status !== 'open' || $now->lt($window->opens_at) || $now->gte($window->closes_at)
                 || !in_array($election->status, ['authorized', 'scheduled'], true)) {
                 throw new ConflictHttpException('The authoritative nomination window is not open.');
@@ -480,8 +480,16 @@ final class GovernanceElectionCandidateService
                 throw new ConflictHttpException('Nomination has already been withdrawn.');
             }
             $this->appendNominationEvent($tenantId, $electionId, (int) $submission->candidate_id, $submissionId, 'withdrawn', $actor, ['reason' => trim($reason)]);
+            $candidate = GovernanceElectionCandidate::query()->forElection($tenantId, $electionId)
+                ->whereKey($submission->candidate_id)->lockForUpdate()->firstOrFail();
+            if (!$this->hasActiveNomination($tenantId, $electionId, (int) $candidate->id)) {
+                $candidate->status = 'withdrawn';
+                $candidate->version = (int) $candidate->version + 1;
+                $candidate->save();
+            }
             $this->appendCandidateEvent($tenantId, $electionId, (int) $submission->candidate_id, 'nomination.withdrawn', $actor, [
                 'nomination_submission_id' => $submissionId,
+                'candidate_status' => $candidate->status,
                 'reason' => trim($reason),
             ]);
             return (object) [
