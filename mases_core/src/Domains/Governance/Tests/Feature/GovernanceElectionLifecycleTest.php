@@ -144,6 +144,14 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'domain' => 'other-election-' . uniqid() . '.example.test',
             'is_active' => true,
         ]);
+        $draftFile = File::query()->create([
+            'user_id' => $actor->id, 'tenant_id' => $tenant->id,
+            'original_name' => 'draft-authority.pdf', 'name' => 'draft-authority.pdf',
+            'mime_type' => 'application/pdf', 'extension' => 'pdf', 'size' => 100,
+            'path' => 'tenant_' . $tenant->id . '/draft-authority.pdf',
+            'disk' => 'local', 'version' => 1, 'status' => 'draft',
+            'is_public' => false,
+        ]);
         $foreignFile = File::query()->create([
             'user_id' => $actor->id, 'tenant_id' => $otherTenant->id,
             'original_name' => 'authority.pdf', 'name' => 'foreign-authority.pdf',
@@ -160,6 +168,14 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_digest' => str_repeat('f', 64),
             'authority_document_id' => $foreignFile->id,
         ];
+        $authority['authority_document_id'] = $draftFile->id;
+        try {
+            $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Draft evidence rejected', ['authority:draft-file'], $authority);
+            $this->fail('A draft evidence file must not authorize an election.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('authority_document_id', $exception->errors());
+        }
+        $authority['authority_document_id'] = $foreignFile->id;
         try {
             $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Foreign evidence rejected', ['authority:foreign-file'], $authority);
             $this->fail('A file from another tenant must not authorize this election.');
