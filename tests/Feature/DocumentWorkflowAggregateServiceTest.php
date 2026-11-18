@@ -9,7 +9,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentWorkflowAggregate;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
 use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -34,7 +33,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $authorization->shouldReceive('requireGovernedAction')->once()
             ->with($actor, $tenantId, 9, 4, 'documents.return', (int) $actor->getKey());
         $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.update');
-        $this->app->instance(DocumentWorkflowAuthorizationService::class, $authorization);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
         $workflow = $service->createDraft(
@@ -79,7 +78,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
 
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantA, 'documents.create');
-        $this->app->instance(DocumentWorkflowAuthorizationService::class, $authorization);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
         $workflow = $service->createDraft($actor, $tenantA, $entityA, $unitA, '01', 'Tenant A record');
@@ -101,7 +100,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $actor = User::factory()->create(['is_active' => true]);
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->once();
-        $this->app->instance(DocumentWorkflowAuthorizationService::class, $authorization);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $workflow = $this->app->make(DocumentWorkflowAggregateService::class)
             ->createDraft($actor, $tenantId, $legalEntityId, $unitId, '01', 'Immutable event test');
