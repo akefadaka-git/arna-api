@@ -702,6 +702,10 @@ Route::name('api.governance.')->group(static function (): void {
     Route::post('/elections/{election}/candidates/{candidate}/consent', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'consent'])
         ->whereNumber('election')->whereNumber('candidate')
         ->name('elections.candidates.consent');
+    Route::post('/elections/{election}/candidates/{candidate}/declarations', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionCandidateController::class, 'declarations'])
+        ->whereNumber('election')->whereNumber('candidate')
+        ->name('elections.candidates.declarations');
+
     Route::post('/elections/{election}/candidates/{candidate}/evidence', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'evidence'])
         ->whereNumber('election')->whereNumber('candidate')
         ->middleware('auth.permission:governance.election.manage')
