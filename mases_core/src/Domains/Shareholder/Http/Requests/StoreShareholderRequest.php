@@ -129,6 +129,10 @@ final class StoreShareholderRequest extends FormRequest
                 'sometimes', 'nullable', 'string', 'max:' . self::MAX_ENTITY_NAME_LENGTH,
             ],
 
+            'registered_address' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'register_entry_date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'register_source_reference' => ['sometimes', 'nullable', 'string', 'max:255'],
+
             'user_id' => [
                 'sometimes', 'nullable', 'integer', 'exists:users,id',
             ],
@@ -271,6 +275,9 @@ final class StoreShareholderRequest extends FormRequest
             'grandfather_name_en'    => __('shareholder::attributes.grandfather_name_en'),
             'entity_name_am'         => __('shareholder::attributes.entity_name_am'),
             'entity_name_en'         => __('shareholder::attributes.entity_name_en'),
+            'registered_address'     => __('shareholder::attributes.registered_address'),
+            'register_entry_date'    => __('shareholder::attributes.register_entry_date'),
+            'register_source_reference' => __('shareholder::attributes.register_source_reference'),
             'user_id'                => __('shareholder::attributes.user_id'),
             'representative_user_id' => __('shareholder::attributes.representative_user_id'),
             'is_active'              => __('shareholder::attributes.is_active'),
