@@ -324,11 +324,7 @@ final class GovernanceElectionCandidateService
             if (!$this->hasActiveNomination($tenantId, $electionId, $candidateId)) {
                 throw new ConflictHttpException('Candidate consent cannot be recorded before an active nomination exists.');
             }
-            $person = DB::table('people')->where('id', $candidate->person_id)->where('status', 'active')
-                ->whereNull('deleted_at')->first();
-            if (!$person) {
-                throw new ConflictHttpException('Candidate Person is no longer active.');
-            }
+            $person = $this->assertCandidatePersonTenantAccess($tenantId, (int) $candidate->person_id);
 
             if ($method === 'direct') {
                 if ((int) ($person->user_id ?? 0) !== (int) $actor->getAuthIdentifier()) {
@@ -410,6 +406,7 @@ final class GovernanceElectionCandidateService
             if ((int) $candidate->version !== $expectedVersion) {
                 throw new ConflictHttpException('Candidate was changed by another request; reload and retry.');
             }
+            $this->assertCandidatePersonTenantAccess($tenantId, (int) $candidate->person_id);
             if ($candidate->consent_status !== 'accepted' || !$this->hasActiveNomination($tenantId, $electionId, $candidateId)) {
                 throw new ConflictHttpException('Eligibility cannot be decided until candidate consent and an active nomination are recorded.');
             }
@@ -617,6 +614,18 @@ final class GovernanceElectionCandidateService
             'metadata_digest' => $metadataDigest,
         ]);
         return DB::table('governance_election_candidate_evidence')->where('id', $id)->first();
+    }
+
+    private function assertCandidatePersonTenantAccess(int $tenantId, int $personId): object
+    {
+        $person = DB::table('people')->where('id', $personId)->where('status', 'active')
+            ->whereNull('deleted_at')->first();
+        $hasTenantAccess = DB::table('person_tenant_accesses')->where('person_id', $personId)
+            ->where('tenant_id', $tenantId)->where('status', 'active')->exists();
+        if (!$person || !$hasTenantAccess) {
+            throw new ConflictHttpException('Candidate must remain an active canonical Person with active access to this tenant throughout consent and eligibility review.');
+        }
+        return $person;
     }
 
     private function isWithinWindow(GovernanceElectionNominationWindow $window): bool
