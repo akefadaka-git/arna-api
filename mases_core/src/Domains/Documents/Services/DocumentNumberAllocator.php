@@ -44,6 +44,13 @@ final class DocumentNumberAllocator
         }
 
         $type = DocumentTypeRegistry::numericCode($documentTypeCode);
+        $catalogueEntry = DB::table('document_type_catalogue')
+            ->where('numeric_code', $type)
+            ->where('is_active', true)
+            ->first(['numeric_code']);
+        if ($catalogueEntry === null) {
+            throw new ConflictHttpException('The document type is not active in the controlled catalogue.');
+        }
         if ($ethiopianYear < 1) {
             throw new UnprocessableEntityHttpException('A valid full Ethiopian Calendar year is required.');
         }
