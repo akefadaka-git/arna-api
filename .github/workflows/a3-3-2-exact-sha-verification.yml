@@ -71,6 +71,7 @@ jobs:
             mases_core/src/Domains/Documents/Models/DocumentWorkflowAggregate.php
             mases_core/src/Domains/Documents/Models/DocumentWorkflowEvent.php
             mases_core/src/Domains/Documents/Services/DocumentWorkflowAggregateService.php
+            mases_core/src/Domains/Documents/Services/DocumentWorkflowAuthorizationService.php
             mases_core/src/Providers/CoreServiceProvider.php
             tests/Unit/Documents/DocumentWorkflowAggregateContractTest.php
             tests/Unit/Documents/DocumentWorkflowEventImmutabilityTest.php
