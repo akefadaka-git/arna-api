@@ -39,11 +39,11 @@ jobs:
       - name: Checkout the exact implementation SHA
         uses: actions/checkout@v4
         with:
-          ref: e4e8e0d612ca95eec36868baca8dc9feaed2d648
+          ref: efc970296cae9e428e00cc2f90d5371784ac0cb0
           fetch-depth: 0
       - name: Assert exact source SHA
         env:
-          TARGET_SHA: e4e8e0d612ca95eec36868baca8dc9feaed2d648
+          TARGET_SHA: efc970296cae9e428e00cc2f90d5371784ac0cb0
         run: test "$(git rev-parse HEAD)" = "$TARGET_SHA"
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
@@ -73,6 +73,7 @@ jobs:
             mases_core/src/Providers/CoreServiceProvider.php
             tests/Unit/Documents/DocumentWorkflowAggregateContractTest.php
             tests/Unit/Documents/DocumentWorkflowEventImmutabilityTest.php
+            tests/Feature/DocumentWorkflowAggregateServiceTest.php
           )
           for file in "${files[@]}"; do php -l "$file"; done
       - name: Run Documents workflow and numbering tests
@@ -80,4 +81,5 @@ jobs:
           vendor/bin/phpunit tests/Unit/Documents/DocumentWorkflowAggregateContractTest.php
           vendor/bin/phpunit tests/Unit/Documents/DocumentWorkflowEventImmutabilityTest.php
           vendor/bin/phpunit tests/Feature/DocumentsWorkflowAuthorizationCatalogueTest.php
+          vendor/bin/phpunit tests/Feature/DocumentWorkflowAggregateServiceTest.php
           vendor/bin/phpunit tests/Unit/Documents/DocumentNumberingSchemaTest.php
