@@ -225,6 +225,8 @@ final class GovernanceElectionCandidateService
                 && (int) ($person->user_id ?? 0) === (int) $actor->getAuthIdentifier();
 
             $key = hash('sha256', trim($idempotencyKey));
+            $submissionChannel = 'electronic';
+            $sourceReference = 'NOMINATION-RECEIPT-' . $key;
             $payloadDigest = hash('sha256', json_encode([
                 'tenant_id' => $tenantId,
                 'election_id' => $electionId,
@@ -232,6 +234,8 @@ final class GovernanceElectionCandidateService
                 'nominator_shareholder_id' => (int) $nominator->id,
                 'submitted_by_user_id' => (int) $actor->getAuthIdentifier(),
                 'self_nomination' => $selfNomination,
+                'submission_channel' => $submissionChannel,
+                'source_reference' => $sourceReference,
                 'statement' => $statement,
                 'rule_set_version' => (string) $window->rule_set_version,
                 'rule_set_digest' => (string) $window->rule_set_digest,
@@ -278,6 +282,8 @@ final class GovernanceElectionCandidateService
                 'payload_digest' => $payloadDigest,
                 'rule_set_version' => $window->rule_set_version,
                 'rule_set_digest' => $window->rule_set_digest,
+                'submission_channel' => $submissionChannel,
+                'source_reference' => $sourceReference,
                 'statement' => $statement,
                 'submitted_at' => now('UTC'),
                 'created_at' => now('UTC'),
@@ -292,6 +298,8 @@ final class GovernanceElectionCandidateService
                 'nomination_submission_id' => $submissionId,
                 'nominated_by_shareholder_id' => (int) $nominator->id,
                 'self_nomination' => $selfNomination,
+                'submission_channel' => $submissionChannel,
+                'source_reference' => $sourceReference,
             ]);
             return (object) [
                 'id' => $submissionId,
@@ -351,6 +359,86 @@ final class GovernanceElectionCandidateService
             $candidate->save();
             $this->appendCandidateEvent($tenantId, $electionId, $candidateId, 'candidate.consent.accepted', $actor, [
                 'method' => $method,
+                'evidence_file_ids' => array_values(array_map('intval', $evidenceFileIds)),
+                'aggregate_version' => (int) $candidate->version,
+            ]);
+            return $candidate->refresh();
+        });
+    }
+
+    public function recordDeclarations(
+        int $tenantId,
+        int $electionId,
+        int $candidateId,
+        User $actor,
+        array $declarations,
+        string $method,
+        array $evidenceFileIds = [],
+    ): GovernanceElectionCandidate {
+        if ($declarations === [] || count($declarations) > 50) {
+            throw ValidationException::withMessages(['declarations' => 'Between 1 and 50 declaration fields are required.']);
+        }
+        $encodedDeclarations = json_encode($declarations, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        if (strlen($encodedDeclarations) > 20000) {
+            throw ValidationException::withMessages(['declarations' => 'The declaration payload exceeds 20,000 bytes.']);
+        }
+
+        return DB::transaction(function () use ($tenantId, $electionId, $candidateId, $actor, $declarations, $encodedDeclarations, $method, $evidenceFileIds): GovernanceElectionCandidate {
+            $candidate = GovernanceElectionCandidate::query()->forElection($tenantId, $electionId)
+                ->whereKey($candidateId)->lockForUpdate()->first();
+            if (!$candidate) {
+                throw new NotFoundHttpException('Candidate not found in this tenant and election.');
+            }
+            if (in_array($candidate->status, ['eligible', 'ineligible'], true)) {
+                throw new ConflictHttpException('Final eligibility freezes candidate declarations; use the independent objections and appeals process.');
+            }
+            $person = $this->assertCandidatePersonTenantAccess($tenantId, (int) $candidate->person_id);
+
+            if ($method === 'direct') {
+                if ((int) ($person->user_id ?? 0) !== (int) $actor->getAuthIdentifier()) {
+                    throw new AuthorizationException('Direct declarations must be submitted by the candidate Person’s directly linked account.');
+                }
+                if ($evidenceFileIds !== []) {
+                    throw ValidationException::withMessages(['evidence_file_ids' => 'Direct declarations do not accept proxy evidence files.']);
+                }
+            } elseif ($method === 'documented') {
+                $this->authorize($actor, $tenantId, 'governance.election.manage');
+                if ($evidenceFileIds === []) {
+                    throw ValidationException::withMessages(['evidence_file_ids' => 'Documented declarations require at least one published evidence file.']);
+                }
+                foreach ($evidenceFileIds as $fileId) {
+                    $this->attachEvidenceRecord($tenantId, $electionId, $candidate, $actor, (int) $fileId, 'declaration');
+                }
+            } else {
+                throw ValidationException::withMessages(['method' => 'Declaration method must be direct or documented.']);
+            }
+
+            $digest = hash('sha256', $encodedDeclarations);
+            $sequence = (int) DB::table('governance_election_candidate_declaration_events')
+                ->where('tenant_id', $tenantId)->where('election_id', $electionId)
+                ->where('candidate_id', $candidateId)->max('sequence') + 1;
+            DB::table('governance_election_candidate_declaration_events')->insert([
+                'tenant_id' => $tenantId,
+                'election_id' => $electionId,
+                'candidate_id' => $candidateId,
+                'sequence' => $sequence,
+                'submission_method' => $method,
+                'declaration_digest' => $digest,
+                'declarations' => $encodedDeclarations,
+                'evidence_references' => $evidenceFileIds === [] ? null : json_encode(array_values(array_map('intval', $evidenceFileIds)), JSON_THROW_ON_ERROR),
+                'actor_user_id' => $actor->getAuthIdentifier(),
+                'occurred_at' => now('UTC'),
+                'created_at' => now('UTC'),
+                'updated_at' => now('UTC'),
+            ]);
+
+            $candidate->declarations = $declarations;
+            $candidate->version = (int) $candidate->version + 1;
+            $candidate->save();
+            $this->appendCandidateEvent($tenantId, $electionId, $candidateId, 'candidate.declarations.submitted', $actor, [
+                'declaration_sequence' => $sequence,
+                'declaration_digest' => $digest,
+                'submission_method' => $method,
                 'evidence_file_ids' => array_values(array_map('intval', $evidenceFileIds)),
                 'aggregate_version' => (int) $candidate->version,
             ]);
