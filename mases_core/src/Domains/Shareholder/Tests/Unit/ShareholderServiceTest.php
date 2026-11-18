@@ -592,6 +592,32 @@ final class ShareholderServiceTest extends TestCase
         Event::assertNotDispatched(ShareholderUpdated::class);
     }
 
+    public function test_register_metadata_is_persisted_and_cannot_self_verify(): void
+    {
+        $shareholder = $this->createIndividual([
+            'registered_address' => 'Koybe',
+            'register_entry_date' => '2016-12-16',
+            'register_source_reference' => 'owner-supplied-register:page-9',
+            'register_source_type' => 'seeded',
+            'register_verification_status' => 'verified',
+        ]);
+
+        $this->assertSame('Koybe', $shareholder->registered_address);
+        $this->assertSame('2016-12-16', $shareholder->register_entry_date?->format('Y-m-d'));
+        $this->assertSame('owner-supplied-register:page-9', $shareholder->register_source_reference);
+        $this->assertSame('manual', $shareholder->register_source_type);
+        $this->assertSame('unverified', $shareholder->register_verification_status);
+        $this->assertNull($shareholder->register_verified_at);
+        $this->assertNull($shareholder->register_verified_by);
+
+        $updated = $this->service->update($shareholder, [
+            'registered_address' => 'Jinka',
+        ]);
+
+        $this->assertSame('Jinka', $updated->registered_address);
+        $this->assertSame('unverified', $updated->register_verification_status);
+    }
+
     // =========================================================================
     // Fixtures
     // =========================================================================
