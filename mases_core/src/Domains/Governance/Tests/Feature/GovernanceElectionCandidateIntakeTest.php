@@ -123,6 +123,25 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         }
     }
 
+    public function test_nominator_must_resolve_to_its_own_canonical_person_and_active_tenant_access(): void
+    {
+        $nominator = $this->makeUser('identity-bound-nominator');
+        $nominatorPerson = $this->makePerson($nominator);
+        $shareholderId = $this->makeShareholder($nominator, $nominatorPerson, 'individual');
+        $candidatePerson = $this->makePerson($this->makeUser('identity-bound-candidate'));
+        $otherPerson = $this->makePerson($this->makeUser('identity-bound-other'));
+
+        DB::table('shareholders')->where('id', $shareholderId)
+            ->update(['person_id' => $otherPerson->id]);
+        Auth::login($nominator);
+
+        $this->expectException(AuthorizationException::class);
+        app(GovernanceElectionCandidateService::class)->submitNomination(
+            (int) $this->tenant->id, $this->electionId, $nominator,
+            (int) $candidatePerson->id, 'identity-bound-nomination-001', 'Invalid identity binding.',
+        );
+    }
+
     public function test_direct_self_nomination_is_derived_from_canonical_person_and_direct_account(): void
     {
         $candidateAccount = $this->makeUser('self-candidate');
