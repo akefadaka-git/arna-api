@@ -129,8 +129,8 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $fileId = $this->file($tenantId, (int) $actor->getKey());
 
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
-        $authorization->shouldReceive('requirePermission')->times(4);
-        $authorization->shouldReceive('requireGovernedAction')->times(5);
+        $authorization->shouldReceive('requirePermission')->times(6);
+        $authorization->shouldReceive('requireGovernedAction')->times(6);
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
@@ -207,8 +207,8 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $replacement = $this->issuedDocument($tenantId, $entityId, $unitId, $fileId, (int) $actor->getKey(), $sha, 3, (int) $original);
 
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
-        $authorization->shouldReceive('requirePermission')->times(6);
-        $authorization->shouldReceive('requireGovernedAction')->times(11);
+        $authorization->shouldReceive('requirePermission')->times(4);
+        $authorization->shouldReceive('requireGovernedAction')->times(10);
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
 
