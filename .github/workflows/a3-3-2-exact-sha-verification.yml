@@ -39,11 +39,11 @@ jobs:
       - name: Checkout the exact implementation SHA
         uses: actions/checkout@v4
         with:
-          ref: efc970296cae9e428e00cc2f90d5371784ac0cb0
+          ref: 2703ee318d3ba9ca305fd3e1aa1dcb7b07b08b00
           fetch-depth: 0
       - name: Assert exact source SHA
         env:
-          TARGET_SHA: efc970296cae9e428e00cc2f90d5371784ac0cb0
+          TARGET_SHA: 2703ee318d3ba9ca305fd3e1aa1dcb7b07b08b00
         run: test "$(git rev-parse HEAD)" = "$TARGET_SHA"
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
@@ -67,6 +67,7 @@ jobs:
         run: |
           files=(
             database/migrations/2026_11_18_000002_create_document_workflow_aggregate_tables.php
+            mases_core/src/Domains/Documents/Contracts/DocumentWorkflowAuthorizer.php
             mases_core/src/Domains/Documents/Models/DocumentWorkflowAggregate.php
             mases_core/src/Domains/Documents/Models/DocumentWorkflowEvent.php
             mases_core/src/Domains/Documents/Services/DocumentWorkflowAggregateService.php
