@@ -518,6 +518,11 @@ final class GovernanceElectionCandidateService
             if ((int) $nominator->id !== (int) $submission->nominated_by_shareholder_id) {
                 throw new AuthorizationException('Only the submitting shareholder may correct this nomination.');
             }
+            $candidate = GovernanceElectionCandidate::query()->forElection($tenantId, $electionId)
+                ->whereKey($submission->candidate_id)->lockForUpdate()->firstOrFail();
+            if (in_array($candidate->status, ['eligible', 'ineligible'], true)) {
+                throw new ConflictHttpException('A final eligibility decision freezes nomination corrections; use the independent objections and appeals process.');
+            }
             $withdrawn = DB::table('governance_election_nomination_events')->where('nomination_submission_id', $submissionId)
                 ->where('event_type', 'withdrawn')->exists();
             $window = GovernanceElectionNominationWindow::query()->where('tenant_id', $tenantId)
