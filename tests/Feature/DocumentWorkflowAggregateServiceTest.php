@@ -461,6 +461,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         [$tenantId, $entityId, $unitId] = $this->issuer();
         $this->app->make(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class)->setTenantById($tenantId);
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenantId]);
+        $this->actingAs($actor);
         \Laravel\Sanctum\Sanctum::actingAs($actor, ['*']);
         $actor->tenants()->attach($tenantId, ['joined_at' => now()]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
