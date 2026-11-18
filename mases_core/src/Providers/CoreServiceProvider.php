@@ -19,6 +19,9 @@ use MaaleArna\MASES\Core\Events\AuthorizationFailureEvent;
 use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceEntityMappingResolver;
+use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentSignatureEvidenceVerifier;
+use MaaleArna\MASES\Core\Domains\Documents\Services\SodiumDocumentSignatureEvidenceVerifier;
+use MaaleArna\MASES\Core\Domains\Documents\Services\ImmutableDocumentBinaryStore;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
 use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
@@ -262,6 +265,12 @@ final class CoreServiceProvider extends ServiceProvider
         // --- Documents workflow authorization -------------------------------
         // RBAC is combined with explicit tenant/body/position Governance authority.
         $this->app->singleton(DocumentWorkflowAuthorizationService::class);
+        $this->app->singleton(SodiumDocumentSignatureEvidenceVerifier::class);
+        $this->app->singleton(
+            DocumentSignatureEvidenceVerifier::class,
+            static fn ($app): DocumentSignatureEvidenceVerifier => $app->make(SodiumDocumentSignatureEvidenceVerifier::class)
+        );
+        $this->app->singleton(ImmutableDocumentBinaryStore::class);
         $this->app->singleton(DocumentWorkflowAggregateService::class);
         $this->app->singleton(
             DocumentWorkflowAuthorizer::class,
