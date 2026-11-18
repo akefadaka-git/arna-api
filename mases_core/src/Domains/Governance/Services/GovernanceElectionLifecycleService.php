@@ -86,7 +86,7 @@ final class GovernanceElectionLifecycleService
                 default => throw ValidationException::withMessages(['action' => 'Unsupported lifecycle action.']),
             };
 
-            $election->status = $to;
+            if ($action === 'authorize') {\n                $election->authorized_by = (int) $actor->getAuthIdentifier();\n            } elseif ($action === 'suspend') {\n                $election->suspended_by = (int) $actor->getAuthIdentifier();\n            } elseif ($action === 'cancel') {\n                $election->cancelled_by = (int) $actor->getAuthIdentifier();\n            } elseif ($action === 'archive') {\n                $election->archived_by = (int) $actor->getAuthIdentifier();\n            }\n            $election->status = $to;
             $election->version = $expectedVersion + 1;
             $election->save();
 
@@ -203,7 +203,7 @@ final class GovernanceElectionLifecycleService
         if (!function_exists('mases_tenant_id') || (int) mases_tenant_id() !== $tenantId) {
             throw new AuthorizationException('A resolved tenant context is required.');
         }
-        if (!app(\MaaleArna\MASES\Core\Authorization\Services\AuthorizationService::class)->hasPermission($actor, $permission, $tenantId)) {
+        if (!app(\MaaleArna\MASES\Core\Authorization\Services\AuthorizationService::class)->hasPermission($permission, $actor, $tenantId)) {
             throw new AuthorizationException('The required election permission is not granted in this tenant.');
         }
     }
