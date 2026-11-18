@@ -325,6 +325,7 @@ final class MasesCoreSeeder extends Seeder
             \MaaleArna\MASES\Core\Domains\Governance\Database\Seeders\GovernancePermissionsSeeder::class,
         ]);
         app(\MaaleArna\MASES\Core\Domains\Governance\Database\Seeders\GovernanceElectionCommitteePermissionsSeeder::class)->run();
+        app(\MaaleArna\MASES\Core\Domains\Governance\Database\Seeders\GovernanceElectionCandidatePermissionsSeeder::class)->run();
 
         /*
          * Step 5 — roles.
