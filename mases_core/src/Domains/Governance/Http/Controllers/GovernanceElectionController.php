@@ -52,7 +52,7 @@ final class GovernanceElectionController extends Controller
             'action' => ['required', 'in:authorize,schedule,suspend,resume,cancel,archive'],
             'expected_version' => ['required', 'integer', 'min:1'],
             'reason' => ['required', 'string', 'min:5', 'max:2000'],
-            'evidence_references' => ['sometimes', 'array', 'max:20'],
+            'evidence_references' => ['required', 'array', 'min:1', 'max:20'],
             'evidence_references.*' => ['string', 'max:200'],
             'authority' => ['sometimes', 'array'],
             'authority.authority_reference' => ['required_if:action,authorize', 'nullable', 'string', 'max:200'],
