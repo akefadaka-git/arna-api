@@ -657,6 +657,7 @@ Route::name('api.governance.')->group(static function (): void {
         ->name('elections.show');
     Route::post('/elections/{election}/transitions', [GovernanceElectionController::class, 'transition'])
         ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.manage')
         ->name('elections.transitions.store');
 
 });
