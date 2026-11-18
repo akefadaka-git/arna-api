@@ -19,6 +19,10 @@ return new class extends Migration
             $table->string('title_en', 200)->nullable();
             $table->string('election_scope', 64);
             $table->string('election_type', 64);
+            $table->string('governance_model', 32)->default('share_company');
+            $table->string('electorate_basis', 48)->default('shareholders_on_record_date');
+            $table->string('vote_weight_basis', 32)->default('eligible_shares');
+            $table->string('ballot_secrecy', 16)->default('secret');
             $table->string('status', 24)->default('draft');
             $table->string('authority_reference', 200)->nullable();
             $table->unsignedBigInteger('authority_document_id')->nullable();
