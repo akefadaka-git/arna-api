@@ -63,7 +63,9 @@ return new class extends Migration
             $table->dateTime('occurred_at');
             $table->timestamps();
             $table->unique(['tenant_id', 'election_id', 'sequence'], 'gov_elec_lifecycle_seq_uq');
-            $table->index(['tenant_id', 'election_id', 'occurred_at'], 'gov_elec_lifecycle_time_idx');\n            $table->foreign(['tenant_id', 'election_id'], 'gov_elec_lifecycle_election_fk')\n                ->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
+            $table->index(['tenant_id', 'election_id', 'occurred_at'], 'gov_elec_lifecycle_time_idx');
+            $table->foreign(['tenant_id', 'election_id'], 'gov_elec_lifecycle_election_fk')
+                ->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
         });
 
         // The committee-security migration predates this parent table.
