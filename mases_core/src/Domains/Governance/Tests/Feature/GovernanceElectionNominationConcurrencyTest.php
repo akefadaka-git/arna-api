@@ -147,8 +147,14 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
                         'Same nomination payload submitted by independent workers.',
                     );
                     file_put_contents($resultPath, json_encode([
-                        'ok' => true,
+                        'outcome' => 'accepted',
                         'receipt_id' => (int) $receipt->id,
+                    ], JSON_THROW_ON_ERROR));
+                    exit(0);
+                } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException $exception) {
+                    file_put_contents($resultPath, json_encode([
+                        'outcome' => 'conflict',
+                        'error' => $exception->getMessage(),
                     ], JSON_THROW_ON_ERROR));
                     exit(0);
                 } catch (\Throwable $exception) {
