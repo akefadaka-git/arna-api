@@ -1,0 +1,80 @@
+name: A3.3.2 exact-SHA Documents workflow verification
+
+on:
+  push:
+    branches:
+      - verify/a3-3-2-exact-sha
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: arna_test
+          MYSQL_USER: arna
+          MYSQL_PASSWORD: arna
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: arna_test
+      DB_USERNAME: arna
+      DB_PASSWORD: arna
+      APP_ENV: testing
+    steps:
+      - name: Checkout the exact implementation SHA
+        uses: actions/checkout@v4
+        with:
+          ref: d962cece88993c9d3d083dae9537d4842e5792b0
+          fetch-depth: 0
+      - name: Assert exact source SHA
+        env:
+          TARGET_SHA: d962cece88993c9d3d083dae9537d4842e5792b0
+        run: test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql, xml, ctype, curl, dom, fileinfo, intl, json, openssl, pdo, tokenizer, xmlwriter, zip, bcmath
+          coverage: none
+      - name: Validate Composer metadata
+        run: composer validate --no-check-publish
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Prepare Laravel environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+      - name: Run fresh MySQL migrations
+        run: php artisan migrate --force
+      - name: PHP syntax lint for A3.3.2 files
+        run: |
+          files=(
+            database/migrations/2026_11_18_000002_create_document_workflow_aggregate_tables.php
+            mases_core/src/Domains/Documents/Models/DocumentWorkflowAggregate.php
+            mases_core/src/Domains/Documents/Models/DocumentWorkflowEvent.php
+            mases_core/src/Domains/Documents/Services/DocumentWorkflowAggregateService.php
+            mases_core/src/Providers/CoreServiceProvider.php
+            tests/Unit/Documents/DocumentWorkflowAggregateContractTest.php
+            tests/Unit/Documents/DocumentWorkflowEventImmutabilityTest.php
+          )
+          for file in "${files[@]}"; do php -l "$file"; done
+      - name: Run Documents workflow and numbering tests
+        run: |
+          vendor/bin/phpunit tests/Unit/Documents/DocumentWorkflowAggregateContractTest.php
+          vendor/bin/phpunit tests/Unit/Documents/DocumentWorkflowEventImmutabilityTest.php
+          vendor/bin/phpunit tests/Feature/DocumentsWorkflowAuthorizationCatalogueTest.php
+          vendor/bin/phpunit tests/Unit/Documents/DocumentNumberingSchemaTest.php
