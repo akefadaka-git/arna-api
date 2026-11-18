@@ -17,6 +17,23 @@ use Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException;
  */
 final class SodiumDocumentSignatureEvidenceVerifier implements DocumentSignatureEvidenceVerifier
 {
+    public static function canonicalPayload(
+        int $tenantId,
+        string $workflowUuid,
+        string $fileSha256,
+        int $signerUserId,
+        DateTimeImmutable $signedAt,
+    ): string {
+        return json_encode([
+            'contract' => 'ARNA-DOCUMENT-SIGNATURE-V1',
+            'tenant_id' => $tenantId,
+            'workflow_uuid' => $workflowUuid,
+            'file_sha256' => $fileSha256,
+            'signer_user_id' => $signerUserId,
+            'signed_at' => $signedAt->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d\\TH:i:s\\Z'),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    }
+
     public function verify(
         User $signer,
         int $tenantId,
@@ -76,14 +93,13 @@ final class SodiumDocumentSignatureEvidenceVerifier implements DocumentSignature
 
         // The canonical challenge is deliberately fixed-order JSON. It binds
         // the tenant, workflow, exact binary digest, signer identity and time.
-        $payload = json_encode([
-            'contract' => 'ARNA-DOCUMENT-SIGNATURE-V1',
-            'tenant_id' => $tenantId,
-            'workflow_uuid' => $workflowUuid,
-            'file_sha256' => $fileSha256,
-            'signer_user_id' => (int) $signer->getKey(),
-            'signed_at' => $signedAt->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d\\TH:i:s\\Z'),
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $payload = self::canonicalPayload(
+            $tenantId,
+            $workflowUuid,
+            $fileSha256,
+            (int) $signer->getKey(),
+            $signedAt,
+        );
 
         if (! sodium_crypto_sign_verify_detached($signature, $payload, $publicKey)) {
             throw new AuthorizationException('The detached Ed25519 signature does not verify for this document evidence.');
