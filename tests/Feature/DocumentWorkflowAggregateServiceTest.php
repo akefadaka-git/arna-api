@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,6 @@ use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateSer
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Mockery;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 
 final class DocumentWorkflowAggregateServiceTest extends TestCase
