@@ -26,6 +26,7 @@ return new class extends Migration
             $table->unsignedInteger('revision')->default(0);
             $table->unsignedBigInteger('submitted_file_id')->nullable();
             $table->unsignedInteger('submitted_file_version')->nullable();
+            $table->char('submitted_file_sha256', 64)->nullable();
             $table->unsignedBigInteger('issued_document_id')->nullable();
             $table->timestamp('last_transition_at')->nullable();
             $table->timestamps();
@@ -38,6 +39,8 @@ return new class extends Migration
                 ->references(['tenant_id', 'legal_entity_id', 'id'])->on('organization_units')->restrictOnDelete();
             $table->foreign('document_type_number', 'doc_wf_type_fk')
                 ->references('numeric_code')->on('document_type_catalogue')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'submitted_file_id'], 'doc_wf_submitted_file_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('files')->restrictOnDelete();
             $table->foreign(['tenant_id', 'issued_document_id'], 'doc_wf_issued_fk')
                 ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
             $table->index(['tenant_id', 'status', 'updated_at'], 'doc_workflow_tenant_status_idx');
