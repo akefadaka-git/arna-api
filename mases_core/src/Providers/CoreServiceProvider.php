@@ -19,6 +19,7 @@ use MaaleArna\MASES\Core\Events\AuthorizationFailureEvent;
 use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceEntityMappingResolver;
+use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
 use MaaleArna\MASES\Core\Listeners\InvalidateAuthorizationCacheListener;
 use MaaleArna\MASES\Core\Listeners\LogAuthorizationFailureListener;
 use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
@@ -256,7 +257,11 @@ final class CoreServiceProvider extends ServiceProvider
             \MaaleArna\MASES\Core\Files\Services\FileService::class
         );
 
-        // --- Documents workflow authorization -------------------------------\n        // RBAC is combined with explicit tenant/body/position Governance authority.\n        $this->app->singleton(DocumentWorkflowAuthorizationService::class);\n\n        // --- Finance source-reference validation ----------------------------
+        // --- Documents workflow authorization -------------------------------
+        // RBAC is combined with explicit tenant/body/position Governance authority.
+        $this->app->singleton(DocumentWorkflowAuthorizationService::class);
+
+        // --- Finance source-reference validation ----------------------------
         // The mapping resolver is authoritative for Shareholder, Wallet, and Loan
         // records only. Other source types stay disabled until their own resolver
         // proves source ownership and legal-entity eligibility.
