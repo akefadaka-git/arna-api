@@ -181,7 +181,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         try {
             $service->transition($actor, $tenantId, (int) $workflow->id, 'issue', 4, null, ['issued_document_id' => 999999]);
             self::fail('Issuance must reject an absent issued document record.');
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException) {
+        } catch (\Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException) {
             self::assertSame('signing', $workflow->fresh()->status);
             self::assertSame(4, (int) $workflow->fresh()->revision);
         }
@@ -288,7 +288,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         try {
             $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
             self::fail('A tenant permission alone must not authorize governed review.');
-        } catch (\\Illuminate\\Auth\\Access\\AuthorizationException) {
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
             self::assertSame('submitted', $workflow->fresh()->status);
             self::assertSame(1, (int) $workflow->fresh()->revision);
         }
