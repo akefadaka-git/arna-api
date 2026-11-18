@@ -53,7 +53,8 @@ return new class extends Migration
             $table->string('appointment_reference', 160);
             // Evidence is validated against tenant/election/status in the write service.
             // It is indexed here because the evidence table is created later in this migration.
-            $table->unsignedBigInteger('appointment_evidence_id')->nullable()->index();
+            $table->unsignedBigInteger('appointment_evidence_id')->nullable();
+            $table->index(['appointment_evidence_id'], 'gov_elec_member_evidence_idx');
             $table->foreignId('appointed_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->foreignId('revoked_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->dateTime('revoked_at')->nullable();
