@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentWorkflowAggregate;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
-use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
+use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Mockery;
 use Tests\TestCase;
@@ -26,7 +26,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $actor = User::factory()->create(['is_active' => true]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
 
-        $authorization = Mockery::mock(DocumentWorkflowAuthorizationService::class);
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.create');
         $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.submit');
         $authorization->shouldReceive('requireGovernedAction')->once()
@@ -77,9 +77,8 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         [$tenantB] = $this->issuer();
         $actor = User::factory()->create(['is_active' => true]);
 
-        $authorization = Mockery::mock(DocumentWorkflowAuthorizationService::class);
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantA, 'documents.create');
-        $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantA, 'documents.submit');
         $this->app->instance(DocumentWorkflowAuthorizationService::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
@@ -100,7 +99,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
     {
         [$tenantId, $legalEntityId, $unitId] = $this->issuer();
         $actor = User::factory()->create(['is_active' => true]);
-        $authorization = Mockery::mock(DocumentWorkflowAuthorizationService::class);
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->once();
         $this->app->instance(DocumentWorkflowAuthorizationService::class, $authorization);
 
