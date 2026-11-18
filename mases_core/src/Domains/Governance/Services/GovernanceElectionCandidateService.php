@@ -478,11 +478,16 @@ final class GovernanceElectionCandidateService
             if ($withdrawn) {
                 throw new ConflictHttpException('Nomination has already been withdrawn.');
             }
-            $this->appendNominationEvent($tenantId, $electionId, (int) $submission->candidate_id, $submissionId, 'withdrawn', $actor, ['reason' => trim($reason)]);
             $candidate = GovernanceElectionCandidate::query()->forElection($tenantId, $electionId)
                 ->whereKey($submission->candidate_id)->lockForUpdate()->firstOrFail();
+            if (in_array($candidate->status, ['eligible', 'ineligible'], true)) {
+                throw new ConflictHttpException('A final eligibility decision cannot be changed by a nominator withdrawal; use the independent objections and appeals process.');
+            }
+            $this->appendNominationEvent($tenantId, $electionId, (int) $submission->candidate_id, $submissionId, 'withdrawn', $actor, ['reason' => trim($reason)]);
             if (!$this->hasActiveNomination($tenantId, $electionId, (int) $candidate->id)) {
-                $candidate->status = 'withdrawn';
+                // A nominator withdraws only their submission, not the candidate.
+                // Keep the candidate intake aggregate available for other nominators.
+                $candidate->status = 'intake_pending';
                 $candidate->version = (int) $candidate->version + 1;
                 $candidate->save();
             }
