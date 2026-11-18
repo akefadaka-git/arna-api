@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace MaaleArna\MASES\Core\Files\Services;
+
 /**
  * Backward-compatibility alias for the canonical File Management service.
  *
