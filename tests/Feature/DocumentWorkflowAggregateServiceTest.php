@@ -23,6 +23,12 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('local');
+    }
+
     public function test_draft_submission_review_return_and_resume_are_persisted_as_atomic_audited_transitions(): void
     {
         [$tenantId, $legalEntityId, $unitId] = $this->issuer();
@@ -692,7 +698,6 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
 
     private function file(int $tenantId, int $userId): int
     {
-        Storage::fake('local');
         Storage::disk('local')->put('documents/source.pdf', 'immutable source bytes');
 
         return (int) DB::table('files')->insertGetId([
