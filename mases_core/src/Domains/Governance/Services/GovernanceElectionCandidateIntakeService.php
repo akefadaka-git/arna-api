@@ -338,7 +338,12 @@ final class GovernanceElectionCandidateIntakeService
     {
         $query = DB::table('shareholders')->where('tenant_id', $tenantId)->where('is_active', true)
             ->whereNull('deleted_at')->where(function ($builder) use ($actor): void {
-                $builder->where('user_id', $actor->id)->orWhere('representative_user_id', $actor->id);
+                $builder->where(function ($individual) use ($actor): void {
+                    $individual->where('shareholder_type', 'individual')->where('user_id', $actor->id);
+                })->orWhere(function ($entity) use ($actor): void {
+                    $entity->whereIn('shareholder_type', ['company', 'trust', 'cooperative', 'government', 'religious_body'])
+                        ->where('representative_user_id', $actor->id);
+                });
             });
         if ($shareholderId !== null) $query->where('id', $shareholderId);
         $matches = $query->limit(2)->get(['id', 'shareholder_type', 'person_id', 'user_id', 'representative_user_id']);
