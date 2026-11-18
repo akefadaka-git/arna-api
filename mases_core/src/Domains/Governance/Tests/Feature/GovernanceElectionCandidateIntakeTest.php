@@ -106,6 +106,11 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $this->assertSame((int) $first->id, (int) $repeat->id);
         $this->assertSame($shareholderId, (int) $first->nominated_by_shareholder_id);
         $this->assertSame(0, (int) $first->self_nomination);
+        $receipt = DB::table('governance_election_nomination_submissions')->where('id', $first->id)->first();
+        $this->assertSame('electronic', $receipt->submission_channel);
+        $this->assertStringStartsWith('NOMINATION-RECEIPT-', $receipt->source_reference);
+        $this->assertSame(1, DB::table('governance_election_nomination_submissions')
+            ->where('source_reference', $receipt->source_reference)->count());
         $this->assertSame(1, DB::table('governance_election_nomination_submissions')
             ->where('candidate_id', $first->candidate_id)->count());
         $this->assertSame('intake_pending', DB::table('governance_election_candidates')
@@ -121,6 +126,43 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             $this->assertSame(1, DB::table('governance_election_nomination_submissions')
                 ->where('candidate_id', $first->candidate_id)->count());
         }
+    }
+
+    public function test_candidate_declarations_are_snapshotted_and_versioned(): void
+    {
+        $nominator = $this->makeUser('declaration-nominator');
+        $nominatorPerson = $this->makePerson($nominator);
+        $this->makeShareholder($nominator, $nominatorPerson, 'individual');
+        $candidateAccount = $this->makeUser('declaration-candidate');
+        $candidatePerson = $this->makePerson($candidateAccount);
+
+        Auth::login($nominator);
+        $submission = app(GovernanceElectionCandidateService::class)->submitNomination(
+            (int) $this->tenant->id, $this->electionId, $nominator,
+            (int) $candidatePerson->id, 'declaration-nomination-001', 'Candidate nomination.',
+        );
+
+        Auth::login($candidateAccount);
+        $service = app(GovernanceElectionCandidateService::class);
+        $first = $service->recordDeclarations(
+            (int) $this->tenant->id, $this->electionId, (int) $submission->candidate_id,
+            $candidateAccount, ['qualification' => 'Declared professional qualification', 'conflicts' => []], 'direct',
+        );
+        $second = $service->recordDeclarations(
+            (int) $this->tenant->id, $this->electionId, (int) $submission->candidate_id,
+            $candidateAccount, ['qualification' => 'Updated qualification declaration', 'conflicts' => []], 'direct',
+        );
+
+        $this->assertSame('Updated qualification declaration', $second->declarations['qualification']);
+        $this->assertSame(3, (int) $second->version);
+        $events = DB::table('governance_election_candidate_declaration_events')
+            ->where('candidate_id', $submission->candidate_id)->orderBy('sequence')->get();
+        $this->assertCount(2, $events);
+        $this->assertSame(1, (int) $events[0]->sequence);
+        $this->assertSame(2, (int) $events[1]->sequence);
+        $this->assertSame($candidateAccount->id, (int) $events[1]->actor_user_id);
+        $this->assertNotSame($events[0]->declaration_digest, $events[1]->declaration_digest);
+        $this->assertSame('Updated qualification declaration', json_decode($events[1]->declarations, true)['qualification']);
     }
 
     public function test_nominator_must_resolve_to_its_own_canonical_person_and_active_tenant_access(): void
