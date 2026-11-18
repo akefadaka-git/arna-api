@@ -23,6 +23,7 @@ final class GovernanceElection extends Model
         'code',
         'title',
         'status',
+        'voting_method',
         'authority_status',
         'record_date',
         'created_by',

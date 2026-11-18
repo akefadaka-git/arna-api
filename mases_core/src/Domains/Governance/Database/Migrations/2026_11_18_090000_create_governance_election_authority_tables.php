@@ -17,9 +17,10 @@ return new class extends Migration
             $table->string('code', 80);
             $table->string('title', 255);
             $table->string('status', 24)->default('planned')->index();
+            $table->string('voting_method', 32)->nullable();
             $table->string('authority_status', 24)->default('unverified')->index();
             $table->date('record_date')->nullable();
-            $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
             $table->unique(['tenant_id', 'code'], 'gov_elections_tenant_code_uq');
