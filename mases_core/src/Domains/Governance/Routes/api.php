@@ -230,6 +230,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthority
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeSecurityController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionAuthorityController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeAppointmentController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;

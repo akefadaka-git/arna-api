@@ -224,6 +224,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceMembershipService
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernancePositionService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceTermService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionAuthorityService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionCommitteeAppointmentService;
 
 /**
  * GovernanceServiceProvider
