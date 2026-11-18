@@ -31,6 +31,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['tenant_id', 'id'], 'doc_workflow_tenant_id_unique');
+            $table->unique(['tenant_id', 'issued_document_id'], 'doc_workflow_issued_document_unique');
             $table->foreign(['tenant_id', 'legal_entity_id'])
                 ->references(['tenant_id', 'id'])->on('legal_entities')->restrictOnDelete();
             $table->foreign(['tenant_id', 'legal_entity_id', 'organization_unit_id'])
