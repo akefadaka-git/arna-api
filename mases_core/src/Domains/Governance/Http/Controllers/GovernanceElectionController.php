@@ -82,6 +82,6 @@ final class GovernanceElectionController extends Controller
     private function assertView(User $actor, int $tenantId): void
     {
         abort_unless(app(\MaaleArna\MASES\Core\Authorization\Services\AuthorizationService::class)
-            ->hasPermission($actor, 'governance.election.view', $tenantId), 403);
+            ->hasPermission('governance.election.view', $actor, $tenantId), 403);
     }
 }
