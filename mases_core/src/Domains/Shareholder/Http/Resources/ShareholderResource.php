@@ -278,6 +278,7 @@ final class ShareholderResource extends JsonResource
             'shareholder_type'   => $shareholder->shareholder_type,
             'registered_address' => $shareholder->registered_address,
             'register_entry_date' => $shareholder->register_entry_date?->format('Y-m-d'),
+            'register_entry_date_display' => $this->localizedDate($shareholder->register_entry_date),
             'register_source_type' => $shareholder->register_source_type,
             'register_source_reference' => $shareholder->register_source_reference,
             'register_verification_status' => $shareholder->register_verification_status,
