@@ -1060,36 +1060,51 @@ For any subsequent manual transcription, use [UNCLEAR: …] when some characters
 This pass improves source coverage and identifies page-specific OCR failure modes, but it does **not** satisfy the requested line-by-line Amharic correction. A true corrected transcription requires manual reading of every line from the scan at sufficient visual resolution, including crowded clauses and tables. The current 17-page document remains a working recovery, **PARTIAL / NOT VERIFIED**. No claim of complete source-to-Markdown textual equivalence is made.
 
 
-## Manual line-by-line transcription — page 1 (first pass)
+## Owner-provided line-by-line transcription — opening text through Article 4(2)
 
-**Method:** visual comparison against the 300-dpi page-1 scan, with Amharic OCR used only as a reading aid. The transcription below preserves the page's visible order. Editorial uncertainty is marked; it is not silently reconstructed.
+**Provenance:** The following Amharic text was supplied directly by the Owner in the conversation on 2026-11-18. It is preserved verbatim, including spelling, punctuation, numbering, and the unfinished final sentence. This is a source transcription contribution; page-boundary mapping and visual source-to-text reconciliation remain pending. It supersedes the earlier assistant-drafted page-1 wording where the two differ.
 
-### Printed heading and introductory statement
+```text
+የማሌ ዓርና አክስዮን ማኅበር የመተዳደሪያ ደንብ
 
-የማሌ ዓርና አክሲዮን ማኅበር
+ይህ የመተደደሪያ ደንብ የመመሥረቻ ሰነዱ አካል ሆኖ የተዘጋጀ ሲሆን አግባብ ባላቸው የሕግ ድንጋጌዎች መሠረት ይመራል፣ ይተዳደራል፡፡
 
-የመተዳደሪያ ደንብ
+አንቀጽ አንድ
 
-ይህ የመተዳደሪያ ደንብ የመመሥረቻ ሰነዱ አካል ሆኖ የተዘጋጀ ሲሆን አግባብ ባላቸው የሕግ ድንጋጌዎች መሠረት ይመራል፣ ይተዳደራል።
+የባለ አክሲዮኖች /ማኅበርተኞች መብቶች/
 
-### አንቀጽ አንድ — የባለ አክሲዮኖች /ማኅበርተኞች መብቶች/
+እያንዳንዱ ባለ አክሲዮን፡-
+ሀ. በልዩም ሆነ በመደንበኛ ጉባኤዎች በመገኘት ሃሳብ የመስጠት፣ የመቃወም፣ ድምፅ የመስጠት፣
+ለ. የማኅበሩን ውሳኔ የመጠየቅ የማግኘት፣
+ሐ. የማኅበሩን የተጣራ ትርፍ ማኅበሩም ሲፈርስ በሚደረገው የሂሳብ ማጣራት ድርሻን የመካፈል፣
+መ. የማኅበሩ የዳይሬክተሮች ቦርድ እጩ ሆኖ የመቅረብ፣
+ሠ. ካፒታል በመጨመሩ ተጨማሪ አክሲዮኖች የሚታደሉ ቢሆን የቀደምትነት ድርሻ የማግኘት፣
+ረ. አግባብ ባለው ሕግ፣ በመመሥረቻ ጽሁፍ በዚህ የመተዳደሪያ ደንብ በሚሰጡት መብቶች የመጠቀም፣ መብት ይኖረዋል፡፡
 
-እያንዳንዱ ባለ አክሲዮን፦
+አንቀጽ ሁለት
 
-ሀ. በልዩም ሆነ በመደበኛ ጉባኤዎች በመገኘት ሃሳብ የመስጠት፣ የመቃወም፣ ድምፅ የመስጠት፤
+የባለ አክሲዮኖች ምዝገባ
 
-ለ. የማኅበሩን ውሳኔ የመጠየቅ የማግኘት፤
+1. የማኅበሩ ሥራ አስኪያጅ የባለአክሲዮኖችን ዝርዝር የያዘው መዝገብ በማኅበሩ ዋና መሥሪያ ቤት እንዲገኝ ያደርጋል፡፡ መዝገቡ በሕግ፣ በመመሥረቻ ጽሑፍ በመተዳደሪያ ደንቡ የሚጠየቁትን ጉዳዮች ሁሉ የያዘ መሆን አለበት፡፡
+2. በመዝገቡ ውስጥ ጉድለት /ስህተት/ መኖሩ እንደታወቀ የማኅበሩ ሥራ አስኪያጅ ይህን ጉድለት በሰላሳ ቀን ውስጥ እንዲስተካከል/እንዲታረም/ ያደርጋል፡፡
+3. መዝገቡን ለመመርመር ከውስጡም ቅጂዎችን ለመውሰድ መከፈል የሚኖርበትን ሂሳብ የዳይሬክተሮች ቦርድ ይወስናል፡፡ ሆኖም ባለ አክሲዮን የሆነ ሰው ያለክፍያ መዝገቡን ሊመለከተው ይችላል፡፡
 
-ሐ. የማኅበሩን የተጣራ ትርፍ፣ ማኅበሩም ሲፈርስ በሚደረገው የሂሳብ ማጣራት ድርሻን የመካፈል፤
+አንቀጽ ሶስት
 
-መ. የማኅበሩ የዳይሬክተሮች ቦርድ አባል ሆኖ የመቅረብ፤
+የጠፉ አክሲዮኖችን ስለመተካት
 
-ሠ. ካፒታል በመጨመሩ ተጨማሪ አክሲዮኖች የሚታደሉ ቢሆን የቀደምትነት ድርሻ የማግኘት፤
+ማህበሩ የሚያድላቸዉ አክስዮኖች ጉዳት ቢደርስባቸዉ፣ ቢበላሹ፣ ቢጠፉ፣ ወይም ቢሰረቁ ዳይሬክተሮች ቦርድ በሚሰጠዉ መመሪያ መሰረት እንደገና ይታደሳል፡፡
 
-ረ. አግባብ ባለው ሕግ፣ በመመሥረቻ ጽሑፍ በዚህ የመተዳደሪያ ደንብ በሚሰጡት መብቶች የመጠቀም፤ [የመጨረሻው የታተመ ሐረግ በምስሉ ላይ በከፊል የተደበዘዘ ነው።]
+አንቀጽ አራት
 
-### Remaining page-1 text
+ጉባኤዎች
 
-The remainder of page 1 contains further article headings and numbered clauses. Their visible sequence and some headings are inconsistent with the apparent article sequence, and the small/blurred characters do not yet support a dependable line-by-line reading. **NOT TRANSCRIBED in this pass**; the original image remains the controlling source. No heading or clause has been reordered to make the sequence appear logical.
+1. የዳይሬክተሮች ቦርድ በሌላ ጊዜ ቦታ እንዲሆን ካልወሰነ በቀር የማኅበሩ ጠቅላላ ጉባኤ በየዓመቱ አንድ ጊዜ በዋናው መሥሪያ ቤት ይካሄዳል፡፡ ሆኖም የዓመታዊ ጠቅላላ ጉባኤ ስብሰባ በየበጀት ዓመቱ መጀመሪያ መስከረም ወር ማለፍ የለበትም፡፡ ድንገተኛ ግን በማንኛውም ጊዜ ሊጠራ ይችላል፡፡
+2. የመደበኛውም ሆነ ድንገተኛ ጠቅላላ ስብሰባ በምልዓተ ጉባዔ አለመሟላት ምክንያት ሊካሄድ ካልቻለ ሁለተኛ ጥሪ ስብሰባው ከመካሄዱ ስምንት ቀን በፊት
+```
 
-**Page 1 status after this pass:** PARTIAL. The title, introductory statement, and most of Article 1's shareholder-rights list have been manually read. The remainder of the page is still unresolved and requires a second close visual pass.
+### Boundary and continuation
+
+The supplied text ends mid-sentence after “ስምንት ቀን በፊት”. The next words have not been supplied or reconstructed. The exact printed page break(s) for this passage are **NOT YET MAPPED**.
+
+**Status:** Owner-supplied text captured verbatim; source-image line-by-line reconciliation and continuation remain open.
