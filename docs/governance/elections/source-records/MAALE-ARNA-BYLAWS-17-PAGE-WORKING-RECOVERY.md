@@ -105,9 +105,9 @@
 
 ```text
 5 |
-የማሌ ዓርና አክስዩን ማኅበር
+የማሌ ዓርና አክሲዮን ማኅበር
 የመተዳደሪያ ደንብ
-ይህ የመተደደሪያ ደንብ የመመሥረቻ ሰነዱ አካል UE የተዘጋጀ ሲሆን
+ይህ የመተዳደሪያ ደንብ የመመሥረቻ ሰነዱ አካል UE የተዘጋጀ ሲሆን
 አግባብ ባላቸው የሕግ ድንጋጌዎች መሠረት ይመራል፣፤ ይተዳደራል፡፡
 አንቀጽ አንድ
 የባለ አክሲዮኖች /ሣኀበርተኞች መብቶች/
@@ -990,3 +990,42 @@ This section records direct visual observations from the 17-page scanned source.
 - Pages 1–7 and 12–16 remain subject to line-by-line transcription correction. In particular, the numeric strings listed above are visual checkpoints, not legal conclusions.
 - The page 15–16 schedule has 29 numbered rows in total. Names and handwritten signatures have not yet been reliably transcribed and matched row by row.
 - Keep the original scan as the controlling source. Preserve uncertain characters as [ILLEGIBLE] or an equivalent explicit uncertainty marker; never fabricate a name, date, amount, article number, or stamp legend.
+
+
+## Source-to-Markdown reconciliation — visual pass and correction log
+
+**Source control:** the 17-page scanned PDF identified in the metadata above remains authoritative. This reconciliation was performed against the page images, including 300-dpi renderings of the source PDF. Rendering at higher DPI improves inspection but does not restore detail absent from the original scan.
+
+### Confirmed transcription corrections and source checks
+
+| Page(s) | Source comparison result | Correction / disposition |
+|---|---|---|
+| 1 | The printed title is legible as የማሌ ዓርና አክሲዮን ማኅበር and የመተዳደሪያ ደንብ. The page contains successive numbered article headings and clauses. | Corrected the two title strings in the OCR transcription. The OCR body remains provisional because several words and clause transitions cannot be read reliably enough to replace without guessing. |
+| 2–3 | Both pages continue the numbered articles and subclauses. Page 2 visibly includes a 30-day notice period and a reference to Commercial Code Article 403. Page 3 visibly includes a 15-day reference and the start of board-duty provisions. | These are source-visible checkpoints only. The OCR's punctuation, exact wording, and some clause numbering remain unresolved. |
+| 4 | Page contains continuation of board provisions and a remuneration/allowance section. The printed figures 500, 20%, 10%, 15%, and 5% are visible. | Numeric tokens retained as verification checkpoints; surrounding OCR wording requires correction before the percentages can be treated as operative legal terms. |
+| 5 | The page is text-bearing and contains an extended list of board powers/duties, followed by another numbered article. | Confirmed it is not blank. OCR body remains provisional; the long list must be transcribed clause by clause rather than inferred from topic headings. |
+| 6–7 | Both pages contain numbered governance provisions. Page 6 has subclauses 1.1–1.6 and further article headings; printed figures include 75%, 5%, and 20%. Page 7 continues with numbered clauses and a further multi-clause article. | Structure and numeric checkpoints confirmed visually. Full clause wording is not certified by this visual pass. |
+| 8 | 29-row signatory schedule. | Row count and schedule presence confirmed; handwritten names/signatures remain unresolved. |
+| 9–10 | Founding information table continues across the two pages, with rows 1–19 on page 9 and 20–29 on page 10. | Row count and continuation confirmed; personal names/identifiers/addresses are not reliably transcribed. |
+| 11 | 29-row share/capital/payment schedule. | Row-by-row arithmetic and totals remain PASS as recorded above; identity-to-row matching is not verified. |
+| 12 | Contains share-related provisions, including printed references to share numbers 1–29, followed by further articles and clauses. Visible numeric checkpoints include 30 days, 15 days, 20%, and 5%. | Corrected the page description to reflect its actual share/article content. OCR wording and article headings remain partly unresolved. |
+| 13 | Continues the general-meeting provisions and introduces the directors' board provisions. The scan visibly states a board range of at least 3 and at most 8 and shows a list of initial board members. Article-number references are visible in the following clauses. | Board range is recorded as a literal source reading only, not a legal-validity conclusion. Initial board-member names and cited article numbers require independent line-by-line confirmation. |
+| 14 | Continues the board provisions, with numbered items 8–15, then starts the management/manager provisions. | Item sequence and transition confirmed. Exact wording remains provisional. |
+| 15 | Continues the auditor provisions, includes the company-duration and reporting provisions, and shows the printed date 16/12/2016 ዓ/ም above the founders' signature table. Signature table rows 1–15 are visible. | Date string and row range confirmed visually. Do not infer a different calendar date. Handwritten names/signatures are not reliably legible enough for a certified transcription. |
+| 16 | Continuation of the signature table, rows 16–29, followed by a circular stamp and a separate handwritten signature near the bottom. | Row range and continuation confirmed. Names/signatures remain unresolved. |
+| 17 | Final page is a validation/stamp/signature page, not a page of ordinary numbered clauses. | Retain the image-description transcription; do not invent stamp text or handwritten dates. |
+
+### Full 17-page reconciliation result
+
+- **Physical source pages:** 17 — confirmed.
+- **Markdown page sections:** 17 (ገጽ 1 through ገጽ 17) — present in order.
+- **Page coverage:** every source page has a corresponding Markdown section — PASS.
+- **Page sequence and major schedules:** pages 8–11 and 15–16 have their schedule continuations recorded — PASS for structure/count only.
+- **Capital schedule arithmetic:** PASS, as separately recorded in the page 11 audit.
+- **Verbatim Amharic transcription:** **PARTIAL / NOT VERIFIED**. The source scan is blurred at character level; substantial body text on pages 1–7 and 12–16 still contains OCR substitutions, dropped characters, and uncertain words. A page heading or numeric token being visible does not validate the paragraph around it.
+- **Names, personal identifiers, signatures, and stamp legends:** **UNRESOLVED** where the scan does not permit reliable reading.
+- **Legal effect / statutory compliance:** **NOT ASSESSED by this transcription reconciliation**. Literal source wording must not be mistaken for a legal opinion.
+
+### Correction integrity rule
+
+Only a reading that can be matched directly to the scan is changed as a correction. Unclear text remains marked as OCR/provisional pending a clearer authoritative copy or independent human transcription. This prevents a plausible but unsupported reconstruction from being presented as the company's signed text.
