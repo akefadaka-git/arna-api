@@ -198,17 +198,32 @@ final class DocumentWorkflowAggregateService
                     (string) $file->path,
                 );
                 $fileSha256 = $snapshot['sha256'];
-                $evidenceVersionId = (int) DB::table('document_file_versions')->insertGetId([
-                    'tenant_id' => $tenantId,
-                    'file_id' => $fileId,
-                    'file_version' => $fileVersion,
-                    'storage_disk' => $snapshot['disk'],
-                    'storage_path' => $snapshot['path'],
-                    'sha256' => $fileSha256,
-                    'size' => $snapshot['size'],
-                    'captured_by_user_id' => $actor->getKey(),
-                    'captured_at' => $now,
-                ]);
+                $existingEvidence = DB::table('document_file_versions')
+                    ->where('tenant_id', $tenantId)
+                    ->where('file_id', $fileId)
+                    ->where('file_version', $fileVersion)
+                    ->lockForUpdate()
+                    ->first();
+                if ($existingEvidence !== null) {
+                    if (! hash_equals((string) $existingEvidence->sha256, $fileSha256)
+                        || (string) $existingEvidence->storage_path !== (string) $snapshot['path']
+                        || (int) $existingEvidence->size !== (int) $snapshot['size']) {
+                        throw new UnprocessableEntityHttpException('This File Management version was already sealed with different bytes; create a new File Management version before submission.');
+                    }
+                    $evidenceVersionId = (int) $existingEvidence->id;
+                } else {
+                    $evidenceVersionId = (int) DB::table('document_file_versions')->insertGetId([
+                        'tenant_id' => $tenantId,
+                        'file_id' => $fileId,
+                        'file_version' => $fileVersion,
+                        'storage_disk' => $snapshot['disk'],
+                        'storage_path' => $snapshot['path'],
+                        'sha256' => $fileSha256,
+                        'size' => $snapshot['size'],
+                        'captured_by_user_id' => $actor->getKey(),
+                        'captured_at' => $now,
+                    ]);
+                }
 
                 $workflow->submitted_file_id = $fileId;
                 $workflow->submitted_file_version = $fileVersion;
