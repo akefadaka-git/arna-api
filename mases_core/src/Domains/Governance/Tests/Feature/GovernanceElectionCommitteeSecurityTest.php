@@ -102,6 +102,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'election_id' => $this->electionId,
             'person_id' => $this->committeePerson->id,
             'user_id' => $this->committeeMember->id,
+            'appointed_by' => $this->administrator->id,
             'member_role' => 'committee_member',
             'ex_officio' => false,
             'status' => 'active',
@@ -139,6 +140,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'election_id' => $this->electionId,
             'person_id' => $this->committeePerson->id,
             'user_id' => $this->committeeMember->id,
+            'appointed_by' => $this->administrator->id,
             'member_role' => 'committee_member',
             'ex_officio' => false,
             'status' => 'active',
@@ -180,6 +182,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
                 $table->unsignedBigInteger('election_id')->index();
                 $table->unsignedBigInteger('person_id')->nullable();
                 $table->unsignedBigInteger('user_id')->nullable();
+                $table->unsignedBigInteger('appointed_by')->nullable();
                 $table->string('member_role', 32);
                 $table->boolean('ex_officio')->default(false);
                 $table->string('status', 20)->default('active');
@@ -266,6 +269,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'election_id' => $this->electionId,
             'person_id' => $this->committeePerson->id,
             'user_id' => $this->committeeMember->id,
+            'appointed_by' => $this->administrator->id,
             'member_role' => 'committee_member',
             'ex_officio' => false,
             'status' => 'active',
@@ -313,6 +317,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'election_id' => $this->electionId,
             'person_id' => $this->committeePerson->id,
             'user_id' => $this->committeeMember->id,
+            'appointed_by' => $this->administrator->id,
             'member_role' => 'committee_member',
             'ex_officio' => false,
             'status' => 'active',
