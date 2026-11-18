@@ -98,6 +98,11 @@ return new class extends Migration
             $table->index(['tenant_id', 'is_active'], 'doc_counter_tenant_active_idx');
         });
 
+        // Required parent key for a database-enforced same-tenant file reference.
+        Schema::table('files', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'id'], 'files_tenant_id_unique');
+        });
+
         Schema::create('documents', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
@@ -152,8 +157,8 @@ return new class extends Migration
                 ->references(['tenant_id', 'bb_code'])->on('document_numbering_assignments')->restrictOnDelete();
             $table->foreign('document_type_number', 'documents_type_fk')
                 ->references('numeric_code')->on('document_type_catalogue')->restrictOnDelete();
-            $table->foreign('file_id', 'documents_file_fk')
-                ->references('id')->on('files')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'file_id'], 'documents_file_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('files')->restrictOnDelete();
             $table->foreign(['tenant_id', 'replaces_document_id'], 'documents_replaces_same_tenant_fk')
                 ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
             $table->index(['tenant_id', 'status', 'issued_at'], 'documents_tenant_status_issued_idx');
@@ -184,5 +189,8 @@ return new class extends Migration
         Schema::dropIfExists('document_number_counters');
         Schema::dropIfExists('document_numbering_assignments');
         Schema::dropIfExists('document_type_catalogue');
+        Schema::table('files', function (Blueprint $table): void {
+            $table->dropUnique('files_tenant_id_unique');
+        });
     }
 };
