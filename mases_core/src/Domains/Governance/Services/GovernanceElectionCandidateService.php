@@ -38,14 +38,16 @@ final class GovernanceElectionCandidateService
         string $authorityReference,
     ): GovernanceElectionNominationWindow {
         $this->authorize($actor, $tenantId, 'governance.election.manage');
-        $opens = new \DateTimeImmutable($opensAt);
-        $closes = new \DateTimeImmutable($closesAt);
-        if ($opens >= $closes || trim($ruleSetVersion) === '' || !preg_match('/^[a-f0-9]{64}$/i', $ruleSetDigest)
+        if (!preg_match('/(?:Z|[+-][0-9]{2}:[0-9]{2})$/i', trim($opensAt))
+            || !preg_match('/(?:Z|[+-][0-9]{2}:[0-9]{2})$/i', trim($closesAt))
+            || trim($ruleSetVersion) === '' || !preg_match('/^[a-f0-9]{64}$/i', $ruleSetDigest)
             || trim($authorityReference) === '') {
-            throw ValidationException::withMessages(['nomination_window' => 'A valid date range, versioned SHA-256 rule-set digest and authoritative source reference are required.']);
+            throw ValidationException::withMessages(['nomination_window' => 'Opening and closing timestamps must include an explicit UTC offset; a versioned SHA-256 rule-set digest and authoritative source reference are also required.']);
         }
+        $opensInput = new \DateTimeImmutable($opensAt);
+        $closesInput = new \DateTimeImmutable($closesAt);
 
-        return DB::transaction(function () use ($tenantId, $electionId, $actor, $opens, $closes, $ruleSetVersion, $ruleSetDigest, $authorityReference): GovernanceElectionNominationWindow {
+        return DB::transaction(function () use ($tenantId, $electionId, $actor, $opensInput, $closesInput, $ruleSetVersion, $ruleSetDigest, $authorityReference): GovernanceElectionNominationWindow {
             $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->lockForUpdate()->first();
             if (!$election) {
                 throw new NotFoundHttpException('Election not found in this tenant.');
@@ -59,7 +61,7 @@ final class GovernanceElectionCandidateService
                 throw new ConflictHttpException('The election must be authorized with the same authoritative, versioned rule set before nomination intake can be configured.');
             }
 
-            $timezone = new \\DateTimeZone((string) $election->timezone);
+            $timezone = new \DateTimeZone((string) $election->timezone);
             $opens = $opensInput->setTimezone($timezone);
             $closes = $closesInput->setTimezone($timezone);
             if ($opens >= $closes) {
