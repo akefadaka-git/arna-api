@@ -426,6 +426,21 @@ final class GovernanceElectionCandidateService
                 throw ValidationException::withMessages(['evidence_ids' => 'Every decision evidence reference must belong to this candidate and election.']);
             }
 
+            $submittedByActor = DB::table('governance_election_nomination_submissions as submissions')
+                ->where('submissions.tenant_id', $tenantId)
+                ->where('submissions.election_id', $electionId)
+                ->where('submissions.candidate_id', $candidateId)
+                ->where('submissions.submitted_by_user_id', $actor->getAuthIdentifier())
+                ->where('submissions.status', 'submitted')
+                ->whereNotExists(function ($query): void {
+                    $query->selectRaw('1')->from('governance_election_nomination_events as events')
+                        ->whereColumn('events.nomination_submission_id', 'submissions.id')
+                        ->where('events.event_type', 'withdrawn');
+                })->exists();
+            if ($submittedByActor) {
+                throw new AuthorizationException('A nomination submitter must not participate in the eligibility decision for that candidate.');
+            }
+
             $this->committeeSecurity->assertMayDecide($tenantId, $electionId, (int) $candidate->person_id, $actor);
 
             $nextVersion = $expectedVersion + 1;
