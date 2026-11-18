@@ -304,6 +304,18 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             ->where('candidate_id', $candidate->id)->count());
         $this->assertSame(4, DB::table('governance_election_candidate_events')
             ->where('candidate_id', $candidate->id)->count());
+
+        try {
+            app(GovernanceElectionCandidateService::class)->correctNomination(
+                (int) $this->tenant->id, $this->electionId, (int) $submission->id,
+                $nominator, 'Post-decision correction attempt.', 'Attempt after final eligibility.',
+            );
+            $this->fail('A final eligibility decision must freeze nomination corrections.');
+        } catch (ConflictHttpException) {
+            $this->assertSame(0, DB::table('governance_election_nomination_events')
+                ->where('nomination_submission_id', $submission->id)
+                ->where('event_type', 'corrected')->count());
+        }
     }
 
     public function test_candidate_tenant_access_is_revalidated_at_consent_and_eligibility_decision(): void
