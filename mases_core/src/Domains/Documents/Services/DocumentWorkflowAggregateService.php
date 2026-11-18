@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -176,26 +177,51 @@ final class DocumentWorkflowAggregateService
                 $fileId = (int) ($evidence['submitted_file_id'] ?? 0);
                 $fileVersion = (int) ($evidence['submitted_file_version'] ?? 0);
                 $file = DB::table('files')->where('id', $fileId)->where('tenant_id', $tenantId)
-                    ->whereNull('deleted_at')->where('version', $fileVersion)->first(['id', 'version']);
+                    ->whereNull('deleted_at')->where('version', $fileVersion)
+                    ->lockForUpdate()->first(['id', 'version', 'disk', 'path']);
                 if ($file === null || $fileId < 1 || $fileVersion < 1) {
                     throw new UnprocessableEntityHttpException('Submission must bind an existing, non-deleted file version owned by the same tenant.');
                 }
+
+                // Capture the bytes while the metadata row is locked. The hash is
+                // server-computed and becomes part of the submitted evidence.
+                $stream = Storage::disk((string) $file->disk)->readStream((string) $file->path);
+                if (! is_resource($stream)) {
+                    throw new UnprocessableEntityHttpException('The submitted file binary is unavailable; immutable evidence cannot be established.');
+                }
+                $hashContext = hash_init('sha256');
+                try {
+                    if (hash_update_stream($hashContext, $stream) === false) {
+                        throw new UnprocessableEntityHttpException('The submitted file binary could not be hashed.');
+                    }
+                } finally {
+                    fclose($stream);
+                }
+                $fileSha256 = hash_final($hashContext);
+
                 $workflow->submitted_file_id = $fileId;
                 $workflow->submitted_file_version = $fileVersion;
-                $metadata = ['submitted_file_id' => $fileId, 'submitted_file_version' => $fileVersion];
+                $workflow->submitted_file_sha256 = $fileSha256;
+                $metadata = [
+                    'submitted_file_id' => $fileId,
+                    'submitted_file_version' => $fileVersion,
+                    'submitted_file_sha256' => $fileSha256,
+                ];
             }
 
             if ($action === 'issue') {
                 $documentId = (int) ($evidence['issued_document_id'] ?? 0);
                 $document = Document::query()->where('tenant_id', $tenantId)->whereKey($documentId)
-                    ->where('status', 'issued')->first();
+                    ->where('status', 'issued')->lockForUpdate()->first();
                 if ($document === null || $documentId < 1
                     || (int) $document->file_id !== (int) $workflow->submitted_file_id
                     || (int) $document->file_version !== (int) $workflow->submitted_file_version
+                    || ! is_string($workflow->submitted_file_sha256)
+                    || ! hash_equals((string) $workflow->submitted_file_sha256, (string) $document->file_sha256)
                     || (int) $document->legal_entity_id !== (int) $workflow->legal_entity_id
                     || (int) $document->organization_unit_id !== (int) $workflow->organization_unit_id
                     || (string) $document->document_type_number !== (string) $workflow->document_type_number) {
-                    throw new UnprocessableEntityHttpException('Issuance must reference an issued record in the same tenant and bind the exact submitted file version, issuer and document type.');
+                    throw new UnprocessableEntityHttpException('Issuance must reference an issued record with matching immutable file version and SHA-256, tenant, issuer and document type.');
                 }
                 $workflow->issued_document_id = $documentId;
                 $metadata = ['issued_document_id' => $documentId];
@@ -227,11 +253,22 @@ final class DocumentWorkflowAggregateService
             if ($action === 'supersede') {
                 $replacementId = (int) ($evidence['replacement_document_id'] ?? 0);
                 $originalId = (int) $workflow->issued_document_id;
-                $replacement = Document::query()->where('tenant_id', $tenantId)->whereKey($replacementId)
-                    ->where('status', 'issued')->where('replaces_document_id', $originalId)->first();
-                $original = Document::query()->where('tenant_id', $tenantId)->whereKey($originalId)
-                    ->where('status', 'issued')->lockForUpdate()->first();
-                if ($originalId < 1 || $replacement === null || $original === null) {
+                // Lock both rows in deterministic primary-key order. This
+                // serializes supersession against concurrent revocation or another
+                // replacement attempt and prevents stale status decisions.
+                $lockedDocuments = Document::query()
+                    ->where('tenant_id', $tenantId)
+                    ->whereIn('id', array_values(array_unique([$originalId, $replacementId])))
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
+                $original = $lockedDocuments->get($originalId);
+                $replacement = $lockedDocuments->get($replacementId);
+                if ($originalId < 1 || $replacementId < 1 || $original === null || $replacement === null
+                    || (string) $original->status !== 'issued'
+                    || (string) $replacement->status !== 'issued'
+                    || (int) $replacement->replaces_document_id !== $originalId) {
                     throw new UnprocessableEntityHttpException('Supersession requires a separately issued replacement that explicitly references the original document.');
                 }
                 $original->status = 'superseded';
