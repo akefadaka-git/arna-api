@@ -45,6 +45,10 @@ on:
       - "tests/Feature/TenantMembershipMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
       - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCommitteeSecurityController.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionCommitteeSecurityService.php"
+      - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php"
+      - "mases_core/src/Domains/Governance/Routes/api.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
       - "mases_core/src/Domains/Loan/**"
@@ -243,6 +247,16 @@ jobs:
 
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
+
+      - name: Run election committee security and tenant-isolation tests on migrated MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
 
       - name: Run tenant membership lifecycle and audit atomicity tests on MySQL
         env:
