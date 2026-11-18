@@ -7,7 +7,7 @@ Status: A3.3.2 implementation contract. This document describes the exact verifi
 - Algorithm: Ed25519 detached signatures, using PHP's native Sodium extension.
 - Private keys: generated and retained by the authorized signatory outside ARNA. ARNA never stores or receives a private key.
 - Public keys: tenant-scoped rows in `document_signing_keys`. A key is trusted only when an Owner-controlled provisioning process inserts its public key, signer account, validity start, optional expiry and non-empty trust reference.
-- Revocation: append a row to `document_signing_key_revocations` while holding a locking read on the corresponding trusted-key row. Key records and revocation records are database append-only. A revoked key is rejected even if the signature timestamp predates the revocation.
+- Revocation: append a row to `document_signing_key_revocations` while holding a locking read on the corresponding trusted-key row. Key records and revocation records are database append-only. Revocation is performed through `DocumentSigningKeyRevocationService`, which requires the tenant's governed `documents.sign` authority and locks the key row before appending the revocation. A revoked key is rejected even if the signature timestamp predates the revocation.
 - Key identifiers are unique within a tenant. The verifier also requires the key to belong to the authenticated signer and the same tenant.
 
 There is intentionally no public key-registration endpoint in this stage. Do not seed, trust, or enable a production key until its identity and custody have been independently verified and Owner-authorized. Test fixtures generate ephemeral keys and are never production trust anchors.
