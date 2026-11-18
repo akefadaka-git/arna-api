@@ -58,10 +58,24 @@ return new class extends Migration
                 ->references(['tenant_id', 'id'])->on('document_workflow_aggregates')->restrictOnDelete();
             $table->index(['tenant_id', 'workflow_id', 'occurred_at'], 'doc_workflow_event_timeline_idx');
         });
+
+        // Enforce append-only history below the ORM layer as well.
+        if (DB::getDriverName() === 'mysql') {
+            DB::unprepared("CREATE TRIGGER document_workflow_events_no_update BEFORE UPDATE ON document_workflow_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Document workflow events are append-only'");
+            DB::unprepared("CREATE TRIGGER document_workflow_events_no_delete BEFORE DELETE ON document_workflow_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Document workflow events are append-only'");
+        } elseif (DB::getDriverName() === 'sqlite') {
+            DB::unprepared("CREATE TRIGGER document_workflow_events_no_update BEFORE UPDATE ON document_workflow_events BEGIN SELECT RAISE(ABORT, 'Document workflow events are append-only'); END");
+            DB::unprepared("CREATE TRIGGER document_workflow_events_no_delete BEFORE DELETE ON document_workflow_events BEGIN SELECT RAISE(ABORT, 'Document workflow events are append-only'); END");
+        }
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'mysql' || DB::getDriverName() === 'sqlite') {
+            DB::unprepared('DROP TRIGGER IF EXISTS document_workflow_events_no_update');
+            DB::unprepared('DROP TRIGGER IF EXISTS document_workflow_events_no_delete');
+        }
+
         Schema::dropIfExists('document_workflow_events');
         Schema::dropIfExists('document_workflow_aggregates');
     }
