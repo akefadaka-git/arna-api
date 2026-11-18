@@ -118,6 +118,50 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         }
     }
 
+    public function test_legal_entity_representative_uses_only_the_designated_representative_link(): void
+    {
+        $tenant = $this->tenant();
+        $admin = $this->user($tenant, 'entity-admin@example.test');
+        $reviewer = $this->user($tenant, 'entity-reviewer@example.test');
+        $verifier = $this->user($tenant, 'entity-verifier@example.test');
+        $representative = $this->user($tenant, 'entity-representative@example.test');
+        $representativePerson = $this->person($tenant, $representative);
+        $candidatePerson = $this->person($tenant, null);
+        $entityShareholderId = (int) DB::table('shareholders')->insertGetId([
+            'tenant_id' => $tenant->id, 'shareholder_type' => 'company',
+            'entity_name_en' => 'Candidate Test Company', 'user_id' => null,
+            'representative_user_id' => $representative->id, 'person_id' => null,
+            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $misconfiguredIndividualId = (int) DB::table('shareholders')->insertGetId([
+            'tenant_id' => $tenant->id, 'shareholder_type' => 'individual',
+            'first_name_en' => 'Invalid Individual Link', 'user_id' => null,
+            'representative_user_id' => $representative->id, 'person_id' => null,
+            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->grant($representative, 'governance.election.nomination.submit');
+        [$election] = $this->verifiedElection($tenant, $admin, $reviewer, $verifier, 'ENTITY-' . $tenant->id);
+
+        $service = app(GovernanceElectionCandidateIntakeService::class);
+        $result = $service->submitNomination(
+            (int) $tenant->id, (int) $election->id, (int) $candidatePerson->id,
+            $entityShareholderId, 'entity-nomination-001', 'Nomination by designated legal-entity representative.', $representative,
+        );
+        $this->assertSame($entityShareholderId, (int) $result['nomination']->nominator_shareholder_id);
+        $this->assertSame((int) $representativePerson->id, (int) $result['nomination']->nominator_person_id);
+        $this->assertFalse($result['nomination']->self_nomination);
+
+        try {
+            $service->submitNomination(
+                (int) $tenant->id, (int) $election->id, (int) $candidatePerson->id,
+                $misconfiguredIndividualId, 'invalid-individual-rep-001', null, $representative,
+            );
+            $this->fail('An individual shareholder must not be represented through representative_user_id.');
+        } catch (ValidationException) {
+            $this->assertDatabaseCount('governance_election_nominations', 1);
+        }
+    }
+
     public function test_nomination_window_and_active_shareholder_are_enforced(): void
     {
         $tenant = $this->tenant();
