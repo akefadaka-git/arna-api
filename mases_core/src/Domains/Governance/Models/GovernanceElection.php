@@ -25,6 +25,14 @@ final class GovernanceElection extends Model
         'status',
         'voting_method',
         'authority_status',
+        'authority_reference',
+        'authority_evidence_id',
+        'authority_verified_by',
+        'authority_verified_at',
+        'authority_verification_reason',
+        'voting_rule_version',
+        'nominations_open_at',
+        'nominations_close_at',
         'record_date',
         'created_by',
     ];
@@ -33,6 +41,11 @@ final class GovernanceElection extends Model
         'tenant_id' => 'integer',
         'governance_body_id' => 'integer',
         'created_by' => 'integer',
+        'authority_evidence_id' => 'integer',
+        'authority_verified_by' => 'integer',
+        'authority_verified_at' => 'immutable_datetime',
+        'nominations_open_at' => 'immutable_datetime',
+        'nominations_close_at' => 'immutable_datetime',
         'record_date' => 'date',
     ];
 
@@ -44,6 +57,11 @@ final class GovernanceElection extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function isAuthorityVerified(): bool
+    {
+        return $this->authority_status === 'verified' && $this->authority_evidence_id !== null && $this->authority_verified_at !== null;
     }
 
     public function authorityEvidence(): HasMany

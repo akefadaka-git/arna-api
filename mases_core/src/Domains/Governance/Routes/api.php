@@ -659,6 +659,14 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('governanceElection')
         ->middleware('auth.permission:governance.election.manage')
         ->name('elections.authority-evidence.store');
+    Route::post('/elections/{governanceElection}/authority/verify', [GovernanceElectionAuthorityController::class, 'verifyAuthority'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.authority.verify')
+        ->name('elections.authority.verify');
+    Route::post('/elections/{governanceElection}/nominations/open', [GovernanceElectionAuthorityController::class, 'openNominations'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.nominations.open');
     Route::patch('/elections/{governanceElection}/authority-evidence/{evidence}/review', [GovernanceElectionAuthorityController::class, 'reviewAuthorityEvidence'])
         ->whereNumber('governanceElection')
         ->whereNumber('evidence')

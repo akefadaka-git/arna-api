@@ -153,6 +153,58 @@ final class GovernanceElectionAuthorityController extends Controller
         return response()->json(['data' => $reviewed]);
     }
 
+    public function verifyAuthority(Request $request, GovernanceElection $governanceElection): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        Gate::authorize('verifyAuthority', $governanceElection);
+
+        $data = $request->validate([
+            'evidence_id' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'min:10', 'max:4000'],
+        ]);
+
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
+
+        $election = $this->elections->verifyAuthority(
+            $tenantId,
+            (int) $governanceElection->getKey(),
+            (int) $data['evidence_id'],
+            $data['reason'],
+            $actor,
+        );
+
+        return response()->json(['data' => $election]);
+    }
+
+    public function openNominations(Request $request, GovernanceElection $governanceElection): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        Gate::authorize('manage', $governanceElection);
+
+        $data = $request->validate([
+            'rule_version' => ['required', 'string', 'max:80'],
+            'opens_at' => ['required', 'date'],
+            'closes_at' => ['required', 'date', 'after:opens_at'],
+        ]);
+
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
+
+        $election = $this->elections->openNominations(
+            $tenantId,
+            (int) $governanceElection->getKey(),
+            $data['rule_version'],
+            $data['opens_at'],
+            $data['closes_at'],
+            $actor,
+        );
+
+        return response()->json(['data' => $election]);
+    }
+
     private function tenantId(): ?int
     {
         if (!function_exists('mases_tenant_id')) {

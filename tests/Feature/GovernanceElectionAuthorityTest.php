@@ -129,6 +129,188 @@ final class GovernanceElectionAuthorityTest extends TestCase
     }
 
     #[Test]
+    public function authority_can_only_be_verified_from_reviewed_evidence_by_a_distinct_verifier(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $recorder = User::factory()->create(['is_active' => true]);
+        $reviewer = User::factory()->create(['is_active' => true]);
+        $verifier = User::factory()->create(['is_active' => true]);
+        $service = app(GovernanceElectionAuthorityService::class);
+        $election = $service->createPlanned((int) $tenant->getKey(), 'BOARD-2026-06', 'Board Election', null, null, $recorder);
+        $evidence = $service->recordAuthorityEvidence(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            'general_assembly_resolution',
+            'GA-RES-2026-01',
+            null,
+            'private-documents/election/ga-resolution.pdf',
+            str_repeat('d', 64),
+            $recorder,
+        );
+        $service->reviewAuthorityEvidence(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            (int) $evidence->getKey(),
+            'reviewed',
+            'Instrument reference and stored evidence record were reviewed.',
+            $reviewer,
+        );
+
+        $verified = $service->verifyAuthority(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            (int) $evidence->getKey(),
+            'Authorized reviewer attested to the governing instrument.',
+            $verifier,
+        );
+
+        $this->assertSame('verified', $verified->authority_status);
+        $this->assertSame((int) $evidence->getKey(), (int) $verified->authority_evidence_id);
+        $this->assertSame((int) $verifier->getKey(), (int) $verified->authority_verified_by);
+        $this->assertSame('GA-RES-2026-01', $verified->authority_reference);
+    }
+
+    #[Test]
+    public function authority_verification_rejects_evidence_that_has_not_been_reviewed(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $recorder = User::factory()->create(['is_active' => true]);
+        $verifier = User::factory()->create(['is_active' => true]);
+        $service = app(GovernanceElectionAuthorityService::class);
+        $election = $service->createPlanned((int) $tenant->getKey(), 'BOARD-2026-07', 'Board Election', null, null, $recorder);
+        $evidence = $service->recordAuthorityEvidence(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            'board_resolution',
+            'BOARD-RES-2026-01',
+            null,
+            'private-documents/election/board-resolution.pdf',
+            str_repeat('e', 64),
+            $recorder,
+        );
+
+        $this->expectException(DomainException::class);
+        $service->verifyAuthority(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            (int) $evidence->getKey(),
+            'Reviewer attestation cannot proceed before evidence review.',
+            $verifier,
+        );
+    }
+
+    #[Test]
+    public function nominations_require_verified_authority_and_an_explicit_rule_version(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $recorder = User::factory()->create(['is_active' => true]);
+        $reviewer = User::factory()->create(['is_active' => true]);
+        $verifier = User::factory()->create(['is_active' => true]);
+        $service = app(GovernanceElectionAuthorityService::class);
+        $election = $service->createPlanned((int) $tenant->getKey(), 'BOARD-2026-08', 'Board Election', null, null, $recorder);
+
+        try {
+            $service->openNominations(
+                (int) $tenant->getKey(),
+                (int) $election->getKey(),
+                'RULE-2026-01',
+                '2026-11-20 09:00:00',
+                '2026-11-25 17:00:00',
+                $verifier,
+            );
+            $this->fail('Nominations must not open while authority is unverified.');
+        } catch (DomainException) {
+            $this->assertSame('unverified', $election->fresh()->authority_status);
+        }
+
+        $evidence = $service->recordAuthorityEvidence(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            'general_assembly_resolution',
+            'GA-RES-2026-02',
+            null,
+            'private-documents/election/ga-resolution-2.pdf',
+            str_repeat('f', 64),
+            $recorder,
+        );
+        $service->reviewAuthorityEvidence(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            (int) $evidence->getKey(),
+            'reviewed',
+            'Instrument reference and stored evidence record were reviewed.',
+            $reviewer,
+        );
+        $service->verifyAuthority(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            (int) $evidence->getKey(),
+            'Authorized reviewer attested to the governing instrument.',
+            $verifier,
+        );
+
+        $opened = $service->openNominations(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            'RULE-2026-01',
+            '2026-11-20 09:00:00',
+            '2026-11-25 17:00:00',
+            $verifier,
+        );
+
+        $this->assertSame('nominating', $opened->status);
+        $this->assertSame('RULE-2026-01', $opened->voting_rule_version);
+        $this->assertNotNull($opened->nominations_open_at);
+        $this->assertNotNull($opened->nominations_close_at);
+    }
+
+    #[Test]
+    public function nominations_reject_an_unordered_window_or_blank_rule_version(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $recorder = User::factory()->create(['is_active' => true]);
+        $reviewer = User::factory()->create(['is_active' => true]);
+        $verifier = User::factory()->create(['is_active' => true]);
+        $service = app(GovernanceElectionAuthorityService::class);
+        $election = $service->createPlanned((int) $tenant->getKey(), 'BOARD-2026-09', 'Board Election', null, null, $recorder);
+        $evidence = $service->recordAuthorityEvidence(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            'general_assembly_resolution',
+            'GA-RES-2026-03',
+            null,
+            'private-documents/election/ga-resolution-3.pdf',
+            str_repeat('1', 64),
+            $recorder,
+        );
+        $service->reviewAuthorityEvidence(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            (int) $evidence->getKey(),
+            'reviewed',
+            'Instrument reference and stored evidence record were reviewed.',
+            $reviewer,
+        );
+        $service->verifyAuthority(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            (int) $evidence->getKey(),
+            'Authorized reviewer attested to the governing instrument.',
+            $verifier,
+        );
+
+        $this->expectException(DomainException::class);
+        $service->openNominations(
+            (int) $tenant->getKey(),
+            (int) $election->getKey(),
+            '',
+            '2026-11-25 17:00:00',
+            '2026-11-20 09:00:00',
+            $verifier,
+        );
+    }
+
+    #[Test]
     public function missing_audit_storage_rolls_back_election_creation(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);

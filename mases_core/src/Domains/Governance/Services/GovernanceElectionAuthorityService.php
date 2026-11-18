@@ -186,6 +186,111 @@ final class GovernanceElectionAuthorityService
         });
     }
 
+    public function verifyAuthority(
+        int $tenantId,
+        int $electionId,
+        int $evidenceId,
+        string $reason,
+        User $verifier,
+    ): GovernanceElection {
+        if (mb_strlen(trim($reason)) < 10) {
+            throw new DomainException('An authority-verification reason of at least 10 characters is required.');
+        }
+
+        return DB::transaction(function () use ($tenantId, $electionId, $evidenceId, $reason, $verifier): GovernanceElection {
+            $election = GovernanceElection::query()
+                ->where('tenant_id', $tenantId)
+                ->lockForUpdate()
+                ->findOrFail($electionId);
+
+            if ($election->status !== 'planned' || $election->authority_status !== 'unverified') {
+                throw new DomainException('Authority can only be verified once while the election is planned.');
+            }
+
+            $evidence = GovernanceElectionAuthorityEvidence::query()
+                ->where('tenant_id', $tenantId)
+                ->where('election_id', $electionId)
+                ->lockForUpdate()
+                ->findOrFail($evidenceId);
+
+            if (
+                $evidence->status !== 'reviewed'
+                || $evidence->reviewed_by === null
+                || (int) $evidence->recorded_by === (int) $verifier->getAuthIdentifier()
+            ) {
+                throw new DomainException('Authority verification requires independently reviewed evidence and a verifier distinct from its recorder.');
+            }
+
+            $election->forceFill([
+                'authority_status' => 'verified',
+                'authority_reference' => $evidence->instrument_reference,
+                'authority_evidence_id' => (int) $evidence->getKey(),
+                'authority_verified_by' => (int) $verifier->getAuthIdentifier(),
+                'authority_verified_at' => now(),
+                'authority_verification_reason' => trim($reason),
+            ])->save();
+
+            $this->auditOrFail(
+                'governance.election.authority.verified',
+                $tenantId,
+                $verifier,
+                $election,
+                [
+                    'evidence_id' => $evidence->getKey(),
+                    'authority_reference' => $evidence->instrument_reference,
+                    'reason' => trim($reason),
+                ],
+            );
+
+            return $election->fresh();
+        });
+    }
+
+    public function openNominations(
+        int $tenantId,
+        int $electionId,
+        string $ruleVersion,
+        string $opensAt,
+        string $closesAt,
+        User $actor,
+    ): GovernanceElection {
+        if (trim($ruleVersion) === '' || strtotime($opensAt) === false || strtotime($closesAt) === false || strtotime($opensAt) >= strtotime($closesAt)) {
+            throw new DomainException('An explicit rule version and a valid, ordered nomination window are required.');
+        }
+
+        return DB::transaction(function () use ($tenantId, $electionId, $ruleVersion, $opensAt, $closesAt, $actor): GovernanceElection {
+            $election = GovernanceElection::query()
+                ->where('tenant_id', $tenantId)
+                ->lockForUpdate()
+                ->findOrFail($electionId);
+
+            if (!$election->isAuthorityVerified() || $election->status !== 'planned') {
+                throw new DomainException('Verified election authority and planned status are required before nominations can open.');
+            }
+
+            $election->forceFill([
+                'status' => 'nominating',
+                'voting_rule_version' => trim($ruleVersion),
+                'nominations_open_at' => $opensAt,
+                'nominations_close_at' => $closesAt,
+            ])->save();
+
+            $this->auditOrFail(
+                'governance.election.nominations.opened',
+                $tenantId,
+                $actor,
+                $election,
+                [
+                    'rule_version' => trim($ruleVersion),
+                    'opens_at' => $opensAt,
+                    'closes_at' => $closesAt,
+                ],
+            );
+
+            return $election->fresh();
+        });
+    }
+
     private function auditOrFail(
         string $action,
         int $tenantId,

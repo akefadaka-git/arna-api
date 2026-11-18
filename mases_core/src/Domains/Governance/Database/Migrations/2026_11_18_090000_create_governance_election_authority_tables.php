@@ -19,6 +19,14 @@ return new class extends Migration
             $table->string('status', 24)->default('planned')->index();
             $table->string('voting_method', 32)->nullable();
             $table->string('authority_status', 24)->default('unverified')->index();
+            $table->string('authority_reference', 180)->nullable();
+            $table->unsignedBigInteger('authority_evidence_id')->nullable()->index();
+            $table->foreignId('authority_verified_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->dateTime('authority_verified_at')->nullable();
+            $table->text('authority_verification_reason')->nullable();
+            $table->string('voting_rule_version', 80)->nullable();
+            $table->dateTime('nominations_open_at')->nullable();
+            $table->dateTime('nominations_close_at')->nullable();
             $table->date('record_date')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

@@ -75,6 +75,19 @@ final class GovernanceElectionPolicy
             );
     }
 
+    public function verifyAuthority(User $user, GovernanceElection $election): bool
+    {
+        $tenantId = $this->tenantId();
+
+        return $tenantId !== null
+            && (int) $election->tenant_id === $tenantId
+            && $this->authorization->hasPermission(
+                permissionSlug: 'governance.election.authority.verify',
+                user: $user,
+                tenantId: $tenantId,
+            );
+    }
+
     private function tenantId(): ?int
     {
         if (!function_exists('mases_tenant_id')) {
