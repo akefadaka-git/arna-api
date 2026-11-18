@@ -23,6 +23,7 @@ return new class extends Migration
             $table->foreignId('captured_by_user_id')->constrained('users')->restrictOnDelete();
             $table->timestamp('captured_at');
             $table->unique(['tenant_id', 'id'], 'doc_file_version_tenant_id_unique');
+            $table->unique(['tenant_id', 'id', 'file_id', 'file_version'], 'doc_file_version_identity_unique');
             $table->unique(['tenant_id', 'file_id', 'file_version'], 'doc_file_version_source_unique');
             $table->unique(['storage_disk', 'storage_path'], 'doc_file_version_path_unique');
             $table->foreign(['tenant_id', 'file_id'], 'doc_file_version_file_tenant_fk')
@@ -78,15 +79,15 @@ return new class extends Migration
 
         Schema::table('document_workflow_aggregates', function (Blueprint $table): void {
             $table->unsignedBigInteger('submitted_file_evidence_id')->nullable();
-            $table->foreign(['tenant_id', 'submitted_file_evidence_id'], 'doc_workflow_file_evidence_fk')
-                ->references(['tenant_id', 'id'])->on('document_file_versions')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'submitted_file_evidence_id', 'submitted_file_id', 'submitted_file_version'], 'doc_workflow_file_evidence_fk')
+                ->references(['tenant_id', 'id', 'file_id', 'file_version'])->on('document_file_versions')->restrictOnDelete();
         });
 
         Schema::table('documents', function (Blueprint $table): void {
             $table->unsignedBigInteger('immutable_file_version_id')->nullable();
             $table->unsignedBigInteger('signature_evidence_id')->nullable();
-            $table->foreign(['tenant_id', 'immutable_file_version_id'], 'documents_immutable_file_version_fk')
-                ->references(['tenant_id', 'id'])->on('document_file_versions')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'immutable_file_version_id', 'file_id', 'file_version'], 'documents_immutable_file_version_fk')
+                ->references(['tenant_id', 'id', 'file_id', 'file_version'])->on('document_file_versions')->restrictOnDelete();
             $table->foreign(['tenant_id', 'signature_evidence_id'], 'documents_signature_evidence_fk')
                 ->references(['tenant_id', 'id'])->on('document_signature_evidence')->restrictOnDelete();
         });
