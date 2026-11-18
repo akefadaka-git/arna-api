@@ -50,7 +50,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_digest' => str_repeat('b', 64),
             'authority_snapshot' => ['instrument' => 'verified-reference'],
         ];
-        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority evidence reviewed');
+        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority evidence reviewed', [], $authority);
         $this->assertSame('authorized', $election->status);
         $this->assertSame(2, (int) $election->version);
         $this->assertSame((int) $actor->id, (int) $election->authorized_by);
@@ -83,7 +83,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
 
         try {
             app(GovernanceElectionLifecycleService::class)->transition(
-                (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1
+                (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority evidence missing'
             );
             $this->fail('An election without authority evidence must not be authorized.');
         } catch (ValidationException $exception) {
