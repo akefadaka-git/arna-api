@@ -1,203 +1,883 @@
-# የማሌ ዓርና አክሲዮን ማኅበር — የመተዳደሪያ ደንብ
+# የማሌ ዓርና አክሲዮን ማኅበር — የመተዳደሪያ ደንብ እና ተያያዥ መመሥረቻ ሰነድ
 
-## Recovered source and transcription record
+## ሙሉ የ17 ገጽ ምንጭ ጽሑፍ (OCR የተደገፈ የሥራ ትራንስክሪፕሽን)
 
-- **Source file:** `የማሌ_ዓርና_አክሲዮን_ማኅበር_መተዳደሪያ_ደንብ.pdf`
-- **Source length:** 17 scanned pages
-- **Language:** Amharic (with some Arabic numerals and Latin text)
-- **Source type:** scanned, signed/stamped document; no dependable embedded text layer
-- **Recovery date:** 18 November 2026
-- **Method:** page-image inspection and Amharic/English OCR. OCR is noisy because of low contrast, skew, stamps, handwriting and small print.
-- **Integrity note:** this Markdown is a working transcription/reconstruction, not a certified or legally authenticated transcription. The original scanned PDF remains the controlling visual source. Illegible or uncertain wording must be checked against the scan before legal use.
+- የምንጭ ፋይል፡ `የማሌ_ዓርና_አክሲዮን_ማኅበር_መተዳደሪያ_ደንብ(1).pdf`
+- የገጾች ብዛት፡ 17
+- ቋንቋ፡ አማርኛ (አንዳንድ የእንግሊዝኛ ቃላት/ቁጥሮች ጨምሮ)
+- የምንጭ SHA-256፡ `8df31ad217b2221f42b3e0e1154007bdd5d2ab003df0e1ad3dc7f17c03b61183`
+- የጽሑፍ ማውጫ ዘዴ፡ የገጽ ምስል ማንበብ እና Tesseract Amharic/English OCR።
+- ማስጠንቀቂያ፡ ይህ የምንጭ ሰነዱን በተቻለ መጠን የሚያሳይ የOCR የሥራ ትራንስክሪፕሽን ነው፤ OCR በተለይ በስሞች፣ ቁጥሮች፣ የአክሲዮን ሰንጠረዦች፣ ማህተሞችና ፊርማዎች ላይ ስህተት ሊኖረው ይችላል። ስለዚህ ከታች ያለው ጽሑፍ ከዋናው ስካን ጋር ተነጻጽሮ ከመጨረሻ ሕጋዊ አጠቃቀም በፊት መረጋገጥ አለበት። የማይነበቡ ክፍሎች በOCR ውጤት እንዳሉ ተቀምጠዋል፤ በግምት አልተሞሉም።
+- ይህ ሰነድ የተለየ መመሥረቻ ጽሑፍንም የያዘ የተያያዘ ሰነድ ስለሚመስል፣ በምንጩ ውስጥ ያሉት ርዕሶችና ቅደም ተከተሎች እንደታዩት ተጠብቀዋል።
 
-> **Important distinction:** The source title identifies this document as a *የመተዳደሪያ ደንብ* (bylaws / internal regulations). It must not be renamed or represented as the separate Memorandum or Articles of Association without documentary proof.
+---
 
-## Document identity and principal data
-
-The cover/title page identifies **የማሌ ዓርና አክሲዮን ማኅበር** and the document as **የመተዳደሪያ ደንብ**.
-
-The capital/share table on printed scan page 11 records:
-
-| Item | Recorded value |
-|---|---:|
-| Number of listed shareholders | 29 |
-| Shares per listed shareholder | 5 |
-| Total shares | 145 |
-| Nominal value per share | ETB 10,000 |
-| Total stated capital | ETB 1,450,000 |
-| Paid-up amount shown in table total | ETB 1,023,000 |
-| Unpaid / remaining amount shown in table total | ETB 427,000 |
-
-The arithmetic reconciles: 145 × ETB 10,000 = ETB 1,450,000; ETB 1,023,000 + ETB 427,000 = ETB 1,450,000. The source table appears to allocate paid and unpaid portions by shareholder. Names and individual amounts should be transcribed from the scan rather than inferred from OCR.
-
-## Page-by-page recovery
-
-### Page 1 — title, shareholder rights and register provisions
-
-**Title:** የማሌ ዓርና አክሲዮን ማኅበር — የመተዳደሪያ ደንብ.
-
-The introductory paragraph states that the bylaws form part of the founding documentation and that the company is governed/administered under applicable legal provisions.
-
-The visible provisions include:
-
-- Shareholder rights to attend ordinary and extraordinary general meetings and participate in voting / expressing opposition.
-- Rights relating to company decisions, participation in net profit and liquidation proceeds, eligibility to stand as a board candidate, and pre-emptive participation in additional share issues, subject to applicable law and the founding document/bylaws.
-- A shareholder register to be maintained at the company's head office by the manager, containing particulars required by law and the founding documents.
-- Correction of discovered errors/omissions in the register within the stated period (OCR appears to read thirty days; verify exact wording against scan).
-- Replacement/renewal of damaged, lost or stolen share certificates under board direction.
-- General meeting provisions begin on this page and continue on page 2.
-
-**OCR excerpt (noisy; preserve for search only):**
+## ገጽ 1
 
 ```text
-የማሌ ዓርና አክስዩን ማኀበር
+5 |
+የማሌ ዓርና አክስዩን ማኅበር
 የመተዳደሪያ ደንብ
-
-ይህ የመተዳደሪያ ደንብ የመመሥረቻ ሰነዱ አካል ... የተዘጋጀ ሲሆን
-አግባብ ባላቸው የሕግ ድንጋጌዎች መሠረት ይመራል፣ ይተዳደራል።
-
+ይህ የመተደደሪያ ደንብ የመመሥረቻ ሰነዱ አካል UE የተዘጋጀ ሲሆን
+አግባብ ባላቸው የሕግ ድንጋጌዎች መሠረት ይመራል፣፤ ይተዳደራል፡፡
 አንቀጽ አንድ
-የባለ አክሲዮኖች ... መብቶች
-
-አንቀጽ ሁለት
+የባለ አክሲዮኖች /ሣኀበርተኞች መብቶች/
+አያንዳንዱ ባለ አክሲዮን፡-
+ሀ. በልዩም ሆነ በደንበኛ ጉባኤዎች በመገኘት ሃሳብ የመስጠት፤ የመቃወም፤ ድምዕ
+የመስጠት፣
+ለ. የማኀበሩን ውሳኔ የመጠየቅ የማግኘት፣
+ሐ. የማኀበሩን የተጣራ ተርፍ ማኅበሩም ሲፈርስ በሚደረገው የሂሳብ ማጣራት ድርሻን
+የመካፈል፤
+መ. የማኅበሩ የዳይሬክተሮች ቦርድ እጩ ሆኖ የመትቅረብ፤
+ሠ. ካፒታል በመጨመሩ ተጨማሪ አክሲዮኖች የሚታደሉ ቢሆን የቀደምትነት ድርሻ
+የማግኘት፤
+ረ. አግባብ ባለው ሕግ፣ በመመሥረቻ ጽሁፍ በዚህ የመተዳደሪያ ደንብ በሚሰጡት
+መብቶች የመጠቀመ፤ መብት ይኖረዋል፡፡
+አንቀጽ አምስት
 የባለ አክሲዮኖች ምዝገባ
-
-አንቀጽ ሦስት
+1. የማኀበሩ ሥራ አስኪያጅ የባለአክሲዮኖችን ዝርዝር የያዘው መዝገብ
+በማኀበሩ ዋና መሥሪያ ቤት እንዲገኝ ያደርጋል፡ መዝገቡ በሕግ፣፤
+በመመሥረቻ ጽሑፍ በመተዳደሪያ ደንቡ የሚጠየቁትን ጉዳዮች ሁሉ የያዘ
+| መሆን አለበት፡፡
+| 2. በመዝገቡ ውስጥ ጉድለት /ስህተት/ መኖሩ እንደታወቀ የማኀበሩ ሥራ አስኪያጅ
+| ይህን ጉድለት በሰላሳ ተን ውስጥ እንደስተካከል /እንዲታረም/ ያደርጋል፡፡
+| 3. መገዘቡን ለመመርመር ከውስጡም ቅጂዎችን ለመውሰድ መከፈል የሚኖርበትን
+1 ሂሳብ የዳይሬክተሮች ቦርድ ይወስናል፡፡ ሆኖም ባለ አክሲዮን የሆነ ሰው ያለክፍያ
+| PUNE ሊመለከተው ይትላል፡፡
+| አንቀጽ ሦስት
 የጠፉ አክሲዮኖችን ስለመተካት
-
+ማህበሩ የሚያድላቸዉ አክስዮኖች ጉዳት ቢደርስባኛሻዉ፤ቢበሳሹ፤ቢጠፉ፤ ወይም ቢሰረቁ
+ዲሬክተሮች ቦርድ በሚሰጠዉ መመሪያ መሰረት እንደገና ይታደሳል፡፡
 አንቀጽ አራት
-ጉባኤዎች
+| ጉባኤዎች
+| 1. የዳይሬክተሮች ቦርድ NAA ጊዜ ቦታ እንዲሆን ካልወሰነ በቀር የማኀበሩ ጠቅላላ
+| ጉባኤ በየዓመቱ አንድ ጊዜ በዋናው መሥሪያ ቤት ይካሄዳል፡፡ ሆኖም የዓመታዊ |
+ጠቅላላ ጉባኤ ስብሰባ በየበጀት ዓመቱ መጀመሪያ መስከረም ወር ማለፍ የለበትም፡፡
+| ድንገተኛ ግን በማንኛውም ጊዜ ሲጠራ ይቸሳላል፡፡
+] 2. የመደበኛውም ሆነ ድንገተኛ ጠቅላላ ስብሰባ በምልዓተ ጉባዔ አለመሟላት
+| ምክንያት AML ካልቻለ ሁለተኛ ጥሪ ስብሰባው ከመካሄዱ ስምንት ቀን በፊት |
+አአ 2 ዒ |
+| ኬ መመሪያ
 ```
 
-### Page 2 — general meetings, notice, attendance and representation
+---
 
-Visible provisions continue the general-meeting rules:
-
-- If a meeting cannot proceed for lack of quorum, a second meeting is called with advance notice. The OCR suggests an eight-day notice period; exact legal effect and wording require visual verification.
-- The second meeting may proceed to pass resolutions if quorum is still not met, subject to the exact provision and applicable law.
-- Annual and extraordinary general meetings are addressed.
-- Notice of ordinary or extraordinary GA meetings is to be sent 30 days before the meeting by letters or other communication methods, according to a board schedule.
-- Meeting attendance and vote counting are referenced to Commercial Code Article 403.
-- Agenda items and discussions are to be recorded in minutes.
-- Shareholders may inspect specified company records and obtain copies, including financial statements, reports and meeting minutes/attendance lists.
-- A shareholder may appoint a non-shareholder representative; the proxy is to be in writing, dated and signed by the shareholder.
-- The agenda is to be sent with the meeting notice.
-
-**OCR excerpt (noisy; verify against scan):**
+## ገጽ 2
 
 ```text
-አንቀጽ አራት — ጉባኤዎች (continued)
+<4
+ይተላለፋል በሁለተኛው ስብሰባ ጥሪ ምልዓተ ጉባዔ ካልሞላ ስብሰባዉ ቀጥሎ
+ውሳኔዎችን ማስተላለፍ ይችላል፡፡
 
-አንቀጽ አምስት — ጠቅላላ ጉባኤ እንዲሰበሰብ የሚደረግ ጥሪ
-... 30 ቀናት በፊት ... በደብዳቤዎች ወይም በሌሎች የመገናኛ ዘዴዎች ...
+3. አግባብ ባለው ሕግ፣ በመመሥረቻ KAT በዚህ መተዳደሪያ ደንብ መሠረት በሌላ
+ጉባኤዎች ይውላሉ ከሚባሉ ጉዳዮች በስተቀር ዓመታዊ - ጠቅላላ ጉባኤ
+በማንኛውም ጉዳዮች ላይ መወያየት ውሳኔ ማስተላለፈ ይችላል፡፡
 
-አንቀጽ ስድስት — በጉባኤው ላይ ስለመገኘት ...
-... በንግድ ሕጉ አንቀጽ 403 ... የድምጽ ቆጠራ ...
-
-አንቀጽ ሰባት — የማኅበሩን ሰነዶች የመመርመር መብት
-
-አንቀጽ ስምንት — የእንደራሴነት ሥልጣን
-
-አንቀጽ ዘጠኝ — አጀንዳ
+አንቀጽ አምስት
+ጠቅላላ ጉባኤ እንዲሰበሰብ የሚደረግ ጥሪ
+1. መደበኛም ሆነ ድንገተኛ ጠቅላላ ጉባዔ እንዲሰበሰብ ጥሪ የሚደረገመ- ከስብሰባው
+30 ቀናት በፊት ቦርዱ በሚያወጣዉ የጊዜ ሰሌዳመሰረት በደብዳቤዎች ወይም
+በሌሎች የመገናኛ ዘዴዎች ጥሪ በማድረግ ይሆናል፤
+2. የጥሪዉ መልእክት አግባብ ባለዉ ሕግ የመመስረቻ ጽሁፍና የመተዳደሪያ ደንብ
+የሚጠየቀዉን መረጃ ሁሉ ያሟላ መሆን ይኖርበታል።
+አንቀጽ ስድስት
+በጉባኤዉ ላይ ስለመገኘት፣ መቆጣጠሪያ እና ቃለ ጉባኤዎች
+1. በንግድ ሕጉ አንቀጽ 403 መሠረት በእያንዳንዱ ጉባኤ ላይ የተገኘትን
+ባለአክሲዮኖችየድምጽቆጠራመደረግአለበት፤
+2. በስብሰባዉ ላይ የተያዙ አጀንዳዎችና የተደረጉ ዉይይቶች በንግድ ህጉ
+መሰረት በቃለ ጉባኤ ተመዝግበዉ አንዲቀመጡ ይደረጋል።
+አንቀጽ ሰበት
+የማህበሩን MEE የመመርመር መብት
+ማንኛውም ባለአክሲዮን በማህበሩ ዋና ሠስሪያ ቤት በመገኘት ከዚህ ቀጥሉ ያሉትን
+ሰነዶች በማንኛውም ጊዜ ለመመርመር ወይም ኮፒዎችን የመውስድ መብት አለው:
+ሊሰጡት የሚችሉ ሰነዶች የሚከተሉት ናቸው:-
+1: የሂሳበ ሚዛን የትርፍና ኪሳራ መግለጫዎና፣
+2 ያለፉትን ሦስት የሂሳብ አመታት በሚመለከት ዲሬክተሮች ኦዲተሮች ሰጠቀቅላላ
+ጉባኤው ያቀረቧቸው ሪፖርቶች፣
+3. - በነዚሁ ጠቅላላ ጉባኢዎች የተያዘ ቃለ ጉባዔዎችና የተገኙ አባላት ዝርዝር።
+አንቀጽ ስምንት
+የእንደራሴነት ስልጣን
+1. አንድ ባለ አክሲዮን ማኅበርተኛ ያልሆነ ሌላ ሰው በምትኩ በስብሰባዎች ላይ
+እንዲገኝ የእንደራሴነት ሥልጣን ሊሰጥ ይትላል።
+2, ሥልጣኑ በግልጽ በወካዮ ካልተገለጠ በቀር በጉባዓው በእንደራሴነት የተገኘው
+ሰው መብት ግዴታ በሚመለከት ከባለ አክሲዮነ- እንደአንዱ ይቆጠራል።
+3.. በጉባዔ የመተካት ውክልና በጽሑፍ ሆና' ቀን የተጻፈበትና በወካዩ ባለአክሲዮን
+የተፈረመ መሆን አለበት:
+አንቀጽ ዘጠኝ
+አጀንዳ
+1. | የአጀንዳው ግልባጭ ከመጥሪ/ው ጋር ተያይዞ ለባለ አክሲዮኖች ይላካል:
+AR እየ ጋ / [
 ```
 
-### Page 3 — continuation of company governance provisions
+---
 
-The scan contains numbered clauses continuing the bylaws. Headings and clause text are visible but OCR is not reliable enough for verbatim legal transcription. The page includes additional provisions on company governance/administration and shareholder or board procedures. **Verbatim transcription status: requires human review against page image.**
+## ገጽ 3
 
-### Page 4 — financial / capital and company-operation provisions
+```text
+ጋ ጉባዓው በሚካሄድበት ጊዜ የጠቅላላ ጉባዔው አጀንዳ ሊሻሻል ይችላል። ይህ ሊሆን
+የሚሻለው ግን እንዲመርጡ የተፈቀደላቸው ይበልጡን /ማጆሪቲ/ የአክሲዮን
+ድርሻ የያዙት ሲስማሙበት ብቻ ነው:
 
-The scan continues the numbered bylaws. Visible figures include references to ETB amounts and percentage values (including 20%, 10%, 15%, 5% and 20); their legal context must be read from the original scan and must not be reinterpreted from isolated OCR fragments. **Verbatim transcription status: requires human review against page image.**
+ie የማኅበሩ ጠቅላላ ስብሰባ ከመደረጉ 15 ቀን በፊት ስም የተጻፈባቸው አክሲዮን
+ባለሀብቶች በማኅበሩ መዝገብ መመዝገብ ላምጪው የሚል የተጻፈባቸውን የያዙ
+ባለአክሲዮኖች አክሲዮኑ ን ማስገባት አለባቸወ።
 
-### Page 5 — continuation of financial / company-operation provisions
+አንቀጽ አስር
+ጸሐፊ
 
-Contains a long numbered list of clauses and further provisions. The scan is legible visually at page scale, but automatic OCR is too error-prone to certify a full Amharic transcription. **Verbatim transcription status: requires human review against page image.**
+የዲሬክተሮች ቦርድ ፀሐፊውን ይሾማል። ፀሐፊው በጉባዔው ላይ በመገኘት ማሰረጃ
 
-### Page 6 — board / management duties and operating provisions
+ወረቀት /አቴንዳንስ ቪት/ ያዘጋጃል፣ የጉባኤዉን መዛግብት አና ሕጉ የሚጠይቃቸውን
 
-Contains a numbered list with subclauses 1.1–1.6 and additional provisions. It appears to address duties and responsibilities of company management / governing officers. The exact heading and all clause wording require manual verification. **Verbatim transcription status: requires human review against page image.**
+| ቃለ ጉባዔዎች ይይዛል፣ ፀሐፊው ባለአክሲዮን ላይሆን LAAT
+አንቀጽ አስራ አንድ
+የጉባኤዉ አመራር
 
-### Page 7 — company governance and responsibilities
+1. የጉበዓዔዎች ሁሉ ሰብሳቢ. የዴሬክተሮች ቦርድ ፕሬዚዳንት ነው: እርሱም የሌለ
+እንደሆነ ከዲሬክተሮ Nerd ቀደምትነት ያለው /ሲኒየር/ ሰብሳቢ ይሆናል።
+ሁለቱም የሌሉ ቢሆን ካሉት ዲሬክተሮች በሥራ ቀደምትነት ያለው ይሰበሰባል።
 
-Contains several numbered clauses and headings relating to governance, duties and responsibilities. Exact clause wording is not reconstructed here because the scan/OCR does not support reliable verbatim text. **Verbatim transcription status: requires human review against page image.**
+2. የተያዙትን የአክሲዮኖች ወይም የተወከሉትን ቁጥር የሚቆጣጠሩ ከባለአክሲዮኖች
+ወይም እንደራሴዎች መካከል ሁለት ድምጽ ተቀባዮች ይሾማሉ:
 
-### Page 8 — signature / acknowledgement register
+3. ማንኛውም ባለአክሲዮኑ ወይም እንደራሰ በምስጢር እንዲሆን ካልጠየቀ በቀር
+ማንኛውም ውሣኔ የሚተላለፈው በድምጽ ቆጠራ ነወ:
 
-Contains a table listing 29 numbered individuals with names and handwritten signatures. The table is an acknowledgement/signature list. Names should be copied only after manual high-resolution inspection; OCR is not dependable for handwritten names. **Verbatim transcription status: names and signatures not machine-transcribed.**
+4. ምልዐተ ጉባዔን እና የድምጽ ብልጫን በሚመለከት በወጣው የኢትዮጵያ የንግድ
+ሕግ የተደነገገው ተፈጻሚ ይሆናል:
 
-### Page 9 — shareholder register, entries 1–19
+አንቀጽ አስራ ሁለት
+የዳይሬክተሮች ቦርድ ኃላፊነት
 
-Contains a numbered shareholder/founder register, entries 1 through 19. The table includes shareholder names and columns for shareholder particulars / shareholding or related register details. The page is signed and bears a circular stamp.
+1. - የዲሬክተሮች ቦርድ በሕግ፣በማኅበሩ መመሥረቻ ጽሑፍ፣ መተዳደሪያ ደንብ
+በጉባዔው ውሣኔዎች የተሰጡትን ሥልጣን ግዴታዎች ይፈጽማል።=
 
-**Table extraction status:** 19 rows visually confirmed; individual names and all column values require manual transcription from the scan. Do not substitute names from the signature list on page 8 without confirming spelling and identity.
+2. - የዲሬክተሮች ቦርድ በተለይ የሚከተሉት ሥልጣን ግዴታዎች ይኖሩታል።
 
-### Page 10 — shareholder register, entries 20–29 and related clauses
+ሀ. የማኅበሩን አስተዳደር መቀጣጠር ።
 
-Continues the register with entries 20 through 29 (10 rows), completing a 29-person list. The lower portion contains additional numbered/section headings and provisions, including a section concerning capital / share subscription. The page is signed and stamped.
+ሊ. MPAA ጉባዔው በሚሰጠው መመሪያ መሠረት የማኅበሩ ዓላማ ግቡን
+የሚመታበት የሚሰምርበትን እርምጃዎች ሁሉ ያከናውናል:
 
-**Table extraction status:** entries 20–29 visually confirmed; individual names and values require manual transcription from the scan.
+ሐ. - ከፀእፊዎች /ክለርክስ/ ከሌሎች ሠራተኞች በቀር፣ የሥራ ኃላፊዎችን
+ይሾማል። ደመወዛቸውን ይተምናል። ስጦታን ስንብትን ጡረታን
+በሚመለከት ይወስና ል።
 
-### Page 11 — share capital and shareholder allocation table
+መ. - የማኅበሩን የማይንቀሳቀሱም ሆነ የሚንቀሳቀሱ ንብረቶችን MAT
+ይሸጣል።
 
-The page records the capital structure and the shareholder allocation table.
+ሠ. የብድር የመያዣ ውሎሉትን ይዋዋላል: ለማኅበሩ ተቀጣሪዎች የቁጠባ
+ሂሣብ በመክፈት የተለያዩ ዕቅዶችን ያዘጋጃል።
 
-**Clearly readable aggregate values:**
+ረ. - በኢትዮጵያ ወይም ከኢትዮጵያ ውጪ የማኅበሩ ቅርንጫፎች እንዲከፈቱ
+ይወስናል። |
 
-| Column / measure | Total |
-|---|---:|
-| Number of shareholders listed | 29 |
-| Total shares | 145 |
-| Par value per share | ETB 10,000 |
-| Total subscribed/stated capital | ETB 1,450,000 |
-| Paid amount shown | ETB 1,023,000 |
-| Unpaid amount shown | ETB 427,000 |
+.  ተገቢ/ጠቃሚ የመሰለውን ሀሳብ፣ የማኅበሩ ገንዘብ ኢንቨስት ማድረግገ
 
-The table contains 29 individual rows. The row pattern appears to show 5 shares and ETB 50,000 subscribed capital for each listed shareholder, with paid and unpaid amounts varying by shareholder. Aggregate values above are read from the printed totals. Individual row values should be verified from the page image before use in a legal register or accounting ledger.
+፡ are ፕለጠቅላላ ጉባዔው ያቀርባል፻2 as :
 
-### Page 12 — continuation of capital / share and company provisions
+ዴ።?ሪ የገ y
+```
 
-Contains further numbered clauses, a section heading and references to the 29-person shareholder list and capital/share details. Additional financial figures and percentages appear. Exact wording and figures require manual verification.
+---
 
-### Page 13 — company administration / governance provisions
+## ገጽ 4
 
-Contains section 11.1 and related clauses, with references to company governance and duties. The exact heading and clauses require manual transcription from the original scan.
+```text
+/”. ገ1ዌ-፡ዋሜ፡ሜከኬሼኔኔስስስስርርክ፡ቄቄዜክ5.5:.:..:. ኤር ee 5.
+|
 
-### Page 14 — continuation of section 11
+3. ዲሬክተሮች በማኅበሩ ሥራ አስኪያጅነት ወይም ወኪልነት የጋራ ኃላፊነት
+አለባቸው:
 
-Contains numbered clauses 8–15 and subsequent headings, including further company governance / operational provisions. The page is signed and stamped. Exact text requires manual verification.
+4. በተደጋጋሚ ለመመረጥ ያላቸው መብት እንደተጠበቀ ሆኖ የአስተዳዳሪዎች
+የሥራ ዘመን ሦስት ዓመት ነው: ሆኖም bth PF ተመርጠው
+እስከሚረከቧቸው ድረስ በሥራ ላይ ይቆያሉ: የዲሬክተሮች ምርጫ የሚከናወነው
+በሚሰጥር ድምፅ አሰጣጥ ሥርዓት ነው:
 
-### Page 15 — concluding provisions and shareholder signature table
+5. አገድ ወይም ከዚያ በላይ የዲሬክተሮች ቦርድ አባላት ቢጎድሉ/ቢወጡ/ ቀሪዎ
+ከግማሽ በላይ ከሆኑ በወጡት ምትክ ከባለአክሲዮኖች መካከል መርጠው ይሾማሉ።
+ቀሪዎቹ ዲሬክተሮች ከግማሽ በታች ከሆኑ የጎደሉትን ለመሙላት ጠቅላላ ጉባዓ
+ይጠራሉ: የተሾጮም ካሉ ለዓመታዊ ጠቅላላ ጉባዔ ቀርበው ውሳኔ ይሰጥባቸውል:።
+ሹመቱ የጸደቀ እገደሆነ የተተካው ሰው ያቋረጠውን የአገልግሎት ዘመን
+ይሸፍናል። ሹመቱ ተቀባይነት ካላገኘ ክፍት ቦታው በዓመታዊ ጠቅላላ ጉባዔው
+ይተካል፡።
 
-Contains further numbered provisions, references to Commercial Code article numbers (visible references include 368, 460 and 495), and a shareholder signature table beginning with entries 1–15. A date is visible in the paragraph above the table: `16/12/2016` (Ethiopian-calendar notation appears nearby in the scan; verify the exact calendar/year notation). The page bears signatures and a stamp.
+አንቀጽ አስራ ሶስት
+ስለዲሬክተሮች ቦርድ የአክስዮን መዝገብ
 
-### Page 16 — continuation of shareholder signature table
+የዚህ መተዳደሪያ ደንብ አንቅጽ ሁለት ድንጋጌዎች እንዳግባቡ የዲሬክተሮችና
 
-Continues the signature table with entries 16–29. A circular stamp and handwritten signatures are visible. This completes the 29-entry signature list.
+የአክሲዮኖቻቸውን አመዘጋገብ በሚመለከቱ ጉዳዮች ላይ ተፈጸሚ ይሆናሉ:
 
-### Page 17 — authentication / endorsement page
+አንቀጽ አስራ አራት
+የዲሬክተሮች ቦርድ የስራ ዋጋና አበል
 
-Contains a handwritten signature, official-looking stamps/seals and a revenue/stamp mark. The page is mostly blank apart from the endorsement marks. The issuing office, dates and registration identifiers must be read directly from a high-resolution scan before legal reliance.
+1. አመታዊው ጠቅላላ ጉባዔ በሚቀጥለው የሂሣብ ዓመት ለዲሬክተሮች ቦርድ ሊከፈል
+የሚገባውን አበል ይወስናል። የመጀመሪያው የዲሬክተሮች ቦርድ መራጮች
+ለመጀመሪያው የሂሣብ ዘመን ብር 500/ኣምስት/አበል ያገኛሉ።
 
-## GA / shareholder-readiness facts recoverable from this source
+2 በተጨማሪም አባላቱ የሚከተለውን ክፍያ ያገኛሉ
 
-1. The bylaws expressly recognize shareholder attendance and voting at general meetings (subject to the applicable law and founding documents).
-2. The bylaws refer to ordinary/annual and extraordinary general meetings.
-3. The bylaws state a 30-day meeting-notice period in the visible OCR/page 2 text; confirm the exact clause and any exceptions from the original scan.
-4. The bylaws address meeting attendance and vote counting and cite Commercial Code Article 403.
-5. The bylaws address proxy representation and require a written, dated, shareholder-signed authorization.
-6. The bylaws include a 29-entry shareholder register and a 29-row share allocation table.
-7. The aggregate capital table shows 145 shares at ETB 10,000 each, total ETB 1,450,000, with ETB 1,023,000 paid and ETB 427,000 unpaid as shown in its totals.
-8. The visible material does **not** by itself conclusively establish class-specific voting weights, voting caps, special rights, record-date rules, or all quorum thresholds. Do not infer these from the share table.
+ሀ. የተጣራዉ አመታዊ ትርፍ ከተከፈለዉ ዋና ገንዘብ እስከ 20% የሆነ እንደሆነ
+10% ይሆናል።
 
-## Outstanding transcription work / quality controls
+ለ. የተጣራዉ ትርፍ ከተከፈለዉ ዋና ገንዘብ 15% ከሆነ 5% BUSA: ሆኖም ለባለ
+አክሲዮኖች የትርፍ ክፍያ ካልተደረገ በተራ ቁጥር 2ሀ እና ለ የተጠቀሰዉ ጥቅም
+ለዲሬክተሮች አይከፈላቸዉም ከተወሰነ ዳሬክተሮቹ ከተጣራ ትርፍ ጥቅም
+የማግኘት መብታቸዉ የተጠበቀ ነዉ።
 
-- Full verbatim Amharic transcription of pages 3–8 and 12–17 remains **UNVERIFIED**.
-- The 29 shareholder names on pages 9–10 and 29 allocation rows on page 11 require high-resolution manual transcription and a second-person check.
-- Handwritten signatures are not transcribed as names.
-- The stamp / registration / authentication details on page 17 remain unread and unverified.
-- The 30-day notice rule, second-meeting rule and references to Commercial Code articles must be checked against the exact printed text and current applicable law before legal conclusions.
-- This document is bylaws, not proven to be the Memorandum or Articles of Association.
+አንቀጽ አስራ አምስት
+የዲሬክተሮች ቦርድ ጉባኤ
 
-## Source preservation
+1. MAA ጊዜ ወይም ቦታ እንዲሆን ካልተወሰነ በስተቀር የዲሬክተሮች ቦርድ ወር
+በገባ ] እስከ 7ቀን በማኅበሩ ዋና: መሥሪያ ቤት ጉባዔ ያደርጋል: ሆኖም
+የቦርዱ እጅግ ቢዘገይ ጉባዔ በሁለት ወር ውስጥ ቢያንስ አንድ ጊዜ መሆን
+አለበት:
 
-The original 17-page PDF was supplied in an earlier conversation and its SHA-256 is recorded in the P2.5 evidence index. The original PDF bytes were not found in the current Library search and are not included in this repository commit. This Markdown is the persistent working recovery available to this repository workflow; it does not replace the original scan. The three-page extract previously produced for register pages 9–11 is a partial extract only.
+2. - ከዓመታዊ ጠቅላላ ጉባዔ በኋላ በሚደረገው የመጀመሪያወ- የቦርዱ ስብሰባ
+የዲሬክተሮች ሰብሳቢ /ሥፕሬዚዳንት/ ይመርጣሉ።፡ ሰብሳቢው ለአንድ ዓመት ወይም
+የሚተካው ሰው ቦታውን ተረክቦ ሥራውን እስከሚጀምር ድረስ ያገለግላል።
+ቦርዱ የሾመውን ሰብሳቢ ሊሸረው ይችላል። ም ናየ
+
+3. | የማኅበሩ ፀሐፊ የጉባዔው መዛግብት ይይዛል። RN
+```
+
+---
+
+## ገጽ 5
+
+```text
+/ መጠጠ RE Or a ee ጨጨ. ee ያጩ =
+አንቀጽ አስራ ስድስት
+የስራ አመራር/ስራ አስኪያጀ/
+
+1. የዲሬክተሮች ቦርድ ዋና ሥራ አስኪያጀ ይሾማል:
+
+2. ሥራ አስኪያጁ የማኀበሩን ዓላማ ተግባር በሚመለከት የሚከተሉትን ሥራዎች
+ለማከናወን ሙሉ ሥልጣን ተሰጥቶታል። በዚህ መሠረት:-
+
+ሀ. ከዲሬክተሮች ቦርድ የተሰጠውን አጠቃላይ መመሪያ በመመርኮዝ ማኅበሩን
+ለመምራት በተሰጠው ሥልጣን ኃላፊነት መሠረት ማኅበና- ለተቋቋመበት
+ዓላማ ግብ መምታት የተቻለውን ሁሉ ያደርጋል።
+
+ለ. - የማኅበሩን አጠቃላይ  እንትስቃሴ- ያቅዳል፣- ያስተባብራል ይመራል፣
+ያስተዳድራል፣ ይቆጣጠራል:
+
+ቁሒ የማኅበሩ መተዳደሪያ ደንብ በሚያዘው መሠረት ዓመታዊ በጀት ፣የሥራ
+ፕሮግራም ፻፪ሣብ ሪፖርት እንዲሁም ለሉ እንቅስቃሴዎኙን ካዘጋጀ
+ከመረመረ በኋላ ለቦርዱ ያቀርባል:
+
+ሙ. ሠራተኛ ይቀጥራል፣ዕድገት ይሰጣል፣ያስተዳድራል፣ የደመወዝ ክፍያ
+የሥራ ሁኔታዎችን ይወስና ል ፣ ለዋናው ሥራ አስኪያጅ በቀጥታ ተጠሪ
+የሆኑትን ኃላፊዎች መርጦ እንዲሾሙ ለቦርዱ ያቀርባል።
+
+“. በዲሬክተርች ቦርድ በተፈቀደው የሥራ ፕሮግራም መሠረት የማኅበሩ
+የሂሣብ አያያዝ ደንብ ሥርዓት በሚፈቅደው መሠረት ወጪዎናን
+ያዘድቃል፣
+
+ረ. የማኀበሩን ዓመታዊ ሂሣብ የጣመረምሩ የውጪ ኦዲተሮሃን ምርጫ
+ሹመት በሚመለከት ለቦርዱ ሃሳብ /ምክር/ያቀርባል።
+
+ሰ. ግዢ ሽያጭን በተመለከተ ከሥሩ ለሚገኙት ሠራተኛች መመሪያ ይሰጣል፣
+ይዞባጠራል 5
+
+ሺ. - የማኅበሩን | ሓላማ - ለማሳደግ - ቱርንጫፍ - መሥሪያ ቤተሃን
+ያድቱማል፣ይመራል፣ይያጣጠራል
+
+ቀ. - የሥራ መጓተትን የሚያስቀር ትርፋማነትን የሚጨምር የተቀላጠፈ
+የቴጥጥር መዋቅር አሠራር ይዘረጋል:
+
+ቢ የሠራተኛ WIT የማኅበሩ መተዳደሪያ ደንብ በሚፈቅዱት መሠረት
+በሠሠራተችኛ ላይ አስተዳደራዊ እርምጃዎችን ይወስዳል>
+
+ተ. ከላይ ከተጠቀሱት ተግባርች ጋር የተዛመዱ ሌሉች ሥራዎችንም
+ያከናውናል።
+
+3. | የዳሬክተሮና ቦርድ ዘቅርብ ከትትል በማድረግ የተሰጠውን ሥልጣን በከፊል
+ወይም በሙሉ፣ የማይንቀሳቀስ ንብረት መሸጥን ማስያዝንም ጨምር ለዋና ው
+ሥራ እስኪያቿ ጮክልና መስጠት ይችላል።
+
+4. ዋናው ሥራ አስኪያጅ ወይም እርሱ የሚወክለው ተወካይ በማንኛውም
+የዲሬክተሮች ቦርድ ጉባዔ ላይ ይገኛል: በውይይቱም ተካፋይ ሊሆን ይችላል:
+ድምፅ መስጠት ግን አእይፈቀድለትም።
+
+አንቀጽ አስራ ሰባት
+ምልአተ ጉባኤ
+1. ምልአተ ጉባኤ ሊካሄድ የሚችለዉ ከዋናዉ ገንዘብ 54 ድርሻ ያላቸዉን የሚወክሉ
+ማህበርተኞች ስብሰባዐ ላይ ሲገኙ ነዉ:
+2. በዚህ አይነት ስብሰባዎች ላይ ዉሳኔዎች AREER ብልጫ ይሆናል:
+4
+```
+
+---
+
+## ገጽ 6
+
+```text
+አንቀጽ አስራ ስምንት
+ስለ ኦዲተሮች
+
+1... ማንኛውም ኦዲተር ከዚህ ቀጥሎ የተዘረዘሩት ሥልጣኖች ግዴታዎች
+ይኖሩታል
+1.1 የማኅበሩን መዛግብት ሰነዶችን መመርመር፣
+
+1.2. የማኅበሩን ንብረትና የሂሣብ ማመዛዘኛ ትርፍ  ኪሣራውንም የሚያሳዩትን
+መዛግብት ትክክለኛነት ማረጋገጥ፣
+
+13 የዲሬክተሮች ቦርድ የሰጠው ሪፖርት የማኅበሩን ትክክለኛ ገጽታ የሚያሳይ
+መሆኑን ማረጋገጥ፣፥
+
+14. ሥራውን ለማከናወን አስፈላጊ ነው ብሎ የሚያምንበትን መዝገብ፣ ሰነድ፣
+ቃለ ጉባዓ. ሊሎች መረጃዎችን ባለበት ማየት መመርመር፣
+
+1.5. በዓመታዊ እና በማናቸውም ጉባዔ መገኘት፣
+
+1.6. ሌሎች ግዴታዎችንም መፈጸም፣
+
+| አንቀጽ አስራ ዘጠኝ
+ስለ ተጨማሪ ኦዲተሮች
+
+የካፒታሉ ሰባ አምስት በመቶ/ 75 ያላነሰ ይዞታ ያላቸው ባለአክሲዮች በራሳቸው ወጪ
+
+ተጨማሪ ኦዲተሮች ሊሾሙ ይችላሉ: የተጨማሪ ኦዲተሮች ሥልጣን ግዴታ ቀደም ሲል
+
+ከተመረጡት ኦዲተሮች ጋር ተመሳሳይ ይሆ ል: የተጨማሪ ኦዲተሮችን የሥራ ዋጋ
+አበል በሚመለከት ማኅበሩ በከፊል ወይም በሙሉ ይከፍል እንደሆነ ጠቅላላ ጉባዔው
+
+ይወስ ል:
+
+አንቀጽ ሀያ
+ሕጋዊ የመጠባበቂያ ገንዘብ
+
+1. ከተጣራ ትርፍ በየዓመቱ 5፤ ለሕጋዊ የመጠባበቂያ ገንዘብ ይነሳል: ይሀም
+የሚሆነው ሕጋዊ የሆነው የመጠባበቂያ ገንዘብ የማኅበሩን ዋና ገንዘብ 20፤
+እስኪደርስ ነው:
+
+2... ከዲሬክተሮች ቦርድ ወይም ከማንኛውም ኦዲተር ሃሳብ የቀረበለት እንደሆነ
+መደበኛ ጠቅላላ ጉባዔው ተጨማሪ ወይም አማራጭ የመጠባበቂያ ገንዘብ
+እንዲኖር መወሰን ይችላል።
+
+አንቀጽ ሀያ አንድ
+የሂሳብ አያያዝ ስርአት
+
+1... ማሀበሩ በሕጉ በንግድ አሠራር መሠረት ተቀባይነት ያለው የሂሳብ አያያዝ
+ሥርዓት ይኖረዋል
+
+2. - ማሀበሩ ሂሳቡን በአመት አንድ ጊዜ መዝጋት የሰ መሻ
+
+መ ግሜ
+አሚ ክክ ሻለ
+ወፍ አይል. ንን
+13 ን መያ ያ
+.. ፦ኢ፦ጮመ ”ስዎልሕልሕጋልፀዓፀዓልትሎስጳ.።ዊ።ስውምጮስብ።፡ጨ። .:..:-.፡:..፲ |
+```
+
+---
+
+## ገጽ 7
+
+```text
+አንቀጽ ሀያ ሁለት
+የስለትርፍ አደላደልና አከፋፈል
+
+1. የማኅበሩ ዕዳዎች ወጪዎች ከተቀነሱ እንዲሁም የመጠባበቂያ ገንዘብ ከተነሳ
+በኋላ ከትርፉ ቀሪ የሆነው ገንዘብ ለባለአክሲዮ ች እንዲከፋፈል ዓመታዊ ጠቅላላ
+
+| ጉባዔው ውሳኔ ይሰጥበታል።
+| 2. ትርፉም የሚከፋፈለው ባለአክሲዮች በከፈሉት ገንዘብ መጠን በውል በተጠቀሰው
+የቀደምትነት መብት መሠረት ነው:
+
+3. የትርፍ ድርሻዎች የሚከፈሉበት ቀን የአከፋፈሉ ሁኔታ በዓመታዊው ጠጎላላ
+ጉባዔ የሚወሰኑ ቸው:
+
+አንቀጽ ሀያ ሶስት
+የማህበሩ የስራ ሪፖርት
+1. እያንዳንዱ የሂሳብ ማጠቃለያ በሚዘጋበት ጊዜ ዶሬክተሮች በማህበሩ ያሉትን ልዩ ልዩ
+ንብረቶች ዕዳዎች የሚያመለክት የንብረቱን ዝርዝር የሚይዝ መዝገብ ያደራጃል ።
+አንቀጽ ሀያ አራት
+ስለ አክሲዮን ማህበር መፍረስና ሂሳብ ማጣራት
+1. ማኅበሩ በሕግ በተመለከተው በጠቅላላ ጉባዔው ውሳኔ መሠረት ይፈርሳል።
+2. ማኅበሩ እንዲፈርስ ጠቅላላ ጉባዔው በወሰነ ጊዜ ማኅበሩ ሦስት ሂሣብ አጣሪዎች
+ይሾማል:
+3. ማኅበሩ እንዲፈርስ ትዕዛዝ የተሰጠው በፍርድ ቤት ውሳኔ ሲሆን የዲሬክተሮች
+| ቦርድ ጠቅላላ ጉባዔውን ጠርቶ የፍርድ ቤቱ ትዕዛዝ በተሰጠ 10 ቀን ውስጥ ሦስት
+ሂሣብ አጣሪዎች ይሾማል።
+4. ማንኛውም የማኅበሩ አባልም ሆነ ኦዲተር የሂሣብ አጣሪዎችን ሹመት በመቃወም
+ያመለከተ እንደሆነ የቀረበው መቃወሚያ በቂ ምክንያት ያለው ሆኖ ካገኘው ጠቅላላ
+| ጉባዔው ሹመቱን ሊሽረው ወይም ሊያስቀረው ይችላል።
+5. ሹመቱ በተካሄደበት ጊዜ በጠቅላላ ጉባዔው ውሣኔ የተሰጠበት ካልሆነ፣ለሂሣብ
+| አጣሪዎች የሚከፈለው አበል ማኅበሩ በፈረሰበት ጊዜ ለዋናው ሥራ አስኪያጅ
+|
+አንቀጽ ሀያ አምስት
+| የኦዲተሮች ሥልጣን ግጳታዎች
+፲፡ የማንበሩ ጠቅላላ ጉባዔ ለዚሳብ ዓመቱ የሚያገልግሉ ኦዲተሮች |
+| ይመርጣል፣፤
+| 2. - ሂሣብ አጣሪዎ ከዲሬክተሮ እጅ የማኅበሩን ሀብቶች የሂሣብ ሰነዶች በኃላፊነት
+ይቀበላሉ። ዲሬክተሮች ም የመጨረሻው የሂሣብ ማጠቃለያ ጊዜ የሂሣቡ ማጣራት
+በተጀመረበት ጊዜ መካከል ባለው ጊዜ ውስጥ ያደረጉትን የሥራቸውን መግለጫ
+/ሪፖርት/ ያቀርቡላቸዋል።
+
+።፡8 የኦዲተሮች ሥልጣን፤ ግዴታዎችና መብቶች በንግድ ሕጉ በተወሰነው
+መሠረት ይሆናል፡፡
+
+4. ያለው ገንዘብ የማኅበሩን ፅዳዎች ለመክፈል በቂ ሆኖ1': ያልተገኘ እንደሆነ ሂሣብ
+አጣሪዎ ባለአክሲዮን በአክሲዮኖቻቸው ላይ ያልከፈሉትን ድርሻ እንዲከፍሉ
+ይጠይቋቸዋል።
+
+5. ሂሣብ አጣሪዎች በመተዳደሪያ ደንቡ መሠረት ወይም በጠቅላላ ጉባዔ
+ሥልጣ ቸውን የሚቀንሱ ውሳኔዎች ካልተደረጉ በቀር የሂሣብ ማጣራቱን ተግባር
+
+መ ተ እዲነ ቬ
+ክን) 174
+' 86.:.886866.‹ይ6፡.፡8፡-ደ8.88፡--፡5፡፡-... “'ረ/-.--”‹ሪ29286886888 ›-]
+```
+
+---
+
+## ገጽ 8
+
+```text
+/ በመልካም ለማካሄድ ሙሉ የሆነ ሥልጣን አላቸው: በተለይም የማኅበሩን ሀብት
+| ነ በጅምላ ለመሸጥ የተለያዩ - ጉዳዮችን በስምምነት ለመጨረስ ፣ለመግባባት
+ለመዋዋል ይችላሉ። በፍርድ ቤትም የማኅበሩ ነገረፈጅ ይሆና ሉ።
+ፅ 6. ተጀምሮ ለነበረው ውል አፈጻጸም ወይም የሂሣብ ማጣራቱ ጥቅም ያስገደደ
+ቋ ካልሆነ በቀር አዲስ ሥራዎች ለመጀመር አይችሉም።- በዚህ መተዳደሪያ ደንብ
+ከተደነገጉት ውሣኔዎች ውጪ ለሚሠሩአቸው ሥራዎች በአንደነት | በነጠላ
+ኃላፊዎች ና ቸው:
+7. - ጠቅላላ ጉባዔ የመረጣቸውን የሂሣብ አጣሪዎች ሥልጣን ሊወስን ይችላል።
+መስራቾች
+[1 |አቶ ሳለሊ ሳልፋ አማሌ | #ፈሯ
+አቶ ዮሐንስ ግጨ ቱባሼ
+2.
+|8- |አቶ አስቻለው ከበደ ጋንቲ ዕሯፊ
+አቶ ዮሴፍ ሙራሌ ኩንሦ --ማታወ ርዎ
+|14. | አቶ ኦይሻ ቱሽኩሎ ሜክሳ ቓፈኃ
+|15. | አቶ ማቴዎስ ማዳ ውነጫ |. ሪታ
+|16. | አቶ ደርገበ ዴክሮ ጫሌ ። [. ህፈ፡ሯ
+17 |አቶ ኃይለማርያም ጋርዳ ታውጣ 4ታሖ ጋራ ረ
+|18- | አቶ ደሳለኝ ሜካኔ ማዛሪ ሪታ
+|19 |አቶ ፋራ ጉፓ - ጓድ › #5፡
+8ኮ፡መማመመ:: “ሠመ-፦፦
+|26 |አቶ ተሰጋ ግዛው ጆርጋሪ በሪ ያ -ቫ።
+፲፻ ኣመን ) 27)
+የማው ገ] #2:
+አዲ ል- ካላ
+```
+
+---
+
+## ገጽ 9
+
+```text
+ያ ጠይደ“፡ :- 7786:..'ፅ)= 5፡6 ር 2 ርክ .፡፡ክ..:::፡. ሮ።6ፒጵፒክክ፡ =.
+የማሌ ዓርና አክስዩን ማኀበር
+መመፆፖረሃ ጽሁፍ
+እኛ ከዚህ በታች የፈረምነው በ2013 ዓ.ም በወጣው የኢፌዲሪ የንግድ ህግ
+አግባብነት ባላቸዉ የኢትዮጵያ ህጎች መሰረት በማህበሩ መመስረቻ ጽሁፍና ላይ
+በተገለፀው ሁኔታ ይህን አክሲዮን ማህበር አቋቁመናል፡፡
+ማህበሩ በ2013 ዓ.ም በወጣው. የንግድ ሕግ አዋጅ ቁጥር 1243/2013 በአንቀጽ
+[ 245 እና በተከታዮቹ ቁጥሮች ድንጋጌዎች መሰረት የተቋቋመና በዚህ የመመስረቻ
+' ጽሁፍ የሚገዛ አክሲዮን ማህበር ነው። ስለሆነም በመመስረቻ ጽሁፉ ያልተሸፈኑ
+ጉዳዮች ሲያጋጥሙ በንግድ ሕጉ ውስጥ ስለ አክስዮን ማህበር የተመለከቱት ድንጋጌዎች
+ተፈፃሚ ይሆናሉ፡፡
+ስንቀጽ ስንደ
+የባሰለከሲዮኖች ስም፣ ዜግነት፤ ስድራቫ
+ሽም አድራሻ
+ጨጨ ከተማ ቀበሌ የቤት ቁጥር
+አር ርር. 5.። [" ፡
+አማሌ
+አቶ አማኑኤል ሳልፋ ኢትዮጵያዊ ሆቶሊ አዲስ
+አማሌ ።፡ን
+4. | አቶ ዕድሌ ኮዳ ቡጆ ኢትዮጵያዊ ሆቶሊ አዲስ |
+ኪክ ብ. ው [ህሠ። ሙጫ - አ -ፒ |
+ከደ ከ ር መወ ሙ [ዉሚ ንመ. |
+17. | አቶ ኃይለማርያም ጋርዳ | ኢትዮጵያዊ ማሌ አዲስ
+ታውጣ
+ከ8. ደ አ ና። 8 ሠ ፣ኤጩጺ፦፦ |
+8 ር 281 15 188 -ኮሠ- |
+ነ ፖሎ ደ”*ዝ2ሬ
+ጋ ም ነን 8)
+ጆጽቶ ቁ, ይሸ 1 ፻ጭ
+```
+
+---
+
+## ገጽ 10
+
+```text
+OA ፡፡:፡198:5፡:7 98:22]
+15 ዩመሚክገየሻ አሃ. |ሥዜ ኮዚ 1
+23 | የማሌ ቃ/ሕ/አ/ኬክ ኢትዮጵያዊ ኮይቤ አዲስ
+ኀብረት
+[28 | አዩ አማን አውላ ጣላ - [ኢትዮጵያዊ - |ማሌ ሆየሊ አስ |
+አቶ አማኑኤል አስናቄ ኢትዮጵያዊ ማሌ uta, አዲስ |
+ovr at |
+አንቀጽ ሁለት
+የማህበሩ መጠሪያ
+የማኅበሩ መጠሪያ ስም የማሌ ዓርና አክስዩን ማኀበር" ነው።
+አንቀጽ ሁለት
+የማህበሩ አድራሻ
+የማኅበሩ ዋና መሥሪያ ቤት ደቡብ ኦሞ ሶዶ ዞን ማሌ ወረዳ ኮይቤ ቀበሌ የቤት
+ቁጥር አዲስ ውስጥ ነው: ማኀበሩ ቅርንጫፍ ድርጅቶትን በኢትዮጵያ ውስጥ
+ከኢትዮጵያ ውጭ ሊያቋቋም ይ"ላል:
+አንቀጽ ሁለት
+የማህበሩ ዓላማ
+ማኅበሩ የተቋቋመበት ዓላማዎኙ- የሚከተሉት ና ቸው:
+1.የግብርና፣ ሥራዎች ላይ መሰማራት
+2የማዕድን ሥራዎች ላይ መሰማራት
+3ያየማኑፋክከቸሪንግ ሥራዎች ላይ መሰማራት
+5.ኮንስትራክሽን ሥራዎች ላይ መሰማራት
+6የጅምላች የሆቴልና ሬስቶራንት) የአሰመጪነትና ላኪነት
+ሥራዎች ላይ መሰማራት
+7ፖ.የትራንስፖርት፣ ሥራዎች ላይ መሰማራት
+8ፋይናንሰ፡ የኢንሹራንስ፣ የሪል እስቴትና የንግድ ሥራዎች ላይ መሰማራት
+8.የማህበረሰብ፥ ማህበራዊና የግል አገልግሎቶችሥራዎች ላይ መሰማራት
+አንቀጽ ሁለት
+የማህበሩ ካፒታልለ
+1. የማኀበሩ የተፈረመ ካፒታል ብር 1,450,000 /አንድ ሚለዮን አራት መቶ |
+ሃምሳ ሺህ AC! የተከፈለው የማኀበሩ ዋና- ገንዘብ ብር 1,450,000 /አንድ
+ሚሊዮን ከራት መቶ IPA ሺህ ብር/ በሙሉ በይነትና በጥሬ ገንዘብ
+ተከፍሏል። A Viki: ፡
+Peas EL
+ea ዓለ ያ
+ጻድ
+|
+```
+
+---
+
+## ገጽ 11
+
+```text
+2. | የማኅበሩ የተፈረመ ካፒታል እያንዳንዳቸው ብር 10000/አስር ሺህ/ ብር ዋጋ
+በላቸው በጠቅላላው 145 /አንድ መቶ አርባ  አምስት/ተራ አክሲዮኖኙ
+ተደልድሏል።
+
+3. MEME የአክሲዮን ድርሻ የመዋጮ መጠን ከዚህ እንደማከተለው
+ተገልጻል።
+
+ያር
+እ pce
+በጥሬ በ
+61...
+
+ነከር Ha — | 200611 |=}
+[2 [አቶ አብርሃም ሳልፋ nora | ፤- 19808 |-«፡000|. - 20000| - | 30፡፡0| - |
+15. |አዩ አማትኤል ሳልፋ አማሌ | 5 |:9897| 50000| - |. - 2000 | 200091 - |
+ኦቦ ዕዴሌ ኮዳ በጆ [7800 "T0000 [= - 50000! -
+
+15- | አቶ እርቀ ኢዮብ አልዳቦ ሰ ።
+
+[6- |አቶ ዮሐንስ ግጨ ait - | 2 |16000-|--:፡065 40000 5
+አቶ ጋድቁሬ ጋቶ ግርማ | 27 -1182891-50000|- - 40000| = [10000 | -
+[6- | አቶ አስቻለፀ ከበደ ጋንቲ 11999 | so000 |= 50000 | - 18627
+[9- | ኣቶ ገለቦ ገለፋ ኮሌ = 0056 | «0000 5000 z=
+10. አዩ ታክቲኩ ሳጌ ጫሌ 9897 ||- 50000 20000 2000| -
+አዩ አማሬ ዴክሮ ጫሌ 10000-|— 5000. 50000 ር
+
+አቶ ዮሌፎ ሙራሌ ክን” 7179987569 4000 |] 00
+አቶ ወገነ ፃልካ ሻካ 19000 || 200001 50000 በ]
+
+አ ኦይሻ ፋሽኩሉ ሚክሳ "ኮከ668125:6 20000 20600
+|15 | አቶ ማቴዎስ ማዳ ውኔጫ 0067 |- 56600 - 500001. |. ፥
+
+16 | አቶ ደርገበ ዴክሮ ጫሌ ን 50000 | 50000. በገ
+እቶ 2ይለማርያም ጋርዳ ታወጣ | 5 1፡27 1-5600|.- |--:56693|--1::5 =a
+[48 | አዩ ደሳለኝ ሚካኔ ene TORT 5660 200 | -
+አቶ 4M: ኾፓ, Do 08 |- 50000. 20000. 20055
+[20 | አቶ ኮንታ ኮዳ ቡጸ | 5 11:09-17260 500001. 0 —
+[51 | ወሮ ናዝሬት ኮዳ ቡጆ 5 [|1፡09 | 000 10000 4000| -- |
+አቶ ቶማሚያስ ሸሻ ጎሻ 0006 || 50000 50000 | SE ee
+[23 [tem ቃኤአኬክ ገብረት 09 1]. 5:000 Cia
+አቶ አቀፋ አዘለ ዳካ 028:1775:፡፡6 |. [00001 --[1. 4655 =]
+[25 [ak ዐቃሳ ጁቱ ጎሻ ጃ [115006 [750006 50000 ከ]
+አቶ ተሰጋ ግዛው ጆርጋሪ 8298. ||. 50000 10000 46599 ca
+[28 | አቶ አማን ወላማላ [3] 10900" s0000] | 5000 45666| -
+
+ያን
+fae
+```
+
+---
+
+## ገጽ 12
+
+```text
+ስንቀጽ ስደስት
+ስከሲዮኖች |
+1. | የማገበሩ አክለዮኖኙ ከ1 እስከ 29 ቁጥር ተሰጥቷቸዋል» |
+2. | የአክለዮን የማስተላለፍ ተግባር |
+ስንቀጽ ሰባት
+የባለ ለዘሲዮኖች ኃሳራነት
+ባለ አክሲዮኖኙ ኃላፊነታቸው በማኀበሩ ዑስጥ ባላቸው የአክሲዮን ድርሻ ልክ ነው።
+አንቀጽ ከሞንት
+የ.ሣብ ዓመት
+| የሂሣብ ዓመቱ የሚጀምረው ከህምሌ 1 ሲሆን የሚያልቀው ሰኔ 20 ቀን በየዓመቱ ነው። |
+| ስንቀጽ ዘጠኝ |
+| የክርፍ አከፋፈለ |
+| 1. | በየሂሣብ ዓመቱ መጨረሻ የማነበሩን ንብረት AT ዕዳ የሚያሳይ የሂሳብ ሚዛን |
+/ባላንስ ሺት/ ተዘጋጅቶ ለዳሬክተሮፕ ቦርድ ይቀርባል
+2. | የማኀበሩን ዓመታዊ የሂሳብ ሁኒታ የሚያሳዩ ሰነዶዛና ማለትም የሂሳብ ሚዛን
+/ባላንስ ሺት/፣ የትርፍ ኪሣራ መግለጫ፣ የንብረት ቆጠራ፣ የዳሬክተሮች ቦርድ
+ሪፖርት እና የኦዲተሮች ሪፖርት በማኅበሩ መዝገብ AL ለተመዘገቡ
+| ባለአክሲዮኖች ቢያንስ ከመደበኛ ጠቅላላ ጉባዔ ስብሰባ ቀን 15 .ቀን አስቀድሞ
+በሬኮማንዴ ይላካል።
+3. - ከዘህ በታፍ ከንዑስ አንቀጽ 4/ህ እ| ለ/ሥር የተገለፀው እንደተጠበቀ ሆ"
+| በዓመኮ ሸጥ] ግለ ውስጥ እንጸተሠ/ከተወ የማግበሩ የዛመቱ የሇዛሪ
+ትርፍና ጠቅላላ ወጪ ዋጋና አላቂ ለሚሆኑ ነገሮት መተኪያ ገነዘብ
+“አሞርታይዜሽን/፣ አላዋንስ እና ለሌሉት መዋጮዎፕ ታክስ  ያለፈወ- ዓመት
+ግዴታዎች ከተቀነሱ በኋላ የሚታየው የተጣራ ገቢ ነው:
+| 4 ከተጣራው ዓመታዊ ትርፍ ላይ
+| ሀ. የጠቅላላ ካፒታሉን 20% እስከሚያክል ድረስ በየዓመቱ 5 ለዕ,ጋዊ
+| መጠባበቂያ ይያዛል፡፡
+| ሊ በጠቆላላ ጉባዱዔሙ ውሳኔ የጸደቁ ሌሉች ልዩ የመጠባበቂያ ሂሣቦች
+የአሞርታይዜሽን ወጪዎች ከተቀነሱ በኋላ ተራፊው በተከፈለው የአክስዮን
+| ድርሻ ልክ ለባለ አክስዮዋች ፆከፋፈላል
+| አንቀጽ APC
+የስከተጻደር ለካሎች
+የማኅበሩ የአስተዳደር አካሉና፣
+ሀ. - የባለአህሰቶዎት ጠቅላላ ጉባዔ፣
+ለሊ. - የሬክተሮፍ ቦርድ
+dhe ሥራ አስከያጅ ናቸወ:
+ንቀጽ ለፖራ አንድ
+ጠቀሳላ ስብነባ
+| 11.፤| የባለአክስዮኖች ጠቅላላ ጉባዔ ከፍተኛው የሥልጣን አካል ነው።
+ሥ#ያ 11
+ኣን መሪማ
+```
+
+---
+
+## ገጽ 13
+
+```text
+ኺክ .:.  ፡. ተ -“ -ጮ - ሥ፡ክዜልሬጠሬዜመ።በበፎኤ፡‹አ ክሽ
+ይህም ጉባዔ መደበኛና ድንገተኛ ስብሰባ በደንቡና በንግድ ሕጉ መሠረት
+የዲሬክተሮች ቦርድ አባላትን ከመካከሉ ይመርጣል፤ ይሾማል፤ ይሽራል፡፡
+
+11.2- የውጭ ኦዲተሮችን ይሾማል፤ ይሽራል፤ አበላቸውንም ይወስናል፡፡
+
+NAR አሥራ ሁለት
+| የፍኔከተሮች ቪድ
+|. | ማኅበሩ የሚተዳደረው በባለአክሲዮኖች mean ጉባዔ በሚመረጡ- ቢያንስ 3
+] ቢበዛ 8 አባሎች ባሉት የዳሬክተሮች ቦርድ ነው2- የቦርዱም የሥራ ዘመን gj
+ዓመት ነው>
+2. | የማኅበሩ የመጀመሪያ የዳሬክተሮኙ ቦርድ አባላት የሚከተሉት ና ቸው:
+1. ዩሐንስ ግጨ ፕሬዝዳንት
+5. አማኑኤል ሳልፋ ፀሐፊ
+3. አማሬ ዴክሮ ገ/ያዥ
+4. ገለቦ ገለፋ ሂሳብ ሹም
+5. አስቻለዉ ከበደ አባል
+
+ጉ. | የዲሬክተሮች ቦርድ ከአባሉኙ አንዱን ኘሬዚዳንት አድርጎ ይመርጣል።
+
+4: | የዲሬክተሮች ቦርድ አባል የተመረጠበት ጊዜ ካበቃ አንደገና ለመረጥ ይላል:
+
+5. | ዲሬክተር መለወጥ ቢያስፈልግ የንግድ ሕግ ሓጥር 351 /አስተዳዳሪ ሰለ
+መለወጥ/ ድንጋጌ ተፈፃሚ ይሆና ል፥ ዲሬክተሩ ከሥራው ላይ ቢቀር የንግድ
+ሕግ ቁጥር 358 ድንጋጌ ተፈፃሚ ይሆናል።- ሆኖም ከሥራው ላይ የቀረ
+ዲሬክተር በለላ ዲሬክተር ያልተወከለን ዲሬክተር ለመወከል ይችላል።
+
+6. | እያንዳንዱ የተመረጠ ዲሬክተር የሥራ ገዜው እስከሚፈፀም ድረስ ቢያንስ
+በስሙ በማኅበሩ የተመዘገበ አክሲዮን ያስይዛል። የሥራ ዘመኑም ሲያልት አክስዮኑ
+በንግድ ሕግ ቁጥር 349 ሥር በተገለፀው ሁኔታ ይመለስለታል: በንግድ ሕግ
+ቱዋር 359 እ 360 ድንጋጊ መሠረት የዳሬክተሮች ምዝገባ ይኖራል:
+
+1. በሕግ በመመሥረቻ ፳ሁፍ እና በመተዳደሪያ ደንብ እንዳሁም  በጠጎላላ
+የባለአክሲዮኖች ጉባዒ ውሳኒ ለሌላ የማኅበሩ አካል ተለይቶ ካልተሰጠ በቀር ለተለየ
+ሥራ ሁኔታ የሚስፈልግው የማኀበሩ ሥልጣን ሁሉ የዲሬክተሮች ቦርድ ሥልጣን
+ይሆና ል። በንግድ ሕግ ቁጥር 362፣ 364 446 እና- 447| ሥር የተገለጹት
+ድንጋገዎች እንይተጠበቱ- ሆነው  የዳሬክተሮፕ| ቦርድ- ከዚህ የሚከተለው
+ሥልጣን ተግባር ይኖ ረዋል:
+
+ሀ. | የማዝበሩን አስተዳደር መቃጣጠር፣
+
+ሰ. | በጠቀላላወ- የባለአክሲዮኖ ኙ ስብሰባ ከተወሰነው ሳያልፍ የማኅበሩን የንግድ
+ሥራ ለማካሂድ እስፈላጊ የሆኑ እርምጃዎችን መውሰድና
+
+ሐ. | የማኅበሩን ሥራ አስኪያቻፕ ለመሾም እንደአስፈላጊነቱ ፀሐፊዎኑን፣
+ሠራተኛችን ለመቅጠር፣ ለማሰና በት ለማገድ እንዲዚሁም ደመወዝ፣ አበል
+ልዩ ልዩ ጥትማ ጥቅሞችን የሥራ IPT ለመወስን?
+
+መ”. የሚንተሳቀሱ የማይንቀሳቀሱ ንብረቶ*ን ማፍራት መሸጥና
+
+ሀ: | በአገር ውስጥ ከሚገን ማንናወም ባንክ የገንዘብ ድርጾት ወይም ተቋም
+ለማኅበሩ ዓላማዎች ማከናወኛ የሚውል ብድር በመያዣ ወይም ያለመያዣ
+ለመበደር" ለመደራደር ለመዋዋል ለመፈረም
+
+ራሬ. | በኢትዮጵፆ ውስጥ ወይም ከኢትዮጵያ ውጪ ቅርንጫፍ ጽ/ቤቶች
+መቋቋምን መወሰን? መጅ
+
+። |
+```
+
+---
+
+## ገጽ 14
+
+```text
+ሰ. - ማናቸውንም ተስማሚ ሆኖ- ያገኘውን የማኀበሩን ገንዘብ ሥራ ላይ
+ስለማዋል ሃሣብ ለጠቅላላ የባለአክሲዮኖች ስብሰባ ማቅረብ፣
+
+ጺ የዲሬክተሮች ቦርድ አስፈላጊ እስከሆነ ድረስ ሥልጣኑን ለኘሬዚዳንቱ ለመስጠት
+ይችላል።
+
+ኗ ኘሬዚዳንት ምክትል ኘሬዚዳንት ሥራ አስኪያጅ ዲሬክተሩ እና- ማና ቸውም
+ሊላ በዲሬክተሮች ቦርድ ሥልጣን የተሰጠው ዲሬክተር በማኅበሩ ስም ሊፈርም
+ይችላል የዲሬክተሮች ቦርድ በአንድነት ወይም በነጠላ በማኅበሩ ስም ለመፈረም
+የሚቸሉ ተጨማሪ አንድ ወይም ከአንድ በላይ የሆኑ ሥራ አስኪያጆሃን ለመሾም
+ይችላሉ።
+
+10. አስፈላጊ በሆነ ጊዜ የዲሬክተሮች ቦርድ ስብሰባ በኘሬዚዳንቱ ወይም በሥራ
+አስኪያጁ ሊጠራ ይሻላል።- የዲሬክተሮች ሰብሰባ ጥሪ ማስታወቂያ ኢትዮጵያ
+ውስጥ ለሌላ ዲሬክተር አይለጥም:- ዲሬክተሮች የማኅበሩን ሥራ ያካሂዳሉ፣
+ውሳኔአቸችውም በንግድ ሕጉ አንቀጽ 358 ድንጋጌ መሠረት ይመዘገባል:
+
+11... የዲሬክተሮች ቦርድ ፀሐፊ ይሾማል: የዲሬክተሮች ቦርድ ውሳኔዎች በኘሬዚዳንቱ
+በፀሐፊው ተፈርመው በቃለ ጉባዔ መዝገብ ውስጥ ተመዝግበው ይቀመጣለ።
+
+12. ዲሬክተሮች በንግድ ሕግ አንቀጽ 365 መሠረት በአንድነት በነጠላ ለማኅበሩ
+ለዕዳ ጠያቂዎች ኃላፊነት አለባቸወ:።
+
+13... ቦርዱ በክፉ ልቦና- በተንኮልና ወይም ከተሰጠው ሥልጣን ውጪ ካልሰራ በቀር
+የተጣለበትን ኃላፊነት በመወጣት ወይም በዚህ የመተዳደሪያ ደንብ መሠረት
+ባገኘው ሥልጣን ለሰራው ሥራ በሕጋዊ መንገድ ላክናወነው በግሉ ምንም
+ኃላፊነት አይኖ ርበትም።
+
+14. የማገበሩ ዳይሬክተሮች በማንኛውም ሁኔታ ከማኀበሩ ገንዘብ ሊበደሩ ወይም
+ለግል ዕዳቸው በማኅበሩ ሊጠቀሙ አይችሉም።
+
+15. | የዲሬክተሮች የአገልግሉት ክፍያ በየዓመቱ በመደበኛ ጠቅላላ ስብሰባ ይወሰና ል:
+ይህም ክፍያ ከጠትላላ ወጪ ውስጥ ይጠቃለላል።
+
+አንቀጽ APG ሃስት
+ያሩ አወጪ
+
+5 የማኅበሩ የአስተዳደር ሥራ በዲሬክተሮች ቦርድ ተመርጦ የአገልግሎት ክፍያው
+እና አገልግሉት የማሰጥበት ሁኔታ የሚወሰንለት የሥራ አስኪያጅ ዳሬክተር
+ወይም ዋና ው ሥራ አስኪያጅ ይሆና ል።
+
+2 የሥራ አስኪያጅ ዲሬክተር ወይም PS ሥራ አስኪያጅ በመመሥረቻ ጽሁፍ፣
+በመተዳደሪያ LINAS የዳሬክተሮኙ ቦርድ በሚሰጠው መመሪያዎች መሠረት
+
+| የማኀበሩን ሥራዎች LAAT ማናቸውንም ለማኅበሩ ሥራ አስፈላጊ የሆኑትን
+ተግባሮኛ ያከናውናል:
+| 3. አቶ አቀፋ አየለ ዳካ የአክስዮን ማኅበሩ የመጀመሪያ የሥራ አስኪያጅ ዳይሬክተር
+ወይም ዋና ሥራ DOLE ሆነው ተመርጠዋል፡፡
+አንቀጽ አፆራ ለራት
+ተቆጣጣሪዎች /ሶዲተሮች/
+
+1. ማኀበሩ በዓመት 1 -ገዜ በሚያደርገው ስብሰባ የማኅበሩን ኦዲተር ወይም
+ኦዲተሮች ይሾማል የሚሾመው ኦዲተር ወይም AACE በሂሣብ ምርመራ
+ሥራ የተፈቀደለት ሰው ወይም ድርጅት-ይሆና ል። የነዚህም ኦዲተርና ተግባር፣
+
+UAL ቋ ።፡ ነ
+፪
+```
+
+---
+
+## ገጽ 15
+
+```text
+ሥልጣን ኃላፊነት በሕግ በተለይም በንግድ ሕጉ ቁጥር 368 እና 460
+መሠረት ይሆና ል:
+2 የኦዲተሮች ም የአገልግሎት ዋጋ በማኅበሩ ጠቅላላ ጉባዔ ይወሰና ል።
+አንቀጽ አሥራ አምስት
+የማኀበሩ ቆይታ
+ማኅበሩ የተቋቋመው ላልተወሰነ ጊዜ ሲሆን በንግድ ሕጉ ቁጥር 495 ሥር በተገለጹት
+ምክንያቶኙ የሚፈርስ ነው:
+ስንቀጽ አዎራ ከደከት
+የማህበ የፖራ ሪፖርተ
+
+1. እያንዳንዱ የሂሣብ ማጠቃለያ በሚዘጋበት ጊዜ ዲሬክተሮች በማኅበሩ ያሉትን ልዩ
+ልዩ ንብረቶች ዕዳዎች የሚያመለክት የንብረቱን ዝርዝር የሚይዝ መዝገብ
+ያደራጃል:
+
+2 ዲሬክተሮች የዓመቱን የሂሣብ ሚዛን፣ የትርፍ | ኪሣራ መግለጫ፣ት እንዳሁም
+ባለፈው የሂሣብ ማጠቃለያ ሥራ ጊዜ ስለማኅበሩ ሁኔታ. አሰራር ራፖር
+ያደራጃሉ:
+
+35. ለጠቅላላ ጉባዓ. ጥሪ ከመደረጉ 10 ቀን በፊት የንብረት ዝርዝር መዝገብ" የሂሣብ
+ሚዛን" የትርፍ ኪሣራ ሂሣብ፣ የዲሬክተሮች ሪፖርት፣ ለአዲተር ተዘጋጅተው
+መስጠት አለበት፣ በዚሁ ገዜ እነዚሁ ሰነዶጽ ለሚመለከተው ንግድ ሚኒስቴር
+መተላለፍ አለባቸው:
+
+አንቀጽ አዖራ ሰባት
+mn,
+በዚህ የመመሥረ# ፳ሁፍ ውስጥ ባልተገለጹት የማኅበሩ ጉዳዮች ላይ ሁሉ
+
+| እንደአስፈላጊነቱ የንግድ ሕጉ ድንጋጊዎች ተፈፃሚ ይሆና ሉ: ይህ የመመሥረ።
+፤ ጽሁፍ ዛሬ 16/12/2016ዓ/ም በመሥራች አባሎኙ ፈራሚዎች በአርባ ምንጭ
+| ከተማ ተፈረመ
+| መሥራች አባ ፊርማ ]
+| 1 [ae aaa tat ata] px
+| 2 - | አቶ አብርፃም ሳልፍ አማሌ eae |
+| 3 - |አቶ አማኑኤል ሳልፋ አማሌ E z re
+| RE ORR DAG
+
+15 - |አቶ አርቀ አዮብ አልዳቦ
+
+[6፡፡[ኦዩዩአ5ግጨ 4ባሺ.:::::ተ-ማች2፡
+
+7 | አቶ ጋድቁሬ ጋቶ ግርማ ‘i wi i
+
+8. |ኦዩአቻለው ዘደጋቲራኹሁ ኑራ " ኞች <5.
+
+9 - ኦቶ ገለቦ ጎለፋ ኮሌ 2 31 od =
+
+አቶ ታክቲክ ሳጌ ጫሌ
+ENT he aa [ ፡፡ መው
+| አዩ የለፍ ራሌ WAP መ መመ |
+አቶ ወገነ ዓልካ ሻካ ky ኋ= |
+
+14. |አቶ ኦይሻ ቱሽኩሎ ሜክሳ % mar]
+
+አቱ ማቴዎስ ማውጫ  - al
+```
+
+---
+
+## ገጽ 16
+
+```text
+[16 [አቶ፤=ርበጻዘሮመጩሌ .- 2:88
+12. | አ ኃይለማርያም ጋርዳታዐጣ
+|18- | አቶ ደሳለኝ ሚካኒ ማዛሪ ብበ
+19- [አቶ ፋ'ራ ጥፓ | 32
+20- | አቶ ኮንታ ኮዳበጆ ‘bo 5. Es
+21. | wie ናዝሬት ኮዳ we A ነካ ፡፡፡
+22. |አቶ ቶሚያስ ሺሻ ጎሻ oe 1 ጸን
+23- | የማሌ ቃ/ስ/አቤክ ኅብረት ፍ። 8905:>::1|
+25 [RE hee REA ተ ተ ር aun
+25 | አቱ ወቃሳ ፳% 8፳ oe
+26 |አቶ ተሰጋ ግዛው 2ሪ "' .ፒቫ”ዛ ታ> - 2 ፈ ae;
+ን ከ ደማ ጂማ 21 SP a
+| 29 [AE አማን አዐላማላ wea "ጋ የሚመ መ!
+29. | አቶ አማ፦ኤል ANTE ባልግዛ a ።] ]
+መ |
+|
+```
+
+---
+
+## ገጽ 17
+
+```text
+ኸ . ጫም.
+ስልሳ it 1 |ዲ x
+2
+Hf መ = Een
+ዷ ቋመ eae |
+a ቸው”
+‘oe [ራው |
+a ፪ |
+፤ ፳፪ ime 4 |
+
+6. ቁ...
+iW ው፣
+Bist. jos. ፻
+```
+
+---
