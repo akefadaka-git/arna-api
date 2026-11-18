@@ -65,10 +65,37 @@ return new class extends Migration
             $table->unique(['tenant_id', 'election_id', 'sequence'], 'gov_elec_lifecycle_seq_uq');
             $table->index(['tenant_id', 'election_id', 'occurred_at'], 'gov_elec_lifecycle_time_idx');\n            $table->foreign(['tenant_id', 'election_id'], 'gov_elec_lifecycle_election_fk')\n                ->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
         });
+
+        // The committee-security migration predates this parent table.
+        // Attach its tenant/election references now that the canonical
+        // election key exists; this prevents cross-tenant key pairing.
+        foreach ([
+            'governance_election_committee_admins' => 'gov_elec_admin_election_fk',
+            'governance_election_committee_conflicts' => 'gov_elec_conflict_election_fk',
+            'governance_election_committee_security_events' => 'gov_elec_security_election_fk',
+        ] as $tableName => $constraint) {
+            if (Schema::hasTable($tableName)) {
+                Schema::table($tableName, function (Blueprint $table) use ($constraint): void {
+                    $table->foreign(['tenant_id', 'election_id'], $constraint)
+                        ->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
+                });
+            }
+        }
     }
 
     public function down(): void
     {
+        foreach ([
+            'governance_election_committee_admins' => 'gov_elec_admin_election_fk',
+            'governance_election_committee_conflicts' => 'gov_elec_conflict_election_fk',
+            'governance_election_committee_security_events' => 'gov_elec_security_election_fk',
+        ] as $tableName => $constraint) {
+            if (Schema::hasTable($tableName)) {
+                Schema::table($tableName, function (Blueprint $table) use ($constraint): void {
+                    $table->dropForeign($constraint);
+                });
+            }
+        }
         Schema::dropIfExists('governance_election_lifecycle_transitions');
         Schema::dropIfExists('governance_elections');
     }
