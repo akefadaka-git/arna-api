@@ -473,14 +473,14 @@ This section supersedes the earlier provisional statements in §12.5 that the 29
 ### 13.1 Original source identity and integrity
 
 - Original file: `maale_arna_bylaws_original_scan.pdf` (17-page Amharic scanned bylaws/internal-regulations document).
-- Printed pages inspected: 9, 10 and 11; a separate three-page extract of those exact pages is also preserved in the Library.
+- Printed pages inspected: 9, 10 and 11; page 9 contains the first 19 identity rows, page 10 is adjacent bylaws text, and page 11 contains the full 29-row capital-allocation table. A separate three-page extract of those exact pages is also preserved in the Library.
 - SHA-256 independently computed from the original PDF bytes: `8df31ad217b2221f42b3e0e1154007bdd5d2ab003df0e1ad3dc7f17c03b61183`, matching the Owner-supplied checksum recorded in the P2.5 evidence index.
 - This confirms byte-integrity against the supplied checksum. It does not independently authenticate the issuing authority, signatures, registration, legal effect, or whether later amendments exist.
 - The document title is `የመተዳደሪያ ደንብ` (bylaws/internal regulations). It is not the separate registered Memorandum/Articles and must not be represented as such.
 
 ### 13.2 Identity crosswalk to the repository seeder
 
-Visual comparison of the 29 schedule rows on printed pages 9–10 against `database/seeders/Data/ShareholderRegister.php` at main blob `8e387599ab75db23d58db963b56a96df5d6c67b5` establishes an ordered identity crosswalk:
+Visual comparison of the first 19 identity rows on printed page 9 and the 29 names in the printed page 11 capital-allocation table against `database/seeders/Data/ShareholderRegister.php` at main blob `8e387599ab75db23d58db963b56a96df5d6c67b5` establishes an ordered identity crosswalk:
 
 - Historical schedule rows 1–29 correspond, in sequence, to application seed IDs SH-0001 through SH-0029.
 - The Amharic personal-name and parent-name components match across the schedule and the corresponding first 29 seeder rows, subject to abbreviation/orthographic variation in the entity row and minor spelling variation in some names.
