@@ -592,6 +592,21 @@ final class ShareholderServiceTest extends TestCase
         Event::assertNotDispatched(ShareholderUpdated::class);
     }
 
+    public function test_legacy_register_rows_default_to_unknown_provenance_and_unverified(): void
+    {
+        $legacy = Shareholder::create([
+            'tenant_id' => $this->tenant->id,
+            'shareholder_type' => 'individual',
+            'first_name_en' => 'Legacy Holder',
+            'is_active' => true,
+        ]);
+
+        $this->assertSame('legacy_unknown', $legacy->register_source_type);
+        $this->assertSame('unverified', $legacy->register_verification_status);
+        $this->assertNull($legacy->registered_address);
+        $this->assertNull($legacy->register_entry_date);
+    }
+
     public function test_register_metadata_is_persisted_and_cannot_self_verify(): void
     {
         $shareholder = $this->createIndividual([
