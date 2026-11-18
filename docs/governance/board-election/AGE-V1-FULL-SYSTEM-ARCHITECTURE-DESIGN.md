@@ -342,3 +342,26 @@ This blueprint is the complete system-level architecture proposal. It is not yet
 **Current implementation state:** no Priority 3 application source code has been changed by this design record. The existing Priority 3 A2 reconciliation remains valid as a historical dependency analysis, but implementation is paused pending this architecture baseline's approval.
 
 **Next gate:** Owner reviews this full-system architecture. Once approved, freeze the design baseline, convert its open authoritative inputs and module contracts into a traceable acceptance register, then start module 1 (election foundation) and module 2 (candidate intake) in dependency order. Candidate intake must not be built against an incomplete or disposable election core.
+
+
+## 18. Existing ARNA App election work — read-only integration disposition
+
+The App repository was inspected as part of the full-system design so that the architecture does not duplicate or discard existing frontend work.
+
+**App current main baseline:** `29cf650f9337d547b395f0e05688691e2ea4e83f`.
+
+**App PR #31** — [WIP] Add ARNA Board Election frontend contracts:
+- Branch `feat/board-election-a3`, head `f4f53b6e3d4d2a30fada64b48903c5b91a65dd54`.
+- Base is App `main` at `2eff0a0e08062728bba071b1728ffe1886e200ad`; comparison with current main is diverged (26 commits ahead, 207 behind).
+- Adds election list/committee/candidate-review views, API client, labels/types and portal/workspace routes.
+- PR body reports frontend verification run #537 passed for configured type-check/build and App/portal/admin/public checks. Election-specific browser/component tests were not run; create form, detailed election workspace and committee operational views were not yet implemented.
+- Treat as a source reference only; do not merge wholesale or claim current-main verification.
+
+**App PR #68** — voting-method contract alignment:
+- Branch `feat/age-a3-governance-ui`, head `2129187191e2d9e32e20beff9ba1522a1d8a13a1`, stacked on PR #31.
+- Changes four files: `GovernanceElectionListView.vue`, `api.ts`, `labels.ts`, `types.ts`.
+- Adds physical/electronic/proxy/hybrid voting-method union and explicit statement that all methods remain gated pending legal, security and operational acceptance.
+- Type-check, lint, build and workflow evidence are pending in the PR description.
+- Preserve both PRs and branches. Do not merge or retarget them as part of this architecture design.
+
+**App integration rule:** after the API contracts are frozen, reconcile the App PR #31/#68 work file-by-file against current App main and the frozen API OpenAPI/event contracts. Port only compatible, needed changes onto a fresh App branch. Do not let frontend types or routes activate a voting method or override API authorization. Add election-specific browser, component, accessibility, tenant-scope and failure-state tests before the App integration gate closes.
