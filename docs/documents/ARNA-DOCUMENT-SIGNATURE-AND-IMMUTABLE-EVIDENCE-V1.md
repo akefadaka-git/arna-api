@@ -7,7 +7,7 @@ Status: A3.3.2 implementation contract. This document describes the exact verifi
 - Algorithm: Ed25519 detached signatures, using PHP's native Sodium extension.
 - Private keys: generated and retained by the authorized signatory outside ARNA. ARNA never stores or receives a private key.
 - Public keys: tenant-scoped rows in `document_signing_keys`. A key is trusted only when an Owner-controlled provisioning process inserts its public key, signer account, validity start, optional expiry and non-empty trust reference.
-- Revocation: append a row to `document_signing_key_revocations`. Key records and revocation records are database append-only. A revoked key is rejected even if the signature timestamp predates the revocation.
+- Revocation: append a row to `document_signing_key_revocations` while holding a locking read on the corresponding trusted-key row. Key records and revocation records are database append-only. A revoked key is rejected even if the signature timestamp predates the revocation.
 - Key identifiers are unique within a tenant. The verifier also requires the key to belong to the authenticated signer and the same tenant.
 
 There is intentionally no public key-registration endpoint in this stage. Do not seed, trust, or enable a production key until its identity and custody have been independently verified and Owner-authorized. Test fixtures generate ephemeral keys and are never production trust anchors.
@@ -49,7 +49,7 @@ The signed payload binds the exact document bytes and workflow identity. The can
 
 On submission, ARNA reads the selected tenant-scoped File Management version and seals a content-addressed snapshot under `document-evidence/{tenant_id}/{sha256}` on the configured local evidence disk.
 
-- The object is created via an exclusive temporary file and atomic no-overwrite hard link.
+- The object is created via an exclusive temporary file and atomic no-overwrite hard link; the sealed version directory is then changed to read/execute-only (0500) and the binary to read-only (0400).
 - A second capture of the same File Management version is accepted only if its bytes produce the same SHA-256 and size. A same-version mutation is rejected; a new File Management version is required.
 - `document_file_versions` records tenant, source file/version, evidence disk/path, SHA-256, size, capture actor and instant. MySQL and SQLite triggers reject UPDATE and DELETE.
 - Issued documents reference the immutable version row, the signature evidence row, and the same SHA-256.
