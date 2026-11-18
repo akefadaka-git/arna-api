@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Governance\Tests\Feature;
 
-use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -19,8 +18,6 @@ use Tests\TestCase;
 
 final class GovernanceElectionNominationConcurrencyTest extends TestCase
 {
-    use DatabaseMigrations;
-
     public function test_two_independent_mysql_workers_submit_the_same_nomination_at_once(): void
     {
         if (DB::connection()->getDriverName() !== 'mysql' || !function_exists('pcntl_fork')) {
