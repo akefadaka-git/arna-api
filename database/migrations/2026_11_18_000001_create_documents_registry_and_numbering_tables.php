@@ -29,6 +29,26 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        // Stable identifiers are seeded with the schema so clean installs
+        // never depend on an optional seeder or mutable production setup.
+        DB::table('document_type_catalogue')->insert([
+            ['numeric_code' => '01', 'legacy_code' => 'LET', 'category' => 'correspondence', 'name_am' => 'ደብዳቤ', 'name_en' => 'Letter', 'direction' => 'outgoing', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '02', 'legacy_code' => 'MEM', 'category' => 'correspondence', 'name_am' => 'ማስታወሻ', 'name_en' => 'Memorandum', 'direction' => 'internal', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '03', 'legacy_code' => 'LEG', 'category' => 'legal', 'name_am' => 'ሕጋዊ ሰነድ', 'name_en' => 'Legal instrument', 'direction' => 'other', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '04', 'legacy_code' => 'INV', 'category' => 'finance', 'name_am' => 'የክፍያ መጠየቂያ', 'name_en' => 'Invoice', 'direction' => 'financial', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '05', 'legacy_code' => 'CER', 'category' => 'certificate', 'name_am' => 'ማረጋገጫ ወረቀት', 'name_en' => 'Certificate', 'direction' => 'outgoing', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '06', 'legacy_code' => 'RES', 'category' => 'governance', 'name_am' => 'ውሳኔ', 'name_en' => 'Resolution', 'direction' => 'governance', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '07', 'legacy_code' => 'CIR', 'category' => 'correspondence', 'name_am' => 'ሰርኩላር', 'name_en' => 'Circular', 'direction' => 'outgoing', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '08', 'legacy_code' => 'RPT', 'category' => 'reporting', 'name_am' => 'ሪፖርት', 'name_en' => 'Report', 'direction' => 'internal', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '09', 'legacy_code' => 'CON', 'category' => 'legal', 'name_am' => 'ውል', 'name_en' => 'Contract', 'direction' => 'legal', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '10', 'legacy_code' => 'NOT', 'category' => 'correspondence', 'name_am' => 'ማስታወቂያ', 'name_en' => 'Notice', 'direction' => 'outgoing', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '11', 'legacy_code' => 'POL', 'category' => 'governance', 'name_am' => 'ፖሊሲ', 'name_en' => 'Policy', 'direction' => 'governance', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '12', 'legacy_code' => 'PUR', 'category' => 'finance', 'name_am' => 'የግዢ ትዕዛዝ', 'name_en' => 'Purchase order', 'direction' => 'financial', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '13', 'legacy_code' => 'EXP', 'category' => 'finance', 'name_am' => 'የወጪ ትዕዛዝ', 'name_en' => 'Expense order', 'direction' => 'financial', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '14', 'legacy_code' => 'INC', 'category' => 'finance', 'name_am' => 'የገቢ ትዕዛዝ', 'name_en' => 'Income order', 'direction' => 'financial', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+            ['numeric_code' => '15', 'legacy_code' => 'RCT', 'category' => 'finance', 'name_am' => 'ደረሰኝ', 'name_en' => 'Receipt', 'direction' => 'financial', 'is_active' => true, 'catalogue_version' => 1, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
         Schema::create('document_numbering_assignments', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
