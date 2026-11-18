@@ -253,7 +253,7 @@ final class CoreServiceProvider extends ServiceProvider
         // alias. There is one implementation and one singleton instance.
         $this->app->alias(
             FileService::class,
-            \\MaaleArna\\MASES\\Core\\Files\\Services\\FileService::class
+            \MaaleArna\MASES\Core\Files\Services\FileService::class
         );
 
         // --- Finance source-reference validation ----------------------------
