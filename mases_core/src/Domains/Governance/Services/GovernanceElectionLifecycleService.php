@@ -11,6 +11,7 @@ use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElectionLifecycleTransition;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceElectionLifecycleChanged;
 
 final class GovernanceElectionLifecycleService
 {
@@ -86,7 +87,16 @@ final class GovernanceElectionLifecycleService
                 default => throw ValidationException::withMessages(['action' => 'Unsupported lifecycle action.']),
             };
 
-            if ($action === 'authorize') {\n                $election->authorized_by = (int) $actor->getAuthIdentifier();\n            } elseif ($action === 'suspend') {\n                $election->suspended_by = (int) $actor->getAuthIdentifier();\n            } elseif ($action === 'cancel') {\n                $election->cancelled_by = (int) $actor->getAuthIdentifier();\n            } elseif ($action === 'archive') {\n                $election->archived_by = (int) $actor->getAuthIdentifier();\n            }\n            $election->status = $to;
+            if ($action === 'authorize') {
+                $election->authorized_by = (int) $actor->getAuthIdentifier();
+            } elseif ($action === 'suspend') {
+                $election->suspended_by = (int) $actor->getAuthIdentifier();
+            } elseif ($action === 'cancel') {
+                $election->cancelled_by = (int) $actor->getAuthIdentifier();
+            } elseif ($action === 'archive') {
+                $election->archived_by = (int) $actor->getAuthIdentifier();
+            }
+            $election->status = $to;
             $election->version = $expectedVersion + 1;
             $election->save();
 
@@ -107,7 +117,10 @@ final class GovernanceElectionLifecycleService
                 'occurred_at' => now(),
             ]);
 
-            $election->refresh();\n            DB::afterCommit(static fn () => event(new GovernanceElectionLifecycleChanged($election, $transition)));\n\n            return $election;
+            $election->refresh();
+            DB::afterCommit(static fn () => event(new GovernanceElectionLifecycleChanged($election, $transition)));
+
+            return $election;
         }, 3);
     }
 
