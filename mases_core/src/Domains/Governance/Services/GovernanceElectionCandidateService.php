@@ -393,6 +393,9 @@ final class GovernanceElectionCandidateService
             if (!$candidate) {
                 throw new NotFoundHttpException('Candidate not found in this tenant and election.');
             }
+            if (!$this->hasActiveNomination($tenantId, $electionId, $candidateId)) {
+                throw new ConflictHttpException('Candidate declarations require at least one active nomination.');
+            }
             if (in_array($candidate->status, ['eligible', 'ineligible'], true)) {
                 throw new ConflictHttpException('Final eligibility freezes candidate declarations; use the independent objections and appeals process.');
             }
