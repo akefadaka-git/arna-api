@@ -3,7 +3,7 @@ name: A3.3.2 exact-SHA Documents workflow verification
 on:
   push:
     branches:
-      - verify/a3-3-2-exact-sha
+      - 'verify/a3-3-2-exact-sha*'
 
 permissions:
   contents: read
