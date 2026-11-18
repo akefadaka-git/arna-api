@@ -104,6 +104,22 @@ final class GovernanceElectionCandidateController extends Controller
         return response()->json(['success' => true, 'data' => $result]);
     }
 
+    public function declarations(Request $request, int $election, int $candidate, GovernanceElectionCandidateService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'method' => ['required', 'in:direct,documented'],
+            'declarations' => ['required', 'array', 'min:1', 'max:50'],
+            'evidence_file_ids' => ['sometimes', 'array', 'max:10'],
+            'evidence_file_ids.*' => ['integer', 'min:1'],
+        ]);
+        $result = $service->recordDeclarations(
+            $this->tenantId(), $election, $candidate, $this->actor($request),
+            $data['declarations'], $data['method'],
+            array_map('intval', $data['evidence_file_ids'] ?? []),
+        );
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
     public function evidence(Request $request, int $election, int $candidate, GovernanceElectionCandidateService $service): JsonResponse
     {
         $data = $request->validate([
