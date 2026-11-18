@@ -228,6 +228,7 @@ use Illuminate\Support\Facades\Route;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAppointmentController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeSecurityController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
@@ -618,5 +619,27 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('dispute')
         ->middleware('auth.permission:governance.body.manage')
         ->name('penalty-disputes.review');
+
+    // Election committee security — election-scoped authority, conflict and audit controls.
+    Route::post('/elections/{election}/committee/admins', [GovernanceElectionCommitteeSecurityController::class, 'grantAdministrator'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.committee.administer')
+        ->name('elections.committee.admins.store');
+
+    Route::patch('/elections/{election}/committee/admins/{userId}/revoke', [GovernanceElectionCommitteeSecurityController::class, 'revokeAdministrator'])
+        ->whereNumber('election')
+        ->whereNumber('userId')
+        ->middleware('auth.permission:governance.election.committee.administer')
+        ->name('elections.committee.admins.revoke');
+
+    Route::post('/elections/{election}/committee/conflicts', [GovernanceElectionCommitteeSecurityController::class, 'declareConflict'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.committee.conflict.declare')
+        ->name('elections.committee.conflicts.store');
+
+    Route::get('/elections/{election}/committee/security-events', [GovernanceElectionCommitteeSecurityController::class, 'securityEvents'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.committee.audit.view')
+        ->name('elections.committee.security-events.index');
 
 });
