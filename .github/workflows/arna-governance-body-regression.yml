@@ -19,6 +19,7 @@ on:
   push:
     branches:
       - main
+      - feat/p2-election-candidate-intake-a3
     paths:
       - ".github/workflows/arna-governance-body-regression.yml"
       - "mases_core/src/Domains/Governance/**"
