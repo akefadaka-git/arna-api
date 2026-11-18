@@ -6,6 +6,7 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class GovernanceElectionNominationSubmission extends Model
 {
@@ -21,5 +22,10 @@ final class GovernanceElectionNominationSubmission extends Model
     public function candidate(): BelongsTo
     {
         return $this->belongsTo(GovernanceElectionCandidate::class, 'candidate_id');
+    }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(GovernanceElectionNominationEvent::class, 'nomination_submission_id')->orderBy('sequence');
     }
 }
