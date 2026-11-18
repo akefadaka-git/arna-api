@@ -40,7 +40,7 @@ final class GovernanceElectionLifecycleService
             throw ValidationException::withMessages(['governance_body_id' => 'The governance body must exist in the same tenant.']);
         }
 
-        return GovernanceElection::query()->create([
+        $election = GovernanceElection::query()->create([
             'tenant_id' => $tenantId,
             'governance_body_id' => $bodyId,
             'code' => $code,
@@ -50,8 +50,9 @@ final class GovernanceElectionLifecycleService
             'election_type' => $data['election_type'],
             'timezone' => $data['timezone'] ?? 'Africa/Addis_Ababa',
             'status' => 'draft',
-            'version' => 1,
         ]);
+
+        return $election->refresh();
     }
 
     public function transition(
