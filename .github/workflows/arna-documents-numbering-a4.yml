@@ -89,6 +89,9 @@ jobs:
           printf 'expected=%s\nactual=%s\n' "${EXPECTED_SHA}" "${actual_sha}"
           test "${actual_sha}" = "${EXPECTED_SHA}"
 
+      - name: Prepare Laravel test environment file
+        run: touch .env
+
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
