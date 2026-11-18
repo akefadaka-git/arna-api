@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
+use MaaleArna\MASES\Core\Domains\Documents\Services\SodiumDocumentSignatureEvidenceVerifier;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -458,8 +459,9 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
     public function test_aggregate_uses_the_concrete_rbac_and_governance_authorization_adapter(): void
     {
         [$tenantId, $entityId, $unitId] = $this->issuer();
+        $this->app->make(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class)->setTenantById($tenantId);
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenantId]);
-        $this->actingAs($actor);
+        \Laravel\Sanctum\Sanctum::actingAs($actor, ['*']);
         $actor->tenants()->attach($tenantId, ['joined_at' => now()]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
 
