@@ -6,6 +6,7 @@ namespace MaaleArna\MASES\Core\Domains\Shareholder\Services;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Shareholder\Enums\ShareholderType;
@@ -147,6 +148,9 @@ final class ShareholderService
         'grandfather_name_en',
         'entity_name_am',
         'entity_name_en',
+        'registered_address',
+        'register_entry_date',
+        'register_source_reference',
         'user_id',
         'representative_user_id',
         'is_active',
@@ -449,6 +453,11 @@ final class ShareholderService
     private function normaliseForRegister(array $data, int $tenantId): array
     {
         $attributes = $this->whitelist($data);
+        $this->validateRegisterMetadata($attributes);
+        // Verification is intentionally not caller-controlled. New records
+        // remain unverified until a separately authorized evidence review.
+        $attributes['register_source_type'] = 'manual';
+        $attributes['register_verification_status'] = 'unverified';
 
         // ---------------------------------------------------------------------
         // 1. shareholder_type
@@ -603,6 +612,7 @@ final class ShareholderService
     private function normaliseForUpdate(Shareholder $shareholder, array $data): array
     {
         $attributes = $this->whitelist($data);
+        $this->validateRegisterMetadata($attributes);
 
         // ---------------------------------------------------------------------
         // 1. shareholder_type — immutable
@@ -761,6 +771,15 @@ final class ShareholderService
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
+    private function validateRegisterMetadata(array $attributes): void
+    {
+        Validator::make($attributes, [
+            'registered_address' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'register_entry_date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'register_source_reference' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ])->validate();
+    }
+
     private function whitelist(array $data): array
     {
         return array_intersect_key($data, array_flip(self::ALLOWED_FIELDS));
