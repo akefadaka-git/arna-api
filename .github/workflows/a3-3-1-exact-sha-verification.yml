@@ -1,0 +1,73 @@
+name: A3.3.1 exact-SHA targeted verification
+
+on:
+  push:
+    branches:
+      - verify/a3-3-1-exact-sha
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a3-3-1-exact-sha-verification
+  cancel-in-progress: false
+
+jobs:
+  targeted-php:
+    name: PHP lint and A3.3.1 authorization tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact A3.3.1 implementation SHA
+        uses: actions/checkout@v4
+        with:
+          ref: b1b676b8ac29b01299ab1cf758fee9f175a6180b
+          persist-credentials: false
+
+      - name: Verify checked-out source SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="b1b676b8ac29b01299ab1cf758fee9f175a6180b"
+          actual="$(git rev-parse HEAD)"
+          echo "Expected: ${expected}"
+          echo "Actual:   ${actual}"
+          test "${actual}" = "${expected}"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: PHP syntax lint — all A3.3.1 changed PHP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l database/seeders/Data/PermissionCatalogue.php
+          php -l database/seeders/Data/RolePermissionGrants.php
+          php -l database/seeders/MasesCoreSeeder.php
+          php -l database/seeders/PermissionSeeder.php
+          php -l mases_core/src/Domains/Documents/Database/Seeders/DocumentsPermissionCatalogue.php
+          php -l mases_core/src/Domains/Documents/Database/Seeders/DocumentsRolePermissionGrants.php
+          php -l mases_core/src/Domains/Documents/Services/DocumentWorkflowAuthorizationService.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceActingAssignmentService.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceAuthorityGrantService.php
+          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
+          php -l mases_core/src/Providers/CoreServiceProvider.php
+          php -l tests/Feature/CommunicationAnnouncementsTest.php
+          php -l tests/Feature/DocumentsWorkflowAuthorizationCatalogueTest.php
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run Governance authority feature tests
+        run: vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
+
+      - name: Run Documents workflow permission catalogue tests
+        run: vendor/bin/phpunit tests/Feature/DocumentsWorkflowAuthorizationCatalogueTest.php
