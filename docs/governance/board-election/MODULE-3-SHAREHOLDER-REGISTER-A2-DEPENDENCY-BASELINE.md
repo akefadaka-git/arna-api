@@ -543,6 +543,8 @@ The located bylaws pages 9–11 provide a historical 29-holder schedule and capi
 
 **No head-office Article 274(4) request or delivery receipt is present in the accessible evidence.** The fifteen-day period is the company's response period after a request for a copy/extract; it is not a statutory record-date cutoff. The current statutory extract therefore remains MISSING. The earlier request instruction is recorded, but this A2 inspection has not sent a request or claimed that one was sent.
 
+The Owner previously supplied the registered head-office location as South Ethiopia Region, Debub Omo Zone, Male Woreda, Koybe Kebele, New House No., and identified the Company Secretary as the shareholder-register custodian under the company's AoA Article 5. No verified company email address or direct Secretary contact was supplied or located. Accordingly, the known physical office address is a valid service destination to be used for a formal written request, but no request has been physically delivered and no statutory response period has started. Do not invent an email recipient or claim service without a dated receipt/acknowledgment.
+
 ### 14.2 Separate registered Memorandum / Articles
 
 The original Memorandum/Articles remains Owner-reported as an image-scanned document historically described as dated 16/12/2016 E.C., executed, notarized and sealed, and reportedly supplied in a prior ChatGPT conversation on 11 September 2026. The accessible Library catalog and destination repository were searched; no matching original binary or verifiable registered copy was located. Existing repository legal-source notes likewise record the original as not preserved or inspected.
