@@ -14,7 +14,7 @@ final class GovernanceElection extends Model
 {
     protected $table = 'governance_elections';
 
-    protected $guarded = ['id', 'tenant_id', 'version', 'created_at', 'updated_at'];
+    protected $guarded = ['id', 'version', 'created_at', 'updated_at'];
 
     protected function casts(): array
     {
