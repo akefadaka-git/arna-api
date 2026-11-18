@@ -9,6 +9,7 @@ use Database\Seeders\Data\RolePermissionGrants;
 use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsPermissionCatalogue;
 use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsRolePermissionGrants;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceActingAssignmentService;
 use Tests\TestCase;
 
 final class DocumentsWorkflowAuthorizationCatalogueTest extends TestCase
@@ -67,5 +68,11 @@ final class DocumentsWorkflowAuthorizationCatalogueTest extends TestCase
 
         $this->assertNotContains('documents.create', GovernanceAuthorityGrantService::ACTIONS);
         $this->assertNotContains('documents.submit', GovernanceAuthorityGrantService::ACTIONS);
+        foreach (GovernanceAuthorityGrantService::ACTIONS as $action) {
+            if (str_starts_with($action, 'documents.')) {
+                $this->assertContains($action, GovernanceActingAssignmentService::ACTIONS);
+            }
+        }
+        $this->assertNotContains('documents.create', GovernanceActingAssignmentService::ACTIONS);
     }
 }
