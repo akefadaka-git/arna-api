@@ -122,18 +122,23 @@ jobs:
           test "${tables}" -eq 0
 
       - name: Run every registered migration on empty MySQL
+        id: fresh_migrations
         run: php artisan migrate --force -vvv
 
       - name: Run Module 2 candidate intake and eligibility tests on MySQL
+        id: module2_tests
         run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCandidateIntakeTest.php
 
       - name: Run committee conflict and tenant-security regressions on MySQL
+        id: committee_tests
         run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
 
       - name: Run Module 1 election lifecycle regressions on MySQL
+        id: module1_tests
         run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
 
       - name: Confirm migration idempotence and no pending migrations
+        id: migration_idempotence
         run: |
           php artisan migrate --force -vvv
           php artisan migrate:status
@@ -141,7 +146,41 @@ jobs:
           test "${pending}" -eq 0
 
       - name: Enforce Composer security advisory gate
+        id: composer_audit
         run: composer audit --format=plain
+
+      - name: Create exact-SHA verification manifest
+        if: always()
+        shell: bash
+        env:
+          FRESH_MIGRATIONS: ${{ steps.fresh_migrations.outcome }}
+          MODULE2_TESTS: ${{ steps.module2_tests.outcome }}
+          COMMITTEE_TESTS: ${{ steps.committee_tests.outcome }}
+          MODULE1_TESTS: ${{ steps.module1_tests.outcome }}
+          MIGRATION_IDEMPOTENCE: ${{ steps.migration_idempotence.outcome }}
+          COMPOSER_AUDIT: ${{ steps.composer_audit.outcome }}
+        run: |
+          set -euo pipefail
+          mkdir -p storage/logs
+          {
+            echo "AGE Module 2 exact-SHA verification"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+            echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "event=${GITHUB_EVENT_NAME}"
+            echo "branch=${GITHUB_REF_NAME}"
+            echo "expected_sha=${{ steps.target.outputs.expected_sha }}"
+            echo "checked_out_sha=$(git rev-parse HEAD)"
+            echo "fresh_mysql_migrations=${FRESH_MIGRATIONS:-not_run}"
+            echo "module2_candidate_tests=${MODULE2_TESTS:-not_run}"
+            echo "committee_security_regressions=${COMMITTEE_TESTS:-not_run}"
+            echo "module1_lifecycle_regressions=${MODULE1_TESTS:-not_run}"
+            echo "migration_idempotence=${MIGRATION_IDEMPOTENCE:-not_run}"
+            echo "composer_security_audit=${COMPOSER_AUDIT:-not_run}"
+            echo "php_version=$(php -r 'echo PHP_VERSION;')"
+            echo "composer_version=$(composer --version --no-ansi)"
+            echo "migration_status:"
+            php artisan migrate:status --no-ansi
+          } > storage/logs/age-module2-verification.txt
 
       - name: Upload exact-SHA verification evidence
         if: always()
@@ -149,6 +188,7 @@ jobs:
         with:
           name: age-module2-candidate-evidence-${{ github.run_id }}
           path: |
+            storage/logs/age-module2-verification.txt
             storage/logs/laravel.log
           if-no-files-found: warn
           retention-days: 14
