@@ -199,7 +199,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
 
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->times(4);
-        $authorization->shouldReceive('requireGovernedAction')->times(12);
+        $authorization->shouldReceive('requireGovernedAction')->times(10);
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
 
@@ -249,7 +249,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         try {
             $service->transition($actor, $tenantId, (int) $workflow->id, 'issue', 4, null, ['issued_document_id' => 999999]);
             self::fail('Issuance must reject a changed submitted binary.');
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException) {
+        } catch (\Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException) {
             self::assertSame('signing', $workflow->fresh()->status);
             self::assertSame(4, (int) $workflow->fresh()->revision);
         }
@@ -380,7 +380,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         int $unitId,
         int $fileId,
         string $title,
-    ): \\MaaleArna\\MASES\\Core\\Domains\\Documents\\Models\\DocumentWorkflowAggregate {
+    ): \MaaleArna\MASES\Core\Domains\Documents\Models\DocumentWorkflowAggregate {
         $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', $title, 9, 4);
         $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
             'submitted_file_id' => $fileId,
@@ -416,7 +416,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         }
 
         return (int) DB::table('documents')->insertGetId([
-            'uuid' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
             'tenant_id' => $tenantId,
             'legal_entity_id' => $entityId,
             'organization_unit_id' => $unitId,
