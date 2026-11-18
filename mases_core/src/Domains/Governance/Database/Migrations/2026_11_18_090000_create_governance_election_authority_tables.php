@@ -27,6 +27,27 @@ return new class extends Migration
             $table->index(['tenant_id', 'status'], 'gov_elections_tenant_status_idx');
         });
 
+        // Appointment records deliberately have no fixed seat count, role
+        // catalogue, or quorum. Active decision authority is separately
+        // checked by the election committee security service.
+        Schema::create('governance_election_committee_members', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->foreignId('election_id')->constrained('governance_elections')->restrictOnDelete();
+            $table->foreignId('person_id')->nullable()->constrained('people')->restrictOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained('users')->restrictOnDelete();
+            $table->string('member_role', 32);
+            $table->boolean('ex_officio')->default(false);
+            $table->string('status', 20)->default('pending')->index();
+            $table->dateTime('appointed_at');
+            $table->dateTime('recused_at')->nullable();
+            $table->string('recusal_scope', 80)->nullable();
+            $table->string('appointment_reference', 160);
+            $table->timestamps();
+            $table->index(['tenant_id', 'election_id', 'user_id', 'status'], 'gov_elec_committee_member_user_idx');
+            $table->index(['tenant_id', 'election_id', 'person_id'], 'gov_elec_committee_member_person_idx');
+        });
+
         Schema::create('governance_election_authority_evidence', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
@@ -49,6 +70,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('governance_election_authority_evidence');
+        Schema::dropIfExists('governance_election_committee_members');
         Schema::dropIfExists('governance_elections');
     }
 };
