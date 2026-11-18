@@ -166,6 +166,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: arna-documents-numbering-a4-${{ github.run_id }}
-          path: documents-numbering-a4-evidence.txt
+          path: |
+            documents-numbering-a4-evidence.txt
+            pint-output/**
           if-no-files-found: warn
           retention-days: 14
