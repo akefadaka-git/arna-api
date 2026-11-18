@@ -552,6 +552,11 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
+        self::assertSame($tenantId, (int) \\mases_tenant_id());
+        self::assertTrue($authorization->hasPermission($actor, $tenantId, 'documents.review'));
+        self::assertTrue(app(\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Services\\GovernanceAuthorityGrantService::class)
+            ->allows($actor, $tenantId, $bodyId, $positionId, 'documents.review'));
+
         $approved = $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
         self::assertSame('in_review', $approved->status);
         self::assertSame(2, (int) $approved->revision);
