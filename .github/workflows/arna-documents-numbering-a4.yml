@@ -118,7 +118,7 @@ jobs:
           cp tests/Unit/Documents/DocumentNumberAllocatorTest.php pint-output/
           cp tests/Unit/Documents/DocumentNumberAllocatorTransactionGuardTest.php pint-output/
           cp tests/Unit/Documents/DocumentNumberingContractTest.php pint-output/
-          cp tests/Unit/Documents/DocumentNumberingSchemaTest.php
+          cp tests/Unit/Documents/DocumentNumberingSchemaTest.php pint-output/
 
       - name: Run all migrations on clean MySQL
         run: php artisan migrate:fresh --force -vvv
