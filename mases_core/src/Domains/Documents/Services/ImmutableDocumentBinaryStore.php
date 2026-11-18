@@ -41,7 +41,7 @@ final class ImmutableDocumentBinaryStore
         }
 
         $directory = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'document-evidence'
-            . DIRECTORY_SEPARATOR . $tenantId;
+            . DIRECTORY_SEPARATOR . $tenantId . DIRECTORY_SEPARATOR . $fileId . DIRECTORY_SEPARATOR . $version;
         if (! is_dir($directory) && ! mkdir($directory, 0700, true) && ! is_dir($directory)) {
             fclose($source);
             throw new RuntimeException('The immutable evidence directory could not be created.');
@@ -93,9 +93,8 @@ final class ImmutableDocumentBinaryStore
         fclose($output);
 
         $sha256 = hash_final($context);
-        $relative = 'document-evidence/' . $tenantId . '/' . $sha256;
-        $destination = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'document-evidence'
-            . DIRECTORY_SEPARATOR . $tenantId . DIRECTORY_SEPARATOR . $sha256;
+        $relative = 'document-evidence/' . $tenantId . '/' . $fileId . '/' . $version . '/' . $sha256;
+        $destination = $directory . DIRECTORY_SEPARATOR . $sha256;
 
         // link() is atomic and refuses to replace an existing inode. A prior
         // object is accepted only when its content digest is exactly identical.
