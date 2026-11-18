@@ -12,6 +12,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionLifecycleService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Tests\TestCase;
 
 final class GovernanceElectionLifecycleTest extends TestCase
@@ -97,6 +98,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'domain' => 'election-lifecycle-' . uniqid() . '.example.test',
             'is_active' => true,
         ]);
+        app(TenantContextService::class)->setTenantById((int) $tenant->id);
         $user = User::query()->create([
             'first_name_en' => 'Lifecycle',
             'father_name_en' => 'Tester',
