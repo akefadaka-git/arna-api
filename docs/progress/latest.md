@@ -1,6 +1,6 @@
-# ARNA OS — Daily Repository Progress Report (2026-11-17)
+# ARNA OS — Daily Repository Progress Report (2026-11-18)
 
-**Generated:** 2026-11-17T06:22:06.110381+03:00  
+**Generated:** 2026-11-18T05:42:02.222392+03:00  
 **Repositories:** akefadaka-git/arna-api, akefadaka-git/arna-app  
 **Assessment mode:** read-only repository metadata and workflow evidence; no source-code mutation.
 
@@ -48,26 +48,26 @@
 ### akefadaka-git/arna-api
 
 - Default branch: `main`
-- Open PRs: 71
-- PRs merged in last 30 days: 20
-- Failed/action-required workflow runs in last 14 days: 28
-- Cancelled workflow runs in last 14 days: 5
-- Currently queued/in-progress workflow runs in sampled page: 6
-- Most recent commit in sampled 30 commits: 2026-11-16T00:40:25+00:00
+- Open PRs: 73
+- PRs merged in last 30 days: 19
+- Failed/action-required workflow runs in last 14 days: 8
+- Cancelled workflow runs in last 14 days: 35
+- Currently queued/in-progress workflow runs in sampled page: 1
+- Most recent commit in sampled 30 commits: 2026-11-17T21:40:30+00:00
 
 **Open pull requests (sample, up to 12):**
-- P0.1 — Require dedicated permission for permanent file deletion
+- feat(governance): add evidence-neutral election dispute foundation
 - feat(governance): integrate election core with committee decision security
-- P0.6 — Separate Finance governance settlement authorities
+- security(p0.9): remove and rotate exposed seeded credentials
 - P0.7 — Add Portal self-service ownership regression tests
 - P0.8 — Add notification atomicity and tenant-isolation regression tests
-- feat(locale): persist authenticated account language preference
+- P0.6 — Separate Finance governance settlement authorities
 - P0.5 — Enforce independent Governance proxy review
+- P0.1 — Require dedicated permission for permanent file deletion
+- feat(locale): persist authenticated account language preference
 - feat(governance): establish election committee security foundation
 - docs(governance): reconcile board election branches with current main
 - feat(governance): verify AGE receipts and persist transactional outbox
-- feat(governance): add AGE receipt adapter boundary
-- docs(governance): specify AGE receipt integration contracts
 
 **PRs merged in last 30 days (sample, up to 12):**
 - fix(deps): update Laravel framework security patch
@@ -84,78 +84,74 @@
 - feat(admin): audit and security investigation foundation (A2-03)
 
 **Failed workflows (sample, up to 12):**
-- ARNA Governance authorization regression #436
-- ARNA Governance authorization regression #435
-- ARNA Governance authorization regression #434
-- ARNA Governance authorization regression #433
-- ARNA clean-install MySQL verification #1533
-- ARNA Governance authorization regression #432
-- ARNA Phase 0 effective authorization audit #1231
-- ARNA Phase 0 effective authorization audit #1230
-- ARNA clean-install MySQL verification #1532
-- ARNA Governance authorization regression #431
-- ARNA clean-install MySQL verification #1530
-- ARNA Governance authorization regression #427
+- ARNA clean-install MySQL verification #1618
+- ARNA clean-install MySQL verification #1615
+- ARNA clean-install MySQL verification #1613
+- ARNA clean-install MySQL verification #1610
+- ARNA clean-install MySQL verification #1599
+- ARNA clean-install MySQL verification #1596
+- ARNA clean-install MySQL verification #1593
+- ARNA Governance authorization regression #470
 
 ### akefadaka-git/arna-app
 
 - Default branch: `main`
-- Open PRs: 49
-- PRs merged in last 30 days: 25
-- Failed/action-required workflow runs in last 14 days: 39
+- Open PRs: 46
+- PRs merged in last 30 days: 29
+- Failed/action-required workflow runs in last 14 days: 31
 - Cancelled workflow runs in last 14 days: 0
-- Currently queued/in-progress workflow runs in sampled page: 6
-- Most recent commit in sampled 30 commits: 2026-11-16T16:37:22+00:00
+- Currently queued/in-progress workflow runs in sampled page: 0
+- Most recent commit in sampled 30 commits: 2026-11-17T16:18:40+00:00
 
 **Open pull requests (sample, up to 12):**
-- feat(app-shell): complete notifications center and language selector
+- A3 — Reconcile ARNA brand unification on verified AppShell foundation
 - P0.2 + P0.3 — Align Wallet and Loan route permissions
-- ARNA BaseRadio enhancement v1.0
 - fix(router): preserve authentication-only admin dashboard access
+- feat(app-shell): complete notifications center and language selector
+- ARNA BaseRadio enhancement v1.0
 - ARNA BaseButton enhancement v1.0.0
 - Component 05 — BaseSelect enhancement and FormField integration
 - ARNA BaseCheckbox enhancement v1.0.0
 - ARNA BaseInput enhancement v1.0.0
-- Extract ARNA visual, media and motion library onto current main
 - [Draft] A3 — ARNA brand unification and acceptance
-- ARNA Next-Generation UI — foundation, accessibility and bilingual navigation
 - ARNA Unified Shell Parity — A1 assessment
+- feat(elections): align frontend contracts with AGE A1 voting scope
 
 **PRs merged in last 30 days (sample, up to 12):**
+- feat(people): display linked relationship lifecycle history
+- feat(people): add Amharic-first People directory and profile views
+- Reconcile public emblem and semantic layout tokens
+- ARNA UI — extract PR #69 changes onto current main
+- Reconcile visual library specification with delivered 2D/3D panels
+- Extract PR #67 A4 component verification and visual panels onto current main
+- Extract ARNA visual, media and motion library onto current main
 - Extract PR #65 original responsive header change only
 - ARNA UI — shared shell WCAG AA contrast remediation
 - A3: Maale Arna corporate content and full CMS editing
 - A4: complete bilingual public corporate website acceptance
 - chore(deps): remediate Vue type-checker advisories
-- test(a4): prepare Executive Overview frontend security verification
-- test(a4): R3 Executive Overview non-cancellable session and tenant races
-- A1–A5: audit, integrate and verify ARNA app
-- feat(admin): audit and security investigation console (A2-03)
-- Implement complete ARNA error pages and recovery actions
-- feat(core): normalize error severity and remediation metadata
-- ARNA corporate publishing foundation (App)
 
 **Failed workflows (sample, up to 12):**
-- Frontend verification #2379
-- Frontend verification #2378
-- Frontend verification #2372
-- Frontend verification #2371
-- Frontend verification #2370
-- Frontend verification #2369
-- Frontend verification #2363
-- Frontend verification #2362
-- Frontend verification #2361
-- Frontend verification #2360
-- Frontend verification #2336
-- Frontend verification #2335
+- Retire owner-authorized ARNA Finance branch #1
+- Retire owner-authorized PR69 backup branch #2
+- Retire owner-authorized PR69 backup branch #1
+- Frontend verification #2418
+- Frontend verification #2417
+- Frontend verification #2414
+- Frontend verification #2413
+- Frontend verification #2412
+- Frontend verification #2409
+- Frontend verification #2408
+- Frontend verification #2406
+- Frontend verification #2405
 
 ## Recommendations and enhancement priorities
 
-- **akefadaka-git/arna-api:** triage 28 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-api:** inspect 5 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
-- **akefadaka-git/arna-api:** review 71 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
-- **akefadaka-git/arna-app:** triage 39 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-app:** review 49 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-api:** triage 8 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-api:** inspect 35 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
+- **akefadaka-git/arna-api:** review 73 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-app:** triage 31 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-app:** review 46 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - Continue closing domain acceptance gaps before expanding scope: security, tenant isolation, lifecycle, concurrency, clean-install and cross-domain integration.
 - Prioritize Finance accounting integrity, Governance authority lifecycle, Calendar reservations/concurrency and Communication approval/publishing controls.
 - Improve frontend/API contract tests and production observability; require reproducible evidence for every readiness claim.
