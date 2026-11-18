@@ -164,7 +164,11 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'submitted_file_version' => 1,
         ]);
 
-        DB::unprepared("CREATE TRIGGER test_fail_workflow_event BEFORE INSERT ON document_workflow_events WHEN NEW.action = 'start_review' BEGIN SELECT RAISE(ABORT, 'forced event append failure'); END");
+        if (DB::getDriverName() === 'mysql') {
+            DB::unprepared("CREATE TRIGGER test_fail_workflow_event BEFORE INSERT ON document_workflow_events FOR EACH ROW BEGIN IF NEW.action = 'start_review' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'forced event append failure'; END IF; END");
+        } else {
+            DB::unprepared("CREATE TRIGGER test_fail_workflow_event BEFORE INSERT ON document_workflow_events WHEN NEW.action = 'start_review' BEGIN SELECT RAISE(ABORT, 'forced event append failure'); END");
+        }
 
         try {
             $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
