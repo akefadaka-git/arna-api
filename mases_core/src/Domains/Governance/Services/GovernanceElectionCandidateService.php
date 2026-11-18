@@ -91,7 +91,15 @@ final class GovernanceElectionCandidateService
                     'election_id' => $electionId,
                 ]);
             }
-            return $window->refresh();
+            $window->refresh();
+            $this->appendWindowEvent($tenantId, $electionId, (int) $window->id, 'configured', $actor, [
+                'opens_at' => $window->opens_at?->toIso8601String(),
+                'closes_at' => $window->closes_at?->toIso8601String(),
+                'rule_set_version' => $window->rule_set_version,
+                'rule_set_digest' => $window->rule_set_digest,
+                'authority_reference' => $window->authority_reference,
+            ]);
+            return $window;
         });
     }
 
@@ -122,7 +130,12 @@ final class GovernanceElectionCandidateService
             $window->opened_at = $now;
             $window->version = $expectedVersion + 1;
             $window->save();
-            return $window->refresh();
+            $window->refresh();
+            $this->appendWindowEvent($tenantId, $electionId, (int) $window->id, 'opened', $actor, [
+                'opened_at' => $window->opened_at?->toIso8601String(),
+                'aggregate_version' => (int) $window->version,
+            ]);
+            return $window;
         });
     }
 
@@ -147,7 +160,13 @@ final class GovernanceElectionCandidateService
             $window->closure_reason = trim($reason);
             $window->version = $expectedVersion + 1;
             $window->save();
-            return $window->refresh();
+            $window->refresh();
+            $this->appendWindowEvent($tenantId, $electionId, (int) $window->id, 'closed', $actor, [
+                'closed_at' => $window->closed_at?->toIso8601String(),
+                'reason' => trim($reason),
+                'aggregate_version' => (int) $window->version,
+            ]);
+            return $window;
         });
     }
 
@@ -456,7 +475,7 @@ final class GovernanceElectionCandidateService
                 throw new AuthorizationException('Only the submitting shareholder or its current authorized representative may withdraw this nomination.');
             }
             $withdrawn = DB::table('governance_election_nomination_events')->where('nomination_submission_id', $submissionId)
-                ->where('event_type', 'withdrawn')->exists();
+                ->whereIn('event_type', ['withdrawn'])->exists();
             if ($withdrawn) {
                 throw new ConflictHttpException('Nomination has already been withdrawn.');
             }
@@ -469,6 +488,43 @@ final class GovernanceElectionCandidateService
                 'id' => (int) $submission->id,
                 'candidate_id' => (int) $submission->candidate_id,
                 'status' => 'withdrawn',
+            ];
+        });
+    }
+
+    public function correctNomination(int $tenantId, int $electionId, int $submissionId, User $actor, string $statement, string $reason): object
+    {
+        if (trim($statement) === '' || mb_strlen($statement) > 10000 || mb_strlen(trim($reason)) < 5) {
+            throw ValidationException::withMessages(['correction' => 'A non-empty corrected statement (maximum 10,000 characters) and meaningful reason are required.']);
+        }
+        return DB::transaction(function () use ($tenantId, $electionId, $submissionId, $actor, $statement, $reason): object {
+            $submission = DB::table('governance_election_nomination_submissions')->where('tenant_id', $tenantId)
+                ->where('election_id', $electionId)->where('id', $submissionId)->lockForUpdate()->first();
+            if (!$submission) {
+                throw new NotFoundHttpException('Nomination not found.');
+            }
+            $nominator = $this->resolveNominator($tenantId, $actor);
+            if ((int) $nominator->id !== (int) $submission->nominated_by_shareholder_id) {
+                throw new AuthorizationException('Only the submitting shareholder may correct this nomination.');
+            }
+            $withdrawn = DB::table('governance_election_nomination_events')->where('nomination_submission_id', $submissionId)
+                ->where('event_type', 'withdrawn')->exists();
+            if ($withdrawn) {
+                throw new ConflictHttpException('A withdrawn nomination cannot be corrected.');
+            }
+            $this->appendNominationEvent($tenantId, $electionId, (int) $submission->candidate_id, $submissionId, 'corrected', $actor, [
+                'statement' => $statement,
+                'reason' => trim($reason),
+                'supersedes_payload_digest' => (string) $submission->payload_digest,
+            ]);
+            $this->appendCandidateEvent($tenantId, $electionId, (int) $submission->candidate_id, 'nomination.corrected', $actor, [
+                'nomination_submission_id' => $submissionId,
+                'reason' => trim($reason),
+            ]);
+            return (object) [
+                'id' => (int) $submission->id,
+                'candidate_id' => (int) $submission->candidate_id,
+                'status' => 'corrected',
             ];
         });
     }
@@ -558,6 +614,25 @@ final class GovernanceElectionCandidateService
                     ->whereColumn('events.nomination_submission_id', 'submissions.id')
                     ->where('events.event_type', 'withdrawn');
             })->exists();
+    }
+
+    private function appendWindowEvent(int $tenantId, int $electionId, int $windowId, string $eventType, User $actor, array $payload): void
+    {
+        $sequence = (int) DB::table('governance_election_nomination_window_events')
+            ->where('tenant_id', $tenantId)->where('election_id', $electionId)
+            ->where('window_id', $windowId)->max('sequence') + 1;
+        DB::table('governance_election_nomination_window_events')->insert([
+            'tenant_id' => $tenantId,
+            'election_id' => $electionId,
+            'window_id' => $windowId,
+            'sequence' => $sequence,
+            'event_type' => $eventType,
+            'actor_user_id' => $actor->getAuthIdentifier(),
+            'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'occurred_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     private function appendNominationEvent(
