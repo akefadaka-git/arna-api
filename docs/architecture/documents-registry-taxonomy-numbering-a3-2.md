@@ -1,46 +1,34 @@
 # ARNA Documents registry, taxonomy and numbering — A3.2
 
 **Implementation baseline:** A3.1 branch head `8083050f1362e7cf90b3ea67610397f6ad294f25`  
-**A2 source finding preserved:** PR #53 introduced both `document_number_counters` and `document_number_counters_v2`; its two-stage migration pair and residual old document uniqueness constraints are not imported.  
-**Status:** implementation contract and source changes; migrations/tests not yet executed.
+**Current numbering standard:** ARNA-DOC-STD-001, `ማዓ/EE/DD/TT/YYYY/NNNN`  
+**A2 source finding preserved:** PR #53 introduced both `document_number_counters` and `document_number_counters_v2`; its conflicting migration pair and residual old document uniqueness constraints are not imported.  
+**Status:** documentation and registry policy updated; implementation code still requires migration/allocator/formatter reconciliation before A3.2 is implementation-complete.
 
 ## 1. Canonical number
 
-`ዓርና/BB/TT/SSSS/YY`
+`ማዓ/EE/DD/TT/YYYY/NNNN`
 
-- `BB`: two-digit Organization-owned branch/department code (digits 1–9 only)
-- `TT`: immutable two-digit Documents taxonomy code
-- `SSSS`: sequence from 0001 through 9999
-- `YY`: final two digits of the full Ethiopian Calendar year
-- Full `ec_year` is stored as an integer; never infer it from `YY`
-- Issuance time is captured in `Africa/Addis_Ababa` and converted by the canonical EthiopianCalendar service
+- `EE`: two-digit registered legal-entity/tenant code.
+- `DD`: two-digit issuing department or office code within the legal entity.
+- `TT`: immutable two-digit Documents taxonomy code.
+- `YYYY`: full Ethiopian Calendar year, never a two-digit suffix.
+- `NNNN`: annual sequence from 0001 through 9999.
 
-## 2. One authoritative counter scope
+Example: `ማዓ/01/03/03/2019/0001`. This is illustrative only; entity and department codes must be activated from approved registries.
 
-The printed number exposes only tenant, BB, TT, sequence and YY. The authoritative counter scope is therefore:
+Issuance year is resolved from the issuance instant in `Africa/Addis_Ababa` by the canonical EthiopianCalendar service. The full year is stored as an integer and printed in full.
 
-`tenant_id + bb_code + document_type_number + full_ec_year`
+## 2. Registry ownership
 
-The legal entity and organization unit are mandatory issuer context and are stored on the assignment and document. They do not create parallel sequence streams hidden from the printed identifier. A unique tenant/BB assignment prevents the same visible BB code from being assigned to multiple entity/unit combinations in one tenant.
+- Organization owns the legal-entity (EE) and department/office (DD) registries.
+- Documents owns the document-type (TT) catalogue, numbering policy, allocator and issued-number history.
+- File Management owns binary storage, metadata, immutable versions, hashes and access controls; it does not allocate or change formal document numbers.
+- Department codes do not confer approval or signing authority. Authority is separately governed by approved delegation records.
 
-This resolves a collision inherent in the earlier v2 proposal: separate entity/unit counters could independently allocate the same visible `BB/TT/SSSS/YY`. The v2 entity/unit scope is therefore not retained as the counter key.
+The legal-entity list must be populated from verified registration documents and canonical Organization records. This repository evidence does not establish a complete authoritative list of registered ARNA legal entities. Therefore no entity code is activated by this draft. The department catalogue in `docs/standards/arna-entity-department-document-type-code-register.md` is a proposed starter list; activate only departments in the approved organization structure. Codes are immutable and never reused.
 
-## 3. Matching database uniqueness contract
-
-- `document_numbering_assignments`: unique `(tenant_id, bb_code)`; unique `(tenant_id, legal_entity_id, organization_unit_id)`
-- `document_number_counters`: unique `(tenant_id, bb_code, document_type_number, ec_year)`
-- `documents`: unique `(tenant_id, bb_code, document_type_number, ec_year, sequence_number)`
-- `documents`: unique `(tenant_id, canonical_number)` as a final guard against the two-digit year repeating over a century
-- `documents`: unique `(tenant_id, idempotency_key)`
-- Tenant-bound foreign keys bind entity, organization unit, BB assignment, file version reference, replacement and lifecycle records. A document cannot reference a file owned by another tenant.
-
-The database constraints, not application preflight alone, are authoritative.
-
-## 4. Counter allocation
-
-Allocation is only permitted inside the same database transaction that creates the issued document. The allocator locks the BB assignment and counter row, increments one counter and returns the canonical number. A caller must roll back the whole issuance transaction if document creation fails. Four-digit exhaustion fails closed; there is no silent rollover.
-
-## 5. Controlled taxonomy v1
+## 3. Controlled document taxonomy v1
 
 | TT | Legacy key | Amharic label | English label |
 |---|---|---|---|
@@ -60,22 +48,44 @@ Allocation is only permitted inside the same database transaction that creates t
 | 14 | INC | የገቢ ትዕዛዝ | Income order |
 | 15 | RCT | ደረሰኝ | Receipt |
 
-Existing symbolic keys 01–11 are preserved. 12–15 are added for A1-required finance record types. Issued numeric codes are immutable; deactivation does not release a code for reuse. Certificate subtypes (shareholder, appreciation, award, loyal customer) remain metadata/type subcategories under CER, not separate numbering series unless separately approved.
+Existing symbolic keys 01–11 are preserved; 12–15 add A1-required finance document classes. Certificate subtypes remain metadata under CER. Finance documents must link to canonical Finance transactions; this catalogue is not a shadow ledger.
 
-## 6. A2 migration conflict handling
+## 4. Canonical counter scope and uniqueness
+
+The sequence scope must be:
+
+`tenant_id + EE + DD + TT + full_ec_year`
+
+Matching constraints:
+- unique `(tenant_id, EE)` for legal-entity code assignment;
+- unique `(tenant_id, legal_entity_id, DD)` for department code assignment;
+- unique `(tenant_id, EE, DD, TT, ec_year)` for counter scope;
+- unique `(tenant_id, EE, DD, TT, ec_year, sequence_number)` for issued sequence;
+- unique `(tenant_id, canonical_number)` for the complete printed identifier;
+- tenant-bound foreign keys for entity, department, file and lifecycle references;
+- immutable historical snapshots for the issuer, department, type, EC year and number.
+
+The database constraints, not application preflight alone, are authoritative. Allocation must occur inside the issuance transaction, lock the exact counter row, be concurrency-safe, and fail closed after 9999. No silent rollover or code reuse.
+
+## 5. A2 migration conflict handling
 
 Do not merge the PR #53 migration pair:
 - `2026_10_29_000001_create_documents_numbering_tables.php`
 - `2026_10_30_000001_create_document_numbering_v2_scope.php`
 
-The A3.2 clean-install migration creates the catalogue, issuer assignment, one canonical counter, documents and lifecycle tables in one schema definition. It does not create `document_number_counters_v2`, and it does not retain the old uniqueness key containing department/issuing-role in place of the visible BB scope.
+The A3.2 clean-install schema must define one authoritative counter model and must not import both conflicting counter implementations. If either old migration has been applied to a real database, a separately reviewed forward-only data-preserving reconciliation migration is required before deployment. No destructive drop/rename is authorized.
 
-If either old migration has ever been applied to a real database, this clean-install migration is not an upgrade path. A separately reviewed forward-only data-preserving reconciliation migration is required before deployment. No destructive drop/rename is authorized here.
+## 6. Required implementation reconciliation
 
-## 7. Deferred
+The current A3.2 source draft still contains the earlier `BB/TT/SSSS/YY` formatter and `BB`-based allocator/migration. It does not yet implement this new EE/DD/TT/YYYY/NNNN contract. Before A3.2 is complete, update:
+1. entity and department registry schema/seed policy and models;
+2. numbering assignment and counter schema with EE and DD scope;
+3. allocator validation and locking for tenant/entity/department/type/full EC year;
+4. formatter to print `ማዓ/EE/DD/TT/YYYY/NNNN`;
+5. document columns, immutable snapshots and all matching unique constraints;
+6. unit, integration, MySQL concurrency, tenant-isolation and year-boundary tests;
+7. Documents and File Management manuals and any API/app contracts consuming the number.
 
-Formal approval authority, signing, full lifecycle workflow, QR verification, public release, file digest enforcement, OCR and Finance posting remain later A3 work. Invoice/order/receipt records must link to canonical Finance transactions; this registry is not a shadow ledger.
+## 7. Verification gate
 
-## 8. Verification gate
-
-A4 must test clean-install MySQL, schema order, assignment uniqueness, cross-tenant and cross-entity isolation, exact canonical uniqueness, Ethiopian year rollover, leap/Pagume boundary, 9999 exhaustion, concurrent allocation, idempotent retries, rollback/no-gap behavior and historical numbering immutability. None is claimed passed by this source commit.
+A4 must test clean-install MySQL, schema order, entity and department code uniqueness, cross-tenant isolation, canonical number uniqueness, Ethiopian year rollover and Pagume boundary, 9999 exhaustion, concurrent allocation, idempotent retries, transaction rollback and historical numbering immutability. No such runtime result is claimed by this documentation update.
