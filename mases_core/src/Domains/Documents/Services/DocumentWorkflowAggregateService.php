@@ -311,6 +311,22 @@ final class DocumentWorkflowAggregateService
                     'issued_at' => $issuedAt,
                 ]);
 
+                DB::table('document_lifecycle_events')->insert([
+                    'document_id' => $document->getKey(),
+                    'tenant_id' => $tenantId,
+                    'event_type' => 'issued',
+                    'actor_user_id' => $actor->getKey(),
+                    'reason' => null,
+                    'metadata' => json_encode([
+                        'workflow_id' => $workflow->getKey(),
+                        'canonical_number' => $number['canonical_number'],
+                        'signature_evidence_id' => $signatureEvidenceId,
+                    ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+                    'occurred_at' => $issuedAt,
+                    'created_at' => $issuedAt,
+                    'updated_at' => $issuedAt,
+                ]);
+
                 $workflow->issued_document_id = $document->getKey();
                 $metadata = [
                     'issued_document_id' => (int) $document->getKey(),
