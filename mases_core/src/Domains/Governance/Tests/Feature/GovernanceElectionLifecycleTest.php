@@ -109,22 +109,28 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'default_tenant_id' => $tenant->id,
         ]);
         $user->tenants()->attach($tenant->id, ['joined_at' => now()]);
-        $permission = Permission::query()->firstOrCreate(
-            ['slug' => 'governance.election.manage'],
-            [
-                'name_am' => 'የምርጫ አስተዳደር',
-                'name_en' => 'Manage elections',
-                'description_am' => 'የምርጫ አስተዳደር',
-                'description_en' => 'Manage elections',
-                'category' => 'governance',
-                'scope' => 'tenant',
-                'tenant_id' => null,
-                'application_id' => null,
-                'is_active' => true,
-                'is_system' => true,
-            ]
-        );
-        $user->permissions()->attach($permission->id, ['assigned_at' => now()]);
+        foreach ([
+            'governance.election.manage',
+            'governance.election.authorize',
+            'governance.election.schedule',
+        ] as $slug) {
+            $permission = Permission::query()->firstOrCreate(
+                ['slug' => $slug],
+                [
+                    'name_am' => $slug,
+                    'name_en' => $slug,
+                    'description_am' => $slug,
+                    'description_en' => $slug,
+                    'category' => 'governance',
+                    'scope' => 'tenant',
+                    'tenant_id' => null,
+                    'application_id' => null,
+                    'is_active' => true,
+                    'is_system' => true,
+                ]
+            );
+            $user->permissions()->attach($permission->id, ['assigned_at' => now()]);
+        }
 
         return [$tenant, $user];
     }
