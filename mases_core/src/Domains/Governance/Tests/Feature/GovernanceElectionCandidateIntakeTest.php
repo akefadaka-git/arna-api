@@ -292,6 +292,38 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        // A committee member who submitted this candidate's nomination must recuse.
+        $this->grant($nominator, 'governance.election.committee.decide');
+        DB::table('governance_election_committee_members')->insert([
+            'tenant_id' => $this->tenant->id,
+            'election_id' => $this->electionId,
+            'person_id' => $nominatorPerson->id,
+            'user_id' => $nominator->id,
+            'member_role' => 'committee_member',
+            'ex_officio' => false,
+            'status' => 'active',
+            'appointed_at' => now(),
+            'appointed_by' => $this->manager->id,
+            'recused_at' => null,
+            'recusal_scope' => null,
+            'appointment_reference' => 'GA-RESOLUTION-NOMINATOR-COMMITTEE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        Auth::login($nominator);
+        try {
+            app(GovernanceElectionCandidateService::class)->decideEligibility(
+                (int) $this->tenant->id, $this->electionId, (int) $candidate->id,
+                $nominator, (int) $candidate->version, 'eligible',
+                'Submitter must not decide own nomination.', [(int) $evidence->id],
+            );
+            $this->fail('A nomination submitter must be excluded from the candidate eligibility decision.');
+        } catch (AuthorizationException) {
+            $this->assertSame(0, DB::table('governance_election_candidate_decisions')
+                ->where('candidate_id', $candidate->id)->count());
+        }
+
         Auth::login($committeeUser);
 
         $decided = app(GovernanceElectionCandidateService::class)->decideEligibility(
