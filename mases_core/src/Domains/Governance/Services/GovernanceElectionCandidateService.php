@@ -246,6 +246,7 @@ final class GovernanceElectionCandidateService
                 return (object) [
                     'id' => (int) $existing->id,
                     'candidate_id' => (int) $existing->candidate_id,
+                    'nominated_by_shareholder_id' => (int) $existing->nominated_by_shareholder_id,
                     'status' => $existing->status,
                     'self_nomination' => (bool) $existing->self_nomination,
                     'submitted_at' => $existing->submitted_at,
@@ -295,6 +296,7 @@ final class GovernanceElectionCandidateService
             return (object) [
                 'id' => $submissionId,
                 'candidate_id' => (int) $candidate->id,
+                'nominated_by_shareholder_id' => (int) $nominator->id,
                 'status' => 'submitted',
                 'self_nomination' => $selfNomination,
                 'submitted_at' => now('UTC')->toDateTimeString(),
