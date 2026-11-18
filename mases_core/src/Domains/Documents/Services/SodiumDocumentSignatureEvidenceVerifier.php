@@ -44,6 +44,9 @@ final class SodiumDocumentSignatureEvidenceVerifier implements DocumentSignature
         if (! extension_loaded('sodium')) {
             throw new \\LogicException('The sodium extension is required for document signature verification.');
         }
+        if (! $signer->is_active || $tenantId < 1 || trim($workflowUuid) === '') {
+            throw new AuthorizationException('An active authenticated signatory and validated tenant workflow are required.');
+        }
 
         $keyId = trim((string) ($evidence['key_id'] ?? ''));
         $signatureEncoded = (string) ($evidence['signature'] ?? '');
