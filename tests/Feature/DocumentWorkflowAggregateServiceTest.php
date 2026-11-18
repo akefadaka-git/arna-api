@@ -224,7 +224,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
-        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Rollback on event failure');
+        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Rollback on event failure', 9, 4);
         $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
             'submitted_file_id' => $fileId,
             'submitted_file_version' => 1,
