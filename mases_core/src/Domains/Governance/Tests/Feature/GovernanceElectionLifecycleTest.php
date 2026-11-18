@@ -35,6 +35,10 @@ final class GovernanceElectionLifecycleTest extends TestCase
 
         $this->assertSame((int) $tenant->id, (int) $election->tenant_id);
         $this->assertSame('draft', $election->status);
+        $this->assertSame('share_company', $election->governance_model);
+        $this->assertSame('shareholders_on_record_date', $election->electorate_basis);
+        $this->assertSame('eligible_shares', $election->vote_weight_basis);
+        $this->assertSame('secret', $election->ballot_secrecy);
         $this->assertSame(1, (int) $election->version);
 
         $authority = [
