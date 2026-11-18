@@ -362,3 +362,40 @@ The current seeder file `database/seeders/Data/ShareholderRegister.php` contains
 **Module 3 A2: PARTIAL — technical/statutory reconciliation completed; authoritative company-specific facts remain unresolved.** This is not an A2 closure. A3 remains NOT STARTED and requires a separately approved, evidence-backed schema and rules contract. No code, migration, test, seed data, production data, main branch, merge or deployment was changed by this A2 work.
 
 **Evidence acquisition route:** under Commercial Code Article 274(4), request a copy/extract of the current shareholder register from the company within the statutory fifteen-day response period. The separate registered Memorandum must be inspected from the Owner-held original or obtained from the registering authority. Payment, transfer, entity and mandate evidence must be reconciled to those primary records, not to seed data or OCR alone.
+
+## 11. Owner design constraint — database-backed register and policy-driven entitlement
+
+**Owner direction:** Module 3 must be database- and policy-driven. It must not hard-code shareholder identities, register numbers, share quantities, ownership, representatives, eligibility, voting weights, or record-date outcomes in application logic.
+
+### 11.1 Distinguish the repository seeder from the live register
+
+The repository contains `database/seeders/Data/ShareholderRegister.php`, a PHP data class with 100 keyed entries (SH-0001 through SH-0100), and `database/seeders/ShareholderSeeder.php`, which writes the seed data into database rows and derives user identifiers. The data class is a static, version-controlled bootstrap dataset. Its own documentation calls it the register, but that label does not make the PHP constant the runtime source of truth or independently establish that it is the statutory head-office register under Commercial Code Article 274.
+
+For Module 3, treat this seeder as a **legacy/bootstrap source dataset to be reconciled and, if approved, imported**. Once records are persisted, all operational reads and decisions must use the database-backed domain model and approved policy version. Do not make runtime eligibility or voting decisions by reading `ShareholderRegister::ROWS`, SH-ID ordering, or any other PHP constant. Do not assume rerunning the seeder is a safe way to update a live statutory register.
+
+### 11.2 Required data architecture
+
+1. **Database-backed master records:** shareholder identity, legal form, address/contact particulars, entity identity, authorized representative relationship, share certificates, share classes, current holdings, and historical holding entries must be persisted in normalized domain tables with stable internal identifiers.
+2. **Temporal history:** changes to names, addresses, legal status, representatives/mandates, share ownership, certificate status, and register particulars must be recorded as effective-dated, attributable events. Preserve both business-effective time and system-recorded time; never overwrite history needed to reconstruct an earlier record date.
+3. **Policy-driven rules:** record-date selection, holder qualification, share-class rights, voting entitlement, vote weighting/caps, proxy/representative treatment, suspension/disqualification, and meeting-specific cutoffs must be resolved from explicit, versioned policy records and governing-document parameters—not shareholder-specific branches or constants.
+4. **Policy provenance:** every policy version must identify its authority (statute, registered Memorandum, approved bylaw, or valid meeting resolution), effective period, approval/evidence reference, and supersession status. Where the legal source is unresolved, the policy must remain blocked/unapproved rather than silently defaulting.
+5. **Reproducible election snapshot:** an approved record-date run must persist the selected record date/time and timezone, input ledger watermark, policy-version identifiers, source/evidence references, calculated per-holder/per-class quantities and entitlement outcomes, exceptions, and a content hash. Later changes must not mutate a frozen snapshot; corrections require a separately authorized superseding snapshot with a traceable reason.
+6. **Auditable operations:** register amendments, transfers, reversals, certificate issue/cancellation, mandate changes, policy approvals, and snapshot approvals must be attributable to an authenticated actor and committed atomically with their audit evidence. Failure to persist mandatory audit evidence must fail the operation closed.
+7. **Seeding and imports:** seeders may create controlled bootstrap/test fixtures or perform an explicitly approved, validated initial import. They must be idempotent, detect conflicts, preserve provenance, and must not silently overwrite operational records or fabricate legal evidence. Production corrections use governed application workflows.
+
+### 11.3 Separation of concerns and non-negotiable invariants
+
+- **Facts belong in data:** who the shareholders are, what they own, and who represents them are database facts with evidence and history.
+- **Rules belong in policy:** how those facts produce meeting-specific voting rights is a versioned, reviewable policy decision.
+- **Code enforces invariants:** authorization, transaction atomicity, ledger integrity, immutable history/snapshots, validation, and statutory constraints are enforced by domain services and database constraints. Code must not encode this company's changing register contents or substitute an undocumented assumption for a missing legal rule.
+- **No inferred rights:** a seeded role, login account, entity representative link, current balance, or application share-class label does not by itself prove legal ownership, mandate, class rights, or voting entitlement.
+- **No hard-coded cohort:** no list of SH-IDs, names, founder identities, fixed shareholder count, fixed holding quantities, or per-holder voting exception may appear in runtime business logic, authorization policies, or election calculations.
+
+### 11.4 A2 reconciliation and A3 gate
+
+A2 may inspect and document the existing schema, seeder, migrations, services, policy/configuration mechanisms, and evidence gaps. It must not alter runtime code or data. The current 100-row seeder must be reconciled against the recovered 29-entry founding schedule and available primary evidence; differences must be classified, not automatically “fixed” by editing the seeder.
+
+Before A3 implementation, the design must specify the normalized database schema and migration plan, effective-dated register/mandate history, policy model and authority hierarchy, transfer/certificate evidence contracts, deterministic record-date calculation, immutable snapshot contract, audit/authorization boundaries, and migration/import strategy. A3 must not begin until the separate registered Memorandum and unresolved company-specific legal rules have been inspected or explicitly recorded as blocking unknowns under Owner direction.
+
+**Disposition:** Owner architecture direction RECORDED. Existing seeder confirmed as static bootstrap data, not accepted as the live runtime source of truth. Database/policy-driven implementation is a binding A3 design constraint. No runtime code, migration, seed data, production data, main branch, merge, or deployment is changed by this A2 documentation amendment.
+
