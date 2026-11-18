@@ -283,6 +283,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'governance.election.suspend',
             'governance.election.cancel',
             'governance.election.archive',
+            'file.view',
         ] as $slug) {
             $permission = Permission::query()->firstOrCreate(
                 ['slug' => $slug],
