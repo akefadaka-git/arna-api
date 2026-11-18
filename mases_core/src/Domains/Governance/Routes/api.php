@@ -680,6 +680,9 @@ Route::name('api.governance.')->group(static function (): void {
     Route::post('/elections/{election}/nominations', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionCandidateController::class, 'submitNomination'])
         ->whereNumber('election')
         ->name('elections.nominations.store');
+    Route::match(['patch', 'put'], '/elections/{election}/nominations/{submission}', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'correctNomination'])
+        ->whereNumber('election')->whereNumber('submission')
+        ->name('elections.nominations.correct');
     Route::post('/elections/{election}/nominations/{submission}/withdraw', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionCandidateController::class, 'withdrawNomination'])
         ->whereNumber('election')->whereNumber('submission')
         ->name('elections.nominations.withdraw');
