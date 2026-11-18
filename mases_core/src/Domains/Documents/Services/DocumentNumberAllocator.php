@@ -104,6 +104,11 @@ final class DocumentNumberAllocator
         $entityCode = (string) $entityAssignment->entity_code;
         $departmentCode = (string) $departmentAssignment->department_code;
 
+        if (! preg_match('/^(0[1-9]|[1-9][0-9])$/', $entityCode)
+            || ! preg_match('/^(0[1-9]|[1-9][0-9])$/', $departmentCode)) {
+            throw new ConflictHttpException('Issuer codes must be registered two-digit values from 01 to 99.');
+        }
+
         if ($departmentAssignment->entity_code !== $entityCode) {
             throw new ConflictHttpException('The department code assignment does not match the legal entity code assignment.');
         }
