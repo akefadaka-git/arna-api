@@ -143,6 +143,10 @@ final class DocumentWorkflowAggregateService
                 throw new ConflictHttpException('This action is not valid from the current document workflow state.');
             }
 
+            if ($action === 'return_to_draft' && (int) $workflow->author_user_id !== (int) $actor->getKey()) {
+                throw new AuthorizationException('Only the document author may resume a returned draft.');
+            }
+
             if ($definition['reason'] && trim((string) $reason) === '') {
                 throw ValidationException::withMessages(['reason' => 'A substantive reason is required for this transition.']);
             }
