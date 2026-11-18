@@ -58,7 +58,7 @@ final class DocumentWorkflowAggregateService
         $this->authorization->requirePermission($actor, $tenantId, 'documents.create');
 
         if ($tenantId < 1 || $legalEntityId < 1 || $organizationUnitId < 1
-            || ! preg_match('/^(0[1-9]|1[0-5])$/', $documentTypeNumber)
+            || ! preg_match('/^(0[1-9]|[1-9][0-9])$/', $documentTypeNumber)
             || trim($title) === '') {
             throw new UnprocessableEntityHttpException('A valid tenant, issuer, active document type and non-empty title are required.');
         }
