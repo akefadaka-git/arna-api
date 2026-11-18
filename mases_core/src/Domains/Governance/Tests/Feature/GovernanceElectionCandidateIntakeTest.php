@@ -138,6 +138,64 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $this->assertSame(1, (int) $submission->self_nomination);
     }
 
+    public function test_nomination_correction_and_withdrawal_are_append_only(): void
+    {
+        $nominator = $this->makeUser('correction-nominator');
+        $nominatorPerson = $this->makePerson($nominator);
+        $this->makeShareholder($nominator, $nominatorPerson, 'individual');
+        $candidatePerson = $this->makePerson($this->makeUser('correction-candidate'));
+        Auth::login($nominator);
+        $service = app(GovernanceElectionCandidateService::class);
+        $submission = $service->submitNomination(
+            (int) $this->tenant->id, $this->electionId, $nominator,
+            (int) $candidatePerson->id, 'correction-nomination-001', 'Original nomination statement.',
+        );
+
+        $service->correctNomination(
+            (int) $this->tenant->id, $this->electionId, (int) $submission->id,
+            $nominator, 'Corrected nomination statement.', 'Correcting a factual detail.',
+        );
+        $this->assertSame('Original nomination statement.', DB::table('governance_election_nomination_submissions')
+            ->where('id', $submission->id)->value('statement'));
+        $correction = DB::table('governance_election_nomination_events')
+            ->where('nomination_submission_id', $submission->id)->where('event_type', 'corrected')->first();
+        $this->assertNotNull($correction);
+        $this->assertSame('Corrected nomination statement.', json_decode($correction->payload, true)['statement']);
+
+        $service->withdrawNomination(
+            (int) $this->tenant->id, $this->electionId, (int) $submission->id,
+            $nominator, 'Nominator withdraws this submission.',
+        );
+        $this->assertSame('submitted', DB::table('governance_election_nomination_submissions')
+            ->where('id', $submission->id)->value('status'));
+        $this->assertSame(2, DB::table('governance_election_nomination_events')
+            ->where('nomination_submission_id', $submission->id)->count());
+        $this->assertSame('withdrawn', DB::table('governance_election_candidates')
+            ->where('id', $submission->candidate_id)->value('status'));
+    }
+
+    public function test_legal_entity_representative_nomination_authority_is_not_assumed(): void
+    {
+        $representative = $this->makeUser('legal-entity-representative');
+        DB::table('shareholders')->insert([
+            'tenant_id' => $this->tenant->id,
+            'shareholder_type' => 'company',
+            'user_id' => null,
+            'representative_user_id' => $representative->id,
+            'person_id' => null,
+            'is_active' => true,
+            'deleted_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $candidate = $this->makePerson($this->makeUser('rep-candidate'));
+        $this->expectException(AuthorizationException::class);
+        app(GovernanceElectionCandidateService::class)->submitNomination(
+            (int) $this->tenant->id, $this->electionId, $representative,
+            (int) $candidate->id, 'legal-rep-nomination-001', 'Representative nomination attempt.',
+        );
+    }
+
     public function test_inactive_or_cross_tenant_candidate_person_is_rejected(): void
     {
         $nominator = $this->makeUser('inactive-test-nominator');
