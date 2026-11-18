@@ -326,8 +326,16 @@ final class GovernanceElectionCandidateIntakeService
         $personId = (int) $people->first()->id;
         $access = DB::table('person_tenant_accesses')->where('person_id', $personId)
             ->where('tenant_id', $tenantId)->where('status', 'active')->exists();
-        $holder = DB::table('shareholders')->where('tenant_id', $tenantId)->where('person_id', $personId)
-            ->where('shareholder_type', 'individual')->where('is_active', true)->whereNull('deleted_at')->exists();
+        $holder = DB::table('shareholders')->where('tenant_id', $tenantId)
+            ->where('is_active', true)->whereNull('deleted_at')
+            ->where(function ($query) use ($personId, $actor): void {
+                $query->where(function ($individual) use ($personId): void {
+                    $individual->where('shareholder_type', 'individual')->where('person_id', $personId);
+                })->orWhere(function ($entity) use ($actor): void {
+                    $entity->whereIn('shareholder_type', ['company', 'trust', 'cooperative', 'government', 'religious_body'])
+                        ->where('representative_user_id', $actor->id);
+                });
+            })->exists();
         if (!$access && !$holder) {
             throw ValidationException::withMessages(['nominator' => ['The authenticated Person has no active access or shareholder relationship in this tenant.']]);
         }
