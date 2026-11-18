@@ -1,4 +1,5 @@
 name: ARNA clean-install MySQL verification
+# P2.4 candidate intake is verified with fresh MySQL on the exact feature-branch SHA.
 
 on:
   push:
