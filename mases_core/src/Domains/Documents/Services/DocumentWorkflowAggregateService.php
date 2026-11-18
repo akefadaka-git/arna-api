@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
 use MaaleArna\MASES\Core\Domains\Documents\Models\Document;
 use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentLifecycleEvent;
 use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentWorkflowAggregate;
@@ -42,7 +43,7 @@ final class DocumentWorkflowAggregateService
     ];
 
     public function __construct(
-        private readonly DocumentWorkflowAuthorizationService $authorization,
+        private readonly DocumentWorkflowAuthorizer $authorization,
     ) {}
 
     public function createDraft(
