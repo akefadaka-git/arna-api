@@ -32,7 +32,7 @@ final class DocumentWorkflowAggregateService
         'return' => ['from' => ['in_review'], 'to' => 'returned', 'permission' => 'documents.return', 'governed' => true, 'reason' => true],
         'reject' => ['from' => ['in_review'], 'to' => 'rejected', 'permission' => 'documents.reject', 'governed' => true, 'reason' => true],
         'approve' => ['from' => ['in_review'], 'to' => 'approved', 'permission' => 'documents.approve', 'governed' => true, 'reason' => false],
-        'return_to_draft' => ['from' => ['returned'], 'to' => 'draft', 'permission' => 'documents.edit', 'governed' => false, 'reason' => false],
+        'return_to_draft' => ['from' => ['returned'], 'to' => 'draft', 'permission' => 'documents.update', 'governed' => false, 'reason' => false],
         'begin_signing' => ['from' => ['approved'], 'to' => 'signing', 'permission' => 'documents.sign', 'governed' => true, 'reason' => false],
         'issue' => ['from' => ['signing'], 'to' => 'issued', 'permission' => 'documents.issue', 'governed' => true, 'reason' => false],
         'withdraw' => ['from' => ['submitted', 'in_review'], 'to' => 'withdrawn', 'permission' => 'documents.withdraw', 'governed' => true, 'reason' => true],
