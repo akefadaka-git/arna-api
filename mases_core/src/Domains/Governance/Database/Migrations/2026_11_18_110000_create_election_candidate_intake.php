@@ -75,6 +75,8 @@ return new class extends Migration
             $table->string('payload_digest', 64);
             $table->string('rule_set_version', 80);
             $table->string('rule_set_digest', 64);
+            $table->string('submission_channel', 24)->default('electronic');
+            $table->string('source_reference', 160);
             $table->text('statement')->nullable();
             $table->dateTime('submitted_at');
             $table->timestamps();
@@ -149,10 +151,32 @@ return new class extends Migration
                 ->references('id')->on('users')->restrictOnDelete();
             $table->index(['tenant_id', 'election_id', 'candidate_id', 'occurred_at'], 'gov_candidate_event_time_idx');
         });
+
+        Schema::create('governance_election_candidate_declaration_events', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('election_id');
+            $table->unsignedBigInteger('candidate_id');
+            $table->unsignedInteger('sequence');
+            $table->string('submission_method', 16);
+            $table->string('declaration_digest', 64);
+            $table->json('declarations');
+            $table->json('evidence_references')->nullable();
+            $table->unsignedBigInteger('actor_user_id');
+            $table->dateTime('occurred_at');
+            $table->timestamps();
+            $table->unique(['tenant_id', 'election_id', 'candidate_id', 'sequence'], 'gov_candidate_declaration_seq_uq');
+            $table->foreign(['tenant_id', 'election_id', 'candidate_id'], 'gov_candidate_declaration_candidate_fk')
+                ->references(['tenant_id', 'election_id', 'id'])->on('governance_election_candidates')->restrictOnDelete();
+            $table->foreign('actor_user_id', 'gov_candidate_declaration_actor_fk')
+                ->references('id')->on('users')->restrictOnDelete();
+            $table->index(['tenant_id', 'election_id', 'candidate_id', 'occurred_at'], 'gov_candidate_declaration_time_idx');
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('governance_election_candidate_declaration_events');
         Schema::dropIfExists('governance_election_candidate_events');
         Schema::dropIfExists('governance_election_candidate_decisions');
         Schema::dropIfExists('governance_election_candidate_evidence');
