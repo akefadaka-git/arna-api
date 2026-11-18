@@ -287,6 +287,59 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             ->where('candidate_id', $candidate->id)->count());
     }
 
+    public function test_candidate_tenant_access_is_revalidated_at_consent_and_eligibility_decision(): void
+    {
+        $nominator = $this->makeUser('tenant-access-nominator');
+        $nominatorPerson = $this->makePerson($nominator);
+        $this->makeShareholder($nominator, $nominatorPerson, 'individual');
+        $candidateAccount = $this->makeUser('tenant-access-candidate');
+        $candidatePerson = $this->makePerson($candidateAccount);
+
+        Auth::login($nominator);
+        $submission = app(GovernanceElectionCandidateService::class)->submitNomination(
+            (int) $this->tenant->id, $this->electionId, $nominator,
+            (int) $candidatePerson->id, 'tenant-access-nomination-001', 'Candidate nomination.',
+        );
+
+        DB::table('person_tenant_accesses')->where('person_id', $candidatePerson->id)
+            ->where('tenant_id', $this->tenant->id)->update(['status' => 'inactive']);
+        Auth::login($candidateAccount);
+        try {
+            app(GovernanceElectionCandidateService::class)->recordConsent(
+                (int) $this->tenant->id, $this->electionId, (int) $submission->candidate_id,
+                $candidateAccount, 'direct',
+            );
+            $this->fail('Consent must fail when candidate tenant access has been revoked.');
+        } catch (ConflictHttpException) {
+            $this->assertSame('pending', DB::table('governance_election_candidates')
+                ->where('id', $submission->candidate_id)->value('consent_status'));
+        }
+
+        DB::table('person_tenant_accesses')->where('person_id', $candidatePerson->id)
+            ->where('tenant_id', $this->tenant->id)->update(['status' => 'active']);
+        $candidate = app(GovernanceElectionCandidateService::class)->recordConsent(
+            (int) $this->tenant->id, $this->electionId, (int) $submission->candidate_id,
+            $candidateAccount, 'direct',
+        );
+        $this->assertSame('accepted', $candidate->consent_status);
+
+        DB::table('person_tenant_accesses')->where('person_id', $candidatePerson->id)
+            ->where('tenant_id', $this->tenant->id)->update(['status' => 'inactive']);
+        try {
+            app(GovernanceElectionCandidateService::class)->decideEligibility(
+                (int) $this->tenant->id, $this->electionId, (int) $candidate->id,
+                $this->manager, (int) $candidate->version, 'eligible',
+                'Review must stop after tenant access is revoked.', [1],
+            );
+            $this->fail('Eligibility review must fail when candidate tenant access has been revoked.');
+        } catch (ConflictHttpException) {
+            $this->assertSame('eligibility_pending', DB::table('governance_election_candidates')
+                ->where('id', $candidate->id)->value('status'));
+            $this->assertSame(0, DB::table('governance_election_candidate_decisions')
+                ->where('candidate_id', $candidate->id)->count());
+        }
+    }
+
     private function makeUser(string $suffix): User
     {
         $user = User::query()->create([
