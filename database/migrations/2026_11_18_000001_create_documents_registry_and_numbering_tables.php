@@ -170,6 +170,244 @@ return new class extends Migration
             $table->index(['tenant_id', 'legal_entity_id', 'issued_at'], 'documents_entity_issued_idx');
         });
 
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE document_entity_code_assignments ADD CONSTRAINT doc_entity_code_format_chk CHECK (entity_code REGEXP '^(0[1-9]|[1-9][0-9])
+            $table->id();
+            $table->unsignedBigInteger('document_id');
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->string('event_type', 24);
+            $table->foreignId('actor_user_id')->constrained('users')->restrictOnDelete();
+            $table->string('reason', 1000)->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamp('occurred_at');
+            $table->timestamps();
+            $table->foreign(['tenant_id', 'document_id'], 'document_lifecycle_document_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
+            $table->index(['tenant_id', 'document_id', 'occurred_at'], 'doc_lifecycle_tenant_doc_time_idx');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('document_lifecycle_events');
+        Schema::dropIfExists('documents');
+        Schema::dropIfExists('document_number_counters');
+        Schema::dropIfExists('document_department_code_assignments');
+        Schema::dropIfExists('document_entity_code_assignments');
+        Schema::dropIfExists('document_type_catalogue');
+        Schema::table('files', function (Blueprint $table): void {
+            $table->dropUnique('files_tenant_id_unique');
+        });
+        Schema::table('organization_units', function (Blueprint $table): void {
+            $table->dropUnique('org_units_tenant_entity_id_unique');
+        });
+    }
+};
+)");
+            DB::statement("ALTER TABLE document_department_code_assignments ADD CONSTRAINT doc_department_entity_code_format_chk CHECK (entity_code REGEXP '^(0[1-9]|[1-9][0-9])
+            $table->id();
+            $table->unsignedBigInteger('document_id');
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->string('event_type', 24);
+            $table->foreignId('actor_user_id')->constrained('users')->restrictOnDelete();
+            $table->string('reason', 1000)->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamp('occurred_at');
+            $table->timestamps();
+            $table->foreign(['tenant_id', 'document_id'], 'document_lifecycle_document_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
+            $table->index(['tenant_id', 'document_id', 'occurred_at'], 'doc_lifecycle_tenant_doc_time_idx');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('document_lifecycle_events');
+        Schema::dropIfExists('documents');
+        Schema::dropIfExists('document_number_counters');
+        Schema::dropIfExists('document_department_code_assignments');
+        Schema::dropIfExists('document_entity_code_assignments');
+        Schema::dropIfExists('document_type_catalogue');
+        Schema::table('files', function (Blueprint $table): void {
+            $table->dropUnique('files_tenant_id_unique');
+        });
+        Schema::table('organization_units', function (Blueprint $table): void {
+            $table->dropUnique('org_units_tenant_entity_id_unique');
+        });
+    }
+};
+)");
+            DB::statement("ALTER TABLE document_department_code_assignments ADD CONSTRAINT doc_department_code_format_chk CHECK (department_code REGEXP '^(0[1-9]|[1-9][0-9])
+            $table->id();
+            $table->unsignedBigInteger('document_id');
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->string('event_type', 24);
+            $table->foreignId('actor_user_id')->constrained('users')->restrictOnDelete();
+            $table->string('reason', 1000)->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamp('occurred_at');
+            $table->timestamps();
+            $table->foreign(['tenant_id', 'document_id'], 'document_lifecycle_document_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
+            $table->index(['tenant_id', 'document_id', 'occurred_at'], 'doc_lifecycle_tenant_doc_time_idx');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('document_lifecycle_events');
+        Schema::dropIfExists('documents');
+        Schema::dropIfExists('document_number_counters');
+        Schema::dropIfExists('document_department_code_assignments');
+        Schema::dropIfExists('document_entity_code_assignments');
+        Schema::dropIfExists('document_type_catalogue');
+        Schema::table('files', function (Blueprint $table): void {
+            $table->dropUnique('files_tenant_id_unique');
+        });
+        Schema::table('organization_units', function (Blueprint $table): void {
+            $table->dropUnique('org_units_tenant_entity_id_unique');
+        });
+    }
+};
+)");
+            DB::statement("ALTER TABLE document_number_counters ADD CONSTRAINT doc_counter_entity_code_format_chk CHECK (entity_code REGEXP '^(0[1-9]|[1-9][0-9])
+            $table->id();
+            $table->unsignedBigInteger('document_id');
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->string('event_type', 24);
+            $table->foreignId('actor_user_id')->constrained('users')->restrictOnDelete();
+            $table->string('reason', 1000)->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamp('occurred_at');
+            $table->timestamps();
+            $table->foreign(['tenant_id', 'document_id'], 'document_lifecycle_document_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
+            $table->index(['tenant_id', 'document_id', 'occurred_at'], 'doc_lifecycle_tenant_doc_time_idx');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('document_lifecycle_events');
+        Schema::dropIfExists('documents');
+        Schema::dropIfExists('document_number_counters');
+        Schema::dropIfExists('document_department_code_assignments');
+        Schema::dropIfExists('document_entity_code_assignments');
+        Schema::dropIfExists('document_type_catalogue');
+        Schema::table('files', function (Blueprint $table): void {
+            $table->dropUnique('files_tenant_id_unique');
+        });
+        Schema::table('organization_units', function (Blueprint $table): void {
+            $table->dropUnique('org_units_tenant_entity_id_unique');
+        });
+    }
+};
+)");
+            DB::statement("ALTER TABLE document_number_counters ADD CONSTRAINT doc_counter_department_code_format_chk CHECK (department_code REGEXP '^(0[1-9]|[1-9][0-9])
+            $table->id();
+            $table->unsignedBigInteger('document_id');
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->string('event_type', 24);
+            $table->foreignId('actor_user_id')->constrained('users')->restrictOnDelete();
+            $table->string('reason', 1000)->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamp('occurred_at');
+            $table->timestamps();
+            $table->foreign(['tenant_id', 'document_id'], 'document_lifecycle_document_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
+            $table->index(['tenant_id', 'document_id', 'occurred_at'], 'doc_lifecycle_tenant_doc_time_idx');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('document_lifecycle_events');
+        Schema::dropIfExists('documents');
+        Schema::dropIfExists('document_number_counters');
+        Schema::dropIfExists('document_department_code_assignments');
+        Schema::dropIfExists('document_entity_code_assignments');
+        Schema::dropIfExists('document_type_catalogue');
+        Schema::table('files', function (Blueprint $table): void {
+            $table->dropUnique('files_tenant_id_unique');
+        });
+        Schema::table('organization_units', function (Blueprint $table): void {
+            $table->dropUnique('org_units_tenant_entity_id_unique');
+        });
+    }
+};
+)");
+            DB::statement('ALTER TABLE document_number_counters ADD CONSTRAINT doc_counter_ec_year_chk CHECK (ec_year BETWEEN 1000 AND 9999)');
+            DB::statement('ALTER TABLE document_number_counters ADD CONSTRAINT doc_counter_next_sequence_chk CHECK (next_sequence BETWEEN 1 AND 10000)');
+            DB::statement("ALTER TABLE documents ADD CONSTRAINT documents_entity_code_format_chk CHECK (entity_code REGEXP '^(0[1-9]|[1-9][0-9])
+            $table->id();
+            $table->unsignedBigInteger('document_id');
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->string('event_type', 24);
+            $table->foreignId('actor_user_id')->constrained('users')->restrictOnDelete();
+            $table->string('reason', 1000)->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamp('occurred_at');
+            $table->timestamps();
+            $table->foreign(['tenant_id', 'document_id'], 'document_lifecycle_document_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
+            $table->index(['tenant_id', 'document_id', 'occurred_at'], 'doc_lifecycle_tenant_doc_time_idx');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('document_lifecycle_events');
+        Schema::dropIfExists('documents');
+        Schema::dropIfExists('document_number_counters');
+        Schema::dropIfExists('document_department_code_assignments');
+        Schema::dropIfExists('document_entity_code_assignments');
+        Schema::dropIfExists('document_type_catalogue');
+        Schema::table('files', function (Blueprint $table): void {
+            $table->dropUnique('files_tenant_id_unique');
+        });
+        Schema::table('organization_units', function (Blueprint $table): void {
+            $table->dropUnique('org_units_tenant_entity_id_unique');
+        });
+    }
+};
+)");
+            DB::statement("ALTER TABLE documents ADD CONSTRAINT documents_department_code_format_chk CHECK (department_code REGEXP '^(0[1-9]|[1-9][0-9])
+            $table->id();
+            $table->unsignedBigInteger('document_id');
+            $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
+            $table->string('event_type', 24);
+            $table->foreignId('actor_user_id')->constrained('users')->restrictOnDelete();
+            $table->string('reason', 1000)->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamp('occurred_at');
+            $table->timestamps();
+            $table->foreign(['tenant_id', 'document_id'], 'document_lifecycle_document_tenant_fk')
+                ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
+            $table->index(['tenant_id', 'document_id', 'occurred_at'], 'doc_lifecycle_tenant_doc_time_idx');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('document_lifecycle_events');
+        Schema::dropIfExists('documents');
+        Schema::dropIfExists('document_number_counters');
+        Schema::dropIfExists('document_department_code_assignments');
+        Schema::dropIfExists('document_entity_code_assignments');
+        Schema::dropIfExists('document_type_catalogue');
+        Schema::table('files', function (Blueprint $table): void {
+            $table->dropUnique('files_tenant_id_unique');
+        });
+        Schema::table('organization_units', function (Blueprint $table): void {
+            $table->dropUnique('org_units_tenant_entity_id_unique');
+        });
+    }
+};
+)");
+            DB::statement('ALTER TABLE documents ADD CONSTRAINT documents_ec_year_chk CHECK (ec_year BETWEEN 1000 AND 9999)');
+            DB::statement('ALTER TABLE documents ADD CONSTRAINT documents_sequence_chk CHECK (sequence_number BETWEEN 1 AND 9999)');
+        }
+
         Schema::create('document_lifecycle_events', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('document_id');
