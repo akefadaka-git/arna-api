@@ -292,6 +292,23 @@ final class DocumentWorkflowAggregateService
                     'verified_at' => $issuedAt,
                 ]);
 
+                $replacesDocumentId = isset($evidence['replaces_document_id'])
+                    ? (int) $evidence['replaces_document_id']
+                    : null;
+                if ($replacesDocumentId !== null) {
+                    $original = Document::query()->where('tenant_id', $tenantId)
+                        ->whereKey($replacesDocumentId)->where('status', 'issued')
+                        ->lockForUpdate()->first();
+                    if ($original === null
+                        || (int) $original->legal_entity_id !== (int) $workflow->legal_entity_id
+                        || (int) $original->organization_unit_id !== (int) $workflow->organization_unit_id
+                        || (string) $original->document_type_number !== (string) $workflow->document_type_number
+                        || Document::query()->where('tenant_id', $tenantId)
+                            ->where('replaces_document_id', $replacesDocumentId)->exists()) {
+                        throw new UnprocessableEntityHttpException('A replacement must reference one active issued document in the same tenant, issuer and document type, with no prior replacement.');
+                    }
+                }
+
                 $document = Document::query()->create([
                     'uuid' => (string) Str::uuid(),
                     'tenant_id' => $tenantId,
@@ -306,6 +323,7 @@ final class DocumentWorkflowAggregateService
                     'ec_year' => $number['ec_year'],
                     'sequence_number' => $number['sequence_number'],
                     'canonical_number' => $number['canonical_number'],
+                    'replaces_document_id' => $replacesDocumentId,
                     'title' => $workflow->title,
                     'file_id' => $workflow->submitted_file_id,
                     'file_version' => $workflow->submitted_file_version,
