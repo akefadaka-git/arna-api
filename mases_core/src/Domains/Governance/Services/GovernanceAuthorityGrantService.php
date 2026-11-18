@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAuthorityGrant;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceActingAssignment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
@@ -131,8 +132,36 @@ final class GovernanceAuthorityGrantService
                 })
                 ->first();
 
-            if (!$membership || $from->lt($today)) {
-                throw ValidationException::withMessages(['grantee_person_id' => ['The grantee needs an active, same-tenant membership in this exact position covering the entire grant period; grants cannot be backdated.']]);
+            // An acting office-holder may receive only an explicit action
+            // grant whose entire effective interval is covered by an active,
+            // same-tenant/body/position acting assignment. Open-ended grants
+            // are not valid for finite acting assignments.
+            $actingAssignment = false;
+            if (!$membership && $until !== null) {
+                $actingAssignment = GovernanceActingAssignment::query()
+                    ->where('acting_person_id', $granteeId)
+                    ->whereNull('revoked_at')
+                    ->whereJsonContains('actions', $action)
+                    ->whereDate('start_date', '<=', $from->toDateString())
+                    ->whereDate('end_date', '>=', $until->toDateString())
+                    ->whereHas('seat', function ($query) use ($tenantId, $body, $position): void {
+                        $query->where('tenant_id', $tenantId)
+                            ->where('governance_body_id', $body->id)
+                            ->where('governance_position_id', $position->id)
+                            ->where('status', 'active');
+                    })
+                    ->whereHas('substantiveOccupancy', function ($query) use ($from, $until): void {
+                        $query->where('status', 'active')
+                            ->whereDate('start_date', '<=', $from->toDateString())
+                            ->where(function ($range) use ($until): void {
+                                $range->whereNull('end_date')->orWhereDate('end_date', '>=', $until->toDateString());
+                            });
+                    })
+                    ->exists();
+            }
+
+            if ((!$membership && !$actingAssignment) || $from->lt($today)) {
+                throw ValidationException::withMessages(['grantee_person_id' => ['The grantee needs an active same-position membership or an exact-action acting assignment covering the entire grant period; grants cannot be backdated or exceed acting authority.']]);
             }
 
             return GovernanceAuthorityGrant::query()->create([
@@ -229,7 +258,28 @@ final class GovernanceAuthorityGrantService
             })
             ->exists();
 
-        if (!$membership) {
+        $actingAssignment = GovernanceActingAssignment::query()
+            ->where('acting_person_id', $person->id)
+            ->whereNull('revoked_at')
+            ->whereJsonContains('actions', $action)
+            ->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)
+            ->whereHas('seat', function ($query) use ($tenantId, $bodyId, $positionId): void {
+                $query->where('tenant_id', $tenantId)
+                    ->where('governance_body_id', $bodyId)
+                    ->where('governance_position_id', $positionId)
+                    ->where('status', 'active');
+            })
+            ->whereHas('substantiveOccupancy', function ($query) use ($today): void {
+                $query->where('status', 'active')
+                    ->whereDate('start_date', '<=', $today)
+                    ->where(function ($range) use ($today): void {
+                        $range->whereNull('end_date')->orWhereDate('end_date', '>=', $today);
+                    });
+            })
+            ->exists();
+
+        if (!$membership && !$actingAssignment) {
             return false;
         }
 
