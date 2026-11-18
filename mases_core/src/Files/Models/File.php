@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace MaaleArna\MASES\Core\Files\Models;
+
 /**
  * Backward-compatibility alias for the canonical File Management model.
  *
