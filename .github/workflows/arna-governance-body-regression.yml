@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - feat/p2-election-authority-a3
     paths:
       - ".github/workflows/arna-governance-body-regression.yml"
       - "mases_core/src/Domains/Governance/**"
