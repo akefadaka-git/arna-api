@@ -14,6 +14,8 @@ final class GovernanceElectionNomination extends Model
 {
     protected $table = 'governance_election_nominations';
 
+    protected $hidden = ['idempotency_key'];
+
     protected $fillable = [
         'tenant_id', 'election_id', 'candidate_id', 'nominator_shareholder_id',
         'nominator_user_id', 'nominator_person_id', 'self_nomination', 'statement',
