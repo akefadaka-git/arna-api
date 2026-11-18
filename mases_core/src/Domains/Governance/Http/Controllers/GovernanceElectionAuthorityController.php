@@ -81,6 +81,8 @@ final class GovernanceElectionAuthorityController extends Controller
 
     public function show(GovernanceElection $governanceElection): JsonResponse
     {
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
         Gate::authorize('view', $governanceElection);
 
         return response()->json(['data' => $governanceElection]);
@@ -88,9 +90,9 @@ final class GovernanceElectionAuthorityController extends Controller
 
     public function recordAuthorityEvidence(Request $request, GovernanceElection $governanceElection): JsonResponse
     {
-        Gate::authorize('manage', $governanceElection);
         $tenantId = $this->tenantId();
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        Gate::authorize('manage', $governanceElection);
 
         $data = $request->validate([
             'instrument_type' => ['required', 'string', 'max:48'],
@@ -122,9 +124,9 @@ final class GovernanceElectionAuthorityController extends Controller
         GovernanceElection $governanceElection,
         GovernanceElectionAuthorityEvidence $evidence,
     ): JsonResponse {
-        Gate::authorize('reviewAuthorityEvidence', $governanceElection);
         $tenantId = $this->tenantId();
         abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        Gate::authorize('reviewAuthorityEvidence', $governanceElection);
         abort_unless(
             (int) $evidence->tenant_id === $tenantId
             && (int) $evidence->election_id === (int) $governanceElection->getKey(),

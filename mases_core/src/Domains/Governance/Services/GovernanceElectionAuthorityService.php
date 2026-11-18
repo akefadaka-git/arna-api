@@ -60,6 +60,15 @@ final class GovernanceElectionAuthorityService
         string $contentSha256,
         User $actor,
     ): GovernanceElectionAuthorityEvidence {
+        if (
+            trim($instrumentType) === ''
+            || trim($instrumentReference) === ''
+            || trim($storageReference) === ''
+            || !preg_match('/^[a-f0-9]{64}$/i', $contentSha256)
+        ) {
+            throw new DomainException('Authority evidence requires an instrument type, reference, stored-document reference and valid declared SHA-256 digest.');
+        }
+
         return DB::transaction(function () use (
             $tenantId,
             $electionId,
@@ -121,7 +130,7 @@ final class GovernanceElectionAuthorityService
         string $reason,
         User $reviewer,
     ): GovernanceElectionAuthorityEvidence {
-        if (!in_array($decision, ['reviewed', 'rejected'], true) || trim($reason) === '') {
+        if (!in_array($decision, ['reviewed', 'rejected'], true) || mb_strlen(trim($reason)) < 10) {
             throw new DomainException('A supported evidence-review decision and reason are required.');
         }
 
