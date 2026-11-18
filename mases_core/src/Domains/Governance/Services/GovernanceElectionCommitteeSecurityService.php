@@ -541,6 +541,38 @@ final class GovernanceElectionCommitteeSecurityService
      *
      * @param array<string, mixed> $payload
      */
+    /**
+     * Append candidate screening to the existing committee security chain.
+     * The caller invokes this inside the candidate-decision transaction.
+     */
+    public function recordCandidateScreeningDecision(
+        int $tenantId,
+        int $electionId,
+        int $candidatePersonId,
+        int $decisionId,
+        string $reason,
+        User $actor,
+    ): void {
+        $this->assertElectionTenant($tenantId, $electionId);
+        $this->lockTenant($tenantId);
+        $this->assertMayDecide($tenantId, $electionId, $candidatePersonId, $actor);
+
+        $this->appendEvent(
+            $tenantId,
+            $electionId,
+            (int) $actor->getAuthIdentifier(),
+            'candidate.screening.deferred_unresolved',
+            [
+                'decision_id' => $decisionId,
+                'decision' => 'deferred_unresolved',
+                'reason_sha256' => hash('sha256', $reason),
+            ],
+            null,
+            $candidatePersonId,
+            (string) $decisionId,
+        );
+    }
+
     private function appendEvent(
         int $tenantId,
         int $electionId,
