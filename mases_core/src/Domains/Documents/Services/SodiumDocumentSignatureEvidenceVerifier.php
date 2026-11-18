@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Documents\\Services;
+namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 
 use DateTimeImmutable;
-use Illuminate\\Auth\\Access\\AuthorizationException;
-use Illuminate\\Support\\Facades\\DB;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Domains\\Documents\\Contracts\\DocumentSignatureEvidenceVerifier;
-use Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentSignatureEvidenceVerifier;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
  * Verifies detached Ed25519 signatures against tenant-scoped, pre-trusted keys.
@@ -30,7 +30,7 @@ final class SodiumDocumentSignatureEvidenceVerifier implements DocumentSignature
             'workflow_uuid' => $workflowUuid,
             'file_sha256' => $fileSha256,
             'signer_user_id' => $signerUserId,
-            'signed_at' => $signedAt->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d\\TH:i:s\\Z'),
+            'signed_at' => $signedAt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
 
@@ -42,7 +42,7 @@ final class SodiumDocumentSignatureEvidenceVerifier implements DocumentSignature
         array $evidence,
     ): array {
         if (! extension_loaded('sodium')) {
-            throw new \\LogicException('The sodium extension is required for document signature verification.');
+            throw new \LogicException('The sodium extension is required for document signature verification.');
         }
         if (! $signer->is_active || $tenantId < 1 || trim($workflowUuid) === '') {
             throw new AuthorizationException('An active authenticated signatory and validated tenant workflow are required.');
@@ -59,7 +59,7 @@ final class SodiumDocumentSignatureEvidenceVerifier implements DocumentSignature
 
         try {
             $signedAt = new DateTimeImmutable($signedAtRaw);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             throw new UnprocessableEntityHttpException('The signature timestamp is invalid.');
         }
 
@@ -112,7 +112,7 @@ final class SodiumDocumentSignatureEvidenceVerifier implements DocumentSignature
             'key_id' => (int) $key->id,
             'payload_sha256' => hash('sha256', $payload),
             'signature' => $signatureEncoded,
-            'signed_at' => $signedAt->setTimezone(new \\DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+            'signed_at' => $signedAt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
         ];
     }
 }
