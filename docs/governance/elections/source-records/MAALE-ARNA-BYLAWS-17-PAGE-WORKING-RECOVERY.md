@@ -1029,3 +1029,32 @@ This section records direct visual observations from the 17-page scanned source.
 ### Correction integrity rule
 
 Only a reading that can be matched directly to the scan is changed as a correction. Unclear text remains marked as OCR/provisional pending a clearer authoritative copy or independent human transcription. This prevents a plausible but unsupported reconstruction from being presented as the company's signed text.
+
+## High-resolution transcription pass — 2026-11-18
+
+**Source handling:** the original 17-page PDF was rematerialized from the Library and rendered for this pass. Pages 1–7 were rendered at 300 dpi; pages 12–16 were rendered at 150 dpi for OCR after the 300-dpi batch exceeded the execution window. Amharic Tesseract OCR was run on the rendered page images. This is a new machine-assisted comparison pass, not a human-certified transcription.
+
+### Page-by-page transcription status
+
+| Page | New pass result | Transcription disposition |
+|---|---|---|
+| 1 | OCR recovered the title, introductory statement, shareholder-rights provisions, and several later article blocks, but the extracted sequence appears to interleave article headings and clauses from different parts of the page. | **UNRESOLVED** — title confirmed: የማሌ ዓርና አክሲዮን ማኅበር / የመተዳደሪያ ደንብ. Body requires manual line-by-line reading against the image. |
+| 2 | OCR recovers meeting notice, quorum/attendance, inspection rights, proxy and agenda headings; OCR substitutions affect clause numbering and words. | **PARTIAL** — 50-day notice and Article 403 reference are checkpoints only. |
+| 3 | OCR recovers agenda, secretary, meeting chair, board responsibilities and powers. Several subclauses are corrupted and page continuation begins mid-clause. | **PARTIAL** — clause wording and letter labels unresolved. |
+| 4 | OCR recovers director term, vacancies, director register, remuneration and board-meeting provisions. | **PARTIAL** — printed 3-year term and figures 500, 20%, 10%, 15%, 5% retained as checkpoints; wording not certified. |
+| 5 | OCR confirms substantial text, including Article 16 management/manager provisions and Article 17 quorum. | **PARTIAL** — not blank. OCR includes severe noise in the upper transition and signature/stamp region; body requires manual correction. |
+| 6 | OCR recovers auditor duties, additional auditors, legal reserve and accounting-system provisions. | **PARTIAL** — subclauses 1.1–1.6 and figures 75%, 5%, 20% are provisional checkpoints. |
+| 7 | OCR recovers profit allocation, annual report, dissolution/liquidation and auditor provisions. | **PARTIAL** — clause transitions and amounts/days are corrupted; no inferred completion. |
+| 12 | OCR recovers share-number range 1–29, transfer/liability, accounting-year, profit-distribution and management-body headings. | **PARTIAL** — exact headings, article sequence and text require manual verification. |
+| 13 | OCR recovers the general-meeting continuation, board composition, initial board list and board powers. | **PARTIAL** — source appears to state a 3-to-8-member board and a 3-year term; names and statutory article references are not certified. |
+| 14 | OCR recovers continuation of board powers, signature authority, board meetings, minutes, liability and management provisions. | **PARTIAL** — items 8–15 and transition to management are structural checkpoints; exact words unresolved. |
+| 15 | OCR recovers auditor provisions, indefinite duration, annual reporting and the beginning of the founders' signature schedule. | **PARTIAL** — printed date 16/12/2016 ዓ/ም remains a visual checkpoint; rows 1–15 are present, but names are not reliably transcribed. |
+| 16 | OCR recovers only fragments of the continuation signature schedule; names and row markers are materially corrupted. | **UNRESOLVED** — preserve the 16–29 row-range finding from visual inspection; do not treat OCR names as verified. |
+
+### Explicit uncertainty notation
+
+For any subsequent manual transcription, use [UNCLEAR: …] when some characters are visible but not reliably distinguishable, [ILLEGIBLE] when the source does not permit reading, and [OCR? …] when a machine reading is retained only as a candidate. Do not silently repair spelling, renumber clauses, reorder paragraphs, infer names, or normalize legal references. Keep printed source spelling and punctuation where legible; put editorial observations outside the transcription block.
+
+### Completion gate
+
+This pass improves source coverage and identifies page-specific OCR failure modes, but it does **not** satisfy the requested line-by-line Amharic correction. A true corrected transcription requires manual reading of every line from the scan at sufficient visual resolution, including crowded clauses and tables. The current 17-page document remains a working recovery, **PARTIAL / NOT VERIFIED**. No claim of complete source-to-Markdown textual equivalence is made.
