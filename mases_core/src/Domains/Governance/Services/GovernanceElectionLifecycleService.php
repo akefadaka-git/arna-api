@@ -93,7 +93,7 @@ final class GovernanceElectionLifecycleService
             $sequence = (int) GovernanceElectionLifecycleTransition::query()
                 ->where('tenant_id', $tenantId)->where('election_id', $electionId)->max('sequence') + 1;
 
-            GovernanceElectionLifecycleTransition::query()->create([
+            $transition = GovernanceElectionLifecycleTransition::query()->create([
                 'tenant_id' => $tenantId,
                 'election_id' => $electionId,
                 'sequence' => $sequence,
@@ -107,7 +107,7 @@ final class GovernanceElectionLifecycleService
                 'occurred_at' => now(),
             ]);
 
-            return $election->refresh();
+            $election->refresh();\n            DB::afterCommit(static fn () => event(new GovernanceElectionLifecycleChanged($election, $transition)));\n\n            return $election;
         }, 3);
     }
 
