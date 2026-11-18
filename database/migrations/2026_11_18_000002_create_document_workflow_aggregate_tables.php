@@ -32,13 +32,13 @@ return new class extends Migration
 
             $table->unique(['tenant_id', 'id'], 'doc_workflow_tenant_id_unique');
             $table->unique(['tenant_id', 'issued_document_id'], 'doc_workflow_issued_document_unique');
-            $table->foreign(['tenant_id', 'legal_entity_id'])
+            $table->foreign(['tenant_id', 'legal_entity_id'], 'doc_wf_entity_fk')
                 ->references(['tenant_id', 'id'])->on('legal_entities')->restrictOnDelete();
-            $table->foreign(['tenant_id', 'legal_entity_id', 'organization_unit_id'])
+            $table->foreign(['tenant_id', 'legal_entity_id', 'organization_unit_id'], 'doc_wf_issuer_unit_fk')
                 ->references(['tenant_id', 'legal_entity_id', 'id'])->on('organization_units')->restrictOnDelete();
-            $table->foreign('document_type_number')
+            $table->foreign('document_type_number', 'doc_wf_type_fk')
                 ->references('numeric_code')->on('document_type_catalogue')->restrictOnDelete();
-            $table->foreign(['tenant_id', 'issued_document_id'])
+            $table->foreign(['tenant_id', 'issued_document_id'], 'doc_wf_issued_fk')
                 ->references(['tenant_id', 'id'])->on('documents')->restrictOnDelete();
             $table->index(['tenant_id', 'status', 'updated_at'], 'doc_workflow_tenant_status_idx');
         });
@@ -56,7 +56,7 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamp('occurred_at');
             $table->unique(['tenant_id', 'workflow_id', 'revision'], 'doc_workflow_event_revision_unique');
-            $table->foreign(['tenant_id', 'workflow_id'])
+            $table->foreign(['tenant_id', 'workflow_id'], 'doc_wf_event_workflow_fk')
                 ->references(['tenant_id', 'id'])->on('document_workflow_aggregates')->restrictOnDelete();
             $table->index(['tenant_id', 'workflow_id', 'occurred_at'], 'doc_workflow_event_timeline_idx');
         });
