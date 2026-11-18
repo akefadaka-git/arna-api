@@ -231,6 +231,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyContr
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeSecurityController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionAuthorityController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeAppointmentController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateIntakeController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
@@ -658,6 +659,38 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('election')->whereNumber('member')
         ->middleware('auth.permission:governance.election.committee.revoke')
         ->name('elections.committee.members.revoke');
+
+    // P2.4 — tenant-scoped candidate intake and eligibility evidence.
+    Route::get('/elections/{election}/candidates', [GovernanceElectionCandidateIntakeController::class, 'index'])
+        ->whereNumber('election')->middleware('auth.permission:governance.election.candidate.view')
+        ->name('elections.candidates.index');
+    Route::get('/elections/{election}/candidates/{candidate}', [GovernanceElectionCandidateIntakeController::class, 'show'])
+        ->whereNumber('election')->whereNumber('candidate')
+        ->middleware('auth.permission:governance.election.candidate.view')
+        ->name('elections.candidates.show');
+    Route::post('/elections/{election}/nominations', [GovernanceElectionCandidateIntakeController::class, 'submitNomination'])
+        ->whereNumber('election')->middleware('auth.permission:governance.election.nomination.submit')
+        ->name('elections.nominations.store');
+    Route::patch('/elections/{election}/nominations/{nomination}/amend', [GovernanceElectionCandidateIntakeController::class, 'amendNomination'])
+        ->whereNumber('election')->whereNumber('nomination')
+        ->middleware('auth.permission:governance.election.nomination.submit')
+        ->name('elections.nominations.amend');
+    Route::patch('/elections/{election}/nominations/{nomination}/withdraw', [GovernanceElectionCandidateIntakeController::class, 'withdrawNomination'])
+        ->whereNumber('election')->whereNumber('nomination')
+        ->middleware('auth.permission:governance.election.nomination.submit')
+        ->name('elections.nominations.withdraw');
+    Route::post('/elections/{election}/candidates/{candidate}/evidence', [GovernanceElectionCandidateIntakeController::class, 'attachEvidence'])
+        ->whereNumber('election')->whereNumber('candidate')
+        ->middleware('auth.permission:governance.election.candidate.evidence.submit')
+        ->name('elections.candidates.evidence.store');
+    Route::patch('/elections/{election}/candidates/{candidate}/evidence/{evidence}/review', [GovernanceElectionCandidateIntakeController::class, 'reviewEvidence'])
+        ->whereNumber('election')->whereNumber('candidate')->whereNumber('evidence')
+        ->middleware('auth.permission:governance.election.candidate.evidence.review')
+        ->name('elections.candidates.evidence.review');
+    Route::post('/elections/{election}/candidates/{candidate}/eligibility/defer', [GovernanceElectionCandidateIntakeController::class, 'deferEligibility'])
+        ->whereNumber('election')->whereNumber('candidate')
+        ->middleware('auth.permission:governance.election.candidate.screen')
+        ->name('elections.candidates.eligibility.defer');
 
     // P2.1 — tenant-scoped election record and evidence-neutral authority register.
     Route::get('/elections', [GovernanceElectionAuthorityController::class, 'index'])
