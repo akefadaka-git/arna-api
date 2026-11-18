@@ -6,6 +6,7 @@ namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 
 use Illuminate\Auth\Access\AuthorizationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
 
@@ -16,7 +17,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantSer
  * requirement for decisions that exercise a governance office; it never
  * replaces tenant membership or the normal permission check.
  */
-final class DocumentWorkflowAuthorizationService
+final class DocumentWorkflowAuthorizationService implements DocumentWorkflowAuthorizer
 {
     /** @var list<string> */
     public const GOVERNED_ACTIONS = [
