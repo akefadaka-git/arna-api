@@ -143,7 +143,7 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
                         (int) $election->id,
                         $actor,
                         (int) $candidate->id,
-                        'parallel-identical-nomination',
+                        'parallel-nomination-worker-' . $workerIndex,
                         'Same nomination payload submitted by independent workers.',
                     );
                     file_put_contents($resultPath, json_encode([
@@ -193,13 +193,15 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
 
         $this->assertTrue($bothReady, 'Both independent workers must be waiting before the race is released.');
         $this->assertSame([['exited' => true, 'exit_code' => 0], ['exited' => true, 'exit_code' => 0]], $workerStatuses);
-        $this->assertTrue($workerResults[0]['ok'], $workerResults[0]['error'] ?? 'First worker failed.');
-        $this->assertTrue($workerResults[1]['ok'], $workerResults[1]['error'] ?? 'Second worker failed.');
-        $this->assertSame($workerResults[0]['receipt_id'], $workerResults[1]['receipt_id']);
+        $outcomes = array_column($workerResults, 'outcome');
+        sort($outcomes);
+        $this->assertSame(['accepted', 'conflict'], $outcomes, 'Distinct idempotency keys must still collide on the shareholder/candidate uniqueness rule.');
         $this->assertSame(1, DB::table('governance_election_nomination_submissions')
             ->where('tenant_id', $tenant->id)
             ->where('election_id', $election->id)
-            ->where('idempotency_key', hash('sha256', 'parallel-identical-nomination'))
+            ->where('nominated_by_shareholder_id', function ($query) use ($tenant, $nominator): void {
+                $query->select('id')->from('shareholders')->where('tenant_id', $tenant->id)->where('user_id', $nominator->id);
+            })
             ->count());
         $this->assertSame(1, DB::table('governance_election_candidates')
             ->where('tenant_id', $tenant->id)
