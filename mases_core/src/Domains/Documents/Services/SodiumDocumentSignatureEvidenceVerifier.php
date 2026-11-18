@@ -52,7 +52,8 @@ final class SodiumDocumentSignatureEvidenceVerifier implements DocumentSignature
         $signatureEncoded = (string) ($evidence['signature'] ?? '');
         $signedAtRaw = (string) ($evidence['signed_at'] ?? '');
 
-        if ($keyId === '' || $signatureEncoded === '' || $signedAtRaw === ''
+        if ($keyId === '' || $signatureEncoded === ''
+            || ! preg_match('/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/', $signedAtRaw)
             || ! preg_match('/^[a-f0-9]{64}$/', $fileSha256)) {
             throw new UnprocessableEntityHttpException('A trusted signing key, detached signature and signed-at instant are required.');
         }
