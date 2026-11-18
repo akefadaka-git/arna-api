@@ -1,16 +1,6 @@
 name: ARNA A3.3.2 exact-SHA document issuance MySQL verification
 
 on:
-  push:
-    branches: [feat/a3-3-formal-document-workflow]
-    paths:
-      - ".github/workflows/arna-a3-3-2-document-issuance-mysql.yml"
-      - "database/migrations/2026_11_18_00000*.php"
-      - "mases_core/src/Domains/Documents/**"
-      - "mases_core/src/Providers/CoreServiceProvider.php"
-      - "tests/Feature/DocumentWorkflowAggregateServiceTest.php"
-      - "tests/Feature/DocumentWorkflowMySqlConcurrencyTest.php"
-      - "docs/documents/**"
   pull_request:
     branches: [main]
     paths:
