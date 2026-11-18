@@ -655,6 +655,10 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('governanceElection')
         ->middleware('auth.permission:governance.election.view')
         ->name('elections.show');
+    Route::get('/elections/{governanceElection}/authority-evidence', [GovernanceElectionAuthorityController::class, 'authorityEvidenceIndex'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.authority-evidence.index');
     Route::post('/elections/{governanceElection}/authority-evidence', [GovernanceElectionAuthorityController::class, 'recordAuthorityEvidence'])
         ->whereNumber('governanceElection')
         ->middleware('auth.permission:governance.election.manage')

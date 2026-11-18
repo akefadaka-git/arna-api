@@ -61,7 +61,17 @@ final class GovernanceElection extends Model
 
     public function isAuthorityVerified(): bool
     {
-        return $this->authority_status === 'verified' && $this->authority_evidence_id !== null && $this->authority_verified_at !== null;
+        return $this->authority_status === 'verified' && $this->authority_evidence_id !== null && $this->authority_verified_by !== null && $this->authority_verified_at !== null;
+    }
+
+    public function authorityVerifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'authority_verified_by');
+    }
+
+    public function verifiedAuthorityEvidence(): BelongsTo
+    {
+        return $this->belongsTo(GovernanceElectionAuthorityEvidence::class, 'authority_evidence_id');
     }
 
     public function authorityEvidence(): HasMany

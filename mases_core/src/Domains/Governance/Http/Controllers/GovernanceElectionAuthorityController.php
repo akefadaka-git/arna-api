@@ -88,6 +88,35 @@ final class GovernanceElectionAuthorityController extends Controller
         return response()->json(['data' => $governanceElection]);
     }
 
+    public function authorityEvidenceIndex(GovernanceElection $governanceElection): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        abort_if($tenantId === null || (int) $governanceElection->tenant_id !== $tenantId, 404);
+        Gate::authorize('view', $governanceElection);
+
+        $evidence = $governanceElection->authorityEvidence()
+            ->where('tenant_id', $tenantId)
+            ->orderByDesc('id')
+            ->get([
+                'id',
+                'tenant_id',
+                'election_id',
+                'instrument_type',
+                'instrument_reference',
+                'instrument_date',
+                'storage_reference',
+                'content_sha256',
+                'status',
+                'recorded_by',
+                'reviewed_by',
+                'reviewed_at',
+                'review_reason',
+                'created_at',
+            ]);
+
+        return response()->json(['data' => $evidence]);
+    }
+
     public function recordAuthorityEvidence(Request $request, GovernanceElection $governanceElection): JsonResponse
     {
         $tenantId = $this->tenantId();

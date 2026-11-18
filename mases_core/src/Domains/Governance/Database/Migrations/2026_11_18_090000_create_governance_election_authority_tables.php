@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('authority_status', 24)->default('unverified')->index();
             $table->string('authority_reference', 180)->nullable();
             $table->unsignedBigInteger('authority_evidence_id')->nullable()->index();
-            $table->foreignId('authority_verified_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('authority_verified_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->dateTime('authority_verified_at')->nullable();
             $table->text('authority_verification_reason')->nullable();
             $table->string('voting_rule_version', 80)->nullable();

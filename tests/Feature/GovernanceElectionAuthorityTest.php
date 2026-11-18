@@ -299,11 +299,25 @@ final class GovernanceElectionAuthorityTest extends TestCase
             $verifier,
         );
 
+        try {
+            $service->openNominations(
+                (int) $tenant->getKey(),
+                (int) $election->getKey(),
+                '',
+                '2026-11-20 09:00:00',
+                '2026-11-25 17:00:00',
+                $verifier,
+            );
+            $this->fail('A blank rule version must be rejected.');
+        } catch (DomainException) {
+            $this->assertSame('verified', $election->fresh()->authority_status);
+        }
+
         $this->expectException(DomainException::class);
         $service->openNominations(
             (int) $tenant->getKey(),
             (int) $election->getKey(),
-            '',
+            'RULE-2026-01',
             '2026-11-25 17:00:00',
             '2026-11-20 09:00:00',
             $verifier,
