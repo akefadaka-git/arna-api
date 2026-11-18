@@ -51,7 +51,7 @@ final class GovernanceElectionController extends Controller
         $data = $request->validate([
             'action' => ['required', 'in:authorize,schedule,suspend,resume,cancel,archive'],
             'expected_version' => ['required', 'integer', 'min:1'],
-            'reason' => ['nullable', 'string', 'min:5', 'max:2000'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
             'evidence_references' => ['sometimes', 'array', 'max:20'],
             'evidence_references.*' => ['string', 'max:200'],
             'authority' => ['sometimes', 'array'],
