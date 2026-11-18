@@ -184,8 +184,13 @@ final class DocumentWorkflowAggregateService
                 $documentId = (int) ($evidence['issued_document_id'] ?? 0);
                 $document = Document::query()->where('tenant_id', $tenantId)->whereKey($documentId)
                     ->where('status', 'issued')->first();
-                if ($document === null || $documentId < 1) {
-                    throw new UnprocessableEntityHttpException('Issuance must reference an already issued formal document record in the same tenant.');
+                if ($document === null || $documentId < 1
+                    || (int) $document->file_id !== (int) $workflow->submitted_file_id
+                    || (int) $document->file_version !== (int) $workflow->submitted_file_version
+                    || (int) $document->legal_entity_id !== (int) $workflow->legal_entity_id
+                    || (int) $document->organization_unit_id !== (int) $workflow->organization_unit_id
+                    || (string) $document->document_type_number !== (string) $workflow->document_type_number) {
+                    throw new UnprocessableEntityHttpException('Issuance must reference an issued record in the same tenant and bind the exact submitted file version, issuer and document type.');
                 }
                 $workflow->issued_document_id = $documentId;
                 $metadata = ['issued_document_id' => $documentId];
