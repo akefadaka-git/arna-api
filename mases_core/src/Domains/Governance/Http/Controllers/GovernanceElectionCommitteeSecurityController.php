@@ -54,6 +54,41 @@ final class GovernanceElectionCommitteeSecurityController extends Controller
         return response()->json(['data' => ['revoked' => true]]);
     }
 
+    public function appointMember(
+        Request $request,
+        int $election,
+        GovernanceElectionCommitteeSecurityService $security,
+    ): JsonResponse {
+        $tenantId = $this->tenantId();
+        $this->assertElection($tenantId, $election);
+        $data = $request->validate([
+            'person_id' => ['required', 'integer', 'min:1'],
+            'user_id' => ['required', 'integer', 'min:1'],
+            'member_role' => ['required', 'in:committee_member,legal_advisor,observer'],
+            'ex_officio' => ['sometimes', 'boolean'],
+            'appointment_reference' => ['required', 'string', 'min:3', 'max:160'],
+        ]);
+        $member = $security->appointMember(
+            $tenantId, $election, (int) $data['person_id'], (int) $data['user_id'],
+            $data['member_role'], (bool) ($data['ex_officio'] ?? false),
+            $data['appointment_reference'], $this->actor($request),
+        );
+        return response()->json(['data' => $member], 201);
+    }
+
+    public function revokeMember(
+        Request $request,
+        int $election,
+        int $userId,
+        GovernanceElectionCommitteeSecurityService $security,
+    ): JsonResponse {
+        $tenantId = $this->tenantId();
+        $this->assertElection($tenantId, $election);
+        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
+        $security->revokeMember($tenantId, $election, $userId, $this->actor($request), $data['reason']);
+        return response()->json(['data' => ['revoked' => true]]);
+    }
+
     public function declareConflict(
         Request $request,
         int $election,
