@@ -66,7 +66,15 @@ final class GovernanceElectionLifecycleService
         array $authority = [],
         array $schedule = [],
     ): GovernanceElection {
-        $this->authorize($actor, $tenantId, 'governance.election.manage');
+        $permission = match ($action) {
+            'authorize' => 'governance.election.authorize',
+            'schedule' => 'governance.election.schedule',
+            'suspend', 'resume' => 'governance.election.suspend',
+            'cancel' => 'governance.election.cancel',
+            'archive' => 'governance.election.archive',
+            default => throw ValidationException::withMessages(['action' => 'Unsupported lifecycle action.']),
+        };
+        $this->authorize($actor, $tenantId, $permission);
 
         return DB::transaction(function () use ($tenantId, $electionId, $actor, $action, $expectedVersion, $reason, $evidenceReferences, $authority, $schedule): GovernanceElection {
             $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->lockForUpdate()->first();
