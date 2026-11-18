@@ -220,6 +220,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $fileId = $this->file($tenantId, (int) $actor->getKey());
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->twice();
+        $authorization->shouldReceive('requireGovernedAction')->once();
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
@@ -229,22 +230,29 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'submitted_file_version' => 1,
         ]);
 
-        if (DB::getDriverName() === 'mysql') {
-            DB::unprepared("CREATE TRIGGER test_fail_workflow_event BEFORE INSERT ON document_workflow_events FOR EACH ROW BEGIN IF NEW.action = 'start_review' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'forced event append failure'; END IF; END");
-        } else {
-            DB::unprepared("CREATE TRIGGER test_fail_workflow_event BEFORE INSERT ON document_workflow_events WHEN NEW.action = 'start_review' BEGIN SELECT RAISE(ABORT, 'forced event append failure'); END");
-        }
+        // Occupy the next revision with a valid event so the attempted
+        // transition's append fails on the database unique constraint.
+        DB::table('document_workflow_events')->insert([
+            'workflow_id' => $workflow->id,
+            'tenant_id' => $tenantId,
+            'revision' => 2,
+            'action' => 'reserved_revision',
+            'from_status' => 'submitted',
+            'to_status' => 'in_review',
+            'actor_user_id' => $actor->getKey(),
+            'reason' => 'Test-only conflicting revision',
+            'metadata' => null,
+            'occurred_at' => now(),
+        ]);
 
         try {
             $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
-            self::fail('The event insert trigger should abort the transition.');
+            self::fail('The duplicate event revision must abort the transition.');
         } catch (QueryException) {
             $fresh = $workflow->fresh();
             self::assertSame('submitted', $fresh->status);
             self::assertSame(1, (int) $fresh->revision);
-            self::assertSame(2, $fresh->events()->count());
-        } finally {
-            DB::unprepared('DROP TRIGGER IF EXISTS test_fail_workflow_event');
+            self::assertSame(3, $fresh->events()->count());
         }
     }
 
