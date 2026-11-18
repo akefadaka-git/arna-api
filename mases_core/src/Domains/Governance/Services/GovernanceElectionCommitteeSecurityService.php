@@ -179,6 +179,128 @@ final class GovernanceElectionCommitteeSecurityService
      * legal consequence of the conflict beyond preventing participation in
      * the declared scope.
      */
+    public function appointMember(
+        int $tenantId,
+        int $electionId,
+        int $personId,
+        int $userId,
+        string $memberRole,
+        bool $exOfficio,
+        string $appointmentReference,
+        User $actor,
+    ): object {
+        $this->assertAdministrator($actor, $tenantId);
+        $this->assertElectionTenant($tenantId, $electionId);
+        if (!in_array($memberRole, ['committee_member', 'legal_advisor', 'observer'], true)) {
+            throw ValidationException::withMessages(['member_role' => 'Unsupported committee appointment role.']);
+        }
+        if (trim($appointmentReference) === '' || mb_strlen($appointmentReference) < 3 || mb_strlen($appointmentReference) > 160) {
+            throw ValidationException::withMessages(['appointment_reference' => 'A valid authoritative committee appointment reference is required.']);
+        }
+
+        $person = DB::table('people')->where('id', $personId)->where('user_id', $userId)
+            ->where('status', 'active')->whereNull('deleted_at')->first(['id', 'user_id']);
+        $activeUser = DB::table('users')->where('id', $userId)->where('is_active', true)
+            ->whereNull('deleted_at')->exists();
+        $tenantAccess = DB::table('person_tenant_accesses')->where('person_id', $personId)
+            ->where('tenant_id', $tenantId)->where('status', 'active')->exists();
+        if ($person === null || !$activeUser || !$tenantAccess) {
+            throw ValidationException::withMessages(['person_id' => 'Committee member must resolve to an active canonical Person, linked active account and active tenant access.']);
+        }
+
+        $actorId = (int) $actor->getAuthIdentifier();
+        return DB::transaction(function () use (
+            $tenantId, $electionId, $personId, $userId, $memberRole,
+            $exOfficio, $appointmentReference, $actorId
+        ): object {
+            $this->lockTenant($tenantId);
+            $existing = DB::table('governance_election_committee_members')
+                ->where('tenant_id', $tenantId)->where('election_id', $electionId)
+                ->where('user_id', $userId)->lockForUpdate()->first();
+            if ($existing !== null && $existing->status === 'active') {
+                throw ValidationException::withMessages(['user_id' => 'This account already has an active committee appointment for the election.']);
+            }
+
+            if ($existing === null) {
+                $id = DB::table('governance_election_committee_members')->insertGetId([
+                    'tenant_id' => $tenantId,
+                    'election_id' => $electionId,
+                    'person_id' => $personId,
+                    'user_id' => $userId,
+                    'member_role' => $memberRole,
+                    'ex_officio' => $exOfficio,
+                    'status' => 'active',
+                    'appointed_at' => now(),
+                    'appointed_by' => $actorId,
+                    'appointment_reference' => trim($appointmentReference),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $id = (int) $existing->id;
+                DB::table('governance_election_committee_members')->where('id', $id)->update([
+                    'person_id' => $personId,
+                    'member_role' => $memberRole,
+                    'ex_officio' => $exOfficio,
+                    'status' => 'active',
+                    'appointed_at' => now(),
+                    'appointed_by' => $actorId,
+                    'revoked_at' => null,
+                    'revoked_by' => null,
+                    'recused_at' => null,
+                    'recusal_scope' => null,
+                    'appointment_reference' => trim($appointmentReference),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $this->appendEvent($tenantId, $electionId, $actorId, 'committee_member.appointed', [
+                'subject_user_id' => $userId,
+                'subject_person_id' => $personId,
+                'member_role' => $memberRole,
+                'ex_officio' => $exOfficio,
+                'appointment_reference' => trim($appointmentReference),
+            ], $userId, $personId, trim($appointmentReference));
+
+            return DB::table('governance_election_committee_members')->where('id', $id)->first();
+        }, 3);
+    }
+
+    public function revokeMember(
+        int $tenantId,
+        int $electionId,
+        int $userId,
+        User $actor,
+        string $reason,
+    ): void {
+        $this->assertAdministrator($actor, $tenantId);
+        $this->assertElectionTenant($tenantId, $electionId);
+        if (trim($reason) === '' || mb_strlen($reason) < 5 || mb_strlen($reason) > 2000) {
+            throw ValidationException::withMessages(['reason' => 'A reason between 5 and 2000 characters is required.']);
+        }
+        $actorId = (int) $actor->getAuthIdentifier();
+        DB::transaction(function () use ($tenantId, $electionId, $userId, $reason, $actorId): void {
+            $this->lockTenant($tenantId);
+            $member = DB::table('governance_election_committee_members')
+                ->where('tenant_id', $tenantId)->where('election_id', $electionId)
+                ->where('user_id', $userId)->lockForUpdate()->first();
+            if ($member === null || $member->status !== 'active') {
+                throw ValidationException::withMessages(['user_id' => 'No active committee appointment exists for this account.']);
+            }
+            DB::table('governance_election_committee_members')->where('id', $member->id)->update([
+                'status' => 'revoked',
+                'revoked_by' => $actorId,
+                'revoked_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->appendEvent($tenantId, $electionId, $actorId, 'committee_member.revoked', [
+                'subject_user_id' => $userId,
+                'subject_person_id' => (int) $member->person_id,
+                'reason' => trim($reason),
+            ], $userId, (int) $member->person_id, null);
+        }, 3);
+    }
+
     public function declareConflict(
         int $tenantId,
         int $electionId,
