@@ -27,6 +27,11 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
             $this->markTestSkipped('This regression requires MySQL and the pcntl extension.');
         }
 
+        // This test runs in its own CI step and needs committed setup rows visible
+        // to child processes. Avoid transactional test traits and avoid rollback:
+        // the repository has unrelated MySQL migration rollback constraints.
+        $this->artisan('migrate:fresh', ['--force' => true]);
+
         $tenant = Tenant::query()->create([
             'name_am' => 'የተመሳሳይ ጊዜ ምርጫ ሙከራ',
             'name_en' => 'Concurrent Election Test',
