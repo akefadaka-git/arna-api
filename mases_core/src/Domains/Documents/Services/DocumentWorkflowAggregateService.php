@@ -45,6 +45,10 @@ final class DocumentWorkflowAggregateService
 
     public function __construct(
         private readonly DocumentWorkflowAuthorizer $authorization,
+        private readonly DocumentNumberAllocator $numberAllocator,
+        private readonly EthiopianDocumentYearResolver $yearResolver,
+        private readonly ImmutableDocumentBinaryStore $immutableFiles,
+        private readonly DocumentSignatureEvidenceVerifier $signatureVerifier,
     ) {}
 
     public function createDraft(
@@ -108,7 +112,7 @@ final class DocumentWorkflowAggregateService
     }
 
     /**
-     * @param array{submitted_file_id?:int,submitted_file_version?:int,issued_document_id?:int,replacement_document_id?:int} $evidence
+     * @param array{submitted_file_id?:int,submitted_file_version?:int,signature_evidence?:array{key_id:string,signature:string,signed_at:string},replacement_document_id?:int} $evidence
      */
     public function transition(
         User $actor,
@@ -183,79 +187,137 @@ final class DocumentWorkflowAggregateService
                     throw new UnprocessableEntityHttpException('Submission must bind an existing, non-deleted file version owned by the same tenant.');
                 }
 
-                // Capture the bytes while the metadata row is locked. The hash is
-                // server-computed and becomes part of the submitted evidence.
-                $stream = Storage::disk((string) $file->disk)->readStream((string) $file->path);
-                if (! is_resource($stream)) {
-                    throw new UnprocessableEntityHttpException('The submitted file binary is unavailable; immutable evidence cannot be established.');
-                }
-                $hashContext = hash_init('sha256');
-                try {
-                    if (hash_update_stream($hashContext, $stream) === false) {
-                        throw new UnprocessableEntityHttpException('The submitted file binary could not be hashed.');
-                    }
-                } finally {
-                    fclose($stream);
-                }
-                $fileSha256 = hash_final($hashContext);
+                // Snapshot the selected File Management version into a
+                // content-addressed, write-once evidence object. The database
+                // record is append-only and tied to tenant/file/version.
+                $snapshot = $this->immutableFiles->capture(
+                    $tenantId,
+                    $fileId,
+                    $fileVersion,
+                    (string) $file->disk,
+                    (string) $file->path,
+                );
+                $fileSha256 = $snapshot['sha256'];
+                $evidenceVersionId = (int) DB::table('document_file_versions')->insertGetId([
+                    'tenant_id' => $tenantId,
+                    'file_id' => $fileId,
+                    'file_version' => $fileVersion,
+                    'storage_disk' => $snapshot['disk'],
+                    'storage_path' => $snapshot['path'],
+                    'sha256' => $fileSha256,
+                    'size' => $snapshot['size'],
+                    'captured_by_user_id' => $actor->getKey(),
+                    'captured_at' => $now,
+                ]);
 
                 $workflow->submitted_file_id = $fileId;
                 $workflow->submitted_file_version = $fileVersion;
                 $workflow->submitted_file_sha256 = $fileSha256;
+                $workflow->submitted_file_evidence_id = $evidenceVersionId;
                 $metadata = [
                     'submitted_file_id' => $fileId,
                     'submitted_file_version' => $fileVersion,
                     'submitted_file_sha256' => $fileSha256,
+                    'submitted_file_evidence_id' => $evidenceVersionId,
                 ];
             }
 
             if ($action === 'issue') {
-                // Re-read and hash the submitted bytes at issuance time. A
-                // changed path, version, or binary must fail closed rather
-                // than allowing the original submission hash to mask drift.
-                $submittedFile = DB::table('files')
-                    ->where('id', (int) $workflow->submitted_file_id)
+                $immutableVersion = DB::table('document_file_versions')
                     ->where('tenant_id', $tenantId)
-                    ->where('version', (int) $workflow->submitted_file_version)
-                    ->whereNull('deleted_at')
+                    ->where('id', (int) $workflow->submitted_file_evidence_id)
+                    ->where('file_id', (int) $workflow->submitted_file_id)
+                    ->where('file_version', (int) $workflow->submitted_file_version)
                     ->lockForUpdate()
-                    ->first(['disk', 'path']);
-                if ($submittedFile === null) {
-                    throw new UnprocessableEntityHttpException('The submitted immutable file version is no longer available.');
-                }
-                $submittedStream = Storage::disk((string) $submittedFile->disk)->readStream((string) $submittedFile->path);
-                if (! is_resource($submittedStream)) {
-                    throw new UnprocessableEntityHttpException('The submitted file binary is unavailable at issuance.');
-                }
-                $submittedHashContext = hash_init('sha256');
-                try {
-                    if (hash_update_stream($submittedHashContext, $submittedStream) === false) {
-                        throw new UnprocessableEntityHttpException('The submitted file binary could not be revalidated at issuance.');
-                    }
-                } finally {
-                    fclose($submittedStream);
-                }
-                $currentSubmittedSha256 = hash_final($submittedHashContext);
-                if (! is_string($workflow->submitted_file_sha256)
-                    || ! hash_equals((string) $workflow->submitted_file_sha256, $currentSubmittedSha256)) {
-                    throw new UnprocessableEntityHttpException('The submitted file binary changed after submission; issuance is blocked.');
+                    ->first();
+                if ($immutableVersion === null
+                    || ! is_string($workflow->submitted_file_sha256)
+                    || ! hash_equals((string) $workflow->submitted_file_sha256, (string) $immutableVersion->sha256)
+                    || ! $this->immutableFiles->verify(
+                        (string) $immutableVersion->storage_disk,
+                        (string) $immutableVersion->storage_path,
+                        (string) $immutableVersion->sha256,
+                        (int) $immutableVersion->size,
+                    )) {
+                    throw new UnprocessableEntityHttpException('The immutable submitted binary is missing or has changed; issuance is blocked.');
                 }
 
-                $documentId = (int) ($evidence['issued_document_id'] ?? 0);
-                $document = Document::query()->where('tenant_id', $tenantId)->whereKey($documentId)
-                    ->where('status', 'issued')->lockForUpdate()->first();
-                if ($document === null || $documentId < 1
-                    || (int) $document->file_id !== (int) $workflow->submitted_file_id
-                    || (int) $document->file_version !== (int) $workflow->submitted_file_version
-                    || ! is_string($workflow->submitted_file_sha256)
-                    || ! hash_equals((string) $workflow->submitted_file_sha256, (string) $document->file_sha256)
-                    || (int) $document->legal_entity_id !== (int) $workflow->legal_entity_id
-                    || (int) $document->organization_unit_id !== (int) $workflow->organization_unit_id
-                    || (string) $document->document_type_number !== (string) $workflow->document_type_number) {
-                    throw new UnprocessableEntityHttpException('Issuance must reference an issued record with matching immutable file version and SHA-256, tenant, issuer and document type.');
-                }
-                $workflow->issued_document_id = $documentId;
-                $metadata = ['issued_document_id' => $documentId];
+                // The signature binds the exact immutable binary, tenant,
+                // workflow and signing identity. A caller cannot supply a
+                // pre-created Document row or claim a signature is valid.
+                $verifiedSignature = $this->signatureVerifier->verify(
+                    $actor,
+                    $tenantId,
+                    (string) $workflow->uuid,
+                    (string) $immutableVersion->sha256,
+                    (array) ($evidence['signature_evidence'] ?? []),
+                );
+
+                // Allocation, issued-row creation, signature evidence, workflow
+                // transition and both event records share this DB transaction.
+                $issuedAt = $now;
+                $ethiopianYear = $this->yearResolver->forInstant($issuedAt);
+                $number = $this->numberAllocator->allocate(
+                    $tenantId,
+                    (int) $workflow->legal_entity_id,
+                    (int) $workflow->organization_unit_id,
+                    (string) $workflow->document_type_number,
+                    $ethiopianYear,
+                );
+
+                $signatureEvidenceId = (int) DB::table('document_signature_evidence')->insertGetId([
+                    'tenant_id' => $tenantId,
+                    'workflow_id' => $workflow->getKey(),
+                    'signing_key_id' => $verifiedSignature['key_id'],
+                    'signer_user_id' => $actor->getKey(),
+                    'algorithm' => 'Ed25519',
+                    'signature_base64' => $verifiedSignature['signature'],
+                    'payload_sha256' => $verifiedSignature['payload_sha256'],
+                    'signed_at' => $verifiedSignature['signed_at'],
+                    'verified_at' => $issuedAt,
+                ]);
+
+                $document = Document::query()->create([
+                    'uuid' => (string) Str::uuid(),
+                    'tenant_id' => $tenantId,
+                    'legal_entity_id' => $workflow->legal_entity_id,
+                    'organization_unit_id' => $workflow->organization_unit_id,
+                    'governance_body_id' => $workflow->governance_body_id,
+                    'governance_position_id' => $workflow->governance_position_id,
+                    'entity_code' => $number['entity_code'],
+                    'department_code' => $number['department_code'],
+                    'document_type_code' => $number['document_type_code'],
+                    'document_type_number' => $number['document_type_number'],
+                    'ec_year' => $number['ec_year'],
+                    'sequence_number' => $number['sequence_number'],
+                    'canonical_number' => $number['canonical_number'],
+                    'title' => $workflow->title,
+                    'file_id' => $workflow->submitted_file_id,
+                    'file_version' => $workflow->submitted_file_version,
+                    'file_sha256' => $immutableVersion->sha256,
+                    'immutable_file_version_id' => $immutableVersion->id,
+                    'signature_evidence_id' => $signatureEvidenceId,
+                    'status' => 'issued',
+                    'request_hash' => hash('sha256', $verifiedSignature['payload_sha256'] . '|' . $number['canonical_number']),
+                    'idempotency_key' => 'document-workflow:' . $workflow->uuid,
+                    'metadata' => [
+                        'workflow_uuid' => $workflow->uuid,
+                        'immutable_file_version_id' => (int) $immutableVersion->id,
+                        'signature_evidence_id' => $signatureEvidenceId,
+                        'signature_key_id' => $verifiedSignature['key_id'],
+                        'signature_payload_sha256' => $verifiedSignature['payload_sha256'],
+                    ],
+                    'issued_by' => $actor->getKey(),
+                    'issued_at' => $issuedAt,
+                ]);
+
+                $workflow->issued_document_id = $document->getKey();
+                $metadata = [
+                    'issued_document_id' => (int) $document->getKey(),
+                    'canonical_number' => $number['canonical_number'],
+                    'signature_evidence_id' => $signatureEvidenceId,
+                    'file_sha256' => $immutableVersion->sha256,
+                ];
             }
 
             if ($action === 'revoke') {
