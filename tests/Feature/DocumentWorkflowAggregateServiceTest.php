@@ -233,6 +233,49 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         }
     }
 
+    public function test_issue_failure_rolls_back_document_signature_counter_lifecycle_and_workflow_event_together(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->twice();
+        $authorization->shouldReceive('requireGovernedAction')->times(4);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $this->workflowReadyToIssue($service, $actor, $tenantId, $entityId, $unitId, $fileId, 'Atomic rollback issue');
+        $signature = $this->signatureEvidence($actor, $tenantId, $workflow);
+
+        // Force the final workflow-event append to violate the unique revision
+        // constraint after issuance has created its number, signature and row.
+        DB::table('document_workflow_events')->insert([
+            'workflow_id' => $workflow->id,
+            'tenant_id' => $tenantId,
+            'revision' => 5,
+            'action' => 'reserved_issue_revision',
+            'from_status' => 'signing',
+            'to_status' => 'issued',
+            'actor_user_id' => $actor->getKey(),
+            'reason' => 'Test-only reserved revision',
+            'metadata' => null,
+            'occurred_at' => now(),
+        ]);
+
+        try {
+            $service->transition($actor, $tenantId, (int) $workflow->id, 'issue', 4, null, [
+                'signature_evidence' => $signature,
+            ]);
+            self::fail('The duplicate workflow revision must abort the entire issuance transaction.');
+        } catch (QueryException) {
+            self::assertSame('signing', $workflow->fresh()->status);
+            self::assertSame(4, (int) $workflow->fresh()->revision);
+            self::assertSame(0, DB::table('documents')->where('tenant_id', $tenantId)->count());
+            self::assertSame(0, DB::table('document_signature_evidence')->where('tenant_id', $tenantId)->count());
+            self::assertSame(0, DB::table('document_lifecycle_events')->where('tenant_id', $tenantId)->count());
+            self::assertSame(0, DB::table('document_number_counters')->where('tenant_id', $tenantId)->count());
+        }
+    }
+
     public function test_document_binary_version_and_signing_key_records_are_append_only_in_mysql_and_sqlite(): void
     {
         [$tenantId, $entityId, $unitId] = $this->issuer();
