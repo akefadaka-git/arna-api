@@ -30,7 +30,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: age-module2-candidate-\${{ github.event.pull_request.number || github.sha }}
+  group: age-module2-candidate-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -70,23 +70,23 @@ jobs:
         id: target
         shell: bash
         env:
-          PR_HEAD_SHA: \${{ github.event.pull_request.head.sha }}
-          EVENT_NAME: \${{ github.event_name }}
-          TRIGGER_SHA: \${{ github.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [[ "\${EVENT_NAME}" == "pull_request" ]]; then
-            expected="\${PR_HEAD_SHA}"
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            expected="${PR_HEAD_SHA}"
           else
-            expected="\${TRIGGER_SHA}"
+            expected="${TRIGGER_SHA}"
           fi
-          [[ "\${expected}" =~ ^[0-9a-fA-F]{40}$ ]]
-          echo "expected_sha=\${expected,,}" >> "$GITHUB_OUTPUT"
+          [[ "${expected}" =~ ^[0-9a-fA-F]{40}$ ]]
+          echo "expected_sha=${expected,,}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout exact target SHA
         uses: actions/checkout@v4
         with:
-          ref: \${{ steps.target.outputs.expected_sha }}
+          ref: ${{ steps.target.outputs.expected_sha }}
           persist-credentials: false
 
       - name: Verify checked-out SHA and create local environment file
@@ -94,9 +94,9 @@ jobs:
         run: |
           set -euo pipefail
           actual="$(git rev-parse HEAD)"
-          echo "Expected: \${{ steps.target.outputs.expected_sha }}"
-          echo "Actual:   \${actual}"
-          test "\${actual}" = "\${{ steps.target.outputs.expected_sha }}"
+          echo "Expected: ${{ steps.target.outputs.expected_sha }}"
+          echo "Actual:   ${actual}"
+          test "${actual}" = "${{ steps.target.outputs.expected_sha }}"
           : > .env
 
       - name: Set up PHP 8.3
@@ -119,7 +119,7 @@ jobs:
       - name: Confirm MySQL is empty before migration
         run: |
           tables="$(mysql -h 127.0.0.1 -uroot -proot arna_module2_test -Nse "SHOW TABLES" | wc -l)"
-          test "\${tables}" -eq 0
+          test "${tables}" -eq 0
 
       - name: Run every registered migration on empty MySQL
         run: php artisan migrate --force -vvv
@@ -138,7 +138,7 @@ jobs:
           php artisan migrate --force -vvv
           php artisan migrate:status
           pending="$(php artisan migrate:status --pending --no-ansi | grep -c 'Pending' || true)"
-          test "\${pending}" -eq 0
+          test "${pending}" -eq 0
 
       - name: Enforce Composer security advisory gate
         run: composer audit --format=plain
@@ -147,7 +147,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: age-module2-candidate-evidence-\${{ github.run_id }}
+          name: age-module2-candidate-evidence-${{ github.run_id }}
           path: |
             storage/logs/laravel.log
           if-no-files-found: warn
