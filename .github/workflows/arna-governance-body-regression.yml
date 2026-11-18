@@ -146,6 +146,7 @@ jobs:
           php -l mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php
           php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionController.php
           php -l mases_core/src/Domains/Governance/Events/GovernanceElectionLifecycleChanged.php
+          php -l mases_core/src/Domains/Governance/Listeners/AuditGovernanceElectionLifecycleEvent.php
           php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_18_100000_create_governance_elections_foundation.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
           php -l database/seeders/MasesCoreSeeder.php
