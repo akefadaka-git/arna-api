@@ -18,6 +18,7 @@ final class GovernanceElectionCandidateIntakeController extends Controller
     public function index(Request $request, int $election): JsonResponse
     {
         $tenantId = $this->tenantId();
+        $this->assertActiveTenantMember($request, $tenantId);
         $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
         $page = GovernanceElectionCandidate::query()->where('tenant_id', $tenantId)
             ->where('election_id', $election)->withCount(['nominations', 'evidence'])
@@ -29,9 +30,11 @@ final class GovernanceElectionCandidateIntakeController extends Controller
         ]);
     }
 
-    public function show(int $election, int $candidate): JsonResponse
+    public function show(Request $request, int $election, int $candidate): JsonResponse
     {
-        $record = GovernanceElectionCandidate::query()->where('tenant_id', $this->tenantId())
+        $tenantId = $this->tenantId();
+        $this->assertActiveTenantMember($request, $tenantId);
+        $record = GovernanceElectionCandidate::query()->where('tenant_id', $tenantId)
             ->where('election_id', $election)->with(['nominations', 'evidence', 'eligibilityDecisions'])
             ->findOrFail($candidate);
 
@@ -98,6 +101,13 @@ final class GovernanceElectionCandidateIntakeController extends Controller
             $data['reason'], $this->actor($request));
 
         return response()->json(['data' => $record], 201);
+    }
+
+    private function assertActiveTenantMember(Request $request, int $tenantId): void
+    {
+        $actor = $request->user();
+        abort_unless($actor instanceof User && $actor->isActive()
+            && $actor->activeTenants()->where('tenant_id', $tenantId)->exists(), 404);
     }
 
     private function actor(Request $request): User
