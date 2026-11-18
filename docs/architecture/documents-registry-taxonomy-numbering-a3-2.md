@@ -3,7 +3,7 @@
 **Implementation baseline:** A3.1 branch head `8083050f1362e7cf90b3ea67610397f6ad294f25`  
 **Current numbering standard:** ARNA-DOC-STD-001, `ማዓ/EE/DD/TT/YYYY/NNNN`  
 **A2 source finding preserved:** PR #53 introduced both `document_number_counters` and `document_number_counters_v2`; its conflicting migration pair and residual old document uniqueness constraints are not imported.  
-**Status:** documentation and registry policy updated; implementation code still requires migration/allocator/formatter reconciliation before A3.2 is implementation-complete.
+**Status:** EE/DD/TT/full-EC-year schema, allocator and formatter implementation committed; independent exact-SHA verification pending.
 
 ## 1. Canonical number
 
@@ -75,17 +75,20 @@ Do not merge the PR #53 migration pair:
 
 The A3.2 clean-install schema must define one authoritative counter model and must not import both conflicting counter implementations. If either old migration has been applied to a real database, a separately reviewed forward-only data-preserving reconciliation migration is required before deployment. No destructive drop/rename is authorized.
 
-## 6. Required implementation reconciliation
+## 6. Implemented schema and allocation contract
 
-The current A3.2 source draft still contains the earlier `BB/TT/SSSS/YY` formatter and `BB`-based allocator/migration. It does not yet implement this new EE/DD/TT/YYYY/NNNN contract. Before A3.2 is complete, update:
-1. entity and department registry schema/seed policy and models;
-2. numbering assignment and counter schema with EE and DD scope;
-3. allocator validation and locking for tenant/entity/department/type/full EC year;
-4. formatter to print `ማዓ/EE/DD/TT/YYYY/NNNN`;
-5. document columns, immutable snapshots and all matching unique constraints;
-6. unit, integration, MySQL concurrency, tenant-isolation and year-boundary tests;
-7. Documents and File Management manuals and any API/app contracts consuming the number.
+The A3.2 migration now creates:
+- `document_entity_code_assignments`: one stable EE code per legal entity and one EE code per tenant;
+- `document_department_code_assignments`: one stable DD code per issuing Organization unit within its legal entity;
+- one `document_number_counters` table with tenant, legal entity, Organization unit, EE, DD, TT and full EC year;
+- document snapshots containing EE, DD, TT, full EC year, sequence and canonical printed number.
+
+Composite foreign keys bind code assignments to the same tenant, legal entity and Organization unit. The migration adds the required parent key for the legal-entity/Organization-unit pair and preserves the same-tenant File Management reference. The A2 PR #53 old/v2 counter migration pair remains excluded.
+
+The allocator resolves EE and DD from active code-assignment records; callers cannot supply or override issuer codes. It validates active tenant/entity/unit/type, requires the issuance transaction, locks issuer and counter records, and fails closed on missing assignments or sequence exhaustion. The formatter emits exactly `ማዓ/EE/DD/TT/YYYY/NNNN`, with 01–99 issuer codes, a four-digit full EC year and a four-digit sequence.
+
+No legal entity or department code is preassigned by this migration. Code assignments must be created only after the Organization registry and supporting legal evidence are approved.
 
 ## 7. Verification gate
 
-A4 must test clean-install MySQL, schema order, entity and department code uniqueness, cross-tenant isolation, canonical number uniqueness, Ethiopian year rollover and Pagume boundary, 9999 exhaustion, concurrent allocation, idempotent retries, transaction rollback and historical numbering immutability. No such runtime result is claimed by this documentation update.
+A4 must verify clean-install MySQL migration order, composite foreign keys, entity and department code uniqueness, cross-tenant isolation, duplicate-number prevention, Ethiopian year rollover and Pagume boundary, 9999 exhaustion, concurrent allocation, transaction rollback, and immutable historical numbering. Unit and MySQL execution results must be tied to the exact commit SHA.
