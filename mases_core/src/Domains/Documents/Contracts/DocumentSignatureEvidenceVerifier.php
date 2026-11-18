@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Documents\\Contracts;
+namespace MaaleArna\MASES\Core\Domains\Documents\Contracts;
 
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
+use MaaleArna\MASES\Core\Auth\Models\User;
 
 interface DocumentSignatureEvidenceVerifier
 {
