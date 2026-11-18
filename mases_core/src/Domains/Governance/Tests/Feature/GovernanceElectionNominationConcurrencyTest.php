@@ -99,15 +99,23 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
             tempnam(sys_get_temp_dir(), 'arna-nom-result-'),
             tempnam(sys_get_temp_dir(), 'arna-nom-result-'),
         ];
-        if ($gate === false || in_array(false, $results, true)) {
+        $readyPaths = [
+            tempnam(sys_get_temp_dir(), 'arna-nom-ready-'),
+            tempnam(sys_get_temp_dir(), 'arna-nom-ready-'),
+        ];
+        if ($gate === false || in_array(false, $results, true) || in_array(false, $readyPaths, true)) {
             $this->fail('Unable to allocate IPC files for the concurrent nomination regression.');
         }
         unlink($gate);
+        foreach ($readyPaths as $readyPath) {
+            unlink($readyPath);
+        }
 
         // Commit fixture setup and discard the inherited PDO handle before forking.
         DB::disconnect();
         $children = [];
-        foreach ($results as $resultPath) {
+        foreach ($results as $workerIndex => $resultPath) {
+            $readyPath = $readyPaths[$workerIndex];
             $pid = pcntl_fork();
             if ($pid === -1) {
                 file_put_contents($gate, 'abort');
@@ -120,6 +128,7 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
                     app(TenantContextService::class)->setTenantById((int) $tenant->id);
                     $actor = User::query()->findOrFail((int) $nominator->id);
                     Auth::login($actor);
+                    file_put_contents($readyPath, 'ready');
 
                     $deadline = microtime(true) + 15;
                     while (!file_exists($gate) && microtime(true) < $deadline) {
@@ -153,8 +162,15 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
             $children[] = $pid;
         }
 
-        // Both workers are now forked and waiting; release them at the same instant.
-        file_put_contents($gate, 'go');
+        // Do not release the race until both independent workers have connected,
+        // authenticated, and confirmed they are waiting at the barrier.
+        $readyDeadline = microtime(true) + 15;
+        $bothReady = file_exists($readyPaths[0]) && file_exists($readyPaths[1]);
+        while (!$bothReady && microtime(true) < $readyDeadline) {
+            usleep(1000);
+            $bothReady = file_exists($readyPaths[0]) && file_exists($readyPaths[1]);
+        }
+        file_put_contents($gate, $bothReady ? 'go' : 'abort');
         $workerStatuses = [];
         foreach ($children as $pid) {
             pcntl_waitpid($pid, $status);
@@ -169,12 +185,13 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
             static fn (string $path): array => json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR),
             $results,
         );
-        foreach ([$gate, ...$results] as $path) {
+        foreach ([$gate, ...$results, ...$readyPaths] as $path) {
             if (file_exists($path)) {
                 unlink($path);
             }
         }
 
+        $this->assertTrue($bothReady, 'Both independent workers must be waiting before the race is released.');
         $this->assertSame([['exited' => true, 'exit_code' => 0], ['exited' => true, 'exit_code' => 0]], $workerStatuses);
         $this->assertTrue($workerResults[0]['ok'], $workerResults[0]['error'] ?? 'First worker failed.');
         $this->assertTrue($workerResults[1]['ok'], $workerResults[1]['error'] ?? 'Second worker failed.');
