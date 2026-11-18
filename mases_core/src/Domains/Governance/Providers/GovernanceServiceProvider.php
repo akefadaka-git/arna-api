@@ -195,11 +195,13 @@ use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceBodyRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceBodyUpdated;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceMembershipRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceMembershipUpdated;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceElectionLifecycleChanged;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionUpdated;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermUpdated;
 use MaaleArna\MASES\Core\Domains\Governance\Listeners\AuditGovernanceEvent;
+use MaaleArna\MASES\Core\Domains\Governance\Listeners\AuditGovernanceElectionLifecycleEvent;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
@@ -622,6 +624,9 @@ final class GovernanceServiceProvider extends ServiceProvider
         // G2c — membership events.
         Event::listen(GovernanceMembershipRegistered::class,  AuditGovernanceEvent::class);
         Event::listen(GovernanceMembershipUpdated::class,     AuditGovernanceEvent::class);
+
+        // Module 1 — durable lifecycle transition audit after commit.
+        Event::listen(GovernanceElectionLifecycleChanged::class, AuditGovernanceElectionLifecycleEvent::class);
     }
 
     // =========================================================================
