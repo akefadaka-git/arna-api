@@ -227,8 +227,9 @@ final class GovernanceAuthorityGrantService
 
     /**
      * Check a grant in addition to (never instead of) route-level RBAC.
-     * It requires an active canonical Person account and matching active
-     * membership; the grant cannot expand tenant/body/position scope.
+     * It requires an active canonical Person account, explicit tenant access,
+     * and either matching active membership or a current exact-action acting
+     * assignment; the grant cannot expand tenant/body/position scope.
      */
     public function allows(User $user, int $tenantId, int $bodyId, int $positionId, string $action): bool
     {
@@ -241,6 +242,28 @@ final class GovernanceAuthorityGrantService
 
         $person = Person::query()->where('user_id', $user->getKey())->where('status', 'active')->whereNull('deleted_at')->first();
         if (!$person || !$user->is_active) {
+            return false;
+        }
+
+        if (!PersonTenantAccess::query()
+            ->where('person_id', $person->id)
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'active')
+            ->exists()) {
+            return false;
+        }
+
+        if (!GovernanceBody::query()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($bodyId)
+            ->where('is_active', true)
+            ->exists()
+            || !GovernancePosition::query()
+                ->where('tenant_id', $tenantId)
+                ->where('governance_body_id', $bodyId)
+                ->whereKey($positionId)
+                ->where('is_active', true)
+                ->exists()) {
             return false;
         }
 
