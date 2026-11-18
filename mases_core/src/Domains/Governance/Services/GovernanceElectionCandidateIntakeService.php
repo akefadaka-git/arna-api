@@ -142,9 +142,9 @@ final class GovernanceElectionCandidateIntakeService
 
             $this->assertNominationWindow($election);
             $actorPersonId = $this->resolveActorPerson($tenantId, $actor);
-            $shareholder = $this->resolveNominator($tenantId, $actor, null);
             $nomination = GovernanceElectionNomination::query()
                 ->where('tenant_id', $tenantId)->where('election_id', $electionId)->lockForUpdate()->findOrFail($nominationId);
+            $shareholder = $this->resolveNominator($tenantId, $actor, (int) $nomination->nominator_shareholder_id);
 
             if ((int) $nomination->nominator_user_id !== (int) $actor->id
                 || (int) $nomination->nominator_person_id !== $actorPersonId
