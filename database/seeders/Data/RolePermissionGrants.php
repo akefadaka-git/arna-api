@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders\Data;
 
 use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
+use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsRolePermissionGrants;
 
 /**
  * RolePermissionGrants
@@ -211,6 +212,7 @@ final class RolePermissionGrants
             'app.admin.access', 'app.arna.access', 'app.app.access', 'app.launcher.access',
         ],
         'manager'         => [
+            ...DocumentsRolePermissionGrants::MAP['manager'],
             'user.profile.view', 'user.list',
             'file.list', 'file.view', 'file.download', 'announcement.view',
             ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
@@ -226,22 +228,26 @@ final class RolePermissionGrants
             'file.view', 'file.list', 'file.download',
         ],
         'board'           => [
+            ...DocumentsRolePermissionGrants::MAP['board'],
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['board'],
             'user.profile.view',
             'file.view', 'file.list', 'file.download',
         ],
         'president'       => [
+            ...DocumentsRolePermissionGrants::MAP['president'],
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['president'], 'app.admin.access',
             'user.profile.view', 'user.list',
             'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish',
             'role.list', 'permission.list',
         ],
         'secretary'       => [
+            ...DocumentsRolePermissionGrants::MAP['secretary'],
             'app.portal.access', 'user.profile.view', 'announcement.view', 'announcement.manage',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
         'cashier'         => FinanceRolePermissionGrants::MAP['cashier'],
         'ceo'             => [
+            ...DocumentsRolePermissionGrants::MAP['ceo'],
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['ceo'], 'app.hr.access', 'app.admin.access',
             'user.profile.view', 'user.list', 'user.create', 'user.update',
             'role.list', 'permission.list',
