@@ -253,7 +253,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $workflow = $this->workflowReadyToIssue($service, $actor, $tenantId, $entityId, $unitId, $fileId, 'Revoked key');
         $signature = $this->signatureEvidence($actor, $tenantId, $workflow);
 
-        app(\\MaaleArna\\MASES\\Core\\Domains\\Documents\\Services\\DocumentSigningKeyRevocationService::class)
+        app(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentSigningKeyRevocationService::class)
             ->revoke($actor, $tenantId, 9, 4, $signature['key_id'], 'Signing key custody was compromised.');
 
         try {
@@ -261,7 +261,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
                 'signature_evidence' => $signature,
             ]);
             self::fail('A revoked signing key must not authorize document issuance.');
-        } catch (\\Illuminate\\Auth\\Access\\AuthorizationException) {
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
             self::assertSame('signing', $workflow->fresh()->status);
             self::assertSame(0, DB::table('documents')->where('tenant_id', $tenantId)->count());
             self::assertSame(0, DB::table('document_number_counters')->where('tenant_id', $tenantId)->count());
@@ -491,10 +491,10 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
     public function test_aggregate_uses_the_concrete_rbac_and_governance_authorization_adapter(): void
     {
         [$tenantId, $entityId, $unitId] = $this->issuer();
-        $this->app->make(\\MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService::class)->setTenantById($tenantId);
+        $this->app->make(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class)->setTenantById($tenantId);
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenantId]);
         $this->actingAs($actor);
-        \\Laravel\\Sanctum\\Sanctum::actingAs($actor, ['*']);
+        \Laravel\Sanctum\Sanctum::actingAs($actor, ['*']);
         $actor->tenants()->attach($tenantId, ['joined_at' => now()]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
 
@@ -544,12 +544,12 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         try {
             $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
             self::fail('A tenant permission alone must not authorize governed review.');
-        } catch (\\Illuminate\\Auth\\Access\\AuthorizationException) {
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
             self::assertSame('submitted', $workflow->fresh()->status);
             self::assertSame(1, (int) $workflow->fresh()->revision);
         }
 
-        $person = \\MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person::query()->create([
+        $person = \MaaleArna\MASES\Core\Domains\People\Models\Person::query()->create([
             'first_name_en' => 'Governance signatory',
         ]);
         DB::table('people')->where('id', $person->getKey())->update(['user_id' => $actor->getKey()]);
@@ -558,7 +558,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'created_by' => $actor->getKey(), 'status' => 'active',
             'created_at' => now(), 'updated_at' => now(),
         ]);
-        $grantor = \\MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person::query()->create([
+        $grantor = \MaaleArna\MASES\Core\Domains\People\Models\Person::query()->create([
             'first_name_en' => 'Independent grantor',
         ]);
         DB::table('person_tenant_accesses')->insert([
@@ -581,9 +581,9 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        self::assertSame($tenantId, (int) \\mases_tenant_id());
+        self::assertSame($tenantId, (int) \mases_tenant_id());
         self::assertTrue($authorization->hasPermission($actor, $tenantId, 'documents.review'));
-        self::assertTrue(app(\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Services\\GovernanceAuthorityGrantService::class)
+        self::assertTrue(app(\MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService::class)
             ->allows($actor, $tenantId, $bodyId, $positionId, 'documents.review'));
 
         $approved = $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
