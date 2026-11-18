@@ -49,24 +49,27 @@ final class GovernanceElectionCandidateIntakeService
             $idempotencyKey, $statement, $actor,
         ): array {
             $election = $this->lockElection($tenantId, $electionId);
-            $this->assertNominationWindow($election);
-            $actorPersonId = $this->resolveActorPerson($tenantId, $actor);
-            $shareholder = $this->resolveNominator($tenantId, $actor, $nominatorShareholderId);
-            [$candidateType] = $this->resolveCandidatePerson($tenantId, $candidatePersonId);
 
+            // Idempotent retries return the original accepted record even if
+            // the nomination window has since closed.
             $existingKey = GovernanceElectionNomination::query()
                 ->where('tenant_id', $tenantId)->where('election_id', $electionId)
                 ->where('idempotency_key', $idempotencyKey)->first();
             if ($existingKey !== null) {
                 if ((int) $existingKey->candidate->candidate_person_id !== $candidatePersonId
-                    || (int) $existingKey->nominator_shareholder_id !== (int) $shareholder->id
                     || (int) $existingKey->nominator_user_id !== (int) $actor->id
+                    || ($nominatorShareholderId !== null && (int) $existingKey->nominator_shareholder_id !== $nominatorShareholderId)
                     || (string) ($existingKey->statement ?? '') !== (string) ($statement ?? '')) {
                     throw ValidationException::withMessages(['idempotency_key' => ['This idempotency key was already used for a different nomination payload.']]);
                 }
 
                 return ['candidate' => $existingKey->candidate, 'nomination' => $existingKey];
             }
+
+            $this->assertNominationWindow($election);
+            $actorPersonId = $this->resolveActorPerson($tenantId, $actor);
+            $shareholder = $this->resolveNominator($tenantId, $actor, $nominatorShareholderId);
+            [$candidateType] = $this->resolveCandidatePerson($tenantId, $candidatePersonId);
 
             $candidate = GovernanceElectionCandidate::query()
                 ->where('tenant_id', $tenantId)->where('election_id', $electionId)
@@ -125,17 +128,6 @@ final class GovernanceElectionCandidateIntakeService
 
         return DB::transaction(function () use ($tenantId, $electionId, $nominationId, $idempotencyKey, $statement, $actor): GovernanceElectionNomination {
             $election = $this->lockElection($tenantId, $electionId);
-            $this->assertNominationWindow($election);
-            $actorPersonId = $this->resolveActorPerson($tenantId, $actor);
-            $nomination = GovernanceElectionNomination::query()
-                ->where('tenant_id', $tenantId)->where('election_id', $electionId)->lockForUpdate()->findOrFail($nominationId);
-
-            if ((int) $nomination->nominator_user_id !== (int) $actor->id
-                || (int) $nomination->nominator_person_id !== $actorPersonId
-                || $nomination->status !== 'submitted') {
-                throw new AuthorizationException('Only the original active nominator may amend this nomination.');
-            }
-
             $existing = GovernanceElectionNomination::query()
                 ->where('tenant_id', $tenantId)->where('election_id', $electionId)
                 ->where('idempotency_key', $idempotencyKey)->first();
@@ -146,6 +138,19 @@ final class GovernanceElectionCandidateIntakeService
                     return $existing;
                 }
                 throw ValidationException::withMessages(['idempotency_key' => ['This idempotency key was already used.']]);
+            }
+
+            $this->assertNominationWindow($election);
+            $actorPersonId = $this->resolveActorPerson($tenantId, $actor);
+            $shareholder = $this->resolveNominator($tenantId, $actor, null);
+            $nomination = GovernanceElectionNomination::query()
+                ->where('tenant_id', $tenantId)->where('election_id', $electionId)->lockForUpdate()->findOrFail($nominationId);
+
+            if ((int) $nomination->nominator_user_id !== (int) $actor->id
+                || (int) $nomination->nominator_person_id !== $actorPersonId
+                || (int) $nomination->nominator_shareholder_id !== (int) $shareholder->id
+                || $nomination->status !== 'submitted') {
+                throw new AuthorizationException('Only the original active nominator may amend this nomination.');
             }
 
             $candidate = GovernanceElectionCandidate::query()
