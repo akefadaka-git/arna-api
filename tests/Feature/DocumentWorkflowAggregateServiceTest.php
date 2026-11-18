@@ -240,6 +240,38 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         }
     }
 
+    public function test_revoked_trusted_signing_key_fails_closed_before_number_allocation(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->twice();
+        $authorization->shouldReceive('requireGovernedAction')->times(5);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $this->workflowReadyToIssue($service, $actor, $tenantId, $entityId, $unitId, $fileId, 'Revoked key');
+        $signature = $this->signatureEvidence($actor, $tenantId, $workflow);
+
+        app(\\MaaleArna\\MASES\\Core\\Domains\\Documents\\Services\\DocumentSigningKeyRevocationService::class)
+            ->revoke($actor, $tenantId, 9, 4, $signature['key_id'], 'Signing key custody was compromised.');
+
+        try {
+            $service->transition($actor, $tenantId, (int) $workflow->id, 'issue', 4, null, [
+                'signature_evidence' => $signature,
+            ]);
+            self::fail('A revoked signing key must not authorize document issuance.');
+        } catch (\\Illuminate\\Auth\\Access\\AuthorizationException) {
+            self::assertSame('signing', $workflow->fresh()->status);
+            self::assertSame(0, DB::table('documents')->where('tenant_id', $tenantId)->count());
+            self::assertSame(0, DB::table('document_number_counters')->where('tenant_id', $tenantId)->count());
+            self::assertDatabaseHas('document_signing_key_revocations', [
+                'tenant_id' => $tenantId,
+                'reason' => 'Signing key custody was compromised.',
+            ]);
+        }
+    }
+
     public function test_issue_failure_rolls_back_document_signature_counter_lifecycle_and_workflow_event_together(): void
     {
         [$tenantId, $entityId, $unitId] = $this->issuer();
