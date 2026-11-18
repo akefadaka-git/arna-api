@@ -9,6 +9,7 @@ on:
       - "mases_core/src/Domains/Governance/**"
       - "tests/Feature/GovernanceElectionAuthorityTest.php"
       - "tests/Feature/GovernanceElectionCommitteeAppointmentTest.php"
+      - "tests/Feature/GovernanceElectionCandidateIntakeTest.php"
       - "database/seeders/MasesCoreSeeder.php"
       - "mases_core/src/Domains/Finance/**"
       - "composer.json"
@@ -152,6 +153,15 @@ jobs:
           php -l mases_core/src/Domains/Governance/Models/GovernanceElectionCommitteeMember.php
           php -l mases_core/src/Domains/Governance/Services/GovernanceElectionCommitteeAppointmentService.php
           php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCommitteeAppointmentController.php
+          php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_18_100000_create_governance_election_candidate_intake_tables.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceElectionCandidate.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceElectionNomination.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceElectionCandidateEvidence.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceElectionCandidateEligibilityDecision.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceElectionCandidateIntakeService.php
+          php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCandidateIntakeController.php
+          php -l mases_core/src/Domains/Governance/Database/Seeders/GovernanceElectionCandidatePermissionsSeeder.php
+          php -l tests/Feature/GovernanceElectionCandidateIntakeTest.php
           php -l tests/Feature/GovernanceElectionCommitteeAppointmentTest.php
           php -l tests/Feature/GovernanceElectionAuthorityTest.php
           php -l database/seeders/MasesCoreSeeder.php
@@ -175,6 +185,7 @@ jobs:
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
           vendor/bin/phpunit tests/Feature/GovernanceElectionAuthorityTest.php
           vendor/bin/phpunit tests/Feature/GovernanceElectionCommitteeAppointmentTest.php
+          vendor/bin/phpunit tests/Feature/GovernanceElectionCandidateIntakeTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/FinanceSourceEntityMappingResolverTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAccountingTest.php
