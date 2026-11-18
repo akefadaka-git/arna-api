@@ -29,21 +29,23 @@ jobs:
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
       LOG_CHANNEL: null
+      EXPECTED_TEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Check out proposed pull-request merge revision
+      - name: Check out exact proposed pull-request head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Verify tested revision
+      - name: Verify exact tested head revision
         shell: bash
         run: |
           set -euo pipefail
           actual_sha="$(git rev-parse HEAD)"
-          echo "Workflow revision:    ${GITHUB_SHA}"
-          echo "Checked out revision: ${actual_sha}"
-          test "${actual_sha}" = "${GITHUB_SHA}"
+          echo "Expected tested SHA:  ${EXPECTED_TEST_SHA}"
+          echo "Workflow event SHA:   ${GITHUB_SHA}"
+          echo "Checked out SHA:      ${actual_sha}"
+          test "${actual_sha}" = "${EXPECTED_TEST_SHA}"
 
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
@@ -90,7 +92,8 @@ jobs:
         if: always()
         run: |
           {
-            echo "Workflow revision: ${GITHUB_SHA}"
+            echo "Expected tested SHA: ${EXPECTED_TEST_SHA}"
+            echo "Workflow event SHA: ${GITHUB_SHA}"
             echo "Checked out SHA: $(git rev-parse HEAD)"
             php --version
             composer --version
