@@ -25,8 +25,8 @@ return new class extends Migration
             $table->unique(['tenant_id', 'election_id', 'nomination_submission_id', 'sequence'], 'gov_nom_event_seq_uq');
             $table->foreign(['tenant_id', 'election_id', 'candidate_id'], 'gov_nom_event_candidate_fk')
                 ->references(['tenant_id', 'election_id', 'id'])->on('governance_election_candidates')->restrictOnDelete();
-            $table->foreign('nomination_submission_id', 'gov_nom_event_submission_fk')
-                ->references('id')->on('governance_election_nomination_submissions')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'election_id', 'nomination_submission_id'], 'gov_nom_event_submission_fk')
+                ->references(['tenant_id', 'election_id', 'id'])->on('governance_election_nomination_submissions')->restrictOnDelete();
             $table->foreign('actor_user_id', 'gov_nom_event_actor_fk')
                 ->references('id')->on('users')->restrictOnDelete();
             $table->index(['tenant_id', 'election_id', 'candidate_id', 'event_type'], 'gov_nom_event_type_idx');
