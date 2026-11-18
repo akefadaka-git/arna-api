@@ -564,10 +564,22 @@ final class GovernanceElectionCandidateService
         // Legal-entity representative nomination authority is not assumed.
         // It remains blocked until the operative governing rules are encoded
         // in an approved rule-set revision and this service is amended.
-        $query = DB::table('shareholders')->where('tenant_id', $tenantId)
-            ->where('shareholder_type', 'individual')
-            ->where('is_active', true)->whereNull('deleted_at')
-            ->where('user_id', $actorId)->limit(2);
+        $query = DB::table('shareholders as shareholder')
+            ->join('people as person', function ($join): void {
+                $join->on('person.id', '=', 'shareholder.person_id')
+                    ->on('person.user_id', '=', 'shareholder.user_id');
+            })
+            ->join('person_tenant_accesses as access', function ($join) use ($tenantId): void {
+                $join->on('access.person_id', '=', 'person.id')
+                    ->where('access.tenant_id', '=', $tenantId)
+                    ->where('access.status', '=', 'active');
+            })
+            ->where('shareholder.tenant_id', $tenantId)
+            ->where('shareholder.shareholder_type', 'individual')
+            ->where('shareholder.is_active', true)->whereNull('shareholder.deleted_at')
+            ->where('shareholder.user_id', $actorId)
+            ->where('person.status', 'active')->whereNull('person.deleted_at')
+            ->select('shareholder.*')->limit(2);
         $matches = $query->get();
         if ($matches->count() !== 1) {
             throw new AuthorizationException('The authenticated account must resolve to exactly one active shareholder identity or authorized legal-entity representative in this tenant.');
