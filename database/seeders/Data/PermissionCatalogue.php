@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Database\Seeders\Data;
 
 use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatalogue;
+use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsPermissionCatalogue;
 
 /**
  * PermissionCatalogue
  *
- * The platform's forty-four core permissions plus thirteen Finance permissions and three Admin security permissions (sixty total) — the atomic capabilities
+ * The platform's forty-four core permissions plus thirteen Finance permissions and three Admin security permissions (seventy-three total) — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -192,6 +193,7 @@ final class PermissionCatalogue
         ['slug' => 'security-event.view', 'name_am' => 'የደህንነት ክስተቶችን ማየት', 'name_en' => 'View Security Events', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'security-event.resolve', 'name_am' => 'የደህንነት ክስተቶችን መፍታት', 'name_en' => 'Resolve Security Events', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
         ...FinancePermissionCatalogue::ROWS,
+        ...DocumentsPermissionCatalogue::ROWS,
             ['slug' => 'public-content.review', 'name_am' => 'ይፋዊ ይዘት መገምገምና ማተም', 'name_en' => 'Review and publish public content', 'category' => 'public_content', 'scope' => 'global', 'is_system' => false],
             ['slug' => 'announcement.view', 'name_am' => 'ማስታወቂያዎችን ማየት', 'name_en' => 'View Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.manage', 'name_am' => 'ማስታወቂያ ማዘጋጀትና ለማጽደቅ ማስገባት', 'name_en' => 'Create and Submit Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
