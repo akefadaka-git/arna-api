@@ -240,6 +240,17 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $this->assertSame(hash('sha256', 'synthetic candidate evidence bytes'), $evidence->content_sha256);
         $this->assertSame('pending_review', $evidence->status);
 
+        try {
+            $service->reviewEvidence((int) $tenant->id, (int) $election->id,
+                (int) $submission['candidate']->id, (int) $evidence->id,
+                'accepted', 'Submitter must not review their own evidence.', $nominator);
+            $this->fail('The evidence submitter must not review their own submission.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseHas('governance_election_candidate_evidence', [
+                'id' => $evidence->id, 'status' => 'pending_review', 'reviewed_by' => null,
+            ]);
+        }
+
         auth()->login($evidenceReviewer);
         $reviewed = $service->reviewEvidence((int) $tenant->id, (int) $election->id,
             (int) $submission['candidate']->id, (int) $evidence->id,
