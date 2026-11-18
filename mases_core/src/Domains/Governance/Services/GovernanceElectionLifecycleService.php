@@ -14,7 +14,8 @@ use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElectionLifecycleTransition;
-use MaaleArna\MASES\Core\Files\Models\File;
+use MaaleArna\MASES\Core\Exceptions\FileException;
+use MaaleArna\MASES\Core\Files\Services\FileService;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceElectionLifecycleChanged;
 
 final class GovernanceElectionLifecycleService
@@ -163,12 +164,15 @@ final class GovernanceElectionLifecycleService
             }
         }
         if (isset($authority['authority_document_id'])) {
-            $document = File::query()->inTenant($tenantId)
-                ->whereKey((int) $authority['authority_document_id'])
-                ->where('status', 'published')
-                ->first();
-            if (!$document) {
-                throw ValidationException::withMessages(['authority_document_id' => 'The authority evidence file must be a published, non-deleted file belonging to this tenant.']);
+            try {
+                // Resolve through the platform's canonical file service so
+                // tenant membership and file.view authorization are enforced.
+                $document = app(FileService::class)->find((int) $authority['authority_document_id']);
+            } catch (FileException) {
+                $document = null;
+            }
+            if (!$document || (int) $document->tenant_id !== $tenantId || $document->status !== 'published') {
+                throw ValidationException::withMessages(['authority_document_id' => 'The authority evidence file must be a published, non-deleted file belonging to this tenant and accessible to the actor.']);
             }
         }
         foreach (['authority_evidence_digest', 'rule_set_digest'] as $key) {
