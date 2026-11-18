@@ -7,7 +7,6 @@ namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -113,7 +112,7 @@ final class DocumentWorkflowAggregateService
     }
 
     /**
-     * @param array{submitted_file_id?:int,submitted_file_version?:int,signature_evidence?:array{key_id:string,signature:string,signed_at:string},replacement_document_id?:int} $evidence
+     * @param array{submitted_file_id?:int,submitted_file_version?:int,signature_evidence?:array{key_id:string,signature:string,signed_at:string},replaces_document_id?:int,replacement_document_id?:int} $evidence
      */
     public function transition(
         User $actor,
