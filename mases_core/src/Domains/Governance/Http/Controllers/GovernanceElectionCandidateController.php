@@ -21,7 +21,11 @@ final class GovernanceElectionCandidateController extends Controller
             'rule_set_digest' => ['required', 'regex:/^[a-f0-9]{64}$/i'],
             'authority_reference' => ['required', 'string', 'max:200'],
         ]);
-        $window = $service->configureNominationWindow($this->tenantId(), $election, $this->actor($request), ...array_values($data));
+        $window = $service->configureNominationWindow(
+            $this->tenantId(), $election, $this->actor($request),
+            $data['opens_at'], $data['closes_at'], $data['rule_set_version'],
+            $data['rule_set_digest'], $data['authority_reference'],
+        );
         return response()->json(['success' => true, 'data' => $window], 201);
     }
 
