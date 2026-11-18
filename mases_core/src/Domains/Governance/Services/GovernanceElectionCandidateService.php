@@ -53,11 +53,18 @@ final class GovernanceElectionCandidateService
             if (!in_array($election->status, ['authorized', 'scheduled'], true)
                 || blank($election->rule_set_version) || blank($election->rule_set_digest)
                 || !hash_equals((string) $election->rule_set_version, $ruleSetVersion)
-                || !hash_equals((string) $election->rule_set_digest, strtolower($ruleSetDigest))
-                || blank($election->authority_reference)) {
+                || !hash_equals(strtolower((string) $election->rule_set_digest), strtolower($ruleSetDigest))
+                || blank($election->authority_reference)
+                || !hash_equals((string) $election->authority_reference, trim($authorityReference))) {
                 throw new ConflictHttpException('The election must be authorized with the same authoritative, versioned rule set before nomination intake can be configured.');
             }
 
+            $timezone = new \\DateTimeZone((string) $election->timezone);
+            $opens = $opensInput->setTimezone($timezone);
+            $closes = $closesInput->setTimezone($timezone);
+            if ($opens >= $closes) {
+                throw ValidationException::withMessages(['nomination_window' => 'The opening time must precede the closing time.']);
+            }
             $window = GovernanceElectionNominationWindow::query()
                 ->where('tenant_id', $tenantId)->where('election_id', $electionId)->lockForUpdate()->first();
             if ($window && $window->status !== 'draft') {
@@ -98,11 +105,11 @@ final class GovernanceElectionCandidateService
             if ((int) $window->version !== $expectedVersion || $window->status !== 'draft') {
                 throw new ConflictHttpException('Nomination window changed or is not in draft state.');
             }
-            $now = now();
+            $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->lockForUpdate()->first();
+            $now = now($election?->timezone ?: config('app.timezone'));
             if ($now->lt($window->opens_at) || $now->gte($window->closes_at)) {
                 throw new ConflictHttpException('The configured opening time has not arrived or the closing time has passed.');
             }
-            $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->lockForUpdate()->first();
             if (!$election || !in_array($election->status, ['authorized', 'scheduled'], true)
                 || !hash_equals((string) $election->rule_set_version, (string) $window->rule_set_version)
                 || !hash_equals((string) $election->rule_set_digest, (string) $window->rule_set_digest)) {
@@ -164,11 +171,12 @@ final class GovernanceElectionCandidateService
             }
             $window = GovernanceElectionNominationWindow::query()->where('tenant_id', $tenantId)
                 ->where('election_id', $electionId)->lockForUpdate()->first();
-            if (!$window || $window->status !== 'open' || now()->lt($window->opens_at) || now()->gte($window->closes_at)
+            $now = now($election->timezone ?: config('app.timezone'));
+            if (!$window || $window->status !== 'open' || $now->lt($window->opens_at) || $now->gte($window->closes_at)
                 || !in_array($election->status, ['authorized', 'scheduled'], true)) {
                 throw new ConflictHttpException('The authoritative nomination window is not open.');
             }
-            if (!hash_equals((string) $election->rule_set_digest, (string) $window->rule_set_digest)
+            if (!hash_equals(strtolower((string) $election->rule_set_digest), strtolower((string) $window->rule_set_digest))
                 || !hash_equals((string) $election->rule_set_version, (string) $window->rule_set_version)) {
                 throw new ConflictHttpException('Nomination rule-set evidence has changed; intake is blocked.');
             }
@@ -215,7 +223,13 @@ final class GovernanceElectionCandidateService
                 if (!hash_equals((string) $existing->payload_digest, $payloadDigest)) {
                     throw new ConflictHttpException('Idempotency key was already used for a different nomination payload.');
                 }
-                return $existing;
+                return (object) [
+                    'id' => (int) $existing->id,
+                    'candidate_id' => (int) $existing->candidate_id,
+                    'status' => $existing->status,
+                    'self_nomination' => (bool) $existing->self_nomination,
+                    'submitted_at' => $existing->submitted_at,
+                ];
             }
 
             $candidate = GovernanceElectionCandidate::query()->firstOrCreate(
@@ -258,7 +272,13 @@ final class GovernanceElectionCandidateService
                 'nominated_by_shareholder_id' => (int) $nominator->id,
                 'self_nomination' => $selfNomination,
             ]);
-            return DB::table('governance_election_nomination_submissions')->where('id', $submissionId)->first();
+            return (object) [
+                'id' => $submissionId,
+                'candidate_id' => (int) $candidate->id,
+                'status' => 'submitted',
+                'self_nomination' => $selfNomination,
+                'submitted_at' => now()->toDateTimeString(),
+            ];
         });
     }
 
@@ -278,6 +298,9 @@ final class GovernanceElectionCandidateService
             }
             if ($candidate->consent_status !== 'pending') {
                 throw new ConflictHttpException('Candidate consent has already been recorded and cannot be overwritten.');
+            }
+            if (!$this->hasActiveNomination($tenantId, $electionId, $candidateId)) {
+                throw new ConflictHttpException('Candidate consent cannot be recorded before an active nomination exists.');
             }
             $person = DB::table('people')->where('id', $candidate->person_id)->where('status', 'active')
                 ->whereNull('deleted_at')->first();
@@ -365,16 +388,16 @@ final class GovernanceElectionCandidateService
             if ((int) $candidate->version !== $expectedVersion) {
                 throw new ConflictHttpException('Candidate was changed by another request; reload and retry.');
             }
-            if ($candidate->consent_status !== 'accepted'
-                || !DB::table('governance_election_nomination_submissions')->where('tenant_id', $tenantId)
-                    ->where('election_id', $electionId)->where('candidate_id', $candidateId)
-                    ->where('status', 'submitted')->exists()) {
+            if ($candidate->consent_status !== 'accepted' || !$this->hasActiveNomination($tenantId, $electionId, $candidateId)) {
                 throw new ConflictHttpException('Eligibility cannot be decided until candidate consent and an active nomination are recorded.');
+            }
+            if (!in_array($candidate->status, ['eligibility_pending', 'deferred_unresolved'], true)) {
+                throw new ConflictHttpException('A final eligibility decision cannot be overwritten in this module; use the independent objections and appeals process.');
             }
             $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->firstOrFail();
             $window = GovernanceElectionNominationWindow::query()->where('tenant_id', $tenantId)->where('election_id', $electionId)->firstOrFail();
             if (!hash_equals((string) $election->rule_set_version, (string) $window->rule_set_version)
-                || !hash_equals((string) $election->rule_set_digest, (string) $window->rule_set_digest)) {
+                || !hash_equals(strtolower((string) $election->rule_set_digest), strtolower((string) $window->rule_set_digest))) {
                 throw new ConflictHttpException('The authoritative rule set changed; eligibility decision is blocked.');
             }
             $evidence = DB::table('governance_election_candidate_evidence')->where('tenant_id', $tenantId)
@@ -440,7 +463,11 @@ final class GovernanceElectionCandidateService
                 'nomination_submission_id' => $submissionId,
                 'reason' => trim($reason),
             ]);
-            return $submission;
+            return (object) [
+                'id' => (int) $submission->id,
+                'candidate_id' => (int) $submission->candidate_id,
+                'status' => 'withdrawn',
+            ];
         });
     }
 
@@ -449,23 +476,26 @@ final class GovernanceElectionCandidateService
         $this->authorize($actor, $tenantId, 'governance.election.view');
         GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->firstOrFail();
         return GovernanceElectionCandidate::query()->forElection($tenantId, $electionId)
-            ->with(['person', 'nominations', 'evidence', 'decisions'])
+            ->select(['id', 'tenant_id', 'election_id', 'person_id', 'status', 'consent_status', 'version', 'created_at'])
+            ->with([
+                'person:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en',
+                'nominations:id,candidate_id,status,self_nomination,statement,submitted_at',
+                'evidence:id,candidate_id,evidence_type,attached_at',
+                'decisions:id,candidate_id,outcome,rationale,rule_set_version,decided_at',
+            ])
             ->orderBy('id')->get()->all();
     }
 
     private function resolveNominator(int $tenantId, User $actor): object
     {
         $actorId = (int) $actor->getAuthIdentifier();
+        // Legal-entity representative nomination authority is not assumed.
+        // It remains blocked until the operative governing rules are encoded
+        // in an approved rule-set revision and this service is amended.
         $query = DB::table('shareholders')->where('tenant_id', $tenantId)
+            ->where('shareholder_type', 'individual')
             ->where('is_active', true)->whereNull('deleted_at')
-            ->where(function ($q) use ($actorId): void {
-                $q->where(function ($direct) use ($actorId): void {
-                    $direct->where('shareholder_type', 'individual')->where('user_id', $actorId);
-                })->orWhere(function ($representative) use ($actorId): void {
-                    $representative->where('shareholder_type', '<>', 'individual')
-                        ->where('representative_user_id', $actorId);
-                });
-            })->limit(2);
+            ->where('user_id', $actorId)->limit(2);
         $matches = $query->get();
         if ($matches->count() !== 1) {
             throw new AuthorizationException('The authenticated account must resolve to exactly one active shareholder identity or authorized legal-entity representative in this tenant.');
@@ -512,6 +542,20 @@ final class GovernanceElectionCandidateService
             'metadata_digest' => $metadataDigest,
         ]);
         return DB::table('governance_election_candidate_evidence')->where('id', $id)->first();
+    }
+
+    private function hasActiveNomination(int $tenantId, int $electionId, int $candidateId): bool
+    {
+        return DB::table('governance_election_nomination_submissions as submissions')
+            ->where('submissions.tenant_id', $tenantId)
+            ->where('submissions.election_id', $electionId)
+            ->where('submissions.candidate_id', $candidateId)
+            ->where('submissions.status', 'submitted')
+            ->whereNotExists(function ($query): void {
+                $query->selectRaw('1')->from('governance_election_nomination_events as events')
+                    ->whereColumn('events.nomination_submission_id', 'submissions.id')
+                    ->where('events.event_type', 'withdrawn');
+            })->exists();
     }
 
     private function appendNominationEvent(
