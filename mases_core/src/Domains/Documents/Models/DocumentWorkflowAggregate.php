@@ -25,6 +25,7 @@ final class DocumentWorkflowAggregate extends Model
             'author_user_id' => 'integer',
             'submitted_file_id' => 'integer',
             'submitted_file_version' => 'integer',
+            'submitted_file_evidence_id' => 'integer',
             'issued_document_id' => 'integer',
             'last_transition_at' => 'immutable_datetime',
         ];
