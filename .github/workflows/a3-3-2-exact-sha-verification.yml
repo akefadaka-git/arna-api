@@ -39,11 +39,11 @@ jobs:
       - name: Checkout the exact implementation SHA
         uses: actions/checkout@v4
         with:
-          ref: 7f6f48a103e92be34c053b93244733c36be5e868
+          ref: 7acb99c4e69222ffbf5db48c9330bb5be4ad27c5
           fetch-depth: 0
       - name: Assert exact source SHA
         env:
-          TARGET_SHA: 7f6f48a103e92be34c053b93244733c36be5e868
+          TARGET_SHA: 7acb99c4e69222ffbf5db48c9330bb5be4ad27c5
         run: test "$(git rev-parse HEAD)" = "$TARGET_SHA"
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
