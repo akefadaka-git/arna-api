@@ -107,18 +107,8 @@ jobs:
           composer validate --no-check-publish
           composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Apply and verify Pint formatting for A3.2 files
-        run: |
-          vendor/bin/pint database/migrations/2026_11_18_000001_create_documents_registry_and_numbering_tables.php mases_core/src/Domains/Documents/Services/DocumentNumberAllocator.php mases_core/src/Domains/Documents/Services/DocumentNumberFormatter.php tests/Unit/Documents/DocumentNumberAllocatorTest.php tests/Unit/Documents/DocumentNumberAllocatorTransactionGuardTest.php tests/Unit/Documents/DocumentNumberingContractTest.php tests/Unit/Documents/DocumentNumberingSchemaTest.php
-          vendor/bin/pint --test database/migrations/2026_11_18_000001_create_documents_registry_and_numbering_tables.php mases_core/src/Domains/Documents/Services/DocumentNumberAllocator.php mases_core/src/Domains/Documents/Services/DocumentNumberFormatter.php tests/Unit/Documents/DocumentNumberAllocatorTest.php tests/Unit/Documents/DocumentNumberAllocatorTransactionGuardTest.php tests/Unit/Documents/DocumentNumberingContractTest.php tests/Unit/Documents/DocumentNumberingSchemaTest.php
-          mkdir -p pint-output
-          cp database/migrations/2026_11_18_000001_create_documents_registry_and_numbering_tables.php pint-output/
-          cp mases_core/src/Domains/Documents/Services/DocumentNumberAllocator.php pint-output/
-          cp mases_core/src/Domains/Documents/Services/DocumentNumberFormatter.php pint-output/
-          cp tests/Unit/Documents/DocumentNumberAllocatorTest.php pint-output/
-          cp tests/Unit/Documents/DocumentNumberAllocatorTransactionGuardTest.php pint-output/
-          cp tests/Unit/Documents/DocumentNumberingContractTest.php pint-output/
-          cp tests/Unit/Documents/DocumentNumberingSchemaTest.php pint-output/
+      - name: Enforce Pint formatting on committed A3.2 sources
+        run: vendor/bin/pint --test database/migrations/2026_11_18_000001_create_documents_registry_and_numbering_tables.php mases_core/src/Domains/Documents/Services/DocumentNumberAllocator.php mases_core/src/Domains/Documents/Services/DocumentNumberFormatter.php tests/Unit/Documents/DocumentNumberAllocatorTest.php tests/Unit/Documents/DocumentNumberAllocatorTransactionGuardTest.php tests/Unit/Documents/DocumentNumberingContractTest.php tests/Unit/Documents/DocumentNumberingSchemaTest.php
 
       - name: Run all migrations on clean MySQL
         run: php artisan migrate:fresh --force -vvv
@@ -141,6 +131,7 @@ jobs:
           "
           test "$(mysql -N -h 127.0.0.1 -uroot -proot arna_documents_test -e "SELECT COUNT(*) FROM document_type_catalogue")" -eq 15
           test "$(mysql -N -h 127.0.0.1 -uroot -proot arna_documents_test -e "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_documents_test' AND TABLE_NAME IN ('document_number_counters','documents') AND REFERENCED_TABLE_NAME IS NOT NULL")" -ge 6
+          test "$(mysql -N -h 127.0.0.1 -uroot -proot arna_documents_test -e "SELECT COUNT(*) FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA='arna_documents_test'")" -ge 11
           echo "15 document types and tenant/entity/department/type/file foreign keys verified."
 
       - name: Run Documents numbering unit and database tests on MySQL
