@@ -459,10 +459,10 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
     public function test_aggregate_uses_the_concrete_rbac_and_governance_authorization_adapter(): void
     {
         [$tenantId, $entityId, $unitId] = $this->issuer();
-        $this->app->make(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class)->setTenantById($tenantId);
+        $this->app->make(\\MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService::class)->setTenantById($tenantId);
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenantId]);
         $this->actingAs($actor);
-        \Laravel\Sanctum\Sanctum::actingAs($actor, ['*']);
+        \\Laravel\\Sanctum\\Sanctum::actingAs($actor, ['*']);
         $actor->tenants()->attach($tenantId, ['joined_at' => now()]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
 
@@ -483,12 +483,25 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             $actor->permissions()->attach($permission->id, ['assigned_at' => now()]);
         }
 
+        $bodyId = (int) DB::table('governance_bodies')->insertGetId([
+            'tenant_id' => $tenantId, 'code' => 'DOC-BODY-'.uniqid(), 'body_type' => 'board',
+            'name_am' => 'የሰነድ ቦርድ', 'name_en' => 'Document Board', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $positionId = (int) DB::table('governance_positions')->insertGetId([
+            'tenant_id' => $tenantId, 'governance_body_id' => $bodyId, 'code' => 'DOC-POS-'.uniqid(),
+            'name_am' => 'አባል', 'name_en' => 'Document Reviewer', 'is_voting' => true,
+            'is_officer' => false, 'sort_order' => 1, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
         $authorization = $this->app->make(DocumentWorkflowAuthorizationService::class);
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
         $this->app->make(AuthorizationService::class)->clearUserCache($actor);
-
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
-        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Concrete adapter', 9, 4);
+        $workflow = $service->createDraft(
+            $actor, $tenantId, $entityId, $unitId, '01', 'Concrete adapter', $bodyId, $positionId
+        );
         $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
             'submitted_file_id' => $fileId,
             'submitted_file_version' => 1,
@@ -499,43 +512,26 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         try {
             $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
             self::fail('A tenant permission alone must not authorize governed review.');
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (\\Illuminate\\Auth\\Access\\AuthorizationException) {
             self::assertSame('submitted', $workflow->fresh()->status);
             self::assertSame(1, (int) $workflow->fresh()->revision);
         }
 
-        $person = \MaaleArna\MASES\Core\Domains\People\Models\Person::query()->create([
+        $person = \\MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person::query()->create([
             'first_name_en' => 'Governance signatory',
         ]);
         DB::table('people')->where('id', $person->getKey())->update(['user_id' => $actor->getKey()]);
         DB::table('person_tenant_accesses')->insert([
-            'person_id' => $person->getKey(),
-            'tenant_id' => $tenantId,
-            'created_by' => $actor->getKey(),
-            'status' => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
+            'person_id' => $person->getKey(), 'tenant_id' => $tenantId,
+            'created_by' => $actor->getKey(), 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
         ]);
-        $grantor = \MaaleArna\MASES\Core\Domains\People\Models\Person::query()->create([
+        $grantor = \\MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person::query()->create([
             'first_name_en' => 'Independent grantor',
         ]);
         DB::table('person_tenant_accesses')->insert([
-            'person_id' => $grantor->getKey(),
-            'tenant_id' => $tenantId,
-            'created_by' => $actor->getKey(),
-            'status' => 'active',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $bodyId = (int) DB::table('governance_bodies')->insertGetId([
-            'tenant_id' => $tenantId, 'code' => 'DOC-BODY-'.uniqid(), 'body_type' => 'board',
-            'name_am' => 'የሰነድ ቦርድ', 'name_en' => 'Document Board', 'is_active' => true,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
-        $positionId = (int) DB::table('governance_positions')->insertGetId([
-            'tenant_id' => $tenantId, 'governance_body_id' => $bodyId, 'code' => 'DOC-POS-'.uniqid(),
-            'name_am' => 'አባል', 'name_en' => 'Document Reviewer', 'is_voting' => true,
-            'is_officer' => false, 'sort_order' => 1, 'is_active' => true,
+            'person_id' => $grantor->getKey(), 'tenant_id' => $tenantId,
+            'created_by' => $actor->getKey(), 'status' => 'active',
             'created_at' => now(), 'updated_at' => now(),
         ]);
         DB::table('governance_memberships')->insert([
