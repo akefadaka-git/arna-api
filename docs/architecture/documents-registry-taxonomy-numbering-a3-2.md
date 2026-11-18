@@ -32,7 +32,7 @@ This resolves a collision inherent in the earlier v2 proposal: separate entity/u
 - `documents`: unique `(tenant_id, bb_code, document_type_number, ec_year, sequence_number)`
 - `documents`: unique `(tenant_id, canonical_number)` as a final guard against the two-digit year repeating over a century
 - `documents`: unique `(tenant_id, idempotency_key)`
-- Tenant-bound foreign keys bind entity, organization unit, BB assignment, replacement and lifecycle records
+- Tenant-bound foreign keys bind entity, organization unit, BB assignment, file version reference, replacement and lifecycle records. A document cannot reference a file owned by another tenant.
 
 The database constraints, not application preflight alone, are authoritative.
 
