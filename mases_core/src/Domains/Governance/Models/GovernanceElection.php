@@ -74,6 +74,11 @@ final class GovernanceElection extends Model
         return $this->belongsTo(GovernanceElectionAuthorityEvidence::class, 'authority_evidence_id');
     }
 
+    public function committeeMembers(): HasMany
+    {
+        return $this->hasMany(GovernanceElectionCommitteeMember::class, 'election_id');
+    }
+
     public function authorityEvidence(): HasMany
     {
         return $this->hasMany(GovernanceElectionAuthorityEvidence::class, 'election_id');

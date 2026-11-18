@@ -644,6 +644,20 @@ Route::name('api.governance.')->group(static function (): void {
         ->name('elections.committee.security-events.index');
 
 
+    // P2.3 — evidence-backed committee appointments and revocations.
+    Route::get('/elections/{election}/committee/members', [GovernanceElectionCommitteeAppointmentController::class, 'index'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.committee.view')
+        ->name('elections.committee.members.index');
+    Route::post('/elections/{election}/committee/members', [GovernanceElectionCommitteeAppointmentController::class, 'store'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.committee.appoint')
+        ->name('elections.committee.members.store');
+    Route::patch('/elections/{election}/committee/members/{member}/revoke', [GovernanceElectionCommitteeAppointmentController::class, 'revoke'])
+        ->whereNumber('election')->whereNumber('member')
+        ->middleware('auth.permission:governance.election.committee.revoke')
+        ->name('elections.committee.members.revoke');
+
     // P2.1 — tenant-scoped election record and evidence-neutral authority register.
     Route::get('/elections', [GovernanceElectionAuthorityController::class, 'index'])
         ->middleware('auth.permission:governance.election.view')

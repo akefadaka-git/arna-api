@@ -49,6 +49,7 @@ on:
       - "mases_core/src/Domains/Governance/Services/GovernanceElectionCommitteeSecurityService.php"
       - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php"
       - "tests/Feature/GovernanceElectionAuthorityTest.php"
+      - "tests/Feature/GovernanceElectionCommitteeAppointmentTest.php"
       - "mases_core/src/Domains/Governance/Routes/api.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
@@ -260,6 +261,7 @@ jobs:
         run: |
           php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
           php artisan test --compact tests/Feature/GovernanceElectionAuthorityTest.php
+          php artisan test --compact tests/Feature/GovernanceElectionCommitteeAppointmentTest.php
 
       - name: Run tenant membership lifecycle and audit atomicity tests on MySQL
         env:

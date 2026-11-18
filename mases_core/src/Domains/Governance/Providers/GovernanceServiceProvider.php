@@ -528,7 +528,7 @@ final class GovernanceServiceProvider extends ServiceProvider
 
         // P1.3-B3 — explicit position-scoped authority grants.
         $this->app->singleton(GovernanceAuthorityGrantService::class);
-        $this->app->singleton(GovernanceElectionAuthorityService::class);
+        $this->app->singleton(GovernanceElectionAuthorityService::class);\n        $this->app->singleton(GovernanceElectionCommitteeAppointmentService::class);
     }
 
     // =========================================================================

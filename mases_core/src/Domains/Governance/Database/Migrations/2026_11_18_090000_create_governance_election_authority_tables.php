@@ -42,8 +42,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->foreignId('election_id')->constrained('governance_elections')->restrictOnDelete();
-            $table->foreignId('person_id')->nullable()->constrained('people')->restrictOnDelete();
-            $table->foreignId('user_id')->nullable()->constrained('users')->restrictOnDelete();
+            $table->foreignId('person_id')->constrained('people')->restrictOnDelete();
+            $table->foreignId('user_id')->constrained('users')->restrictOnDelete();
             $table->string('member_role', 32);
             $table->boolean('ex_officio')->default(false);
             $table->string('status', 20)->default('pending')->index();
@@ -51,6 +51,13 @@ return new class extends Migration
             $table->dateTime('recused_at')->nullable();
             $table->string('recusal_scope', 80)->nullable();
             $table->string('appointment_reference', 160);
+            // Evidence is validated against tenant/election/status in the write service.
+            // It is indexed here because the evidence table is created later in this migration.
+            $table->unsignedBigInteger('appointment_evidence_id')->index();
+            $table->foreignId('appointed_by')->constrained('users')->restrictOnDelete();
+            $table->foreignId('revoked_by')->nullable()->constrained('users')->restrictOnDelete();
+            $table->dateTime('revoked_at')->nullable();
+            $table->text('revocation_reason')->nullable();
             $table->timestamps();
             $table->index(['tenant_id', 'election_id', 'user_id', 'status'], 'gov_elec_committee_member_user_idx');
             $table->index(['tenant_id', 'election_id', 'person_id'], 'gov_elec_committee_member_person_idx');
