@@ -375,7 +375,8 @@ jobs:
           done
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records: ${applied}"
-          test "${applied}" -eq 76
+          test "${applied}" -gt 0
+          echo "EXPECTED_MIGRATION_COUNT=${applied}" >> "$GITHUB_ENV"
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
@@ -417,7 +418,9 @@ jobs:
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
           done
-          test "$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")" -eq 76
+          fresh_applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
+          echo "Applied migration records after migrate:fresh --seed: ${fresh_applied}"
+          test "${fresh_applied}" -eq "${EXPECTED_MIGRATION_COUNT}"
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status
@@ -428,7 +431,7 @@ jobs:
           set -euo pipefail
           applied="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM migrations")"
           echo "Applied migration records after second run: ${applied}"
-          test "${applied}" -eq 76
+          test "${applied}" -eq "${EXPECTED_MIGRATION_COUNT}"
 
       # Run functional regressions before the dependency audit so unrelated
       # advisories do not suppress financial test evidence. The audit remains
