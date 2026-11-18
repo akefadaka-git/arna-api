@@ -961,3 +961,32 @@ ENT he aa [ ፡፡ መው
 - በታች አካባቢ የክብ ማህተም፣ አራት ማዕዘን የገቢ/ታክስ ማህተም እና በእጅ የተጻፉ ቁጥሮች/ቀን ይታያሉ።
 - የማይነበቡ የማህተም ጽሑፎችና ቀኖች በግምት አልተሞሉም።
 ```
+
+## Visual source audit — pages 1–7 and 12–16
+
+This section records direct visual observations from the 17-page scanned source. It is an audit aid, not a substitute for a fully corrected, line-by-line transcription.
+
+### Pages 1–7
+
+- **Page 1:** Contains the opening/title material and multiple numbered/lettered clauses with underlined section headings. A handwritten signature and circular official-looking stamp are visible at the foot of the page.
+- **Page 2:** Continues the numbered clauses and section headings. Handwritten signatures and a circular official-looking stamp are visible at the foot.
+- **Page 3:** Continues the bylaws text, including numbered clauses and subclauses. Handwritten signatures and a circular official-looking stamp are visible at the foot.
+- **Page 4:** Continues numbered clauses and contains clearly printed numeric references, including 500, 20%, 10%, 15%, and 5% in the scan. Their legal meaning must be taken from a corrected transcription, not inferred from the isolated figures. Handwritten signatures and a circular official-looking stamp are visible at the foot.
+- **Page 5:** **Not blank.** It contains substantial numbered bylaws text and a further underlined section heading with numbered clauses. The lower part contains handwritten signatures and a circular official-looking stamp. Any earlier blank-page/empty-OCR treatment of page 5 is incorrect and must be replaced by a proper transcription.
+- **Page 6:** Contains a numbered list with subclauses 1.1–1.6, followed by additional section headings and clauses. Numeric percentages are visible in the scan, including 75%, 5%, and 20%; their exact operative context requires transcription. Handwritten signatures and a circular official-looking stamp are visible at the foot.
+- **Page 7:** Contains multiple section headings and numbered clauses, including a long multi-item section. A handwritten signature group and circular official-looking stamp are visible at the foot.
+
+### Pages 12–16
+
+- **Page 12:** Contains numbered clauses and several section headings. Visible numeric references include 29, 30 days, 15 days, 4/5, 20%, and 5%. These are recorded as visual tokens only; do not infer their legal effect without a corrected transcription. A handwritten signature group and circular official-looking stamp are visible at the foot.
+- **Page 13:** Continues clause 11.2 and a numbered list. Several statutory/article-number references are visible, including 351, 358, 349, 359, 360, 362, 364, 446, and 447. Verify each number and its surrounding text against the source before relying on it. A handwritten signature group and circular official-looking stamp are visible at the foot.
+- **Page 14:** Continues the numbered clauses, including items 8–15, followed by further section headings and clauses. Visible numeric references include 358 and 365. A handwritten signature group and circular official-looking stamp are visible at the foot.
+- **Page 15:** Contains additional clauses and a numbered signature table with rows 1–15, including handwritten signatures. The page also shows the printed date string **16/12/2016** (the calendar designation and full context must be transcribed before interpreting it). A handwritten signature group and circular official-looking stamp appear below the table.
+- **Page 16:** Continues the signature table with rows 16–29. Handwritten signatures appear in the signature column; an official-looking circular stamp is visible below the table, with another handwritten signature group near the bottom. This is a continuation of the page 15 schedule, not a separate 14-person schedule.
+
+### Audit limitations
+
+- This visual pass confirms the presence and broad structure of content; it does **not** establish exact Amharic wording, personal names, identifying information, statutory references, or the legibility/authenticity of stamps.
+- Pages 1–7 and 12–16 remain subject to line-by-line transcription correction. In particular, the numeric strings listed above are visual checkpoints, not legal conclusions.
+- The page 15–16 schedule has 29 numbered rows in total. Names and handwritten signatures have not yet been reliably transcribed and matched row by row.
+- Keep the original scan as the controlling source. Preserve uncertain characters as [ILLEGIBLE] or an equivalent explicit uncertainty marker; never fabricate a name, date, amount, article number, or stamp legend.
