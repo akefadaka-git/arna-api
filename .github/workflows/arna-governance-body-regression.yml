@@ -1,4 +1,5 @@
 name: ARNA Governance authorization regression
+# P2.4 candidate intake is covered by this exact-SHA governance regression gate.
 
 on:
   pull_request:
