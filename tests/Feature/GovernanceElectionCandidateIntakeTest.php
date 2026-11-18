@@ -139,6 +139,10 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             'representative_user_id' => $representative->id, 'person_id' => null,
             'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
         ]);
+        // A designated entity representative is tenant-associated by the active
+        // shareholder mandate even if no separate PersonTenantAccess row exists.
+        DB::table('person_tenant_accesses')->where('person_id', $representativePerson->id)
+            ->where('tenant_id', $tenant->id)->delete();
         $this->grant($representative, 'governance.election.nomination.submit');
         [$election] = $this->verifiedElection($tenant, $admin, $reviewer, $verifier, 'ENTITY-' . $tenant->id);
 
