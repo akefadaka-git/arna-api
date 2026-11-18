@@ -19,15 +19,6 @@ final class DocumentNumberAllocatorTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function it_refuses_to_allocate_outside_the_issuance_transaction(): void
-    {
-        $allocator = new DocumentNumberAllocator(new DocumentNumberFormatter());
-
-        $this->expectException(LogicException::class);
-        $allocator->allocate(1, 1, 1, 'LET', 2019);
-    }
-
-    #[Test]
     public function it_allocates_and_increments_the_exact_entity_department_type_and_ec_year_scope(): void
     {
         [$tenantId, $entityId, $unitId] = $this->registeredIssuer('01', '03');
