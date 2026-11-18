@@ -1058,3 +1058,38 @@ For any subsequent manual transcription, use [UNCLEAR: …] when some characters
 ### Completion gate
 
 This pass improves source coverage and identifies page-specific OCR failure modes, but it does **not** satisfy the requested line-by-line Amharic correction. A true corrected transcription requires manual reading of every line from the scan at sufficient visual resolution, including crowded clauses and tables. The current 17-page document remains a working recovery, **PARTIAL / NOT VERIFIED**. No claim of complete source-to-Markdown textual equivalence is made.
+
+
+## Manual line-by-line transcription — page 1 (first pass)
+
+**Method:** visual comparison against the 300-dpi page-1 scan, with Amharic OCR used only as a reading aid. The transcription below preserves the page's visible order. Editorial uncertainty is marked; it is not silently reconstructed.
+
+### Printed heading and introductory statement
+
+የማሌ ዓርና አክሲዮን ማኅበር
+
+የመተዳደሪያ ደንብ
+
+ይህ የመተዳደሪያ ደንብ የመመሥረቻ ሰነዱ አካል ሆኖ የተዘጋጀ ሲሆን አግባብ ባላቸው የሕግ ድንጋጌዎች መሠረት ይመራል፣ ይተዳደራል።
+
+### አንቀጽ አንድ — የባለ አክሲዮኖች /ማኅበርተኞች መብቶች/
+
+እያንዳንዱ ባለ አክሲዮን፦
+
+ሀ. በልዩም ሆነ በመደበኛ ጉባኤዎች በመገኘት ሃሳብ የመስጠት፣ የመቃወም፣ ድምፅ የመስጠት፤
+
+ለ. የማኅበሩን ውሳኔ የመጠየቅ የማግኘት፤
+
+ሐ. የማኅበሩን የተጣራ ትርፍ፣ ማኅበሩም ሲፈርስ በሚደረገው የሂሳብ ማጣራት ድርሻን የመካፈል፤
+
+መ. የማኅበሩ የዳይሬክተሮች ቦርድ አባል ሆኖ የመቅረብ፤
+
+ሠ. ካፒታል በመጨመሩ ተጨማሪ አክሲዮኖች የሚታደሉ ቢሆን የቀደምትነት ድርሻ የማግኘት፤
+
+ረ. አግባብ ባለው ሕግ፣ በመመሥረቻ ጽሑፍ በዚህ የመተዳደሪያ ደንብ በሚሰጡት መብቶች የመጠቀም፤ [የመጨረሻው የታተመ ሐረግ በምስሉ ላይ በከፊል የተደበዘዘ ነው።]
+
+### Remaining page-1 text
+
+The remainder of page 1 contains further article headings and numbered clauses. Their visible sequence and some headings are inconsistent with the apparent article sequence, and the small/blurred characters do not yet support a dependable line-by-line reading. **NOT TRANSCRIBED in this pass**; the original image remains the controlling source. No heading or clause has been reordered to make the sequence appear logical.
+
+**Page 1 status after this pass:** PARTIAL. The title, introductory statement, and most of Article 1's shareholder-rights list have been manually read. The remainder of the page is still unresolved and requires a second close visual pass.
