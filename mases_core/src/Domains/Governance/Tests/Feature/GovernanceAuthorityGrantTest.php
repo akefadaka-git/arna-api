@@ -516,6 +516,93 @@ final class GovernanceAuthorityGrantTest extends TestCase
         ));
     }
 
+    public function test_document_authority_can_be_granted_to_an_acting_officer_only_within_the_acting_assignment(): void
+    {
+        $actingUser = $this->makeUser('acting@authority.example.test');
+        $actingPerson = $this->makePerson($actingUser);
+        $permission = Permission::query()->create([
+            'slug' => 'documents.approve',
+            'name_am' => 'ሰነድ ማጽደቅ',
+            'name_en' => 'Approve Documents',
+            'description_am' => 'ሰነድ ማጽደቅ',
+            'description_en' => 'Approve Documents',
+            'category' => 'documents',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $actingUser->permissions()->attach($permission->id, ['assigned_at' => now()]);
+
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'DOCUMENT-ACTING',
+        );
+        $today = CarbonImmutable::today();
+        $end = $today->addDays(5);
+        $occupancy = $seats->occupy(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $seat->id,
+            (int) $this->administratorPerson->id,
+            $today->toDateString(),
+            null,
+        );
+
+        $assignment = app(GovernanceActingAssignmentService::class)->assign(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $seat->id,
+            (int) $occupancy->id,
+            (int) $actingPerson->id,
+            $today->toDateString(),
+            $end->toDateString(),
+            'BOARD-RESOLUTION-DOC-ACTING-001',
+            ['documents.approve'],
+            'Temporary authority to approve documents',
+        );
+
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $actingPerson->id,
+            'action' => 'documents.approve',
+            'effective_from' => $today->toDateString(),
+            'effective_until' => $end->toDateString(),
+            'reason' => 'Action-bound grant within the acting assignment',
+        ])->assertCreated();
+
+        $authorization = app(DocumentWorkflowAuthorizationService::class);
+        $this->assertTrue($authorization->allowsGovernedAction(
+            $actingUser,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->administrator->id,
+        ));
+
+        app(GovernanceActingAssignmentService::class)->revoke(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $assignment->id,
+            'Temporary acting authority concluded',
+        );
+
+        $this->assertFalse($authorization->allowsGovernedAction(
+            $actingUser,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->administrator->id,
+        ));
+    }
+
     private function makeUser(string $email): User
     {
         $user = User::query()->create([
