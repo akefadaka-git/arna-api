@@ -253,6 +253,8 @@ final class GovernanceElectionCandidateService
                     'nominated_by_shareholder_id' => (int) $existing->nominated_by_shareholder_id,
                     'status' => $existing->status,
                     'self_nomination' => (bool) $existing->self_nomination,
+                    'submission_channel' => $existing->submission_channel,
+                    'source_reference' => $existing->source_reference,
                     'submitted_at' => $existing->submitted_at,
                 ];
             }
@@ -307,6 +309,8 @@ final class GovernanceElectionCandidateService
                 'nominated_by_shareholder_id' => (int) $nominator->id,
                 'status' => 'submitted',
                 'self_nomination' => $selfNomination,
+                'submission_channel' => $submissionChannel,
+                'source_reference' => $sourceReference,
                 'submitted_at' => now('UTC')->toDateTimeString(),
             ];
         });
@@ -658,7 +662,7 @@ final class GovernanceElectionCandidateService
             ->select(['id', 'tenant_id', 'election_id', 'person_id', 'status', 'consent_status', 'declarations', 'version', 'created_at'])
             ->with([
                 'person:id,public_id,first_name_am,father_name_am,grandfather_name_am,first_name_en,father_name_en,grandfather_name_en',
-                'nominations:id,candidate_id,status,self_nomination,statement,submitted_at',
+                'nominations:id,candidate_id,status,self_nomination,submission_channel,source_reference,statement,submitted_at',
                 'nominations.events:id,nomination_submission_id,sequence,event_type,payload,occurred_at',
                 'evidence:id,candidate_id,evidence_type,attached_at',
                 'decisions:id,candidate_id,outcome,rationale,rule_set_version,decided_at',
