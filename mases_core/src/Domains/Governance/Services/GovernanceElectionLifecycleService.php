@@ -86,6 +86,14 @@ final class GovernanceElectionLifecycleService
         if (trim((string) $reason) === '' || mb_strlen(trim((string) $reason)) < 5) {
             throw ValidationException::withMessages(['reason' => 'A meaningful reason of at least five characters is required for every lifecycle transition.']);
         }
+        if ($evidenceReferences === []) {
+            throw ValidationException::withMessages(['evidence_references' => 'At least one durable evidence reference is required for every lifecycle transition.']);
+        }
+        foreach ($evidenceReferences as $reference) {
+            if (!is_string($reference) || trim($reference) === '' || mb_strlen($reference) > 200) {
+                throw ValidationException::withMessages(['evidence_references' => 'Each evidence reference must be a non-empty string of at most 200 characters.']);
+            }
+        }
 
         return DB::transaction(function () use ($tenantId, $electionId, $actor, $action, $expectedVersion, $reason, $evidenceReferences, $authority, $schedule): GovernanceElection {
             $election = GovernanceElection::query()->forTenant($tenantId)->whereKey($electionId)->lockForUpdate()->first();
