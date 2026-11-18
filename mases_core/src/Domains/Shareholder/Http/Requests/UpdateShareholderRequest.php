@@ -92,6 +92,10 @@ final class UpdateShareholderRequest extends FormRequest
                 'sometimes', 'nullable', 'string', 'max:' . self::MAX_ENTITY_NAME_LENGTH,
             ],
 
+            'registered_address' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'register_entry_date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'register_source_reference' => ['sometimes', 'nullable', 'string', 'max:255'],
+
             'user_id' => [
                 'sometimes', 'nullable', 'integer', 'exists:users,id',
             ],
