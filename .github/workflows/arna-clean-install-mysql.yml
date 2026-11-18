@@ -50,6 +50,14 @@ on:
       - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php"
       - "tests/Feature/GovernanceElectionAuthorityTest.php"
       - "tests/Feature/GovernanceElectionCommitteeAppointmentTest.php"
+      - "tests/Feature/GovernanceElectionCandidateIntakeTest.php"
+      - "mases_core/src/Domains/Governance/Models/GovernanceElectionCandidate.php"
+      - "mases_core/src/Domains/Governance/Models/GovernanceElectionNomination.php"
+      - "mases_core/src/Domains/Governance/Models/GovernanceElectionCandidateEvidence.php"
+      - "mases_core/src/Domains/Governance/Models/GovernanceElectionCandidateEligibilityDecision.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionCandidateIntakeService.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCandidateIntakeController.php"
+      - "mases_core/src/Domains/Governance/Database/Seeders/GovernanceElectionCandidatePermissionsSeeder.php"
       - "mases_core/src/Domains/Governance/Routes/api.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
@@ -261,6 +269,7 @@ jobs:
         run: |
           php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
           php artisan test --compact tests/Feature/GovernanceElectionAuthorityTest.php
+          php artisan test --compact tests/Feature/GovernanceElectionCandidateIntakeTest.php
           php artisan test --compact tests/Feature/GovernanceElectionCommitteeAppointmentTest.php
 
       - name: Run tenant membership lifecycle and audit atomicity tests on MySQL
@@ -387,7 +396,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates corporate_site_pages corporate_site_entries corporate_site_inquiries governance_elections governance_election_committee_members governance_election_authority_evidence; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates corporate_site_pages corporate_site_entries corporate_site_inquiries governance_elections governance_election_committee_members governance_election_authority_evidence governance_election_candidates governance_election_nominations governance_election_candidate_evidence governance_election_candidate_eligibility_decisions; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
