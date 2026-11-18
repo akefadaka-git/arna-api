@@ -7,7 +7,7 @@ namespace Tests\Unit\Documents;
 use LogicException;
 use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentWorkflowEvent;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 final class DocumentWorkflowEventImmutabilityTest extends TestCase
 {
