@@ -122,6 +122,72 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         DB::table('document_workflow_events')->where('id', $eventId)->delete();
     }
 
+    public function test_rejection_is_audited_and_approval_can_advance_to_signing(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->twice();
+        $authorization->shouldReceive('requireGovernedAction')->times(2);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+
+        $rejected = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Rejected lifecycle', 9, 4);
+        $rejected = $service->transition($actor, $tenantId, (int) $rejected->id, 'submit', 0, null, [
+            'submitted_file_id' => $fileId,
+            'submitted_file_version' => 1,
+        ]);
+        $rejected = $service->transition($actor, $tenantId, (int) $rejected->id, 'start_review', 1);
+        $rejected = $service->transition($actor, $tenantId, (int) $rejected->id, 'reject', 2, 'Insufficient supporting evidence.');
+        self::assertSame('rejected', $rejected->status);
+        self::assertSame('reject', $rejected->events()->latest('revision')->value('action'));
+
+        $authorization->shouldReceive('requireGovernedAction')->times(3);
+        $approved = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Approval lifecycle', 9, 4);
+        $approved = $service->transition($actor, $tenantId, (int) $approved->id, 'submit', 0, null, [
+            'submitted_file_id' => $fileId,
+            'submitted_file_version' => 1,
+        ]);
+        $approved = $service->transition($actor, $tenantId, (int) $approved->id, 'start_review', 1);
+        $approved = $service->transition($actor, $tenantId, (int) $approved->id, 'approve', 2);
+        $approved = $service->transition($actor, $tenantId, (int) $approved->id, 'begin_signing', 3);
+        self::assertSame('signing', $approved->status);
+        self::assertSame(4, (int) $approved->revision);
+    }
+
+    public function test_issue_transition_fails_closed_without_a_matching_issued_record(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->twice();
+        $authorization->shouldReceive('requireGovernedAction')->times(4);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Issue guard', 9, 4);
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
+            'submitted_file_id' => $fileId,
+            'submitted_file_version' => 1,
+        ]);
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'approve', 2);
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'begin_signing', 3);
+
+        try {
+            $service->transition($actor, $tenantId, (int) $workflow->id, 'issue', 4, null, ['issued_document_id' => 999999]);
+            self::fail('Issuance must reject an absent issued document record.');
+        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException) {
+            self::assertSame('signing', $workflow->fresh()->status);
+            self::assertSame(4, (int) $workflow->fresh()->revision);
+        }
+    }
+
     public function test_submitted_file_is_bound_to_server_computed_sha256_and_tenant_fk_rejects_cross_tenant_linkage(): void
     {
         [$tenantA, $entityA, $unitA] = $this->issuer();
