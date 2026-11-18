@@ -69,6 +69,74 @@ final class DocumentNumberingSchemaTest extends TestCase
         DB::table('document_number_counters')->insert($counter);
     }
 
+    #[Test]
+    public function mysql_rejects_reserved_entity_codes(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('MySQL CHECK constraints are verified in the MySQL CI job.');
+        }
+
+        [$tenant, $entity] = $this->entity();
+
+        $this->expectException(QueryException::class);
+        $this->assignEntityCode($tenant, $entity, '00');
+    }
+
+    #[Test]
+    public function mysql_rejects_reserved_department_codes(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('MySQL CHECK constraints are verified in the MySQL CI job.');
+        }
+
+        [$tenant, $entity] = $this->entity();
+        $unit = $this->unit($tenant, $entity, 'FIN');
+        $this->assignEntityCode($tenant, $entity, '01');
+
+        $this->expectException(QueryException::class);
+        $this->assignDepartmentCode($tenant, $entity, $unit, '00');
+    }
+
+    #[Test]
+    public function mysql_rejects_short_ec_years_and_sequences_above_the_allocator_limit(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('MySQL CHECK constraints are verified in the MySQL CI job.');
+        }
+
+        [$tenant, $entity] = $this->entity();
+        $unit = $this->unit($tenant, $entity, 'FIN');
+        $this->assignEntityCode($tenant, $entity, '01');
+        $this->assignDepartmentCode($tenant, $entity, $unit, '03');
+
+        $counter = [
+            'tenant_id' => $tenant,
+            'legal_entity_id' => $entity,
+            'organization_unit_id' => $unit,
+            'entity_code' => '01',
+            'department_code' => '03',
+            'document_type_number' => '04',
+            'ec_year' => 99,
+            'next_sequence' => 1,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        try {
+            DB::table('document_number_counters')->insert($counter);
+            $this->fail('A two-digit EC year must be rejected by MySQL.');
+        } catch (QueryException) {
+            $this->assertTrue(true);
+        }
+
+        $counter['ec_year'] = 2019;
+        $counter['next_sequence'] = 10001;
+
+        $this->expectException(QueryException::class);
+        DB::table('document_number_counters')->insert($counter);
+    }
+
     /** @return array{int,int} */
     private function entity(?int $tenantId = null): array
     {
