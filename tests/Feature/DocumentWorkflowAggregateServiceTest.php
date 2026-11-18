@@ -206,6 +206,63 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         ]);
     }
 
+    public function test_invalid_or_untrusted_signature_fails_before_number_allocation_or_document_creation(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->twice();
+        $authorization->shouldReceive('requireGovernedAction')->times(4);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $this->workflowReadyToIssue($service, $actor, $tenantId, $entityId, $unitId, $fileId, 'Invalid signature');
+        $signature = $this->signatureEvidence($actor, $tenantId, $workflow);
+        $signature['signature'] = base64_encode(random_bytes(SODIUM_CRYPTO_SIGN_BYTES));
+
+        try {
+            $service->transition($actor, $tenantId, (int) $workflow->id, 'issue', 4, null, [
+                'signature_evidence' => $signature,
+            ]);
+            self::fail('An invalid Ed25519 signature must never issue a document.');
+        } catch (\\Illuminate\\Auth\\Access\\AuthorizationException) {
+            self::assertSame('signing', $workflow->fresh()->status);
+            self::assertSame(0, DB::table('documents')->where('tenant_id', $tenantId)->count());
+            self::assertSame(0, DB::table('document_number_counters')->where('tenant_id', $tenantId)->count());
+            self::assertSame(0, DB::table('document_signature_evidence')->where('tenant_id', $tenantId)->count());
+        }
+    }
+
+    public function test_document_binary_version_and_signing_key_records_are_append_only_in_mysql_and_sqlite(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->twice();
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Append-only binary');
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
+            'submitted_file_id' => $fileId,
+            'submitted_file_version' => 1,
+        ]);
+
+        try {
+            DB::table('document_file_versions')->where('id', $workflow->submitted_file_evidence_id)
+                ->update(['sha256' => str_repeat('0', 64)]);
+            self::fail('A sealed document file version cannot be modified.');
+        } catch (QueryException) {
+            self::assertDatabaseHas('document_file_versions', [
+                'id' => $workflow->submitted_file_evidence_id,
+                'sha256' => hash('sha256', 'immutable source bytes'),
+            ]);
+        }
+
+        $this->expectException(QueryException::class);
+        DB::table('document_file_versions')->where('id', $workflow->submitted_file_evidence_id)->delete();
+    }
+
     public function test_revoke_and_supersede_update_issued_documents_and_append_lifecycle_events(): void
     {
         [$tenantId, $entityId, $unitId] = $this->issuer();
@@ -213,7 +270,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $fileId = $this->file($tenantId, (int) $actor->getKey());
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->times(6);
-        $authorization->shouldReceive('requireGovernedAction')->times(11);
+        $authorization->shouldReceive('requireGovernedAction')->times(14);
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
 
@@ -353,6 +410,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
     {
         [$tenantId, $entityId, $unitId] = $this->issuer();
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenantId]);
+        $this->actingAs($actor);
         $actor->tenants()->attach($tenantId, ['joined_at' => now()]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
 
@@ -394,6 +452,58 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             self::assertSame(1, (int) $workflow->fresh()->revision);
         }
 
+        $person = \\MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person::query()->create([
+            'first_name_en' => 'Governance signatory',
+        ]);
+        DB::table('people')->where('id', $person->getKey())->update(['user_id' => $actor->getKey()]);
+        DB::table('person_tenant_accesses')->insert([
+            'person_id' => $person->getKey(),
+            'tenant_id' => $tenantId,
+            'created_by' => $actor->getKey(),
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $grantor = \\MaaleArna\\MASES\\Core\\Domains\\People\\Models\\Person::query()->create([
+            'first_name_en' => 'Independent grantor',
+        ]);
+        DB::table('person_tenant_accesses')->insert([
+            'person_id' => $grantor->getKey(),
+            'tenant_id' => $tenantId,
+            'created_by' => $actor->getKey(),
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $bodyId = (int) DB::table('governance_bodies')->insertGetId([
+            'tenant_id' => $tenantId, 'code' => 'DOC-BODY-'.uniqid(), 'body_type' => 'board',
+            'name_am' => 'የሰነድ ቦርድ', 'name_en' => 'Document Board', 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $positionId = (int) DB::table('governance_positions')->insertGetId([
+            'tenant_id' => $tenantId, 'governance_body_id' => $bodyId, 'code' => 'DOC-POS-'.uniqid(),
+            'name_am' => 'አባል', 'name_en' => 'Document Reviewer', 'is_voting' => true,
+            'is_officer' => false, 'sort_order' => 1, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('governance_memberships')->insert([
+            'tenant_id' => $tenantId, 'governance_body_id' => $bodyId, 'governance_position_id' => $positionId,
+            'user_id' => $actor->getKey(), 'member_name_en' => 'Governance signatory',
+            'start_date' => now()->toDateString(), 'end_date' => null, 'status' => 'active',
+            'is_ex_officio' => false, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('governance_authority_grants')->insert([
+            'tenant_id' => $tenantId, 'governance_body_id' => $bodyId, 'governance_position_id' => $positionId,
+            'grantee_person_id' => $person->getKey(), 'grantor_person_id' => $grantor->getKey(),
+            'created_by_user_id' => $actor->getKey(), 'action' => 'documents.review',
+            'effective_from' => now()->toDateString(), 'effective_until' => null,
+            'reason' => 'Owner-approved integration test authority',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $approved = $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
+        self::assertSame('in_review', $approved->status);
+        self::assertSame(2, (int) $approved->revision);
         self::assertInstanceOf(DocumentWorkflowAuthorizationService::class, $this->app->make(DocumentWorkflowAuthorizer::class));
     }
 
