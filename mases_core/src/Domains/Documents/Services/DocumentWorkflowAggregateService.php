@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Documents\Models\Document;
+use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentLifecycleEvent;
 use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentWorkflowAggregate;
 use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentWorkflowEvent;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
