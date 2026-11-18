@@ -8,8 +8,12 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
+use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
 use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Mockery;
@@ -57,6 +61,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         self::assertSame('submitted', $workflow->status);
         self::assertSame(1, (int) $workflow->revision);
         self::assertSame($fileId, (int) $workflow->submitted_file_id);
+        self::assertSame(hash('sha256', 'immutable source bytes'), $workflow->submitted_file_sha256);
 
         $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
         self::assertSame('in_review', $workflow->status);
@@ -117,6 +122,95 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         DB::table('document_workflow_events')->where('id', $eventId)->delete();
     }
 
+    public function test_submitted_file_is_bound_to_server_computed_sha256_and_tenant_fk_rejects_cross_tenant_linkage(): void
+    {
+        [$tenantA, $entityA, $unitA] = $this->issuer();
+        [$tenantB] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileA = $this->file($tenantA, (int) $actor->getKey());
+        $fileB = $this->file($tenantB, (int) $actor->getKey());
+
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->twice();
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $service->createDraft($actor, $tenantA, $entityA, $unitA, '01', 'File integrity');
+        $workflow = $service->transition($actor, $tenantA, (int) $workflow->id, 'submit', 0, null, [
+            'submitted_file_id' => $fileA,
+            'submitted_file_version' => 1,
+        ]);
+
+        self::assertSame(hash('sha256', 'immutable source bytes'), $workflow->submitted_file_sha256);
+
+        $this->expectException(QueryException::class);
+        DB::table('document_workflow_aggregates')->where('id', $workflow->id)
+            ->update(['submitted_file_id' => $fileB, 'submitted_file_sha256' => hash('sha256', 'other tenant')]);
+    }
+
+    public function test_failed_event_append_rolls_back_aggregate_state_and_revision(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->twice();
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Rollback on event failure');
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
+            'submitted_file_id' => $fileId,
+            'submitted_file_version' => 1,
+        ]);
+
+        DB::unprepared("CREATE TRIGGER test_fail_workflow_event BEFORE INSERT ON document_workflow_events WHEN NEW.action = 'start_review' BEGIN SELECT RAISE(ABORT, 'forced event append failure'); END");
+
+        try {
+            $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
+            self::fail('The event insert trigger should abort the transition.');
+        } catch (QueryException) {
+            $fresh = $workflow->fresh();
+            self::assertSame('submitted', $fresh->status);
+            self::assertSame(1, (int) $fresh->revision);
+            self::assertSame(2, $fresh->events()->count());
+        } finally {
+            DB::unprepared('DROP TRIGGER IF EXISTS test_fail_workflow_event');
+        }
+    }
+
+    public function test_aggregate_uses_the_concrete_rbac_and_governance_authorization_adapter(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+
+        $rbac = Mockery::mock(AuthorizationService::class);
+        $rbac->shouldReceive('hasPermission')->with('documents.create', $actor, $tenantId)->once()->andReturn(true);
+        $rbac->shouldReceive('hasPermission')->with('documents.submit', $actor, $tenantId)->once()->andReturn(true);
+        $rbac->shouldReceive('hasPermission')->with('documents.review', $actor, $tenantId)->once()->andReturn(true);
+        $this->app->instance(AuthorizationService::class, $rbac);
+
+        $governance = Mockery::mock(GovernanceAuthorityGrantService::class);
+        $governance->shouldReceive('allows')->with($actor, $tenantId, 9, 4, 'documents.review')->once()->andReturn(true);
+        $this->app->instance(GovernanceAuthorityGrantService::class, $governance);
+        $this->app->instance(
+            DocumentWorkflowAuthorizer::class,
+            $this->app->make(DocumentWorkflowAuthorizationService::class),
+        );
+
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Concrete adapter', 9, 4);
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
+            'submitted_file_id' => $fileId,
+            'submitted_file_version' => 1,
+        ]);
+        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
+
+        self::assertSame('in_review', $workflow->status);
+        self::assertInstanceOf(DocumentWorkflowAuthorizationService::class, $this->app->make(DocumentWorkflowAuthorizer::class));
+    }
+
     /** @return array{int,int,int} */
     private function issuer(): array
     {
@@ -146,12 +240,15 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
 
     private function file(int $tenantId, int $userId): int
     {
+        Storage::fake('local');
+        Storage::disk('local')->put('documents/source.pdf', 'immutable source bytes');
+
         return (int) DB::table('files')->insertGetId([
             'tenant_id' => $tenantId,
             'user_id' => $userId,
             'original_name' => 'source.pdf',
             'name' => 'source.pdf',
-            'size' => 12,
+            'size' => strlen('immutable source bytes'),
             'path' => 'documents/source.pdf',
             'disk' => 'local',
             'version' => 1,
