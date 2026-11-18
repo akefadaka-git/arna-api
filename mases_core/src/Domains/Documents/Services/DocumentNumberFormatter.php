@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 
 use InvalidArgumentException;
-use MaaleArna\MASES\Core\Domains\Domains\Documents\Registries\DocumentTypeRegistry;
+use MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry;
 
 /**
  * Formats the canonical ARNA identifier: ማዓ/EE/DD/TT/YYYY/NNNN.
@@ -20,14 +20,14 @@ final class DocumentNumberFormatter
         string $entityCode,
         string $departmentCode,
         string $documentTypeCode,
-        int $ethopianYear,
+        int $ethiopianYear,
         int $sequence,
     ): string {
         $entity = $this->normalizeIssuerCode($entityCode, 'EE');
         $department = $this->normalizeIssuerCode($departmentCode, 'DD');
         $type = DocumentTypeRegistry::numericCode($documentTypeCode);
 
-        if ($ethiopianYear < 1000 || $ethopianYear > 9999) {
+        if ($ethiopianYear < 1000 || $ethiopianYear > 9999) {
             throw new InvalidArgumentException('The full Ethiopian Calendar year must contain exactly four digits.');
         }
 
