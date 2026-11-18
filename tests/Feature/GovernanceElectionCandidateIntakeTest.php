@@ -277,7 +277,7 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $service->verifyAuthority((int) $tenant->id, (int) $election->id, (int) $evidence->id,
             'The authority was attested for this test.', $verifier);
         $service->openNominations(
-            (int) $tenant->id, (int) $election->id, 'candidate-rule-unresolved',
+            (int) $tenant->id, (int) $election->id, 'voting-rule-test-v1',
             $opensAt ?? now()->subMinute()->toDateTimeString(),
             $closesAt ?? now()->addHour()->toDateTimeString(), $recorder,
         );
