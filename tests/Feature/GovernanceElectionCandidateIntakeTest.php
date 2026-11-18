@@ -93,6 +93,33 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $this->assertSame('shareholder', $result['candidate']->candidate_type);
     }
 
+    public function test_candidate_person_from_another_tenant_is_not_accepted(): void
+    {
+        $tenantA = $this->tenant();
+        $tenantB = $this->tenant();
+        $admin = $this->user($tenantA, 'cross-tenant-admin@example.test');
+        $reviewer = $this->user($tenantA, 'cross-tenant-reviewer@example.test');
+        $verifier = $this->user($tenantA, 'cross-tenant-verifier@example.test');
+        $nominator = $this->user($tenantA, 'cross-tenant-nominator@example.test');
+        $nominatorPerson = $this->person($tenantA, $nominator);
+        $shareholderId = $this->shareholder($tenantA, $nominator, $nominatorPerson);
+        $foreignCandidate = $this->person($tenantB, null);
+        $this->grant($nominator, 'governance.election.nomination.submit');
+        [$election] = $this->verifiedElection($tenantA, $admin, $reviewer, $verifier, 'CROSS-TENANT-' . $tenantA->id);
+
+        try {
+            app(GovernanceElectionCandidateIntakeService::class)->submitNomination(
+                (int) $tenantA->id, (int) $election->id, (int) $foreignCandidate->id,
+                $shareholderId, 'cross-tenant-nomination-001', null, $nominator,
+            );
+            $this->fail('A Person with access only to another tenant must not be nominated in this tenant.');
+        } catch (ValidationException) {
+            $this->assertDatabaseMissing('governance_election_candidates', [
+                'tenant_id' => $tenantA->id, 'candidate_person_id' => $foreignCandidate->id,
+            ]);
+        }
+    }
+
     public function test_suspended_tenant_member_cannot_submit_a_nomination(): void
     {
         $tenant = $this->tenant();
