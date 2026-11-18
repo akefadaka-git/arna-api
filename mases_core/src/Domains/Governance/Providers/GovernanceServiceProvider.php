@@ -225,6 +225,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Services\GovernancePositionService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceTermService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionAuthorityService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionCommitteeAppointmentService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionCandidateIntakeService;
 
 /**
  * GovernanceServiceProvider
@@ -531,6 +532,7 @@ final class GovernanceServiceProvider extends ServiceProvider
         $this->app->singleton(GovernanceAuthorityGrantService::class);
         $this->app->singleton(GovernanceElectionAuthorityService::class);
         $this->app->singleton(GovernanceElectionCommitteeAppointmentService::class);
+        $this->app->singleton(GovernanceElectionCandidateIntakeService::class);
     }
 
     // =========================================================================
