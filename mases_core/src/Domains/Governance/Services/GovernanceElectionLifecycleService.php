@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
+use DateTimeImmutable;
+use DateTimeZone;
+use Throwable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -171,12 +174,23 @@ final class GovernanceElectionLifecycleService
         }
         $start = $schedule['scheduled_start_at'] ?? null;
         $end = $schedule['scheduled_end_at'] ?? null;
-        if (!$start || !$end || strtotime($start) === false || strtotime($end) === false || strtotime($start) >= strtotime($end)) {
+        $timezone = (string) ($schedule['timezone'] ?? $election->timezone);
+        if (!in_array($timezone, DateTimeZone::listIdentifiers(), true)) {
+            throw ValidationException::withMessages(['timezone' => 'A valid IANA timezone identifier is required.']);
+        }
+        try {
+            $zone = new DateTimeZone($timezone);
+            $startAt = $start ? new DateTimeImmutable((string) $start, $zone) : null;
+            $endAt = $end ? new DateTimeImmutable((string) $end, $zone) : null;
+        } catch (Throwable) {
+            throw ValidationException::withMessages(['scheduled_start_at' => 'Valid start and end date-times are required.']);
+        }
+        if ($startAt === null || $endAt === null || $startAt >= $endAt) {
             throw ValidationException::withMessages(['scheduled_start_at' => 'A valid start time earlier than the end time is required.']);
         }
-        $election->scheduled_start_at = $start;
-        $election->scheduled_end_at = $end;
-        $election->timezone = $schedule['timezone'] ?? $election->timezone;
+        $election->scheduled_start_at = $startAt->format('Y-m-d H:i:s');
+        $election->scheduled_end_at = $endAt->format('Y-m-d H:i:s');
+        $election->timezone = $timezone;
         return 'scheduled';
     }
 
