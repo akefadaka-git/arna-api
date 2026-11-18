@@ -168,9 +168,9 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         );
         $this->assertSame('submitted', DB::table('governance_election_nomination_submissions')
             ->where('id', $submission->id)->value('status'));
-        $this->assertSame(2, DB::table('governance_election_nomination_events')
+        $this->assertSame(3, DB::table('governance_election_nomination_events')
             ->where('nomination_submission_id', $submission->id)->count());
-        $this->assertSame('withdrawn', DB::table('governance_election_candidates')
+        $this->assertSame('intake_pending', DB::table('governance_election_candidates')
             ->where('id', $submission->candidate_id)->value('status'));
     }
 
@@ -266,6 +266,7 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             'ex_officio' => false,
             'status' => 'active',
             'appointed_at' => now(),
+            'appointed_by' => $this->manager->id,
             'recused_at' => null,
             'recusal_scope' => null,
             'appointment_reference' => 'GA-RESOLUTION-COMMITTEE',
