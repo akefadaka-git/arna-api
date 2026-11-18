@@ -599,7 +599,7 @@ final class ShareholderServiceTest extends TestCase
             'shareholder_type' => 'individual',
             'first_name_en' => 'Legacy Holder',
             'is_active' => true,
-        ]);
+        ])->refresh();
 
         $this->assertSame('legacy_unknown', $legacy->register_source_type);
         $this->assertSame('unverified', $legacy->register_verification_status);
