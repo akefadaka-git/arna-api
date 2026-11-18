@@ -514,6 +514,19 @@ final class GovernanceAuthorityGrantTest extends TestCase
             'documents.issue',
             (int) $this->administrator->id,
         ));
+
+        PersonTenantAccess::query()
+            ->where('person_id', $this->granteePerson->id)
+            ->where('tenant_id', $this->tenant->id)
+            ->update(['status' => 'inactive']);
+        $this->assertFalse($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->administrator->id,
+        ));
     }
 
     public function test_document_authority_can_be_granted_to_an_acting_officer_only_within_the_acting_assignment(): void
