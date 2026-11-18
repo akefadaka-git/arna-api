@@ -869,6 +869,12 @@ final class ShareholderSeeder extends Seeder
             'entity_name_am'         => $isEntity ? ($definition['entity_am'] ?? null) : null,
             'entity_name_en'         => $isEntity ? ($definition['entity_en'] ?? null) : null,
 
+            // Seeded address data is retained but never promoted to verified.
+            'registered_address' => $definition['address'] ?? null,
+            'register_source_type' => 'seeded',
+            'register_source_reference' => 'database/seeders/Data/ShareholderRegister.php#' . $shId,
+            'register_verification_status' => 'unverified',
+
             /*
              * D11 — individuals are linked directly; entities are
              * represented. The two columns are mutually exclusive
