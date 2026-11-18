@@ -13,9 +13,9 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
-use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
 use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use Mockery;
 use Tests\TestCase;
 
@@ -129,8 +129,8 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $fileId = $this->file($tenantId, (int) $actor->getKey());
 
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
-        $authorization->shouldReceive('requirePermission')->twice();
-        $authorization->shouldReceive('requireGovernedAction')->times(2);
+        $authorization->shouldReceive('requirePermission')->times(4);
+        $authorization->shouldReceive('requireGovernedAction')->times(5);
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
@@ -145,7 +145,6 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         self::assertSame('rejected', $rejected->status);
         self::assertSame('reject', $rejected->events()->latest('revision')->value('action'));
 
-        $authorization->shouldReceive('requireGovernedAction')->times(3);
         $approved = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Approval lifecycle', 9, 4);
         $approved = $service->transition($actor, $tenantId, (int) $approved->id, 'submit', 0, null, [
             'submitted_file_id' => $fileId,
@@ -252,22 +251,30 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
     public function test_aggregate_uses_the_concrete_rbac_and_governance_authorization_adapter(): void
     {
         [$tenantId, $entityId, $unitId] = $this->issuer();
-        $actor = User::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenantId]);
+        $actor->tenants()->attach($tenantId, ['joined_at' => now()]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
 
-        $rbac = Mockery::mock(AuthorizationService::class);
-        $rbac->shouldReceive('hasPermission')->with('documents.create', $actor, $tenantId)->once()->andReturn(true);
-        $rbac->shouldReceive('hasPermission')->with('documents.submit', $actor, $tenantId)->once()->andReturn(true);
-        $rbac->shouldReceive('hasPermission')->with('documents.review', $actor, $tenantId)->once()->andReturn(true);
-        $this->app->instance(AuthorizationService::class, $rbac);
+        foreach (['documents.create', 'documents.submit', 'documents.review'] as $slug) {
+            $permission = Permission::query()->create([
+                'slug' => $slug,
+                'name_am' => $slug,
+                'name_en' => $slug,
+                'description_am' => $slug,
+                'description_en' => $slug,
+                'category' => 'documents',
+                'scope' => 'tenant',
+                'tenant_id' => null,
+                'application_id' => null,
+                'is_active' => true,
+                'is_system' => false,
+            ]);
+            $actor->permissions()->attach($permission->id, ['assigned_at' => now()]);
+        }
 
-        $governance = Mockery::mock(GovernanceAuthorityGrantService::class);
-        $governance->shouldReceive('allows')->with($actor, $tenantId, 9, 4, 'documents.review')->once()->andReturn(true);
-        $this->app->instance(GovernanceAuthorityGrantService::class, $governance);
-        $this->app->instance(
-            DocumentWorkflowAuthorizer::class,
-            $this->app->make(DocumentWorkflowAuthorizationService::class),
-        );
+        $authorization = $this->app->make(DocumentWorkflowAuthorizationService::class);
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+        $this->app->make(AuthorizationService::class)->clearUserCache($actor);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
         $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Concrete adapter', 9, 4);
@@ -275,9 +282,17 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'submitted_file_id' => $fileId,
             'submitted_file_version' => 1,
         ]);
-        $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
 
-        self::assertSame('in_review', $workflow->status);
+        // Tenant RBAC alone must not authorize a governed review without a
+        // corresponding active position/action grant.
+        try {
+            $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
+            self::fail('A tenant permission alone must not authorize governed review.');
+        } catch (\\Illuminate\\Auth\\Access\\AuthorizationException) {
+            self::assertSame('submitted', $workflow->fresh()->status);
+            self::assertSame(1, (int) $workflow->fresh()->revision);
+        }
+
         self::assertInstanceOf(DocumentWorkflowAuthorizationService::class, $this->app->make(DocumentWorkflowAuthorizer::class));
     }
 
