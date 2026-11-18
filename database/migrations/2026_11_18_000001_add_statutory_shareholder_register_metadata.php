@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -32,6 +33,20 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::table('shareholders')
+            ->whereNotNull('registered_address')
+            ->orWhereNotNull('register_entry_date')
+            ->orWhereNotNull('register_source_reference')
+            ->orWhere('register_source_type', '<>', 'legacy_unknown')
+            ->orWhere('register_verification_status', '<>', 'unverified')
+            ->orWhereNotNull('register_verified_at')
+            ->orWhereNotNull('register_verified_by')
+            ->exists()) {
+            throw new RuntimeException(
+                'Cannot roll back statutory shareholder-register metadata while source or verification data exists.'
+            );
+        }
+
         Schema::table('shareholders', function (Blueprint $table): void {
             $table->dropIndex('shareholders_tenant_register_verification_idx');
             $table->dropForeign(['register_verified_by']);
