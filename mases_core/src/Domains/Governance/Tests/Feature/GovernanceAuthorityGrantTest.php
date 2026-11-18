@@ -505,13 +505,40 @@ final class GovernanceAuthorityGrantTest extends TestCase
             (int) $this->grantee->id,
         ));
 
-        // A department/role permission alone does not create an authority grant.
+        $issuePermission = Permission::query()->create([
+            'slug' => 'documents.issue',
+            'name_am' => 'ሰነድ ማውጣት',
+            'name_en' => 'Issue Documents',
+            'description_am' => 'ሰነድ ማውጣት',
+            'description_en' => 'Issue Documents',
+            'category' => 'documents',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $this->grantee->permissions()->attach($issuePermission->id, ['assigned_at' => now()]);
+
+        // A tenant RBAC permission alone does not create a Governance grant.
         $this->assertFalse($authorization->allowsGovernedAction(
             $this->grantee,
             (int) $this->tenant->id,
             (int) $this->body->id,
             (int) $this->position->id,
             'documents.issue',
+            (int) $this->administrator->id,
+        ));
+
+        // Revoking the RBAC permission also denies the action even while
+        // the separate Governance grant remains active.
+        $this->grantee->permissions()->detach($permission->id);
+        $this->assertFalse($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
             (int) $this->administrator->id,
         ));
 
