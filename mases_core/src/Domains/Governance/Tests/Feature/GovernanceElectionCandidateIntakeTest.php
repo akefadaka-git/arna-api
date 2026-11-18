@@ -230,7 +230,8 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $nominator = $this->makeUser('correction-nominator');
         $nominatorPerson = $this->makePerson($nominator);
         $this->makeShareholder($nominator, $nominatorPerson, 'individual');
-        $candidatePerson = $this->makePerson($this->makeUser('correction-candidate'));
+        $candidateAccount = $this->makeUser('correction-candidate');
+        $candidatePerson = $this->makePerson($candidateAccount);
         Auth::login($nominator);
         $service = app(GovernanceElectionCandidateService::class);
         $submission = $service->submitNomination(
@@ -249,6 +250,12 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $this->assertNotNull($correction);
         $this->assertSame('Corrected nomination statement.', json_decode($correction->payload, true)['statement']);
 
+        Auth::login($candidateAccount);
+        $service->recordConsent(
+            (int) $this->tenant->id, $this->electionId, (int) $submission->candidate_id,
+            $candidateAccount, 'direct',
+        );
+        Auth::login($nominator);
         $service->withdrawNomination(
             (int) $this->tenant->id, $this->electionId, (int) $submission->id,
             $nominator, 'Nominator withdraws this submission.',
@@ -257,7 +264,9 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             ->where('id', $submission->id)->value('status'));
         $this->assertSame(3, DB::table('governance_election_nomination_events')
             ->where('nomination_submission_id', $submission->id)->count());
-        $this->assertSame('intake_pending', DB::table('governance_election_candidates')
+        $this->assertSame('accepted', DB::table('governance_election_candidates')
+            ->where('id', $submission->candidate_id)->value('consent_status'));
+        $this->assertSame('eligibility_pending', DB::table('governance_election_candidates')
             ->where('id', $submission->candidate_id)->value('status'));
     }
 
