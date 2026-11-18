@@ -155,6 +155,15 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $approved = $service->transition($actor, $tenantId, (int) $approved->id, 'begin_signing', 3);
         self::assertSame('signing', $approved->status);
         self::assertSame(4, (int) $approved->revision);
+
+        $withdrawn = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Withdrawal lifecycle', 9, 4);
+        $withdrawn = $service->transition($actor, $tenantId, (int) $withdrawn->id, 'submit', 0, null, [
+            'submitted_file_id' => $fileId,
+            'submitted_file_version' => 1,
+        ]);
+        $withdrawn = $service->transition($actor, $tenantId, (int) $withdrawn->id, 'withdraw', 1, 'Request withdrawn by originator.');
+        self::assertSame('withdrawn', $withdrawn->status);
+        self::assertSame('withdraw', $withdrawn->events()->latest('revision')->value('action'));
     }
 
     public function test_issue_transition_fails_closed_without_a_matching_issued_record(): void
@@ -198,8 +207,8 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $replacement = $this->issuedDocument($tenantId, $entityId, $unitId, $fileId, (int) $actor->getKey(), $sha, 3, (int) $original);
 
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
-        $authorization->shouldReceive('requirePermission')->times(4);
-        $authorization->shouldReceive('requireGovernedAction')->times(10);
+        $authorization->shouldReceive('requirePermission')->times(6);
+        $authorization->shouldReceive('requireGovernedAction')->times(11);
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
 
