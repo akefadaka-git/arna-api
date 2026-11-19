@@ -224,6 +224,74 @@ final class FileSecurityTest extends TestCase
         });
     }
 
+    #[Test]
+    public function file_delete_permission_cannot_permanently_delete_a_file(): void
+    {
+        ['user' => $user, 'tenant' => $tenant] = $this->createUserWithPermissions(['file.upload', 'file.delete']);
+        $this->actingAs($user, 'sanctum');
+
+        $uploadedFile = UploadedFile::fake()->create('permanent-denied.pdf', 100, 'application/pdf');
+        $file = $this->fileService->upload(
+            uploadedFile: $uploadedFile,
+            fileName: 'permanent-denied',
+            tenantId: $tenant->id,
+            user: $user
+        );
+
+        $this->assertTrue(Storage::disk('local')->exists($file->path));
+        $this->assertFileException(403, function () use ($file, $user) {
+            $this->fileService->forceDelete($file, $user);
+        });
+        $this->assertDatabaseHas('files', ['id' => $file->id]);
+        $this->assertTrue(Storage::disk('local')->exists($file->path));
+    }
+
+    #[Test]
+    public function file_force_delete_permission_can_permanently_delete_a_file_within_tenant(): void
+    {
+        ['user' => $user, 'tenant' => $tenant] = $this->createUserWithPermissions(['file.upload', 'file.force_delete']);
+        $this->actingAs($user, 'sanctum');
+
+        $uploadedFile = UploadedFile::fake()->create('permanent-allowed.pdf', 100, 'application/pdf');
+        $file = $this->fileService->upload(
+            uploadedFile: $uploadedFile,
+            fileName: 'permanent-allowed',
+            tenantId: $tenant->id,
+            user: $user
+        );
+        $path = $file->path;
+
+        $this->assertTrue($this->fileService->forceDelete($file, $user));
+        $this->assertDatabaseMissing('files', ['id' => $file->id]);
+        $this->assertFalse(Storage::disk('local')->exists($path));
+    }
+
+    #[Test]
+    public function file_force_delete_permission_does_not_allow_cross_tenant_permanent_deletion(): void
+    {
+        $tenantA = Tenant::factory()->create();
+        $tenantB = Tenant::factory()->create();
+        $owner = $this->createUserWithPermissions(['file.upload'], $tenantA)['user'];
+        $otherTenantUser = $this->createUserWithPermissions(['file.force_delete'], $tenantB)['user'];
+
+        $this->actingAs($owner, 'sanctum');
+        $uploadedFile = UploadedFile::fake()->create('cross-tenant.pdf', 100, 'application/pdf');
+        $file = $this->fileService->upload(
+            uploadedFile: $uploadedFile,
+            fileName: 'cross-tenant',
+            tenantId: $tenantA->id,
+            user: $owner
+        );
+        $path = $file->path;
+
+        $this->actingAs($otherTenantUser, 'sanctum');
+        $this->assertFileException(403, function () use ($file, $otherTenantUser) {
+            $this->fileService->forceDelete($file, $otherTenantUser);
+        });
+        $this->assertDatabaseHas('files', ['id' => $file->id]);
+        $this->assertTrue(Storage::disk('local')->exists($path));
+    }
+
     // ------------------------------------------------------------------
     // Update / Versioning Tests
     // ------------------------------------------------------------------
