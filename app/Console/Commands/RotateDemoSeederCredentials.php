@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Database\Seeders\Data\BootstrapUsers;
+use Database\Seeders\ShareholderSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -49,32 +50,16 @@ final class RotateDemoSeederCredentials extends Command
             return self::FAILURE;
         }
 
-        $shareholderUserIds = DB::table('shareholders')
-            ->whereNotNull('user_id')
-            ->pluck('user_id')
-            ->merge(
-                DB::table('shareholders')
-                    ->whereNotNull('representative_user_id')
-                    ->pluck('representative_user_id')
-            )
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        $adminEmails = [
-            BootstrapUsers::SUPER_ADMIN['email'],
-            BootstrapUsers::PLATFORM_ADMIN['email'],
-        ];
+        $seededEmails = array_merge(
+            [
+                BootstrapUsers::SUPER_ADMIN['email'],
+                BootstrapUsers::PLATFORM_ADMIN['email'],
+            ],
+            (new ShareholderSeeder())->seededAccountEmails(),
+        );
 
         $users = User::query()
-            ->where(function ($query) use ($adminEmails, $shareholderUserIds): void {
-                $query->whereIn('email', $adminEmails);
-
-                if ($shareholderUserIds !== []) {
-                    $query->orWhereIn('id', $shareholderUserIds);
-                }
-            })
+            ->whereIn('email', $seededEmails)
             ->orderBy('id')
             ->get();
 
