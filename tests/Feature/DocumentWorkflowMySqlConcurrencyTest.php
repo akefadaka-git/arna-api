@@ -112,10 +112,11 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
             @unlink($path);
         }
 
-        // Hold the contested aggregate row until MySQL reports both workers waiting.
-        DB::beginTransaction();
-        DB::table('document_workflow_aggregates')->where('id', $workflow->id)
-            ->lockForUpdate()->first();
+        // Do not fork while a PDO socket is open: inherited MySQL file descriptors
+        // are shared across processes and a child disconnect can invalidate the
+        // coordinator's session. Workers and coordinator each establish a fresh,
+        // independent MySQL connection after the fork.
+        DB::disconnect();
         $children = [];
 
         try {
@@ -126,6 +127,9 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
                 }
                 if ($pid === 0) {
                     DB::purge();
+                    // Establish a real, independent MySQL session before telling
+                    // the coordinator this worker is ready for the barrier.
+                    DB::connection()->selectOne('SELECT CONNECTION_ID() AS connection_id');
                     file_put_contents($ready[$index], 'ready');
                     $deadline = microtime(true) + 10;
                     while (! file_exists($release) && microtime(true) < $deadline) {
@@ -163,8 +167,15 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
             while ((!is_file($ready[0]) || !is_file($ready[1])) && microtime(true) < $readyDeadline) {
                 usleep(10000);
             }
-            $this->assertFileExists($ready[0], 'Worker 1 must reach the database barrier.');
-            $this->assertFileExists($ready[1], 'Worker 2 must reach the database barrier.');
+            $this->assertFileExists($ready[0], 'Worker 1 must establish its independent MySQL session.');
+            $this->assertFileExists($ready[1], 'Worker 2 must establish its independent MySQL session.');
+
+            // The coordinator opens its own connection only after both children
+            // have forked and established independent sessions.
+            DB::connection()->selectOne('SELECT CONNECTION_ID() AS coordinator_connection_id');
+            DB::beginTransaction();
+            DB::table('document_workflow_aggregates')->where('id', $workflow->id)
+                ->lockForUpdate()->first();
             file_put_contents($release, 'go');
 
             $waitDeadline = microtime(true) + 15;
