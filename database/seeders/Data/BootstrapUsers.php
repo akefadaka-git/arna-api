@@ -141,7 +141,7 @@ namespace Database\Seeders\Data;
  * =============================================================================
  * This data class contains no password, password hash, or reusable
  * credential. Newly created demo accounts receive unique random
- * credentials from AdminUserSeeder; no credential is printed. Users
+ * credentials from the user seeders; no credential is printed. Users
  * establish their own password through the verified-email reset flow.
  *
  * =============================================================================
