@@ -48,7 +48,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
                 'submitted_file_version' => 1,
             ]);
             self::fail('A publicly accessible File Management object must not be accepted as formal evidence.');
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException) {
+        } catch (\Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException) {
             self::assertSame('draft', $workflow->fresh()->status);
             self::assertSame(0, DB::table('document_file_versions')->where('tenant_id', $tenantId)->count());
             self::assertSame([], Storage::disk('local')->allFiles('document-evidence'));
