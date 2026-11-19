@@ -123,40 +123,6 @@ final class ImmutableDocumentBinaryStore
         );
         }
 
-        // link() is atomic and refuses to replace an existing inode. Once the
-        // version directory is sealed read/execute-only (and verified below),
-        // ordinary application writes cannot add or replace another digest.
-        if (! @link($temporary, $destination)) {
-            // A concurrent submission may have atomically linked the same
-            // content address after our initial existence check. Accept only
-            // that exact byte-for-byte result; all other link failures remain
-            // fail-closed.
-            $concurrentSnapshotMatches = is_file($destination)
-                && ! is_link($destination)
-                && filesize($destination) === $size
-                && hash_equals($sha256, (string) hash_file('sha256', $destination));
-            if (! $concurrentSnapshotMatches) {
-                @unlink($temporary);
-                throw new RuntimeException('The File Management version is already sealed or the filesystem cannot guarantee atomic no-overwrite creation.');
-            }
-        }
-        @unlink($temporary);
-
-        if (! @chmod($destination, 0400) || (fileperms($destination) & 0777) !== 0400
-            || ! @chmod($versionDirectory, 0500) || (fileperms($versionDirectory) & 0777) !== 0500) {
-            @chmod($versionDirectory, 0700);
-            @unlink($destination);
-            @unlink($temporary);
-            throw new RuntimeException('The immutable evidence object or version directory could not be sealed with the required permissions.');
-        }
-
-        if (! $this->verify($targetDiskName, $relative, $sha256, $size)) {
-            throw new RuntimeException('The immutable evidence object failed its post-write integrity check.');
-        }
-
-        return ['disk' => $targetDiskName, 'path' => $relative, 'sha256' => $sha256, 'size' => $size];
-    }
-
 
     /**
      * Serialize writes for one File Management version. The lock lives in the
