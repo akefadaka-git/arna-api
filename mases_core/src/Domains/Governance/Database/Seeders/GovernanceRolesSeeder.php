@@ -550,6 +550,11 @@ final class GovernanceRolesSeeder extends Seeder
             'governance.election.suspend',
             'governance.election.cancel',
             'governance.election.archive',
+            'governance.election.authorize',
+            'governance.election.schedule',
+            'governance.election.suspend',
+            'governance.election.cancel',
+            'governance.election.archive',
 
             // Documents
             'governance.document.view',
