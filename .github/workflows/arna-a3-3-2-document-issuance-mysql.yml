@@ -10,6 +10,7 @@ on:
       - "mases_core/src/Providers/CoreServiceProvider.php"
       - "tests/Feature/DocumentWorkflowAggregateServiceTest.php"
       - "tests/Feature/DocumentWorkflowMySqlConcurrencyTest.php"
+      - "tests/Unit/Documents/ImmutableDocumentBinaryStoreSecurityTest.php"
       - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php"
       - "docs/documents/**"
 
@@ -97,6 +98,9 @@ jobs:
 
       - name: Run A3.3.2 aggregate, signature, immutable evidence and rollback tests on MySQL
         run: php artisan test --compact tests/Feature/DocumentWorkflowAggregateServiceTest.php
+
+      - name: Run immutable evidence storage path and permission security tests
+        run: php artisan test --compact tests/Unit/Documents/ImmutableDocumentBinaryStoreSecurityTest.php
 
       - name: Run two-session atomic issuance concurrency test on MySQL
         env:
