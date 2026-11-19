@@ -51,6 +51,8 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
         ]);
 
         Storage::fake('local');
+        Storage::fake('document-concurrency-evidence');
+        config(['mases.documents.evidence_disk' => 'document-concurrency-evidence']);
         Storage::disk('local')->put('document-concurrency/'.$suffix.'.pdf', 'concurrent immutable bytes');
         $fileId = (int) DB::table('files')->insertGetId([
             'tenant_id' => $tenant->getKey(), 'user_id' => $actor->getKey(),
