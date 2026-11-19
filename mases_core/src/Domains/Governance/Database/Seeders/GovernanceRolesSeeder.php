@@ -40,7 +40,7 @@ declare(strict_types=1);
  *     secretary      (role 10) →  20  (board set + operational)
  *     ceo            (role 12) →  12  (read + action management)
  *                                ──
- *                                161 total grant assignments
+ *                                171 total grant assignments
  *
  *   The four unmanaged roles — `finance_manager` (5), `hr_manager`
  *   (6), `shareholder` (7), and `cashier` (11) — receive no
@@ -120,7 +120,7 @@ declare(strict_types=1);
  *     governance.*            36 slugs with the `governance.` prefix
  *     app.governance.access    1 slug with an EXACT match
  *
- * The `governance.` prefix is used for the 36 tenant-scoped
+ * The `governance.` prefix is used for the 41 tenant-scoped
  * permissions. The `app.governance.access` slug is the one
  * application-scoped permission; it cannot be identified by the
  * `governance.` prefix alone, so this seeder uses an explicit
@@ -319,7 +319,7 @@ declare(strict_types=1);
  *
  * Expected output:
  *
- *     Governance role permissions synced: 8 roles, 161 total assignments.
+ *     Governance role permissions synced: 8 roles, 171 total assignments.
  *
  * Verification of one role's grants:
  *
@@ -372,7 +372,7 @@ use RuntimeException;
  * Revision history
  * =============================================================================
  * 1.0.0  — initial delivery (G1 file 8 of 10). Eight managed roles,
- *          161 total grant assignments, composite-sync algorithm
+ *          171 total grant assignments, composite-sync algorithm
  *          adopted from ShareholderRolesSeeder v1.2.0 to preserve
  *          non-Governance permissions across every role.
  *
@@ -382,8 +382,8 @@ use RuntimeException;
  * Eight role → permission-set assignments, per the frozen matrix in
  * the `ROLE_PERMISSIONS` constant:
  *
- *   super_admin     → all 37 Governance permissions
- *   platform_admin  → 36 (all except declaration.manage)
+ *   super_admin     → all 42 Governance permissions
+ *   platform_admin  → 41 (all except declaration.manage)
  *   tenant_admin    → 19 (config + read)
  *   manager         →  4 (view + action)
  *   board           → 14 (read-only board set)
@@ -439,7 +439,7 @@ use RuntimeException;
  *
  * Expected output:
  *
- *     Governance role permissions synced: 8 roles, 161 total assignments.
+ *     Governance role permissions synced: 8 roles, 171 total assignments.
  *
  * @package MaaleArna\MASES\Core\Domains\Governance\Database\Seeders
  * @version 1.0.0
@@ -451,7 +451,7 @@ final class GovernanceRolesSeeder extends Seeder
      *
      * Checked explicitly by `isGovernancePermissionSlug()` because
      * the string does not begin with the `governance.` prefix that
-     * identifies the other 36 Governance slugs.
+     * identifies the other 41 Governance slugs.
      */
     private const APPLICATION_PERMISSION_SLUG = 'app.governance.access';
 
@@ -459,7 +459,7 @@ final class GovernanceRolesSeeder extends Seeder
      * The prefix that identifies a tenant-scoped Governance
      * permission slug.
      *
-     * All 36 tenant-scoped Governance permissions begin with this
+     * All 41 tenant-scoped Governance permissions begin with this
      * prefix. The 37th (the application-scoped permission) is
      * identified by exact match in `isGovernancePermissionSlug()`.
      */
@@ -545,6 +545,11 @@ final class GovernanceRolesSeeder extends Seeder
             // Elections
             'governance.election.view',
             'governance.election.manage',
+            'governance.election.authorize',
+            'governance.election.schedule',
+            'governance.election.suspend',
+            'governance.election.cancel',
+            'governance.election.archive',
 
             // Documents
             'governance.document.view',
