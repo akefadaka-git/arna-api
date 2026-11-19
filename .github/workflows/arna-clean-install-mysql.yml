@@ -432,7 +432,25 @@ jobs:
         # Production environments must never set this flag.
         env:
           MASES_ENABLE_DEMO_SEEDING: "true"
-        run: php artisan migrate:fresh --seed --force -vvv
+        shell: bash
+        run: |
+          set -euo pipefail
+          seed_log="$RUNNER_TEMP/arna-migrate-fresh-seed.log"
+          if ! php artisan migrate:fresh --seed --force -vvv > "$seed_log" 2>&1; then
+            cat "$seed_log"
+            exit 1
+          fi
+
+          # Read the fixture credential only in memory and fail closed if it
+          # ever appears in retained command output. Do not print the value.
+          bootstrap_password="$(php -r 'require "vendor/autoload.php"; echo \\Database\\Seeders\\AdminUserSeeder::DEFAULT_PASSWORD;')"
+          if grep -Fq -- "$bootstrap_password" "$seed_log"; then
+            echo "::error::Seeder output contains a bootstrap credential; output withheld."
+            exit 1
+          fi
+          unset bootstrap_password
+
+          cat "$seed_log"
 
       - name: Verify Organization tables after fresh migration and seed
         shell: bash
