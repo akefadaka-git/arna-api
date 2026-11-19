@@ -27,8 +27,7 @@ use RuntimeException;
  * =============================================================================
  * 1.0.0  — initial delivery. Two users, five roles.
  *
- * 1.1.0  — shareholder cohort: 100 shareholders, eight new roles,
- *          default password Arna@2019.
+ * 1.1.0  — shareholder cohort: 100 shareholders and eight new roles.
  *
  * 1.1.1  — pivot table discovery: clears user pivot tables by
  *          discovering their names from the User model rather than
@@ -386,10 +385,9 @@ final class MasesCoreSeeder extends Seeder
     /**
      * Print the operator summary.
      *
-     * The output is byte-for-byte identical to the source's
-     * printSummary() output. The values are read from the Data\
-     * classes rather than from the class constants they replaced —
-     * see the class docblock's revision history entry for 1.3.0.
+     * The summary reports seeded counts and account identifiers only.
+     * It deliberately does not emit credentials; new account holders
+     * establish passwords through the verified-email reset flow.
      *
      * The method uses $this->command, which Laravel's seeder
      * dispatcher sets when the seeder is invoked via
@@ -405,14 +403,14 @@ final class MasesCoreSeeder extends Seeder
         $this->command->line('  Shareholders: ' . count(ShareholderRegister::ROWS));
         $this->command->line('  Users total:  ' . (2 + count(ShareholderRegister::ROWS)));
         $this->command->line('');
-        $this->command->line('  Super admin: ' . BootstrapUsers::SUPER_ADMIN['email'] . ' / ' . AdminUserSeeder::DEFAULT_PASSWORD);
-        $this->command->line('  Admin:       ' . BootstrapUsers::PLATFORM_ADMIN['email'] . ' / ' . AdminUserSeeder::DEFAULT_PASSWORD);
+        $this->command->line('  Super admin: ' . BootstrapUsers::SUPER_ADMIN['email']);
+        $this->command->line('  Admin:       ' . BootstrapUsers::PLATFORM_ADMIN['email']);
         $this->command->line('');
-        $this->command->line('  All shareholders share the password: ' . AdminUserSeeder::DEFAULT_PASSWORD);
+        $this->command->line('  No passwords are issued or printed by this seeder.');
+        $this->command->line('  Account holders must establish passwords through verified email reset.');
         $this->command->line('  Usernames are derived from the first name (lowercase).');
         $this->command->line('  Emails follow {firstname}{fathername}@maalearna.com.et.');
         $this->command->line('  Example: SH-0009 Gelebo Gelefa → gelebo / gelebogelefa@maalearna.com.et');
         $this->command->line('');
-        $this->command->warn('Change all passwords immediately — this is a bootstrap credential.');
     }
 }

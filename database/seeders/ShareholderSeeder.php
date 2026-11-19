@@ -79,7 +79,9 @@ declare(strict_types=1);
  * =============================================================================
  * What does NOT change
  * =============================================================================
- *   · The seeder's public surface: seed() and run().
+ *   · The seeder's primary write surface: seed() and run(). The
+ *     read-only seededAccountEmails() helper exposes only the exact
+ *     generated account identifiers for security maintenance.
  *   · The email and username derivation (buildShareholderEmail,
  *     buildShareholderUsername, nameToLocalPart).
  *   · The collision-suffix algorithm.
@@ -121,6 +123,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -444,6 +447,28 @@ final class ShareholderSeeder extends Seeder
     private const REGISTER_TYPE_INDIVIDUAL = 'individual';
 
     /**
+     * Return the exact email addresses generated from the canonical demo
+     * shareholder register, using the same collision-suffix algorithm as
+     * seed(). This lets security maintenance target only seeded identities
+     * without rotating unrelated shareholders or their representatives.
+     *
+     * @return list<string>
+     */
+    public function seededAccountEmails(): array
+    {
+        $usedEmails = [];
+        $emails = [];
+
+        foreach (ShareholderRegister::ROWS as $shId => $definition) {
+            $email = $this->buildShareholderEmail($definition, $usedEmails);
+            $usedEmails[strtolower($email)] = $shId;
+            $emails[] = $email;
+        }
+
+        return $emails;
+    }
+
+    /**
      * Create the shareholder cohort, write each register row, attach
      * each user's pivots, and return the map of persisted models
      * keyed by SH-ID.
@@ -756,6 +781,7 @@ final class ShareholderSeeder extends Seeder
     ): User {
         /** @var User $user */
         $user = User::firstOrNew(['email' => $email]);
+        $isNew = ! $user->exists;
 
         $isEntity = $definition['type'] !== self::REGISTER_TYPE_INDIVIDUAL;
 
@@ -786,19 +812,20 @@ final class ShareholderSeeder extends Seeder
         $user->fill($fill);
 
         /*
-         * Hash and assign the bootstrap password directly. The
-         * password column is guarded on the model, so it is not in
-         * the fill array. The password value is referenced from
-         * AdminUserSeeder — see the class docblock §"The
-         * DEFAULT_PASSWORD constant".
+         * New demo accounts receive unique random secrets. They are
+         * never displayed or returned; account holders establish
+         * usable passwords through the verified-email reset flow.
+         * Existing account passwords are preserved on ordinary reseeds.
          */
-        $user->password = Hash::make(AdminUserSeeder::DEFAULT_PASSWORD);
+        if ($isNew) {
+            $user->password = Hash::make(Str::random(64));
+        }
 
         /*
          * Null the three audit columns if they exist on this schema
          * branch. Same guard as the admin seeder.
          */
-        if (Schema::hasColumn('users', 'password_changed_at')) {
+        if ($isNew && Schema::hasColumn('users', 'password_changed_at')) {
             $user->password_changed_at = null;
         }
         if (Schema::hasColumn('users', 'last_login_at')) {
