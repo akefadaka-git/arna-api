@@ -135,8 +135,18 @@ final class ImmutableDocumentBinaryStore
         // version directory is sealed read/execute-only (and verified below),
         // ordinary application writes cannot add or replace another digest.
         if (! @link($temporary, $destination)) {
-            @unlink($temporary);
-            throw new RuntimeException('The File Management version is already sealed or the filesystem cannot guarantee atomic no-overwrite creation.');
+            // A concurrent submission may have atomically linked the same
+            // content address after our initial existence check. Accept only
+            // that exact byte-for-byte result; all other link failures remain
+            // fail-closed.
+            $concurrentSnapshotMatches = is_file($destination)
+                && ! is_link($destination)
+                && filesize($destination) === $size
+                && hash_equals($sha256, (string) hash_file('sha256', $destination));
+            if (! $concurrentSnapshotMatches) {
+                @unlink($temporary);
+                throw new RuntimeException('The File Management version is already sealed or the filesystem cannot guarantee atomic no-overwrite creation.');
+            }
         }
         @unlink($temporary);
 
