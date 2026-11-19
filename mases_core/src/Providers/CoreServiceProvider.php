@@ -16,9 +16,15 @@ use MaaleArna\MASES\Core\Auth\Events\FailedLogin;
 use MaaleArna\MASES\Core\Authorization\Events\RolePermissionsChanged;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Events\AuthorizationFailureEvent;
-use MaaleArna\MASES\Core\Files\Services\FileService;
+use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
 use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceEntityMappingResolver;
+use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentSignatureEvidenceVerifier;
+use MaaleArna\MASES\Core\Domains\Documents\Services\SodiumDocumentSignatureEvidenceVerifier;
+use MaaleArna\MASES\Core\Domains\Documents\Services\ImmutableDocumentBinaryStore;
+use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
+use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
+use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
 use MaaleArna\MASES\Core\Listeners\InvalidateAuthorizationCacheListener;
 use MaaleArna\MASES\Core\Listeners\LogAuthorizationFailureListener;
 use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
@@ -247,6 +253,28 @@ final class CoreServiceProvider extends ServiceProvider
             static fn($app): FileService => new FileService(
                 $app->make(AuditService::class)
             )
+        );
+
+        // Preserve the legacy Core\\Files service identifier as a container
+        // alias. There is one implementation and one singleton instance.
+        $this->app->alias(
+            FileService::class,
+            \MaaleArna\MASES\Core\Files\Services\FileService::class
+        );
+
+        // --- Documents workflow authorization -------------------------------
+        // RBAC is combined with explicit tenant/body/position Governance authority.
+        $this->app->singleton(DocumentWorkflowAuthorizationService::class);
+        $this->app->singleton(SodiumDocumentSignatureEvidenceVerifier::class);
+        $this->app->singleton(
+            DocumentSignatureEvidenceVerifier::class,
+            static fn ($app): DocumentSignatureEvidenceVerifier => $app->make(SodiumDocumentSignatureEvidenceVerifier::class)
+        );
+        $this->app->singleton(ImmutableDocumentBinaryStore::class);
+        $this->app->singleton(DocumentWorkflowAggregateService::class);
+        $this->app->singleton(
+            DocumentWorkflowAuthorizer::class,
+            static fn ($app): DocumentWorkflowAuthorizer => $app->make(DocumentWorkflowAuthorizationService::class)
         );
 
         // --- Finance source-reference validation ----------------------------
