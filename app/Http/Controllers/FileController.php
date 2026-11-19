@@ -11,8 +11,8 @@ use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Audit\Traits\LogsAudit;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Exceptions\FileException;
-use MaaleArna\MASES\Core\Files\Models\File;
-use MaaleArna\MASES\Core\Files\Services\FileService;
+use MaaleArna\MASES\Core\Domains\FileManagement\Models\File;
+use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**

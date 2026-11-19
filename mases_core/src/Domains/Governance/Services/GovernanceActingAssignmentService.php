@@ -23,6 +23,15 @@ final class GovernanceActingAssignmentService
     public const ACTIONS = [
         'governance.appointment.manage',
         'governance.membership.manage',
+        'documents.review',
+        'documents.return',
+        'documents.reject',
+        'documents.approve',
+        'documents.sign',
+        'documents.issue',
+        'documents.withdraw',
+        'documents.revoke',
+        'documents.supersede',
     ];
 
     public function __construct(private readonly AuthorizationService $authorization) {}

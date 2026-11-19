@@ -14,6 +14,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
+use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceSeatService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceActingAssignmentService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
@@ -456,6 +457,220 @@ final class GovernanceAuthorityGrantTest extends TestCase
         $this->deleteJson(route('api.governance.acting-assignments.destroy', ['governanceActingAssignment' => $assignmentId]), [
             'reason' => 'Acting assignment concluded',
         ])->assertOk()->assertJsonPath('data.revocation_reason', 'Acting assignment concluded');
+    }
+
+    public function test_document_approval_requires_tenant_rbac_and_position_scoped_governance_authority(): void
+    {
+        $permission = Permission::query()->create([
+            'slug' => 'documents.approve',
+            'name_am' => 'ሰነድ ማጽደቅ',
+            'name_en' => 'Approve Documents',
+            'description_am' => 'ሰነድ ማጽደቅ',
+            'description_en' => 'Approve Documents',
+            'category' => 'documents',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $this->grantee->permissions()->attach($permission->id, ['assigned_at' => now()]);
+
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'documents.approve',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Board-authorized document approval delegation',
+        ])->assertCreated();
+
+        $authorization = app(DocumentWorkflowAuthorizationService::class);
+        $this->assertTrue($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->administrator->id,
+        ));
+
+        // A document author cannot approve their own submission even when
+        // both RBAC and the matching Governance grant are otherwise valid.
+        $this->assertFalse($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->grantee->id,
+        ));
+
+        $issuePermission = Permission::query()->create([
+            'slug' => 'documents.issue',
+            'name_am' => 'ሰነድ ማውጣት',
+            'name_en' => 'Issue Documents',
+            'description_am' => 'ሰነድ ማውጣት',
+            'description_en' => 'Issue Documents',
+            'category' => 'documents',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $this->grantee->permissions()->attach($issuePermission->id, ['assigned_at' => now()]);
+
+        // A tenant RBAC permission alone does not create a Governance grant.
+        $this->assertFalse($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.issue',
+            (int) $this->administrator->id,
+        ));
+
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'documents.issue',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Board-authorized document issuance delegation',
+        ])->assertCreated();
+
+        // Real positive path: tenant RBAC + active membership + exact action grant.
+        $this->assertTrue($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.issue',
+            (int) $this->administrator->id,
+        ));
+
+        // Even with the grant, an author cannot approve their own document.
+        $this->assertFalse($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->grantee->id,
+        ));
+
+        // Revoking the RBAC permission also denies the action even while
+        // the separate Governance grant remains active.
+        $this->grantee->permissions()->detach($permission->id);
+        app(\MaaleArna\MASES\Core\Authorization\Services\AuthorizationService::class)
+            ->clearUserCache($this->grantee);
+        $this->assertFalse($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->administrator->id,
+        ));
+
+        PersonTenantAccess::query()
+            ->where('person_id', $this->granteePerson->id)
+            ->where('tenant_id', $this->tenant->id)
+            ->update(['status' => 'inactive']);
+        $this->assertFalse($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->administrator->id,
+        ));
+    }
+
+    public function test_document_authority_can_be_granted_to_an_acting_officer_only_within_the_acting_assignment(): void
+    {
+        $actingUser = $this->makeUser('acting@authority.example.test');
+        $actingPerson = $this->makePerson($actingUser);
+        $permission = Permission::query()->create([
+            'slug' => 'documents.approve',
+            'name_am' => 'ሰነድ ማጽደቅ',
+            'name_en' => 'Approve Documents',
+            'description_am' => 'ሰነድ ማጽደቅ',
+            'description_en' => 'Approve Documents',
+            'category' => 'documents',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $actingUser->permissions()->attach($permission->id, ['assigned_at' => now()]);
+
+        $seats = app(GovernanceSeatService::class);
+        $seat = $seats->createSeat(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'DOCUMENT-ACTING',
+        );
+        $today = CarbonImmutable::today();
+        $end = $today->addDays(5);
+        $occupancy = $seats->occupy(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $seat->id,
+            (int) $this->administratorPerson->id,
+            $today->toDateString(),
+            null,
+        );
+
+        $assignment = app(GovernanceActingAssignmentService::class)->assign(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $seat->id,
+            (int) $occupancy->id,
+            (int) $actingPerson->id,
+            $today->toDateString(),
+            $end->toDateString(),
+            'BOARD-RESOLUTION-DOC-ACTING-001',
+            ['documents.approve'],
+            'Temporary authority to approve documents',
+        );
+
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $actingPerson->id,
+            'action' => 'documents.approve',
+            'effective_from' => $today->toDateString(),
+            'effective_until' => $end->toDateString(),
+            'reason' => 'Action-bound grant within the acting assignment',
+        ])->assertCreated();
+
+        $authorization = app(DocumentWorkflowAuthorizationService::class);
+        $this->assertTrue($authorization->allowsGovernedAction(
+            $actingUser,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->administrator->id,
+        ));
+
+        app(GovernanceActingAssignmentService::class)->revoke(
+            $this->administrator,
+            (int) $this->tenant->id,
+            (int) $assignment->id,
+            'Temporary acting authority concluded',
+        );
+
+        $this->assertFalse($authorization->allowsGovernedAction(
+            $actingUser,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->administrator->id,
+        ));
     }
 
     private function makeUser(string $email): User

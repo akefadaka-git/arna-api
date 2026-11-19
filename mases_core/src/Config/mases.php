@@ -189,6 +189,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Formal Document Evidence
+    |--------------------------------------------------------------------------
+    |
+    | Immutable document snapshots require a local filesystem disk that
+    | supports atomic no-overwrite hard links. Remote disks fail closed until
+    | a conditional-create WORM adapter is independently implemented.
+    |
+    */
+    'documents' => [
+        'evidence_disk' => env('MASES_DOCUMENT_EVIDENCE_DISK', 'local'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Feature Flags
     |--------------------------------------------------------------------------
     |

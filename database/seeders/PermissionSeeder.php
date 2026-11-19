@@ -55,7 +55,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
  * The applications argument
  * =============================================================================
  * This is the first seeder that takes an argument. The reason is that
- * seven of the 60 permissions are application-scoped:
+ * seven of the 73 permissions are application-scoped:
  *
  *     app.portal.access    — portal
  *     app.finance.access   — finance
