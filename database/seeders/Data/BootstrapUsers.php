@@ -35,8 +35,8 @@ namespace Database\Seeders\Data;
  *   - the same role in the seeder's flow (created before the
  *     shareholder cohort, each attached to the seeded tenant and to
  *     exactly one role),
- *   - the same default password (DEFAULT_PASSWORD = 'Arna@2019',
- *     held by the seeder, not by this class).
+ *   - no password value: credentials are provisioned independently
+ *     for each new account by the seeder.
  *
  * The differences between them are limited to their identity fields
  * (email, username, names), their locale (both 'am'), and their
@@ -137,18 +137,12 @@ namespace Database\Seeders\Data;
  *     attribute it to.
  *
  * =============================================================================
- * The default password
+ * Credential handling
  * =============================================================================
- * The seeder assigns both accounts the same default password,
- * 'Arna@2019', held as DEFAULT_PASSWORD on the seeder — not here.
- * The password is a bootstrap credential and MUST be rotated on
- * first login in any non-development environment. The seeder's
- * printSummary method warns the operator about this.
- *
- * The password is not part of these rows because it is not a column
- * the seeder persists directly; the seeder hashes it before writing
- * the users.password field, and the pre-hash string lives on the
- * seeder itself, not on the data.
+ * This data class contains no password, password hash, or reusable
+ * credential. Newly created demo accounts receive unique random
+ * credentials from AdminUserSeeder; no credential is printed. Users
+ * establish their own password through the verified-email reset flow.
  *
  * =============================================================================
  * What this class deliberately does NOT do

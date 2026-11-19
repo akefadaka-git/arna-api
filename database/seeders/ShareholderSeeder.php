@@ -121,6 +121,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -756,6 +757,7 @@ final class ShareholderSeeder extends Seeder
     ): User {
         /** @var User $user */
         $user = User::firstOrNew(['email' => $email]);
+        $isNew = ! $user->exists;
 
         $isEntity = $definition['type'] !== self::REGISTER_TYPE_INDIVIDUAL;
 
@@ -786,13 +788,14 @@ final class ShareholderSeeder extends Seeder
         $user->fill($fill);
 
         /*
-         * Hash and assign the bootstrap password directly. The
-         * password column is guarded on the model, so it is not in
-         * the fill array. The password value is referenced from
-         * AdminUserSeeder — see the class docblock §"The
-         * DEFAULT_PASSWORD constant".
+         * New demo accounts receive unique random secrets. They are
+         * never displayed or returned; account holders establish
+         * usable passwords through the verified-email reset flow.
+         * Existing account passwords are preserved on ordinary reseeds.
          */
-        $user->password = Hash::make(AdminUserSeeder::DEFAULT_PASSWORD);
+        if ($isNew) {
+            $user->password = Hash::make(Str::random(64));
+        }
 
         /*
          * Null the three audit columns if they exist on this schema
