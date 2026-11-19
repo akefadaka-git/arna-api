@@ -175,31 +175,31 @@ final class GovernanceElectionLifecycleService
         }
 
         $fileService = app(FileService::class);
-        try {
-            // Resolve through the canonical file service so tenant membership
-            // and file.view authorization are enforced for the current actor.
-            $document = $fileService->find($documentId);
-        } catch (FileException) {
-            $document = null;
-        }
+        $this->assertEvidenceDocumentMatches(
+            $fileService,
+            $actor,
+            $tenantId,
+            $documentId,
+            (string) $authority['authority_evidence_digest'],
+            'authority_document_id',
+            'authority_evidence_digest',
+            'authority evidence',
+        );
 
-        if (!$document || (int) $document->tenant_id !== $tenantId || $document->status !== 'published') {
-            throw ValidationException::withMessages(['authority_document_id' => 'The authority evidence file must be published, non-deleted, in this tenant, and accessible to the actor.']);
+        $ruleSetDocumentId = filter_var($authority['rule_set_document_id'] ?? null, FILTER_VALIDATE_INT);
+        if ($ruleSetDocumentId === false || $ruleSetDocumentId === null || $ruleSetDocumentId < 1) {
+            throw ValidationException::withMessages(['rule_set_document_id' => 'A published rule-set source document is required.']);
         }
-
-        try {
-            // Download through FileService so private-file download permission
-            // and the configured storage backend are enforced.
-            $response = $fileService->download($document, $actor);
-            $evidenceBytes = $response->getContent();
-        } catch (FileException) {
-            $evidenceBytes = false;
-        }
-
-        $expectedDigest = strtolower((string) $authority['authority_evidence_digest']);
-        if (!is_string($evidenceBytes) || $evidenceBytes === '' || !hash_equals($expectedDigest, hash('sha256', $evidenceBytes))) {
-            throw ValidationException::withMessages(['authority_evidence_digest' => 'The authority evidence bytes could not be read or do not match the supplied SHA-256 digest.']);
-        }
+        $this->assertEvidenceDocumentMatches(
+            $fileService,
+            $actor,
+            $tenantId,
+            $ruleSetDocumentId,
+            (string) $authority['rule_set_digest'],
+            'rule_set_document_id',
+            'rule_set_digest',
+            'rule-set',
+        );
         $election->fill([
             'authority_reference' => trim($authority['authority_reference']),
             'authority_document_id' => $authority['authority_document_id'] ?? null,
@@ -208,9 +208,44 @@ final class GovernanceElectionLifecycleService
             'authority_snapshot' => $authority['authority_snapshot'] ?? null,
             'rule_set_version' => trim($authority['rule_set_version']),
             'rule_set_digest' => strtolower($authority['rule_set_digest']),
+            'rule_set_document_id' => $ruleSetDocumentId,
             'authorized_at' => now(),
         ]);
         return 'authorized';
+    }
+
+    private function assertEvidenceDocumentMatches(
+        FileService $fileService,
+        User $actor,
+        int $tenantId,
+        int $documentId,
+        string $expectedDigest,
+        string $documentField,
+        string $digestField,
+        string $evidenceLabel,
+    ): void {
+        try {
+            // Canonical resolution enforces file.view and excludes soft-deleted files.
+            $document = $fileService->find($documentId);
+        } catch (FileException) {
+            $document = null;
+        }
+
+        if (!$document || (int) $document->tenant_id !== $tenantId || $document->status !== 'published') {
+            throw ValidationException::withMessages([$documentField => "The {$evidenceLabel} source must be published, non-deleted, in this tenant, and accessible to the actor."]);
+        }
+
+        try {
+            // FileService enforces private-file download permission and storage access.
+            $response = $fileService->download($document, $actor);
+            $bytes = $response->getContent();
+        } catch (FileException) {
+            $bytes = false;
+        }
+
+        if (!is_string($bytes) || $bytes === '' || !hash_equals(strtolower($expectedDigest), hash('sha256', $bytes))) {
+            throw ValidationException::withMessages([$digestField => "The {$evidenceLabel} bytes could not be read or do not match the supplied SHA-256 digest."]);
+        }
     }
 
     private function scheduleElection(GovernanceElection $election, array $schedule): string
