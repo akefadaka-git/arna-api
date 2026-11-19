@@ -63,6 +63,21 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_document_id' => $ruleFile->id,
             'authority_snapshot' => ['instrument' => 'verified-reference'],
         ];
+        // The HTTP/auth guard principal may differ from the explicit lifecycle actor.
+        // Evidence lookup must authorize the supplied actor, not silently fall back
+        // to whichever user happens to be authenticated in the current request.
+        $guardUser = User::query()->create([
+            'first_name_en' => 'Guard',
+            'father_name_en' => 'Context',
+            'email' => 'guard-context-' . uniqid() . '@example.test',
+            'password' => bcrypt('not-used-in-test'),
+            'locale' => 'am',
+            'is_active' => true,
+            'default_tenant_id' => $tenant->id,
+        ]);
+        $guardUser->tenants()->attach($tenant->id, ['joined_at' => now()]);
+        Auth::login($guardUser);
+
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority evidence reviewed', ['authority:GA-RESOLUTION-0001'], $authority);
         $this->assertSame('authorized', $election->status);
         $this->assertSame(2, (int) $election->version);
