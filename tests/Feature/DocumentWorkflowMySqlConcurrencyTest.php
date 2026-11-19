@@ -182,7 +182,7 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
             $waitingSessions = 0;
             do {
                 $row = DB::selectOne(
-                    'SELECT COUNT(*) AS waiting_count
+                    'SELECT COUNT(DISTINCT requested.THREAD_ID) AS waiting_count
                      FROM performance_schema.data_lock_waits AS waits
                      INNER JOIN performance_schema.data_locks AS requested
                        ON requested.ENGINE_LOCK_ID = waits.REQUESTING_ENGINE_LOCK_ID
