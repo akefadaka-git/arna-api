@@ -542,11 +542,12 @@ final class FileService
      *
      * @param int|string $id         The file ID.
      * @param bool       $withTrashed Whether to include soft-deleted files.
+     * @param User|null $user        Explicit actor; defaults to the authenticated user.
      *
      * @return File|null
      * @throws FileException
      */
-    public function find(int|string $id, bool $withTrashed = false): ?File
+    public function find(int|string $id, bool $withTrashed = false, ?User $user = null): ?File
     {
         $file = File::query()
             ->when($withTrashed, fn($q) => $q->withTrashed())
@@ -556,7 +557,7 @@ final class FileService
             return null;
         }
 
-        $this->authorizeAction('file.view', $file, mases_user());
+        $this->authorizeAction('file.view', $file, $user ?? mases_user());
 
         return $file;
     }

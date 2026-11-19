@@ -226,7 +226,7 @@ final class GovernanceElectionLifecycleService
     ): void {
         try {
             // Canonical resolution enforces file.view and excludes soft-deleted files.
-            $document = $fileService->find($documentId, false);
+            $document = $fileService->find($documentId, false, $actor);
         } catch (FileException) {
             $document = null;
         }
