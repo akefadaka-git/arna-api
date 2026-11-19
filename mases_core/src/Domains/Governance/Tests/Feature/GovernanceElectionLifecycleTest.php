@@ -469,6 +469,81 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $this->assertSame(0, DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count());
     }
 
+
+    public function test_rule_set_evidence_rejects_foreign_unpublished_deleted_and_unavailable_sources_atomically(): void
+    {
+        [$tenant, $actor] = $this->makeAuthorizedActor();
+        Auth::login($actor);
+        $service = app(GovernanceElectionLifecycleService::class);
+
+        foreach (['foreign', 'unpublished', 'deleted', 'storage_missing'] as $case) {
+            $election = $service->create((int) $tenant->id, $actor, [
+                'code' => 'RULE-SOURCE-' . strtoupper($case),
+                'election_scope' => 'board',
+                'election_type' => 'board',
+            ]);
+
+            $authorityBytes = "%PDF-1.4\\nValid authority for {$case}\\n";
+            $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
+            $ruleBytes = "%PDF-1.4\\nRule-set source for {$case}\\n";
+
+            if ($case === 'foreign') {
+                $otherTenant = Tenant::query()->create([
+                    'name_am' => 'ሌላ ተቋም',
+                    'name_en' => 'Foreign Rule Tenant',
+                    'slug' => 'foreign-rule-' . uniqid(),
+                    'domain' => 'foreign-rule-' . uniqid() . '.example.test',
+                    'is_active' => true,
+                ]);
+                $ruleFile = $this->makePublishedAuthorityFile($otherTenant, $actor, $ruleBytes);
+            } else {
+                $ruleFile = $this->makePublishedAuthorityFile($tenant, $actor, $ruleBytes);
+                if ($case === 'unpublished') {
+                    $ruleFile->status = 'draft';
+                    $ruleFile->save();
+                } elseif ($case === 'deleted') {
+                    $ruleFile->delete();
+                } elseif ($case === 'storage_missing') {
+                    Storage::disk('local')->delete($ruleFile->path);
+                }
+            }
+
+            $authority = [
+                'authority_reference' => 'GA-RULE-SOURCE-' . strtoupper($case),
+                'authority_evidence_digest' => hash('sha256', $authorityBytes),
+                'authority_document_id' => $authorityFile->id,
+                'authority_version' => '1',
+                'rule_set_version' => '1',
+                'rule_set_digest' => hash('sha256', $ruleBytes),
+                'rule_set_document_id' => $ruleFile->id,
+            ];
+
+            try {
+                $service->transition(
+                    (int) $tenant->id,
+                    (int) $election->id,
+                    $actor,
+                    'authorize',
+                    1,
+                    'Invalid rule-set source rejected',
+                    ['rules:invalid-source:' . $case],
+                    $authority
+                );
+                $this->fail("A {$case} rule-set source must not authorize an election.");
+            } catch (ValidationException $exception) {
+                $expectedField = $case === 'storage_missing' ? 'rule_set_digest' : 'rule_set_document_id';
+                $this->assertArrayHasKey($expectedField, $exception->errors(), "Unexpected validation field for {$case} source.");
+            }
+
+            $this->assertSame('draft', $election->fresh()->status);
+            $this->assertSame(1, (int) $election->fresh()->version);
+            $this->assertSame(
+                0,
+                DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count()
+            );
+        }
+    }
+
     private function makePublishedAuthorityFile(Tenant $tenant, User $actor, string $bytes): File
     {
         $path = 'tenant_' . $tenant->id . '/authority-' . uniqid() . '.pdf';
