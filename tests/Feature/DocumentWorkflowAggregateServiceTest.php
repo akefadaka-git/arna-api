@@ -51,7 +51,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         } catch (\\Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException) {
             self::assertSame('draft', $workflow->fresh()->status);
             self::assertSame(0, DB::table('document_file_versions')->where('tenant_id', $tenantId)->count());
-            self::assertSame(0, Storage::disk('local')->allFiles('document-evidence') ? count(Storage::disk('local')->allFiles('document-evidence')) : 0);
+            self::assertSame([], Storage::disk('local')->allFiles('document-evidence'));
         }
     }
 
