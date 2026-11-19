@@ -79,7 +79,9 @@ declare(strict_types=1);
  * =============================================================================
  * What does NOT change
  * =============================================================================
- *   · The seeder's public surface: seed() and run().
+ *   · The seeder's primary write surface: seed() and run(). The
+     read-only seededAccountEmails() helper exposes only the exact
+     generated account identifiers for security maintenance.
  *   · The email and username derivation (buildShareholderEmail,
  *     buildShareholderUsername, nameToLocalPart).
  *   · The collision-suffix algorithm.
