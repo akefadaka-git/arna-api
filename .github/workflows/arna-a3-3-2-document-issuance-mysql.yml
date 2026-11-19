@@ -11,6 +11,7 @@ on:
       - "tests/Feature/DocumentWorkflowAggregateServiceTest.php"
       - "tests/Feature/DocumentWorkflowMySqlConcurrencyTest.php"
       - "tests/Unit/Documents/ImmutableDocumentBinaryStoreSecurityTest.php"
+      - "tests/Unit/Documents/DocumentSignatureTimestampValidationTest.php"
       - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php"
       - "docs/documents/**"
 
@@ -101,6 +102,9 @@ jobs:
 
       - name: Run immutable evidence storage path and permission security tests
         run: php artisan test --compact tests/Unit/Documents/ImmutableDocumentBinaryStoreSecurityTest.php
+
+      - name: Run strict document signature timestamp tests
+        run: php artisan test --compact tests/Unit/Documents/DocumentSignatureTimestampValidationTest.php
 
       - name: Run two-session atomic issuance concurrency test on MySQL
         env:
