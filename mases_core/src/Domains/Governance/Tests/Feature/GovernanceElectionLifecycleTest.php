@@ -21,6 +21,12 @@ final class GovernanceElectionLifecycleTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('local');
+    }
+
     public function test_create_authorize_and_schedule_are_versioned_and_recorded(): void
     {
         [$tenant, $actor] = $this->makeAuthorizedActor();
@@ -419,7 +425,6 @@ final class GovernanceElectionLifecycleTest extends TestCase
     {
         [$tenant, $actor] = $this->makeAuthorizedActor();
         Auth::login($actor);
-        Storage::fake('local');
         $election = app(GovernanceElectionLifecycleService::class)->create((int) $tenant->id, $actor, [
             'code' => 'AUTH-STORAGE-MISSING',
             'election_scope' => 'board',
@@ -466,7 +471,6 @@ final class GovernanceElectionLifecycleTest extends TestCase
 
     private function makePublishedAuthorityFile(Tenant $tenant, User $actor, string $bytes): File
     {
-        Storage::fake('local');
         $path = 'tenant_' . $tenant->id . '/authority-' . uniqid() . '.pdf';
         Storage::disk('local')->put($path, $bytes);
 
