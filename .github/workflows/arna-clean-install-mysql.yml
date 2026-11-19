@@ -23,6 +23,8 @@ on:
       - "phpunit.xml"
       - "config/app.php"
       - "database/seeders/**"
+      - "app/Console/Commands/RotateDemoSeederCredentials.php"
+      - "tests/Feature/RotateDemoSeederCredentialsTest.php"
       - "tests/Unit/DemoSeederGuardTest.php"
       - "tests/Concerns/LoanDatabaseMigrations.php"
       - "tests/Feature/PersonIdentityContractTest.php"
@@ -416,6 +418,20 @@ jobs:
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/ShareholderSeedNumberInitializationTest.php
+
+      - name: Lint bootstrap credential remediation
+        run: |
+          php -l app/Console/Commands/RotateDemoSeederCredentials.php
+          php -l database/seeders/AdminUserSeeder.php
+          php -l database/seeders/ShareholderSeeder.php
+          php -l tests/Feature/RotateDemoSeederCredentialsTest.php
+
+      - name: Run bootstrap credential rotation regression tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/RotateDemoSeederCredentialsTest.php
 
       - name: Run migrations a second time (idempotence)
         run: php artisan migrate --force -vvv
