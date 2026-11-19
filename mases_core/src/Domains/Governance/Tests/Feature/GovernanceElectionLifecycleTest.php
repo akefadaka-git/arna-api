@@ -512,7 +512,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         Storage::shouldReceive('disk')
             ->once()
             ->with('local')
-            ->andThrow(new \\RuntimeException('Unexpected storage adapter failure'));
+            ->andThrow(new \RuntimeException('Unexpected storage adapter failure'));
 
         try {
             $service->transition(
@@ -526,7 +526,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
                 $authority
             );
             $this->fail('Unexpected storage exceptions must abort authorization.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             $this->assertSame('Unexpected storage adapter failure', $exception->getMessage());
         }
 
