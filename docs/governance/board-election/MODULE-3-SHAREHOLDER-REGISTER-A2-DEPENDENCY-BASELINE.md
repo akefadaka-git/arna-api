@@ -560,3 +560,34 @@ No request is made for another upload. The source remains Owner-held/reported bu
 **Still unresolved / blocking final register and entitlement:** current certified Article 274 extract; registered Memorandum/Articles and amendments; current per-holder cleared payment evidence; transfer and certificate instruments/history; legal form and authority for entity shareholders and their representatives; status of the additional 71 seeder rows; election-specific record date and exact cutoff; any company-specific share class/voting restrictions.
 
 **A2 remains PARTIAL — not closed.** The 29-row historical schedule is now reconciled to the first 29 seeder identities and its individual allocation totals. Current statutory ownership, current paid-up status and operative company-specific voting rules remain unverified. A3 remains NOT STARTED. No application code, schema, migration, test, seed data, production data, main branch, merge or deployment was changed by this reconciliation.
+
+## 15. Owner decision — local shareholder voting and open candidate nomination
+
+**Decision source:** Owner instruction in the project conversation, 19 November 2026.  
+**Status:** OWNER-DIRECTED POLICY; recorded in A2; implementation NOT AUTHORIZED by this entry.
+
+### 15.1 Voting eligibility
+
+A person may exercise shareholder voting rights in an election only when all of the following are true:
+
+1. The person has a locally saved/registered ARNA user account.
+2. The ARNA account has the Shareholder role.
+3. The person is an approved shareholder for the relevant election, as established by the authoritative shareholder register and the approved record-date snapshot.
+
+Voting weight is **one vote per eligible share (1 share = 1 vote)**, subject to reconciliation with the operative registered Memorandum/Articles, applicable law and any valid election-specific restrictions. The Shareholder role or a local user record alone is not proof of legal ownership or a substitute for the statutory register. A non-shareholder, nominee, or representative does not acquire shareholder voting rights merely through nomination or representation.
+
+### 15.2 Candidate nomination eligibility
+
+Shareholder status is **not a prerequisite to being nominated**. A locally saved ARNA person may be nominated as a candidate whether or not that person has the Shareholder role or owns shares. A shareholder may therefore both vote (if independently entitled under §15.1) and stand as a candidate; a non-shareholder may stand as a candidate but does not thereby gain a vote.
+
+Nomination and candidacy remain subject to the applicable candidate qualifications, disqualifications, consent, evidence, nomination procedure and governing-instrument requirements. This Owner policy removes a software-imposed shareholder-only nomination gate; it does not waive statutory or governing-instrument qualifications or determine their legal effect.
+
+### 15.3 Mandatory separation of permissions and data
+
+- Voting eligibility must be evaluated from the local ARNA account/role plus the approved, record-date shareholder entitlement snapshot.
+- Candidate nomination must not require the Shareholder role or shareholder-register membership.
+- Candidate records and nomination submissions must never create, imply or modify shareholder ownership or voting entitlement.
+- A candidate who is also an approved shareholder retains their independently calculated share-weighted vote; candidacy does not add, remove or multiply votes.
+- The system must preserve separate audit decisions for voter eligibility and candidate eligibility.
+
+**A2 disposition:** Owner policy clarified and recorded. The authoritative current register, record date, registered Memorandum/Articles, amendments, cleared payment evidence, transfer history and legal candidate qualifications remain subject to the unresolved evidence gates in §14.3. This entry changes documentation only; no application code, migration, route, permission, test, seed data, production data, main branch, merge or deployment is changed. Module 3 A2 remains PARTIAL and A3 remains NOT STARTED.
