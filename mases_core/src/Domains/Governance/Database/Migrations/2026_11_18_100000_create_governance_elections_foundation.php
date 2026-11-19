@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use LogicException;
 
 return new class extends Migration
 {
@@ -93,6 +92,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        throw new LogicException('Election lifecycle schema is forward-only; recover through a verified database backup, not migration rollback.');
+        throw new \LogicException('Election lifecycle schema is forward-only; recover through a verified database backup, not migration rollback.');
     }
 };
