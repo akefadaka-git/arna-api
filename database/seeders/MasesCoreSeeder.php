@@ -385,10 +385,9 @@ final class MasesCoreSeeder extends Seeder
     /**
      * Print the operator summary.
      *
-     * The output is byte-for-byte identical to the source's
-     * printSummary() output. The values are read from the Data\
-     * classes rather than from the class constants they replaced —
-     * see the class docblock's revision history entry for 1.3.0.
+     * The summary reports seeded counts and account identifiers only.
+     * It deliberately does not emit credentials; new account holders
+     * establish passwords through the verified-email reset flow.
      *
      * The method uses $this->command, which Laravel's seeder
      * dispatcher sets when the seeder is invoked via
