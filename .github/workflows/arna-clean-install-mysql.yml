@@ -443,7 +443,7 @@ jobs:
 
           # Read the fixture credential only in memory and fail closed if it
           # ever appears in retained command output. Do not print the value.
-          bootstrap_password="$(php -r 'require "vendor/autoload.php"; echo \\Database\\Seeders\\AdminUserSeeder::DEFAULT_PASSWORD;')"
+          bootstrap_password="$(php -r 'require "vendor/autoload.php"; echo \Database\Seeders\AdminUserSeeder::DEFAULT_PASSWORD;')"
           if grep -Fq -- "$bootstrap_password" "$seed_log"; then
             echo "::error::Seeder output contains a bootstrap credential; output withheld."
             exit 1
