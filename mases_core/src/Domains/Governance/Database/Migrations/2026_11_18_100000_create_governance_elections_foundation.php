@@ -31,6 +31,7 @@ return new class extends Migration
             $table->json('authority_snapshot')->nullable();
             $table->string('rule_set_version', 80)->nullable();
             $table->string('rule_set_digest', 64)->nullable();
+            $table->unsignedBigInteger('rule_set_document_id')->nullable();
             $table->string('timezone', 64)->default('Africa/Addis_Ababa');
             $table->dateTime('scheduled_start_at')->nullable();
             $table->dateTime('scheduled_end_at')->nullable();
