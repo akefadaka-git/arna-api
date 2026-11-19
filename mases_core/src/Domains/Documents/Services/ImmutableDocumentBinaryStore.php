@@ -113,22 +113,14 @@ final class ImmutableDocumentBinaryStore
         fclose($output);
 
         $sha256 = hash_final($context);
-        $versionDirectory = $fileDirectory . DIRECTORY_SEPARATOR . $version;
-        if (! is_dir($versionDirectory) && ! mkdir($versionDirectory, 0700) && ! is_dir($versionDirectory)) {
-            @unlink($temporary);
-            throw new RuntimeException('The immutable evidence version directory could not be created.');
-        }
-
-        $relative = 'document-evidence/' . $tenantId . '/' . $fileId . '/' . $version . '/' . $sha256;
-        $destination = $versionDirectory . DIRECTORY_SEPARATOR . $sha256;
-
-        if (is_file($destination) && ! is_link($destination)) {
-            if (filesize($destination) !== $size || ! hash_equals($sha256, (string) hash_file('sha256', $destination))) {
-                @unlink($temporary);
-                throw new RuntimeException('An existing immutable evidence object does not match its content address.');
-            }
-            @unlink($temporary);
-            return ['disk' => $targetDiskName, 'path' => $relative, 'sha256' => $sha256, 'size' => $size];
+        return $this->persistVersionSnapshot(
+            $targetDiskName,
+            $fileDirectory,
+            $version,
+            $temporary,
+            $sha256,
+            $size,
+        );
         }
 
         // link() is atomic and refuses to replace an existing inode. Once the
@@ -163,6 +155,78 @@ final class ImmutableDocumentBinaryStore
         }
 
         return ['disk' => $targetDiskName, 'path' => $relative, 'sha256' => $sha256, 'size' => $size];
+    }
+
+
+    /**
+     * Serialize writes for one File Management version. The lock lives in the
+     * writable parent directory, not the sealed version directory, so a retry
+     * can safely verify an existing digest after the first writer finishes.
+     *
+     * @return array{disk:string,path:string,sha256:string,size:int}
+     */
+    private function persistVersionSnapshot(
+        string $disk,
+        string $fileDirectory,
+        int $version,
+        string $temporary,
+        string $sha256,
+        int $size,
+    ): array {
+        $lockPath = $fileDirectory . DIRECTORY_SEPARATOR . '.version-' . $version . '.lock';
+        $lock = fopen($lockPath, 'c');
+        if (! is_resource($lock)) {
+            @unlink($temporary);
+            throw new RuntimeException('The immutable evidence version lock could not be opened.');
+        }
+
+        try {
+            if (! flock($lock, LOCK_EX)) {
+                @unlink($temporary);
+                throw new RuntimeException('The immutable evidence version lock could not be acquired.');
+            }
+
+            $versionDirectory = $fileDirectory . DIRECTORY_SEPARATOR . $version;
+            if (! is_dir($versionDirectory) && ! mkdir($versionDirectory, 0700) && ! is_dir($versionDirectory)) {
+                @unlink($temporary);
+                throw new RuntimeException('The immutable evidence version directory could not be created.');
+            }
+
+            $relative = 'document-evidence/' . basename(dirname($fileDirectory)) . '/'
+                . basename($fileDirectory) . '/' . $version . '/' . $sha256;
+            $destination = $versionDirectory . DIRECTORY_SEPARATOR . $sha256;
+
+            if (is_file($destination) && ! is_link($destination)) {
+                if (filesize($destination) !== $size || ! hash_equals($sha256, (string) hash_file('sha256', $destination))) {
+                    @unlink($temporary);
+                    throw new RuntimeException('An existing immutable evidence object does not match its content address.');
+                }
+                @unlink($temporary);
+                return ['disk' => $disk, 'path' => $relative, 'sha256' => $sha256, 'size' => $size];
+            }
+
+            if (! @link($temporary, $destination)) {
+                @unlink($temporary);
+                throw new RuntimeException('The File Management version is already sealed or the filesystem cannot guarantee atomic no-overwrite creation.');
+            }
+            @unlink($temporary);
+
+            if (! @chmod($destination, 0400) || (fileperms($destination) & 0777) !== 0400
+                || ! @chmod($versionDirectory, 0500) || (fileperms($versionDirectory) & 0777) !== 0500) {
+                @chmod($versionDirectory, 0700);
+                @unlink($destination);
+                throw new RuntimeException('The immutable evidence object or version directory could not be sealed with the required permissions.');
+            }
+
+            if (! $this->verify($disk, $relative, $sha256, $size)) {
+                throw new RuntimeException('The immutable evidence object failed its post-write integrity check.');
+            }
+
+            return ['disk' => $disk, 'path' => $relative, 'sha256' => $sha256, 'size' => $size];
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
     }
 
     public function verify(string $disk, string $path, string $sha256, int $size): bool
