@@ -229,6 +229,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAppointme
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeSecurityController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
@@ -641,5 +642,22 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('election')
         ->middleware('auth.permission:governance.election.committee.audit.view')
         ->name('elections.committee.security-events.index');
+
+
+    // Module 1 — tenant-scoped election foundation and lifecycle.
+    Route::get('/elections', [GovernanceElectionController::class, 'index'])
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.index');
+    Route::post('/elections', [GovernanceElectionController::class, 'store'])
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.store');
+    Route::get('/elections/{election}', [GovernanceElectionController::class, 'show'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.show');
+    Route::post('/elections/{election}/transitions', [GovernanceElectionController::class, 'transition'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.transitions.store');
 
 });

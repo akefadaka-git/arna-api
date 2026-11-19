@@ -194,9 +194,11 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
         $this->electionId = (int) DB::table('governance_elections')->insertGetId([
             'tenant_id' => $this->tenant->id,
             'code' => 'SECURITY-TEST-' . $this->tenant->id,
-            'title' => 'Committee Security Test',
-            'status' => 'planned',
-            'voting_method' => 'physical',
+            'title_en' => 'Committee Security Test',
+            'election_scope' => 'board',
+            'election_type' => 'board',
+            'status' => 'draft',
+            'version' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
