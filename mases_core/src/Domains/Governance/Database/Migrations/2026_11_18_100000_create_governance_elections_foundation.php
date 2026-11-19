@@ -4,12 +4,28 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
+        // The committee-security tables were introduced before the canonical
+        // election aggregate. Refuse to create a partially upgraded schema if
+        // legacy records already exist without parent elections; those records
+        // require explicit reconciliation rather than invented placeholder rows.
+        $committeeTables = [
+            'governance_election_committee_admins' => 'gov_elec_admin_election_fk',
+            'governance_election_committee_conflicts' => 'gov_elec_conflict_election_fk',
+            'governance_election_committee_security_events' => 'gov_elec_security_election_fk',
+        ];
+        foreach (array_keys($committeeTables) as $tableName) {
+            if (Schema::hasTable($tableName) && DB::table($tableName)->exists()) {
+                throw new \\RuntimeException("Cannot create the election parent aggregate while {$tableName} contains legacy rows. Reconcile those records against authoritative election evidence before retrying.");
+            }
+        }
+
         Schema::create('governance_elections', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -76,11 +92,7 @@ return new class extends Migration
         // The committee-security migration predates this parent table.
         // Attach its tenant/election references now that the canonical
         // election key exists; this prevents cross-tenant key pairing.
-        foreach ([
-            'governance_election_committee_admins' => 'gov_elec_admin_election_fk',
-            'governance_election_committee_conflicts' => 'gov_elec_conflict_election_fk',
-            'governance_election_committee_security_events' => 'gov_elec_security_election_fk',
-        ] as $tableName => $constraint) {
+        foreach ($committeeTables as $tableName => $constraint) {
             if (Schema::hasTable($tableName)) {
                 Schema::table($tableName, function (Blueprint $table) use ($constraint): void {
                     $table->foreign(['tenant_id', 'election_id'], $constraint)
