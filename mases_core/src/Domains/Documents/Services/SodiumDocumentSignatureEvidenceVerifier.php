@@ -58,13 +58,20 @@ final class SodiumDocumentSignatureEvidenceVerifier implements DocumentSignature
             throw new UnprocessableEntityHttpException('A trusted signing key, detached signature and signed-at instant are required.');
         }
 
-        try {
-            $signedAt = new DateTimeImmutable($signedAtRaw);
-        } catch (\Throwable) {
+        $signedAt = DateTimeImmutable::createFromFormat(
+            '!Y-m-d\TH:i:s\Z',
+            $signedAtRaw,
+            new \DateTimeZone('UTC'),
+        );
+        $timestampErrors = DateTimeImmutable::getLastErrors();
+        if ($signedAt === false
+            || ($timestampErrors !== false
+                && ($timestampErrors['warning_count'] > 0 || $timestampErrors['error_count'] > 0))
+            || $signedAt->format('Y-m-d\TH:i:s\Z') !== $signedAtRaw) {
             throw new UnprocessableEntityHttpException('The signature timestamp is invalid.');
         }
 
-        if ($signedAt > new DateTimeImmutable('now')) {
+        if ($signedAt > new DateTimeImmutable('now', new \DateTimeZone('UTC'))) {
             throw new UnprocessableEntityHttpException('A document signature cannot be dated in the future.');
         }
 
