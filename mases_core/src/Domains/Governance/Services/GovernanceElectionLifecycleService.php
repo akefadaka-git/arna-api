@@ -107,7 +107,7 @@ final class GovernanceElectionLifecycleService
 
             $from = $election->status;
             $to = match ($action) {
-                'authorize' => $this->authorizeElection($election, $tenantId, $authority),
+                'authorize' => $this->authorizeElection($election, $tenantId, $actor, $authority),
                 'schedule' => $this->scheduleElection($election, $schedule),
                 'suspend' => $this->suspendElection($election, $reason),
                 'resume' => $this->resumeElection($election),
@@ -153,7 +153,7 @@ final class GovernanceElectionLifecycleService
         }, 3);
     }
 
-    private function authorizeElection(GovernanceElection $election, int $tenantId, array $authority): string
+    private function authorizeElection(GovernanceElection $election, int $tenantId, User $actor, array $authority): string
     {
         if ($election->status !== 'draft') {
             throw ValidationException::withMessages(['status' => 'Only a draft election can be authorized.']);
@@ -163,22 +163,42 @@ final class GovernanceElectionLifecycleService
                 throw ValidationException::withMessages([$key => 'Authoritative source and versioned rule evidence are required before authorization.']);
             }
         }
-        if (isset($authority['authority_document_id'])) {
-            try {
-                // Resolve through the platform's canonical file service so
-                // tenant membership and file.view authorization are enforced.
-                $document = app(FileService::class)->find((int) $authority['authority_document_id']);
-            } catch (FileException) {
-                $document = null;
-            }
-            if (!$document || (int) $document->tenant_id !== $tenantId || $document->status !== 'published') {
-                throw ValidationException::withMessages(['authority_document_id' => 'The authority evidence file must be a published, non-deleted file belonging to this tenant and accessible to the actor.']);
-            }
-        }
         foreach (['authority_evidence_digest', 'rule_set_digest'] as $key) {
             if (!preg_match('/^[a-f0-9]{64}$/i', (string) $authority[$key])) {
                 throw ValidationException::withMessages([$key => 'A SHA-256 digest (64 hexadecimal characters) is required.']);
             }
+        }
+
+        $documentId = filter_var($authority['authority_document_id'] ?? null, FILTER_VALIDATE_INT);
+        if ($documentId === false || $documentId === null || $documentId < 1) {
+            throw ValidationException::withMessages(['authority_document_id' => 'A published authority evidence document is required.']);
+        }
+
+        $fileService = app(FileService::class);
+        try {
+            // Resolve through the canonical file service so tenant membership
+            // and file.view authorization are enforced for the current actor.
+            $document = $fileService->find($documentId);
+        } catch (FileException) {
+            $document = null;
+        }
+
+        if (!$document || (int) $document->tenant_id !== $tenantId || $document->status !== 'published') {
+            throw ValidationException::withMessages(['authority_document_id' => 'The authority evidence file must be published, non-deleted, in this tenant, and accessible to the actor.']);
+        }
+
+        try {
+            // Download through FileService so private-file download permission
+            // and the configured storage backend are enforced.
+            $response = $fileService->download($document, $actor);
+            $evidenceBytes = $response->getContent();
+        } catch (FileException) {
+            $evidenceBytes = false;
+        }
+
+        $expectedDigest = strtolower((string) $authority['authority_evidence_digest']);
+        if (!is_string($evidenceBytes) || $evidenceBytes === '' || !hash_equals($expectedDigest, hash('sha256', $evidenceBytes))) {
+            throw ValidationException::withMessages(['authority_evidence_digest' => 'The authority evidence bytes could not be read or do not match the supplied SHA-256 digest.']);
         }
         $election->fill([
             'authority_reference' => trim($authority['authority_reference']),
