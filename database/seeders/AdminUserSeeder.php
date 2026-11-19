@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Database\Seeders\Data\BootstrapUsers;
+use Database\Seeders\Support\BootstrapCredentialProvisioner;
 use Database\Seeders\Support\UserAttacher;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
@@ -88,28 +88,14 @@ use RuntimeException;
  * shape would need a small DTO — not this unit's job.
  *
  * =============================================================================
- * The DEFAULT_PASSWORD constant
+ * Per-account credential provisioning
  * =============================================================================
- * The two admins are created with the same bootstrap password, held
- * here as a public constant:
+ * New accounts receive independent, cryptographically random credentials.
+ * The plaintext is discarded immediately; users establish access through
+ * the password-reset flow. Existing rows retain credentials when this domain
+ * seeder runs without a preceding clear; MasesCoreSeeder intentionally clears
+ * and recreates the seeded user cohort before invoking this seeder.
  *
- *     AdminUserSeeder::DEFAULT_PASSWORD = 'Arna@2019'
- *
- * It lives on this seeder rather than on the orchestrator because
- * this seeder creates the platform's FIRST identity. The password
- * this seeder writes is, by definition, the bootstrap credential that
- * every subsequently seeded user inherits. ShareholderSeeder (Unit
- * S-16) references this constant directly.
- *
- * The dependency direction is one-way: ShareholderSeeder → AdminUserSeeder.
- * AdminUserSeeder does not know ShareholderSeeder exists. The coupling
- * is intentional and bounded.
- *
- * SECURITY: The password is a bootstrap credential. It MUST be
- * rotated on first login in any non-development environment. The
- * orchestrator's printSummary() warns the operator about this.
- *
- * =============================================================================
  * The upsert pattern
  * =============================================================================
  * Each admin is upserted via User::firstOrNew() with the email as the
@@ -117,7 +103,7 @@ use RuntimeException;
  *
  *     $user = User::firstOrNew(['email' => $definition['email']]);
  *     $user->fill([ … ]);
- *     $user->password = Hash::make(self::DEFAULT_PASSWORD);
+ *     BootstrapCredentialProvisioner::assignForNewUser($user);
  *     $user->save();
  *
  * The two-step pattern is used instead of User::updateOrCreate() for
@@ -140,8 +126,8 @@ use RuntimeException;
  * Three audit columns are nulled on each upsert, guarded by
  * Schema::hasColumn():
  *
- *   · password_changed_at — nulled so that the operator is prompted
- *     to change the bootstrap password on first login.
+ *   · password_changed_at — reset to null so the audit field does not
+ *     claim that a password change occurred during this seeding run.
  *
  *   · last_login_at       — nulled so that a reseed resets the
  *     "last seen" state. On a fresh install these columns are
@@ -225,17 +211,6 @@ use RuntimeException;
  */
 final class AdminUserSeeder extends Seeder
 {
-    /**
-     * The bootstrap password assigned to both admin accounts — and,
-     * through ShareholderSeeder's reference to this constant, to every
-     * seeded shareholder as well.
-     *
-     * SECURITY: This is a bootstrap credential. It MUST be rotated on
-     * first login in any non-development environment. See the class
-     * docblock §"The DEFAULT_PASSWORD constant".
-     */
-    public const DEFAULT_PASSWORD = 'Arna@2019';
-
     /**
      * Create both admin accounts, attach each to the tenant and to
      * its catalogue role, and return the two persisted models.
@@ -441,11 +416,8 @@ final class AdminUserSeeder extends Seeder
 
         $user->fill($fill);
 
-        /*
-         * Hash and assign the bootstrap password directly. See the
-         * class docblock §"The upsert pattern".
-         */
-        $user->password = Hash::make(self::DEFAULT_PASSWORD);
+        // Assign a private random credential only on first creation.
+        BootstrapCredentialProvisioner::assignForNewUser($user);
 
         /*
          * Null the three audit columns if they exist on this schema

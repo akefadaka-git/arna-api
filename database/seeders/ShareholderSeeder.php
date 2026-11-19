@@ -116,10 +116,10 @@ namespace Database\Seeders;
 
 use Database\Seeders\Data\BoardRoleAssignments;
 use Database\Seeders\Data\ShareholderRegister;
+use Database\Seeders\Support\BootstrapCredentialProvisioner;
 use Database\Seeders\Support\UserAttacher;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
@@ -785,14 +785,8 @@ final class ShareholderSeeder extends Seeder
 
         $user->fill($fill);
 
-        /*
-         * Hash and assign the bootstrap password directly. The
-         * password column is guarded on the model, so it is not in
-         * the fill array. The password value is referenced from
-         * AdminUserSeeder — see the class docblock §"The
-         * DEFAULT_PASSWORD constant".
-         */
-        $user->password = Hash::make(AdminUserSeeder::DEFAULT_PASSWORD);
+        // Assign a private random credential only on first creation.
+        BootstrapCredentialProvisioner::assignForNewUser($user);
 
         /*
          * Null the three audit columns if they exist on this schema

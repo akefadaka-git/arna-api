@@ -416,6 +416,11 @@ jobs:
       - name: Run migrations a second time (idempotence)
         run: php artisan migrate --force -vvv
 
+      - name: Run P0.9 credential security regressions on migrated MySQL
+        run: |
+          php artisan test --compact tests/Unit/BootstrapCredentialProvisionerTest.php
+          php artisan test --compact tests/Feature/BootstrapCredentialRotationCommandTest.php
+
       - name: Verify full fresh migration and seed on disposable MySQL
         # Explicitly permit demo/bootstrap seed data only inside this disposable CI database.
         # Production environments must never set this flag.
