@@ -22,7 +22,7 @@ return new class extends Migration
         ];
         foreach (array_keys($committeeTables) as $tableName) {
             if (Schema::hasTable($tableName) && DB::table($tableName)->exists()) {
-                throw new \\RuntimeException("Cannot create the election parent aggregate while {$tableName} contains legacy rows. Reconcile those records against authoritative election evidence before retrying.");
+                throw new \RuntimeException("Cannot create the election parent aggregate while {$tableName} contains legacy rows. Reconcile those records against authoritative election evidence before retrying.");
             }
         }
 
