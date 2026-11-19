@@ -45,13 +45,16 @@ final class GovernanceElectionLifecycleTest extends TestCase
 
         $authorityBytes = "%PDF-1.4\nARNA GA resolution 0001 authority evidence\n";
         $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
+        $ruleBytes = "%PDF-1.4\nARNA board election rule set v1.0\n";
+        $ruleFile = $this->makePublishedAuthorityFile($tenant, $actor, $ruleBytes);
         $authority = [
             'authority_reference' => 'GA-RESOLUTION-0001',
             'authority_evidence_digest' => hash('sha256', $authorityBytes),
             'authority_document_id' => $authorityFile->id,
             'authority_version' => '1.0',
             'rule_set_version' => '1.0',
-            'rule_set_digest' => str_repeat('b', 64),
+            'rule_set_digest' => hash('sha256', $ruleBytes),
+            'rule_set_document_id' => $ruleFile->id,
             'authority_snapshot' => ['instrument' => 'verified-reference'],
         ];
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority evidence reviewed', ['authority:GA-RESOLUTION-0001'], $authority);
@@ -110,13 +113,16 @@ final class GovernanceElectionLifecycleTest extends TestCase
         ]);
         $authorityBytes = "%PDF-1.4\nARNA timezone test authority evidence\n";
         $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
+        $ruleBytes = "%PDF-1.4\nARNA timezone test rule set\n";
+        $ruleFile = $this->makePublishedAuthorityFile($tenant, $actor, $ruleBytes);
         $authority = [
             'authority_reference' => 'GA-RESOLUTION-TZ',
             'authority_evidence_digest' => hash('sha256', $authorityBytes),
             'authority_document_id' => $authorityFile->id,
             'authority_version' => '1',
             'rule_set_version' => '1',
-            'rule_set_digest' => str_repeat('d', 64),
+            'rule_set_digest' => hash('sha256', $ruleBytes),
+            'rule_set_document_id' => $ruleFile->id,
         ];
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority verified', ['authority:GA-RESOLUTION-TZ'], $authority);
         $election = $service->transition(
@@ -236,13 +242,16 @@ final class GovernanceElectionLifecycleTest extends TestCase
         ]);
         $authorityBytes = "%PDF-1.4\nARNA full lifecycle authority evidence\n";
         $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
+        $ruleBytes = "%PDF-1.4\nARNA full lifecycle rule set\n";
+        $ruleFile = $this->makePublishedAuthorityFile($tenant, $actor, $ruleBytes);
         $authority = [
             'authority_reference' => 'GA-RESOLUTION-FULL',
             'authority_evidence_digest' => hash('sha256', $authorityBytes),
             'authority_document_id' => $authorityFile->id,
             'authority_version' => '1',
             'rule_set_version' => '1',
-            'rule_set_digest' => str_repeat('2', 64),
+            'rule_set_digest' => hash('sha256', $ruleBytes),
+            'rule_set_document_id' => $ruleFile->id,
         ];
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority verified', ['authority:GA-RESOLUTION-FULL'], $authority);
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'schedule', 2, 'Schedule approved', ['schedule:full-lifecycle'], [], [
@@ -291,6 +300,79 @@ final class GovernanceElectionLifecycleTest extends TestCase
             $this->fail('A digest without a linked authority document must not authorize an election.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('authority_document_id', $exception->errors());
+        }
+
+        $this->assertSame('draft', $election->fresh()->status);
+        $this->assertSame(1, (int) $election->fresh()->version);
+        $this->assertSame(0, DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count());
+    }
+
+    public function test_authorization_requires_a_published_rule_set_document(): void
+    {
+        [$tenant, $actor] = $this->makeAuthorizedActor();
+        Auth::login($actor);
+        $election = app(GovernanceElectionLifecycleService::class)->create((int) $tenant->id, $actor, [
+            'code' => 'RULE-DOC-REQUIRED',
+            'election_scope' => 'board',
+            'election_type' => 'board',
+        ]);
+        $authorityBytes = "%PDF-1.4\nValid authority document\n";
+        $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
+        $authority = [
+            'authority_reference' => 'GA-RESOLUTION-RULE-DOC',
+            'authority_evidence_digest' => hash('sha256', $authorityBytes),
+            'authority_document_id' => $authorityFile->id,
+            'authority_version' => '1',
+            'rule_set_version' => '1',
+            'rule_set_digest' => str_repeat('b', 64),
+        ];
+
+        try {
+            app(GovernanceElectionLifecycleService::class)->transition(
+                (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
+                'Missing rule-set source rejected', ['rules:missing-document'], $authority
+            );
+            $this->fail('A rule-set digest without a linked source document must not authorize an election.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('rule_set_document_id', $exception->errors());
+        }
+
+        $this->assertSame('draft', $election->fresh()->status);
+        $this->assertSame(1, (int) $election->fresh()->version);
+        $this->assertSame(0, DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count());
+    }
+
+    public function test_authorization_recomputes_and_rejects_a_mismatched_rule_set_digest(): void
+    {
+        [$tenant, $actor] = $this->makeAuthorizedActor();
+        Auth::login($actor);
+        $election = app(GovernanceElectionLifecycleService::class)->create((int) $tenant->id, $actor, [
+            'code' => 'RULE-DIGEST-MISMATCH',
+            'election_scope' => 'board',
+            'election_type' => 'board',
+        ]);
+        $authorityBytes = "%PDF-1.4\nValid authority document\n";
+        $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
+        $ruleBytes = "%PDF-1.4\nActual rule-set bytes\n";
+        $ruleFile = $this->makePublishedAuthorityFile($tenant, $actor, $ruleBytes);
+        $authority = [
+            'authority_reference' => 'GA-RESOLUTION-RULE-MISMATCH',
+            'authority_evidence_digest' => hash('sha256', $authorityBytes),
+            'authority_document_id' => $authorityFile->id,
+            'authority_version' => '1',
+            'rule_set_version' => '1',
+            'rule_set_digest' => str_repeat('f', 64),
+            'rule_set_document_id' => $ruleFile->id,
+        ];
+
+        try {
+            app(GovernanceElectionLifecycleService::class)->transition(
+                (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
+                'Mismatched rule-set digest rejected', ['rules:digest-mismatch'], $authority
+            );
+            $this->fail('A rule-set digest that does not match stored bytes must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('rule_set_digest', $exception->errors());
         }
 
         $this->assertSame('draft', $election->fresh()->status);
