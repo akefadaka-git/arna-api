@@ -825,7 +825,7 @@ final class ShareholderSeeder extends Seeder
          * Null the three audit columns if they exist on this schema
          * branch. Same guard as the admin seeder.
          */
-        if (Schema::hasColumn('users', 'password_changed_at')) {
+        if ($isNew && Schema::hasColumn('users', 'password_changed_at')) {
             $user->password_changed_at = null;
         }
         if (Schema::hasColumn('users', 'last_login_at')) {
