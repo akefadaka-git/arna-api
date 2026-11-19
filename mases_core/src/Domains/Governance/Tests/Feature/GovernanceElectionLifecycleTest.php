@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
@@ -42,9 +43,12 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $this->assertSame('secret', $election->ballot_secrecy);
         $this->assertSame(1, (int) $election->version);
 
+        $authorityBytes = "%PDF-1.4\nARNA GA resolution 0001 authority evidence\n";
+        $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
         $authority = [
             'authority_reference' => 'GA-RESOLUTION-0001',
-            'authority_evidence_digest' => str_repeat('a', 64),
+            'authority_evidence_digest' => hash('sha256', $authorityBytes),
+            'authority_document_id' => $authorityFile->id,
             'authority_version' => '1.0',
             'rule_set_version' => '1.0',
             'rule_set_digest' => str_repeat('b', 64),
@@ -104,9 +108,12 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'election_scope' => 'board',
             'election_type' => 'board',
         ]);
+        $authorityBytes = "%PDF-1.4\nARNA timezone test authority evidence\n";
+        $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
         $authority = [
             'authority_reference' => 'GA-RESOLUTION-TZ',
-            'authority_evidence_digest' => str_repeat('c', 64),
+            'authority_evidence_digest' => hash('sha256', $authorityBytes),
+            'authority_document_id' => $authorityFile->id,
             'authority_version' => '1',
             'rule_set_version' => '1',
             'rule_set_digest' => str_repeat('d', 64),
@@ -227,9 +234,12 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'election_scope' => 'board',
             'election_type' => 'board',
         ]);
+        $authorityBytes = "%PDF-1.4\nARNA full lifecycle authority evidence\n";
+        $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
         $authority = [
             'authority_reference' => 'GA-RESOLUTION-FULL',
-            'authority_evidence_digest' => str_repeat('1', 64),
+            'authority_evidence_digest' => hash('sha256', $authorityBytes),
+            'authority_document_id' => $authorityFile->id,
             'authority_version' => '1',
             'rule_set_version' => '1',
             'rule_set_digest' => str_repeat('2', 64),
@@ -254,6 +264,144 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $this->assertSame([1, 2, 3, 4, 5, 6], $history->pluck('sequence')->all());
         $this->assertSame(['authorize', 'schedule', 'suspend', 'resume', 'cancel', 'archive'], $history->pluck('action')->all());
         $this->assertTrue($history->every(fn ($row) => is_string($row->reason) && strlen($row->reason) >= 5));
+    }
+
+    public function test_authorization_requires_a_published_authority_document_id(): void
+    {
+        [$tenant, $actor] = $this->makeAuthorizedActor();
+        Auth::login($actor);
+        $election = app(GovernanceElectionLifecycleService::class)->create((int) $tenant->id, $actor, [
+            'code' => 'AUTH-DOC-REQUIRED',
+            'election_scope' => 'board',
+            'election_type' => 'board',
+        ]);
+        $authority = [
+            'authority_reference' => 'GA-RESOLUTION-NO-DOC',
+            'authority_evidence_digest' => str_repeat('a', 64),
+            'authority_version' => '1',
+            'rule_set_version' => '1',
+            'rule_set_digest' => str_repeat('b', 64),
+        ];
+
+        try {
+            app(GovernanceElectionLifecycleService::class)->transition(
+                (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
+                'Missing source document rejected', ['authority:missing-document'], $authority
+            );
+            $this->fail('A digest without a linked authority document must not authorize an election.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('authority_document_id', $exception->errors());
+        }
+
+        $this->assertSame('draft', $election->fresh()->status);
+        $this->assertSame(1, (int) $election->fresh()->version);
+        $this->assertSame(0, DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count());
+    }
+
+    public function test_authorization_recomputes_and_rejects_a_mismatched_authority_digest(): void
+    {
+        [$tenant, $actor] = $this->makeAuthorizedActor();
+        Auth::login($actor);
+        $election = app(GovernanceElectionLifecycleService::class)->create((int) $tenant->id, $actor, [
+            'code' => 'AUTH-DIGEST-MISMATCH',
+            'election_scope' => 'board',
+            'election_type' => 'board',
+        ]);
+        $bytes = "%PDF-1.4\nActual authority bytes\n";
+        $file = $this->makePublishedAuthorityFile($tenant, $actor, $bytes);
+        $authority = [
+            'authority_reference' => 'GA-RESOLUTION-MISMATCH',
+            'authority_evidence_digest' => str_repeat('f', 64),
+            'authority_document_id' => $file->id,
+            'authority_version' => '1',
+            'rule_set_version' => '1',
+            'rule_set_digest' => str_repeat('b', 64),
+        ];
+
+        try {
+            app(GovernanceElectionLifecycleService::class)->transition(
+                (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
+                'Mismatched authority digest rejected', ['authority:digest-mismatch'], $authority
+            );
+            $this->fail('A caller-supplied digest that does not match stored bytes must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('authority_evidence_digest', $exception->errors());
+        }
+
+        $this->assertSame('draft', $election->fresh()->status);
+        $this->assertSame(1, (int) $election->fresh()->version);
+        $this->assertSame(0, DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count());
+    }
+
+    public function test_authorization_fails_closed_when_authority_storage_bytes_are_unavailable(): void
+    {
+        [$tenant, $actor] = $this->makeAuthorizedActor();
+        Auth::login($actor);
+        Storage::fake('local');
+        $election = app(GovernanceElectionLifecycleService::class)->create((int) $tenant->id, $actor, [
+            'code' => 'AUTH-STORAGE-MISSING',
+            'election_scope' => 'board',
+            'election_type' => 'board',
+        ]);
+        $bytes = "%PDF-1.4\nExpected but unavailable authority bytes\n";
+        $file = File::query()->create([
+            'user_id' => $actor->id,
+            'tenant_id' => $tenant->id,
+            'original_name' => 'missing-authority.pdf',
+            'name' => 'missing-authority.pdf',
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => strlen($bytes),
+            'path' => 'tenant_' . $tenant->id . '/missing-authority.pdf',
+            'disk' => 'local',
+            'version' => 1,
+            'status' => 'published',
+            'is_public' => false,
+        ]);
+        $authority = [
+            'authority_reference' => 'GA-RESOLUTION-STORAGE',
+            'authority_evidence_digest' => hash('sha256', $bytes),
+            'authority_document_id' => $file->id,
+            'authority_version' => '1',
+            'rule_set_version' => '1',
+            'rule_set_digest' => str_repeat('b', 64),
+        ];
+
+        try {
+            app(GovernanceElectionLifecycleService::class)->transition(
+                (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
+                'Unavailable authority bytes rejected', ['authority:storage-missing'], $authority
+            );
+            $this->fail('An authority file whose stored bytes cannot be read must not authorize an election.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('authority_evidence_digest', $exception->errors());
+        }
+
+        $this->assertSame('draft', $election->fresh()->status);
+        $this->assertSame(1, (int) $election->fresh()->version);
+        $this->assertSame(0, DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count());
+    }
+
+    private function makePublishedAuthorityFile(Tenant $tenant, User $actor, string $bytes): File
+    {
+        Storage::fake('local');
+        $path = 'tenant_' . $tenant->id . '/authority-' . uniqid() . '.pdf';
+        Storage::disk('local')->put($path, $bytes);
+
+        return File::query()->create([
+            'user_id' => $actor->id,
+            'tenant_id' => $tenant->id,
+            'original_name' => 'authority.pdf',
+            'name' => basename($path),
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => strlen($bytes),
+            'path' => $path,
+            'disk' => 'local',
+            'version' => 1,
+            'status' => 'published',
+            'is_public' => false,
+        ]);
     }
 
     private function makeAuthorizedActor(): array
@@ -284,6 +432,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'governance.election.cancel',
             'governance.election.archive',
             'file.view',
+            'file.download',
         ] as $slug) {
             $permission = Permission::query()->firstOrCreate(
                 ['slug' => $slug],
