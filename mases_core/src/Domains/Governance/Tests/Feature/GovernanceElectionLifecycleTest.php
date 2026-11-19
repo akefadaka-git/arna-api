@@ -6,6 +6,7 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +16,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionLifecycle
 use MaaleArna\MASES\Core\Files\Models\File;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
+use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
 use Tests\TestCase;
 
 final class GovernanceElectionLifecycleTest extends TestCase
@@ -97,6 +99,84 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $this->assertSame('scheduled', $election->status);
         $this->assertSame(3, (int) $election->version);
         $this->assertSame(2, DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count());
+    }
+
+    public function test_http_api_validates_required_documents_and_authorizes_from_published_bytes(): void
+    {
+        [$tenant, $actor] = $this->makeAuthorizedActor();
+        Config::set('mases.tenant.context_resolver', RequestTenantResolver::class);
+        Config::set('mases.tenant.isolation_enabled', true);
+
+        $headers = ['X-Tenant-ID' => (string) $tenant->id];
+        $created = $this->actingAs($actor, 'sanctum')
+            ->withHeaders($headers)
+            ->postJson('/api/governance/elections', [
+                'code' => 'HTTP-BOARD-2026',
+                'election_scope' => 'board',
+                'election_type' => 'board',
+                'title_en' => 'HTTP lifecycle integration',
+            ]);
+
+        $created->assertCreated()->assertJsonPath('data.status', 'draft');
+        $electionId = (int) $created->json('data.id');
+        $this->assertGreaterThan(0, $electionId);
+
+        $missingDocuments = $this->actingAs($actor, 'sanctum')
+            ->withHeaders($headers)
+            ->postJson("/api/governance/elections/{$electionId}/transitions", [
+                'action' => 'authorize',
+                'expected_version' => 1,
+                'reason' => 'API evidence validation',
+                'evidence_references' => ['authority:HTTP-RESOLUTION'],
+                'authority' => [
+                    'authority_reference' => 'HTTP-RESOLUTION',
+                    'authority_evidence_digest' => str_repeat('a', 64),
+                    'authority_version' => '1',
+                    'rule_set_version' => '1',
+                    'rule_set_digest' => str_repeat('b', 64),
+                ],
+            ]);
+
+        $missingDocuments->assertUnprocessable()->assertJsonValidationErrors([
+            'authority.authority_document_id',
+            'authority.rule_set_document_id',
+        ]);
+        $this->assertSame('draft', app(GovernanceElectionLifecycleService::class)
+            ->get((int) $tenant->id, $electionId)->status);
+        $this->assertSame(
+            0,
+            DB::table('governance_election_lifecycle_transitions')->where('election_id', $electionId)->count()
+        );
+
+        $authorityBytes = "%PDF-1.4\\nHTTP authority source bytes\\n";
+        $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
+        $ruleBytes = "%PDF-1.4\\nHTTP rule-set source bytes\\n";
+        $ruleFile = $this->makePublishedAuthorityFile($tenant, $actor, $ruleBytes);
+
+        $authorized = $this->actingAs($actor, 'sanctum')
+            ->withHeaders($headers)
+            ->postJson("/api/governance/elections/{$electionId}/transitions", [
+                'action' => 'authorize',
+                'expected_version' => 1,
+                'reason' => 'API evidence verified',
+                'evidence_references' => ['authority:HTTP-RESOLUTION'],
+                'authority' => [
+                    'authority_reference' => 'HTTP-RESOLUTION',
+                    'authority_document_id' => $authorityFile->id,
+                    'authority_evidence_digest' => hash('sha256', $authorityBytes),
+                    'authority_version' => '1',
+                    'rule_set_version' => '1',
+                    'rule_set_document_id' => $ruleFile->id,
+                    'rule_set_digest' => hash('sha256', $ruleBytes),
+                ],
+            ]);
+
+        $authorized->assertOk()->assertJsonPath('data.status', 'authorized');
+        $this->assertSame((int) $actor->id, (int) $authorized->json('data.authorized_by'));
+        $this->assertSame(
+            1,
+            DB::table('governance_election_lifecycle_transitions')->where('election_id', $electionId)->count()
+        );
     }
 
     public function test_authorization_fails_closed_without_versioned_authority_evidence(): void
@@ -654,6 +734,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         ]);
         $user->tenants()->attach($tenant->id, ['joined_at' => now()]);
         foreach ([
+            'governance.election.view',
             'governance.election.manage',
             'governance.election.authorize',
             'governance.election.schedule',
