@@ -15,7 +15,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElection;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceElectionLifecycleTransition;
 use MaaleArna\MASES\Core\Exceptions\FileException;
-use MaaleArna\MASES\Core\Files\Services\FileService;
+use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceElectionLifecycleChanged;
 
 final class GovernanceElectionLifecycleService
