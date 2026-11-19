@@ -10,6 +10,7 @@ on:
       - "mases_core/src/Providers/CoreServiceProvider.php"
       - "tests/Feature/DocumentWorkflowAggregateServiceTest.php"
       - "tests/Feature/DocumentWorkflowMySqlConcurrencyTest.php"
+      - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php"
       - "docs/documents/**"
 
 permissions:

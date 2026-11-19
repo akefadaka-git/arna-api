@@ -530,6 +530,34 @@ final class GovernanceAuthorityGrantTest extends TestCase
             (int) $this->administrator->id,
         ));
 
+        $this->postJson(route('api.governance.authority-grants.store'), [
+            'governance_position_id' => (int) $this->position->id,
+            'grantee_person_id' => (int) $this->granteePerson->id,
+            'action' => 'documents.issue',
+            'effective_from' => CarbonImmutable::today()->toDateString(),
+            'reason' => 'Board-authorized document issuance delegation',
+        ])->assertCreated();
+
+        // Real positive path: tenant RBAC + active membership + exact action grant.
+        $this->assertTrue($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.issue',
+            (int) $this->administrator->id,
+        ));
+
+        // Even with the grant, an author cannot approve their own document.
+        $this->assertFalse($authorization->allowsGovernedAction(
+            $this->grantee,
+            (int) $this->tenant->id,
+            (int) $this->body->id,
+            (int) $this->position->id,
+            'documents.approve',
+            (int) $this->grantee->id,
+        ));
+
         // Revoking the RBAC permission also denies the action even while
         // the separate Governance grant remains active.
         $this->grantee->permissions()->detach($permission->id);

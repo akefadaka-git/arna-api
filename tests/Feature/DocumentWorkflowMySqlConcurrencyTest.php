@@ -99,15 +99,23 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
         ];
 
         $release = tempnam(sys_get_temp_dir(), 'arna-doc-issue-release-');
+        $ready = [
+            tempnam(sys_get_temp_dir(), 'arna-doc-issue-ready-'),
+            tempnam(sys_get_temp_dir(), 'arna-doc-issue-ready-'),
+        ];
         $results = [
             tempnam(sys_get_temp_dir(), 'arna-doc-issue-result-'),
             tempnam(sys_get_temp_dir(), 'arna-doc-issue-result-'),
         ];
         @unlink($release);
-        foreach ($results as $result) {
-            @unlink($result);
+        foreach (array_merge($ready, $results) as $path) {
+            @unlink($path);
         }
-        DB::disconnect();
+
+        // Hold the contested aggregate row until MySQL reports both workers waiting.
+        DB::beginTransaction();
+        DB::table('document_workflow_aggregates')->where('id', $workflow->id)
+            ->lockForUpdate()->first();
         $children = [];
 
         try {
@@ -118,6 +126,7 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
                 }
                 if ($pid === 0) {
                     DB::purge();
+                    file_put_contents($ready[$index], 'ready');
                     $deadline = microtime(true) + 10;
                     while (! file_exists($release) && microtime(true) < $deadline) {
                         usleep(10000);
@@ -150,7 +159,41 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
                 $children[] = $pid;
             }
 
+            $readyDeadline = microtime(true) + 10;
+            while ((!is_file($ready[0]) || !is_file($ready[1])) && microtime(true) < $readyDeadline) {
+                usleep(10000);
+            }
+            $this->assertFileExists($ready[0], 'Worker 1 must reach the database barrier.');
+            $this->assertFileExists($ready[1], 'Worker 2 must reach the database barrier.');
             file_put_contents($release, 'go');
+
+            $waitDeadline = microtime(true) + 15;
+            $waitingSessions = 0;
+            do {
+                $row = DB::selectOne(
+                    'SELECT COUNT(*) AS waiting_count
+                     FROM performance_schema.data_lock_waits AS waits
+                     INNER JOIN performance_schema.data_locks AS requested
+                       ON requested.ENGINE_LOCK_ID = waits.REQUESTING_ENGINE_LOCK_ID
+                     WHERE requested.OBJECT_SCHEMA = DATABASE()
+                       AND requested.OBJECT_NAME = ?
+                       AND requested.LOCK_STATUS = ?',
+                    ['document_workflow_aggregates', 'WAITING'],
+                );
+                $waitingSessions = (int) ($row->waiting_count ?? 0);
+                if ($waitingSessions >= 2) {
+                    break;
+                }
+                usleep(20000);
+            } while (microtime(true) < $waitDeadline);
+
+            $this->assertSame(
+                2,
+                $waitingSessions,
+                'Both independent workers must be observed by MySQL waiting on the same aggregate-row lock before the coordinator releases it.',
+            );
+            DB::commit();
+
             $exitCodes = [];
             foreach ($children as $pid) {
                 pcntl_waitpid($pid, $status);
@@ -175,10 +218,13 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
             foreach ($children as $pid) {
                 pcntl_waitpid($pid, $status, WNOHANG);
             }
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
             DB::purge();
             @unlink($release);
-            foreach ($results as $result) {
-                @unlink($result);
+            foreach (array_merge($ready, $results) as $path) {
+                @unlink($path);
             }
         }
     }
