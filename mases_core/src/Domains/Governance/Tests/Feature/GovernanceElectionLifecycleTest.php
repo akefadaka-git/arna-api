@@ -485,6 +485,59 @@ final class GovernanceElectionLifecycleTest extends TestCase
     }
 
 
+    public function test_unexpected_storage_exception_rolls_back_authorization_atomically(): void
+    {
+        [$tenant, $actor] = $this->makeAuthorizedActor();
+        Auth::login($actor);
+        $service = app(GovernanceElectionLifecycleService::class);
+        $election = $service->create((int) $tenant->id, $actor, [
+            'code' => 'AUTH-STORAGE-THROWABLE',
+            'election_scope' => 'board',
+            'election_type' => 'board',
+        ]);
+        $authorityBytes = "%PDF-1.4\\nAuthority bytes for storage exception\\n";
+        $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
+        $ruleBytes = "%PDF-1.4\\nRule bytes for storage exception\\n";
+        $ruleFile = $this->makePublishedAuthorityFile($tenant, $actor, $ruleBytes);
+        $authority = [
+            'authority_reference' => 'GA-STORAGE-THROWABLE',
+            'authority_evidence_digest' => hash('sha256', $authorityBytes),
+            'authority_document_id' => $authorityFile->id,
+            'authority_version' => '1',
+            'rule_set_version' => '1',
+            'rule_set_digest' => hash('sha256', $ruleBytes),
+            'rule_set_document_id' => $ruleFile->id,
+        ];
+
+        Storage::shouldReceive('disk')
+            ->once()
+            ->with('local')
+            ->andThrow(new \\RuntimeException('Unexpected storage adapter failure'));
+
+        try {
+            $service->transition(
+                (int) $tenant->id,
+                (int) $election->id,
+                $actor,
+                'authorize',
+                1,
+                'Unexpected storage failure must roll back',
+                ['authority:storage-throwable'],
+                $authority
+            );
+            $this->fail('Unexpected storage exceptions must abort authorization.');
+        } catch (\\RuntimeException $exception) {
+            $this->assertSame('Unexpected storage adapter failure', $exception->getMessage());
+        }
+
+        $this->assertSame('draft', $election->fresh()->status);
+        $this->assertSame(1, (int) $election->fresh()->version);
+        $this->assertSame(
+            0,
+            DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count()
+        );
+    }
+
     public function test_rule_set_evidence_rejects_foreign_unpublished_deleted_and_unavailable_sources_atomically(): void
     {
         [$tenant, $actor] = $this->makeAuthorizedActor();
