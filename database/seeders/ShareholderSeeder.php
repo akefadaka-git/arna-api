@@ -445,6 +445,28 @@ final class ShareholderSeeder extends Seeder
     private const REGISTER_TYPE_INDIVIDUAL = 'individual';
 
     /**
+     * Return the exact email addresses generated from the canonical demo
+     * shareholder register, using the same collision-suffix algorithm as
+     * seed(). This lets security maintenance target only seeded identities
+     * without rotating unrelated shareholders or their representatives.
+     *
+     * @return list<string>
+     */
+    public function seededAccountEmails(): array
+    {
+        $usedEmails = [];
+        $emails = [];
+
+        foreach (ShareholderRegister::ROWS as $shId => $definition) {
+            $email = $this->buildShareholderEmail($definition, $usedEmails);
+            $usedEmails[strtolower($email)] = $shId;
+            $emails[] = $email;
+        }
+
+        return $emails;
+    }
+
+    /**
      * Create the shareholder cohort, write each register row, attach
      * each user's pivots, and return the map of persisted models
      * keyed by SH-ID.
