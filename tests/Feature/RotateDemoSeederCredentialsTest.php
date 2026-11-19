@@ -7,10 +7,10 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Database\Seeders\ShareholderSeeder;
 use Illuminate\Support\Facades\Hash;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use Database\Seeders\ShareholderSeeder;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -28,7 +28,10 @@ final class RotateDemoSeederCredentialsTest extends TestCase
             'password' => Hash::make('legacy-shared-test-secret'),
             'default_tenant_id' => $tenant->id,
         ]);
-        $seededEmail = (new ShareholderSeeder())->seededAccountEmails()[0];
+        $seededEmails = (new ShareholderSeeder())->seededAccountEmails();
+        $this->assertCount(100, $seededEmails);
+        $this->assertCount(100, array_unique($seededEmails));
+        $seededEmail = $seededEmails[0];
         $shareholder = User::factory()->create([
             'email' => $seededEmail,
             'password' => Hash::make('legacy-shared-test-secret'),
