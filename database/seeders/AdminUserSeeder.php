@@ -135,8 +135,10 @@ use RuntimeException;
  * Three audit columns are nulled on each upsert, guarded by
  * Schema::hasColumn():
  *
- *   · password_changed_at — nulled so that the operator is prompted
- *     to change the bootstrap password on first login.
+ *   · password_changed_at — null for a newly created account because
+ *     its random credential is not disclosed; the holder must establish
+ *     a password through the verified-email reset flow. Existing account
+ *     timestamps are preserved when the password is preserved.
  *
  *   · last_login_at       — nulled so that a reseed resets the
  *     "last seen" state. On a fresh install these columns are
@@ -441,7 +443,7 @@ final class AdminUserSeeder extends Seeder
          * branch. See the class docblock §"The three Schema::hasColumn
          * guards".
          */
-        if (Schema::hasColumn('users', 'password_changed_at')) {
+        if ($isNew && Schema::hasColumn('users', 'password_changed_at')) {
             $user->password_changed_at = null;
         }
         if (Schema::hasColumn('users', 'last_login_at')) {
