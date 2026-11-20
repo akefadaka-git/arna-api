@@ -234,7 +234,11 @@ final class GovernanceElectionAuthorityService
 
     private function authorize(User $actor, int $tenantId, string $permission): void
     {
-        if ($tenantId < 1 || !$this->authorization->hasPermission($permission, $actor, $tenantId)) {
+        if ($tenantId < 1 || !$this->authorization->hasPermission(
+            permissionSlug: $permission,
+            user: $actor,
+            tenantId: $tenantId,
+        )) {
             throw new \Illuminate\Auth\Access\AuthorizationException('The required election authority permission is not granted in this tenant.');
         }
     }
