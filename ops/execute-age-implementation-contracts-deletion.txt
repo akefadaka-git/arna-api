@@ -1,0 +1,8 @@
+Owner-approved remote branch deletion trigger.
+
+Target: docs/age-a3-implementation-contracts
+Target head SHA verified before approval: 8bf86726467276e3fdf84eecb49b1dfb35ef5f20
+Protected duplicate retained for open PR #143: docs/age-a3-anti-rollback-design
+Repository main SHA at approval: 1ee575a08d4c1ceaa9509faa8ed03f1562c7b4a4
+Owner approval received in ChatGPT on 2026-11-20.
+No merge or deployment is authorized.
