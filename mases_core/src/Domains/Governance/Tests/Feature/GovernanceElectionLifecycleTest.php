@@ -90,7 +90,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $this->assertSame((int) $authorityFile->id, $election->authority_snapshot['authority']['document_id']);
         $this->assertSame(hash('sha256', $authorityBytes), $election->authority_snapshot['authority']['sha256']);
         $this->assertSame((int) $ruleFile->id, $election->authority_snapshot['rule_set']['document_id']);
-        $this->assertSame((int) $actor->id, $election->authority_snapshot['verified_by']);
+        $this->assertSame((int) $actor->id, $election->authority_snapshot['authority']['verified_by']);
         $this->assertArrayNotHasKey('instrument', $election->authority_snapshot);
 
         $election = $service->transition(
@@ -632,7 +632,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'extension' => 'pdf',
             'size' => strlen($bytes),
             'path' => 'tenant_' . $tenant->id . '/missing-authority.pdf',
-            'disk' => $disk,
+            'disk' => 'local',
             'version' => 1,
             'status' => 'published',
             'is_public' => false,
