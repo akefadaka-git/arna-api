@@ -20,7 +20,7 @@ return new class extends Migration
         // MySQL commits DDL independently. These guards make a failed preflight
         // safely retryable after explicit legacy-record reconciliation.
         if (!Schema::hasTable('governance_elections')) {
-        Schema::create('governance_elections', function (Blueprint $table): void {
+            Schema::create('governance_elections', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedBigInteger('governance_body_id')->nullable();
@@ -66,7 +66,7 @@ return new class extends Migration
         }
 
         if (!Schema::hasTable('governance_election_lifecycle_transitions')) {
-        Schema::create('governance_election_lifecycle_transitions', function (Blueprint $table): void {
+            Schema::create('governance_election_lifecycle_transitions', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedBigInteger('election_id');
@@ -117,17 +117,6 @@ return new class extends Migration
                 static fn (array $foreignKey): bool => ($foreignKey['name'] ?? null) === $constraint
             );
             if (!$alreadyInstalled) {
-                Schema::table($tableName, function (Blueprint $table) use ($constraint): void {
-                    $table->foreign(['tenant_id', 'election_id'], $constraint)
-                        ->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
-                });
-            }
-        }
-        // The committee-security migration predates this parent table.
-        // Attach its tenant/election references now that the canonical
-        // election key exists; this prevents cross-tenant key pairing.
-        foreach ($committeeTables as $tableName => $constraint) {
-            if (Schema::hasTable($tableName)) {
                 Schema::table($tableName, function (Blueprint $table) use ($constraint): void {
                     $table->foreign(['tenant_id', 'election_id'], $constraint)
                         ->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
