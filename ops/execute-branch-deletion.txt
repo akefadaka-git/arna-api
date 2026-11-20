@@ -1,0 +1,3 @@
+Owner-approved one-time trigger.
+Target: feat/a3-election-dispute-foundation
+Approval recorded in ChatGPT conversation on 2026-11-20.
