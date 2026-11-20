@@ -82,7 +82,12 @@ final class GovernanceElectionCommitteeAppointmentService
                 ->where('id', (int) $election->authority_evidence_id)
                 ->where('status', 'verified')
                 ->where('verified_by', (int) $election->authority_verified_by)
+                ->whereNotNull('reviewed_by')
                 ->whereNotNull('verified_by')
+                ->whereNotNull('verified_at')
+                ->whereNotNull('verification_reason')
+                ->whereColumn('recorded_by', '<>', 'reviewed_by')
+                ->whereColumn('recorded_by', '<>', 'verified_by')
                 ->first(['id']);
             if ($evidence === null) {
                 throw ValidationException::withMessages(['appointment_evidence_id' => 'Appointment evidence must be verified and belong to this election and tenant.']);
