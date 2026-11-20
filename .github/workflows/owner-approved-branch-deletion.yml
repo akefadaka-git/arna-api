@@ -13,9 +13,9 @@ on:
         type: string
   push:
     branches:
-      - ops/owner-approved-delete-p13-governance
+      - ops/owner-approved-delete-age-implementation-contracts
     paths:
-      - ops/execute-p13-governance-deletion.txt
+      - ops/execute-age-implementation-contracts-deletion.txt
 
 permissions:
   contents: write
@@ -31,8 +31,8 @@ jobs:
       - name: Validate explicit target
         env:
           EVENT_NAME: ${{ github.event_name }}
-          BRANCH: ${{ github.event_name == 'push' && 'feat/p1.3-governance-invariants' || inputs.branch_name }}
-          CONFIRM: ${{ github.event_name == 'push' && 'feat/p1.3-governance-invariants' || inputs.confirm_branch_name }}
+          BRANCH: ${{ github.event_name == 'push' && 'docs/age-a3-implementation-contracts' || inputs.branch_name }}
+          CONFIRM: ${{ github.event_name == 'push' && 'docs/age-a3-implementation-contracts' || inputs.confirm_branch_name }}
         run: |
           set -euo pipefail
           if [[ -z "$BRANCH" || "$BRANCH" != "$CONFIRM" ]]; then
@@ -47,7 +47,7 @@ jobs:
             echo "::error::Invalid branch name."
             exit 1
           fi
-          if [[ "$EVENT_NAME" == "push" && "${GITHUB_REF_NAME}" != "ops/owner-approved-delete-p13-governance" ]]; then
+          if [[ "$EVENT_NAME" == "push" && "${GITHUB_REF_NAME}" != "ops/owner-approved-delete-age-implementation-contracts" ]]; then
             echo "::error::Unexpected trigger branch."
             exit 1
           fi
@@ -55,7 +55,7 @@ jobs:
       - name: Delete the exact approved branch ref
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ github.event_name == 'push' && 'feat/p1.3-governance-invariants' || inputs.branch_name }}
+          BRANCH: ${{ github.event_name == 'push' && 'docs/age-a3-implementation-contracts' || inputs.branch_name }}
         run: |
           set -euo pipefail
           gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRANCH}"
