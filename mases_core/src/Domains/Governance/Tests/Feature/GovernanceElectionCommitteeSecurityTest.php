@@ -29,6 +29,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
     private Person $committeePerson;
     private Person $candidate;
     private int $electionId;
+    private int $authorityEvidenceId;
 
     protected function setUp(): void
     {
@@ -109,6 +110,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'recused_at' => null,
             'recusal_scope' => null,
             'appointment_reference' => 'GA-RESOLUTION-TEST-002',
+            'appointment_evidence_id' => $this->authorityEvidenceId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -146,6 +148,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'recused_at' => now(),
             'recusal_scope' => null,
             'appointment_reference' => 'GA-RESOLUTION-TEST-003',
+            'appointment_evidence_id' => $this->authorityEvidenceId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -197,10 +200,37 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'title_en' => 'Committee Security Test',
             'election_scope' => 'board',
             'election_type' => 'board',
-            'status' => 'draft',
+            'status' => 'authorized',
             'version' => 1,
             'created_at' => now(),
             'updated_at' => now(),
+        ]);
+
+        $this->authorityEvidenceId = (int) DB::table('governance_election_authority_evidence')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'election_id' => $this->electionId,
+            'instrument_type' => 'general_assembly_resolution',
+            'instrument_reference' => 'GA-SECURITY-TEST-' . $this->electionId,
+            'instrument_date' => null,
+            'document_id' => 1,
+            'storage_reference' => 'test-fixture:authority-document',
+            'content_sha256' => str_repeat('a', 64),
+            'status' => 'verified',
+            'recorded_by' => $this->administrator->id,
+            'reviewed_by' => $this->committeeMember->id,
+            'reviewed_at' => now(),
+            'review_reason' => 'Security fixture evidence was reviewed.',
+            'verified_by' => $this->candidate->user_id,
+            'verified_at' => now(),
+            'verification_reason' => 'Security fixture evidence was verified.',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('governance_elections')->where('id', $this->electionId)->update([
+            'authority_evidence_id' => $this->authorityEvidenceId,
+            'authority_verified_by' => $this->candidate->user_id,
+            'authority_verified_at' => now(),
+            'authority_verification_reason' => 'Verified security-test authority fixture.',
         ]);
     }
 
@@ -273,6 +303,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'recused_at' => null,
             'recusal_scope' => null,
             'appointment_reference' => 'GA-RESOLUTION-TEST-004',
+            'appointment_evidence_id' => $this->authorityEvidenceId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -320,6 +351,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'recused_at' => now(),
             'recusal_scope' => 'candidate:not-a-person-id',
             'appointment_reference' => 'GA-RESOLUTION-TEST-005',
+            'appointment_evidence_id' => $this->authorityEvidenceId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
