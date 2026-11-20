@@ -84,6 +84,12 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $this->assertSame('authorized', $election->status);
         $this->assertSame(2, (int) $election->version);
         $this->assertSame((int) $actor->id, (int) $election->authorized_by);
+        $this->assertSame('1', $election->authority_snapshot['schema_version']);
+        $this->assertSame((int) $authorityFile->id, $election->authority_snapshot['authority']['document_id']);
+        $this->assertSame(hash('sha256', $authorityBytes), $election->authority_snapshot['authority']['sha256']);
+        $this->assertSame((int) $ruleFile->id, $election->authority_snapshot['rule_set']['document_id']);
+        $this->assertSame((int) $actor->id, $election->authority_snapshot['verified_by']);
+        $this->assertArrayNotHasKey('instrument', $election->authority_snapshot);
 
         $election = $service->transition(
             (int) $tenant->id,
@@ -239,6 +245,89 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $this->assertSame('2027-01-10 12:00:00', $stored->scheduled_start_at);
         $this->assertSame('2027-01-10 20:00:00', $stored->scheduled_end_at);
         $this->assertSame('Africa/Addis_Ababa', $stored->timezone);
+    }
+
+    public function test_arbitrary_transition_evidence_references_are_rejected(): void
+    {
+        [$tenant, $actor] = $this->makeAuthorizedActor();
+        $election = app(GovernanceElectionLifecycleService::class)->create((int) $tenant->id, $actor, [
+            'code' => 'UNRESOLVED-EVIDENCE',
+            'election_scope' => 'board',
+            'election_type' => 'board',
+        ]);
+
+        try {
+            app(GovernanceElectionLifecycleService::class)->transition(
+                (int) $tenant->id,
+                (int) $election->id,
+                $actor,
+                'cancel',
+                1,
+                'Reject arbitrary evidence',
+                ['authority:free-text-is-not-evidence'],
+            );
+            $this->fail('Free-text references must not be accepted as durable transition evidence.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('evidence_references.0', $exception->errors());
+        }
+
+        $this->assertSame('draft', $election->fresh()->status);
+        $this->assertSame(1, (int) $election->fresh()->version);
+        $this->assertSame(0, DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count());
+    }
+
+    public function test_schedule_rejects_relative_and_invalid_calendar_date_times(): void
+    {
+        [$tenant, $actor] = $this->makeAuthorizedActor();
+        $service = app(GovernanceElectionLifecycleService::class);
+        $election = $service->create((int) $tenant->id, $actor, [
+            'code' => 'STRICT-SCHEDULE',
+            'election_scope' => 'board',
+            'election_type' => 'board',
+        ]);
+        $authorityBytes = "%PDF-1.4\\nStrict schedule authority\\n";
+        $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
+        $ruleBytes = "%PDF-1.4\\nStrict schedule rules\\n";
+        $ruleFile = $this->makePublishedAuthorityFile($tenant, $actor, $ruleBytes);
+        $authority = [
+            'authority_reference' => 'STRICT-SCHEDULE-AUTH',
+            'authority_evidence_digest' => hash('sha256', $authorityBytes),
+            'authority_document_id' => $authorityFile->id,
+            'authority_version' => '1',
+            'rule_set_version' => '1',
+            'rule_set_digest' => hash('sha256', $ruleBytes),
+            'rule_set_document_id' => $ruleFile->id,
+        ];
+        $election = $service->transition(
+            (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
+            'Strict schedule authority verified', [$this->makeEvidenceReference($tenant, $actor)], $authority
+        );
+
+        foreach ([
+            ['start' => 'tomorrow 9am', 'end' => 'tomorrow 5pm'],
+            ['start' => '2027-02-30T09:00:00+03:00', 'end' => '2027-03-01T17:00:00+03:00'],
+            ['start' => '2027-01-10 09:00:00', 'end' => '2027-01-10 17:00:00'],
+        ] as $case) {
+            try {
+                $service->transition(
+                    (int) $tenant->id, (int) $election->id, $actor, 'schedule', (int) $election->version,
+                    'Reject ambiguous schedule', [$this->makeEvidenceReference($tenant, $actor)], [],
+                    [
+                        'scheduled_start_at' => $case['start'],
+                        'scheduled_end_at' => $case['end'],
+                        'timezone' => 'Africa/Addis_Ababa',
+                    ]
+                );
+                $this->fail('Relative, invalid, or timezone-free schedule inputs must be rejected.');
+            } catch (ValidationException $exception) {
+                $this->assertTrue(
+                    isset($exception->errors()['scheduled_start_at']) || isset($exception->errors()['scheduled_end_at'])
+                );
+            }
+        }
+
+        $this->assertSame('authorized', $election->fresh()->status);
+        $this->assertSame(2, (int) $election->fresh()->version);
     }
 
     public function test_authority_file_must_be_published_and_belong_to_the_same_tenant(): void
