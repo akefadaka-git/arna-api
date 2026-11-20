@@ -1,0 +1,7 @@
+OWNER-APPROVED BRANCH DELETION
+Target branch: audit/phase0-effective-authorization
+Expected target SHA: be5f1a2abb70af83e0a0cb7c76cf1611cadcfb22
+Expected main SHA: 1ee575a08d4c1ceaa9509faa8ed03f1562c7b4a4
+Approval date: 2026-11-20
+Scope: delete only the exact target branch ref.
+Not authorized: merge, pull-request closure, main modification, deployment, or any other branch deletion.
