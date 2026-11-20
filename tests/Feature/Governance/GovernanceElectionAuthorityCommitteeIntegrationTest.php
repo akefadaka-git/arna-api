@@ -46,7 +46,7 @@ final class GovernanceElectionAuthorityCommitteeIntegrationTest extends TestCase
         ]);
 
         $recorder = $this->user($tenant, 'evidence-recorder');
-        foreach (['governance.election.manage', 'file.view', 'file.download'] as $slug) {
+        foreach (['governance.election.manage', 'governance.election.authority.review', 'file.view', 'file.download'] as $slug) {
             $this->grant($recorder, $slug);
         }
         $reviewer = $this->user($tenant, 'evidence-reviewer');
@@ -130,13 +130,13 @@ final class GovernanceElectionAuthorityCommitteeIntegrationTest extends TestCase
         ]);
 
         $recorder = $this->user($tenant, 'committee-evidence-recorder');
-        foreach (['governance.election.manage', 'file.view', 'file.download'] as $slug) {
+        foreach (['governance.election.manage', 'governance.election.authority.review', 'file.view', 'file.download'] as $slug) {
             $this->grant($recorder, $slug);
         }
         $reviewer = $this->user($tenant, 'committee-evidence-reviewer');
         $this->grant($reviewer, 'governance.election.authority.review');
         $verifier = $this->user($tenant, 'committee-authority-verifier');
-        foreach (['governance.election.authority.verify', 'file.view', 'file.download'] as $slug) {
+        foreach (['governance.election.authority.verify', 'governance.election.manage', 'governance.election.authorize', 'file.view', 'file.download'] as $slug) {
             $this->grant($verifier, $slug);
         }
 
