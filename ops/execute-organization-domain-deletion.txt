@@ -1,0 +1,3 @@
+Owner-approved deletion target: feat/organization-domain-foundation
+Target head verified: ef220efdfdf48c44e7552df0636c549a45fe8548
+Main at approval: 71c2ffdb7a6c4c2544d3f07a8389b0f180ca676a
