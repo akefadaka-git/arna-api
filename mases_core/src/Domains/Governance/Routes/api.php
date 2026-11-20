@@ -229,6 +229,8 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAppointme
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeSecurityController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionAuthorityController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeAppointmentController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
@@ -643,6 +645,46 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.election.committee.audit.view')
         ->name('elections.committee.security-events.index');
 
+
+    // Authority evidence workflow — record, review and verify before lifecycle authorization.
+    Route::get('/elections/{election}/authority-evidence', [GovernanceElectionAuthorityController::class, 'index'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.authority-evidence.index');
+
+    Route::post('/elections/{election}/authority-evidence', [GovernanceElectionAuthorityController::class, 'store'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.authority-evidence.store');
+
+    Route::patch('/elections/{election}/authority-evidence/{evidence}/review', [GovernanceElectionAuthorityController::class, 'review'])
+        ->whereNumber('election')
+        ->whereNumber('evidence')
+        ->middleware('auth.permission:governance.election.authority.review')
+        ->name('elections.authority-evidence.review');
+
+    Route::post('/elections/{election}/authority-evidence/{evidence}/verify', [GovernanceElectionAuthorityController::class, 'verify'])
+        ->whereNumber('election')
+        ->whereNumber('evidence')
+        ->middleware('auth.permission:governance.election.authority.verify')
+        ->name('elections.authority-evidence.verify');
+
+    // Committee appointments — require verified election authority and reviewed evidence.
+    Route::get('/elections/{election}/committee/members', [GovernanceElectionCommitteeAppointmentController::class, 'index'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.committee.view')
+        ->name('elections.committee.members.index');
+
+    Route::post('/elections/{election}/committee/members', [GovernanceElectionCommitteeAppointmentController::class, 'store'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.committee.appoint')
+        ->name('elections.committee.members.store');
+
+    Route::patch('/elections/{election}/committee/members/{member}/revoke', [GovernanceElectionCommitteeAppointmentController::class, 'revoke'])
+        ->whereNumber('election')
+        ->whereNumber('member')
+        ->middleware('auth.permission:governance.election.committee.revoke')
+        ->name('elections.committee.members.revoke');
 
     // Module 1 — tenant-scoped election foundation and lifecycle.
     Route::get('/elections', [GovernanceElectionController::class, 'index'])
