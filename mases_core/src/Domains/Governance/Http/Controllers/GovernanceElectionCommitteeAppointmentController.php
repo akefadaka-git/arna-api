@@ -7,6 +7,9 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use DateTimeImmutable;
+use DateTimeZone;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionCommitteeAppointmentService;
 
@@ -35,11 +38,12 @@ final class GovernanceElectionCommitteeAppointmentController extends Controller
             'ex_officio' => ['sometimes', 'boolean'],
             'appointed_at' => ['required', 'regex:/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|[+-]\\d{2}:\\d{2})$/'],
         ]);
+        $appointedAt = $this->normalizeAppointedAt($data['appointed_at']);
         $member = $this->appointments->appoint(
             $tenantId, $election, (int) $data['person_id'], (int) $data['user_id'],
             (int) $data['appointment_evidence_id'], $data['appointment_reference'],
             $data['member_role'], (bool) ($data['ex_officio'] ?? false),
-            $data['appointed_at'], $this->actor($request),
+            $appointedAt, $this->actor($request),
         );
         return response()->json(['data' => $member], 201);
     }
@@ -52,6 +56,19 @@ final class GovernanceElectionCommitteeAppointmentController extends Controller
             $tenantId, $election, $member, $data['reason'], $this->actor($request),
         );
         return response()->json(['data' => $revoked]);
+    }
+
+    private function normalizeAppointedAt(string $value): string
+    {
+        $normalized = str_ends_with($value, 'Z') ? substr($value, 0, -1) . '+00:00' : $value;
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i:sP', $normalized);
+        $errors = DateTimeImmutable::getLastErrors();
+
+        if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+            throw ValidationException::withMessages(['appointed_at' => 'Provide a valid RFC 3339 appointment timestamp with an explicit UTC offset.']);
+        }
+
+        return $date->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
     }
 
     private function actor(Request $request): User
