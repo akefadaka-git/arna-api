@@ -19,9 +19,11 @@ on:
     branches:
       - ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120
       - ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120
+      - ops/dispatch-owner-delete-a3-3-2-exact-sha-20261120
     paths:
       - ops/owner-approved-deletion/organization-filemanagement-foundation.trigger
       - ops/owner-approved-deletion/p24-candidate-intake-a2.trigger
+      - ops/owner-approved-deletion/a3-3-2-exact-sha.trigger
 
 permissions:
   contents: write
@@ -32,7 +34,7 @@ concurrency:
 
 jobs:
   delete-branch:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120'))
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-a3-3-2-exact-sha-20261120'))
     runs-on: ubuntu-latest
     steps:
       - name: Resolve approved deletion request
@@ -57,6 +59,10 @@ jobs:
             BRANCH="docs/p2.4-candidate-intake-a2"
             CONFIRM="docs/p2.4-candidate-intake-a2"
             EXPECTED_SHA="6d3c3a992d29cd3869d3aec7921ba41c782e7397"
+          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-a3-3-2-exact-sha-20261120" ]]; then
+            BRANCH="verify/a3-3-2-exact-sha"
+            CONFIRM="verify/a3-3-2-exact-sha"
+            EXPECTED_SHA="959d5a29dab75cf36c57587f78b6fc01985ef473"
           else
             echo "::error::Unrecognized deletion dispatch branch."
             exit 1
