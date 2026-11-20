@@ -1,6 +1,6 @@
-# ARNA OS — Daily Repository Progress Report (2026-11-19)
+# ARNA OS — Daily Repository Progress Report (2026-11-20)
 
-**Generated:** 2026-11-19T05:12:36.135517+03:00  
+**Generated:** 2026-11-20T04:59:48.685687+03:00  
 **Repositories:** akefadaka-git/arna-api, akefadaka-git/arna-app  
 **Assessment mode:** read-only repository metadata and workflow evidence; no source-code mutation.
 
@@ -48,47 +48,54 @@
 ### akefadaka-git/arna-api
 
 - Default branch: `main`
-- Open PRs: 74
-- PRs merged in last 30 days: 18
-- Failed/action-required workflow runs in last 14 days: 5
-- Cancelled workflow runs in last 14 days: 3
+- Open PRs: 71
+- PRs merged in last 30 days: 20
+- Failed/action-required workflow runs in last 14 days: 16
+- Cancelled workflow runs in last 14 days: 4
 - Currently queued/in-progress workflow runs in sampled page: 1
-- Most recent commit in sampled 30 commits: 2026-11-18T16:08:49+00:00
+- Most recent commit in sampled 30 commits: 2026-11-19T15:48:05+00:00
 
 **Open pull requests (sample, up to 12):**
-- A3.3.1 — exact-SHA authority and permission verification
+- A3 — Reconcile election lifecycle foundation on current main
+- A4 remediation — reject public evidence and document filesystem rollback orphans
+- DRAFT — A5 exact-SHA verification for election lifecycle remediation
+- A5 remediation: integrate PR #164 with current main
 - AGE v1.0 Module 1 — Election Foundation and Lifecycle
 - AGE v1.0 Module 3 — Shareholder Register A2 Dependency Baseline (Read-only)
 - feat(shareholder): add statutory register identity metadata
 - AGE v1.0 Module 2 — Candidate Intake, Nominations and Eligibility
-- A3.2 — Canonical Documents registry, taxonomy and EC numbering
 - feat(governance): P2 election authority foundation
-- A3.1 — Establish canonical File Management domain boundary
 - feat(governance): add evidence-neutral election dispute foundation
 - feat(governance): integrate election core with committee decision security
 - security(p0.9): remove and rotate exposed seeded credentials
-- P0.7 — Add Portal self-service ownership regression tests
 
 **PRs merged in last 30 days (sample, up to 12):**
+- P0: remove shared bootstrap credentials and add controlled rotation
+- A3 documents integration against current main
+- A3.3 — Formal Document Workflow, Signing and Immutable Evidence
+- A3.2 — Canonical Documents registry, taxonomy and EC numbering
+- A3.1 — Establish canonical File Management domain boundary
+- A3 File Management, Document Registry and Formal Workflow — current-main integration
 - A3 — Board election committee security foundation on current main
 - A3.1: Make clean-install migration verification count-independent
 - fix(deps): update Laravel framework security patch
 - A3: enforce permanent bilingual Community Responsibility section
 - A3.2 — Atomic membership lifecycle security audit
 - maintenance: isolate pre-existing Finance regression failures
-- security(a4): verify Executive Overview authorization and tenant isolation
-- test(a4): R3 Executive Overview adversarial authorization matrix
-- fix(auth): generic denials and preserve custom role grants
-- test(loan): verify concurrent repayments on MySQL
-- A1–A5: audit, retire legacy API code and verify
-- fix(errors): complete existing auth tenant and file code catalogue
 
 **Failed workflows (sample, up to 12):**
-- ARNA clean-install MySQL verification #1802
-- ARNA A3.3.2 exact-SHA document issuance MySQL verification #34
-- ARNA Governance authorization regression #615
-- ARNA clean-install MySQL verification #1800
-- ARNA A3.3.2 exact-SHA document issuance MySQL verification #33
+- ARNA shareholder seed-number initialization regression #1560
+- ARNA Phase 0 effective authorization audit #1468
+- ARNA G-01 tenant isolation regression gate #1551
+- ARNA Governance authorization regression #653
+- ARNA clean-install MySQL verification #1840
+- ARNA Governance authorization regression #651
+- ARNA Governance authorization regression #650
+- ARNA clean-install MySQL verification #1837
+- ARNA shareholder seed-number initialization regression #1556
+- ARNA clean-install MySQL verification #1836
+- ARNA Governance authorization regression #649
+- ARNA Phase 0 effective authorization audit #1464
 
 ### akefadaka-git/arna-app
 
@@ -144,9 +151,9 @@
 
 ## Recommendations and enhancement priorities
 
-- **akefadaka-git/arna-api:** triage 5 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-api:** inspect 3 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
-- **akefadaka-git/arna-api:** review 74 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-api:** triage 16 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-api:** inspect 4 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
+- **akefadaka-git/arna-api:** review 71 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - **akefadaka-git/arna-app:** triage 60 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
 - **akefadaka-git/arna-app:** review 47 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - Continue closing domain acceptance gaps before expanding scope: security, tenant isolation, lifecycle, concurrency, clean-install and cross-domain integration.
