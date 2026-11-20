@@ -1,0 +1,3 @@
+Owner-approved deletion target: feat/p1.3-governance-invariants
+Target head verified: 8f64cdeb1c8a83baa55702cc0f2a2e67d7b87426
+Main at approval: 71c2ffdb7a6c4c2544d3f07a8389b0f180ca676a
