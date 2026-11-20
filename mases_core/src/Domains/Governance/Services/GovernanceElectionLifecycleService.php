@@ -6,7 +6,6 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Services;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Throwable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -105,6 +104,8 @@ final class GovernanceElectionLifecycleService
                 throw ValidationException::withMessages(['version' => 'The election was changed by another request. Reload and retry with the current version.']);
             }
 
+            $this->assertTransitionEvidence($tenantId, $actor, $evidenceReferences);
+
             $from = $election->status;
             $to = match ($action) {
                 'authorize' => $this->authorizeElection($election, $tenantId, $actor, $authority),
@@ -200,18 +201,56 @@ final class GovernanceElectionLifecycleService
             'rule_set_digest',
             'rule-set',
         );
+        $verifiedAt = now();
         $election->fill([
             'authority_reference' => trim($authority['authority_reference']),
-            'authority_document_id' => $authority['authority_document_id'] ?? null,
+            'authority_document_id' => $documentId,
             'authority_evidence_digest' => strtolower($authority['authority_evidence_digest']),
             'authority_version' => trim($authority['authority_version']),
-            'authority_snapshot' => $authority['authority_snapshot'] ?? null,
+            'authority_snapshot' => [
+                'schema_version' => '1',
+                'authority' => [
+                    'document_id' => $documentId,
+                    'sha256' => strtolower($authority['authority_evidence_digest']),
+                    'reference' => trim($authority['authority_reference']),
+                    'version' => trim($authority['authority_version']),
+                ],
+                'rule_set' => [
+                    'document_id' => $ruleSetDocumentId,
+                    'sha256' => strtolower($authority['rule_set_digest']),
+                    'version' => trim($authority['rule_set_version']),
+                ],
+                'verified_at' => $verifiedAt->toISOString(),
+                'verified_by' => (int) $actor->getAuthIdentifier(),
+            ],
             'rule_set_version' => trim($authority['rule_set_version']),
             'rule_set_digest' => strtolower($authority['rule_set_digest']),
             'rule_set_document_id' => $ruleSetDocumentId,
-            'authorized_at' => now(),
+            'authorized_at' => $verifiedAt,
         ]);
         return 'authorized';
+    }
+
+    private function assertTransitionEvidence(int $tenantId, User $actor, array $references): void
+    {
+        $fileService = app(FileService::class);
+        foreach ($references as $index => $reference) {
+            if (!is_string($reference) || !preg_match('/^file:([1-9][0-9]*):([a-f0-9]{64})$/i', $reference, $matches)) {
+                throw ValidationException::withMessages([
+                    "evidence_references.{$index}" => 'Evidence must identify a published File Management document as file:{document_id}:{sha256}.',
+                ]);
+            }
+            $this->assertEvidenceDocumentMatches(
+                $fileService,
+                $actor,
+                $tenantId,
+                (int) $matches[1],
+                strtolower($matches[2]),
+                "evidence_references.{$index}",
+                "evidence_references.{$index}",
+                'transition evidence',
+            );
+        }
     }
 
     private function assertEvidenceDocumentMatches(
@@ -262,23 +301,33 @@ final class GovernanceElectionLifecycleService
         if (!in_array($timezone, DateTimeZone::listIdentifiers(), true)) {
             throw ValidationException::withMessages(['timezone' => 'A valid IANA timezone identifier is required.']);
         }
-        try {
-            $zone = new DateTimeZone($timezone);
-            // Inputs with an explicit offset represent an instant. Convert that
-            // instant to the selected IANA zone before persisting local wall time.
-            // Inputs without an offset are interpreted directly in that zone.
-            $startAt = $start ? (new DateTimeImmutable((string) $start, $zone))->setTimezone($zone) : null;
-            $endAt = $end ? (new DateTimeImmutable((string) $end, $zone))->setTimezone($zone) : null;
-        } catch (Throwable) {
-            throw ValidationException::withMessages(['scheduled_start_at' => 'Valid start and end date-times are required.']);
-        }
-        if ($startAt === null || $endAt === null || $startAt >= $endAt) {
+        $zone = new DateTimeZone($timezone);
+        $startAt = $this->parseStrictDateTime($start, $zone, 'scheduled_start_at');
+        $endAt = $this->parseStrictDateTime($end, $zone, 'scheduled_end_at');
+        if ($startAt >= $endAt) {
             throw ValidationException::withMessages(['scheduled_start_at' => 'A valid start time earlier than the end time is required.']);
         }
         $election->scheduled_start_at = $startAt->format('Y-m-d H:i:s');
         $election->scheduled_end_at = $endAt->format('Y-m-d H:i:s');
         $election->timezone = $timezone;
         return 'scheduled';
+    }
+
+    private function parseStrictDateTime(mixed $value, DateTimeZone $zone, string $field): DateTimeImmutable
+    {
+        if (!is_string($value) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|[+-]\\d{2}:\\d{2})$/', $value)) {
+            throw ValidationException::withMessages([$field => 'Use an unambiguous RFC 3339 date-time with seconds and an explicit UTC offset.']);
+        }
+
+        $normalized = str_ends_with($value, 'Z') ? substr($value, 0, -1) . '+00:00' : $value;
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i:sP', $normalized);
+        $errors = DateTimeImmutable::getLastErrors();
+        if (!$parsed || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))
+            || $parsed->format('Y-m-d\\TH:i:sP') !== $normalized) {
+            throw ValidationException::withMessages([$field => 'The date-time is invalid or ambiguous.']);
+        }
+
+        return $parsed->setTimezone($zone);
     }
 
     private function suspendElection(GovernanceElection $election, ?string $reason): string
