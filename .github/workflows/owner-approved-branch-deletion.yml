@@ -11,6 +11,11 @@ on:
         description: Re-enter the exact branch name to confirm deletion
         required: true
         type: string
+  push:
+    branches:
+      - ops/owner-approved-delete-election-dispute
+    paths:
+      - ops/execute-branch-deletion.txt
 
 permissions:
   contents: write
@@ -23,10 +28,11 @@ jobs:
   delete-branch:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate explicit confirmation
+      - name: Validate explicit target
         env:
-          BRANCH: ${{ inputs.branch_name }}
-          CONFIRM: ${{ inputs.confirm_branch_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          BRANCH: ${{ github.event_name == 'push' && 'feat/a3-election-dispute-foundation' || inputs.branch_name }}
+          CONFIRM: ${{ github.event_name == 'push' && 'feat/a3-election-dispute-foundation' || inputs.confirm_branch_name }}
         run: |
           set -euo pipefail
           if [[ -z "$BRANCH" || "$BRANCH" != "$CONFIRM" ]]; then
@@ -41,11 +47,15 @@ jobs:
             echo "::error::Invalid branch name."
             exit 1
           fi
+          if [[ "$EVENT_NAME" == "push" && "${GITHUB_REF_NAME}" != "ops/owner-approved-delete-election-dispute" ]]; then
+            echo "::error::Unexpected trigger branch."
+            exit 1
+          fi
 
-      - name: Delete the exact branch ref
+      - name: Delete the exact approved branch ref
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ inputs.branch_name }}
+          BRANCH: ${{ github.event_name == 'push' && 'feat/a3-election-dispute-foundation' || inputs.branch_name }}
         run: |
           set -euo pipefail
           gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRANCH}"
