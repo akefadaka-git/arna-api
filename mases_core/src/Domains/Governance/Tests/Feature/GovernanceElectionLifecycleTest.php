@@ -849,7 +849,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'extension' => 'pdf',
             'size' => strlen($bytes),
             'path' => $path,
-            'disk' => 'local',
+            'disk' => $disk,
             'version' => 1,
             'status' => 'published',
             'is_public' => false,
