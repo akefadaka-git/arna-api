@@ -102,7 +102,7 @@ return new class extends Migration
                 ->whereNull('election.id')
                 ->exists();
             if ($hasOrphans) {
-                throw new \\RuntimeException(
+                throw new \RuntimeException(
                     "Legacy committee-security rows in {$tableName} do not map to a canonical tenant-scoped election. Follow docs/governance/election-committee-legacy-reconciliation.md, reconcile only from authoritative records, then rerun this migration."
                 );
             }
