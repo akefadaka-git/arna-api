@@ -10,6 +10,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::table('governance_elections', function (Blueprint $table): void {
+            $table->unique(['tenant_id', 'id'], 'gov_elections_tenant_id_uq');
+        });
+
         Schema::create('governance_election_authority_evidence', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
