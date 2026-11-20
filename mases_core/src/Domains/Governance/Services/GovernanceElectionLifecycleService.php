@@ -216,6 +216,10 @@ final class GovernanceElectionLifecycleService
             ->whereNotNull('reviewed_by')
             ->whereNotNull('verified_by')
             ->whereNotNull('verified_at')
+            ->whereNotNull('verification_reason')
+            ->where('verification_reason', '<>', '')
+            ->whereColumn('recorded_by', '<>', 'reviewed_by')
+            ->whereColumn('recorded_by', '<>', 'verified_by')
             ->first();
         if (!$authorityEvidence
             || (int) $election->authority_evidence_id !== (int) $authorityEvidenceId
