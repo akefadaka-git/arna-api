@@ -201,27 +201,58 @@ final class GovernanceElectionLifecycleService
             'rule_set_digest',
             'rule-set',
         );
+
+        $authorityEvidenceId = filter_var($authority['authority_evidence_id'] ?? null, FILTER_VALIDATE_INT);
+        if ($authorityEvidenceId === false || $authorityEvidenceId === null || $authorityEvidenceId < 1) {
+            throw ValidationException::withMessages(['authority_evidence_id' => 'A separately reviewed and verified authority evidence record is required.']);
+        }
+        $authorityEvidence = DB::table('governance_election_authority_evidence')
+            ->where('tenant_id', $tenantId)
+            ->where('election_id', (int) $election->getKey())
+            ->where('id', $authorityEvidenceId)
+            ->where('document_id', $documentId)
+            ->where('content_sha256', strtolower((string) $authority['authority_evidence_digest']))
+            ->where('status', 'verified')
+            ->whereNotNull('reviewed_by')
+            ->whereNotNull('verified_by')
+            ->whereNotNull('verified_at')
+            ->first();
+        if (!$authorityEvidence
+            || (int) $election->authority_evidence_id !== (int) $authorityEvidenceId
+            || (int) $election->authority_verified_by !== (int) $authorityEvidence->verified_by
+            || trim((string) $authorityEvidence->instrument_reference) !== trim((string) $authority['authority_reference'])) {
+            throw ValidationException::withMessages(['authority_evidence_id' => 'The verified authority record must match this election, its published document, digest, and instrument reference.']);
+        }
+
         $verifiedAt = now();
         $election->fill([
             'authority_reference' => trim($authority['authority_reference']),
             'authority_document_id' => $documentId,
             'authority_evidence_digest' => strtolower($authority['authority_evidence_digest']),
             'authority_version' => trim($authority['authority_version']),
+            'authority_evidence_id' => (int) $authorityEvidenceId,
+            'authority_verified_by' => (int) $authorityEvidence->verified_by,
+            'authority_verified_at' => $authorityEvidence->verified_at,
+            'authority_verification_reason' => $authorityEvidence->verification_reason,
             'authority_snapshot' => [
                 'schema_version' => '1',
                 'authority' => [
+                    'evidence_record_id' => (int) $authorityEvidenceId,
                     'document_id' => $documentId,
                     'sha256' => strtolower($authority['authority_evidence_digest']),
                     'reference' => trim($authority['authority_reference']),
                     'version' => trim($authority['authority_version']),
+                    'verified_at' => (string) $authorityEvidence->verified_at,
+                    'verified_by' => (int) $authorityEvidence->verified_by,
+                    'verification_reason' => (string) $authorityEvidence->verification_reason,
                 ],
                 'rule_set' => [
                     'document_id' => $ruleSetDocumentId,
                     'sha256' => strtolower($authority['rule_set_digest']),
                     'version' => trim($authority['rule_set_version']),
                 ],
-                'verified_at' => $verifiedAt->toISOString(),
-                'verified_by' => (int) $actor->getAuthIdentifier(),
+                'authorized_at' => $verifiedAt->toISOString(),
+                'authorized_by' => (int) $actor->getAuthIdentifier(),
             ],
             'rule_set_version' => trim($authority['rule_set_version']),
             'rule_set_digest' => strtolower($authority['rule_set_digest']),
