@@ -13,6 +13,7 @@ use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionLifecycleService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionAuthorityService;
 use MaaleArna\MASES\Core\Files\Models\File;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
@@ -65,6 +66,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_document_id' => $ruleFile->id,
             'authority_snapshot' => ['instrument' => 'verified-reference'],
         ];
+        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile);
         // The HTTP/auth guard principal may differ from the explicit lifecycle actor.
         // Evidence lookup must authorize the supplied actor, not silently fall back
         // to whichever user happens to be authenticated in the current request.
@@ -145,6 +147,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
 
         $missingDocuments->assertUnprocessable()->assertJsonValidationErrors([
             'authority.authority_document_id',
+            'authority.authority_evidence_id',
             'authority.rule_set_document_id',
         ]);
         $this->assertSame('draft', app(GovernanceElectionLifecycleService::class)
@@ -158,6 +161,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
         $ruleBytes = "%PDF-1.4\\nHTTP rule-set source bytes\\n";
         $ruleFile = $this->makePublishedAuthorityFile($tenant, $actor, $ruleBytes);
+        $authorityEvidenceId = $this->verifyAuthorityEvidence($tenant, $actor, $electionId, $authorityFile);
 
         $authorized = $this->actingAs($actor, 'sanctum')
             ->withHeaders($headers)
@@ -169,6 +173,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
                 'authority' => [
                     'authority_reference' => 'HTTP-RESOLUTION',
                     'authority_document_id' => $authorityFile->id,
+                    'authority_evidence_id' => $authorityEvidenceId,
                     'authority_evidence_digest' => hash('sha256', $authorityBytes),
                     'authority_version' => '1',
                     'rule_set_version' => '1',
@@ -231,6 +236,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_digest' => hash('sha256', $ruleBytes),
             'rule_set_document_id' => $ruleFile->id,
         ];
+        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile);
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority verified', [$this->makeEvidenceReference($tenant, $actor)], $authority);
         $election = $service->transition(
             (int) $tenant->id, (int) $election->id, $actor, 'schedule', 2,
@@ -298,6 +304,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_digest' => hash('sha256', $ruleBytes),
             'rule_set_document_id' => $ruleFile->id,
         ];
+        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile);
         $election = $service->transition(
             (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
             'Strict schedule authority verified', [$this->makeEvidenceReference($tenant, $actor)], $authority
@@ -443,6 +450,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_digest' => hash('sha256', $ruleBytes),
             'rule_set_document_id' => $ruleFile->id,
         ];
+        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile);
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority verified', [$this->makeEvidenceReference($tenant, $actor)], $authority);
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'schedule', 2, 'Schedule approved', [$this->makeEvidenceReference($tenant, $actor)], [], [
             'scheduled_start_at' => '2027-01-10T09:00:00+03:00',
@@ -624,7 +632,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'extension' => 'pdf',
             'size' => strlen($bytes),
             'path' => 'tenant_' . $tenant->id . '/missing-authority.pdf',
-            'disk' => 'local',
+            'disk' => $disk,
             'version' => 1,
             'status' => 'published',
             'is_public' => false,
@@ -678,6 +686,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_document_id' => $ruleFile->id,
         ];
 
+        $transitionEvidence = $this->makeEvidenceReference($tenant, $actor, 'public');
         Storage::shouldReceive('disk')
             ->once()
             ->with('local')
@@ -691,7 +700,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
                 'authorize',
                 1,
                 'Unexpected storage failure must roll back',
-                [$this->makeEvidenceReference($tenant, $actor)],
+                [$transitionEvidence],
                 $authority
             );
             $this->fail('Unexpected storage exceptions must abort authorization.');
@@ -781,17 +790,55 @@ final class GovernanceElectionLifecycleTest extends TestCase
         }
     }
 
-    private function makeEvidenceReference(Tenant $tenant, User $actor): string
+    private function verifyAuthorityEvidence(Tenant $tenant, User $reviewer, int $electionId, File $document): int
+    {
+        $recorder = User::query()->create([
+            'first_name_en' => 'Authority',
+            'father_name_en' => 'Recorder',
+            'email' => 'authority-recorder-' . uniqid() . '@example.test',
+            'password' => bcrypt('not-used-in-test'),
+            'locale' => 'am',
+            'is_active' => true,
+            'default_tenant_id' => $tenant->id,
+        ]);
+        $recorder->tenants()->attach($tenant->id, ['joined_at' => now()]);
+        foreach (['governance.election.manage', 'file.view', 'file.download'] as $slug) {
+            $permission = Permission::query()->firstOrCreate(['slug' => $slug], [
+                'name_am' => $slug, 'name_en' => $slug, 'description_am' => $slug, 'description_en' => $slug,
+                'category' => 'governance', 'scope' => 'tenant', 'tenant_id' => null,
+                'application_id' => null, 'is_active' => true, 'is_system' => true,
+            ]);
+            $recorder->permissions()->attach($permission->id, ['assigned_at' => now()]);
+        }
+
+        $service = app(GovernanceElectionAuthorityService::class);
+        $evidence = $service->recordAuthorityEvidence(
+            (int) $tenant->id, $electionId, 'general_assembly_resolution',
+            'TEST-AUTHORITY-' . $electionId, null, (int) $document->id, $recorder
+        );
+        $service->reviewAuthorityEvidence(
+            (int) $tenant->id, $electionId, (int) $evidence->id,
+            'reviewed', 'The instrument and published document bytes were reviewed.', $reviewer
+        );
+        $service->verifyAuthority(
+            (int) $tenant->id, $electionId, (int) $evidence->id,
+            'The verified source is the authority for this test election.', $reviewer
+        );
+
+        return (int) $evidence->id;
+    }
+
+    private function makeEvidenceReference(Tenant $tenant, User $actor, string $disk = 'local'): string
     {
         $bytes = "%PDF-1.4\\nGovernance transition evidence\\n";
-        $file = $this->makePublishedAuthorityFile($tenant, $actor, $bytes);
+        $file = $this->makePublishedAuthorityFile($tenant, $actor, $bytes, $disk);
         return 'file:' . $file->id . ':' . hash('sha256', $bytes);
     }
 
-    private function makePublishedAuthorityFile(Tenant $tenant, User $actor, string $bytes): File
+    private function makePublishedAuthorityFile(Tenant $tenant, User $actor, string $bytes, string $disk = 'local'): File
     {
         $path = 'tenant_' . $tenant->id . '/authority-' . uniqid() . '.pdf';
-        Storage::disk('local')->put($path, $bytes);
+        Storage::disk($disk)->put($path, $bytes);
 
         return File::query()->create([
             'user_id' => $actor->id,
@@ -832,6 +879,8 @@ final class GovernanceElectionLifecycleTest extends TestCase
         foreach ([
             'governance.election.view',
             'governance.election.manage',
+            'governance.election.authority.review',
+            'governance.election.authority.verify',
             'governance.election.authorize',
             'governance.election.schedule',
             'governance.election.suspend',
