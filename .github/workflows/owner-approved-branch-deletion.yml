@@ -11,11 +11,10 @@ on:
         description: Re-enter the exact branch name to confirm deletion
         required: true
         type: string
-  push:
-    branches:
-      - ops/owner-approved-delete-p13-governance
-    paths:
-      - ops/execute-p13-governance-deletion.txt
+      expected_sha:
+        description: Full 40-character SHA currently at the target branch head
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -30,9 +29,9 @@ jobs:
     steps:
       - name: Validate explicit target
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          BRANCH: ${{ github.event_name == 'push' && 'feat/p1.3-governance-invariants' || inputs.branch_name }}
-          CONFIRM: ${{ github.event_name == 'push' && 'feat/p1.3-governance-invariants' || inputs.confirm_branch_name }}
+          BRANCH: ${{ inputs.branch_name }}
+          CONFIRM: ${{ inputs.confirm_branch_name }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
         run: |
           set -euo pipefail
           if [[ -z "$BRANCH" || "$BRANCH" != "$CONFIRM" ]]; then
@@ -43,20 +42,32 @@ jobs:
             echo "::error::Refusing to delete a protected primary branch."
             exit 1
           fi
-          if [[ "$BRANCH" == *".."* || "$BRANCH" == -* || "$BRANCH" == *" "* ]]; then
-            echo "::error::Invalid branch name."
+          if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::Expected SHA must be a full 40-character commit SHA."
             exit 1
           fi
-          if [[ "$EVENT_NAME" == "push" && "${GITHUB_REF_NAME}" != "ops/owner-approved-delete-p13-governance" ]]; then
-            echo "::error::Unexpected trigger branch."
-            exit 1
-          fi
+          git check-ref-format --branch "$BRANCH"
 
-      - name: Delete the exact approved branch ref
+      - name: Verify exact branch head
+        id: verify
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ github.event_name == 'push' && 'feat/p1.3-governance-invariants' || inputs.branch_name }}
+          BRANCH: ${{ inputs.branch_name }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${BRANCH}" --jq '.object.sha')"
+          if [[ "${ACTUAL_SHA,,}" != "${EXPECTED_SHA,,}" ]]; then
+            echo "::error::Branch head mismatch. Expected $EXPECTED_SHA; found $ACTUAL_SHA. Nothing was deleted."
+            exit 1
+          fi
+          echo "Verified exact target: $BRANCH at $ACTUAL_SHA"
+
+      - name: Delete the verified branch ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch_name }}
         run: |
           set -euo pipefail
           gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRANCH}"
-          echo "Deleted branch: ${BRANCH}"
+          echo "Deleted verified branch: $BRANCH"
