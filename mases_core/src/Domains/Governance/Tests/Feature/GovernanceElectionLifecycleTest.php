@@ -66,7 +66,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_document_id' => $ruleFile->id,
             'authority_snapshot' => ['instrument' => 'verified-reference'],
         ];
-        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile);
+        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile, 'GA-RESOLUTION-0001');
         // The HTTP/auth guard principal may differ from the explicit lifecycle actor.
         // Evidence lookup must authorize the supplied actor, not silently fall back
         // to whichever user happens to be authenticated in the current request.
@@ -161,7 +161,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $authorityFile = $this->makePublishedAuthorityFile($tenant, $actor, $authorityBytes);
         $ruleBytes = "%PDF-1.4\\nHTTP rule-set source bytes\\n";
         $ruleFile = $this->makePublishedAuthorityFile($tenant, $actor, $ruleBytes);
-        $authorityEvidenceId = $this->verifyAuthorityEvidence($tenant, $actor, $electionId, $authorityFile);
+        $authorityEvidenceId = $this->verifyAuthorityEvidence($tenant, $actor, $electionId, $authorityFile, 'HTTP-RESOLUTION');
 
         $authorized = $this->actingAs($actor, 'sanctum')
             ->withHeaders($headers)
@@ -236,7 +236,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_digest' => hash('sha256', $ruleBytes),
             'rule_set_document_id' => $ruleFile->id,
         ];
-        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile);
+        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile, 'GA-RESOLUTION-TZ');
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority verified', [$this->makeEvidenceReference($tenant, $actor)], $authority);
         $election = $service->transition(
             (int) $tenant->id, (int) $election->id, $actor, 'schedule', 2,
@@ -304,7 +304,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_digest' => hash('sha256', $ruleBytes),
             'rule_set_document_id' => $ruleFile->id,
         ];
-        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile);
+        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile, 'STRICT-SCHEDULE-AUTH');
         $election = $service->transition(
             (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
             'Strict schedule authority verified', [$this->makeEvidenceReference($tenant, $actor)], $authority
@@ -450,7 +450,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_digest' => hash('sha256', $ruleBytes),
             'rule_set_document_id' => $ruleFile->id,
         ];
-        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile);
+        $authority['authority_evidence_id'] = $this->verifyAuthorityEvidence($tenant, $actor, $election->id, $authorityFile, 'GA-RESOLUTION-FULL');
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority verified', [$this->makeEvidenceReference($tenant, $actor)], $authority);
         $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'schedule', 2, 'Schedule approved', [$this->makeEvidenceReference($tenant, $actor)], [], [
             'scheduled_start_at' => '2027-01-10T09:00:00+03:00',
@@ -790,7 +790,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         }
     }
 
-    private function verifyAuthorityEvidence(Tenant $tenant, User $reviewer, int $electionId, File $document): int
+    private function verifyAuthorityEvidence(Tenant $tenant, User $reviewer, int $electionId, File $document, string $authorityReference): int
     {
         $recorder = User::query()->create([
             'first_name_en' => 'Authority',
@@ -814,7 +814,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $service = app(GovernanceElectionAuthorityService::class);
         $evidence = $service->recordAuthorityEvidence(
             (int) $tenant->id, $electionId, 'general_assembly_resolution',
-            'TEST-AUTHORITY-' . $electionId, null, (int) $document->id, $recorder
+            $authorityReference, null, (int) $document->id, $recorder
         );
         $service->reviewAuthorityEvidence(
             (int) $tenant->id, $electionId, (int) $evidence->id,
