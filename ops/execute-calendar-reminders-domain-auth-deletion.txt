@@ -1,0 +1,9 @@
+Owner-approved exact branch deletion trigger.
+Target branch: feat/a3-calendar-recurring-reminders-domain-auth
+Target head SHA: 11fe69e8c6c4faf354da899027a24a7c9d1a057d
+Preserved alias: feat/a3-calendar-current-main-integration
+Preserved alias SHA: 11fe69e8c6c4faf354da899027a24a7c9d1a057d
+Related open PRs retained: #109 (head), #110 (base).
+Main SHA at authorization: 1ee575a08d4c1ceaa9509faa8ed03f1562c7b4a4
+Owner approval received in conversation on 2026-11-20.
+No merge or deployment authorized.
