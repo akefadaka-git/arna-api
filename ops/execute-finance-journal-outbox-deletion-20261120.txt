@@ -1,0 +1,10 @@
+OWNER-APPROVED BRANCH DELETION
+
+Target branch: feat/arna-finance-a3-journal-outbox
+Expected target SHA: 69f19b335898672c44176541e001bf981c7752e0
+Expected main SHA at approval: 1ee575a08d4c1ceaa9509faa8ed03f1562c7b4a4
+Approval date: 2026-11-20
+Scope: delete this exact branch ref only, and only if the workflow validation passes.
+PR #115 is closed and unmerged. PR #121 is retained and remains open.
+No merge, deployment, PR #121 change, main change, or other branch deletion is authorized.
+Retain this trigger branch as operational evidence.
