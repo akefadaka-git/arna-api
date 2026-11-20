@@ -45,6 +45,21 @@ final class GovernanceElection extends Model
         return $this->hasMany(GovernanceElectionLifecycleTransition::class, 'election_id');
     }
 
+    public function authorityEvidence(): BelongsTo
+    {
+        return $this->belongsTo(GovernanceElectionAuthorityEvidence::class, 'authority_evidence_id');
+    }
+
+    public function committeeMembers(): HasMany
+    {
+        return $this->hasMany(GovernanceElectionCommitteeMember::class, 'election_id');
+    }
+
+    public function isAuthorityVerified(): bool
+    {
+        return $this->authority_evidence_id !== null && $this->authority_verified_at !== null;
+    }
+
     public function isTerminal(): bool
     {
         return in_array($this->status, ['cancelled', 'archived'], true);
