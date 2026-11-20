@@ -18,8 +18,10 @@ on:
   push:
     branches:
       - ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120
+      - ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120
     paths:
       - ops/owner-approved-deletion/organization-filemanagement-foundation.trigger
+      - ops/owner-approved-deletion/p24-candidate-intake-a2.trigger
 
 permissions:
   contents: write
@@ -30,7 +32,7 @@ concurrency:
 
 jobs:
   delete-branch:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120'))
     runs-on: ubuntu-latest
     steps:
       - name: Resolve approved deletion request
@@ -40,16 +42,24 @@ jobs:
           INPUT_BRANCH: ${{ inputs.branch_name }}
           INPUT_CONFIRM: ${{ inputs.confirm_branch_name }}
           INPUT_SHA: ${{ inputs.expected_sha }}
+          GITHUB_REF: ${{ github.ref }}
         run: |
           set -euo pipefail
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             BRANCH="$INPUT_BRANCH"
             CONFIRM="$INPUT_CONFIRM"
             EXPECTED_SHA="$INPUT_SHA"
-          else
+          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120" ]]; then
             BRANCH="integration/organization-filemanagement-foundation"
             CONFIRM="integration/organization-filemanagement-foundation"
             EXPECTED_SHA="1c6bc2575e852c6a4716a00f2182f0a620c0934c"
+          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120" ]]; then
+            BRANCH="docs/p2.4-candidate-intake-a2"
+            CONFIRM="docs/p2.4-candidate-intake-a2"
+            EXPECTED_SHA="6d3c3a992d29cd3869d3aec7921ba41c782e7397"
+          else
+            echo "::error::Unrecognized deletion dispatch branch."
+            exit 1
           fi
           if [[ -z "$BRANCH" || "$BRANCH" != "$CONFIRM" ]]; then
             echo "::error::Branch name is empty or confirmation does not match."
