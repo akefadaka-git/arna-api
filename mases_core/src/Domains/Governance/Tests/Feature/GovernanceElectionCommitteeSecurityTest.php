@@ -111,6 +111,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'recusal_scope' => null,
             'appointment_reference' => 'GA-RESOLUTION-TEST-002',
             'appointment_evidence_id' => $this->authorityEvidenceId,
+            'appointed_by' => $this->administrator->id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -149,6 +150,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'recusal_scope' => null,
             'appointment_reference' => 'GA-RESOLUTION-TEST-003',
             'appointment_evidence_id' => $this->authorityEvidenceId,
+            'appointed_by' => $this->administrator->id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -304,6 +306,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'recusal_scope' => null,
             'appointment_reference' => 'GA-RESOLUTION-TEST-004',
             'appointment_evidence_id' => $this->authorityEvidenceId,
+            'appointed_by' => $this->administrator->id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -352,6 +355,7 @@ final class GovernanceElectionCommitteeSecurityTest extends TestCase
             'recusal_scope' => 'candidate:not-a-person-id',
             'appointment_reference' => 'GA-RESOLUTION-TEST-005',
             'appointment_evidence_id' => $this->authorityEvidenceId,
+            'appointed_by' => $this->administrator->id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
