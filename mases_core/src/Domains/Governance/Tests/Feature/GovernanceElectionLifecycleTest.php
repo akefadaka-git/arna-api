@@ -686,7 +686,10 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_document_id' => $ruleFile->id,
         ];
 
+        Storage::fake('public');
+        $publicDisk = Storage::disk('public');
         $transitionEvidence = $this->makeEvidenceReference($tenant, $actor, 'public');
+        Storage::shouldReceive('disk')->with('public')->andReturn($publicDisk);
         Storage::shouldReceive('disk')
             ->once()
             ->with('local')
