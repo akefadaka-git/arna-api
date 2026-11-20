@@ -80,7 +80,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         $guardUser->tenants()->attach($tenant->id, ['joined_at' => now()]);
         Auth::login($guardUser);
 
-        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority evidence reviewed', ['authority:GA-RESOLUTION-0001'], $authority);
+        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority evidence reviewed', [$this->makeEvidenceReference($tenant, $actor)], $authority);
         $this->assertSame('authorized', $election->status);
         $this->assertSame(2, (int) $election->version);
         $this->assertSame((int) $actor->id, (int) $election->authorized_by);
@@ -92,9 +92,9 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'schedule',
             2,
             'Schedule approved by authority',
-            ['schedule:board-election-2027'], 
+            [$this->makeEvidenceReference($tenant, $actor)], 
             [],
-            ['scheduled_start_at' => '2027-01-10 09:00:00', 'scheduled_end_at' => '2027-01-10 17:00:00', 'timezone' => 'Africa/Addis_Ababa'],
+            ['scheduled_start_at' => '2027-01-10T09:00:00+03:00', 'scheduled_end_at' => '2027-01-10T17:00:00+03:00', 'timezone' => 'Africa/Addis_Ababa'],
         );
         $this->assertSame('scheduled', $election->status);
         $this->assertSame(3, (int) $election->version);
@@ -127,7 +127,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
                 'action' => 'authorize',
                 'expected_version' => 1,
                 'reason' => 'API evidence validation',
-                'evidence_references' => ['authority:HTTP-RESOLUTION'],
+                'evidence_references' => [$this->makeEvidenceReference($tenant, $actor)],
                 'authority' => [
                     'authority_reference' => 'HTTP-RESOLUTION',
                     'authority_evidence_digest' => str_repeat('a', 64),
@@ -159,7 +159,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
                 'action' => 'authorize',
                 'expected_version' => 1,
                 'reason' => 'API evidence verified',
-                'evidence_references' => ['authority:HTTP-RESOLUTION'],
+                'evidence_references' => [$this->makeEvidenceReference($tenant, $actor)],
                 'authority' => [
                     'authority_reference' => 'HTTP-RESOLUTION',
                     'authority_document_id' => $authorityFile->id,
@@ -191,7 +191,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
 
         try {
             app(GovernanceElectionLifecycleService::class)->transition(
-                (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority evidence missing', ['authority:missing']
+                (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority evidence missing', [$this->makeEvidenceReference($tenant, $actor)]
             );
             $this->fail('An election without authority evidence must not be authorized.');
         } catch (ValidationException $exception) {
@@ -225,10 +225,10 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_digest' => hash('sha256', $ruleBytes),
             'rule_set_document_id' => $ruleFile->id,
         ];
-        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority verified', ['authority:GA-RESOLUTION-TZ'], $authority);
+        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority verified', [$this->makeEvidenceReference($tenant, $actor)], $authority);
         $election = $service->transition(
             (int) $tenant->id, (int) $election->id, $actor, 'schedule', 2,
-            'Schedule approved', ['schedule:tz-normalization'], [],
+            'Schedule approved', [$this->makeEvidenceReference($tenant, $actor)], [],
             [
                 'scheduled_start_at' => '2027-01-10T09:00:00+00:00',
                 'scheduled_end_at' => '2027-01-10T17:00:00+00:00',
@@ -284,14 +284,14 @@ final class GovernanceElectionLifecycleTest extends TestCase
         ];
         $authority['authority_document_id'] = $draftFile->id;
         try {
-            $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Draft evidence rejected', ['authority:draft-file'], $authority);
+            $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Draft evidence rejected', [$this->makeEvidenceReference($tenant, $actor)], $authority);
             $this->fail('A draft evidence file must not authorize an election.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('authority_document_id', $exception->errors());
         }
         $authority['authority_document_id'] = $foreignFile->id;
         try {
-            $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Foreign evidence rejected', ['authority:foreign-file'], $authority);
+            $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Foreign evidence rejected', [$this->makeEvidenceReference($tenant, $actor)], $authority);
             $this->fail('A file from another tenant must not authorize this election.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('authority_document_id', $exception->errors());
@@ -322,7 +322,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
             $this->assertArrayHasKey('evidence_references', $exception->errors());
         }
         try {
-            $service->transition((int) $tenant->id, (int) $election->id, $actor, 'suspend', 0, 'Stale version attempt', ['audit:stale-version']);
+            $service->transition((int) $tenant->id, (int) $election->id, $actor, 'suspend', 0, 'Stale version attempt', [$this->makeEvidenceReference($tenant, $actor)]);
             $this->fail('A stale expected version must be rejected.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('version', $exception->errors());
@@ -354,19 +354,19 @@ final class GovernanceElectionLifecycleTest extends TestCase
             'rule_set_digest' => hash('sha256', $ruleBytes),
             'rule_set_document_id' => $ruleFile->id,
         ];
-        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority verified', ['authority:GA-RESOLUTION-FULL'], $authority);
-        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'schedule', 2, 'Schedule approved', ['schedule:full-lifecycle'], [], [
-            'scheduled_start_at' => '2027-01-10 09:00:00',
-            'scheduled_end_at' => '2027-01-10 17:00:00',
+        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'authorize', 1, 'Authority verified', [$this->makeEvidenceReference($tenant, $actor)], $authority);
+        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'schedule', 2, 'Schedule approved', [$this->makeEvidenceReference($tenant, $actor)], [], [
+            'scheduled_start_at' => '2027-01-10T09:00:00+03:00',
+            'scheduled_end_at' => '2027-01-10T17:00:00+03:00',
             'timezone' => 'Africa/Addis_Ababa',
         ]);
-        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'suspend', 3, 'Legal review pending', ['decision:suspend']);
+        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'suspend', 3, 'Legal review pending', [$this->makeEvidenceReference($tenant, $actor)]);
         $this->assertSame('suspended', $election->status);
-        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'resume', 4, 'Suspension condition resolved', ['decision:resume']);
+        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'resume', 4, 'Suspension condition resolved', [$this->makeEvidenceReference($tenant, $actor)]);
         $this->assertSame('scheduled', $election->status);
-        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'cancel', 5, 'Election cancelled by authority', ['decision:cancel']);
+        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'cancel', 5, 'Election cancelled by authority', [$this->makeEvidenceReference($tenant, $actor)]);
         $this->assertSame('cancelled', $election->status);
-        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'archive', 6, 'Cancellation record archived', ['decision:archive']);
+        $election = $service->transition((int) $tenant->id, (int) $election->id, $actor, 'archive', 6, 'Cancellation record archived', [$this->makeEvidenceReference($tenant, $actor)]);
         $this->assertSame('archived', $election->status);
         $this->assertSame(7, (int) $election->version);
         $history = DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->orderBy('sequence')->get();
@@ -396,7 +396,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         try {
             app(GovernanceElectionLifecycleService::class)->transition(
                 (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
-                'Missing source document rejected', ['authority:missing-document'], $authority
+                'Missing source document rejected', [$this->makeEvidenceReference($tenant, $actor)], $authority
             );
             $this->fail('A digest without a linked authority document must not authorize an election.');
         } catch (ValidationException $exception) {
@@ -431,7 +431,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         try {
             app(GovernanceElectionLifecycleService::class)->transition(
                 (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
-                'Missing rule-set source rejected', ['rules:missing-document'], $authority
+                'Missing rule-set source rejected', [$this->makeEvidenceReference($tenant, $actor)], $authority
             );
             $this->fail('A rule-set digest without a linked source document must not authorize an election.');
         } catch (ValidationException $exception) {
@@ -469,7 +469,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         try {
             app(GovernanceElectionLifecycleService::class)->transition(
                 (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
-                'Mismatched rule-set digest rejected', ['rules:digest-mismatch'], $authority
+                'Mismatched rule-set digest rejected', [$this->makeEvidenceReference($tenant, $actor)], $authority
             );
             $this->fail('A rule-set digest that does not match stored bytes must be rejected.');
         } catch (ValidationException $exception) {
@@ -504,7 +504,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         try {
             app(GovernanceElectionLifecycleService::class)->transition(
                 (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
-                'Mismatched authority digest rejected', ['authority:digest-mismatch'], $authority
+                'Mismatched authority digest rejected', [$this->makeEvidenceReference($tenant, $actor)], $authority
             );
             $this->fail('A caller-supplied digest that does not match stored bytes must be rejected.');
         } catch (ValidationException $exception) {
@@ -552,7 +552,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
         try {
             app(GovernanceElectionLifecycleService::class)->transition(
                 (int) $tenant->id, (int) $election->id, $actor, 'authorize', 1,
-                'Unavailable authority bytes rejected', ['authority:storage-missing'], $authority
+                'Unavailable authority bytes rejected', [$this->makeEvidenceReference($tenant, $actor)], $authority
             );
             $this->fail('An authority file whose stored bytes cannot be read must not authorize an election.');
         } catch (ValidationException $exception) {
@@ -602,7 +602,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
                 'authorize',
                 1,
                 'Unexpected storage failure must roll back',
-                ['authority:storage-throwable'],
+                [$this->makeEvidenceReference($tenant, $actor)],
                 $authority
             );
             $this->fail('Unexpected storage exceptions must abort authorization.');
@@ -674,7 +674,7 @@ final class GovernanceElectionLifecycleTest extends TestCase
                     'authorize',
                     1,
                     'Invalid rule-set source rejected',
-                    ['rules:invalid-source:' . $case],
+                    [$this->makeEvidenceReference($tenant, $actor)],
                     $authority
                 );
                 $this->fail("A {$case} rule-set source must not authorize an election.");
@@ -690,6 +690,13 @@ final class GovernanceElectionLifecycleTest extends TestCase
                 DB::table('governance_election_lifecycle_transitions')->where('election_id', $election->id)->count()
             );
         }
+    }
+
+    private function makeEvidenceReference(Tenant $tenant, User $actor): string
+    {
+        $bytes = "%PDF-1.4\\nGovernance transition evidence\\n";
+        $file = $this->makePublishedAuthorityFile($tenant, $actor, $bytes);
+        return 'file:' . $file->id . ':' . hash('sha256', $bytes);
     }
 
     private function makePublishedAuthorityFile(Tenant $tenant, User $actor, string $bytes): File
