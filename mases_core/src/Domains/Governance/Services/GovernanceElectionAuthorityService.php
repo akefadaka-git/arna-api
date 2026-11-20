@@ -53,6 +53,16 @@ final class GovernanceElectionAuthorityService
             throw ValidationException::withMessages(['instrument_reference' => 'A valid instrument type and reference are required.']);
         }
 
+        if ($instrumentDate !== null) {
+            if (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $instrumentDate)) {
+                throw ValidationException::withMessages(['instrument_date' => 'Use a valid ISO calendar date (YYYY-MM-DD).']);
+            }
+            [$year, $month, $day] = array_map('intval', explode('-', $instrumentDate));
+            if (!checkdate($month, $day, $year)) {
+                throw ValidationException::withMessages(['instrument_date' => 'The instrument date is not a valid calendar date.']);
+            }
+        }
+
         [$document, $digest] = $this->publishedDocument($tenantId, $documentId, $actor);
 
         return DB::transaction(function () use (
@@ -159,6 +169,8 @@ final class GovernanceElectionAuthorityService
                 ->lockForUpdate()->findOrFail($evidenceId);
 
             if ($evidence->status !== 'reviewed' || $evidence->reviewed_by === null
+                || (int) $evidence->recorded_by === (int) $evidence->reviewed_by
+                || trim((string) $evidence->review_reason) === ''
                 || (int) $evidence->recorded_by === (int) $verifier->getAuthIdentifier()) {
                 throw ValidationException::withMessages(['evidence_id' => 'Authority verification requires reviewed evidence and a verifier distinct from its recorder.']);
             }
