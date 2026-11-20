@@ -10,11 +10,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('governance_elections', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'id'], 'gov_elections_tenant_id_uq');
-        });
+        $electionIndexes = collect(Schema::getIndexes('governance_elections'));
+        if (!$electionIndexes->contains(static fn (array $index): bool => ($index['name'] ?? null) === 'gov_elections_tenant_id_uq')) {
+            Schema::table('governance_elections', function (Blueprint $table): void {
+                $table->unique(['tenant_id', 'id'], 'gov_elections_tenant_id_uq');
+            });
+        }
 
-        Schema::create('governance_election_authority_evidence', function (Blueprint $table): void {
+        if (!Schema::hasTable('governance_election_authority_evidence')) {
+            Schema::create('governance_election_authority_evidence', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedBigInteger('election_id');
@@ -46,20 +50,41 @@ return new class extends Migration
                 ->references('id')->on('users')->restrictOnDelete();
             $table->foreign('verified_by', 'gov_elec_auth_evidence_verifier_fk')
                 ->references('id')->on('users')->restrictOnDelete();
-        });
+            });
+        }
 
         Schema::table('governance_elections', function (Blueprint $table): void {
-            $table->unsignedBigInteger('authority_evidence_id')->nullable()->index();
-            $table->unsignedBigInteger('authority_verified_by')->nullable()->index();
-            $table->dateTime('authority_verified_at')->nullable();
-            $table->text('authority_verification_reason')->nullable();
-            $table->foreign('authority_evidence_id', 'gov_elections_authority_evidence_fk')
-                ->references('id')->on('governance_election_authority_evidence')->restrictOnDelete();
-            $table->foreign('authority_verified_by', 'gov_elections_authority_verifier_fk')
-                ->references('id')->on('users')->restrictOnDelete();
+            if (!Schema::hasColumn('governance_elections', 'authority_evidence_id')) {
+                $table->unsignedBigInteger('authority_evidence_id')->nullable()->index();
+            }
+            if (!Schema::hasColumn('governance_elections', 'authority_verified_by')) {
+                $table->unsignedBigInteger('authority_verified_by')->nullable()->index();
+            }
+            if (!Schema::hasColumn('governance_elections', 'authority_verified_at')) {
+                $table->dateTime('authority_verified_at')->nullable();
+            }
+            if (!Schema::hasColumn('governance_elections', 'authority_verification_reason')) {
+                $table->text('authority_verification_reason')->nullable();
+            }
         });
 
-        Schema::create('governance_election_committee_members', function (Blueprint $table): void {
+        $electionForeignKeys = collect(Schema::getForeignKeys('governance_elections'));
+        if (!$electionForeignKeys->contains(static fn (array $foreignKey): bool => ($foreignKey['name'] ?? null) === 'gov_elections_authority_evidence_fk')) {
+            Schema::table('governance_elections', function (Blueprint $table): void {
+                $table->foreign('authority_evidence_id', 'gov_elections_authority_evidence_fk')
+                    ->references('id')->on('governance_election_authority_evidence')->restrictOnDelete();
+            });
+        }
+        $electionForeignKeys = collect(Schema::getForeignKeys('governance_elections'));
+        if (!$electionForeignKeys->contains(static fn (array $foreignKey): bool => ($foreignKey['name'] ?? null) === 'gov_elections_authority_verifier_fk')) {
+            Schema::table('governance_elections', function (Blueprint $table): void {
+                $table->foreign('authority_verified_by', 'gov_elections_authority_verifier_fk')
+                    ->references('id')->on('users')->restrictOnDelete();
+            });
+        }
+
+        if (!Schema::hasTable('governance_election_committee_members')) {
+            Schema::create('governance_election_committee_members', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedBigInteger('election_id');
@@ -95,7 +120,8 @@ return new class extends Migration
                 ->references('id')->on('users')->restrictOnDelete();
             $table->foreign('revoked_by', 'gov_elec_member_revoker_fk')
                 ->references('id')->on('users')->restrictOnDelete();
-        });
+            });
+        }
     }
 
     public function down(): void
