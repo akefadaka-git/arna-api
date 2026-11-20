@@ -33,7 +33,7 @@ final class GovernanceElectionCommitteeAppointmentController extends Controller
             'appointment_reference' => ['required', 'string', 'min:3', 'max:160'],
             'member_role' => ['required', 'string', 'max:32'],
             'ex_officio' => ['sometimes', 'boolean'],
-            'appointed_at' => ['required', 'regex:/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|[+-]\\d{2}:\\d{2})$/],
+            'appointed_at' => ['required', 'regex:/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|[+-]\\d{2}:\\d{2})$/'],
         ]);
         $member = $this->appointments->appoint(
             $tenantId, $election, (int) $data['person_id'], (int) $data['user_id'],
