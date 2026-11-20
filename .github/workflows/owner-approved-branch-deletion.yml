@@ -1,0 +1,52 @@
+name: Owner-approved branch deletion
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: Exact branch name to delete
+        required: true
+        type: string
+      confirm_branch_name:
+        description: Re-enter the exact branch name to confirm deletion
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: owner-approved-branch-deletion
+  cancel-in-progress: false
+
+jobs:
+  delete-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate explicit confirmation
+        env:
+          BRANCH: ${{ inputs.branch_name }}
+          CONFIRM: ${{ inputs.confirm_branch_name }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$BRANCH" || "$BRANCH" != "$CONFIRM" ]]; then
+            echo "::error::Branch name is empty or confirmation does not match."
+            exit 1
+          fi
+          if [[ "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
+            echo "::error::Refusing to delete a protected primary branch."
+            exit 1
+          fi
+          if [[ "$BRANCH" == *".."* || "$BRANCH" == -* || "$BRANCH" == *" "* ]]; then
+            echo "::error::Invalid branch name."
+            exit 1
+          fi
+
+      - name: Delete the exact branch ref
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ inputs.branch_name }}
+        run: |
+          set -euo pipefail
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRANCH}"
+          echo "Deleted branch: ${BRANCH}"
