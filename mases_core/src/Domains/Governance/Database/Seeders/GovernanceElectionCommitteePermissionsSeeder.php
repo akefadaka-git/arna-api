@@ -16,6 +16,10 @@ use MaaleArna\MASES\Core\Authorization\Models\Permission;
 final class GovernanceElectionCommitteePermissionsSeeder extends Seeder
 {
     private const PERMISSIONS = [
+        ['slug' => 'governance.election.view', 'name_am' => 'ምርጫዎችን ማየት', 'name_en' => 'View elections'],
+        ['slug' => 'governance.election.manage', 'name_am' => 'ምርጫዎችን ማስተዳደር', 'name_en' => 'Manage elections'],
+        ['slug' => 'governance.election.authority.review', 'name_am' => 'የምርጫ ሥልጣን ማስረጃን መገምገም', 'name_en' => 'Review election authority evidence'],
+        ['slug' => 'governance.election.authority.verify', 'name_am' => 'የምርጫ ሥልጣንን ማረጋገጥ', 'name_en' => 'Verify election authority'],
         ['slug' => 'governance.election.committee.administer', 'name_am' => 'የምርጫ ኮሚቴ አስተዳዳሪዎችን መመደብ', 'name_en' => 'Administer election committee authorities'],
         ['slug' => 'governance.election.committee.view', 'name_am' => 'የምርጫ ኮሚቴን ማየት', 'name_en' => 'View election committee'],
         ['slug' => 'governance.election.committee.appoint', 'name_am' => 'የምርጫ ኮሚቴ አባላትን መመደብ', 'name_en' => 'Appoint election committee members'],
