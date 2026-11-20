@@ -11,21 +11,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // The committee-security tables were introduced before the canonical
-        // election aggregate. Refuse to create a partially upgraded schema if
-        // legacy records already exist without parent elections; those records
-        // require explicit reconciliation rather than invented placeholder rows.
         $committeeTables = [
             'governance_election_committee_admins' => 'gov_elec_admin_election_fk',
             'governance_election_committee_conflicts' => 'gov_elec_conflict_election_fk',
             'governance_election_committee_security_events' => 'gov_elec_security_election_fk',
         ];
-        foreach (array_keys($committeeTables) as $tableName) {
-            if (Schema::hasTable($tableName) && DB::table($tableName)->exists()) {
-                throw new \RuntimeException("Cannot create the election parent aggregate while {$tableName} contains legacy rows. Reconcile those records against authoritative election evidence before retrying.");
-            }
-        }
 
+        // MySQL commits DDL independently. These guards make a failed preflight
+        // safely retryable after explicit legacy-record reconciliation.
+        if (!Schema::hasTable('governance_elections')) {
         Schema::create('governance_elections', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -69,6 +63,9 @@ return new class extends Migration
             $table->index(['tenant_id', 'governance_body_id'], 'gov_elections_tenant_body_idx');
         });
 
+        }
+
+        if (!Schema::hasTable('governance_election_lifecycle_transitions')) {
         Schema::create('governance_election_lifecycle_transitions', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -87,8 +84,45 @@ return new class extends Migration
             $table->index(['tenant_id', 'election_id', 'occurred_at'], 'gov_elec_lifecycle_time_idx');
             $table->foreign(['tenant_id', 'election_id'], 'gov_elec_lifecycle_election_fk')
                 ->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
-        });
+            });
+        }
 
+        // The parent tables are created first. If legacy rows cannot be tied
+        // to a real tenant-scoped election, stop before adding constraints. The
+        // migration remains retryable after the documented reconciliation.
+        foreach (array_keys($committeeTables) as $tableName) {
+            if (!Schema::hasTable($tableName)) {
+                continue;
+            }
+            $hasOrphans = DB::table($tableName . ' as legacy')
+                ->leftJoin('governance_elections as election', function ($join): void {
+                    $join->on('election.tenant_id', '=', 'legacy.tenant_id')
+                        ->on('election.id', '=', 'legacy.election_id');
+                })
+                ->whereNull('election.id')
+                ->exists();
+            if ($hasOrphans) {
+                throw new \\RuntimeException(
+                    "Legacy committee-security rows in {$tableName} do not map to a canonical tenant-scoped election. Follow docs/governance/election-committee-legacy-reconciliation.md, reconcile only from authoritative records, then rerun this migration."
+                );
+            }
+        }
+
+        // Idempotent FK installation supports a retry after partial MySQL DDL.
+        foreach ($committeeTables as $tableName => $constraint) {
+            if (!Schema::hasTable($tableName)) {
+                continue;
+            }
+            $alreadyInstalled = collect(Schema::getForeignKeys($tableName))->contains(
+                static fn (array $foreignKey): bool => ($foreignKey['name'] ?? null) === $constraint
+            );
+            if (!$alreadyInstalled) {
+                Schema::table($tableName, function (Blueprint $table) use ($constraint): void {
+                    $table->foreign(['tenant_id', 'election_id'], $constraint)
+                        ->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
+                });
+            }
+        }
         // The committee-security migration predates this parent table.
         // Attach its tenant/election references now that the canonical
         // election key exists; this prevents cross-tenant key pairing.
