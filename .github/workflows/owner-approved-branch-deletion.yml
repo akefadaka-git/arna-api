@@ -15,6 +15,11 @@ on:
         description: Full 40-character SHA currently at the target branch head
         required: true
         type: string
+  push:
+    branches:
+      - ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120
+    paths:
+      - ops/owner-approved-deletion/organization-filemanagement-foundation.trigger
 
 permissions:
   contents: write
@@ -25,15 +30,27 @@ concurrency:
 
 jobs:
   delete-branch:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120')
     runs-on: ubuntu-latest
     steps:
-      - name: Validate explicit target
+      - name: Resolve approved deletion request
+        id: request
         env:
-          BRANCH: ${{ inputs.branch_name }}
-          CONFIRM: ${{ inputs.confirm_branch_name }}
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_BRANCH: ${{ inputs.branch_name }}
+          INPUT_CONFIRM: ${{ inputs.confirm_branch_name }}
+          INPUT_SHA: ${{ inputs.expected_sha }}
         run: |
           set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            BRANCH="$INPUT_BRANCH"
+            CONFIRM="$INPUT_CONFIRM"
+            EXPECTED_SHA="$INPUT_SHA"
+          else
+            BRANCH="integration/organization-filemanagement-foundation"
+            CONFIRM="integration/organization-filemanagement-foundation"
+            EXPECTED_SHA="1c6bc2575e852c6a4716a00f2182f0a620c0934c"
+          fi
           if [[ -z "$BRANCH" || "$BRANCH" != "$CONFIRM" ]]; then
             echo "::error::Branch name is empty or confirmation does not match."
             exit 1
@@ -47,13 +64,15 @@ jobs:
             exit 1
           fi
           git check-ref-format --branch "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "expected_sha=$EXPECTED_SHA" >> "$GITHUB_OUTPUT"
+          echo "Approved deletion request resolved for $BRANCH"
 
       - name: Verify exact branch head
-        id: verify
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ inputs.branch_name }}
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          BRANCH: ${{ steps.request.outputs.branch }}
+          EXPECTED_SHA: ${{ steps.request.outputs.expected_sha }}
         run: |
           set -euo pipefail
           ACTUAL_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${BRANCH}" --jq '.object.sha')"
@@ -66,7 +85,7 @@ jobs:
       - name: Delete the verified branch ref
         env:
           GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ inputs.branch_name }}
+          BRANCH: ${{ steps.request.outputs.branch }}
         run: |
           set -euo pipefail
           gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRANCH}"
