@@ -53,7 +53,7 @@ final class GovernanceElectionController extends Controller
             'expected_version' => ['required', 'integer', 'min:1'],
             'reason' => ['required', 'string', 'min:5', 'max:2000'],
             'evidence_references' => ['required', 'array', 'min:1', 'max:20'],
-            'evidence_references.*' => ['string', 'max:200'],
+            'evidence_references.*' => ['required', 'string', 'regex:/^file:[1-9][0-9]*:[a-f0-9]{64}$/i'],
             'authority' => ['sometimes', 'array'],
             'authority.authority_reference' => ['required_if:action,authorize', 'nullable', 'string', 'max:200'],
             'authority.authority_document_id' => ['required_if:action,authorize', 'integer', 'min:1'],
@@ -64,8 +64,8 @@ final class GovernanceElectionController extends Controller
             'authority.rule_set_digest' => ['required_if:action,authorize', 'nullable', 'regex:/^[a-f0-9]{64}$/i'],
             'authority.rule_set_document_id' => ['required_if:action,authorize', 'integer', 'min:1'],
             'schedule' => ['sometimes', 'array'],
-            'schedule.scheduled_start_at' => ['required_if:action,schedule', 'nullable', 'date'],
-            'schedule.scheduled_end_at' => ['required_if:action,schedule', 'nullable', 'date'],
+            'schedule.scheduled_start_at' => ['required_if:action,schedule', 'nullable', 'regex:/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|[+-]\\d{2}:\\d{2})$/'],
+            'schedule.scheduled_end_at' => ['required_if:action,schedule', 'nullable', 'regex:/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|[+-]\\d{2}:\\d{2})$/'],
             'schedule.timezone' => ['nullable', 'timezone'],
         ]);
         $record = $service->transition(
