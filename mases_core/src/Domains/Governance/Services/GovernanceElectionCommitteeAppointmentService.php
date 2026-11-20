@@ -51,7 +51,8 @@ final class GovernanceElectionCommitteeAppointmentService
                 throw new AuthorizationException('Election is not available in this tenant.');
             }
             if (
-                $election->authority_evidence_id === null
+                $election->status !== 'authorized'
+                || $election->authority_evidence_id === null
                 || $election->authority_verified_by === null
                 || $election->authority_verified_at === null
             ) {
@@ -80,6 +81,7 @@ final class GovernanceElectionCommitteeAppointmentService
                 ->where('election_id', $electionId)
                 ->where('id', (int) $election->authority_evidence_id)
                 ->where('status', 'verified')
+                ->where('verified_by', (int) $election->authority_verified_by)
                 ->whereNotNull('verified_by')
                 ->first(['id']);
             if ($evidence === null) {
