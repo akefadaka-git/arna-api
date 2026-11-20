@@ -57,6 +57,7 @@ final class GovernanceElectionController extends Controller
             'authority' => ['sometimes', 'array'],
             'authority.authority_reference' => ['required_if:action,authorize', 'nullable', 'string', 'max:200'],
             'authority.authority_document_id' => ['required_if:action,authorize', 'integer', 'min:1'],
+            'authority.authority_evidence_id' => ['required_if:action,authorize', 'integer', 'min:1'],
             'authority.authority_evidence_digest' => ['required_if:action,authorize', 'nullable', 'regex:/^[a-f0-9]{64}$/i'],
             'authority.authority_version' => ['required_if:action,authorize', 'nullable', 'string', 'max:80'],
             'authority.authority_snapshot' => ['nullable', 'array'],
