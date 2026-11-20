@@ -409,6 +409,35 @@ final class GovernanceElectionCommitteeSecurityService
             throw new AuthorizationException('Committee decision permission is required in this tenant.');
         }
 
+        $election = DB::table('governance_elections')
+            ->where('tenant_id', $tenantId)
+            ->where('id', $electionId)
+            ->where('status', 'authorized')
+            ->whereNotNull('authority_evidence_id')
+            ->whereNotNull('authority_verified_by')
+            ->whereNotNull('authority_verified_at')
+            ->first();
+        if ($election === null) {
+            throw new AuthorizationException('Committee decisions require an authorized election with verified authority evidence.');
+        }
+
+        $authorityEvidence = DB::table('governance_election_authority_evidence')
+            ->where('tenant_id', $tenantId)
+            ->where('election_id', $electionId)
+            ->where('id', (int) $election->authority_evidence_id)
+            ->where('status', 'verified')
+            ->where('verified_by', (int) $election->authority_verified_by)
+            ->whereNotNull('reviewed_by')
+            ->whereNotNull('verified_at')
+            ->whereNotNull('verification_reason')
+            ->where('verification_reason', '<>', '')
+            ->whereColumn('recorded_by', '<>', 'reviewed_by')
+            ->whereColumn('recorded_by', '<>', 'verified_by')
+            ->exists();
+        if (!$authorityEvidence) {
+            throw new AuthorizationException('The election authority evidence is no longer valid for committee decisions.');
+        }
+
         $member = DB::table('governance_election_committee_members')
             ->where('tenant_id', $tenantId)
             ->where('election_id', $electionId)
