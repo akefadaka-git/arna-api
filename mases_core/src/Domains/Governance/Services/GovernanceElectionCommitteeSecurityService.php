@@ -281,6 +281,88 @@ final class GovernanceElectionCommitteeSecurityService
     }
 
     /**
+     * Record a committee appointment in the same transaction as the member
+     * row. The caller must have inserted the active, tenant-scoped appointment.
+     */
+    public function recordMemberAppointment(
+        int $tenantId,
+        int $electionId,
+        int $memberId,
+        int $personId,
+        int $userId,
+        int $evidenceId,
+        string $appointmentReference,
+        string $memberRole,
+        bool $exOfficio,
+        string $appointedAt,
+        User $actor,
+    ): void {
+        if (DB::transactionLevel() < 1) {
+            throw new RuntimeException('Committee appointment security events must share the appointment transaction.');
+        }
+        $this->assertElectionTenant($tenantId, $electionId);
+        $this->lockTenant($tenantId);
+
+        $member = DB::table('governance_election_committee_members')
+            ->where('tenant_id', $tenantId)
+            ->where('election_id', $electionId)
+            ->where('id', $memberId)
+            ->where('person_id', $personId)
+            ->where('user_id', $userId)
+            ->where('appointment_evidence_id', $evidenceId)
+            ->where('status', 'active')
+            ->first();
+        if ($member === null) {
+            throw new RuntimeException('The active committee appointment could not be verified for security-event recording.');
+        }
+
+        $this->appendEvent($tenantId, $electionId, (int) $actor->getAuthIdentifier(), 'committee_member.appointed', [
+            'member_id' => $memberId,
+            'appointment_evidence_id' => $evidenceId,
+            'appointment_reference' => trim($appointmentReference),
+            'member_role' => trim($memberRole),
+            'ex_officio' => $exOfficio,
+            'appointed_at' => $appointedAt,
+        ], $userId, $personId, trim($appointmentReference));
+    }
+
+    /**
+     * Record a committee revocation in the same transaction as the status change.
+     */
+    public function recordMemberRevocation(
+        int $tenantId,
+        int $electionId,
+        int $memberId,
+        int $personId,
+        int $userId,
+        string $reason,
+        User $actor,
+    ): void {
+        if (DB::transactionLevel() < 1) {
+            throw new RuntimeException('Committee revocation security events must share the revocation transaction.');
+        }
+        $this->assertElectionTenant($tenantId, $electionId);
+        $this->lockTenant($tenantId);
+
+        $member = DB::table('governance_election_committee_members')
+            ->where('tenant_id', $tenantId)
+            ->where('election_id', $electionId)
+            ->where('id', $memberId)
+            ->where('person_id', $personId)
+            ->where('user_id', $userId)
+            ->where('status', 'revoked')
+            ->first();
+        if ($member === null || (int) $member->revoked_by !== (int) $actor->getAuthIdentifier()) {
+            throw new RuntimeException('The revoked committee appointment could not be verified for security-event recording.');
+        }
+
+        $this->appendEvent($tenantId, $electionId, (int) $actor->getAuthIdentifier(), 'committee_member.revoked', [
+            'member_id' => $memberId,
+            'reason' => trim($reason),
+        ], $userId, $personId, null);
+    }
+
+    /**
      * Fail closed when the actor has an all-election or candidate-scoped
      * active recusal/conflict. Controllers call this before recording votes.
      */
