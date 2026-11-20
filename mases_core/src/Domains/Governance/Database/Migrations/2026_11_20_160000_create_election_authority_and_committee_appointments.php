@@ -10,13 +10,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $electionIndexes = collect(Schema::getIndexes('governance_elections'));
-        if (!$electionIndexes->contains(static fn (array $index): bool => ($index['name'] ?? null) === 'gov_elections_tenant_id_uq')) {
-            Schema::table('governance_elections', function (Blueprint $table): void {
-                $table->unique(['tenant_id', 'id'], 'gov_elections_tenant_id_uq');
-            });
-        }
-
         if (!Schema::hasTable('governance_election_authority_evidence')) {
             Schema::create('governance_election_authority_evidence', function (Blueprint $table): void {
             $table->id();
