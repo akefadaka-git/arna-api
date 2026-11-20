@@ -52,7 +52,7 @@ final class GovernanceElectionAuthorityCommitteeIntegrationTest extends TestCase
         $reviewer = $this->user($tenant, 'evidence-reviewer');
         $this->grant($reviewer, 'governance.election.authority.review');
         $verifier = $this->user($tenant, 'authority-verifier');
-        foreach (['governance.election.authority.verify', 'file.view', 'file.download'] as $slug) {
+        foreach (['governance.election.authority.verify', 'governance.election.manage', 'governance.election.authorize', 'file.view', 'file.download'] as $slug) {
             $this->grant($verifier, $slug);
         }
 
@@ -186,6 +186,42 @@ final class GovernanceElectionAuthorityCommitteeIntegrationTest extends TestCase
             (int) $tenant->id, (int) $election->id, (int) $evidence->id,
             'The authority instrument was verified for committee appointment.', $verifier,
         );
+
+        try {
+            $appointments->appoint(
+                (int) $tenant->id, (int) $election->id, (int) $person->id, (int) $memberUser->id,
+                (int) $evidence->id, 'GA-COMMITTEE-APPOINTMENT', 'committee_member', false,
+                now()->toDateTimeString(), $appointer,
+            );
+            $this->fail('Committee appointments must wait for the lifecycle authorization transition.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('election', $exception->errors());
+        }
+
+        $ruleBytes = "%PDF-1.4\\nApproved election rules\\n";
+        $ruleDocument = $this->publishedFile($tenant, $verifier, $ruleBytes);
+        $transitionBytes = "%PDF-1.4\\nAuthority transition evidence\\n";
+        $transitionDocument = $this->publishedFile($tenant, $verifier, $transitionBytes);
+        $authorized = app(GovernanceElectionLifecycleService::class)->transition(
+            (int) $tenant->id,
+            (int) $election->id,
+            $verifier,
+            'authorize',
+            1,
+            'Authority and rules are verified before committee appointment.',
+            ['file:' . $transitionDocument->id . ':' . hash('sha256', $transitionBytes)],
+            [
+                'authority_reference' => 'GA-COMMITTEE-AUTHORITY',
+                'authority_document_id' => $document->id,
+                'authority_evidence_id' => $evidence->id,
+                'authority_evidence_digest' => hash('sha256', $bytes),
+                'authority_version' => '1',
+                'rule_set_version' => '1',
+                'rule_set_document_id' => $ruleDocument->id,
+                'rule_set_digest' => hash('sha256', $ruleBytes),
+            ],
+        );
+        $this->assertSame('authorized', $authorized->status);
 
         $appointed = $appointments->appoint(
             (int) $tenant->id, (int) $election->id, (int) $person->id, (int) $memberUser->id,
