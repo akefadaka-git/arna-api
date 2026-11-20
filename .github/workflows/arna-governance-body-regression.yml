@@ -149,6 +149,14 @@ jobs:
           php -l mases_core/src/Domains/Governance/Listeners/AuditGovernanceElectionLifecycleEvent.php
           php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_18_100000_create_governance_elections_foundation.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceElectionAuthorityEvidence.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceElectionCommitteeMember.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceElectionAuthorityService.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceElectionCommitteeAppointmentService.php
+          php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionAuthorityController.php
+          php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCommitteeAppointmentController.php
+          php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_20_160000_create_election_authority_and_committee_appointments.php
+          php -l tests/Feature/Governance/GovernanceElectionAuthorityCommitteeIntegrationTest.php
           php -l database/seeders/MasesCoreSeeder.php
 
       - name: Validate Composer manifest and lock
@@ -169,6 +177,7 @@ jobs:
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
+          vendor/bin/phpunit tests/Feature/Governance/GovernanceElectionAuthorityCommitteeIntegrationTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/FinanceSourceEntityMappingResolverTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAccountingTest.php
