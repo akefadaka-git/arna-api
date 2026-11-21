@@ -77,7 +77,7 @@ The same P2.5 source record provisionally reports shareholder rights, a written/
 Historical register/capital notes are also explicitly provisional:
 - The 17-page bylaws schedule is reported as 29 listed holders, 145 shares, ETB 10,000 nominal value per share, ETB 1,450,000 stated capital, ETB 1,023,000 paid and ETB 427,000 unpaid. The arithmetic reconciles, but does not prove current ownership, paid-up status, share classes or current voting entitlement.
 - The Owner previously reported official shareholder-register pages 9–11 as uploaded in an earlier conversation; those page images were not recovered or inspected in this repository A2 task.
-- Historical application seed data was reported as 100 entries across FOUNDERS and STANDARD. Those are application records, not the official legal register.
+- Repository source inspection identifies static shareholder seeder definitions in version-controlled code. These definitions are not live database rows: the Owner has clarified that the ARNA database has not been migrated or seeded. No current ARNA shareholder rows are asserted or inferred from the seeder.
 - Shareholder SH-0023 was reported as religious_body in one seed context and cooperative in another; the conflict remains unresolved.
 
 Accordingly, the source evidence narrows the legal framework but does not close record-date, register identity, paid-up capital, classification, voting cap, or temporal-history blockers. Do not treat OCR, seed data, the bylaws summary or historical arithmetic as the operative statutory register.
@@ -317,7 +317,7 @@ Current Shareholder records contain a current `shareholder_type`, name fields, `
 
 The ShareholderService supports registration, update, deactivate/reactivate and representative assignment/clearing. The ShareholderUpdated event and AuditShareholderEvent listener are designed to record old/new changed fields, including `is_active` and `representative_user_id`, in audit rows with `created_at`. However, the listener is dispatched after the business transaction commits and explicitly catches audit failures without rethrowing (fail-open). The audit row records system event time, not a legally attested effective date. It therefore may corroborate historical changes where the audit records exist and are complete, but it cannot by itself prove that the legal entity appointed the representative, the mandate's scope/duration, or the effective date of a status change. No audit-log export or independent completeness proof was available in this pass.
 
-The current seeder file `database/seeders/Data/ShareholderRegister.php` contains 100 application rows (SH-0001 through SH-0100). It currently classifies SH-0023 (Maale Hibret) and SH-0088 (Sarangi) as `religious_body`; the seeder's own change notes state that these rows previously carried an invalid generic `organization` type. Historical reconciliation notes separately report a prior SH-0023 `cooperative` classification. The current repository code resolves what the current seed says, not the legal identity of either entity. No registration certificate, constitutive document or competent entity resolution was recovered to resolve SH-0023's legal classification. The 100 seeded application rows are not the 29-entry founding schedule and are not the statutory register.
+The repository file `database/seeders/Data/ShareholderRegister.php` defines static bootstrap entries (SH-0001 through SH-0100). This is source code only; the ARNA database has not been migrated or seeded, so these entries must not be described as live rows or current shareholders. The source currently labels SH-0023 (Maale Hibret) and SH-0088 (Sarangi) as `religious_body`; earlier source notes mention different classifications. Those code labels do not establish either entity's legal identity. No registration certificate, constitutive document or competent entity resolution was recovered. The static seeder is not the statutory register.
 
 **Representation law boundary:** Article 270(2) requires joint owners to appoint a representative for the rights attached to jointly owned shares. Article 271 addresses voting rights where shares are pledged or usufructed and requires registration of pledgee/usufructuary voting rights. Articles 373 and 377 govern a shareholder's meeting proxy and its form/deposit timing. Article 296(4)'s permanent-representative rule applies where a legal-person entity itself is appointed as a director; it is not a general rule validating every legal-entity shareholder's day-to-day representative. Article 299 concerns representation of different share classes on the board; it is not a substitute for an entity's own mandate. The bylaw Article 8 proxy clause is reported to require a written, dated, shareholder-signed authorization. No current or historical corporate mandate, entity resolution, proxy, revocation, replacement or effective-period evidence was recovered.
 
@@ -330,8 +330,8 @@ The current seeder file `database/seeders/Data/ShareholderRegister.php` contains
 | Statutory authoritative source | Article 274 head-office register is controlling; current certified extract absent | RULE RESOLVED / SOURCE MISSING |
 | 17-page bylaws schedule | Owner-confirmed source and SHA; 29-entry founder schedule; not proven current statutory register or Memorandum | HISTORICAL SOURCE IDENTIFIED |
 | Separate registered Memorandum | Owner says original exists; binary not recovered or inspected | MISSING FROM ACCESSIBLE EVIDENCE |
-| 29 founders / 145 shares | Historical schedule aggregate; arithmetic reconciles | AGGREGATE RECONCILED |
-| Paid ETB 1,023,000 / unpaid ETB 427,000 | Source-table totals only; no receipts/ledger proof or current per-holder reconciliation | UNRESOLVED |
+| 29 schedule entries / 145 shares | Figures reported by the recovered historical bylaws transcription; original PDF and page images were not independently reverified in this pass | SECONDARY HISTORICAL SOURCE ONLY |
+| Historical paid/unpaid totals | Values reported in the recovered historical schedule only; no current ARNA database, bank receipt or per-holder proof | UNVERIFIED AS CURRENT POSITION |
 | Legal share classes / vote cap | Application FOUNDERS/STANDARD are not legal evidence; Memorandum absent | UNRESOLVED |
 | Record date | Article 376 allows Memorandum-set registration period; 15-day clause is only provisional | RULE MECHANISM RESOLVED / COMPANY CUTOFF UNRESOLVED |
 | Transfer history | Article 285 formalities identified; no transfer instruments or complete paired register history | UNRESOLVED |
@@ -448,7 +448,7 @@ The 100-row application dataset is confirmed at `database/seeders/Data/Sharehold
 
 The recovered 17-page bylaws transcription records 29 entries on printed pages 9–10 and aggregate figures on page 11 (29 holders, 5 shares each, 145 shares, ETB 10,000 nominal value, ETB 1,023,000 paid and ETB 427,000 unpaid). However, that transcription explicitly records the 29 names and individual allocation rows as **not transcribed**; the original scanned pages remain necessary for exact matching. The available text therefore supports an aggregate comparison only, not a defensible 29-to-100 identity join. Do not infer matches from similar names, signature lists, seeder ordering, or the first 29 SH-IDs.
 
-**Current reconciliation result:** 100 application identity rows FOUND; 29 historical schedule rows COUNT/AGGREGATES FOUND; exact identity crosswalk NOT POSSIBLE from currently recovered text; per-holder share/payment match NOT POSSIBLE; additional 71 rows are not thereby proven later shareholders or invalid holders. The statutory head-office register and original Memorandum remain independent evidence requirements.
+**Current reconciliation result:** 100 static seeder definitions found in repository source (not database rows); 29 historical schedule rows reported in a recovery transcription (not directly reverified from original PDF); exact identity crosswalk NOT POSSIBLE from currently recovered text; per-holder share/payment match NOT POSSIBLE; additional 71 rows are not thereby proven later shareholders or invalid holders. The statutory head-office register and original Memorandum remain independent evidence requirements.
 
 ### 12.6 Required A3 design consequences (not implementation authorization)
 
@@ -506,32 +506,20 @@ All four source-table totals reconcile exactly. This establishes what the histor
 
 The per-holder values are retained in the original source table and the Owner-facing A2 reconciliation, not duplicated in this public repository document because they are personal financial data linked to identifiable shareholder rows.
 
-### 13.4 Cross-check against the separate legacy SQL export
+### 13.4 Excluded legacy database artifact — not ARNA database evidence
 
-A separate Library artifact, `maale_arna_smart_system(1).sql`, was inspected as a secondary historical application-data lead. Its header identifies a phpMyAdmin dump generated 1 September 2026 from database `maale_arna_smart_system`; its SHA-256 is `19092485d36469b836ac43225b683525984b565037904f7b0d4e1d2611d67d7e`.
+A Library artifact named `maale_arna_smart_system(1).sql` was previously inspected. Its own header identifies a phpMyAdmin dump for a database named `maale_arna_smart_system`, not the ARNA database. It is an external legacy-system artifact and is **not accepted as an ARNA database export, current ARNA runtime data, shareholder register, payment ledger, or corroborating evidence**.
 
-The dump is not a certified Article 274 extract and its provenance does not establish it as the current statutory register. It nevertheless exposes material internal conflicts:
+The user has clarified that the ARNA database has not yet been migrated or seeded. Accordingly:
 
-- Its legacy `shareholders` table contains 40 rows (SH-0001–SH-0040), including share quantity, paid value and unpaid amount.
-- For the first 29 IDs, 27 of the 29 summary rows disagree with the original bylaws schedule on at least one of share quantity, paid value or unpaid amount. Only two rows match all three numeric fields.
-- Its `share_transactions` table contains 123 rows: 54 Purchase and 69 Payment entries. Of the 29 Purchase entries associated with SH-0001–SH-0029, only 9 agree with the bylaws schedule on all of share quantity, paid amount and unpaid amount; 20 conflict.
-- The legacy summary and transaction tables also disagree with each other for multiple holder IDs. Transaction status labels include pending and partial entries; these are database status values, not bank receipts or proof of cleared funds.
-- The export therefore cannot be used to overwrite the historical schedule or certify current holdings. It is a reconciliation exception source requiring transaction-level accounting evidence, receipts/bank statements, journal records, transfer instruments and a current statutory register.
+- No live ARNA database rows were queried or verified in this A2 review.
+- No ARNA migration or seeding is evidenced as having been run.
+- Any counts, balances, transaction totals, status values or identity comparisons derived from the `maale_arna_smart_system` dump are withdrawn from ARNA findings and must not be used for ARNA decisions.
+- The legacy dump is excluded from the shareholder evidence chain. Its presence in a Library does not make it ARNA data.
+- Repository seeder definitions are static source-code fixtures only. They do not establish that any corresponding rows exist in an ARNA database.
 
-### 13.5 Reconciliation disposition
+This correction supersedes all earlier references in this document to the legacy SQL dump as conflicting shareholder data. No dump-derived figures are retained as ARNA facts.
 
-| Item | Finding | Status |
-|---|---|---|
-| Original 17-page bylaws scan | Located; 17 pages inspected for identity; checksum matches Owner-supplied SHA-256 | SOURCE INTEGRITY VERIFIED |
-| Historical schedule count | 29 rows | VERIFIED FROM SCAN |
-| Identity crosswalk | Schedule rows 1–29 map in order to SH-0001–SH-0029 | MATCHED — UNIQUE-ID LIMITATION |
-| Per-holder historical allocations | 29 rows manually inspected; all 5 shares / ETB 50,000 nominal each | TRANSCRIBED |
-| Aggregate subscribed capital | ETB 1,450,000 | RECONCILED |
-| Aggregate paid/unpaid schedule | ETB 1,023,000 / ETB 427,000 | RECONCILED AS HISTORICAL TABLE ONLY |
-| Seeder rows SH-0030–SH-0100 | Not present in this 29-row schedule | UNRESOLVED — NOT INVALIDATED |
-| Legacy SQL summary | 27/29 first-row numeric mismatches | CONFLICTING SECONDARY DATA |
-| Legacy SQL purchase entries | 20/29 numeric mismatches | CONFLICTING SECONDARY DATA |
-| Current ownership and paid-up status | No certified current register or cleared-payment proof | UNRESOLVED |
 
 ## 14. Statutory register and separate Memorandum — evidence resolution
 
@@ -555,11 +543,11 @@ No request is made for another upload. The source remains Owner-held/reported bu
 
 ### 14.3 What is now resolved, and what is not
 
-**Resolved in A2:** historical 29-row identity crosswalk to SH-0001–SH-0029; individual historical allocation transcription; aggregate capital arithmetic; original bylaws file checksum; identification of material conflicts in the separate legacy SQL export; legal hierarchy identifying the Article 274 head-office register as controlling.
+**Resolved in A2:** repository-level source comparison only; a historical bylaws recovery transcription is available as a secondary lead; the legal hierarchy identifying the Article 274 head-office register as controlling. No current ARNA database state, migration state, seeded rows, paid-up balances, or SQL-dump comparison is verified. The external `maale_arna_smart_system` dump is excluded from ARNA evidence.
 
 **Still unresolved / blocking final register and entitlement:** current certified Article 274 extract; registered Memorandum/Articles and amendments; current per-holder cleared payment evidence; transfer and certificate instruments/history; legal form and authority for entity shareholders and their representatives; status of the additional 71 seeder rows; election-specific record date and exact cutoff; any company-specific share class/voting restrictions.
 
-**A2 remains PARTIAL — not closed.** The 29-row historical schedule is now reconciled to the first 29 seeder identities and its individual allocation totals. Current statutory ownership, current paid-up status and operative company-specific voting rules remain unverified. A3 remains NOT STARTED. No application code, schema, migration, test, seed data, production data, main branch, merge or deployment was changed by this reconciliation.
+**A2 remains PARTIAL — not closed.** A source-level name comparison between a historical recovery transcription and static repository seeder definitions is not a database reconciliation and does not prove actual ARNA shareholders. The ARNA database has not been migrated or seeded. Current statutory ownership, current paid-up status and operative company-specific voting rules remain unverified. A3 remains NOT STARTED. No application code, schema, migration, test, seed data, production data, main branch, merge or deployment was changed by this reconciliation.
 
 ## 15. Owner decision — local shareholder voting and open candidate nomination
 
@@ -649,7 +637,7 @@ The A2 legal/data blockers remain:
 7. **Election record date/cutoff:** MISSING. No competent election-specific resolution fixes the effective cutoff timestamp and timezone.
 8. **Share-class rights/vote cap:** UNRESOLVED. Application class codes do not establish legal share classes or voting multipliers/caps.
 
-The historical 29-row identity crosswalk and arithmetic remain verified only as historical schedule reconciliation. They do not certify present ownership, current paid-up status, or voter entitlement.
+The historical schedule recovery is secondary evidence only. Any source-code name comparison is limited to static repository files; it is not a live ARNA database match and does not certify present ownership, current paid-up status, or voter entitlement.
 
 ### 16.4 Related open work is not current-main implementation
 
@@ -671,3 +659,26 @@ This policy does not itself resolve the missing registered Memorandum, statutory
 The current-main refresh is complete for the six canonical Shareholder source files and the cited legal evidence records. It does not close the statutory/evidence blockers. A3 implementation is therefore **NOT STARTED** and is not authorized by this documentation-only refresh. Before A3 schema/rules freeze, the legal/evidence blockers above must be resolved or explicitly dispositioned by the Owner with qualified Ethiopian legal review where required. Any later A3 approval must be separately stage-gated and based on a versioned, evidence-backed register and entitlement contract.
 
 No application source, migration, route, permission, test, seed data, production data, main branch, or deployment was changed by this A2 refresh.
+
+
+---
+
+## 17. Owner correction — ARNA database provenance and unseeded state
+
+**Correction date:** 21 November 2026  
+**Owner clarification:** The ARNA database has not yet been migrated or seeded.  
+**A2 status:** PARTIAL — no live database reconciliation performed.  
+**A3 status:** NOT STARTED.  
+**Deployment:** NOT AUTHORIZED.
+
+The prior A2 narrative blurred three distinct sources: (1) repository source-code seeder definitions, (2) a recovered historical bylaws transcription, and (3) a separate legacy SQL dump whose header identifies `maale_arna_smart_system`. They are not interchangeable and none is a live ARNA database query.
+
+The following are expressly corrected:
+
+1. **ARNA database:** no live ARNA shareholder, payment, transaction, transfer or status rows have been read or verified. The Owner states that the database has not been migrated or seeded.
+2. **Static seeder:** repository PHP seeder definitions are code artifacts only. They describe what a future seed operation could insert; they do not prove that it has run or that corresponding rows exist.
+3. **Legacy SQL dump:** the `maale_arna_smart_system` dump is not the ARNA database. All dump-derived shareholder counts, transaction counts, payment values, status labels and comparisons are withdrawn from ARNA findings and excluded from the evidence register.
+4. **Historical bylaws recovery:** this is a separate secondary documentary lead. Any reported schedule totals remain unverified against original scan bytes and do not prove current statutory register or current ARNA database contents.
+5. **Prior crosswalk claims:** no crosswalk between historical schedule entries and actual ARNA database records has been performed. Any comparison to static seeder source code must be described only as a source-file comparison, never as a database reconciliation.
+
+No ARNA migration, seeder, database query, write, or production-data operation was performed by this correction. No data is fabricated or populated. The eight statutory evidence gates remain open until primary records are obtained and independently reconciled.
