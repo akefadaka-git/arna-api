@@ -1,6 +1,9 @@
 name: ARNA A4 evidence remediation regression
 
 on:
+  push:
+    branches:
+      - 'integration/**'
   pull_request:
     branches:
       - main
@@ -33,12 +36,12 @@ jobs:
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
       LOG_CHANNEL: null
-      EXPECTED_TEST_SHA: ${{ github.event.pull_request.head.sha }}
+      EXPECTED_TEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Check out exact proposed pull-request head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Verify exact tested SHA
