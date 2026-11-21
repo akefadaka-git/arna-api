@@ -321,8 +321,19 @@ jobs:
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/TenantMembershipMySqlConcurrencyTest.php
 
-      - name: Run Finance domain regressions on migrated MySQL
-        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
+      - name: Lint Finance A3 persistence migrations
+        run: |
+          php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_12_000001_harden_journal_line_amount_signs.php
+          php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_12_000002_create_finance_outbox_messages.php
+          php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_12_000003_create_finance_ai_proposals.php
+          php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_12_000004_create_finance_inbox_events.php
+
+      - name: Run Finance domain and boundary regressions on migrated MySQL
+        run: |
+          php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
+          php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinanceCalendarDateAdapterTest.php
+          php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinanceCurrencyConverterTest.php
+          php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinanceIntelligenceBoundaryTest.php
 
       - name: Lint Finance Governance settlement migration
         run: php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_02_120000_create_governance_settlement_finance_tables.php
@@ -338,6 +349,17 @@ jobs:
         run: |
           php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
           php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAccountingTest.php
+
+      - name: Run Finance transactional outbox, subledger inbox and AI proposal regressions on MySQL
+        env:
+          ARNA_RUN_MYSQL_CONCURRENCY: "1"
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/FinanceGeneralLedgerTest.php
 
       - name: Lint Finance settlement authorization tests
         run: php -l mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAuthorizationTest.php
@@ -434,7 +456,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates finance_outbox_messages finance_ai_proposals finance_inbox_events calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
@@ -516,7 +538,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries; do
+          for table in governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates finance_outbox_messages finance_ai_proposals finance_inbox_events calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
