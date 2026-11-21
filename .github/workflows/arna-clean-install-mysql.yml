@@ -50,6 +50,17 @@ on:
       - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCommitteeSecurityController.php"
       - "mases_core/src/Domains/Governance/Services/GovernanceElectionCommitteeSecurityService.php"
       - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php"
+      - "mases_core/src/Domains/Governance/Database/Migrations/2026_11_18_100000_create_governance_elections_foundation.php"
+      - "mases_core/src/Domains/FileManagement/Services/FileService.php"
+      - "mases_core/src/Domains/Governance/Database/Seeders/GovernancePermissionsSeeder.php"
+      - "mases_core/src/Domains/Governance/Database/Seeders/GovernanceRolesSeeder.php"
+      - "mases_core/src/Domains/Governance/Models/GovernanceElection.php"
+      - "mases_core/src/Domains/Governance/Models/GovernanceElectionLifecycleTransition.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionController.php"
+      - "mases_core/src/Domains/Governance/Events/GovernanceElectionLifecycleChanged.php"
+      - "mases_core/src/Domains/Governance/Listeners/AuditGovernanceElectionLifecycleEvent.php"
+      - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php"
       - "mases_core/src/Domains/Governance/Routes/api.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
@@ -263,6 +274,16 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
+
+      - name: Run election lifecycle API and evidence integration tests on migrated MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
 
       - name: Run tenant membership lifecycle and audit atomicity tests on MySQL
         env:
