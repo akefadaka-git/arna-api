@@ -6,12 +6,15 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Tests\Feature;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionCandidateService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionAuthorityService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionLifecycleService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
+use MaaleArna\MASES\Core\Files\Models\File;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Tests\TestCase;
@@ -28,6 +31,7 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
         // to child processes. Avoid transactional test traits and avoid rollback:
         // the repository has unrelated MySQL migration rollback constraints.
         $this->artisan('migrate:fresh', ['--force' => true]);
+        Storage::fake('local');
 
         $tenant = Tenant::query()->create([
             'name_am' => 'የተመሳሳይ ጊዜ ምርጫ ሙከራ',
@@ -41,6 +45,10 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
         $manager = $this->makeUser($tenant, 'manager');
         $this->grant($manager, 'governance.election.manage');
         $this->grant($manager, 'governance.election.authorize');
+        $this->grant($manager, 'governance.election.authority.review');
+        $this->grant($manager, 'governance.election.authority.verify');
+        $this->grant($manager, 'file.view');
+        $this->grant($manager, 'file.download');
 
         $election = app(GovernanceElectionLifecycleService::class)->create((int) $tenant->id, $manager, [
             'code' => 'CONCURRENT-' . $tenant->id,
@@ -49,6 +57,13 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
             'title_en' => 'Concurrent Nomination Election',
         ]);
         $digest = str_repeat('c', 64);
+        $authorityBytes = "%PDF-1.4\nConcurrent election authority evidence\n";
+        $authorityFile = $this->makePublishedAuthorityFile($tenant, $manager, $authorityBytes);
+        $ruleBytes = "%PDF-1.4\nConcurrent election nomination rules\n";
+        $ruleFile = $this->makePublishedAuthorityFile($tenant, $manager, $ruleBytes);
+        $authorityEvidenceId = $this->verifyAuthorityEvidence(
+            $tenant, $manager, (int) $election->id, $authorityFile, 'GA-RESOLUTION-CONCURRENT'
+        );
         app(GovernanceElectionLifecycleService::class)->transition(
             (int) $tenant->id,
             (int) $election->id,
@@ -56,13 +71,16 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
             'authorize',
             1,
             'Authority and nomination rules verified',
-            ['authority:GA-RESOLUTION-CONCURRENT'],
+            [$this->makeEvidenceReference($tenant, $manager)],
             [
                 'authority_reference' => 'GA-RESOLUTION-CONCURRENT',
-                'authority_evidence_digest' => str_repeat('d', 64),
+                'authority_document_id' => (int) $authorityFile->id,
+                'authority_evidence_id' => $authorityEvidenceId,
+                'authority_evidence_digest' => hash('sha256', $authorityBytes),
                 'authority_version' => '1.0',
                 'rule_set_version' => 'NOM-CONCURRENT-1.0',
-                'rule_set_digest' => $digest,
+                'rule_set_digest' => hash('sha256', $ruleBytes),
+                'rule_set_document_id' => (int) $ruleFile->id,
             ],
         );
 
@@ -214,6 +232,56 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
             ->where('election_id', $election->id)
             ->where('person_id', $candidate->id)
             ->count());
+    }
+
+
+    private function verifyAuthorityEvidence(Tenant $tenant, User $reviewer, int $electionId, File $document, string $authorityReference): int
+    {
+        $recorder = $this->makeUser($tenant, 'authority-recorder');
+        foreach (['governance.election.manage', 'file.view', 'file.download'] as $slug) {
+            $this->grant($recorder, $slug);
+        }
+        $service = app(GovernanceElectionAuthorityService::class);
+        $evidence = $service->recordAuthorityEvidence(
+            (int) $tenant->id, $electionId, 'general_assembly_resolution',
+            $authorityReference, null, (int) $document->id, $recorder
+        );
+        $service->reviewAuthorityEvidence(
+            (int) $tenant->id, $electionId, (int) $evidence->id,
+            'reviewed', 'The governing instrument and published source bytes were reviewed.', $reviewer
+        );
+        $service->verifyAuthority(
+            (int) $tenant->id, $electionId, (int) $evidence->id,
+            'The verified source is authoritative for this concurrency test.', $reviewer
+        );
+        return (int) $evidence->id;
+    }
+
+    private function makeEvidenceReference(Tenant $tenant, User $actor, string $disk = 'local'): string
+    {
+        $bytes = "%PDF-1.4\nConcurrent transition evidence\n";
+        $file = $this->makePublishedAuthorityFile($tenant, $actor, $bytes, $disk);
+        return 'file:' . $file->id . ':' . hash('sha256', $bytes);
+    }
+
+    private function makePublishedAuthorityFile(Tenant $tenant, User $actor, string $bytes, string $disk = 'local'): File
+    {
+        $path = 'tenant_' . $tenant->id . '/authority-' . uniqid() . '.pdf';
+        Storage::disk($disk)->put($path, $bytes);
+        return File::query()->create([
+            'user_id' => $actor->id,
+            'tenant_id' => $tenant->id,
+            'original_name' => 'authority.pdf',
+            'name' => basename($path),
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => strlen($bytes),
+            'path' => $path,
+            'disk' => $disk,
+            'version' => 1,
+            'status' => 'published',
+            'is_public' => false,
+        ]);
     }
 
     private function makeUser(Tenant $tenant, string $suffix): User
