@@ -1,6 +1,6 @@
-# ARNA OS — Daily Repository Progress Report (2026-11-20)
+# ARNA OS — Daily Repository Progress Report (2026-11-21)
 
-**Generated:** 2026-11-20T04:59:48.685687+03:00  
+**Generated:** 2026-11-21T04:56:41.531586+03:00  
 **Repositories:** akefadaka-git/arna-api, akefadaka-git/arna-app  
 **Assessment mode:** read-only repository metadata and workflow evidence; no source-code mutation.
 
@@ -48,12 +48,12 @@
 ### akefadaka-git/arna-api
 
 - Default branch: `main`
-- Open PRs: 71
+- Open PRs: 69
 - PRs merged in last 30 days: 20
-- Failed/action-required workflow runs in last 14 days: 16
-- Cancelled workflow runs in last 14 days: 4
+- Failed/action-required workflow runs in last 14 days: 47
+- Cancelled workflow runs in last 14 days: 5
 - Currently queued/in-progress workflow runs in sampled page: 1
-- Most recent commit in sampled 30 commits: 2026-11-19T15:48:05+00:00
+- Most recent commit in sampled 30 commits: 2026-11-20T13:47:43+00:00
 
 **Open pull requests (sample, up to 12):**
 - A3 — Reconcile election lifecycle foundation on current main
@@ -84,18 +84,18 @@
 - maintenance: isolate pre-existing Finance regression failures
 
 **Failed workflows (sample, up to 12):**
-- ARNA shareholder seed-number initialization regression #1560
-- ARNA Phase 0 effective authorization audit #1468
-- ARNA G-01 tenant isolation regression gate #1551
-- ARNA Governance authorization regression #653
-- ARNA clean-install MySQL verification #1840
-- ARNA Governance authorization regression #651
-- ARNA Governance authorization regression #650
-- ARNA clean-install MySQL verification #1837
-- ARNA shareholder seed-number initialization regression #1556
-- ARNA clean-install MySQL verification #1836
-- ARNA Governance authorization regression #649
-- ARNA Phase 0 effective authorization audit #1464
+- ARNA Governance authorization regression #692
+- ARNA Governance authorization regression #691
+- ARNA Governance authorization regression #689
+- ARNA Governance authorization regression #688
+- ARNA clean-install MySQL verification #1882
+- ARNA Governance authorization regression #687
+- ARNA Governance authorization regression #686
+- ARNA clean-install MySQL verification #1880
+- ARNA clean-install MySQL verification #1879
+- ARNA Governance authorization regression #685
+- ARNA Phase 0 effective authorization audit #1500
+- ARNA Governance authorization regression #684
 
 ### akefadaka-git/arna-app
 
@@ -151,9 +151,9 @@
 
 ## Recommendations and enhancement priorities
 
-- **akefadaka-git/arna-api:** triage 16 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-api:** inspect 4 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
-- **akefadaka-git/arna-api:** review 71 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-api:** triage 47 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-api:** inspect 5 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
+- **akefadaka-git/arna-api:** review 69 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - **akefadaka-git/arna-app:** triage 60 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
 - **akefadaka-git/arna-app:** review 47 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - Continue closing domain acceptance gaps before expanding scope: security, tenant isolation, lifecycle, concurrency, clean-install and cross-domain integration.
