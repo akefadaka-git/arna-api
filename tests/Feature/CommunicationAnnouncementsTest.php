@@ -39,7 +39,7 @@ final class CommunicationAnnouncementsTest extends TestCase
         $catalogue = collect(PermissionCatalogue::ROWS)->keyBy('slug');
 
         // Composed platform, Documents, Finance and Admin audit/security capabilities.
-        $this->assertCount(76, PermissionCatalogue::ROWS);
+        $this->assertCount(80, PermissionCatalogue::ROWS);
 
         foreach (['announcement.view', 'announcement.manage', 'announcement.approve', 'announcement.publish'] as $slug) {
             $this->assertTrue($catalogue->has($slug), "Missing canonical permission: {$slug}");
