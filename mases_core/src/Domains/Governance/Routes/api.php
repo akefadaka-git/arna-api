@@ -229,6 +229,8 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAppointme
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeSecurityController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionAuthorityController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeAppointmentController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
@@ -642,4 +644,51 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.election.committee.audit.view')
         ->name('elections.committee.security-events.index');
 
+
+    // P2.3 — evidence-backed committee appointments and revocations.
+    Route::get('/elections/{election}/committee/members', [GovernanceElectionCommitteeAppointmentController::class, 'index'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.committee.view')
+        ->name('elections.committee.members.index');
+    Route::post('/elections/{election}/committee/members', [GovernanceElectionCommitteeAppointmentController::class, 'store'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.committee.appoint')
+        ->name('elections.committee.members.store');
+    Route::patch('/elections/{election}/committee/members/{member}/revoke', [GovernanceElectionCommitteeAppointmentController::class, 'revoke'])
+        ->whereNumber('election')->whereNumber('member')
+        ->middleware('auth.permission:governance.election.committee.revoke')
+        ->name('elections.committee.members.revoke');
+
+    // P2.1 — tenant-scoped election record and evidence-neutral authority register.
+    Route::get('/elections', [GovernanceElectionAuthorityController::class, 'index'])
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.index');
+    Route::post('/elections', [GovernanceElectionAuthorityController::class, 'store'])
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.store');
+    Route::get('/elections/{governanceElection}', [GovernanceElectionAuthorityController::class, 'show'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.show');
+    Route::get('/elections/{governanceElection}/authority-evidence', [GovernanceElectionAuthorityController::class, 'authorityEvidenceIndex'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.authority.review')
+        ->name('elections.authority-evidence.index');
+    Route::post('/elections/{governanceElection}/authority-evidence', [GovernanceElectionAuthorityController::class, 'recordAuthorityEvidence'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.authority-evidence.store');
+    Route::post('/elections/{governanceElection}/authority/verify', [GovernanceElectionAuthorityController::class, 'verifyAuthority'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.authority.verify')
+        ->name('elections.authority.verify');
+    Route::post('/elections/{governanceElection}/nominations/open', [GovernanceElectionAuthorityController::class, 'openNominations'])
+        ->whereNumber('governanceElection')
+        ->middleware('auth.permission:governance.election.manage')
+        ->name('elections.nominations.open');
+    Route::patch('/elections/{governanceElection}/authority-evidence/{evidence}/review', [GovernanceElectionAuthorityController::class, 'reviewAuthorityEvidence'])
+        ->whereNumber('governanceElection')
+        ->whereNumber('evidence')
+        ->middleware('auth.permission:governance.election.authority.review')
+        ->name('elections.authority-evidence.review');
 });

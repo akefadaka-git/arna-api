@@ -7,6 +7,8 @@ on:
     paths:
       - ".github/workflows/arna-governance-body-regression.yml"
       - "mases_core/src/Domains/Governance/**"
+      - "tests/Feature/GovernanceElectionAuthorityTest.php"
+      - "tests/Feature/GovernanceElectionCommitteeAppointmentTest.php"
       - "database/seeders/MasesCoreSeeder.php"
       - "mases_core/src/Domains/Finance/**"
       - "composer.json"
@@ -141,6 +143,17 @@ jobs:
           php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCommitteeSecurityController.php
           php -l mases_core/src/Domains/Governance/Services/GovernanceElectionCommitteeSecurityService.php
           php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceElection.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceElectionAuthorityEvidence.php
+          php -l mases_core/src/Domains/Governance/Policies/GovernanceElectionPolicy.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceElectionAuthorityService.php
+          php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionAuthorityController.php
+          php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_18_090000_create_governance_election_authority_tables.php
+          php -l mases_core/src/Domains/Governance/Models/GovernanceElectionCommitteeMember.php
+          php -l mases_core/src/Domains/Governance/Services/GovernanceElectionCommitteeAppointmentService.php
+          php -l mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCommitteeAppointmentController.php
+          php -l tests/Feature/GovernanceElectionCommitteeAppointmentTest.php
+          php -l tests/Feature/GovernanceElectionAuthorityTest.php
           php -l database/seeders/MasesCoreSeeder.php
 
       - name: Validate Composer manifest and lock
@@ -160,6 +173,8 @@ jobs:
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
           vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
+          vendor/bin/phpunit tests/Feature/GovernanceElectionAuthorityTest.php
+          vendor/bin/phpunit tests/Feature/GovernanceElectionCommitteeAppointmentTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/FinanceSourceEntityMappingResolverTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
           vendor/bin/phpunit mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAccountingTest.php

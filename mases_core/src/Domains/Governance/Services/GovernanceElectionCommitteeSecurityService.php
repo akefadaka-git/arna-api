@@ -280,6 +280,82 @@ final class GovernanceElectionCommitteeSecurityService
         }, 3);
     }
 
+    public function recordMemberAppointment(
+        int $tenantId,
+        int $electionId,
+        int $memberId,
+        int $personId,
+        int $userId,
+        int $evidenceId,
+        string $appointmentReference,
+        string $memberRole,
+        bool $exOfficio,
+        string $appointedAt,
+        User $actor,
+    ): void {
+        $this->assertElectionTenant($tenantId, $electionId);
+        if (!$this->authorization->hasPermission(
+            permissionSlug: 'governance.election.committee.appoint',
+            user: $actor,
+            tenantId: $tenantId,
+        )) {
+            throw new AuthorizationException('Committee appointment permission is required in this tenant.');
+        }
+
+        $this->lockTenant($tenantId);
+        $this->appendEvent(
+            $tenantId,
+            $electionId,
+            (int) $actor->getAuthIdentifier(),
+            'committee_member.appointed',
+            [
+                'committee_member_id' => $memberId,
+                'appointment_evidence_id' => $evidenceId,
+                'appointment_reference' => trim($appointmentReference),
+                'member_role' => trim($memberRole),
+                'ex_officio' => $exOfficio,
+                'appointed_at' => $appointedAt,
+            ],
+            $userId,
+            $personId,
+            trim($appointmentReference),
+        );
+    }
+
+    public function recordMemberRevocation(
+        int $tenantId,
+        int $electionId,
+        int $memberId,
+        int $personId,
+        int $userId,
+        string $reason,
+        User $actor,
+    ): void {
+        $this->assertElectionTenant($tenantId, $electionId);
+        if (!$this->authorization->hasPermission(
+            permissionSlug: 'governance.election.committee.revoke',
+            user: $actor,
+            tenantId: $tenantId,
+        )) {
+            throw new AuthorizationException('Committee appointment-revocation permission is required in this tenant.');
+        }
+
+        $this->lockTenant($tenantId);
+        $this->appendEvent(
+            $tenantId,
+            $electionId,
+            (int) $actor->getAuthIdentifier(),
+            'committee_member.revoked',
+            [
+                'committee_member_id' => $memberId,
+                'reason' => trim($reason),
+            ],
+            $userId,
+            $personId,
+            'committee-member:' . $memberId,
+        );
+    }
+
     /**
      * Fail closed when the actor has an all-election or candidate-scoped
      * active recusal/conflict. Controllers call this before recording votes.
