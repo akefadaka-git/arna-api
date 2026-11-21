@@ -714,4 +714,48 @@ final class CertificateTest extends TestCase
 
         return $permission;
     }
+
+    public function test_view_own_permission_cannot_enumerate_another_shareholders_certificates(): void
+    {
+        $owner = User::factory()->create([
+            'email' => 'certificate-owner-' . uniqid() . '@example.test',
+        ]);
+        $owner->forceFill(['default_tenant_id' => $this->tenant->id])->save();
+        $owner->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+        $this->shareholder->forceFill(['user_id' => $owner->id])->save();
+
+        $permission = Permission::create([
+            'slug' => 'certificate.view_own',
+            'name_am' => 'View own certificates',
+            'name_en' => 'View own certificates',
+            'description_am' => 'View own certificates',
+            'description_en' => 'View own certificates',
+            'category' => 'certificate',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => true,
+        ]);
+        $owner->permissions()->attach($permission->id, ['assigned_at' => now()]);
+        $owner->load('permissions');
+
+        $otherShareholder = Shareholder::create([
+            'tenant_id' => $this->tenant->id,
+            'shareholder_type' => 'individual',
+            'first_name_am' => 'ሌላ',
+            'father_name_am' => 'ባለአክሲዮን',
+            'is_active' => true,
+        ]);
+        $this->makeCertificate($this->shareholder, 'OWN-ONLY-001');
+        $this->makeCertificate($otherShareholder, 'OTHER-OWNER-001');
+
+        Sanctum::actingAs($owner, ['*']);
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->getJson(route('api.shareholders.certificates.index', [
+                'shareholder_id' => $otherShareholder->id,
+            ]))
+            ->assertForbidden();
+    }
+
 }
