@@ -201,7 +201,39 @@ for domain in ("api/loans", "api/governance"):
             and "->where('user_id', $userId)" in body
             and "listForBorrower(" in body
         )
-        authorized = permission_middleware or controller_guard or self_service_guard
+        # Module 2 candidate-intake actions delegate their authorization to
+        # GovernanceElectionCandidateService. Verify the concrete service contract
+        # rather than treating a service-layer ownership check as an unguarded route.
+        module2_service_guard = False
+        if domain == "api/governance" and path is not None and path.name == "GovernanceElectionCandidateController.php":
+            service_source = read_text(ROOT / "mases_core/src/Domains/Governance/Services/GovernanceElectionCandidateService.php")
+            service_method = {
+                "submitNomination": "submitNomination",
+                "withdrawNomination": "withdrawNomination",
+                "correctNomination": "correctNomination",
+                "consent": "recordConsent",
+                "declarations": "recordDeclarations",
+            }.get(method)
+            service_body = method_body(service_source, service_method) if service_method else ""
+            if method == "submitNomination":
+                module2_service_guard = (
+                    "resolveNominator($tenantId, $actor)" in service_body
+                    and "person_tenant_accesses" in service_body
+                    and "shareholder_type" in service_body
+                )
+            elif method in ("withdrawNomination", "correctNomination"):
+                module2_service_guard = (
+                    "resolveNominator($tenantId, $actor)" in service_body
+                    and "$nominator->id" in service_body
+                    and "nominated_by_shareholder_id" in service_body
+                )
+            elif method in ("consent", "declarations"):
+                module2_service_guard = (
+                    "$person->user_id" in service_body
+                    and "$actor->getAuthIdentifier()" in service_body
+                    and "governance.election.manage" in service_body
+                )
+        authorized = permission_middleware or controller_guard or self_service_guard or module2_service_guard
         finding(f"{domain}:action-auth:{methods} {uri}", authorized,
                 "Explicit route authorization middleware or controller guard found." if authorized else
                 f"No recognizable route-level permission or controller policy guard found for {action or 'unknown action'}.")
