@@ -148,6 +148,7 @@ use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\CorporateSiteController;
 use App\Http\Controllers\CorporateSiteEntryController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\LocalePreferenceController;
 use App\Http\Controllers\CommunicationAnnouncementController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
@@ -312,6 +313,11 @@ Route::post('/verify-email/resend', [AuthController::class, 'resendVerificationE
 // =============================================================================
 
 Route::middleware(['auth:sanctum'])->group(static function (): void {
+
+    // Account-level locale preference; intentionally independent of tenant context.
+    Route::post('/locale', [LocalePreferenceController::class, 'update'])
+        ->middleware('throttle:30,1')
+        ->name('api.locale.update');
 
     // -------------------------------------------------------------------------
     // Multi-factor Authentication
