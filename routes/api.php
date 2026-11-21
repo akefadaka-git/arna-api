@@ -149,6 +149,7 @@ use App\Http\Controllers\CorporateSiteController;
 use App\Http\Controllers\CorporateSiteEntryController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CommunicationAnnouncementController;
+use App\Http\Controllers\Admin\AdminControlPlaneController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -501,6 +502,36 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
     Route::get('/tenant-context', [TenantContextController::class, 'show'])
         ->name('api.tenant.context');
 });
+
+// =============================================================================
+// Central Admin Control Plane — explicit platform-read permissions
+// =============================================================================
+// These routes intentionally sit outside tenant.membership. Cross-tenant
+// visibility is granted only by the separate global platform.*.read grants;
+// tenant-scoped user.list / role.list / permission.list are not widened.
+Route::middleware(['auth:sanctum', 'auth.permission:platform.identity.read'])
+    ->prefix('admin/identity')
+    ->name('api.admin.identity.')
+    ->group(static function (): void {
+        Route::get('/users', [AdminControlPlaneController::class, 'users'])->name('users.index');
+    });
+
+Route::middleware(['auth:sanctum', 'auth.permission:platform.rbac.read'])
+    ->prefix('admin/rbac')
+    ->name('api.admin.rbac.')
+    ->group(static function (): void {
+        Route::get('/roles', [AdminControlPlaneController::class, 'roles'])->name('roles.index');
+        Route::get('/permissions', [AdminControlPlaneController::class, 'permissions'])->name('permissions.index');
+    });
+
+Route::middleware(['auth:sanctum', 'auth.permission:platform.tenancy.read'])
+    ->prefix('admin/tenants')
+    ->name('api.admin.tenants.')
+    ->group(static function (): void {
+        Route::get('/', [AdminControlPlaneController::class, 'tenants'])->name('index');
+        Route::get('/{tenant}/memberships', [AdminControlPlaneController::class, 'memberships'])
+            ->whereNumber('tenant')->name('memberships.index');
+    });
 
 // =============================================================================
 // Corporate Site CMS Administration — platform-wide, permission-gated
