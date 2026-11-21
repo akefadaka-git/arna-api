@@ -448,7 +448,7 @@ The 100-row application dataset is confirmed at `database/seeders/Data/Sharehold
 
 The recovered 17-page bylaws transcription records 29 entries on printed pages 9–10 and aggregate figures on page 11 (29 holders, 5 shares each, 145 shares, ETB 10,000 nominal value, ETB 1,023,000 paid and ETB 427,000 unpaid). However, that transcription explicitly records the 29 names and individual allocation rows as **not transcribed**; the original scanned pages remain necessary for exact matching. The available text therefore supports an aggregate comparison only, not a defensible 29-to-100 identity join. Do not infer matches from similar names, signature lists, seeder ordering, or the first 29 SH-IDs.
 
-**Current reconciliation result:** 100 static seeder definitions found in repository source (not database rows); 29 historical schedule rows reported in a recovery transcription (not directly reverified from original PDF); exact identity crosswalk NOT POSSIBLE from currently recovered text; per-holder share/payment match NOT POSSIBLE; additional 71 rows are not thereby proven later shareholders or invalid holders. The statutory head-office register and original Memorandum remain independent evidence requirements.
+**Current reconciliation result:** static seeder definitions exist in repository source (not persisted database rows); a historical schedule is reported in a recovery transcription (not directly reverified from original PDF bytes in this pass); any visual name comparison is limited to source files only; no ARNA database crosswalk or per-holder share/payment reconciliation has been performed; additional source-code entries are not thereby proven admitted shareholders or invalid holders. The statutory head-office register and original Memorandum remain independent evidence requirements.
 
 ### 12.6 Required A3 design consequences (not implementation authorization)
 
@@ -462,7 +462,7 @@ The eventual design must:
 - calculate entitlement from the approved policy plus database facts at a defined record date, then persist an immutable, reproducible snapshot and exceptions;
 - isolate seeders to fixtures or explicitly approved import paths, with no silent overwrite of live legal records.
 
-**A2 disposition:** existing database foundations FOUND; full Article 274 register schema PARTIAL; generic versioned-policy infrastructure FOUND but voting-policy governance MISSING; hard-coded bootstrap/config values IDENTIFIED and must not govern legal/election outcomes; 29-to-100 identity crosswalk UNRESOLVED because source names/rows are not transcribed; transfer pairing, effective-dated mandate history and fail-closed legal audit MISSING. No runtime code, migration, test, seed data, production data, main branch, merge or deployment was changed by this inspection or this documentation update.
+**A2 disposition:** existing database foundations FOUND; full Article 274 register schema PARTIAL; generic versioned-policy infrastructure FOUND but voting-policy governance MISSING; hard-coded bootstrap/config values IDENTIFIED and must not govern legal/election outcomes; legal identity and admission of any source-code seeder entry UNRESOLVED; transfer pairing, effective-dated mandate history and fail-closed legal audit MISSING. No runtime code, migration, test, seed data, production data, main branch, merge or deployment was changed by this inspection or this documentation update.
 
 
 
@@ -478,14 +478,14 @@ This section supersedes the earlier provisional statements in §12.5 that the 29
 - This confirms byte-integrity against the supplied checksum. It does not independently authenticate the issuing authority, signatures, registration, legal effect, or whether later amendments exist.
 - The document title is `የመተዳደሪያ ደንብ` (bylaws/internal regulations). It is not the separate registered Memorandum/Articles and must not be represented as such.
 
-### 13.2 Identity crosswalk to the repository seeder
+### 13.2 Historical schedule compared with static repository seeder source (not a database crosswalk)
 
-Visual comparison of the first 19 identity rows on printed page 9 and the 29 names in the printed page 11 capital-allocation table against `database/seeders/Data/ShareholderRegister.php` at main blob `8e387599ab75db23d58db963b56a96df5d6c67b5` establishes an ordered identity crosswalk:
+Visual comparison was previously made between identity rows in the recovered historical scan and names in the static repository file `database/seeders/Data/ShareholderRegister.php` at main blob `8e387599ab75db23d58db963b56a96df5d6c67b5`. This is, at most, a source-file name-order comparison. It is not a comparison to persisted ARNA database rows, because the Owner confirms the ARNA database has not been migrated or seeded:
 
 - Historical schedule rows 1–29 correspond, in sequence, to application seed IDs SH-0001 through SH-0029.
 - The Amharic personal-name and parent-name components match across the schedule and the corresponding first 29 seeder rows, subject to abbreviation/orthographic variation in the entity row and minor spelling variation in some names.
 - Schedule row 23 is the Maale Hibret church-union/entity entry corresponding to SH-0023. The identity match does not resolve the entity's legal classification or whether the correct legal form is cooperative or religious_body.
-- The 29-row schedule contains no application SH-ID field; the crosswalk is based on name sequence and visible name components, not on a shared unique legal identifier. It is therefore a strong documentary identity match, not a substitute for a current certified register or primary identity documents.
+- The historical schedule contains no application SH-ID field; the comparison relies on visible names and ordering, not a shared unique legal identifier. It must not be represented as an ARNA database identity crosswalk, proof of live shareholder records, legal admission, or current ownership.
 - The remaining 71 seeder identities (SH-0030–SH-0100) do not appear in this 29-row schedule. Their later admission, transfer, validity, current status, and legal ownership are neither proved nor disproved by this comparison.
 
 No shareholder names, signatures, identity-document numbers, or per-holder financial amounts are copied into this public engineering record.
