@@ -24,10 +24,16 @@ on:
       - ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120
       - ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120
       - ops/dispatch-owner-delete-a3-3-2-exact-sha-20261120
+      - ops/dispatch-owner-delete-module1-obsolete-20261121
+      - ops/dispatch-owner-delete-module2-obsolete-20261121
+      - ops/dispatch-owner-delete-module3-obsolete-20261121
     paths:
       - ops/owner-approved-deletion/organization-filemanagement-foundation.trigger
       - ops/owner-approved-deletion/p24-candidate-intake-a2.trigger
       - ops/owner-approved-deletion/a3-3-2-exact-sha.trigger
+      - ops/owner-approved-deletion/module1-obsolete.trigger
+      - ops/owner-approved-deletion/module2-obsolete.trigger
+      - ops/owner-approved-deletion/module3-obsolete.trigger
 
 permissions:
   contents: write
@@ -72,6 +78,21 @@ jobs:
             CONFIRM="verify/a3-3-2-exact-sha"
             EXPECTED_SHA="959d5a29dab75cf36c57587f78b6fc01985ef473"
             REASON="Owner-approved cleanup request for the completed exact-SHA verification branch."
+          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-module1-obsolete-20261121" ]]; then
+            BRANCH="a3/module-1-election-foundation-lifecycle"
+            CONFIRM="a3/module-1-election-foundation-lifecycle"
+            EXPECTED_SHA="ff48a9d4dc1f54d7f07d61df27d29f10feafa271"
+            REASON="Superseded by merged PR #176 (3fca049c2fb3549d81d4ff57bc4b77776fb86db1); closed PR #164 retained as history."
+          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-module2-obsolete-20261121" ]]; then
+            BRANCH="a3/module-2-candidate-intake-eligibility"
+            CONFIRM="a3/module-2-candidate-intake-eligibility"
+            EXPECTED_SHA="f67e0daa8ffb1d5adc00e47152bf41e28cdbda77"
+            REASON="Superseded by merged PR #177 (8fc0638c7042d5d2dfca404ac792c2e714abb71c); closed PR #165 retained as history."
+          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-module3-obsolete-20261121" ]]; then
+            BRANCH="a2/module-3-statutory-data-reconciliation"
+            CONFIRM="a2/module-3-statutory-data-reconciliation"
+            EXPECTED_SHA="7b2b74c5ee804bb5c19d84f7fcae40eacbb17bc8"
+            REASON="Closed PR #180 contains withdrawn, unsupported legacy-dump reconciliation claims; the authoritative provenance correction is merged in PR #181 (d6fa41a78fd38be807d784dc65ccd9e3133549d7). Closed PR #180 remains as history."
           else
             echo "::error::Unrecognized deletion dispatch branch."
             exit 1
@@ -128,3 +149,8 @@ jobs:
           REF_PATH="$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["BRANCH"], safe=""))')"
           gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${REF_PATH}"
           echo "Deleted verified branch: $BRANCH"
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            TRIGGER_REF_PATH="$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["GITHUB_REF_NAME"], safe=""))')"
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${TRIGGER_REF_PATH}"
+            echo "Deleted one-time dispatch branch: ${GITHUB_REF_NAME}"
+          fi
