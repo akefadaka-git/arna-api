@@ -181,8 +181,8 @@ final class DocumentWorkflowAggregateService
                 $fileId = (int) ($evidence['submitted_file_id'] ?? 0);
                 $fileVersion = (int) ($evidence['submitted_file_version'] ?? 0);
                 $file = DB::table('files')->where('id', $fileId)->where('tenant_id', $tenantId)
-                    ->whereNull('deleted_at')->where('version', $fileVersion)
-                    ->lockForUpdate()->first(['id', 'version', 'disk', 'path']);
+                    ->whereNull('deleted_at')->where('version', $fileVersion)->where('is_public', false)
+                    ->lockForUpdate()->first(['id', 'version', 'disk', 'path', 'is_public']);
                 if ($file === null || $fileId < 1 || $fileVersion < 1) {
                     throw new UnprocessableEntityHttpException('Submission must bind an existing, non-deleted file version owned by the same tenant.');
                 }
