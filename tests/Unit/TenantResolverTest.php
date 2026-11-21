@@ -9,97 +9,71 @@ use Illuminate\Support\Facades\Config;
 use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
 use Tests\TestCase;
 
-/**
- * TenantResolverTest
- *
- * Unit tests for the RequestTenantResolver class.
- * Verifies that tenant resolution works correctly from:
- * - X-Tenant-ID header
- * - Subdomain parsing
- * - Reserved domain ignoring
- *
- * @package Tests\Unit
- */
 final class TenantResolverTest extends TestCase
 {
-    /**
-     * The resolver instance.
-     *
-     * @var RequestTenantResolver
-     */
     private RequestTenantResolver $resolver;
 
-    /**
-     * Set up the test environment.
-     *
-     * @return void
-     */
     protected function setUp(): void
     {
         parent::setUp();
         $this->resolver = new RequestTenantResolver();
     }
 
-    /**
-     * Test that the resolver picks up the tenant ID from the X-Tenant-ID header.
-     *
-     * @return void
-     */
-    public function test_resolve_from_header(): void
+    public function test_resolve_from_numeric_primary_key_header(): void
     {
         $request = Request::create('/test', 'GET', [], [], [], [
-            'HTTP_X_TENANT_ID' => 'tenant-123',
+            'HTTP_X_TENANT_ID' => '123',
         ]);
 
-        $tenantId = $this->resolver->resolve($request);
-
-        $this->assertEquals('tenant-123', $tenantId);
+        $this->assertSame('123', $this->resolver->resolve($request));
     }
 
-    /**
-     * Test that the resolver returns null when the X-Tenant-ID header is empty.
-     *
-     * @return void
-     */
+    public function test_resolve_rejects_non_numeric_header_values(): void
+    {
+        foreach (['tenant-123', '0', '-1', '+1', '1.0', ' 1', '1 ', '1,2'] as $value) {
+            $request = Request::create('/test', 'GET', [], [], [], [
+                'HTTP_X_TENANT_ID' => $value,
+            ]);
+
+            $this->assertNull(
+                $this->resolver->resolve($request),
+                "Malformed X-Tenant-ID value must fail closed: {$value}"
+            );
+        }
+    }
+
+    public function test_invalid_explicit_header_does_not_fall_back_to_valid_subdomain(): void
+    {
+        $request = Request::create('/test', 'GET', [], [], [], [
+            'HTTP_HOST' => 'tenant-a.maalearna.com.et',
+            'HTTP_X_TENANT_ID' => 'tenant-a',
+        ]);
+
+        $this->assertNull($this->resolver->resolve($request));
+    }
+
     public function test_resolve_from_header_empty(): void
     {
         $request = Request::create('/test', 'GET', [], [], [], [
             'HTTP_X_TENANT_ID' => '',
         ]);
 
-        $tenantId = $this->resolver->resolve($request);
-
-        $this->assertNull($tenantId);
+        $this->assertNull($this->resolver->resolve($request));
     }
 
-    /**
-     * Test that the resolver returns null when the X-Tenant-ID header is missing.
-     *
-     * @return void
-     */
     public function test_resolve_from_header_missing(): void
     {
         $request = Request::create('/test', 'GET');
-
-        $tenantId = $this->resolver->resolve($request);
-
-        $this->assertNull($tenantId);
+        $this->assertNull($this->resolver->resolve($request));
     }
 
-    /**
-     * Test that the resolver extracts the subdomain as tenant ID when no header is present.
-     *
-     * @return void
-     */
     public function test_resolve_from_subdomain(): void
     {
         $request = Request::create('/test', 'GET', [], [], [], [
             'HTTP_HOST' => 'tenant-a.maalearna.com.et',
         ]);
 
-        $tenantId = $this->resolver->resolve($request);
-
-        $this->assertEquals('tenant-a', $tenantId);
+        $this->assertSame('tenant-a', $this->resolver->resolve($request));
     }
 
     public function test_resolve_rejects_nested_tenant_subdomains(): void
@@ -120,60 +94,37 @@ final class TenantResolverTest extends TestCase
         $this->assertNull($this->resolver->resolve($request));
     }
 
-    /**
-     * Test that the resolver returns null for reserved subdomains.
-     *
-     * @return void
-     */
     public function test_resolve_ignores_reserved_domains(): void
     {
-        $reservedDomains = [
+        foreach ([
             'www', 'api', 'auth', 'app', 'portal', 'finance',
-            'hr', 'admin', 'arna', 'ai', 'file', 'launcher'
-        ];
-
-        foreach ($reservedDomains as $domain) {
+            'hr', 'admin', 'arna', 'ai', 'file', 'launcher',
+        ] as $domain) {
             $host = $domain . '.maalearna.com.et';
             $request = Request::create('/test', 'GET', [], [], [], [
                 'HTTP_HOST' => $host,
             ]);
 
-            $tenantId = $this->resolver->resolve($request);
-            $this->assertNull($tenantId, "Failed for host: $host");
+            $this->assertNull($this->resolver->resolve($request), "Failed for host: {$host}");
         }
     }
 
-    /**
-     * Test that the resolver returns null when the host has no subdomain.
-     *
-     * @return void
-     */
     public function test_resolve_from_root_domain(): void
     {
         $request = Request::create('/test', 'GET', [], [], [], [
             'HTTP_HOST' => 'maalearna.com.et',
         ]);
 
-        $tenantId = $this->resolver->resolve($request);
-
-        $this->assertNull($tenantId);
+        $this->assertNull($this->resolver->resolve($request));
     }
 
-    /**
-     * Test that the resolver uses configured reserved domains.
-     *
-     * @return void
-     */
     public function test_resolve_uses_configured_reserved_domains(): void
     {
         Config::set('mases.tenant.reserved_domains', ['custom', 'api']);
-
         $request = Request::create('/test', 'GET', [], [], [], [
             'HTTP_HOST' => 'custom.maalearna.com.et',
         ]);
 
-        $tenantId = $this->resolver->resolve($request);
-
-        $this->assertNull($tenantId);
+        $this->assertNull($this->resolver->resolve($request));
     }
 }
