@@ -336,8 +336,8 @@ The repository file `database/seeders/Data/ShareholderRegister.php` defines stat
 | Record date | Article 376 allows Memorandum-set registration period; 15-day clause is only provisional | RULE MECHANISM RESOLVED / COMPANY CUTOFF UNRESOLVED |
 | Transfer history | Article 285 formalities identified; no transfer instruments or complete paired register history | UNRESOLVED |
 | Historical status and representatives | Current fields and fail-open system audit trail do not prove legally effective history | UNRESOLVED |
-| SH-0023 classification | Current seeder says religious_body; historical note says cooperative; primary entity evidence absent | UNRESOLVED |
-| Current 100 seeded rows | Application reference data only; not statutory register | NON-AUTHORITATIVE |
+| SH-0023 classification | Static seeder source says religious_body; historical note says cooperative; no live ARNA row or primary entity evidence | UNRESOLVED |
+| Static repository seeder definitions | Source-code reference only; ARNA database not migrated or seeded | NOT LIVE DATA / NON-AUTHORITATIVE |
 
 ## 11. Revised A2 disposition and required gate
 
@@ -442,11 +442,11 @@ This is useful infrastructure, but it does not currently establish a shareholder
 5. **Certificates:** the certificate table records lifecycle metadata but has no quantity snapshot or explicit cryptographic/evidence-verification contract. A certificate row alone cannot prove a signed original instrument.
 6. **Temporal register facts:** `is_active` and soft deletion are current-state fields, not effective-dated legal status history. Historical record-date reconstruction cannot rely on these fields alone.
 
-### 12.5 Reconciliation of the 100 application rows to the historical 29-person schedule
+### 12.5 Source-code seeder definitions and the historical 29-person schedule (not a database reconciliation)
 
-The 100-row application dataset is confirmed at `database/seeders/Data/ShareholderRegister.php` (blob `8e387599ab75db23d58db963b56a96df5d6c67b5`). It contains 98 individual rows and two entity rows (SH-0023 Maale Hibret and SH-0088 Sarangi), each with identity/name and free-form address data. It does not carry per-holder share quantity, share class, paid-up amount, certificate, register-entry date, or transfer history.
+The static source-code seeder file `database/seeders/Data/ShareholderRegister.php` (blob `8e387599ab75db23d58db963b56a96df5d6c67b5`) defines bootstrap entries, including two entity-labeled entries (SH-0023 Maale Hibret and SH-0088 Sarangi). This describes repository code only. The Owner confirms the ARNA database has not been migrated or seeded; no corresponding persisted rows are asserted. The source definition does not carry authoritative per-holder share quantity, legal share class, paid-up amount, certificate, statutory register-entry date, or transfer history.
 
-The recovered 17-page bylaws transcription records 29 entries on printed pages 9–10 and aggregate figures on page 11 (29 holders, 5 shares each, 145 shares, ETB 10,000 nominal value, ETB 1,023,000 paid and ETB 427,000 unpaid). However, that transcription explicitly records the 29 names and individual allocation rows as **not transcribed**; the original scanned pages remain necessary for exact matching. The available text therefore supports an aggregate comparison only, not a defensible 29-to-100 identity join. Do not infer matches from similar names, signature lists, seeder ordering, or the first 29 SH-IDs.
+The recovered 17-page bylaws transcription reports a historical 29-entry schedule and aggregate figures on page 11. The recovery does not provide a verified full transcription of the individual names and allocation rows; the original scanned pages remain necessary for exact matching. This secondary historical document cannot be joined to live ARNA records because no ARNA database rows exist yet from migration/seeding. Do not infer legal admission, current ownership, or entitlement from source-code order or historical schedule sequence.
 
 **Current reconciliation result:** static seeder definitions exist in repository source (not persisted database rows); a historical schedule is reported in a recovery transcription (not directly reverified from original PDF bytes in this pass); any visual name comparison is limited to source files only; no ARNA database crosswalk or per-holder share/payment reconciliation has been performed; additional source-code entries are not thereby proven admitted shareholders or invalid holders. The statutory head-office register and original Memorandum remain independent evidence requirements.
 
@@ -462,7 +462,7 @@ The eventual design must:
 - calculate entitlement from the approved policy plus database facts at a defined record date, then persist an immutable, reproducible snapshot and exceptions;
 - isolate seeders to fixtures or explicitly approved import paths, with no silent overwrite of live legal records.
 
-**A2 disposition:** existing database foundations FOUND; full Article 274 register schema PARTIAL; generic versioned-policy infrastructure FOUND but voting-policy governance MISSING; hard-coded bootstrap/config values IDENTIFIED and must not govern legal/election outcomes; legal identity and admission of any source-code seeder entry UNRESOLVED; transfer pairing, effective-dated mandate history and fail-closed legal audit MISSING. No runtime code, migration, test, seed data, production data, main branch, merge or deployment was changed by this inspection or this documentation update.
+**A2 disposition:** existing schema/migration/service source definitions identified (not a live database verification); full Article 274 register schema PARTIAL; generic versioned-policy infrastructure FOUND but voting-policy governance MISSING; hard-coded bootstrap/config values IDENTIFIED and must not govern legal/election outcomes; legal identity and admission of any source-code seeder entry UNRESOLVED; transfer pairing, effective-dated mandate history and fail-closed legal audit MISSING. No runtime code, migration, test, seed data, production data, main branch, merge or deployment was changed by this inspection or this documentation update.
 
 
 
