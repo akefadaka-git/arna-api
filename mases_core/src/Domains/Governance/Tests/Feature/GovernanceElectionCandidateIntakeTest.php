@@ -31,6 +31,7 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
     private User $manager;
     private int $electionId;
     private string $ruleDigest;
+    private int $authorityEvidenceId;
 
     protected function setUp(): void
     {
@@ -65,7 +66,7 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $ruleBytes = "%PDF-1.4\nCandidate intake nomination rules\n";
         $this->ruleDigest = hash('sha256', $ruleBytes);
         $ruleFile = $this->makePublishedAuthorityFile($this->tenant, $this->manager, $ruleBytes);
-        $authorityEvidenceId = $this->verifyAuthorityEvidence(
+        $this->authorityEvidenceId = $this->verifyAuthorityEvidence(
             $this->tenant, $this->manager, (int) $election->id, $authorityFile, 'GA-RESOLUTION-CANDIDATE'
         );
         app(GovernanceElectionLifecycleService::class)->transition(
@@ -79,7 +80,7 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             [
                 'authority_reference' => 'GA-RESOLUTION-CANDIDATE',
                 'authority_document_id' => (int) $authorityFile->id,
-                'authority_evidence_id' => $authorityEvidenceId,
+                'authority_evidence_id' => $this->authorityEvidenceId,
                 'authority_evidence_digest' => hash('sha256', $authorityBytes),
                 'authority_version' => '1.0',
                 'rule_set_version' => 'NOM-1.0',
@@ -382,6 +383,7 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             'recused_at' => null,
             'recusal_scope' => null,
             'appointment_reference' => 'GA-RESOLUTION-COMMITTEE',
+            'appointment_evidence_id' => $this->authorityEvidenceId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -401,6 +403,7 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             'recused_at' => null,
             'recusal_scope' => null,
             'appointment_reference' => 'GA-RESOLUTION-NOMINATOR-COMMITTEE',
+            'appointment_evidence_id' => $this->authorityEvidenceId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
