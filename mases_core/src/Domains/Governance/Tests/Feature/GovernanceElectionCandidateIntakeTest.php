@@ -8,10 +8,12 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\QueryException;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionCandidateService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionAuthorityService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionLifecycleService;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
@@ -59,9 +61,9 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             'title_en' => 'Candidate Intake Election',
         ]);
         $this->ruleDigest = str_repeat('a', 64);
-        $authorityBytes = "%PDF-1.4\\nCandidate intake authority evidence\\n";
+        $authorityBytes = "%PDF-1.4\nCandidate intake authority evidence\n";
         $authorityFile = $this->makePublishedAuthorityFile($this->tenant, $this->manager, $authorityBytes);
-        $ruleBytes = "%PDF-1.4\\nCandidate intake nomination rules\\n";
+        $ruleBytes = "%PDF-1.4\nCandidate intake nomination rules\n";
         $ruleFile = $this->makePublishedAuthorityFile($this->tenant, $this->manager, $ruleBytes);
         $authorityEvidenceId = $this->verifyAuthorityEvidence(
             $this->tenant, $this->manager, (int) $election->id, $authorityFile, 'GA-RESOLUTION-CANDIDATE'
@@ -519,7 +521,7 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
 
     private function makeEvidenceReference(Tenant $tenant, User $actor, string $disk = 'local'): string
     {
-        $bytes = "%PDF-1.4\\nGovernance transition evidence\\n";
+        $bytes = "%PDF-1.4\nGovernance transition evidence\n";
         $file = $this->makePublishedAuthorityFile($tenant, $actor, $bytes, $disk);
         return 'file:' . $file->id . ':' . hash('sha256', $bytes);
     }
