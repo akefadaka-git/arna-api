@@ -822,6 +822,45 @@ Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access', 'tenant.m
             ->name('security.resolve');
     });
 
+
+
+// Calendar — authenticated tenant members with explicit Calendar capabilities.
+Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function (): void {
+    // Calendar — tenant membership plus explicit Calendar capability checks.
+    Route::prefix('/calendar')->name('api.calendar.')->group(static function (): void {
+        $controller = \MaaleArna\MASES\Core\Calendar\Http\Controllers\CalendarController::class;
+
+        Route::get('/calendars', [$controller, 'calendars'])
+            ->middleware('auth.permission:calendar.view')->name('calendars.index');
+        Route::post('/calendars', [$controller, 'storeCalendar'])
+            ->middleware('auth.permission:calendar.create')->name('calendars.store');
+        Route::patch('/calendars/{id}', [$controller, 'updateCalendar'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('calendars.update');
+        Route::get('/events', [$controller, 'events'])
+            ->middleware('auth.permission:calendar.view')->name('events.index');
+        Route::post('/events', [$controller, 'storeEvent'])
+            ->middleware('auth.permission:calendar.create')->name('events.store');
+        Route::patch('/events/{id}', [$controller, 'updateEvent'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('events.update');
+        Route::post('/events/{eventId}/response', [$controller, 'respond'])
+            ->whereUuid('eventId')->middleware('auth.permission:calendar.view')->name('events.respond');
+        Route::get('/events/{eventId}/occurrences', [$controller, 'occurrences'])
+            ->whereUuid('eventId')->middleware('auth.permission:calendar.view')->name('events.occurrences');
+        Route::post('/events/{eventId}/occurrences/cancel', [$controller, 'cancelOccurrence'])
+            ->whereUuid('eventId')->middleware('auth.permission:calendar.update')->name('events.occurrences.cancel');
+        Route::post('/events/{eventId}/occurrences/move', [$controller, 'moveOccurrence'])
+            ->whereUuid('eventId')->middleware('auth.permission:calendar.update')->name('events.occurrences.move');
+        Route::get('/resources', [$controller, 'resources'])
+            ->middleware('auth.permission:calendar.view')->name('resources.index');
+        Route::post('/resources', [$controller, 'storeResource'])
+            ->middleware('auth.permission:calendar.create')->name('resources.store');
+        Route::patch('/resources/{id}', [$controller, 'updateResource'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('resources.update');
+        Route::post('/reservations', [$controller, 'reserve'])
+            ->middleware('auth.permission:calendar.reserve')->name('reservations.store');
+    });
+});
+
 Route::fallback(static function (): never {
     throw new NotFoundHttpException('The requested endpoint does not exist.');
 })->name('api.fallback');
