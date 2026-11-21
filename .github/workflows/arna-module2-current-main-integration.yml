@@ -5,7 +5,7 @@ on:
     branches:
       - a3/module-2-current-main-integration
     paths:
-      - ".github/workflows/arna-module2-candidate-intake.yml"
+      - ".github/workflows/arna-module2-current-main-integration.yml"
       - "mases_core/src/Domains/Governance/**"
       - "mases_core/src/Domains/People/**"
       - "mases_core/src/Domains/Shareholder/**"
@@ -17,7 +17,7 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/arna-module2-candidate-intake.yml"
+      - ".github/workflows/arna-module2-current-main-integration.yml"
       - "mases_core/src/Domains/Governance/**"
       - "mases_core/src/Domains/People/**"
       - "mases_core/src/Domains/Shareholder/**"
@@ -185,7 +185,11 @@ jobs:
             echo "php_version=$(php -r 'echo PHP_VERSION;')"
             echo "composer_version=$(composer --version --no-ansi 2>/dev/null || echo not_installed)"
             echo "migration_status:"
-            php artisan migrate:status --no-ansi
+            if [[ -f vendor/autoload.php ]]; then
+              php artisan migrate:status --no-ansi
+            else
+              echo "migration_status=not_run (Composer dependencies unavailable)"
+            fi
           } > storage/logs/age-module2-verification.txt
 
       - name: Upload exact-SHA verification evidence
