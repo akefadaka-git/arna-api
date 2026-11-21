@@ -2,7 +2,7 @@ name: ARNA clean-install MySQL verification
 
 on:
   push:
-    branches: [main]
+    branches: [main, integration/**]
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
@@ -17,6 +17,12 @@ on:
       - "mases_core/src/**/Database/Migrations/**"
       - "mases_core/src/**/Providers/**"
       - "mases_core/src/Domains/Finance/**"
+      - "mases_core/src/Calendar/**"
+      - "mases_core/src/Localization/Calendar/Contracts/**"
+      - "mases_core/src/Migrations/**"
+      - "tests/Feature/Calendar*.php"
+      - "tests/Unit/CalendarPermissionCatalogueTest.php"
+      - "tests/Unit/EthiopianCalendarTest.php"
       - "bootstrap/providers.php"
       - "composer.json"
       - "composer.lock"
@@ -264,6 +270,13 @@ jobs:
           echo "Tables before migration: ${tables}"
           test "${tables}" -eq 0
 
+      - name: Lint Calendar persistence migrations
+        run: |
+          php -l mases_core/src/Migrations/2026_11_01_000001_create_calendar_core_tables.php
+          php -l mases_core/src/Migrations/2026_11_01_000002_create_calendar_lifecycle_tables.php
+          php -l mases_core/src/Migrations/2026_11_11_000003_extend_calendar_reminder_occurrences.php
+          php -l mases_core/src/Migrations/2026_11_12_000004_rekey_calendar_recurring_reminders.php
+
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
 
@@ -421,7 +434,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates corporate_site_pages corporate_site_entries corporate_site_inquiries; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
@@ -433,6 +446,29 @@ jobs:
           foreign_keys="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='arna_migration_test' AND REFERENCED_TABLE_NAME IS NOT NULL")"
           echo "Foreign-key constraints: ${foreign_keys}"
           test "${foreign_keys}" -gt 0
+
+      - name: Run Calendar tenant isolation, authorization, lifecycle, recurrence and concurrency regressions on migrated MySQL
+        env:
+          ARNA_RUN_MYSQL_CONCURRENCY: "1"
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/CalendarCoreSecurityTest.php tests/Feature/CalendarDomainResourceAuthorizerTest.php tests/Feature/CalendarOwningDomainPolicyContractTest.php tests/Feature/CalendarHttpAuthorizationTest.php tests/Feature/CalendarReservationConcurrencyTest.php tests/Feature/CalendarLifecycleTest.php tests/Feature/CalendarReminderDispatcherTest.php tests/Unit/CalendarPermissionCatalogueTest.php tests/Unit/EthiopianCalendarTest.php
+
+      - name: Verify Calendar reminder dispatcher command and scheduler registration
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: |
+          php artisan calendar:dispatch-reminders --limit=10
+          php artisan schedule:list | grep -F "calendar:dispatch-reminders"
 
       - name: Run corporate publishing feature tests
         env:
@@ -480,7 +516,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates corporate_site_pages corporate_site_entries corporate_site_inquiries; do
+          for table in governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1
