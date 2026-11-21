@@ -74,6 +74,8 @@ on:
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
       - "tests/Feature/CentralNotificationsTest.php"
+      - "app/Http/Controllers/LocalePreferenceController.php"
+      - "tests/Feature/LocalePreferenceTest.php"
   workflow_dispatch:
     inputs:
       target_sha:
@@ -360,6 +362,16 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/CentralNotificationsTest.php
+
+      - name: Run account locale preference feature tests on migrated MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/LocalePreferenceTest.php
 
       - name: Run announcement security, lifecycle and atomicity feature tests on MySQL
         env:
