@@ -22,6 +22,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Services\JournalSourceReferenceResolver
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Tests\TestCase;
 
 final class GovernancePenaltySettlementAccountingTest extends TestCase
@@ -31,22 +32,22 @@ final class GovernancePenaltySettlementAccountingTest extends TestCase
     #[Test]
     public function partial_cash_settlements_post_balanced_accrual_and_receipt_journals_and_replay_idempotently(): void
     {
-        [$tenant,$entity,$maker,$checker,$accounts,$meetingId,$attendanceId,$penaltyId] = $this->fixture();
+        [$tenant,$entity,$maker,$checker,$executor,$accounts,$meetingId,$attendanceId,$penaltyId] = $this->fixture();
         $service = $this->settlementService();
 
         $first = $this->createSettlement((int)$tenant->id,$penaltyId,(int)$maker->id,2000,'cash');
         $this->approveSource((int)$tenant->id,(int)$entity->id,$first,(int)$checker->id);
-        $firstResult = $service->executeCashSettlement((int)$tenant->id,$first,(int)$checker->id,today()->toDateString(),'cash-settlement-first');
+        $firstResult = $service->executeCashSettlement((int)$tenant->id,$first,(int)$executor->id,today()->toDateString(),'cash-settlement-first');
         $this->assertFalse($firstResult['idempotent_replay']);
         $this->assertSame('assessed',DB::table('governance_meeting_penalties')->where('id',$penaltyId)->value('status'));
 
-        $replay = $service->executeCashSettlement((int)$tenant->id,$first,(int)$checker->id,today()->toDateString(),'cash-settlement-first');
+        $replay = $service->executeCashSettlement((int)$tenant->id,$first,(int)$executor->id,today()->toDateString(),'cash-settlement-first');
         $this->assertTrue($replay['idempotent_replay']);
         $this->assertSame($firstResult['journal_id'],$replay['journal_id']);
 
         $second = $this->createSettlement((int)$tenant->id,$penaltyId,(int)$maker->id,3000,'cash');
         $this->approveSource((int)$tenant->id,(int)$entity->id,$second,(int)$checker->id);
-        $secondResult = $service->executeCashSettlement((int)$tenant->id,$second,(int)$checker->id,today()->toDateString(),'cash-settlement-second');
+        $secondResult = $service->executeCashSettlement((int)$tenant->id,$second,(int)$executor->id,today()->toDateString(),'cash-settlement-second');
 
         $this->assertSame('settled',DB::table('governance_meeting_penalties')->where('id',$penaltyId)->value('status'));
         $this->assertSame(5000,(int)DB::table('governance_penalty_settlements')->where('penalty_id',$penaltyId)->where('status','settled')->sum('amount_cents'));
@@ -93,6 +94,7 @@ final class GovernancePenaltySettlementAccountingTest extends TestCase
         $tenant=Tenant::factory()->create(['is_active'=>true]);
         $maker=User::factory()->create();
         $checker=User::factory()->create();
+        $executor=User::factory()->create();
         $entity=LegalEntity::query()->create(['tenant_id'=>$tenant->id,'code'=>'GOV-FIN','name_en'=>'Governance Finance','base_currency'=>'ETB','status'=>'active']);
         AccountingPeriod::query()->create(['tenant_id'=>$tenant->id,'legal_entity_id'=>$entity->id,'code'=>'FY-TEST','starts_on'=>today()->subYear()->toDateString(),'ends_on'=>today()->addYear()->toDateString(),'status'=>'open']);
 
@@ -141,7 +143,7 @@ final class GovernancePenaltySettlementAccountingTest extends TestCase
             'assessed_by'=>$maker->id,'assessed_at'=>now(),'created_at'=>now(),'updated_at'=>now(),
         ]);
 
-        return [$tenant,$entity,$maker,$checker,$accounts,$meetingId,$attendanceId,$penaltyId];
+        return [$tenant,$entity,$maker,$checker,$executor,$accounts,$meetingId,$attendanceId,$penaltyId];
     }
 
     private function createSettlement(int $tenantId,int $penaltyId,int $actorId,int $cents,string $method): int
@@ -168,5 +170,23 @@ final class GovernancePenaltySettlementAccountingTest extends TestCase
         $resolver=app(JournalSourceEntityMappingResolver::class);
         $registry=new JournalSourceReferenceResolverRegistry([$resolver]);
         return new GovernancePenaltySettlementService(new JournalEntryService($registry));
+    }
+
+    #[Test]
+    public function settlement_mapping_approver_cannot_also_execute_the_settlement(): void
+    {
+        [$tenant,$entity,$maker,$checker,$executor,$accounts,$meetingId,$attendanceId,$penaltyId] = $this->fixture();
+        $settlementId = $this->createSettlement((int)$tenant->id,$penaltyId,(int)$maker->id,2000,'cash');
+        $this->approveSource((int)$tenant->id,(int)$entity->id,$settlementId,(int)$checker->id);
+
+        $this->expectException(ConflictHttpException::class);
+        $this->expectExceptionMessage('Settlement execution must be performed by an officer other than the mapping configurator and approver.');
+        $this->settlementService()->executeCashSettlement(
+            (int)$tenant->id,
+            $settlementId,
+            (int)$checker->id,
+            today()->toDateString(),
+            'same-actor-approval-execution',
+        );
     }
 }
