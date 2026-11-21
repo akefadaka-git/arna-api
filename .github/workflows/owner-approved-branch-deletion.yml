@@ -44,7 +44,7 @@ concurrency:
 
 jobs:
   delete-branch:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-a3-3-2-exact-sha-20261120'))
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-a3-3-2-exact-sha-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-module1-obsolete-20261121' || github.ref == 'refs/heads/ops/dispatch-owner-delete-module2-obsolete-20261121' || github.ref == 'refs/heads/ops/dispatch-owner-delete-module3-obsolete-20261121'))
     runs-on: ubuntu-latest
     steps:
       - name: Resolve approved deletion request
