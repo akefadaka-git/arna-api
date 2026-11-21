@@ -6,9 +6,42 @@ namespace MaaleArna\MASES\Core\Domains\Finance\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
+use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
 
 final class StoreJournalRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if (!$this->filled('effective_date_ec')) {
+            return;
+        }
+
+        if ($this->filled('effective_date')) {
+            throw ValidationException::withMessages([
+                'effective_date_ec' => 'Provide either the Gregorian effective date or the Ethiopian effective date, not both.',
+            ]);
+        }
+
+        try {
+            $this->merge(['effective_date' => app(FinanceCalendarDateAdapter::class)
+                ->toGregorianDate((string) $this->input('effective_date_ec'))]);
+        } catch (InvalidArgumentException) {
+            throw ValidationException::withMessages([
+                'effective_date_ec' => 'The Ethiopian effective date is invalid. Use YYYY-MM-DD and a valid Ethiopian calendar day.',
+            ]);
+        }
+    }
+
+    protected function validationData(): array
+    {
+        $data = $this->all();
+        unset($data['effective_date_ec']);
+
+        return $data;
+    }
+
     public function authorize(): bool
     {
         return $this->user() !== null;

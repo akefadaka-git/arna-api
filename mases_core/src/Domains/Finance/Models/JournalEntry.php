@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use MaaleArna\MASES\Core\Domains\Finance\Enums\JournalEntryType;
+use MaaleArna\MASES\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
 
 final class JournalEntry extends Model
 {
@@ -17,6 +18,8 @@ final class JournalEntry extends Model
     public const CANCELLED = 'cancelled';
 
     protected $table = 'journal_entries';
+
+    protected $appends = ['effective_date_ec'];
 
     protected $fillable = [
         'tenant_id', 'legal_entity_id', 'accounting_period_id', 'journal_number',
@@ -39,6 +42,11 @@ final class JournalEntry extends Model
         'cancelled_by' => 'integer',
         'cancelled_at' => 'datetime',
     ];
+
+    public function getEffectiveDateEcAttribute(): ?string
+    {
+        return app(FinanceCalendarDateAdapter::class)->toEthiopianDate($this->effective_date);
+    }
 
     public function entity(): BelongsTo
     {
