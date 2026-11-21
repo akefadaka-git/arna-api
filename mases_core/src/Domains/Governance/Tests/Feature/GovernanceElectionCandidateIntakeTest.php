@@ -60,10 +60,10 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             'election_type' => 'board',
             'title_en' => 'Candidate Intake Election',
         ]);
-        $this->ruleDigest = str_repeat('a', 64);
         $authorityBytes = "%PDF-1.4\nCandidate intake authority evidence\n";
         $authorityFile = $this->makePublishedAuthorityFile($this->tenant, $this->manager, $authorityBytes);
         $ruleBytes = "%PDF-1.4\nCandidate intake nomination rules\n";
+        $this->ruleDigest = hash('sha256', $ruleBytes);
         $ruleFile = $this->makePublishedAuthorityFile($this->tenant, $this->manager, $ruleBytes);
         $authorityEvidenceId = $this->verifyAuthorityEvidence(
             $this->tenant, $this->manager, (int) $election->id, $authorityFile, 'GA-RESOLUTION-CANDIDATE'
