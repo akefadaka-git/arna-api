@@ -1,0 +1,31 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MaaleArna\MASES\Core\Domains\Governance\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+final class GovernanceElectionNominationSubmission extends Model
+{
+    protected $table = 'governance_election_nomination_submissions';
+
+    protected $guarded = ['id', 'created_at', 'updated_at'];
+
+    protected function casts(): array
+    {
+        return ['self_nomination' => 'boolean', 'submitted_at' => 'immutable_datetime'];
+    }
+
+    public function candidate(): BelongsTo
+    {
+        return $this->belongsTo(GovernanceElectionCandidate::class, 'candidate_id');
+    }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(GovernanceElectionNominationEvent::class, 'nomination_submission_id')->orderBy('sequence');
+    }
+}
