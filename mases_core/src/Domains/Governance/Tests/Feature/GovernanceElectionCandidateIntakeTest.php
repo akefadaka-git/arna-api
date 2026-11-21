@@ -33,6 +33,7 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Storage::fake('local');
         $this->tenant = Tenant::query()->create([
             'name_am' => 'የእጩ ምርጫ ሙከራ',
             'name_en' => 'Candidate Intake Test',
@@ -45,7 +46,10 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
         $this->grant($this->manager, 'governance.election.manage');
         $this->grant($this->manager, 'governance.election.authorize');
         $this->grant($this->manager, 'governance.election.view');
+        $this->grant($this->manager, 'governance.election.authority.review');
+        $this->grant($this->manager, 'governance.election.authority.verify');
         $this->grant($this->manager, 'file.view');
+        $this->grant($this->manager, 'file.download');
         Auth::login($this->manager);
 
         $election = app(GovernanceElectionLifecycleService::class)->create((int) $this->tenant->id, $this->manager, [
@@ -55,6 +59,13 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             'title_en' => 'Candidate Intake Election',
         ]);
         $this->ruleDigest = str_repeat('a', 64);
+        $authorityBytes = "%PDF-1.4\\nCandidate intake authority evidence\\n";
+        $authorityFile = $this->makePublishedAuthorityFile($this->tenant, $this->manager, $authorityBytes);
+        $ruleBytes = "%PDF-1.4\\nCandidate intake nomination rules\\n";
+        $ruleFile = $this->makePublishedAuthorityFile($this->tenant, $this->manager, $ruleBytes);
+        $authorityEvidenceId = $this->verifyAuthorityEvidence(
+            $this->tenant, $this->manager, (int) $election->id, $authorityFile, 'GA-RESOLUTION-CANDIDATE'
+        );
         app(GovernanceElectionLifecycleService::class)->transition(
             (int) $this->tenant->id,
             (int) $election->id,
@@ -62,13 +73,16 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             'authorize',
             1,
             'Authority and nomination rules verified',
-            ['authority:GA-RESOLUTION-CANDIDATE'],
+            [$this->makeEvidenceReference($this->tenant, $this->manager)],
             [
                 'authority_reference' => 'GA-RESOLUTION-CANDIDATE',
-                'authority_evidence_digest' => str_repeat('b', 64),
+                'authority_document_id' => (int) $authorityFile->id,
+                'authority_evidence_id' => $authorityEvidenceId,
+                'authority_evidence_digest' => hash('sha256', $authorityBytes),
                 'authority_version' => '1.0',
                 'rule_set_version' => 'NOM-1.0',
-                'rule_set_digest' => $this->ruleDigest,
+                'rule_set_digest' => hash('sha256', $ruleBytes),
+                'rule_set_document_id' => (int) $ruleFile->id,
             ],
         );
         $this->electionId = (int) $election->id;
@@ -478,6 +492,56 @@ final class GovernanceElectionCandidateIntakeTest extends TestCase
             $this->assertSame(0, DB::table('governance_election_candidate_decisions')
                 ->where('candidate_id', $candidate->id)->count());
         }
+    }
+
+
+    private function verifyAuthorityEvidence(Tenant $tenant, User $reviewer, int $electionId, File $document, string $authorityReference): int
+    {
+        $recorder = $this->makeUser('authority-recorder');
+        foreach (['governance.election.manage', 'file.view', 'file.download'] as $slug) {
+            $this->grant($recorder, $slug);
+        }
+        $service = app(GovernanceElectionAuthorityService::class);
+        $evidence = $service->recordAuthorityEvidence(
+            (int) $tenant->id, $electionId, 'general_assembly_resolution',
+            $authorityReference, null, (int) $document->id, $recorder
+        );
+        $service->reviewAuthorityEvidence(
+            (int) $tenant->id, $electionId, (int) $evidence->id,
+            'reviewed', 'The governing instrument and published source bytes were reviewed.', $reviewer
+        );
+        $service->verifyAuthority(
+            (int) $tenant->id, $electionId, (int) $evidence->id,
+            'The verified source is authoritative for this test election.', $reviewer
+        );
+        return (int) $evidence->id;
+    }
+
+    private function makeEvidenceReference(Tenant $tenant, User $actor, string $disk = 'local'): string
+    {
+        $bytes = "%PDF-1.4\\nGovernance transition evidence\\n";
+        $file = $this->makePublishedAuthorityFile($tenant, $actor, $bytes, $disk);
+        return 'file:' . $file->id . ':' . hash('sha256', $bytes);
+    }
+
+    private function makePublishedAuthorityFile(Tenant $tenant, User $actor, string $bytes, string $disk = 'local'): File
+    {
+        $path = 'tenant_' . $tenant->id . '/authority-' . uniqid() . '.pdf';
+        Storage::disk($disk)->put($path, $bytes);
+        return File::query()->create([
+            'user_id' => $actor->id,
+            'tenant_id' => $tenant->id,
+            'original_name' => 'authority.pdf',
+            'name' => basename($path),
+            'mime_type' => 'application/pdf',
+            'extension' => 'pdf',
+            'size' => strlen($bytes),
+            'path' => $path,
+            'disk' => $disk,
+            'version' => 1,
+            'status' => 'published',
+            'is_public' => false,
+        ]);
     }
 
     private function makeUser(string $suffix): User
