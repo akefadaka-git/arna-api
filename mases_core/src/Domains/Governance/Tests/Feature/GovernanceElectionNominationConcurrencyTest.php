@@ -49,6 +49,7 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
         $this->grant($manager, 'governance.election.authority.verify');
         $this->grant($manager, 'file.view');
         $this->grant($manager, 'file.download');
+        Auth::login($manager);
 
         $election = app(GovernanceElectionLifecycleService::class)->create((int) $tenant->id, $manager, [
             'code' => 'CONCURRENT-' . $tenant->id,
