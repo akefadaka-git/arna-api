@@ -56,10 +56,10 @@ final class GovernanceElectionNominationConcurrencyTest extends TestCase
             'election_type' => 'board',
             'title_en' => 'Concurrent Nomination Election',
         ]);
-        $digest = str_repeat('c', 64);
         $authorityBytes = "%PDF-1.4\nConcurrent election authority evidence\n";
         $authorityFile = $this->makePublishedAuthorityFile($tenant, $manager, $authorityBytes);
         $ruleBytes = "%PDF-1.4\nConcurrent election nomination rules\n";
+        $digest = hash('sha256', $ruleBytes);
         $ruleFile = $this->makePublishedAuthorityFile($tenant, $manager, $ruleBytes);
         $authorityEvidenceId = $this->verifyAuthorityEvidence(
             $tenant, $manager, (int) $election->id, $authorityFile, 'GA-RESOLUTION-CONCURRENT'
