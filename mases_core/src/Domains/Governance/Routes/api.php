@@ -702,4 +702,29 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.election.manage')
         ->name('elections.transitions.store');
 
+
+    // Module 2 — candidate intake, nomination, consent and human eligibility decisions.
+    Route::post('/elections/{election}/nomination-window', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'configureWindow'])
+        ->whereNumber('election')->middleware('auth.permission:governance.election.manage')->name('elections.nomination-window.configure');
+    Route::post('/elections/{election}/nomination-window/open', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'openWindow'])
+        ->whereNumber('election')->middleware('auth.permission:governance.election.manage')->name('elections.nomination-window.open');
+    Route::post('/elections/{election}/nomination-window/close', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'closeWindow'])
+        ->whereNumber('election')->middleware('auth.permission:governance.election.manage')->name('elections.nomination-window.close');
+    Route::post('/elections/{election}/nominations', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'submitNomination'])
+        ->whereNumber('election')->name('elections.nominations.store');
+    Route::match(['patch', 'put'], '/elections/{election}/nominations/{submission}', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'correctNomination'])
+        ->whereNumber('election')->whereNumber('submission')->name('elections.nominations.correct');
+    Route::post('/elections/{election}/nominations/{submission}/withdraw', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'withdrawNomination'])
+        ->whereNumber('election')->whereNumber('submission')->name('elections.nominations.withdraw');
+    Route::get('/elections/{election}/candidates', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'index'])
+        ->whereNumber('election')->middleware('auth.permission:governance.election.view')->name('elections.candidates.index');
+    Route::post('/elections/{election}/candidates/{candidate}/consent', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'consent'])
+        ->whereNumber('election')->whereNumber('candidate')->name('elections.candidates.consent');
+    Route::post('/elections/{election}/candidates/{candidate}/declarations', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'declarations'])
+        ->whereNumber('election')->whereNumber('candidate')->name('elections.candidates.declarations');
+    Route::post('/elections/{election}/candidates/{candidate}/evidence', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'evidence'])
+        ->whereNumber('election')->middleware('auth.permission:governance.election.manage')->name('elections.candidates.evidence');
+    Route::post('/elections/{election}/candidates/{candidate}/eligibility-decision', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'decide'])
+        ->whereNumber('election')->middleware('auth.permission:governance.election.committee.decide')->name('elections.candidates.eligibility-decision');
+
 });

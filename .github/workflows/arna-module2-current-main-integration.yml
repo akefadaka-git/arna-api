@@ -1,0 +1,206 @@
+name: AGE Module 2 candidate intake verification
+
+on:
+  push:
+    branches:
+      - a3/module-2-current-main-integration
+    paths:
+      - ".github/workflows/arna-module2-current-main-integration.yml"
+      - "mases_core/src/Domains/Governance/**"
+      - "mases_core/src/Domains/People/**"
+      - "mases_core/src/Domains/Shareholder/**"
+      - "mases_core/src/Files/**"
+      - "scripts/phase0-authorization-audit.py"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/arna-module2-current-main-integration.yml"
+      - "mases_core/src/Domains/Governance/**"
+      - "mases_core/src/Domains/People/**"
+      - "mases_core/src/Domains/Shareholder/**"
+      - "mases_core/src/Files/**"
+      - "scripts/phase0-authorization-audit.py"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: age-module2-candidate-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  candidate-intake:
+    name: Exact-SHA candidate intake and MySQL migration verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: arna_module2_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: arna_module2_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    steps:
+      - name: Resolve exact target SHA
+        id: target
+        shell: bash
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            expected="${PR_HEAD_SHA}"
+          else
+            expected="${TRIGGER_SHA}"
+          fi
+          [[ "${expected}" =~ ^[0-9a-fA-F]{40}$ ]]
+          echo "expected_sha=${expected,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact target SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.expected_sha }}
+          persist-credentials: false
+
+      - name: Verify checked-out SHA and create local environment file
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          echo "Expected: ${{ steps.target.outputs.expected_sha }}"
+          echo "Actual:   ${actual}"
+          test "${actual}" = "${{ steps.target.outputs.expected_sha }}"
+          : > .env
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, pcntl, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Lint every tracked PHP source file
+        run: git ls-files -z -- '*.php' | xargs -0 -n1 php -l
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Confirm MySQL is empty before migration
+        run: |
+          tables="$(mysql -h 127.0.0.1 -uroot -proot arna_module2_test -Nse "SHOW TABLES" | wc -l)"
+          test "${tables}" -eq 0
+
+      - name: Run every registered migration on empty MySQL
+        id: fresh_migrations
+        run: php artisan migrate --force -vvv
+
+      - name: Run Module 2 candidate intake and eligibility tests on MySQL
+        id: module2_tests
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCandidateIntakeTest.php
+
+      - name: Run true parallel nomination race regression on MySQL
+        id: nomination_concurrency
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionNominationConcurrencyTest.php
+
+      - name: Run committee conflict and tenant-security regressions on MySQL
+        id: committee_tests
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
+
+      - name: Run Module 1 election lifecycle regressions on MySQL
+        id: module1_tests
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
+
+      - name: Confirm migration idempotence and no pending migrations
+        id: migration_idempotence
+        run: |
+          php artisan migrate --force -vvv
+          php artisan migrate:status
+          pending="$(php artisan migrate:status --pending --no-ansi | grep -c 'Pending' || true)"
+          test "${pending}" -eq 0
+
+      - name: Enforce Composer security advisory gate
+        id: composer_audit
+        run: composer audit --format=plain
+
+      - name: Create exact-SHA verification manifest
+        if: always()
+        shell: bash
+        env:
+          FRESH_MIGRATIONS: ${{ steps.fresh_migrations.outcome }}
+          MODULE2_TESTS: ${{ steps.module2_tests.outcome }}
+          NOMINATION_CONCURRENCY: ${{ steps.nomination_concurrency.outcome }}
+          COMMITTEE_TESTS: ${{ steps.committee_tests.outcome }}
+          MODULE1_TESTS: ${{ steps.module1_tests.outcome }}
+          MIGRATION_IDEMPOTENCE: ${{ steps.migration_idempotence.outcome }}
+          COMPOSER_AUDIT: ${{ steps.composer_audit.outcome }}
+        run: |
+          set -euo pipefail
+          mkdir -p storage/logs
+          {
+            echo "AGE Module 2 exact-SHA verification"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+            echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "event=${GITHUB_EVENT_NAME}"
+            echo "branch=${GITHUB_REF_NAME}"
+            echo "expected_sha=${{ steps.target.outputs.expected_sha }}"
+            echo "checked_out_sha=$(git rev-parse HEAD)"
+            echo "fresh_mysql_migrations=${FRESH_MIGRATIONS:-not_run}"
+            echo "module2_candidate_tests=${MODULE2_TESTS:-not_run}"
+            echo "nomination_concurrency_regression=${NOMINATION_CONCURRENCY:-not_run}"
+            echo "committee_security_regressions=${COMMITTEE_TESTS:-not_run}"
+            echo "module1_lifecycle_regressions=${MODULE1_TESTS:-not_run}"
+            echo "migration_idempotence=${MIGRATION_IDEMPOTENCE:-not_run}"
+            echo "composer_security_audit=${COMPOSER_AUDIT:-not_run}"
+            echo "php_version=$(php -r 'echo PHP_VERSION;')"
+            echo "composer_version=$(composer --version --no-ansi 2>/dev/null || echo not_installed)"
+            echo "migration_status:"
+            if [[ -f vendor/autoload.php ]]; then
+              php artisan migrate:status --no-ansi
+            else
+              echo "migration_status=not_run (Composer dependencies unavailable)"
+            fi
+          } > storage/logs/age-module2-verification.txt
+
+      - name: Upload exact-SHA verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: age-module2-candidate-evidence-${{ github.run_id }}
+          path: |
+            storage/logs/age-module2-verification.txt
+            storage/logs/laravel.log
+          if-no-files-found: warn
+          retention-days: 14
