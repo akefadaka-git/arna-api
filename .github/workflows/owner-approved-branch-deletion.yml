@@ -1,157 +1,93 @@
-name: Owner-approved branch deletion
+name: Owner-approved operations evidence deletion
 
 on:
   workflow_dispatch:
     inputs:
       branch_name:
-        description: Exact branch name to delete
+        description: "Exact ops/ evidence branch to retire after its record is preserved"
         required: true
         type: string
       confirm_branch_name:
-        description: Re-enter the exact branch name to confirm deletion
+        description: "Re-enter the exact ops/ branch name"
         required: true
         type: string
       expected_sha:
-        description: Full 40-character SHA currently at the target branch head
+        description: "Full 40-character current branch head SHA"
         required: true
         type: string
       cleanup_reason:
-        description: Replacement evidence or explicit reason this exact branch is obsolete
+        description: "Why this evidence ref is now safe to retire"
         required: true
         type: string
-  push:
-    branches:
-      - ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120
-      - ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120
-      - ops/dispatch-owner-delete-a3-3-2-exact-sha-20261120
-      - ops/dispatch-owner-delete-module1-obsolete-20261121
-      - ops/dispatch-owner-delete-module2-obsolete-20261121
-      - ops/dispatch-owner-delete-module3-obsolete-20261121
-    paths:
-      - ops/owner-approved-deletion/organization-filemanagement-foundation.trigger
-      - ops/owner-approved-deletion/p24-candidate-intake-a2.trigger
-      - ops/owner-approved-deletion/a3-3-2-exact-sha.trigger
-      - ops/owner-approved-deletion/module1-obsolete.trigger
-      - ops/owner-approved-deletion/module2-obsolete.trigger
-      - ops/owner-approved-deletion/module3-obsolete.trigger
+      evidence_reference:
+        description: "Must be the committed branch cleanup register path"
+        required: true
+        type: string
+      owner_confirmation:
+        description: "Type exactly I APPROVE THIS OPS-ONLY REF DELETION"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: owner-approved-branch-deletion
+  group: owner-approved-ops-evidence-deletion
   cancel-in-progress: false
 
 jobs:
-  delete-branch:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-a3-3-2-exact-sha-20261120' || github.ref == 'refs/heads/ops/dispatch-owner-delete-module1-obsolete-20261121' || github.ref == 'refs/heads/ops/dispatch-owner-delete-module2-obsolete-20261121' || github.ref == 'refs/heads/ops/dispatch-owner-delete-module3-obsolete-20261121'))
+  delete-ops-evidence:
+    if: github.actor == 'akefadaka-git'
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve approved deletion request
+      - name: Verify Owner approval, register and exact ref
         id: request
+        shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_BRANCH: ${{ inputs.branch_name }}
-          INPUT_CONFIRM: ${{ inputs.confirm_branch_name }}
-          INPUT_SHA: ${{ inputs.expected_sha }}
-          INPUT_REASON: ${{ inputs.cleanup_reason }}
-          GITHUB_REF: ${{ github.ref }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${ github.token }}
+          REPO: ${ github.repository }}
+          ACTOR: ${ github.actor }}
+          BRANCH: ${ inputs.branch_name }}
+          CONFIRM: ${ inputs.confirm_branch_name }}
+          EXPECTED_SHA: ${ inputs.expected_sha }}
+          REASON: ${ inputs.cleanup_reason }}
+          EVIDENCE: ${ inputs.evidence_reference }}
+          OWNER_CONFIRMATION: ${ inputs.owner_confirmation }}
         run: |
           set -euo pipefail
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            BRANCH="$INPUT_BRANCH"
-            CONFIRM="$INPUT_CONFIRM"
-            EXPECTED_SHA="$INPUT_SHA"
-            REASON="$INPUT_REASON"
-          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120" ]]; then
-            BRANCH="integration/organization-filemanagement-foundation"
-            CONFIRM="integration/organization-filemanagement-foundation"
-            EXPECTED_SHA="1c6bc2575e852c6a4716a00f2182f0a620c0934c"
-            REASON="Owner-approved cleanup request; target is no longer required by the current integration baseline."
-          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120" ]]; then
-            BRANCH="docs/p2.4-candidate-intake-a2"
-            CONFIRM="docs/p2.4-candidate-intake-a2"
-            EXPECTED_SHA="6d3c3a992d29cd3869d3aec7921ba41c782e7397"
-            REASON="Owner-approved cleanup request; target is superseded by the current candidate-intake baseline."
-          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-a3-3-2-exact-sha-20261120" ]]; then
-            BRANCH="verify/a3-3-2-exact-sha"
-            CONFIRM="verify/a3-3-2-exact-sha"
-            EXPECTED_SHA="959d5a29dab75cf36c57587f78b6fc01985ef473"
-            REASON="Owner-approved cleanup request for the completed exact-SHA verification branch."
-          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-module1-obsolete-20261121" ]]; then
-            BRANCH="a3/module-1-election-foundation-lifecycle"
-            CONFIRM="a3/module-1-election-foundation-lifecycle"
-            EXPECTED_SHA="ff48a9d4dc1f54d7f07d61df27d29f10feafa271"
-            REASON="Superseded by merged PR #176 (3fca049c2fb3549d81d4ff57bc4b77776fb86db1); closed PR #164 retained as history."
-          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-module2-obsolete-20261121" ]]; then
-            BRANCH="a3/module-2-candidate-intake-eligibility"
-            CONFIRM="a3/module-2-candidate-intake-eligibility"
-            EXPECTED_SHA="f67e0daa8ffb1d5adc00e47152bf41e28cdbda77"
-            REASON="Superseded by merged PR #177 (8fc0638c7042d5d2dfca404ac792c2e714abb71c); closed PR #165 retained as history."
-          elif [[ "$GITHUB_REF" == "refs/heads/ops/dispatch-owner-delete-module3-obsolete-20261121" ]]; then
-            BRANCH="a2/module-3-statutory-data-reconciliation"
-            CONFIRM="a2/module-3-statutory-data-reconciliation"
-            EXPECTED_SHA="7b2b74c5ee804bb5c19d84f7fcae40eacbb17bc8"
-            REASON="Closed PR #180 contains withdrawn, unsupported legacy-dump reconciliation claims; the authoritative provenance correction is merged in PR #181 (d6fa41a78fd38be807d784dc65ccd9e3133549d7). Closed PR #180 remains as history."
-          else
-            echo "::error::Unrecognized deletion dispatch branch."
-            exit 1
-          fi
-          if [[ -z "$BRANCH" || "$BRANCH" != "$CONFIRM" ]]; then
-            echo "::error::Branch name is empty or confirmation does not match."
-            exit 1
-          fi
-          if [[ -z "${REASON//[[:space:]]/}" ]]; then
-            echo "::error::A non-empty cleanup reason or replacement evidence is required."
-            exit 1
-          fi
-          DEFAULT_BRANCH="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.default_branch')"
-          if [[ "$BRANCH" == "$DEFAULT_BRANCH" || "$BRANCH" == "main" || "$BRANCH" == "master" ]]; then
-            echo "::error::Refusing to delete a protected primary/default branch."
-            exit 1
-          fi
-          if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
-            echo "::error::Expected SHA must be a full 40-character commit SHA."
-            exit 1
-          fi
+          [[ "$ACTOR" == "akefadaka-git" ]] || { echo "::error::Only the repository Owner may run this workflow."; exit 1; }
+          [[ "$BRANCH" == ops/* && "$BRANCH" == "$CONFIRM" ]] || { echo "::error::Only one exact ops/ ref may be retired."; exit 1; }
+          [[ "$BRANCH" != ops/dispatch-* ]] || { echo "::error::Spent dispatch refs require workflow-run evidence and separate reconciliation."; exit 1; }
+          [[ "$OWNER_CONFIRMATION" == "I APPROVE THIS OPS-ONLY REF DELETION" ]] || { echo "::error::Explicit Owner confirmation is required."; exit 1; }
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::A full 40-character SHA is required."; exit 1; }
+          [[ -n "$REASON" ]] || { echo "::error::Cleanup reason is required."; exit 1; }
+          [[ "$EVIDENCE" == "docs/operations/BRANCH_CLEANUP_REGISTER_2026-11-22.md" ]] || { echo "::error::Evidence reference must be the committed cleanup register."; exit 1; }
+          gh api "repos/$REPO/contents/$EVIDENCE" --jq '.sha' >/dev/null
+          DEFAULT_BRANCH="$(gh api "repos/$REPO" --jq '.default_branch')"
+          [[ "$BRANCH" != "$DEFAULT_BRANCH" && "$BRANCH" != main && "$BRANCH" != master ]] || { echo "::error::Protected default branch cannot be deleted."; exit 1; }
           git check-ref-format --branch "$BRANCH"
+          REF_PATH="$(BRANCH="$BRANCH" python -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["BRANCH"],safe=""))')"
+          ACTUAL_SHA="$(gh api "repos/$REPO/git/ref/heads/$REF_PATH" --jq '.object.sha')"
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo "::error::Exact branch-head mismatch. Nothing deleted."; exit 1; }
+          OPEN_REFS="$(gh pr list --repo "$REPO" --state open --limit 1000 --json headRefName,baseRefName)"
+          [[ "$(jq --arg b "$BRANCH" '[.[] | select(.headRefName == $b or .baseRefName == $b)] | length' <<<"$OPEN_REFS")" == 0 ]] || { echo "::error::An open PR references this evidence ref."; exit 1; }
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           echo "expected_sha=$EXPECTED_SHA" >> "$GITHUB_OUTPUT"
           echo "reason=$REASON" >> "$GITHUB_OUTPUT"
-          echo "Approved deletion request resolved for $BRANCH; reason: $REASON"
 
-      - name: Verify exact branch head
+      - name: Delete only the confirmed ops evidence ref
+        shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ steps.request.outputs.branch }}
-          EXPECTED_SHA: ${{ steps.request.outputs.expected_sha }}
+          GH_TOKEN: ${ github.token }}
+          REPO: ${ github.repository }}
+          BRANCH: ${ steps.request.outputs.branch }}
+          EXPECTED_SHA: ${ steps.request.outputs.expected_sha }}
         run: |
           set -euo pipefail
-          OPEN_PR_COUNT="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 1000 --json headRefName,baseRefName | jq --arg branch "$BRANCH" '[.[] | select(.headRefName == $branch or .baseRefName == $branch)] | length')"
-          if [[ "$OPEN_PR_COUNT" != "0" ]]; then
-            echo "::error::Refusing deletion: branch is referenced by $OPEN_PR_COUNT open pull request(s) as head or base."
-            exit 1
-          fi
-          REF_PATH="$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["BRANCH"], safe=""))')"
-          ACTUAL_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${REF_PATH}" --jq '.object.sha')"
-          if [[ "${ACTUAL_SHA,,}" != "${EXPECTED_SHA,,}" ]]; then
-            echo "::error::Branch head mismatch. Expected $EXPECTED_SHA; found $ACTUAL_SHA. Nothing was deleted."
-            exit 1
-          fi
-          echo "Verified exact target: $BRANCH at $ACTUAL_SHA"
-
-      - name: Delete the verified branch ref
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ steps.request.outputs.branch }}
-        run: |
-          set -euo pipefail
-          REF_PATH="$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["BRANCH"], safe=""))')"
-          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${REF_PATH}"
-          echo "Deleted verified branch: $BRANCH"
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            TRIGGER_REF_PATH="$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["GITHUB_REF_NAME"], safe=""))')"
-            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${TRIGGER_REF_PATH}"
-            echo "Deleted one-time dispatch branch: ${GITHUB_REF_NAME}"
-          fi
+          REF_PATH="$(BRANCH="$BRANCH" python -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["BRANCH"],safe=""))')"
+          ACTUAL_SHA="$(gh api "repos/$REPO/git/ref/heads/$REF_PATH" --jq '.object.sha')"
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo "::error::Branch moved after preflight; nothing deleted."; exit 1; }
+          gh api --method DELETE "repos/$REPO/git/refs/heads/$REF_PATH"
+          STATUS="$(curl --silent --show-error --output "$RUNNER_TEMP/ref-check.json" --write-out '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/git/ref/heads/$REF_PATH")"
+          [[ "$STATUS" == 404 ]] || { echo "::error::Ref absence not verified; HTTP $STATUS."; cat "$RUNNER_TEMP/ref-check.json"; exit 1; }
+          echo "VERIFIED-CLOSED: $BRANCH at $EXPECTED_SHA; HTTP 404."
