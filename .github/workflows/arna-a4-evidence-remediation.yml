@@ -64,5 +64,8 @@ jobs:
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Create isolated environment
+        run: : > .env
+
       - name: Run document workflow evidence regressions
         run: php artisan test --no-coverage tests/Feature/DocumentWorkflowAggregateServiceTest.php
