@@ -1,0 +1,236 @@
+name: Owner-governed branch lifecycle
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Merge a reviewed PR, or retire a branch whose PR is already merged"
+        required: true
+        type: choice
+        options: [merge_and_retire, retire_merged]
+      pr_number:
+        description: "Exact PR number containing this branch"
+        required: true
+        type: string
+      branch_name:
+        description: "Exact source branch name"
+        required: true
+        type: string
+      expected_head_sha:
+        description: "Full 40-character source head SHA"
+        required: true
+        type: string
+      expected_base_sha:
+        description: "Exact main SHA reviewed against; required for merge_and_retire"
+        required: false
+        type: string
+      readiness_attestation:
+        description: "Type ANALYZED-UPDATED-ENHANCED after completing the work"
+        required: true
+        type: string
+      review_evidence_url:
+        description: "URL to the completed analysis and review evidence"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  actions: write
+
+concurrency:
+  group: owner-governed-branch-lifecycle-${ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  lifecycle:
+    if: github.actor == 'akefadaka-git'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Validate Owner authority, branch and PR
+        id: request
+        shell: bash
+        env:
+          GH_TOKEN: ${ github.token }}
+          REPO: ${ github.repository }}
+          ACTOR: ${ github.actor }}
+          OPERATION: ${ inputs.operation }}
+          PR_NUMBER: ${ inputs.pr_number }}
+          BRANCH: ${ inputs.branch_name }}
+          EXPECTED_HEAD: ${ inputs.expected_head_sha }}
+          EXPECTED_BASE: ${ inputs.expected_base_sha }}
+          ATTESTATION: ${ inputs.readiness_attestation }}
+          REVIEW_EVIDENCE: ${ inputs.review_evidence_url }}
+        run: |
+          set -euo pipefail
+          [[ "$ACTOR" == "akefadaka-git" ]] || { echo "::error::Only the repository Owner may run this workflow."; exit 1; }
+          [[ "$ATTESTATION" == "ANALYZED-UPDATED-ENHANCED" ]] || { echo "::error::Readiness attestation is missing or incorrect."; exit 1; }
+          [[ "$EXPECTED_HEAD" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Expected head must be a full 40-character SHA."; exit 1; }
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo "::error::A valid PR number is required."; exit 1; }
+          [[ -n "$REVIEW_EVIDENCE" && "$REVIEW_EVIDENCE" == https://github.com/akefadaka-git/* ]] || { echo "::error::Owner GitHub review evidence URL is required."; exit 1; }
+          if [[ "$OPERATION" == "merge_and_retire" ]]; then
+            [[ "$EXPECTED_BASE" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Exact reviewed base SHA is required."; exit 1; }
+          fi
+          git check-ref-format --branch "$BRANCH"
+          DEFAULT_BRANCH="$(gh api "repos/$REPO" --jq '.default_branch')"
+          [[ "$BRANCH" != "$DEFAULT_BRANCH" && "$BRANCH" != main && "$BRANCH" != master ]] || { echo "::error::Default branch is protected."; exit 1; }
+          AUTO_DELETE="$(gh api "repos/$REPO" --jq '.delete_branch_on_merge')"
+          [[ "$AUTO_DELETE" == false ]] || { echo "::error::Disable automatic delete-on-merge first so deletion occurs only after post-merge tests."; exit 1; }
+          REF_PATH="$(BRANCH="$BRANCH" python -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["BRANCH"],safe=""))')"
+          ACTUAL_HEAD="$(gh api "repos/$REPO/git/ref/heads/$REF_PATH" --jq '.object.sha')"
+          [[ "$(printf '%s' "$ACTUAL_HEAD" | tr '[:upper:]' '[:lower:]')" == "$(printf '%s' "$EXPECTED_HEAD" | tr '[:upper:]' '[:lower:]')" ]] || { echo "::error::Exact branch-head mismatch."; exit 1; }
+          PR_JSON="$(gh api "repos/$REPO/pulls/$PR_NUMBER")"
+          [[ "$(jq -r '.head.ref' <<<"$PR_JSON")" == "$BRANCH" ]] || { echo "::error::PR source branch does not match."; exit 1; }
+          [[ "$(jq -r '.head.sha' <<<"$PR_JSON")" == "$EXPECTED_HEAD" ]] || { echo "::error::PR head SHA does not match."; exit 1; }
+          [[ "$(jq -r '.head.repo.full_name // ""' <<<"$PR_JSON")" == "$REPO" ]] || { echo "::error::Fork PRs are not eligible for automatic branch retirement."; exit 1; }
+          [[ "$(jq -r '.base.ref' <<<"$PR_JSON")" == "$DEFAULT_BRANCH" ]] || { echo "::error::Only PRs based directly on the default branch are eligible."; exit 1; }
+          if [[ "$OPERATION" == "merge_and_retire" ]]; then
+            [[ "$(jq -r '.state' <<<"$PR_JSON")" == open && "$(jq -r '.draft' <<<"$PR_JSON")" == false && "$(jq -r '.merged' <<<"$PR_JSON")" == false ]] || { echo "::error::PR must be open, non-draft and unmerged."; exit 1; }
+            PR_BASE_SHA="$(jq -r '.base.sha' <<<"$PR_JSON")"
+            CURRENT_BASE_SHA="$(gh api "repos/$REPO/branches/$DEFAULT_BRANCH" --jq '.commit.sha')"
+            [[ "$PR_BASE_SHA" == "$EXPECTED_BASE" && "$CURRENT_BASE_SHA" == "$EXPECTED_BASE" ]] || { echo "::error::Reviewed base SHA changed; reconcile and retest."; exit 1; }
+            [[ "$(jq -r '.mergeable' <<<"$PR_JSON")" == true ]] || { echo "::error::GitHub has not confirmed the PR is mergeable."; exit 1; }
+            [[ "$(gh pr view "$PR_NUMBER" --repo "$REPO" --json reviewDecision --jq '.reviewDecision')" == APPROVED ]] || { echo "::error::An approved review is required."; exit 1; }
+            THREADS="$(gh api graphql -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved} pageInfo{hasNextPage}}}}}' -F owner=akefadaka-git -F name="$(basename "$REPO")" -F number="$PR_NUMBER")"
+            [[ "$(jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length' <<<"$THREADS")" == 0 && "$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' <<<"$THREADS")" == false ]] || { echo "::error::Unresolved or incompletely enumerated review threads remain."; exit 1; }
+          else
+            [[ "$(jq -r '.merged' <<<"$PR_JSON")" == true && "$(jq -r '.state' <<<"$PR_JSON")" == closed ]] || { echo "::error::retire_merged requires a merged, closed PR."; exit 1; }
+          fi
+          OPEN_REFS="$(gh pr list --repo "$REPO" --state open --limit 1000 --json number,headRefName,baseRefName)"
+          OTHER_OPEN="$(jq --arg b "$BRANCH" --arg n "$PR_NUMBER" '[.[] | select((.headRefName == $b or .baseRefName == $b) and (.number|tostring) != $n)] | length' <<<"$OPEN_REFS")"
+          [[ "$OTHER_OPEN" == 0 ]] || { echo "::error::Another open PR references this branch."; exit 1; }
+          echo "default_branch=$DEFAULT_BRANCH" >> "$GITHUB_OUTPUT"
+          echo "existing_merge_sha=$(jq -r '.merge_commit_sha // ""' <<<"$PR_JSON")" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "expected_head=$EXPECTED_HEAD" >> "$GITHUB_OUTPUT"
+          echo "operation=$OPERATION" >> "$GITHUB_OUTPUT"
+          echo "Preflight PASS for PR #$PR_NUMBER and $BRANCH @ $EXPECTED_HEAD. Evidence: $REVIEW_EVIDENCE"
+
+      - name: Analyze changed paths and run exact-head PR checks
+        if: inputs.operation == 'merge_and_retire'
+        shell: bash
+        env:
+          GH_TOKEN: ${ github.token }}
+          REPO: ${ github.repository }}
+          PR_NUMBER: ${ inputs.pr_number }}
+          EXPECTED_HEAD: ${ inputs.expected_head_sha }}
+          BRANCH: ${ inputs.branch_name }}
+        run: |
+          set -euo pipefail
+          ANALYSIS="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json title,url,files,commits)"
+          FILE_COUNT="$(jq '.files | length' <<<"$ANALYSIS")"
+          COMMIT_COUNT="$(jq '.commits | length' <<<"$ANALYSIS")"
+          [[ "$FILE_COUNT" -gt 0 && "$COMMIT_COUNT" -gt 0 ]] || { echo "::error::PR has no inspectable changes."; exit 1; }
+          {
+            echo "## Pre-merge analysis"
+            echo "- PR: $(jq -r '.url' <<<"$ANALYSIS")"
+            echo "- Exact head: $EXPECTED_HEAD"
+            echo "- Commits: $COMMIT_COUNT"
+            echo "- Changed paths: $FILE_COUNT"
+            jq -r '.files[].path | "- " + .' <<<"$ANALYSIS"
+          } >> "$GITHUB_STEP_SUMMARY"
+          timeout 45m gh pr checks "$PR_NUMBER" --repo "$REPO" --watch --fail-fast --interval 10
+          CHECKS="$(gh pr checks "$PR_NUMBER" --repo "$REPO" --json name,state,bucket)"
+          jq -e 'length > 0 and all(.[]; .bucket == "pass")' <<<"$CHECKS" >/dev/null || { echo "::error::Missing or non-passing exact-head checks."; exit 1; }
+          REF_PATH="$(BRANCH="$BRANCH" python -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["BRANCH"],safe=""))')"
+          ACTUAL_HEAD="$(gh api "repos/$REPO/git/ref/heads/$REF_PATH" --jq '.object.sha')"
+          [[ "$ACTUAL_HEAD" == "$EXPECTED_HEAD" ]] || { echo "::error::Branch changed while tests ran."; exit 1; }
+
+      - name: Merge approved PR without deleting the source branch
+        id: merge
+        if: inputs.operation == 'merge_and_retire'
+        shell: bash
+        env:
+          GH_TOKEN: ${ github.token }}
+          REPO: ${ github.repository }}
+          PR_NUMBER: ${ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --squash
+          PR_JSON="$(gh api "repos/$REPO/pulls/$PR_NUMBER")"
+          [[ "$(jq -r '.merged' <<<"$PR_JSON")" == true ]] || { echo "::error::Merge was not confirmed."; exit 1; }
+          MERGE_SHA="$(jq -r '.merge_commit_sha // ""' <<<"$PR_JSON")"
+          [[ "$MERGE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Merge commit SHA is invalid."; exit 1; }
+          echo "merge_sha=$MERGE_SHA" >> "$GITHUB_OUTPUT"
+          echo "Merged PR #$PR_NUMBER at $MERGE_SHA. Source branch retained until post-merge tests pass."
+
+      - name: Resolve exact merge commit
+        id: merged
+        shell: bash
+        env:
+          OPERATION: ${ inputs.operation }}
+          EXISTING_MERGE_SHA: ${ steps.request.outputs.existing_merge_sha }}
+          NEW_MERGE_SHA: ${ steps.merge.outputs.merge_sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$OPERATION" == merge_and_retire ]]; then MERGE_SHA="$NEW_MERGE_SHA"; else MERGE_SHA="$EXISTING_MERGE_SHA"; fi
+          [[ "$MERGE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Merged commit SHA is unavailable."; exit 1; }
+          echo "merge_sha=$MERGE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Run post-merge verification against the exact merge SHA
+        id: postmerge
+        shell: bash
+        env:
+          GH_TOKEN: ${ github.token }}
+          REPO: ${ github.repository }}
+          DEFAULT_BRANCH: ${ steps.request.outputs.default_branch }}
+          MERGE_SHA: ${ steps.merged.outputs.merge_sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$REPO" == "akefadaka-git/arna-api" ]]; then TEST_WORKFLOW="arna-clean-install-mysql.yml"; elif [[ "$REPO" == "akefadaka-git/arna-app" ]]; then TEST_WORKFLOW="frontend-ci.yml"; else echo "::error::No post-merge test workflow configured."; exit 1; fi
+          STARTED="$(date -u +%s)"
+          gh workflow run "$TEST_WORKFLOW" --repo "$REPO" --ref "$DEFAULT_BRANCH" -f target_sha="$MERGE_SHA"
+          RUN_ID=""
+          for attempt in $(seq 1 36); do
+            RUNS="$(gh run list --repo "$REPO" --workflow "$TEST_WORKFLOW" --event workflow_dispatch --branch "$DEFAULT_BRANCH" --limit 20 --json databaseId,createdAt,actor,url)"
+            RUN_ID="$(jq -r --argjson started "$STARTED" --arg actor "$GITHUB_ACTOR" '[.[] | select((.createdAt | fromdateiso8601) >= $started and ((.actor.login // .actor // "") == $actor))] | sort_by(.createdAt) | last | .databaseId // empty' <<<"$RUNS")"
+            [[ -n "$RUN_ID" ]] && break
+            sleep 5
+          done
+          [[ -n "$RUN_ID" ]] || { echo "::error::Could not locate post-merge test run; branch retained."; exit 1; }
+          STATUS=""; CONCLUSION=""
+          for attempt in $(seq 1 180); do
+            RUN="$(gh run view "$RUN_ID" --repo "$REPO" --json status,conclusion,url)"
+            STATUS="$(jq -r '.status' <<<"$RUN")"
+            CONCLUSION="$(jq -r '.conclusion // ""' <<<"$RUN")"
+            [[ "$STATUS" == completed ]] && break
+            sleep 10
+          done
+          [[ "$STATUS" == completed && "$CONCLUSION" == success ]] || { echo "::error::Post-merge tests failed or timed out; branch retained."; exit 1; }
+          LOG="$(gh run view "$RUN_ID" --repo "$REPO" --log)"
+          grep -F "$MERGE_SHA" <<<"$LOG" >/dev/null || { echo "::error::Test log does not prove the exact merge SHA was tested; branch retained."; exit 1; }
+          echo "run_url=$(jq -r '.url' <<<"$RUN")" >> "$GITHUB_OUTPUT"
+          echo "Post-merge exact-SHA tests PASS for $MERGE_SHA."
+
+      - name: Delete exact source branch after tests and verify absence
+        shell: bash
+        env:
+          GH_TOKEN: ${ github.token }}
+          REPO: ${ github.repository }}
+          BRANCH: ${ steps.request.outputs.branch }}
+          EXPECTED_HEAD: ${ steps.request.outputs.expected_head }}
+          PR_NUMBER: ${ steps.request.outputs.pr_number }}
+          MERGE_SHA: ${ steps.merged.outputs.merge_sha }}
+          TEST_URL: ${ steps.postmerge.outputs.run_url }}
+        run: |
+          set -euo pipefail
+          OPEN_REFS="$(gh pr list --repo "$REPO" --state open --limit 1000 --json number,headRefName,baseRefName)"
+          [[ "$(jq --arg b "$BRANCH" '[.[] | select(.headRefName == $b or .baseRefName == $b)] | length' <<<"$OPEN_REFS")" == 0 ]] || { echo "::error::New open PR reference blocks deletion."; exit 1; }
+          REF_PATH="$(BRANCH="$BRANCH" python -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["BRANCH"],safe=""))')"
+          ACTUAL_HEAD="$(gh api "repos/$REPO/git/ref/heads/$REF_PATH" --jq '.object.sha')"
+          [[ "$ACTUAL_HEAD" == "$EXPECTED_HEAD" ]] || { echo "::error::Branch head changed after merge/tests; nothing deleted."; exit 1; }
+          gh api --method DELETE "repos/$REPO/git/refs/heads/$REF_PATH"
+          STATUS="$(curl --silent --show-error --output "$RUNNER_TEMP/ref-check.json" --write-out '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/git/ref/heads/$REF_PATH")"
+          [[ "$STATUS" == 404 ]] || { echo "::error::Branch deletion not verified; HTTP $STATUS."; cat "$RUNNER_TEMP/ref-check.json"; exit 1; }
+          {
+            echo "## Branch lifecycle — VERIFIED CLOSED"
+            echo "- PR: #$PR_NUMBER"
+            echo "- Branch: $BRANCH"
+            echo "- Exact source SHA: $EXPECTED_HEAD"
+            echo "- Merge SHA: $MERGE_SHA"
+            echo "- Post-merge test run: $TEST_URL"
+            echo "- Branch ref: absent (HTTP 404)"
+          } >> "$GITHUB_STEP_SUMMARY"
