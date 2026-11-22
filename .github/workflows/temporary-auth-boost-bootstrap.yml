@@ -37,6 +37,9 @@ jobs:
       - name: Install Laravel Boost in the ephemeral runner
         run: composer require laravel/boost --dev --no-interaction --no-progress
       - name: Generate and display repository-specific agent guidance
+        env:
+          APP_ENV: local
+          APP_DEBUG: "true"
         run: |
           php artisan boost:install --no-interaction
           test -s AGENTS.md
