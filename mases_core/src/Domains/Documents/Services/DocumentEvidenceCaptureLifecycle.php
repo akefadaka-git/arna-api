@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
@@ -161,7 +159,7 @@ final class DocumentEvidenceCaptureLifecycle
 
                 return $captured;
             });
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             DB::transaction(function () use ($intent, $tenantId, $actorId): void {
                 $locked = DB::table('document_evidence_capture_intents')->where('tenant_id', $tenantId)
                     ->where('id', $intent->id)->lockForUpdate()->first();
