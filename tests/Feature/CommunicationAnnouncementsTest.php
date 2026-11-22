@@ -38,8 +38,8 @@ final class CommunicationAnnouncementsTest extends TestCase
     {
         $catalogue = collect(PermissionCatalogue::ROWS)->keyBy('slug');
 
-        // Existing platform capabilities plus thirteen formal Documents workflow permissions.
-        $this->assertCount(73, PermissionCatalogue::ROWS);
+        // Sixty-one platform capabilities plus thirteen formal Documents workflow permissions.
+        $this->assertCount(74, PermissionCatalogue::ROWS);
 
         foreach (['announcement.view', 'announcement.manage', 'announcement.approve', 'announcement.publish'] as $slug) {
             $this->assertTrue($catalogue->has($slug), "Missing canonical permission: {$slug}");
