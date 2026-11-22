@@ -26,6 +26,9 @@ return new class extends Migration
             if (!Schema::hasColumn('governance_elections', 'record_date')) {
                 $table->date('record_date')->nullable();
             }
+            if (!Schema::hasColumn('governance_elections', 'voting_method')) {
+                $table->string('voting_method', 24)->nullable();
+            }
             if (!Schema::hasColumn('governance_elections', 'voting_rule_version')) {
                 $table->string('voting_rule_version', 80)->nullable();
             }
@@ -94,6 +97,7 @@ return new class extends Migration
                 ['tenant_id', 'election_id', 'shareholder_id', 'share_class_code'],
                 'gov_elec_voter_class_uq'
             );
+            $table->unique(['tenant_id', 'election_id', 'id'], 'gov_elec_voter_tenant_id_uq');
             $table->index(['tenant_id', 'snapshot_id'], 'gov_elec_voter_snapshot_idx');
             $table->foreign(['tenant_id', 'election_id'], 'gov_elec_voter_election_fk')
                 ->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
@@ -101,6 +105,32 @@ return new class extends Migration
                 ->references(['tenant_id', 'id'])->on('governance_election_register_snapshots')->restrictOnDelete();
             $table->foreign('shareholder_id', 'gov_elec_voter_shareholder_fk')
                 ->references('id')->on('shareholders')->restrictOnDelete();
+        });
+
+        Schema::create('governance_election_ballots', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('election_id');
+            $table->unsignedBigInteger('voter_id');
+            $table->string('ballot_reference', 100);
+            $table->string('channel', 24)->default('physical');
+            $table->string('status', 24)->default('issued');
+            $table->string('custody_reference', 160)->nullable();
+            $table->dateTime('issued_at')->nullable();
+            $table->dateTime('received_at')->nullable();
+            $table->unsignedBigInteger('issued_by')->nullable();
+            $table->unsignedBigInteger('received_by')->nullable();
+            $table->timestamps();
+            $table->unique(['tenant_id', 'election_id', 'voter_id'], 'gov_election_ballot_once');
+            $table->unique(['tenant_id', 'election_id', 'ballot_reference'], 'gov_election_ballot_ref_once');
+            $table->foreign(['tenant_id', 'election_id'], 'gov_elec_ballot_election_fk')
+                ->references(['tenant_id', 'id'])->on('governance_elections')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'election_id', 'voter_id'], 'gov_elec_ballot_voter_fk')
+                ->references(['tenant_id', 'election_id', 'id'])->on('governance_election_voters')->restrictOnDelete();
+            $table->foreign('issued_by', 'gov_elec_ballot_issuer_fk')
+                ->references('id')->on('users')->restrictOnDelete();
+            $table->foreign('received_by', 'gov_elec_ballot_receiver_fk')
+                ->references('id')->on('users')->restrictOnDelete();
         });
     }
 
@@ -115,10 +145,14 @@ return new class extends Migration
             );
         }
 
+        Schema::dropIfExists('governance_election_ballots');
         Schema::dropIfExists('governance_election_voters');
         Schema::dropIfExists('governance_election_register_snapshots');
 
         Schema::table('governance_elections', function (Blueprint $table): void {
+            if (Schema::hasColumn('governance_elections', 'voting_method')) {
+                $table->dropColumn('voting_method');
+            }
             if (Schema::hasColumn('governance_elections', 'voting_rule_version')) {
                 $table->dropColumn('voting_rule_version');
             }
