@@ -23,6 +23,8 @@ final class AdaptiveAuthenticationPolicy
     public const CRITICAL = 'critical';
 
     private const ENHANCED_ACTIONS = [
+        'wallet.payment.record',
+        'loan.repayment.record',
         'password_recovery',
         'password_reset',
         'identity_change',
