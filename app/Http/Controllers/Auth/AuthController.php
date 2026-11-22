@@ -1433,6 +1433,172 @@ final class AuthController extends Controller
         ]);
     }
 
+
+    /**
+     * Start a self-service login-identity change after checking the proposed
+     * value and binding the step-up challenge to its normalized hash.
+     */
+    public function requestIdentityChangeChallenge(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'field' => ['required', 'string', 'in:email,username,mobile_number'],
+            'value' => ['required', 'string', 'max:255'],
+            'channel' => ['required', 'string', 'in:email,sms'],
+        ]);
+
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            throw AuthenticationException::unauthenticated();
+        }
+
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
+            ? (int) $tenantId
+            : (int) ($user->default_tenant_id ?? 0);
+        if ($tenantId < 1 || ! $user->activeTenants()->where('tenants.id', $tenantId)->exists()) {
+            throw new AuthenticationException('A verified tenant membership is required.', 'AUTH_TENANT_CONTEXT_REQUIRED', 403);
+        }
+
+        $normalized = $this->normalizeIdentityChangeValue($validated['field'], $validated['value']);
+        $this->assertIdentityValueAvailable($user, $validated['field'], $normalized);
+
+        $context = [
+            'identity_type' => $validated['field'],
+            'new_value_hash' => hash('sha256', $normalized),
+        ];
+        $challenge = app(AdaptiveStepUpService::class)->issueOtp(
+            $user,
+            $tenantId,
+            'identity_change',
+            $validated['channel'],
+            $context,
+        );
+
+        return response()->json(['success' => true, 'data' => $challenge]);
+    }
+
+    /**
+     * Apply an email, username or mobile-number change only after the
+     * matching OTP/TOTP grant has been consumed. Employee, shareholder and
+     * wallet identifiers remain controlled by their owning domains.
+     */
+    public function changeIdentity(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'field' => ['required', 'string', 'in:email,username,mobile_number'],
+            'value' => ['required', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            throw AuthenticationException::unauthenticated();
+        }
+
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
+            ? (int) $tenantId
+            : (int) ($user->default_tenant_id ?? 0);
+        if ($tenantId < 1 || ! $user->activeTenants()->where('tenants.id', $tenantId)->exists()) {
+            throw new AuthenticationException('A verified tenant membership is required.', 'AUTH_TENANT_CONTEXT_REQUIRED', 403);
+        }
+
+        $normalized = $this->normalizeIdentityChangeValue($validated['field'], $validated['value']);
+        $this->assertIdentityValueAvailable($user, $validated['field'], $normalized);
+        $context = [
+            'identity_type' => $validated['field'],
+            'new_value_hash' => hash('sha256', $normalized),
+        ];
+        $grant = (string) ($request->header('X-ARNA-Step-Up-Token') ?? $request->input('step_up_token', ''));
+
+        if (! app(AdaptiveStepUpService::class)->consumeGrant($user, $tenantId, 'identity_change', $context, $grant)) {
+            throw new AuthenticationException('Additional authentication is required for this identity change.', 'AUTH_STEP_UP_REQUIRED', 403);
+        }
+
+        $attributes = match ($validated['field']) {
+            'email' => ['email' => $normalized, 'email_verified_at' => null],
+            'username' => ['username' => $normalized],
+            'mobile_number' => [
+                'phone' => $normalized,
+                'phone_verified_at' => null,
+                'phone_verified_phone_hash' => null,
+            ],
+        };
+
+        $user->forceFill($attributes)->save();
+
+        if ($validated['field'] === 'email') {
+            $user->sendEmailVerificationNotification();
+        }
+
+        app(DeviceSessionService::class)->revokeAllForUser($user, 'identity_change');
+
+        Log::info('ARNA login identity changed', [
+            'user_id' => $user->getKey(),
+            'identity_type' => $validated['field'],
+            'new_value_hash' => hash('sha256', $normalized),
+            'ip' => $request->ip(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'identity_updated' => true,
+                'field' => $validated['field'],
+                'verification_required' => in_array($validated['field'], ['email', 'mobile_number'], true),
+                'login_required' => true,
+            ],
+        ]);
+    }
+
+    private function normalizeIdentityChangeValue(string $field, string $value): string
+    {
+        $value = trim($value);
+
+        if ($field === 'email') {
+            $normalized = strtolower($value);
+            if (! filter_var($normalized, FILTER_VALIDATE_EMAIL)) {
+                throw ValidationException::withMessages(['value' => ['A valid email address is required.']]);
+            }
+
+            return $normalized;
+        }
+
+        if ($field === 'username') {
+            $normalized = strtolower($value);
+            if (! preg_match('/^[a-z0-9._-]{3,50}$/', $normalized)) {
+                throw ValidationException::withMessages(['value' => ['Username must be 3–50 characters using letters, numbers, dot, underscore or hyphen.']]);
+            }
+
+            return $normalized;
+        }
+
+        if (! preg_match('/^\\+[1-9][0-9]{7,14}$/', $value)) {
+            throw ValidationException::withMessages(['value' => ['Mobile number must use international E.164 format.']]);
+        }
+
+        return $value;
+    }
+
+    private function assertIdentityValueAvailable(CoreUser $user, string $field, string $value): void
+    {
+        $column = match ($field) {
+            'email' => 'email',
+            'username' => 'username',
+            'mobile_number' => 'phone',
+        };
+
+        $query = CoreUser::query()->where('id', '!=', $user->getKey());
+        if (in_array($field, ['email', 'username'], true)) {
+            $query->whereRaw('LOWER('.$column.') = ?', [strtolower($value)]);
+        } else {
+            $query->where($column, $value);
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages(['value' => ['This identifier is already assigned to another account.']]);
+        }
+    }
+
     /**
      * Resolve only a verified recovery identifier class: email or phone.
      * Employee, shareholder and wallet identifiers are not recovery channels.
