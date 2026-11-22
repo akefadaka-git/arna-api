@@ -21,9 +21,10 @@ Set these values on the API host (Plesk environment file):
 - SESSION_DOMAIN=.maalearna.com.et
 - SESSION_SECURE_COOKIE=true
 - SESSION_SAME_SITE=lax
-- SANCTUM_STATEFUL_DOMAINS=www.maalearna.com.et,auth.maalearna.com.et,app.maalearna.com.et,portal.maalearna.com.et,finance.maalearna.com.et,admin.maalearna.com.et,arna.maalearna.com.et,ai.maalearna.com.et,file.maalearna.com.et
+- SANCTUM_STATEFUL_DOMAINS=app.maalearna.com.et,portal.maalearna.com.et
+- CORS_ALLOWED_ORIGINS=https://www.maalearna.com.et,https://auth.maalearna.com.et,https://app.maalearna.com.et,https://portal.maalearna.com.et,https://finance.maalearna.com.et,https://admin.maalearna.com.et,https://arna.maalearna.com.et,https://ai.maalearna.com.et,https://file.maalearna.com.et
 
-The stateful list must contain every first-party browser origin permitted to use the shared identity. Keep it aligned with the explicit HTTPS origins in config/cors.php; do not use a wildcard. Credentialed CORS must remain enabled. All browser/API traffic must use HTTPS.
+Only `app` and `portal` are currently cookie-authenticated SPA hosts and belong in `SANCTUM_STATEFUL_DOMAINS`. The broader nine-host CORS allow-list permits approved browser origins but does not make those hosts stateful or SSO-enabled. A host must be present in both lists to use the shared SSO cookie. Add another host to both lists only after approving it as a cookie-authenticated SPA. Credentialed CORS must remain enabled, without wildcards. All browser/API traffic must use HTTPS.
 
 ## Security invariants
 
