@@ -249,6 +249,9 @@ final class ImmutableDocumentBinaryStore
             return ! file_exists($target) && ! is_link($target);
         }
 
+        if (is_link($lockPath)) {
+            return false;
+        }
         $lock = fopen($lockPath, 'c');
         if (! is_resource($lock)) {
             return false;
