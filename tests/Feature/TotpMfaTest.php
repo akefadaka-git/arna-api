@@ -115,35 +115,46 @@ final class TotpMfaTest extends TestCase
     }
 
     #[Test]
-    public function login_does_not_issue_a_token_until_totp_is_verified(): void
+    public function password_login_is_single_authenticator_even_when_totp_is_enrolled(): void
     {
-        [$user, $secret] = $this->enrolledUser();
+        [$user] = $this->enrolledUser();
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $user->tenants()->attach($tenant->id, ['joined_at' => now(), 'status' => 'active']);
-
-        $first = $this->postJson('/api/login', [
-            'email' => $user->email,
-            'password' => 'password',
-            'tenant_id' => $tenant->id,
-        ])->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.mfa_required', true);
-
-        $challenge = $first->json('data.challenge_token');
-        $this->assertIsString($challenge);
-        $this->assertSame(0, DB::table('personal_access_tokens')->where('tokenable_id', $user->id)->count());
 
         $this->postJson('/api/login', [
             'email' => $user->email,
             'password' => 'password',
             'tenant_id' => $tenant->id,
-            'mfa_challenge_token' => $challenge,
-            'mfa_code' => $this->currentTotp($secret, 1),
         ])->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.token_type', 'Bearer');
 
         $this->assertSame(1, DB::table('personal_access_tokens')->where('tokenable_id', $user->id)->count());
+    }
+
+    #[Test]
+    public function returning_user_can_choose_google_authenticator_as_the_single_login_authenticator(): void
+    {
+        [$user, $secret] = $this->enrolledUser();
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user->tenants()->attach($tenant->id, ['joined_at' => now(), 'status' => 'active']);
+
+        $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'tenant_id' => $tenant->id,
+        ])->assertOk();
+
+        $this->postJson('/api/login/authenticator', [
+            'identifier' => $user->email,
+            'tenant_id' => $tenant->id,
+            'authenticator' => 'google_authenticator',
+            'code' => $this->currentTotp($secret, 1),
+        ])->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.token_type', 'Bearer');
+
+        $this->assertSame(2, DB::table('personal_access_tokens')->where('tokenable_id', $user->id)->count());
     }
 
     #[Test]
