@@ -749,6 +749,84 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         self::assertTrue(Storage::disk('local')->exists($snapshot['path']));
     }
 
+    public function test_reserved_intent_recovers_an_object_written_before_capture_state_commit(): void
+    {
+        [$tenantId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $now = now();
+        $intentId = (int) DB::table('document_evidence_capture_intents')->insertGetId([
+            'operation_uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'tenant_id' => $tenantId,
+            'file_id' => $fileId,
+            'file_version' => 1,
+            'status' => 'reserved',
+            'reserved_by_user_id' => $actor->getKey(),
+            'attempt_count' => 0,
+            'reserved_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        // Simulate a process stopping after the immutable write but before
+        // the independent CAPTURED state transaction commits.
+        $snapshot = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\ImmutableDocumentBinaryStore::class)
+            ->capture($tenantId, $fileId, 1, 'local', 'documents/source.pdf');
+        $prepared = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class)
+            ->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
+
+        self::assertSame($intentId, $prepared['intent_id']);
+        self::assertSame($snapshot['path'], $prepared['snapshot']['path']);
+        self::assertSame('captured', DB::table('document_evidence_capture_intents')
+            ->where('id', $intentId)->value('status'));
+    }
+
+    public function test_expired_cleanup_lease_is_reclaimed_and_completed_idempotently(): void
+    {
+        [$tenantId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
+
+        DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
+            'status' => 'cleanup_claimed',
+            'cleanup_claim_token' => (string) \Illuminate\Support\Str::uuid(),
+            'cleanup_claimed_at' => now()->subMinutes(20),
+            'cleanup_lease_until' => now()->subMinutes(10),
+        ]);
+
+        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+            ->run(100, 1440, true);
+
+        self::assertSame(1, $result['deleted']);
+        self::assertSame('deleted', DB::table('document_evidence_capture_intents')
+            ->where('id', $prepared['intent_id'])->value('status'));
+        self::assertFalse(Storage::disk('local')->exists($prepared['snapshot']['path']));
+    }
+
+    public function test_digest_mismatch_quarantines_capture_without_deleting_binary(): void
+    {
+        [$tenantId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
+
+        DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
+            'sha256' => str_repeat('0', 64),
+            'captured_at' => now()->subDays(2),
+        ]);
+
+        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+            ->run(100, 1440, true);
+
+        self::assertSame(1, $result['quarantined']);
+        self::assertSame('quarantined', DB::table('document_evidence_capture_intents')
+            ->where('id', $prepared['intent_id'])->value('status'));
+        self::assertTrue(Storage::disk('local')->exists($prepared['snapshot']['path']));
+    }
+
     private function workflowReadyToIssue(
         DocumentWorkflowAggregateService $service,
         User $actor,
