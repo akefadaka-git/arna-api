@@ -84,6 +84,8 @@ final class AdaptiveStepUpContext
             'loan.repayment.record',
             'wallet.balance.adjust',
             'wallet.payment.reverse',
+            'loan.approve',
+            'loan.restructure',
             'loan.disburse',
             'loan.writeoff',
             'critical_financial_transaction',
@@ -97,6 +99,8 @@ final class AdaptiveStepUpContext
         foreach ($value as $key => $item) {
             if (is_array($item)) {
                 $value[$key] = $this->normalize($item);
+            } elseif (str_ends_with((string) $key, '_id') && is_scalar($item)) {
+                $value[$key] = (string) $item;
             } elseif (is_object($item)) {
                 $value[$key] = method_exists($item, 'toArray') ? $this->normalize($item->toArray()) : (string) $item;
             } elseif (is_float($item)) {
