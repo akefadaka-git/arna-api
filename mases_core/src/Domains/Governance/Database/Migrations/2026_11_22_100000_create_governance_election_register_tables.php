@@ -106,12 +106,10 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (Schema::hasTable('governance_election_register_snapshots')
-            && Schema::hasTable('governance_election_voters')
-            && (
-                DB::table('governance_election_register_snapshots')->where('register_status', 'frozen')->exists()
-                || DB::table('governance_election_voters')->exists()
-            )) {
+        if ((Schema::hasTable('governance_election_register_snapshots')
+                && DB::table('governance_election_register_snapshots')->exists())
+            || (Schema::hasTable('governance_election_voters')
+                && DB::table('governance_election_voters')->exists())) {
             throw new RuntimeException(
                 'Refusing to remove voter-register evidence. Restore from a verified backup under an approved recovery procedure.'
             );
