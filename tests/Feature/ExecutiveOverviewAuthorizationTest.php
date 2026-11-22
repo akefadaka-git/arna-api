@@ -144,6 +144,40 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
 
     }
 
+
+    #[Test]
+    public function workforce_permission_is_not_inherited_from_broad_role_wildcards(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $roles = [];
+        foreach (array_keys(RolePermissionGrants::MAP) as $slug) {
+            $isPlatformRole = in_array($slug, ['super_admin', 'platform_admin'], true);
+            $isApplicationRole = in_array($slug, ['finance_manager', 'hr_manager'], true);
+            $roles[$slug] = $this->createRole([
+                'slug' => $slug,
+                'scope' => $isPlatformRole ? 'platform' : ($isApplicationRole ? 'application' : 'tenant'),
+                'tenant_id' => $isPlatformRole ? null : $tenant->id,
+                'is_active' => true,
+            ]);
+        }
+
+        $permission = Permission::factory()->create([
+            'slug' => 'people.workforce.view',
+            'scope' => 'tenant',
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $permissions = ['people.workforce.view' => $permission];
+        (new RolePermissionSeeder())->seed($roles, $permissions);
+
+        foreach ($roles as $slug => $role) {
+            $this->assertFalse(
+                $role->fresh()->hasPermission('people.workforce.view'),
+                "Workforce permission must not be inherited by role [{$slug}]."
+            );
+        }
+    }
+
     #[Test]
     public function executive_audience_is_bound_to_the_current_tenant_role_assignment(): void
     {
