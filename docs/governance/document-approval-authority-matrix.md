@@ -1,0 +1,221 @@
+# ARNA Document Approval Authority Matrix — Decision Register
+
+- **Document ID:** ARNA-DOC-AUTH-001
+- **Status:** Control matrix established; business authority assignments remain blocked where no approved source instrument is evidenced.
+- **Baseline:** `main` at `22afaaf826ee3681f0a6b6e2a11c467a9a25ee67` (refreshed 2026-11-22)
+- **Source branch:** `docs/document-approval-authority-matrix` (reconciled and preserved on `main` 2026-11-22)
+- **Purpose:** Prevent document approval, signing, or publication from being assigned to the wrong office, role, or delegated actor.
+- **Scope:** Formal documents linked to the existing Core `files` store; not a second binary store.
+
+## 1. Findings that constrain this matrix
+
+### Existing authority evidence reconciled
+
+The repository already has an Owner-approved **provisional control matrix**: [`docs/governance/ARNA-GOV-MAT-PSC-001-AM.md`](https://github.com/akefadaka-git/arna-api/blob/main/docs/governance/ARNA-GOV-MAT-PSC-001-AM.md), blob `07eb3f567bcc67fe2c7ac8e66c0a993c0d1e69c2`. Its approval is explicitly limited to control principles (segregation of duties, evidence retention, conflict declarations, bounded delegation, audit trail, tenant scope, and denial of unverified authority); it does not verify legal powers, committee appointments, quorum, monetary limits, bank signatures, or specific approvers. The companion policy [`docs/governance/ARNA-GOV-POL-PSC-001.md`](https://github.com/akefadaka-git/arna-api/blob/main/docs/governance/ARNA-GOV-POL-PSC-001.md) states that reserved/unknown authority remains pending formal approval and prohibits inventing thresholds.
+
+The source register also reports a signed/stamped 17-page internal-bylaw scan located in the user's Library, but clause-level verification is still in progress; the Articles/Memorandum have not yet been matched to a separate source file, and Board/General Assembly resolutions and finance/signing authority evidence are not verified. Therefore, this matrix is **resolved as a fail-closed control design**, but its business approver assignments remain **blocked** until exact clauses/resolutions are extracted and checked. No unapproved draft framework or proposed threshold is elevated to authority.
+
+1. The Core file layer supports file upload, listing, metadata update, download, soft delete/restore, and version history. It does not itself prove formal business approval.
+2. Governance configuration defines document categories including meeting notices, agendas, minutes, resolutions, appointment letters, committee mandates, election records, declarations, action evidence, and governance reports.
+3. Governance confidentiality vocabulary includes `public`, `restricted`, `confidential`, and `secret`; access requires both RBAC permission and record-level confidentiality authorization.
+4. The implemented Governance authority-grant mechanism is narrow. Its documented actions are appointment management and other-member membership management. It expressly excludes financial approvals, and cannot be treated as a generic document-approval delegation engine.
+5. Governance design records some approval authorities as business decisions requiring source instruments. In particular, the source does not establish a universal approver for governance minutes, all resolutions, declarations, or every document category.
+6. Therefore, this register separates **safe workflow controls** from **business authority assignments**. It does not fabricate a role-to-document approval map.
+
+## 2. Enforced default-deny rule
+
+A document type may enter the approval workflow, but **approval, signing, and publication remain disabled for that type until an authority rule is recorded with its source instrument and approved by the Owner or competent governance body**.
+
+A user role, department title, uploader identity, document creator, file status, or UI visibility is not sufficient evidence of approval authority. Existing RBAC is necessary but not by itself sufficient when the action requires a legal/organizational authority grant.
+
+For each approved rule, the authorization service must validate:
+- tenant and document-type scope;
+- canonical active Person/account;
+- current office/position/membership and effective dates, where applicable;
+- a current appointment or explicit valid delegation whose action and scope match this exact transition;
+- any required governing-body resolution, quorum, voting/adoption evidence, amount/value limits, and effective date;
+- separation of duties and conflict-of-interest restrictions;
+- confidentiality authorization independently of workflow permission;
+- publication authority separately from approval authority.
+
+Missing, conflicting, expired, revoked, or untraceable evidence means **DENY** and an auditable unresolved result.
+
+## 3. Document-type authority matrix
+
+The “authority source required” column identifies evidence needed to resolve the rule; it does not pre-assign that authority.
+
+| Document category/type | Prepare / own | Approval authority | Publication / release authority | Status |
+|---|---|---|---|---|
+| Official outgoing letter | Authorized drafter/owning unit, after its mandate is verified | UNRESOLVED — approved signing/approval delegation or governing policy required | UNRESOLVED — explicit release permission and audience required | BLOCKED |
+| Internal memo | Authorized drafter/owning unit | UNRESOLVED — internal delegation/policy required | UNRESOLVED — distribution scope and confidentiality policy required | BLOCKED |
+| Public announcement | Authorized drafter/owning unit | UNRESOLVED — communications policy and accountable authority required | UNRESOLVED — distinct release authority required; public status must not be inferred | BLOCKED |
+| Policy / procedure | Authorized policy owner | UNRESOLVED — competent approving body and required resolution/version rule required | UNRESOLVED — publication authority and effective-date rule required | BLOCKED |
+| Legal instrument / contract | Authorized legal/business owner after mandate is verified | UNRESOLVED — signing mandate, counterparty/execution rules, and any reserved-matter approval required | UNRESOLVED — controlled distribution; no public release by default | BLOCKED |
+| Certificate | Authorized registrar/issuer after issuer mandate is verified | UNRESOLVED — issuance authority and evidence required | UNRESOLVED — recipient/revocation and verification policy required | BLOCKED |
+| Governance meeting notice / agenda | Authorized secretary or body office only if its mandate is verified | UNRESOLVED — applicable body's rules and notice authority required | UNRESOLVED — recipients, confidentiality, and release timing required | BLOCKED |
+| Governance minutes | Authorized minute preparer/secretary, if designated | UNRESOLVED — existing Governance design identifies this as a business decision; governing body's adoption rule must be sourced | UNRESOLVED — approved record publication/distribution rule required | BLOCKED |
+| Governance resolution / decision | Authorized recorder after a valid decision process | UNRESOLVED — must be supported by adopted resolution/decision, competent body, quorum/vote and signed record as applicable | UNRESOLVED — effectivity and disclosure rule required | BLOCKED |
+| Appointment letter / committee mandate | Authorized Governance/People preparer, based on a valid appointment/mandate record | UNRESOLVED — source appointment/mandate authority and instrument requirements required; do not treat letter approval as authority to create the underlying appointment | UNRESOLVED — issue/delivery scope required | BLOCKED |
+| Election record / declaration | Authorized recorder | UNRESOLVED — certification/review authority and access rules must be sourced | UNRESOLVED — disclosure depends on record type and confidentiality policy | BLOCKED |
+| Financial report / journal support / financial statement | Finance preparer only after Finance role and entity scope are approved | UNRESOLVED — Finance approval, posting, close, and statement sign-off matrix must be separately approved; Governance grants do not authorize it | UNRESOLVED — financial disclosure/export authority and legal-entity scope required | BLOCKED |
+| Operational report / performance plan | Authorized domain owner, once data ownership is verified | UNRESOLVED — report owner and management review policy required | UNRESOLVED — audience, confidentiality and release policy required | BLOCKED |
+
+**Interpretation:** the preparer column describes a constrained candidate workflow role, not a new permission grant. The matrix intentionally assigns no actual approver, signer, or publisher until the authoritative source has been inspected and approved.
+
+## 4. Evidence record required to activate any matrix row
+
+Each row must be backed by a versioned authority-rule record containing:
+- unique rule ID and version;
+- tenant and document type/category;
+- action(s): approve, sign, publish, archive, certify, or issue — each is separate;
+- authoritative source type and exact source reference (Articles/bylaws, Board/General Assembly resolution, approved policy, or explicit delegation);
+- approving body/office/position and required sequence or quorum, if applicable;
+- permitted acting/delegated authority, scope, non-delegability constraints, and effective dates;
+- separation-of-duties and conflict-of-interest rules;
+- confidentiality classification and eligible audience;
+- effective-from/until dates, superseding rule reference, Owner/competent-body acceptance evidence, and audit provenance.
+
+A free-form role slug, unvalidated JSON approver list, or UI setting without source evidence is not an acceptable authority record.
+
+## 5. Safe lifecycle contract pending authority resolution
+
+Recommended lifecycle:
+`draft → in_review → approved → published → archived`
+Rejection returns a record to controlled revision; it must not erase prior decisions.
+
+Controls that can be designed independently of business-role assignments:
+1. Approval and publication are distinct transitions.
+2. The submitted file/version is immutable for the decision; a new version invalidates pending approval and requires resubmission.
+3. Record and action history are tenant-scoped; actions are append-only and include actor, action, reason, source version, request/correlation ID and timestamp.
+4. Draft editing, submit, approve, reject, sign, publish, archive, retention hold and destructive disposal are separate permissions.
+5. Self-approval is denied as the safe default unless a formally approved policy defines a narrowly scoped exception; no exception is enabled by this document.
+6. Published/approved records are not hard-deleted by ordinary workflow operations. Legal hold and retention policy must be enforced before any authorized disposal.
+7. Public exposure is denied unless both the document type is approved for public release and the actor has the separate publication authority.
+8. Every state change is transactional and guarded against stale revision/concurrent duplicate requests.
+9. Confidentiality restrictions are evaluated in addition to workflow permissions.
+10. No fallback approver, implicit hierarchy inheritance, or “tenant admin can approve everything” rule.
+
+## 6. Owner / governance decisions required
+
+| ID | Decision | Evidence required | Current state |
+|---|---|---|---|
+| DOC-A01 | Initial canonical document taxonomy and mapping from Governance categories | Approved taxonomy and category owner | PARTIAL: Governance vocabulary exists; enterprise-wide taxonomy unresolved |
+| DOC-A02 | Competent authority for each document type and action | Articles/bylaws, approved Board/General Assembly resolution, or policy | UNRESOLVED |
+| DOC-A03 | Whether approval is one-step, sequential, committee/quorum-based, or multi-signature | Approved authority matrix and voting/meeting rules | UNRESOLVED |
+| DOC-A04 | Acting/delegated authority eligibility and exclusions for document actions | Approved delegation policy; existing grant service does not cover document approvals | UNRESOLVED |
+| DOC-A05 | Self-approval and conflict-of-interest policy | Approved policy; proposed default is deny | DEFAULT-DENY PROPOSED |
+| DOC-A06 | Numbering, reservation, cancellation, and non-reuse rules | Approved numbering policy | UNRESOLVED |
+| DOC-A07 | Which types can be public and who may release them | Publication/disclosure policy | UNRESOLVED |
+| DOC-A08 | Confidentiality audience per level | Approved access classification policy | PARTIAL: labels exist; complete audiences not verified |
+| DOC-A09 | Retention, archival, legal hold, and lawful disposal | Retention schedule and legal policy | UNRESOLVED |
+| DOC-A10 | Signing method, signature evidence, and execution date semantics | Approved signing/execution policy | UNRESOLVED |
+| DOC-A11 | Canonical authority source and controlled policy/version registry | Approved source-of-truth decision | UNRESOLVED |
+
+## 7. Implementation gate
+
+### Evidence reconciliation outcome
+
+- **VERIFIED:** an Owner-approved provisional governance control matrix exists; it establishes controls and a default denial for unsupported authority, not specific legal authority assignments.
+- **PARTIAL:** a signed/stamped internal-bylaw scan is reported located in the Library, but clause-level transcription/verification remains in progress in the source register.
+- **MISSING / NOT VERIFIED:** a matched authoritative Articles/Memorandum source and adopted resolution evidence for document-specific approval, signature, quorum, delegation, and publication authority.
+- **BLOCKED:** assigning actual approver identities/roles to document types, activating approval routes, or granting document approval/delegation permissions.
+
+The next evidence task is to retrieve the exact bylaw PDF from the Library, inspect its page images/text, transcribe relevant clauses with page references, and compare them against the matched Articles and adopted resolutions. Until that is done, do not populate a production approver matrix from the provisional or historical draft frameworks.
+
+**A1:** this control matrix and unresolved decision register are ready for Owner/governance review.
+
+**A2:** collect and inspect authoritative organizational/legal instruments and the current Governance authority/appointment/delegation records. Build a source-cited row for each document type; no role assignments by inference.
+
+**A3:** only after the authority matrix is approved, implement document-type rules, permission checks, and persisted approval-route snapshots. Keep file bytes/version metadata in Core `files`; do not create another file store.
+
+**A4:** verify tenant isolation, inactive/expired/revoked authority denial, exact submitted-version binding, separation of duties, quorum/sequence where required, confidentiality, publication gating, append-only audit, and concurrent idempotency on the exact candidate SHA.
+
+**A5:** production migration/deployment and any public release require separate authorization.
+
+**Current disposition:** business approval authority is **not yet resolved** because the necessary authoritative instruments are not evidenced in the inspected source. The safe matrix is resolved to **deny until evidence-backed authority rules are approved**. No approval or publication rights are granted by this document.
+
+## 8. Clause-level source verification — evidence log (2026-10-28)
+
+### Source located and inspected
+
+- **File:** `የማሌ_ዓርና_አክሲዮን_ማኅበር_መተዳደሪያ_ደንብ.pdf`
+- **Library file reference:** `file_00000000c62c81faabf645f3b8cf7d31`
+- **Extent:** 17 scanned pages; page images were inspected across the complete file.
+- **Physical-form indicators:** signatures and circular stamps are visible on multiple internal pages; the last page contains additional signature/stamp marks. This confirms only that marks appear in the scan. It does **not** authenticate signatories, certify registration/currentness, or establish that the text is the latest effective version.
+- **OCR/transcription limitation:** the PDF is image-only and no reliable searchable text was returned. The page images are not clear enough to transcribe every Amharic clause without risking a false quotation. Consequently, this review does not claim verified verbatim clause numbers or wording.
+- **Citation anchors:** pages 1–6: <FileCite ref_id="turn653file0" />; pages 7–12: <FileCite ref_id="turn653file1" />; pages 13–17: <FileCite ref_id="turn653file2" />.
+
+### Clause verification register
+
+| Subject needed for a production authority rule | Evidence inspected | Verification outcome | Decision |
+|---|---|---|---|
+| Board powers and reserved matters | Bylaw scan pages 1–17 visually inspected; no reliable verbatim transcription | PARTIAL / NOT VERIFIED at clause level | Do not assign document approval power from an inferred heading or role |
+| General Assembly powers, quorum, voting and adopted resolutions | Bylaw scan visually inspected; separate Articles/Memorandum and signed adopted resolution were not located in the Library search | MISSING from the retrieved evidence | Do not encode quorum, majority, or reserved-matter thresholds |
+| Official letters, signing authority, seal use and delegation | No sufficiently legible, verified clause and no current signing/delegation instrument matched | UNRESOLVED | Signing authority remains denied until source instrument and active office-holder are verified |
+| Meeting notices, agenda and minutes adoption/signature | No reliable clause-level transcription; no matching adopted minutes/resolution evidence located | UNRESOLVED | No default secretary/chair approval route is activated |
+| Publication/disclosure authority | No verified company-specific disclosure instrument located | UNRESOLVED | Public release denied by default |
+| Finance policy, accounting basis, chart of accounts, period close and sign-off | No approved company accounting policy or current Finance/Board resolution located | MISSING from retrieved evidence | Architecture recommendations remain proposals, not approved accounting policy |
+| Retention, archive and lawful disposal | No verified retention schedule or legal-hold policy located | UNRESOLVED | Preserve records; do not implement destructive disposal rules |
+
+### Other repository/library artifacts excluded as authority evidence
+
+- The retrieved Governance & Digital Transformation blueprints and procurement/approval-threshold drafts contain proposed committees and ETB limits, but their presence in the Library does not prove adoption by the competent body. In particular, draft figures such as Department Head ETB 200,000, Procurement Manager ETB 500,000, CEO ETB 5,000,000, or a Procurement Committee ETB 2,000,000 ceiling are **not approved authority** on the evidence inspected and must not be configured.
+- A legacy SQL dump contains website content about shareholder meetings/notices; a notice or website announcement is not itself a signed resolution or proof of the adopted outcome.
+- The existence of a scanned signed/stamped bylaw is not enough to certify its legal effect or currentness. Obtain a legible certified copy and match it to the Articles/Memorandum and the latest amendment/resolution register.
+
+### Determination
+
+The bylaw file was found and all 17 page images were inspected, but **clause-level legal verification is not complete** because the source is image-only/low legibility and the necessary companion Articles/Memorandum and adopted resolutions were not located. It would be unsafe to claim otherwise.
+
+The only rule safe to activate now is the control rule: **deny approval, signature, certification, and publication when authority evidence is absent, ambiguous, expired, or outside scope**. All business approver assignments remain blocked. This is a control determination, not legal advice or a certification of the bylaw.
+
+### Required evidence to close this gate
+
+1. Legible/certified current Articles and Memorandum of Association, including amendment history.
+2. A readable copy of the 17-page bylaw or a verified human transcription with page and clause references.
+3. Current adopted Board/General Assembly resolutions and minutes that appoint office-holders, approve delegation/signing/seal authority, and establish document-specific approval rules.
+4. The effective accounting policy and resolutions approving accounting basis, fiscal year, reporting currency, close authority, and financial-statement sign-off.
+5. Legal/Company Secretary confirmation of which instruments are current and which authority is reserved by law or the Articles.
+
+No production approval route is activated by this evidence log.
+
+
+## 9. Current-main reconciliation addendum — 2026-11-22
+
+**Reviewed main SHA:** `22afaaf826ee3681f0a6b6e2a11c467a9a25ee67`  
+**Source document blob before reconciliation:** `62e3b95faec536b043dd80b65c53d21ee037f8f5`  
+**Disposition:** CONTROL MATRIX RECONCILED; BUSINESS APPROVER ASSIGNMENTS REMAIN BLOCKED.
+
+### 9.1 Current implemented authority boundaries
+
+| Current-main artifact | Blob SHA | Reconciliation |
+|---|---|---|
+| `docs/governance/P1.3-B3-authority-delegation-design.md` | `706217f867d137be9e218eb6c1e7c28b9f1e44ef` | P1.3-B3 is merged and verified for narrow appointment-management and other-member membership-management delegation. It explicitly excludes financial authority, document approval, and generic approval delegation. |
+| `docs/governance/election-authority-committee-integration.md` | `e5874b15962bb5259439995dbd9e9c77a5c6d839` | Election authority evidence and committee appointment are integrated with the canonical election lifecycle; this is election-specific authority evidence, not a general document-approval matrix. |
+| `docs/governance/ARNA-GOV-MAT-PSC-001-AM.md` | `07eb3f567bcc67fe2c7ac8e66c0a993c0d1e69c2` | Owner-approved provisional control matrix remains limited to control principles and fail-closed treatment; it does not assign unverified legal powers. |
+| `docs/governance/ARNA-GOV-POL-PSC-001.md` | `0486e6f1870f52fa596460b1c5cc2d8c5f10b485` | Proposed policy remains draft pending formal corporate approval; it is not an authority source. |
+
+### 9.2 Election-specific authority implementation — limited scope
+
+PR #176 merged on 2026-11-21:
+
+- Tested PR head: `a7cbc757a1d04c4ae6b9bf114dedf97e2b918fe5`.
+- Merge commit: `3fca049c2fb3549d81d4ff57bc4b77776fb86db1`.
+- The lifecycle authorization flow requires a published File Management document, server-computed SHA-256 evidence, separate record/review/verification provenance, and a server-generated canonical authority snapshot.
+- Committee appointments are bound to an authorized election and its verified authority evidence; committee decision controls require a current authority-backed appointment, active tenant access, and no disqualifying conflict or recusal.
+- Current implementation includes `GovernanceElectionAuthorityService` (blob `00f3a9a0fe08a011bf807845d803d10ffb5402c2`), `GovernanceElectionCommitteeAppointmentService` (blob `9f8e3d5fdc8f01eccd235e6d6df2ece6ccef3289`), and the authority/committee integration test (blob `fb8706b74dedb1340d1c7d643a81dc0785801361`).
+
+This election-specific workflow does not create general authority to approve, sign, certify, or publish other document categories. The existing Governance delegation grant service also remains narrow and is not a substitute for a document approval rule.
+
+### 9.3 Matrix determination
+
+The current-main reconciliation does not identify an adopted corporate instrument that assigns competent approvers, signatories, or publishers for the general document categories in Section 3. Therefore:
+
+1. Keep every unresolved approval/signature/publication row in Section 3 **BLOCKED**.
+2. Keep approval, signature, certification, and publication default-deny when source authority is absent, ambiguous, expired, or out of scope.
+3. Do not infer document authority from the election-specific authority workflow, Governance delegation grants, job titles, administrator roles, or the draft PSC policy.
+4. Do not add financial thresholds, quorum, signing powers, or publication permissions without the exact authoritative instrument and competent approval evidence.
+
+**A2 reconciliation result:** the matrix's control design is consistent with current-main authority implementation. Its business authority assignments remain **UNRESOLVED / BLOCKED** pending legible current Articles/Bylaws, adopted Board/General Assembly resolutions, and verified signing/delegation instruments. No production document-approval permission or route is activated by this addendum.
+
+**Frozen AGE boundary:** this addendum does not modify the AGE v1.0 architecture or its frozen approval artifact.
