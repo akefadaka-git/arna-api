@@ -148,6 +148,7 @@ use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\CorporateSiteController;
 use App\Http\Controllers\CorporateSiteEntryController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ExecutiveOverviewController;
 use App\Http\Controllers\LocalePreferenceController;
 use App\Http\Controllers\CommunicationAnnouncementController;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -578,6 +579,11 @@ Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
 // =============================================================================
 
 Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function (): void {
+
+    // Executive Overview — tenant-scoped, role-fenced, read-only aggregation.
+    Route::get('/dashboard/v1/overview', [ExecutiveOverviewController::class, 'show'])
+        ->middleware(['auth.permission:dashboard.executive.view', 'throttle:60,1'])
+        ->name('api.dashboard.executive-overview');
 
     // -------------------------------------------------------------------------
     // Launcher — the caller's launchable application catalog
