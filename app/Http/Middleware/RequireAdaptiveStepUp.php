@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Middleware;
+namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\\Http\\Request;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpContext;
-use MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpService;
-use MaaleArna\\MASES\\Core\\Exceptions\\AuthenticationException;
-use Symfony\\Component\\HttpFoundation\\Response;
+use Illuminate\Http\Request;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpContext;
+use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpService;
+use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
+use Symfony\Component\HttpFoundation\Response;
 
 final class RequireAdaptiveStepUp
 {
