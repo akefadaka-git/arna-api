@@ -73,7 +73,8 @@ final class GovernanceElectionRegisterSecurityContractTest extends TestCase
         self::assertStringContainsString('appointment_evidence_id', $service);
         self::assertStringContainsString('person_tenant_accesses', $service);
         self::assertStringNotContainsString('governance.election.ballot.issue', $roles);
-        self::assertStringNotContainsString('governance.election.count.record', $roles);
+        self::assertStringContainsString('governance.election.count.record', $roles);
+        self::assertStringContainsString('governance.election.count.witness', $roles);
     }
 
     public function test_no_share_class_voting_rate_or_voting_method_is_activated_by_default(): void
