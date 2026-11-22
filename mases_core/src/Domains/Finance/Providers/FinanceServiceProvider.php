@@ -31,6 +31,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Listeners\AuditFinanceLifecycleEvent;
 use MaaleArna\MASES\Core\Domains\Finance\Services\SubledgerIntegrationService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\SourceLegalEntityMappingService;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\SourceLegalEntityMappingContract;
+use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinancialReportContract;
 use MaaleArna\MASES\Core\Domains\Finance\Services\LedgerAccountService;
 use MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\JournalEntryRepository;
@@ -61,6 +62,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(FinanceConsolidationMappingService::class);
         $this->app->singleton(FinanceExchangeRateService::class);
         $this->app->singleton(FinancialReportService::class);
+        $this->app->singleton(FinancialReportContract::class, FinancialReportService::class);
         $this->app->singleton(SubledgerIntegrationService::class);
         $this->app->singleton(SourceLegalEntityMappingContract::class, SourceLegalEntityMappingService::class);
     }
