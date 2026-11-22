@@ -121,6 +121,7 @@ final class ExecutiveOverviewController
     {
         $direct = $user->permissions()
             ->where('permissions.slug', $permission)
+            ->where('permissions.scope', 'tenant')
             ->where('permissions.is_active', true)
             ->where(function ($scope) use ($tenantId): void {
                 $scope->whereNull('permissions.tenant_id')
@@ -146,6 +147,7 @@ final class ExecutiveOverviewController
             })
             ->whereHas('permissions', static function ($query) use ($permission, $tenantId): void {
                 $query->where('permissions.slug', $permission)
+                    ->where('permissions.scope', 'tenant')
                     ->where('permissions.is_active', true)
                     ->where(function ($scope) use ($tenantId): void {
                         $scope->whereNull('permissions.tenant_id')
