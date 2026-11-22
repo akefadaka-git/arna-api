@@ -77,7 +77,7 @@ final class AdaptiveStepUpGuardTest extends TestCase
             app(AdaptiveStepUpGuard::class)->assert($changedRequest, 'wallet.payment.record', $tenant->id);
             $this->fail('A grant for a different amount must be rejected.');
         } catch (\MaaleArna\MASES\Core\Exceptions\AuthenticationException $exception) {
-            $this->assertSame('AUTH_STEP_UP_REQUIRED', $exception->getCodeName());
+            $this->assertSame('AUTH_STEP_UP_REQUIRED', $exception->getErrorCode());
         }
 
         app(AdaptiveStepUpGuard::class)->assert($request, 'wallet.payment.record', $tenant->id);
