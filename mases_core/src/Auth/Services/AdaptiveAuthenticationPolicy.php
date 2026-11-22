@@ -60,7 +60,7 @@ final class AdaptiveAuthenticationPolicy
     ): array {
         $action = strtolower(trim($action));
 
-        if ($firstLogin) {
+        if ($firstLogin && in_array($action, ['login', 'session_resume'], true)) {
             return $this->singleFactor(
                 self::STANDARD,
                 [self::PASSWORD],
