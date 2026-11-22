@@ -224,6 +224,104 @@ final class ExecutiveOverviewRouteTest extends TestCase
     }
 
     #[Test]
+    public function workforce_permission_fails_closed_for_inactive_wrong_tenant_and_application_bound_grants(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $user->tenants()->attach($tenant->id);
+
+        $entryPermission = Permission::factory()->create([
+            'slug' => 'dashboard.executive.view',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'is_active' => true,
+        ]);
+        $workforcePermission = Permission::factory()->create([
+            'slug' => 'people.workforce.view',
+            'scope' => 'tenant',
+            'tenant_id' => $otherTenant->id,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $ceo = Role::create([
+            'name_am' => 'fixture',
+            'name_en' => 'fixture',
+            'slug' => 'ceo',
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+        $ceo->permissions()->attach([$entryPermission->id, $workforcePermission->id]);
+        $user->roles()->attach($ceo->id);
+
+        $request = fn () => $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $request()->assertOk()->assertJsonCount(0, 'data.widgets');
+
+        $workforcePermission->update(['tenant_id' => null, 'is_active' => false]);
+        $request()->assertOk()->assertJsonCount(0, 'data.widgets');
+
+        $financeApp = PlatformApplication::create([
+            'name_am' => 'Finance',
+            'name_en' => 'Finance',
+            'slug' => 'finance',
+            'domain' => 'finance.example.test',
+            'is_active' => true,
+        ]);
+        $workforcePermission->update([
+            'is_active' => true,
+            'application_id' => $financeApp->id,
+        ]);
+        $request()->assertOk()->assertJsonCount(0, 'data.widgets');
+    }
+
+    #[Test]
+    public function direct_workforce_grant_is_supported_only_when_active_and_tenant_compatible(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $user->tenants()->attach($tenant->id);
+
+        $entryPermission = Permission::factory()->create([
+            'slug' => 'dashboard.executive.view',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'is_active' => true,
+        ]);
+        $ceo = Role::create([
+            'name_am' => 'fixture',
+            'name_en' => 'fixture',
+            'slug' => 'ceo',
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+        $ceo->permissions()->attach($entryPermission->id);
+        $user->roles()->attach($ceo->id);
+
+        $workforcePermission = Permission::factory()->create([
+            'slug' => 'people.workforce.view',
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $user->permissions()->attach($workforcePermission->id);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data.widgets')
+            ->assertJsonPath('data.widgets.0.key', 'people.workforce.active')
+            ->assertJsonPath('data.widgets.0.value.active', 0);
+    }
+
+    #[Test]
     public function generic_permission_denial_does_not_disclose_the_required_permission_slug(): void
     {
         $user = User::factory()->create(['is_active' => true]);
