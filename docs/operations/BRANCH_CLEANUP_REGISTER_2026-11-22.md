@@ -87,3 +87,29 @@ A fresh open-PR scan was made across both repositories. No PR currently satisfie
 **Result:** first fully eligible branch = NONE. Do not dispatch the lifecycle workflow against any candidate yet. The next candidate to prepare is App PR #98: reconcile it against the current main SHA, complete analysis/enhancement, obtain an explicit approving review and passing exact-head checks, resolve all dependent-PR references, and resolve the repository auto-delete setting before lifecycle dispatch. API PR #95 is a secondary documentation-only candidate, but likewise needs approval, passing checks, and base/head revalidation.
 
 No PR was merged, no branch was deleted, and no deployment occurred during this assessment.
+
+
+## App PR #98 preparation and lifecycle workflow correction — 2026-11-22
+
+This section supersedes the earlier point-in-time PR #98 candidate assessment above.
+
+- PR: [#98](https://github.com/akefadaka-git/arna-app/pull/98)
+- Source branch: `integration/arna-app-release-candidate`
+- Current head at this update: `d761118c2fc1565f53b9f033352e208f60d7975c`
+- Current App main baseline: `ab99070a6408aca701045b51361104ae35c604a3`
+- Branch ancestry reconciled with current main using merge commit `311ccd74e49ed5477c82820f42f2870c03ba3691`; first parent is current main and second parent preserves previous PR head `c272470188c5d80a99058df7975b1c73c59cab67`.
+- Latest compare: 64 commits ahead, 0 behind, 127 changed files.
+- No other open PR currently uses the PR #98 source branch as its head or base. PR #88 and #97 are ancestor histories already included in #98; they remain open pending separate disposition. PR #94 has additional Executive Overview A4 work not imported into #98 and remains preserved.
+- Notification center security behavior was restored from PR #94's hardened implementation: internal route allowlists, route existence and resource ID validation, tenant-context invalidation, explicit locale selection, pagination and focus handling.
+- Stale MASES-prefixed browser assertions were updated to ARNA IDs. Exact-head run [44966774670](https://github.com/akefadaka-git/arna-app/actions/runs/44966774670) passed all steps, including type-check/build, visual/WCAG checks, mounted Combobox/Modal/Drawer browser tests and FileUploader lifecycle/accessibility tests. That run tested head `58a3744442b10d2855f02ac25d4385906ecb068f`.
+- The notification route/tenant/locale contract suite and lifecycle workflow contract suite are now explicitly wired into App frontend CI. On the latest head `d761118c2fc1565f53b9f033352e208f60d7975c`, both contract steps passed in run [44967008012](https://github.com/akefadaka-git/arna-app/actions/runs/44967008012); the remaining build and browser steps were still in progress at this register update.
+- The lifecycle workflow had malformed GitHub expression openings (`$` followed by a single opening brace) in 33 locations. These were repaired in both repositories; the identical corrected workflow blob is `defb824a6a65cb60b1c05d6869e1338fed9ae2e3`. API correction commit: `8a4fbaf1bd8f809d1ddd7e8c5fca78881ca4b1fd`. App correction is on PR #98 and will reach App main only if that PR is merged. App CI now has a static contract test for the lifecycle workflow.
+- App PR #98 has no approving review or requested reviewer and no unresolved review threads. No independent approval is claimed.
+- The App A1 GUI v1.1 specification remains explicitly marked Owner-review candidate — approval pending; PR #98 does not approve or freeze it.
+- Both repositories still report `delete_branch_on_merge=true`. The lifecycle workflow requires `false`; no repository setting was changed. Dispatch remains blocked until an authorized repository administrator disables automatic head-branch deletion.
+- No PR was merged, no branch was deleted, and no deployment occurred during this preparation.
+
+| Repository | Lifecycle workflow expression repair | Corrected blob |
+|---|---|---|
+| API | `8a4fbaf1bd8f809d1ddd7e8c5fca78881ca4b1fd` | `defb824a6a65cb60b1c05d6869e1338fed9ae2e3` |
+| App | Included in PR #98 at head `d761118c2fc1565f53b9f033352e208f60d7975c` | `defb824a6a65cb60b1c05d6869e1338fed9ae2e3` |
