@@ -382,6 +382,26 @@ final class DeviceSessionService
         }, 3);
     }
 
+    /**
+     * Verify the PIN associated with the current mobile bearer token.
+     * The token-to-session link is resolved server-side; callers cannot
+     * select another device session by supplying an identifier.
+     */
+    public function verifyPinForToken(User $user, PersonalAccessToken $token, string $pin): bool
+    {
+        if (! $this->isMobileToken($token)) {
+            return false;
+        }
+
+        $session = DeviceSession::query()
+            ->where('personal_access_token_id', $token->getKey())
+            ->where('user_type', $user->getMorphClass())
+            ->where('user_id', $user->getKey())
+            ->first();
+
+        return $session !== null && $this->verifyPin($user, $session->public_id, $pin);
+    }
+
     public function validateToken(User $user, PersonalAccessToken $token): ?DeviceSession
     {
         if (!$this->isMobileToken($token)) {
