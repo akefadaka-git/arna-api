@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         $driver = DB::getDriverName();
-        if (!in_array($driver, ['mysql', 'sqlite'], true)) {
+        if (!in_array($driver, ['mysql', 'mariadb', 'sqlite'], true)) {
             throw new RuntimeException("AGE receipt outbox guards require MySQL or SQLite; driver [{$driver}] is unsupported.");
         }
         if (Schema::hasTable('age_receipt_outbox')) {
@@ -56,7 +56,7 @@ return new class extends Migration
                 ->references(['tenant_id', 'id'])->on('governance_election_register_snapshots')->restrictOnDelete();
         });
 
-        if ($driver === 'mysql') {
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
             $this->createMySqlGuards();
         } elseif ($driver === 'sqlite') {
             $this->createSqliteGuards();
