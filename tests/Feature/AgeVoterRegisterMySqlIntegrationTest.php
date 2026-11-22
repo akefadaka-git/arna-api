@@ -591,6 +591,7 @@ PHP;
             $table->unsignedBigInteger('tenant_id');
             $table->unique(['tenant_id', 'id'], 'age_fixture_election_tenant_id_uq');
         });
+        DB::table('governance_elections')->insert(['id' => 10, 'tenant_id' => 7]);
 
         Schema::create('governance_election_register_snapshots', function (Blueprint $table): void {
             $table->bigIncrements('id');
