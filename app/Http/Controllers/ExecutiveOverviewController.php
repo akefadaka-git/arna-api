@@ -104,12 +104,15 @@ final class ExecutiveOverviewController
             }
         }
 
-        // Never emit omitted-widget names, permission slugs, denial reasons,
-        // or hidden-domain metadata. Sensitive financial responses are not
-        // stored in shared or browser caches.
+        // Status describes completeness of the providers in this contract,
+        // not the completeness of every ARNA domain or every planned KPI.
+        // A3.1 exposes only the existing Finance trial-balance provider;
+        // future independently approved providers must define their own
+        // availability semantics before this can become partial.
         return response()->json([
             'success' => true,
             'data' => [
+                'status' => 'complete',
                 'contract_version' => '1.0',
                 'generated_at' => now()->toIso8601String(),
                 'widgets' => $widgets,

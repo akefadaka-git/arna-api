@@ -55,6 +55,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'complete')
             ->assertJsonPath('data.widgets', [])
             ->assertJsonMissingPath('data.omitted_widgets')
             ->assertJsonMissingPath('data.unavailable_widgets');
