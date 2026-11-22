@@ -37,7 +37,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $fileId = $this->file($tenantId, (int) $actor->getKey(), true);
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.create');
-        $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.submit');
+        $authorization->shouldReceive('requirePermission')->twice()->with($actor, $tenantId, 'documents.submit');
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
@@ -64,7 +64,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
 
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.create');
-        $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.submit');
+        $authorization->shouldReceive('requirePermission')->twice()->with($actor, $tenantId, 'documents.submit');
         $authorization->shouldReceive('requireGovernedAction')->once()
             ->with($actor, $tenantId, 9, 4, 'documents.review', (int) $actor->getKey());
         $authorization->shouldReceive('requireGovernedAction')->once()
@@ -626,7 +626,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
 
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.create');
-        $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.submit');
+        $authorization->shouldReceive('requirePermission')->twice()->with($actor, $tenantId, 'documents.submit');
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
