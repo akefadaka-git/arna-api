@@ -228,6 +228,7 @@ final class AndroidDeviceSessionTest extends TestCase
     {
         [$user, $tenant] = $this->userWithTenant();
         $device = $this->androidLogin($user, $tenant, 'installation-identifier-device-A');
+        $user->refresh();
         $service = app(DeviceSessionService::class);
         $service->enrollPin($user, $device['session_id'], '482951');
 
