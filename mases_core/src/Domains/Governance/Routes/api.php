@@ -623,6 +623,45 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.body.manage')
         ->name('penalty-disputes.review');
 
+    // GA agenda items are editable only while in draft; publication is a separate authority gate.
+    Route::get('/meetings/{meeting}/agenda', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAgendaController::class, 'index'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.agenda.view')
+        ->name('meetings.agenda.index');
+    Route::post('/meetings/{meeting}/agenda', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAgendaController::class, 'store'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.agenda.manage')
+        ->name('meetings.agenda.store');
+    Route::patch('/agenda-items/{agendaItem}', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAgendaController::class, 'update'])
+        ->whereNumber('agendaItem')
+        ->middleware('auth.permission:governance.agenda.manage')
+        ->name('agenda-items.update');
+
+    // Immutable GA electorate snapshots and fail-closed quorum evaluation.
+    Route::post('/meetings/{meeting}/electorate-snapshots', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'createSnapshot'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.attendance.manage')
+        ->name('meetings.electorate.snapshots.store');
+    Route::post('/electorate-snapshots/{snapshot}/approve', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'approveSnapshot'])
+        ->whereNumber('snapshot')
+        ->middleware('auth.permission:governance.meeting.approve')
+        ->name('electorate.snapshots.approve');
+    Route::post('/quorum-rules', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'createQuorumRule'])
+        ->middleware('auth.permission:governance.meeting.manage')
+        ->name('quorum-rules.store');
+    Route::post('/quorum-rules/{rule}/approve', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'approveQuorumRule'])
+        ->whereNumber('rule')
+        ->middleware('auth.permission:governance.meeting.approve')
+        ->name('quorum-rules.approve');
+    Route::post('/quorum-rules/{rule}/verify-legal', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'verifyQuorumRule'])
+        ->whereNumber('rule')
+        ->middleware('auth.permission:governance.meeting.approve')
+        ->name('quorum-rules.verify-legal');
+    Route::post('/meetings/{meeting}/quorum/evaluate', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'evaluateQuorum'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.attendance.view')
+        ->name('meetings.quorum.evaluate');
+
     // Election committee security — election-scoped authority, conflict and audit controls.
     Route::post('/elections/{election}/committee/admins', [GovernanceElectionCommitteeSecurityController::class, 'grantAdministrator'])
         ->whereNumber('election')
