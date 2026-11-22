@@ -113,3 +113,15 @@ This section supersedes the earlier point-in-time PR #98 candidate assessment ab
 |---|---|---|
 | API | `8a4fbaf1bd8f809d1ddd7e8c5fca78881ca4b1fd` | `defb824a6a65cb60b1c05d6869e1338fed9ae2e3` |
 | App | Included in PR #98 at head `d761118c2fc1565f53b9f033352e208f60d7975c` | `defb824a6a65cb60b1c05d6869e1338fed9ae2e3` |
+
+
+## App lifecycle mainline hotfix and final PR #98 head — 2026-11-22
+
+- App main lifecycle workflow was corrected directly as a narrow operational hotfix because the workflow must be valid on the default branch before it can be dispatched. App main hotfix commit: `76110efd51910240c15faf7c0387e8c1942acf85`.
+- PR #98 was then reconciled onto that exact App main head with merge commit `8cdd7559bb30239442c4f1dcef76a6e66fcb951a`; first parent is App main `76110efd51910240c15faf7c0387e8c1942acf85`, second parent preserves previous PR head `d761118c2fc1565f53b9f033352e208f60d7975c`.
+- Current PR #98 head: `8cdd7559bb30239442c4f1dcef76a6e66fcb951a`; current base SHA: `76110efd51910240c15faf7c0387e8c1942acf85`; comparison: 65 commits ahead, 0 behind, 126 changed files.
+- Exact-head run [44967008012](https://github.com/akefadaka-git/arna-app/actions/runs/44967008012) passed all CI steps at the prior head `d761118c2fc1565f53b9f033352e208f60d7975c`, including notification security contracts, lifecycle workflow contract, build, public browser/WCAG, visual rendering, mounted Combobox/Modal/Drawer and FileUploader tests.
+- A new exact-head run [44967209367](https://github.com/akefadaka-git/arna-app/actions/runs/44967209367) was running against `8cdd7559bb30239442c4f1dcef76a6e66fcb951a` at the time of this update. Its final result must be checked before readiness attestation.
+- PR #98 still has no requested or approved reviewer; review threads remain empty. Independent review is outstanding.
+- App repository `delete_branch_on_merge` remains `true`; lifecycle dispatch remains blocked until the Owner or another authorized repository administrator disables the automatic head-branch deletion setting.
+- No PR merge, branch deletion or deployment was performed.
