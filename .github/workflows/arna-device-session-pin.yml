@@ -6,6 +6,16 @@ on:
     paths:
       - "app/Http/Controllers/Auth/AuthController.php"
       - "app/Http/Middleware/Authenticate.php"
+      - "mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
+      - "mases_core/src/Auth/Services/AdaptiveStepUpContext.php"
+      - "mases_core/src/Auth/Services/AdaptiveStepUpService.php"
+      - "mases_core/src/Auth/Services/TotpMfaService.php"
+      - "app/Http/Middleware/RequireAdaptiveStepUp.php"
+      - "config/auth-step-up.php"
+      - "routes/api.php"
+      - "mases_core/src/Domains/Wallet/Routes/api.php"
+      - "mases_core/src/Domains/Loan/Routes/api.php"
+      - "tests/Feature/AdaptiveStepUpServiceTest.php"
       - "mases_core/src/Auth/Models/DeviceSession.php"
       - "mases_core/src/Auth/Services/DeviceSessionService.php"
       - "database/migrations/2026_11_22_00000*.php"
@@ -60,5 +70,14 @@ jobs:
           php -l database/migrations/2026_11_22_000001_create_auth_device_sessions_table.php
           php -l database/migrations/2026_11_22_000002_create_auth_device_login_challenges_table.php
           php -l tests/Feature/AndroidDeviceSessionTest.php
+          php -l mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php
+          php -l mases_core/src/Auth/Services/AdaptiveStepUpContext.php
+          php -l mases_core/src/Auth/Services/AdaptiveStepUpService.php
+          php -l mases_core/src/Auth/Services/TotpMfaService.php
+          php -l app/Http/Middleware/RequireAdaptiveStepUp.php
+          php -l tests/Feature/AdaptiveStepUpServiceTest.php
       - name: Run Android device-session and PIN regressions
-        run: vendor/bin/phpunit tests/Feature/AndroidDeviceSessionTest.php
+        run: |
+          vendor/bin/phpunit tests/Feature/AndroidDeviceSessionTest.php
+          vendor/bin/phpunit tests/Feature/AdaptiveStepUpServiceTest.php
+          vendor/bin/phpunit tests/Feature/TotpMfaTest.php
