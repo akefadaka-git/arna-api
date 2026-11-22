@@ -50,7 +50,7 @@ final class GovernanceElectionManualCountService
             foreach ($lines as $line) {
                 $candidateId = (int) ($line['candidate_id'] ?? 0);
                 $ballotCount = (int) ($line['ballot_count'] ?? -1);
-                if ($candidateId < 1 || $ballotCount < 0) {
+                if ($candidateId < 1 || $ballotCount < 0 || $ballotCount > $valid) {
                     throw ValidationException::withMessages(['lines' => 'Each count line requires a valid candidate and non-negative ballot count.']);
                 }
 
@@ -66,10 +66,19 @@ final class GovernanceElectionManualCountService
                     ]);
                 }
 
+                if (array_key_exists($candidateId, $normalized)) {
+                    throw ValidationException::withMessages(['lines' => 'A candidate may appear only once in a count batch.']);
+                }
                 $normalized[$candidateId] = $ballotCount;
             }
             if ($normalized === []) {
                 throw ValidationException::withMessages(['lines' => 'At least one eligible candidate count is required.']);
+            }
+
+            foreach (['batch_reference', 'sealed_box_reference', 'count_sheet_reference'] as $field) {
+                if (trim((string) ($data[$field] ?? '')) === '') {
+                    throw ValidationException::withMessages([$field => 'A non-empty evidence reference is required.']);
+                }
             }
 
             $now = Carbon::now();
@@ -199,6 +208,12 @@ final class GovernanceElectionManualCountService
         }
 
         $query = DB::table('governance_election_committee_members as member')
+            ->join('governance_election_authority_evidence as evidence', function ($join) use ($tenantId, $electionId): void {
+                $join->on('evidence.id', '=', 'member.appointment_evidence_id')
+                    ->where('evidence.tenant_id', '=', $tenantId)
+                    ->where('evidence.election_id', '=', $electionId)
+                    ->where('evidence.status', '=', 'verified');
+            })
             ->join('people as person', 'person.id', '=', 'member.person_id')
             ->join('person_tenant_accesses as access', function ($join) use ($tenantId): void {
                 $join->on('access.person_id', '=', 'person.id')
