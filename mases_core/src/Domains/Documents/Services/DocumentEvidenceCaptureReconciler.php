@@ -54,7 +54,7 @@ final class DocumentEvidenceCaptureReconciler
         }
 
         foreach ($candidateIds as $intentId) {
-            $claim = DB::transaction(function () use ($intentId): ?object {
+            $claim = DB::transaction(function () use ($intentId, $cutoff): ?object {
                 $intent = DB::table('document_evidence_capture_intents')->where('id', $intentId)
                     ->lockForUpdate()->first();
                 if ($intent === null) {
@@ -63,10 +63,10 @@ final class DocumentEvidenceCaptureReconciler
 
                 $eligibleCaptured = $intent->status === 'captured'
                     && $intent->captured_at !== null
-                    && now()->parse($intent->captured_at)->lte(now()->subDay());
+                    && Carbon::parse($intent->captured_at)->lte($cutoff);
                 $expiredClaim = $intent->status === 'cleanup_claimed'
                     && $intent->cleanup_lease_until !== null
-                    && now()->parse($intent->cleanup_lease_until)->lte(now());
+                    && Carbon::parse($intent->cleanup_lease_until)->lte(now());
                 if (! $eligibleCaptured && ! $expiredClaim) {
                     return null;
                 }
