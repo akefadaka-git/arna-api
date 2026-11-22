@@ -23,6 +23,7 @@ final class GovernanceElection extends Model
             'authority_evidence_id' => 'integer',
             'authority_verified_by' => 'integer',
             'authority_verified_at' => 'immutable_datetime',
+            'record_date' => 'date',
             'scheduled_start_at' => 'immutable_datetime',
             'scheduled_end_at' => 'immutable_datetime',
             'authorized_at' => 'immutable_datetime',
