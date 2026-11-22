@@ -776,9 +776,22 @@ return [
     | ARNA integration CR's approval.
     |
     */
+    // AGE A1 v1.0 includes all four methods in product scope. Legal and
+    // operational activation remains fail-closed until the corresponding
+    // authoritative instruments and acceptance gates are satisfied.
+    'election_voting' => [
+        // Empty by default: no share-class voting rate is presumed.
+        // Populate only from verified company instruments after LEG-01/02 review.
+        'verified_class_entitlements' => [],
+        'methods_in_scope' => ['physical', 'electronic', 'proxy', 'hybrid'],
+    ],
+
     'features' => [
         'notifications_enabled'      => (bool) env('MASES_GOVERNANCE_NOTIFICATIONS', false),
+        'physical_voting_enabled'    => false,
         'electronic_voting_enabled'  => false,
+        'proxy_voting_enabled'       => false,
+        'hybrid_voting_enabled'      => false,
         'arna_integration_enabled'   => false,
     ],
 
