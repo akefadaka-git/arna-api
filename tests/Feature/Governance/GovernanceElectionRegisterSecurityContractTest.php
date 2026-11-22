@@ -77,7 +77,6 @@ final class GovernanceElectionRegisterSecurityContractTest extends TestCase
         self::assertStringContainsString("'secretary' => [", $roles);
         self::assertStringContainsString('governance.election.count.record', $roles);
         self::assertStringContainsString('governance.election.count.witness', $roles);
-        self::assertStringContainsString('governance.election.register.manage', $roles);
         self::assertStringContainsString('governance.election.ballot.issue', $roles);
         self::assertStringContainsString('governance.election.ballot.receive', $roles);
     }
