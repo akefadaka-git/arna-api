@@ -717,4 +717,49 @@ final class CorporateSitePublishingTest extends TestCase
         return base64_encode(sodium_crypto_sign_detached($message, $secretKey));
     }
 
+
+    public function test_latest_page_editor_cannot_approve_their_own_version(): void
+    {
+        $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $editor = $this->corporateSiteReviewer();
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'reviewer-separation-page',
+            'slug_am' => 'reviewer-separation-am',
+            'slug_en' => 'reviewer-separation-en',
+            'translations' => [
+                'am' => ['title' => 'የሙከራ ገጽ'],
+                'en' => ['title' => 'Test page'],
+            ],
+            'created_by' => $author->id,
+            'updated_by' => $editor->id,
+        ]);
+
+        Sanctum::actingAs($editor);
+        $this->postJson('/api/admin/corporate-site/pages/' . $page->id . '/approve', [
+            'expected_version' => $page->version,
+        ])->assertForbidden();
+    }
+
+    public function test_latest_entry_editor_cannot_review_their_own_version(): void
+    {
+        $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $editor = $this->corporateSiteReviewer();
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'news',
+            'slug_am' => 'reviewer-separation-entry-am',
+            'slug_en' => 'reviewer-separation-entry-en',
+            'translations' => [
+                'am' => ['title' => 'ዜና'],
+                'en' => ['title' => 'News'],
+            ],
+            'created_by' => $author->id,
+            'updated_by' => $editor->id,
+        ]);
+
+        Sanctum::actingAs($editor);
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/approve', [
+            'expected_version' => $entry->version,
+        ])->assertForbidden();
+    }
+
 }
