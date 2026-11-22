@@ -31,16 +31,16 @@ declare(strict_types=1);
  *
  *   The eight managed roles and their Governance grant counts:
  *
- *     super_admin    (role 1)  →  37  (all)
- *     platform_admin (role 2)  →  36  (all except declaration.manage)
+ *     super_admin    (role 1)  →  48  (all)
+ *     platform_admin (role 2)  →  37  (all except declaration.manage)
  *     tenant_admin   (role 3)  →  19  (config + read)
  *     manager        (role 4)  →   4  (view + action)
- *     board          (role 8)  →  14  (read-only board set)
- *     president      (role 9)  →  19  (board set + management/approval)
- *     secretary      (role 10) →  20  (board set + operational)
+ *     board          (role 8)  →  15  (read-only board set)
+ *     president      (role 9)  →  23  (board set + management/approval)
+ *     secretary      (role 10) →  25  (board set + operational)
  *     ceo            (role 12) →  12  (read + action management)
  *                                ──
- *                                171 total grant assignments
+ *                                183 total grant assignments
  *
  *   The four unmanaged roles — `finance_manager` (5), `hr_manager`
  *   (6), `shareholder` (7), and `cashier` (11) — receive no
@@ -556,12 +556,6 @@ final class GovernanceRolesSeeder extends Seeder
             'governance.election.suspend',
             'governance.election.cancel',
             'governance.election.archive',
-            'governance.election.authorize',
-            'governance.election.schedule',
-            'governance.election.suspend',
-            'governance.election.cancel',
-            'governance.election.archive',
-
             // Documents
             'governance.document.view',
             'governance.document.upload',
