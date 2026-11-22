@@ -1,6 +1,6 @@
 # ARNA Executive Command Centre — A3.2 Workforce Permission Proposal
 
-**Status:** Owner decision required before permission registration or grant  
+**Status:** Owner-approved definition; canonical registration in A3.2  
 **Implementation increment:** A3.2 — read-only workforce aggregate  
 **Proposed slug:** `people.workforce.view`
 
@@ -15,7 +15,7 @@ Authorize a narrowly scoped, read-only aggregate of active employee records for 
 | Slug | `people.workforce.view` |
 | English name | View workforce aggregate |
 | Amharic name | የሰው ኃይል አጠቃላይ መረጃን ማየት |
-| Category | `people` |
+| Category | `user` (the canonical catalogue's existing People/profile category) |
 | Scope | `tenant` |
 | Application binding | None; tenant-scoped capability |
 | System-critical | No |
@@ -29,7 +29,7 @@ Authorize a narrowly scoped, read-only aggregate of active employee records for 
 - A role-derived grant must come from an active role bound to the current tenant or an unscoped role, and either an unscoped role or an active People application role.
 - No default role assignment is proposed. In particular, this proposal does not automatically grant the permission to CEO, President, Finance Manager, HR Manager, tenant administrators, or platform administrators.
 - `people.manage` is not a substitute and must not imply this permission.
-- Permission registration and all role/direct grants remain blocked until explicit Owner approval.
+- Owner approved the definition and grant model on 2026-11-22. Canonical registration is authorized; no role/direct grants are approved.
 
 ## 4. Data contract
 
@@ -47,11 +47,11 @@ The metric does not count shareholders, governance members, inactive employees, 
 - Evaluate current database pivots for each request so permission revocation takes effect without relying on a positive TTL cache.
 - If the permission is absent, inactive, wrongly scoped, tenant-mismatched, or not granted through an eligible role, omit the workforce widget.
 - Do not fall back to `people.manage`, direct Executive Overview entry permission, or broad administrator status.
-- Do not register this permission in the canonical catalogue, seed it into any tenant, or grant it to any role/user as part of A3.2 pending Owner approval.
+- Register the permission in the canonical catalogue. Do not grant it to any role/user or assign it by default. The grant seeder must exclude it from wildcard and scope-based grants; only a future explicit literal role grant, separately approved by the Owner, may assign it.
 
-## 6. Owner decision requested
+## 6. Owner decision and grant policy
 
-Approve or reject the proposed slug, scope, role eligibility model, and grant policy. Any requested default-role assignment must be specified explicitly. Until that decision is recorded, the implementation remains fail-closed and no production or seed data is changed.
+The Owner approved the proposed slug, tenant scope, role eligibility model, and no-default-grant policy on 2026-11-22. No role or direct-user grants are authorized. The role seeder explicitly excludes this permission from `*` and `scope:tenant` wildcard expansion; a future assignment requires a separate explicit Owner decision.
 
 ## 7. Implementation evidence
 
