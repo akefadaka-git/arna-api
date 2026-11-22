@@ -251,7 +251,7 @@ final class PaymentController extends Controller
         $walletModel = $this->resolveWalletOrFail($tenantId, $wallet);
 
         Gate::authorize('view', $walletModel);
-        app(\\MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpGuard::class)->assert($request, 'wallet.payment.record', $tenantId);
+        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'wallet.payment.record', $tenantId);
 
         // ---------------------------------------------------------------------
         // Resolve the optional business timestamp and the actor. The date
