@@ -72,7 +72,7 @@ final class AdaptiveStepUpService
 
         try {
             if ($channel === 'sms') {
-                $this->phoneDelivery->send($destination, $code);
+                $this->phoneDelivery->send($destination, $code, max(1, (int) config('auth-step-up.otp_expiry_minutes', 5)));
             } else {
                 $body = sprintf(
                     "Your ARNA security verification code is %s. It expires in %d minutes. Do not share this code.",
