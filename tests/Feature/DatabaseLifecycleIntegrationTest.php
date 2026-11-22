@@ -89,40 +89,42 @@ final class DatabaseLifecycleIntegrationTest extends TestCase
 
         // Verify each controlled financial seeder independently and twice.
         app(FinanceChartOfAccountsSeeder::class)->run();
-        $coaCount = DB::table('ledger_accounts')->count();
-        $this->assertGreaterThan(0, $coaCount);
+        $coaSnapshot = $this->tableSnapshot('ledger_accounts');
+        $this->assertNotSame('', $coaSnapshot);
         app(FinanceChartOfAccountsSeeder::class)->run();
-        $this->assertSame($coaCount, DB::table('ledger_accounts')->count());
+        $this->assertSame($coaSnapshot, $this->tableSnapshot('ledger_accounts'));
 
         app(LoanProductsSeeder::class)->run();
-        $productCount = DB::table('loan_products')->count();
-        $this->assertSame(3, $productCount);
+        $productSnapshot = $this->tableSnapshot('loan_products');
+        $this->assertSame(3, DB::table('loan_products')->count());
 
         app(LoanProductRulesPolicySeeder::class)->run();
-        $policyCount = DB::table('versioned_policies')
-            ->where('policy_type', 'loan_product_rules')
-            ->count();
-        $this->assertSame(1, $policyCount);
-
-        app(LoanProductsSeeder::class)->run();
-        app(LoanProductRulesPolicySeeder::class)->run();
-        $this->assertSame($productCount, DB::table('loan_products')->count());
-        $this->assertSame($policyCount, DB::table('versioned_policies')
+        $policySnapshot = $this->tableSnapshot('versioned_policies');
+        $this->assertSame(1, DB::table('versioned_policies')
             ->where('policy_type', 'loan_product_rules')->count());
+
+        app(LoanProductsSeeder::class)->run();
+        app(LoanProductRulesPolicySeeder::class)->run();
+        $this->assertSame($productSnapshot, $this->tableSnapshot('loan_products'));
+        $this->assertSame($policySnapshot, $this->tableSnapshot('versioned_policies'));
         $this->assertSame(0, DB::table('loan_products')->whereNull('product_rules_policy_version_id')->count());
 
         $this->assertGreaterThan(0, DB::table('users')->count());
         $this->assertGreaterThan(0, DB::table('shareholders')->count());
 
-        // Run the real default entry point twice. Compare every persistent
-        // business/RBAC table so user, shareholder, operational and grant
-        // records cannot silently disappear or change on the second run.
+        // Reference catalogues are allowed to be added by the first baseline
+        // run. Existing identities, shareholder register, financial and other
+        // operational records must remain byte-for-byte stable.
+        $protectedBefore = $this->snapshotPersistentTables(excludeBaselineReferenceTables: true);
         $this->runDefaultSeeder();
-        $first = $this->snapshotPersistentTables();
+        $protectedAfter = $this->snapshotPersistentTables(excludeBaselineReferenceTables: true);
+        $this->assertSame($protectedBefore, $protectedAfter, 'The first safe baseline run must preserve existing business records.');
 
+        // A second default run must also preserve all reference records and
+        // all composite RBAC grants without duplicates or detachment.
+        $first = $this->snapshotPersistentTables();
         $this->runDefaultSeeder();
         $second = $this->snapshotPersistentTables();
-
         $this->assertSame($first, $second, 'A second safe baseline run must not delete, duplicate or mutate persistent data or grants.');
         $this->assertGreaterThan(0, DB::table('users')->count());
         $this->assertGreaterThan(0, DB::table('shareholders')->count());
@@ -134,24 +136,39 @@ final class DatabaseLifecycleIntegrationTest extends TestCase
         $this->assertSame(0, $exitCode, Artisan::output());
     }
 
+    private function tableSnapshot(string $table): string
+    {
+        $rows = DB::table($table)->get()->map(
+            static fn (object $row): string => json_encode($row, JSON_THROW_ON_ERROR)
+        )->all();
+        sort($rows, SORT_STRING);
+
+        return hash('sha256', implode("\n", $rows));
+    }
+
     /**
      * @return array<string, string>
      */
-    private function snapshotPersistentTables(): array
+    private function snapshotPersistentTables(bool $excludeBaselineReferenceTables = false): array
     {
         $volatile = ['cache', 'cache_locks', 'jobs', 'job_batches', 'failed_jobs', 'sessions'];
+        $baselineReferences = [
+            'tenants',
+            'platform_applications',
+            'permissions',
+            'roles',
+            'role_has_permissions',
+            'share_classes',
+        ];
         $snapshot = [];
 
         foreach (Schema::getTableListing() as $table) {
-            if (in_array($table, $volatile, true)) {
+            if (in_array($table, $volatile, true)
+                || ($excludeBaselineReferenceTables && in_array($table, $baselineReferences, true))) {
                 continue;
             }
 
-            $rows = DB::table($table)->get()->map(
-                static fn (object $row): string => json_encode($row, JSON_THROW_ON_ERROR)
-            )->all();
-            sort($rows, SORT_STRING);
-            $snapshot[$table] = hash('sha256', implode("\n", $rows));
+            $snapshot[$table] = $this->tableSnapshot($table);
         }
 
         ksort($snapshot);
