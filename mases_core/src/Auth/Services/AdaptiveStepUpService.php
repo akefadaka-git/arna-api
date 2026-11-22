@@ -321,7 +321,7 @@ final class AdaptiveStepUpService
                 'factor' => $factor,
                 'ip' => request()->ip(),
             ]);
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             Log::warning('ARNA adaptive authentication audit write failed', [
                 'event' => $event,
                 'user_id' => $user->getKey(),
