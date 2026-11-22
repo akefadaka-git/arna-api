@@ -200,6 +200,16 @@ final class RolePermissionGrants
      *
      * @var array<string, array<int, string>>
      */
+    /**
+     * Permissions intentionally excluded from broad wildcard grants.
+     * They may be granted only by an explicit literal slug in a role spec.
+     *
+     * @var array<int, string>
+     */
+    public const WILDCARD_EXCLUSIONS = [
+        'people.workforce.view',
+    ];
+
     public const MAP = [
         'super_admin'     => ['*'],
         'platform_admin'  => [

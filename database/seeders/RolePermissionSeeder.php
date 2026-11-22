@@ -322,10 +322,18 @@ final class RolePermissionSeeder extends Seeder
          * subsequent sync would receive a map instead of a list.
          */
         if (in_array('*', $grantSpec, true)) {
-            return array_map(
+            return array_values(array_map(
                 static fn (Permission $p): int => (int) $p->id,
-                array_values($permissions)
-            );
+                array_values(array_filter(
+                    $permissions,
+                    static fn (Permission $p, string $slug): bool => !in_array(
+                        $slug,
+                        RolePermissionGrants::WILDCARD_EXCLUSIONS,
+                        true
+                    ),
+                    ARRAY_FILTER_USE_BOTH
+                ))
+            ));
         }
 
         $ids = [];
@@ -340,7 +348,10 @@ final class RolePermissionSeeder extends Seeder
             if (str_starts_with($entry, 'scope:')) {
                 $scope = substr($entry, 6);
                 foreach ($permissions as $permission) {
-                    if ($permission->scope === $scope) {
+                    if (
+                        $permission->scope === $scope
+                        && !in_array($permission->slug, RolePermissionGrants::WILDCARD_EXCLUSIONS, true)
+                    ) {
                         $ids[] = (int) $permission->id;
                     }
                 }
