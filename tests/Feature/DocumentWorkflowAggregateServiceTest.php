@@ -839,6 +839,122 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         self::assertTrue(Storage::disk('local')->exists($prepared['snapshot']['path']));
     }
 
+    public function test_stale_reserved_intent_is_reported_but_never_auto_deleted(): void
+    {
+        [$tenantId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $now = now();
+        $intentId = (int) DB::table('document_evidence_capture_intents')->insertGetId([
+            'operation_uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'tenant_id' => $tenantId,
+            'file_id' => $fileId,
+            'file_version' => 1,
+            'status' => 'reserved',
+            'reserved_by_user_id' => $actor->getKey(),
+            'attempt_count' => 0,
+            'reserved_at' => $now->copy()->subDays(2),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+            ->run(100, 1440, true);
+
+        self::assertSame(1, $result['stale_reserved']);
+        self::assertSame(0, $result['eligible']);
+        self::assertSame(0, $result['deleted']);
+        self::assertSame('reserved', DB::table('document_evidence_capture_intents')->where('id', $intentId)->value('status'));
+    }
+
+    public function test_reconciler_completes_when_worker_crashed_after_physical_unlink(): void
+    {
+        [$tenantId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
+
+        DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
+            'status' => 'cleanup_claimed',
+            'cleanup_claim_token' => (string) \Illuminate\Support\Str::uuid(),
+            'cleanup_claimed_at' => now()->subMinutes(20),
+            'cleanup_lease_until' => now()->subMinutes(10),
+        ]);
+        Storage::disk('local')->delete($prepared['snapshot']['path']);
+
+        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+            ->run(100, 1440, true);
+
+        self::assertSame(1, $result['deleted']);
+        self::assertSame('deleted', DB::table('document_evidence_capture_intents')
+            ->where('id', $prepared['intent_id'])->value('status'));
+        self::assertFalse(Storage::disk('local')->exists($prepared['snapshot']['path']));
+    }
+
+    public function test_path_traversal_candidate_is_quarantined_without_deleting_evidence(): void
+    {
+        [$tenantId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
+
+        DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
+            'storage_path' => '../../outside/important.bin',
+            'captured_at' => now()->subDays(2),
+        ]);
+
+        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+            ->run(100, 1440, true);
+
+        self::assertSame(1, $result['quarantined']);
+        self::assertSame('quarantined', DB::table('document_evidence_capture_intents')
+            ->where('id', $prepared['intent_id'])->value('status'));
+        self::assertTrue(Storage::disk('local')->exists($prepared['snapshot']['path']));
+    }
+
+    public function test_reconciler_never_scans_or_deletes_legacy_untracked_objects(): void
+    {
+        [$tenantId] = $this->issuer();
+        $legacyPath = 'document-evidence/legacy/untracked.bin';
+        Storage::disk('local')->put($legacyPath, 'legacy evidence object without capture intent');
+
+        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+            ->run(100, 1440, true);
+
+        self::assertSame(0, $result['scanned']);
+        self::assertSame(0, $result['deleted']);
+        self::assertTrue(Storage::disk('local')->exists($legacyPath));
+    }
+
+    public function test_reservation_without_prior_capture_can_be_retried_safely(): void
+    {
+        [$tenantId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $now = now();
+        $intentId = (int) DB::table('document_evidence_capture_intents')->insertGetId([
+            'operation_uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'tenant_id' => $tenantId,
+            'file_id' => $fileId,
+            'file_version' => 1,
+            'status' => 'reserved',
+            'reserved_by_user_id' => $actor->getKey(),
+            'attempt_count' => 0,
+            'reserved_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $prepared = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class)
+            ->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
+
+        self::assertSame($intentId, $prepared['intent_id']);
+        self::assertSame('captured', DB::table('document_evidence_capture_intents')->where('id', $intentId)->value('status'));
+        self::assertTrue(Storage::disk('local')->exists($prepared['snapshot']['path']));
+    }
+
     private function workflowReadyToIssue(
         DocumentWorkflowAggregateService $service,
         User $actor,
