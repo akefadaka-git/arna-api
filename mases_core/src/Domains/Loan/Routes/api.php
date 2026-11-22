@@ -344,6 +344,7 @@ Route::name('api.loans.')->group(function (): void {
     // POST /loans/{loan}/writeoff
     // =========================================================================
     Route::post('{loan}/approve', [LoanController::class, 'approve'])
+        ->middleware('auth.step_up:loan.approve')
         ->whereNumber('loan')
         ->name('approve');
 
@@ -352,14 +353,17 @@ Route::name('api.loans.')->group(function (): void {
         ->name('reject');
 
     Route::post('{loan}/disburse', [LoanController::class, 'disburse'])
+        ->middleware('auth.step_up:loan.disburse')
         ->whereNumber('loan')
         ->name('disburse');
 
     Route::post('{loan}/restructure', [LoanController::class, 'restructure'])
+        ->middleware('auth.step_up:loan.restructure')
         ->whereNumber('loan')
         ->name('restructure');
 
     Route::post('{loan}/writeoff', [LoanController::class, 'writeoff'])
+        ->middleware('auth.step_up:loan.writeoff')
         ->whereNumber('loan')
         ->name('writeoff');
 
@@ -369,6 +373,7 @@ Route::name('api.loans.')->group(function (): void {
     // POST /loans/{loan}/repay
     // =========================================================================
     Route::post('{loan}/repay', [LoanRepaymentController::class, 'store'])
+        ->middleware('auth.step_up:loan.repayment.record')
         ->whereNumber('loan')
         ->name('repay');
 
