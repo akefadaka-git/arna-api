@@ -662,7 +662,7 @@ jobs:
           manifest "$SOURCE_DB" > arna-a4-source-manifest.txt
           manifest "$RESTORE_DB" > arna-a4-restored-manifest.txt
           diff -u arna-a4-source-manifest.txt arna-a4-restored-manifest.txt
-          test "$(mysql -h 127.0.0.1 -uroot -proot "$RESTORE_DB" -NBe 'SELECT SUM(debit_amount)=SUM(credit_amount) FROM journal_lines')" = "1"
+          test "$(mysql -h 127.0.0.1 -uroot -proot "$RESTORE_DB" -NBe 'SELECT COALESCE(SUM(debit_amount),0)=COALESCE(SUM(credit_amount),0) FROM journal_lines')" = "1"
           test "$(mysql -h 127.0.0.1 -uroot -proot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM migrations')" -gt 0
           {
             echo "Expected SHA: ${{ steps.target.outputs.expected_sha }}"
