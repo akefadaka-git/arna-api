@@ -43,7 +43,9 @@ final class DocumentEvidenceCaptureReconciler
 
         $result = [
             'scanned' => count($candidateIds),
-            'eligible' => count($candidateIds),
+            'eligible' => 0,
+            'referenced' => 0,
+            'unsafe' => 0,
             'deleted' => 0,
             'quarantined' => 0,
             'failed' => 0,
@@ -51,8 +53,45 @@ final class DocumentEvidenceCaptureReconciler
         ];
 
         if (! $apply) {
+            foreach ($candidateIds as $intentId) {
+                $disposition = DB::transaction(function () use ($intentId, $cutoff): string {
+                    $intent = DB::table('document_evidence_capture_intents')->where('id', $intentId)
+                        ->lockForUpdate()->first();
+                    if ($intent === null) {
+                        return 'unsafe';
+                    }
+                    $eligibleCaptured = $intent->status === 'captured'
+                        && $intent->captured_at !== null
+                        && Carbon::parse($intent->captured_at)->lte($cutoff);
+                    $expiredClaim = $intent->status === 'cleanup_claimed'
+                        && $intent->cleanup_lease_until !== null
+                        && Carbon::parse($intent->cleanup_lease_until)->lte(now());
+                    if (! $eligibleCaptured && ! $expiredClaim) {
+                        return 'unsafe';
+                    }
+
+                    $reference = DB::table('document_file_versions')
+                        ->where('tenant_id', $intent->tenant_id)
+                        ->where('file_id', $intent->file_id)
+                        ->where('file_version', $intent->file_version)
+                        ->first();
+                    if ($reference === null) {
+                        return 'eligible';
+                    }
+
+                    $matches = (string) $reference->storage_disk === (string) $intent->storage_disk
+                        && (string) $reference->storage_path === (string) $intent->storage_path
+                        && hash_equals((string) $reference->sha256, (string) $intent->sha256)
+                        && (int) $reference->size === (int) $intent->size;
+                    return $matches ? 'referenced' : 'unsafe';
+                });
+                $result[$disposition]++;
+            }
+
             return $result;
         }
+
+        $result['eligible'] = count($candidateIds);
 
         foreach ($candidateIds as $intentId) {
             $claim = DB::transaction(function () use ($intentId, $cutoff): ?object {
