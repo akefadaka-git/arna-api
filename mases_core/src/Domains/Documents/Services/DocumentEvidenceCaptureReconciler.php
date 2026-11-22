@@ -164,6 +164,7 @@ final class DocumentEvidenceCaptureReconciler
         $from = (string) $intent->status;
         DB::table('document_evidence_capture_intents')->where('id', $intent->id)->update([
             'status' => $status,
+            'linked_at' => $status === 'linked' ? now() : $intent->linked_at,
             'cleanup_claim_token' => null,
             'cleanup_lease_until' => null,
             'last_error_code' => $reason,
