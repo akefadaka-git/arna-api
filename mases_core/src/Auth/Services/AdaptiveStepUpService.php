@@ -122,7 +122,10 @@ final class AdaptiveStepUpService
         ?string $knowledgeProof = null,
     ): ?string {
         $this->assertSupportedAction($action);
-        $requirements = $this->policy->requirementsFor($action);
+        $currentToken = $user->currentAccessToken();
+        $recognizedDevice = $currentToken instanceof \\Laravel\\Sanctum\\PersonalAccessToken
+            && $this->devices->isMobileToken($currentToken);
+        $requirements = $this->policy->requirementsFor($action, recognizedDevice: $recognizedDevice);
         $contextHash = $this->context->fingerprint($action, $context);
 
         if (! $user->is_active || $user->trashed()) {
