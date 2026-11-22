@@ -87,59 +87,32 @@ final class AndroidDeviceSessionTest extends TestCase
     }
 
     #[Test]
-    public function mfa_login_challenge_is_bound_to_the_original_android_installation(): void
+    public function password_login_on_android_is_single_authenticator_after_totp_enrollment(): void
     {
-        [$user, $tenant] = $this->userWithTenant();
-        $mfa = new TotpMfaService();
-        $enrollment = $mfa->beginEnrollment($user);
-        $recoveryCodes = $mfa->confirmEnrollment($user, $this->currentTotp($enrollment['secret']));
+        [$user] = $this->enrolledUser();
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user->tenants()->attach($tenant->id, ['joined_at' => now(), 'status' => 'active']);
 
-        $first = $this->postJson('/api/login', [
+        $response = $this->postJson('/api/login', [
             'email' => $user->email,
             'password' => 'password',
             'tenant_id' => $tenant->id,
             'client_type' => 'android',
-            'device_installation_id' => 'installation-identifier-device-A',
-        ])->assertOk()->assertJsonPath('data.mfa_required', true);
-        $challenge = $first->json('data.challenge_token');
-        $code = $recoveryCodes[0];
-        $deviceSessions = app(DeviceSessionService::class);
-        $this->assertTrue($deviceSessions->loginChallengeMatches($challenge, $user, $tenant->id, 'installation-identifier-device-A'));
-        $this->assertFalse($deviceSessions->loginChallengeMatches($challenge, $user, $tenant->id, 'installation-identifier-device-B'));
-        $this->assertDatabaseHas('login_mfa_challenges', [
-            'token_hash' => hash('sha256', $challenge),
+            'device_installation_id' => 'android-installation-original-12345',
+            'device_label' => 'ARNA Android',
+            'app_version' => '1.0.0',
+        ])->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.token_type', 'Bearer');
+
+        $this->assertIsString($response->json('data.session_id'));
+        $this->assertDatabaseHas('auth_device_sessions', [
+            'public_id' => $response->json('data.session_id'),
             'user_id' => $user->id,
-            'tenant_id' => $tenant->id,
-            'consumed_at' => null,
+            'platform' => 'android',
         ]);
-
-        $this->postJson('/api/login', [
-            'email' => $user->email,
-            'password' => 'password',
-            'tenant_id' => $tenant->id,
-            'client_type' => 'android',
-            'device_installation_id' => 'installation-identifier-device-B',
-            'mfa_challenge_token' => $challenge,
-            'mfa_code' => $code,
-        ])->assertUnauthorized();
-        $this->assertDatabaseHas('login_mfa_challenges', [
-            'token_hash' => hash('sha256', $challenge),
-            'user_id' => $user->id,
-            'tenant_id' => $tenant->id,
-            'consumed_at' => null,
-        ]);
-
-        $this->postJson('/api/login', [
-            'email' => $user->email,
-            'password' => 'password',
-            'tenant_id' => $tenant->id,
-            'client_type' => 'android',
-            'device_installation_id' => 'installation-identifier-device-A',
-            'mfa_challenge_token' => $challenge,
-            'mfa_code' => $code,
-        ])->assertOk()->assertJsonPath('success', true);
+        $this->assertDatabaseCount('personal_access_tokens', 1);
     }
-
 
     #[Test]
     public function a_user_cannot_list_or_revoke_another_users_device_session(): void
