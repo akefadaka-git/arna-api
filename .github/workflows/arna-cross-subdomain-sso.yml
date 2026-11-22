@@ -1,0 +1,95 @@
+name: ARNA cross-subdomain SSO regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "app/Http/Middleware/Authenticate.php"
+      - "app/Support/FirstPartySpaOrigin.php"
+      - "tests/Feature/FirstPartySsoCookieTest.php"
+      - ".github/workflows/arna-cross-subdomain-sso.yml"
+      - "config/cors.php"
+      - "config/sanctum.php"
+      - "config/session.php"
+  push:
+    branches: [fix/cross-subdomain-sso-cookie]
+    paths:
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "app/Http/Middleware/Authenticate.php"
+      - "app/Support/FirstPartySpaOrigin.php"
+      - "tests/Feature/FirstPartySsoCookieTest.php"
+      - ".github/workflows/arna-cross-subdomain-sso.yml"
+      - "config/cors.php"
+      - "config/sanctum.php"
+      - "config/session.php"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-cross-subdomain-sso-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  sso-regression:
+    name: PHP 8.3 cross-subdomain SSO and token lifecycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: arna_sso_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: arna_sso_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - name: Check out exact proposed revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+      - name: Verify exact checkout
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
+      - name: Create deterministic test environment
+        run: touch .env
+      - name: Install locked Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Lint SSO implementation and tests
+        run: |
+          php -l app/Http/Controllers/Auth/AuthController.php
+          php -l app/Http/Middleware/Authenticate.php
+          php -l app/Support/FirstPartySpaOrigin.php
+          php -l tests/Feature/FirstPartySsoCookieTest.php
+      - name: Run cross-subdomain SSO tests
+        run: php artisan test --compact tests/Feature/FirstPartySsoCookieTest.php
+      - name: Run authentication lifecycle regression
+        run: php artisan test --compact tests/Feature/AuthenticationLifecycleTest.php

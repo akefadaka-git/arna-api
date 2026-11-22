@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\FirstPartySpaOrigin;
 use Closure;
 use Illuminate\Auth\Middleware\Authenticate as Middleware;
 use Illuminate\Http\Request;
-use App\Support\FirstPartySpaOrigin;
 use Illuminate\Support\Facades\Cache;
 use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
 

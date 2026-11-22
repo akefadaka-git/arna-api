@@ -52,7 +52,7 @@ final class FirstPartySsoCookieTest extends TestCase
             ->first(static fn ($candidate) => $candidate->getName() === 'arna_sso_token');
 
         $this->assertNotNull($cookie);
-        $this->assertSame('.maalearna.com.et', $cookie->getDomain());
+        $this->assertSame('maalearna.com.et', ltrim((string) $cookie->getDomain(), '.'));
         $this->assertTrue($cookie->isSecure());
         $this->assertTrue($cookie->isHttpOnly());
         $this->assertSame('lax', $cookie->getSameSite());
