@@ -173,6 +173,24 @@ final class AuthenticationLifecycleTest extends TestCase
 
         // Attach the user to the tenant so they can log in with tenant context.
         $this->user->tenants()->attach($this->tenant->id);
+
+        // Provide a verified phone recovery channel for OTP password-reset tests.
+        $phone = '+251911123456';
+        $this->user->forceFill([
+            'phone' => $phone,
+            'phone_verified_at' => now(),
+            'phone_verified_phone_hash' => hash('sha256', $phone),
+        ])->save();
+    }
+
+    private function fakeOtpDelivery(?string &$sentCode): void
+    {
+        Config::set('phone-verification.gateway_url', 'https://sms.example.test/send');
+        Http::fake(function ($request) use (&$sentCode) {
+            preg_match('/code is (\\d{6})/', (string) ($request->data()['message'] ?? ''), $matches);
+            $sentCode = $matches[1] ?? null;
+            return Http::response(['accepted' => true], 200);
+        });
     }
 
     // =========================================================================
@@ -464,142 +482,80 @@ final class AuthenticationLifecycleTest extends TestCase
      * @return void
      */
     #[Test]
-    public function a_user_can_request_a_password_reset_link(): void
+    public function a_user_can_request_a_password_recovery_otp(): void
     {
+        $sentCode = null;
+        $this->fakeOtpDelivery($sentCode);
+
         $response = $this->postJson('/api/password/email', [
-            'email' => 'test@example.com',
-        ]);
+            'identifier' => '+251911123456',
+            'channel' => 'sms',
+        ])->assertOk()
+            ->assertJsonPath('data.challenge_required', true);
 
-        // The endpoint returns the neutral message. See the class docblock
-        // §"Password reset neutrality" for the rationale: a
-        // registered-vs-unregistered distinction in the response would
-        // leak registration status to the caller.
-        $response->assertStatus(200);
-        $response->assertJson([
-            'success' => true,
-            'message' => 'If an account exists for that email address, a password reset link has been sent.',
-        ]);
-
-        // Verify a token was created for this email. This is the
-        // server-side effect that distinguishes the registered case from
-        // the unregistered case; it is NOT observable to the client.
-        $this->assertDatabaseHas('password_reset_tokens', [
-            'email' => 'test@example.com',
+        $this->assertIsString($response->json('data.challenge_token'));
+        $this->assertNotNull($sentCode);
+        $this->assertDatabaseHas('auth_step_up_challenges', [
+            'user_id' => $this->user->id,
+            'action' => 'password_recovery',
+            'challenge_hash' => hash('sha256', $response->json('data.challenge_token')),
         ]);
     }
 
-    /**
-     * Test that a password reset request for a non-existent email is
-     * indistinguishable from the registered case.
-     *
-     * The endpoint deliberately returns the SAME 200 with the SAME neutral
-     * message for an unregistered email, because a distinct response (a
-     * 422, a validation error keyed on `email`, a different message)
-     * would let a caller probe the user table for registered addresses.
-     *
-     * See `AuthController`'s class docblock §"Password reset neutrality"
-     * for the full rationale. This test pins the invariant:
-     *
-     *   - status 200
-     *   - the neutral message
-     *   - no `password_reset_tokens` row (the server-side side effect
-     *     does NOT occur for an unregistered email)
-     *
-     * The first two are observable to the client and MUST match the
-     * registered case exactly. The third is a defensive assertion of the
-     * server-side behaviour; it is not observable to the client and
-     * exists to catch a future regression in the broker wiring.
-     *
-     * @return void
-     */
     #[Test]
-    public function a_user_cannot_request_a_password_reset_link_for_nonexistent_email(): void
+    public function a_password_recovery_request_for_a_nonexistent_identifier_is_indistinguishable(): void
     {
         $response = $this->postJson('/api/password/email', [
             'email' => 'nonexistent@example.com',
-        ]);
+            'channel' => 'email',
+        ])->assertOk()
+            ->assertJsonPath('data.challenge_required', true);
 
-        // The endpoint returns the SAME neutral 200 as the registered
-        // case. A distinct status or a validation error would leak
-        // registration status. See the class docblock for the rationale.
-        $response->assertStatus(200);
-        $response->assertJson([
-            'success' => true,
-            'message' => 'If an account exists for that email address, a password reset link has been sent.',
-        ]);
-
-        // Defensive: no token row is created for an unregistered email.
-        // This is the server-side fact that the neutral response conceals;
-        // a future regression that started writing a token for a
-        // nonexistent user would be caught here.
-        $this->assertDatabaseMissing('password_reset_tokens', [
-            'email' => 'nonexistent@example.com',
-        ]);
+        $this->assertIsString($response->json('data.challenge_token'));
+        $this->assertDatabaseCount('auth_step_up_challenges', 0);
     }
 
-    /**
-     * Test that a user can reset their password with a valid token.
-     *
-     * A valid token should allow the user to set a new password. The old password
-     * should be invalid after the reset, and the token should be removed from the
-     * password_reset_tokens table.
-     *
-     * @return void
-     */
     #[Test]
-    public function a_user_can_reset_password_with_valid_token(): void
+    public function a_user_can_reset_password_with_a_verified_otp(): void
     {
-        // Generate a valid password reset token for the user.
-        $token = Password::createToken($this->user);
+        $sentCode = null;
+        $this->fakeOtpDelivery($sentCode);
+
+        $challenge = $this->postJson('/api/password/email', [
+            'identifier' => '+251911123456',
+            'channel' => 'sms',
+        ])->assertOk();
+
         $newPassword = 'NewPassword456!';
-
-        // Send the reset request with the new password and token.
-        $response = $this->postJson('/api/password/reset', [
-            'email'                 => 'test@example.com',
-            'password'              => $newPassword,
+        $this->postJson('/api/password/reset', [
+            'identifier' => '+251911123456',
+            'authenticator' => 'otp',
+            'code' => $sentCode,
+            'challenge_token' => $challenge->json('data.challenge_token'),
+            'password' => $newPassword,
             'password_confirmation' => $newPassword,
-            'token'                 => $token,
-        ]);
+        ])->assertOk()->assertJsonPath('data.password_reset', true);
 
-        $response->assertStatus(200);
-        $response->assertJson([
-            'success' => true,
-            'message' => 'Password has been reset successfully.',
-        ]);
-
-        // Verify the password was updated.
         $this->user->refresh();
-        $this->assertTrue(
-            Hash::check($newPassword, $this->user->password),
-            'Password was not updated correctly.'
-        );
-
-        // Verify the reset token was deleted.
-        $this->assertDatabaseMissing('password_reset_tokens', [
-            'email' => 'test@example.com',
-        ]);
+        $this->assertTrue(Hash::check($newPassword, $this->user->password));
+        $this->assertFalse(Hash::check('Password123!', $this->user->password));
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => 'test@example.com']);
     }
 
-    /**
-     * Test that a user cannot reset their password with an invalid token.
-     *
-     * An invalid token should result in a 422 validation error on the email field
-     * (the password broker returns a generic error for security).
-     *
-     * @return void
-     */
     #[Test]
-    public function a_user_cannot_reset_password_with_invalid_token(): void
+    public function a_user_cannot_reset_password_with_an_invalid_otp_challenge(): void
     {
         $response = $this->postJson('/api/password/reset', [
-            'email'                 => 'test@example.com',
-            'password'              => 'NewPassword456!',
+            'identifier' => '+251911123456',
+            'authenticator' => 'otp',
+            'code' => '000000',
+            'challenge_token' => str_repeat('a', 64),
+            'password' => 'NewPassword456!',
             'password_confirmation' => 'NewPassword456!',
-            'token'                 => 'invalid-token',
         ]);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['email']);
+        $response->assertJsonValidationErrors(['identifier']);
     }
 
     // =========================================================================
