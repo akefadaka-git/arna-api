@@ -481,6 +481,7 @@ final class WalletController extends Controller
         $walletModel = $this->resolveWalletOrFail($tenantId, $wallet);
 
         Gate::authorize('view', $walletModel);
+        app(\\MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpGuard::class)->assert($request, 'wallet.balance.adjust', $tenantId);
 
         $actorId = $request->user()?->id;
 
