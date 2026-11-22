@@ -1,7 +1,7 @@
 # ARNA Executive Overview — A4 Security and Isolation Verification
 
 **Stage:** A4 — verification  
-**Current status:** Automated A4 API preflight PASS on exact code head `17bb0e1ff1530d0a1903e2516916b28d9a9ee426`; formal A4 closure not declared.  
+**Current status:** VERIFIED-CLOSED — A4 API exact-head verification and GPT-6 internal technical retest completed 2026-11-22. Closure is limited to the Executive Overview feature branch and does not authorize merge, production grants, or deployment.  
 **Scope:** Frozen audience authorization, Finance authorization freshness, tenant/legal-entity isolation, response disclosure, and reproducible evidence  
 **A3 API parent:** `6e8ca660d35caf9fe5e8d66ee34406bf642f2de1`  
 **A4 API baseline:** `9f5ea1ee0e221bca5007890178f249cdba20c992`  
@@ -87,3 +87,47 @@ The current A3 API baseline is `5fd35bf31c1b6308e8373ff6121a0d4123f7e33b`, with 
 - Fresh migration and seed passed; 85 migration records; second migration run idempotent; no pending migrations.
 - The earlier 73-entry catalogue assertions were corrected to 74; the rerun passed on this exact code head.
 - These are automated preflight results, not formal A4 closure. No independent review was requested or performed; it remains reserved for A5 immediately before deployment.
+
+
+---
+
+## A4 formal closure record — 2026-11-22
+
+**Disposition: VERIFIED-CLOSED (API authorization, Finance isolation, response contract and clean-install scope).** This record supersedes the earlier R3/R4 pending statements above. It closes A4 for the canonical Executive Overview implementation branch only.
+
+### Exact target and automated evidence
+
+- Canonical branch: `feat/dashboard-executive-overview-a3`.
+- Code-bearing API SHA: `009f590ed7f852ebeafcc86d069dba56221c9856`.
+- [Executive Overview API A4 workflow #45023032975 — PASS](https://github.com/akefadaka-git/arna-api/actions/runs/45023032975), exact SHA above.
+- [Clean-install MySQL workflow #45023033134 — PASS](https://github.com/akefadaka-git/arna-api/actions/runs/45023033134), exact SHA above.
+- Frozen audience and wildcard authorization: 9 passed (65 assertions).
+- Route, metadata-disclosure and no-store contract: 4 passed (25 assertions).
+- Fresh authorization, stale-cache revocation and tenant/entity isolation: 14 passed (36 assertions).
+- Finance permission catalogue tests: 2 passed (46 assertions).
+- Full disposable MySQL clean install and seed: PASS; 85 migration records.
+- Second migration run: PASS and idempotent; migration record count remained 85.
+- No pending migrations; Composer security advisory gate: PASS.
+
+### Fresh GPT-6 internal technical retest
+
+- Inspected the exact API controller, audience policy, route middleware, Finance policy, role-permission seeder and all three Executive Overview feature test files.
+- Confirmed the entry audience is enforced against active, tenant-bound approved role assignments and the active tenant-scoped entry permission. Direct user grants and platform wildcard roles do not substitute for the approved audience.
+- Confirmed Finance report and entity permissions are re-read from current database pivots before widget generation; entities are queried within the resolved tenant; each entity is separately authorized; unconfigured ledgers are omitted.
+- Confirmed the response does not disclose omitted-widget/permission metadata and is marked `Cache-Control: private, no-store`.
+- Exact-head MySQL tests prove revocation is effective even when the generic authorization middleware's positive cache is deliberately stale.
+- No A4-scoped critical/high finding remains open.
+
+### Explicit residual risk — RISK-A4-01 remains OPEN
+
+The platform-wide `InvalidateAuthorizationCacheListener` still catches and logs invalidation failures. Other consumers of the shared authorization service may retain stale positive cache entries until TTL expiry. The Executive Overview endpoint's fresh database-pivot checks prevent that stale positive from preserving access to this endpoint's sensitive audience or Finance widgets. This closure does not claim a platform-wide cache-invalidation fix. Track the wider listener/cache redesign separately.
+
+### Integration and residual boundaries
+
+- API `main` is nine commits ahead of this feature head. The intervening changes are confined to the A3.3.1 exact-SHA workflow and Corporate Site media/publishing code and tests; none modifies the Executive Overview controller, audience policy, Finance authorization, routes, seeders, or A4 tests. Reconcile the branch with current `main` and rerun affected gates before any merge.
+- Synthetic fixtures and disposable MySQL only. Production role assignments, live grants and production data were not inspected.
+- No migration or production role grant was applied by this feature.
+- No merge or deployment is authorized by this closure.
+- Independent review remains reserved for A5 immediately before deployment, not A4.
+
+**A4 API result: VERIFIED-CLOSED.**
