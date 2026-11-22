@@ -36,12 +36,27 @@ final class GovernanceMeetingAttendanceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $view = $this->createPermission('governance.body.view');
-        $manage = $this->createPermission('governance.body.manage');
+        // Grant the exact permissions now required by the hardened meeting,
+        // agenda and attendance routes. Test actors must model the production
+        // permission contract rather than rely on the legacy body-level gates.
+        $permissionIds = [];
+        foreach ([
+            'governance.body.view',
+            'governance.body.manage',
+            'governance.meeting.view',
+            'governance.meeting.manage',
+            'governance.meeting.approve',
+            'governance.agenda.view',
+            'governance.agenda.manage',
+            'governance.attendance.view',
+            'governance.attendance.manage',
+        ] as $permissionSlug) {
+            $permissionIds[] = $this->createPermission($permissionSlug)->id;
+        }
 
         $this->admin = $this->createUser('meeting-admin');
         $this->admin->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
-        $this->admin->permissions()->attach([$view->id, $manage->id]);
+        $this->admin->permissions()->attach($permissionIds);
         $this->admin->load('permissions');
 
         $this->plainUser = $this->createUser('meeting-plain');
