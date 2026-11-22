@@ -136,7 +136,12 @@ final class CorporateSiteController extends Controller
 
             if ($decision === 'approve') {
                 abort_unless($page->status === 'draft', 422, 'Only draft pages can be approved.');
-                abort_unless((int) $page->created_by !== (int) $request->user()->id, 403, 'The page author cannot approve their own page.');
+                abort_unless(
+                    (int) $page->created_by !== (int) $request->user()->id &&
+                    (int) ($page->updated_by ?? $page->created_by) !== (int) $request->user()->id,
+                    403,
+                    'The page author or latest editor cannot approve their own version.',
+                );
                 foreach (['am', 'en'] as $requiredLocale) {
                     abort_unless(
                         is_array($page->translations[$requiredLocale] ?? null) &&

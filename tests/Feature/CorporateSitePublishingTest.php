@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -298,18 +302,21 @@ final class CorporateSitePublishingTest extends TestCase
     {
         Storage::fake('local');
         Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
+        $signature = $this->signedScannerSignature('clean', 'public-reference', 'test image bytes', $keys['secret']);
         config([
             'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
             'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
         ]);
         Http::fake([
-            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => 'test-signature'], 200),
+            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => $signature], 200),
         ]);
 
         $verdict = app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
 
         $this->assertSame('clean', $verdict['status']);
-        $this->assertSame('test-signature', $verdict['signature']);
+        $this->assertSame($signature, $verdict['signature']);
         Http::assertSent(fn ($request): bool => $request->hasHeader('Authorization', 'Bearer scanner-token'));
     }
 
@@ -323,5 +330,436 @@ final class CorporateSitePublishingTest extends TestCase
         app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
     }
 
+
+
+    public function test_media_scanner_rejects_missing_authentication_token(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => '',
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_preserves_an_infected_verdict_as_infected(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
+        $signature = $this->signedScannerSignature('infected', 'public-reference', 'test image bytes', $keys['secret']);
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'infected', 'signature' => $signature], 200),
+        ]);
+
+        $verdict = app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+
+        $this->assertSame('infected', $verdict['status']);
+        $this->assertSame($signature, $verdict['signature']);
+    }
+
+    public function test_media_scanner_rejects_http_errors_and_invalid_verdicts(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
+        ]);
+
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => 'ignored'], 503),
+        ]);
+        try {
+            app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+            $this->fail('A non-success HTTP response must not be accepted.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('did not return a successful response', $exception->getMessage());
+        }
+
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'unknown', 'signature' => 'ignored'], 200),
+        ]);
+        $this->expectException(\RuntimeException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_rejects_missing_scan_signature(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'clean'], 200),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_propagates_connection_failures_for_fail_closed_handling(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
+        ]);
+        Http::fake(static function () {
+            throw new ConnectionException('scanner connection timed out');
+        });
+
+        $this->expectException(ConnectionException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_rejects_a_forged_signature(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        $keys = $this->scannerKeyPair();
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response([
+                'status' => 'clean',
+                'signature' => base64_encode(str_repeat(chr(0), SODIUM_CRYPTO_SIGN_BYTES)),
+            ], 200),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('signature could not be verified');
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_signature_is_bound_to_the_file_and_reference(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'different file bytes');
+        $keys = $this->scannerKeyPair();
+        $signature = $this->signedScannerSignature('clean', 'another-reference', 'test image bytes', $keys['secret']);
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => $signature], 200),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('signature could not be verified');
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scanner_fails_closed_without_a_signing_public_key(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/test.jpg', 'test image bytes');
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => '',
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        app(CorporateMediaScanner::class)->scan('corporate-quarantine/test.jpg', 'public-reference');
+    }
+
+    public function test_media_scan_is_required_and_post_scan_file_changes_block_publication(): void
+    {
+        Storage::fake('local');
+        $originalContents = 'original media bytes';
+        Storage::disk('local')->put('corporate-quarantine/media.jpg', $originalContents);
+
+        $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $reviewer = $this->corporateSiteReviewer();
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'media',
+            'slug_am' => 'media-am',
+            'slug_en' => 'media-en',
+            'translations' => [
+                'am' => ['title' => 'የሚዲያ ፋይል'],
+                'en' => ['title' => 'Media file'],
+            ],
+            'asset_path' => 'corporate-quarantine/media.jpg',
+            'asset_mime' => 'image/jpeg',
+            'asset_size' => strlen($originalContents),
+            'created_by' => $author->id,
+            'payload' => ['quarantine' => true, 'scan_status' => 'pending'],
+        ]);
+
+        $keys = $this->scannerKeyPair();
+        $signature = $this->signedScannerSignature('clean', $entry->public_id, $originalContents, $keys['secret']);
+        config([
+            'services.corporate_media_scanner.url' => 'https://scanner.example.test/scan',
+            'services.corporate_media_scanner.token' => 'scanner-token',
+            'services.corporate_media_scanner.public_key' => base64_encode($keys['public']),
+        ]);
+        Http::fake([
+            'scanner.example.test/*' => Http::response(['status' => 'clean', 'signature' => $signature], 200),
+        ]);
+        Sanctum::actingAs($reviewer);
+
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/scan', [
+            'expected_version' => 1,
+        ])->assertOk()->assertJsonPath('data.scan_status', 'clean');
+
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/approve', [
+            'expected_version' => 2,
+        ])->assertOk()->assertJsonPath('data.status', 'approved');
+
+        Storage::disk('local')->put('corporate-quarantine/media.jpg', 'changed after scan');
+
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/publish', [
+            'expected_version' => 3,
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('corporate_site_entries', [
+            'id' => $entry->id,
+            'status' => 'approved',
+            'version' => 3,
+        ]);
+    }
+
+    public function test_published_media_is_not_served_if_file_changes_after_publication(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('corporate-quarantine/published.jpg', 'tampered bytes');
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'media',
+            'slug_am' => 'published-media-am',
+            'slug_en' => 'published-media-en',
+            'translations' => [
+                'am' => ['title' => 'የታተመ ሚዲያ'],
+                'en' => ['title' => 'Published media'],
+            ],
+            'asset_path' => 'corporate-quarantine/published.jpg',
+            'asset_mime' => 'image/jpeg',
+            'asset_size' => strlen('tampered bytes'),
+            'payload' => [
+                'scan_status' => 'clean',
+                'scan_signature' => base64_encode(str_repeat('s', SODIUM_CRYPTO_SIGN_BYTES)),
+                'scan_sha256' => hash('sha256', 'original signed bytes'),
+            ],
+        ]);
+        $entry->forceFill(['status' => 'published', 'published_at' => now()->subMinute()])->save();
+
+        $this->get('/api/public/site/media/' . $entry->public_id . '/asset')->assertNotFound();
+    }
+
+    public function test_published_media_requires_a_clean_cryptographically_verified_verdict(): void
+    {
+        Storage::fake('local');
+        $contents = 'published media bytes';
+        Storage::disk('local')->put('corporate-quarantine/verified.jpg', $contents);
+        $keys = $this->scannerKeyPair();
+        $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'media',
+            'slug_am' => 'verified-media-am',
+            'slug_en' => 'verified-media-en',
+            'translations' => [
+                'am' => ['title' => 'የተረጋገጠ ሚዲያ'],
+                'en' => ['title' => 'Verified media'],
+            ],
+            'asset_path' => 'corporate-quarantine/verified.jpg',
+            'asset_mime' => 'image/jpeg',
+            'asset_size' => strlen($contents),
+            'created_by' => $author->id,
+            'payload' => [],
+        ]);
+        $digest = hash('sha256', $contents);
+        $signature = $this->signedScannerSignature('clean', $entry->public_id, $contents, $keys['secret']);
+        config(['services.corporate_media_scanner.public_key' => base64_encode($keys['public'])]);
+        $entry->forceFill([
+            'status' => 'published',
+            'published_at' => now()->subMinute(),
+            'payload' => [
+                'scan_status' => 'clean',
+                'scan_signature' => $signature,
+                'scan_sha256' => $digest,
+            ],
+        ])->save();
+
+        $this->get('/api/public/site/media/' . $entry->public_id . '/asset')->assertOk();
+
+        $entry->forceFill(['payload' => [
+            'scan_status' => 'clean',
+            'scan_signature' => base64_encode(str_repeat(chr(0), SODIUM_CRYPTO_SIGN_BYTES)),
+            'scan_sha256' => $digest,
+        ]])->save();
+        $this->get('/api/public/site/media/' . $entry->public_id . '/asset')->assertNotFound();
+
+        $infectedSignature = $this->signedScannerSignature('infected', $entry->public_id, $contents, $keys['secret']);
+        $entry->forceFill(['payload' => [
+            'scan_status' => 'infected',
+            'scan_signature' => $infectedSignature,
+            'scan_sha256' => $digest,
+        ]])->save();
+        $this->get('/api/public/site/media/' . $entry->public_id . '/asset')->assertNotFound();
+    }
+
+    public function test_media_scan_metadata_cannot_be_forged_through_admin_update(): void
+    {
+        $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $reviewer = $this->corporateSiteReviewer();
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'media',
+            'slug_am' => 'media-am',
+            'slug_en' => 'media-en',
+            'translations' => [
+                'am' => ['title' => 'የሚዲያ ፋይል'],
+                'en' => ['title' => 'Media file'],
+            ],
+            'asset_path' => 'corporate-quarantine/media.jpg',
+            'asset_mime' => 'image/jpeg',
+            'asset_size' => 10,
+            'created_by' => $author->id,
+            'payload' => ['quarantine' => true, 'scan_status' => 'pending'],
+        ]);
+        Sanctum::actingAs($reviewer);
+
+        $this->putJson('/api/admin/corporate-site/entries/' . $entry->id, [
+            'expected_version' => 1,
+            'payload' => [
+                'quarantine' => false,
+                'scan_status' => 'clean',
+                'scan_signature' => 'forged',
+                'scan_sha256' => str_repeat('a', 64),
+            ],
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('corporate_site_entries', [
+            'id' => $entry->id,
+            'version' => 1,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_generic_admin_entry_creation_cannot_create_media_without_quarantine_upload(): void
+    {
+        Sanctum::actingAs($this->corporateSiteReviewer());
+
+        $this->postJson('/api/admin/corporate-site/entries', [
+            'entry_type' => 'media',
+            'translations' => [
+                'am' => ['title' => 'የሚዲያ ፋይል'],
+                'en' => ['title' => 'Media file'],
+            ],
+            'payload' => ['scan_status' => 'clean'],
+        ])->assertUnprocessable();
+    }
+
+    private function corporateSiteReviewer(): User
+    {
+        $user = User::factory()->create([
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'public-content.review'],
+            [
+                'name_am' => 'ይፋዊ ይዘት መገምገምና ማተም',
+                'name_en' => 'Review and publish public content',
+                'scope' => 'global',
+                'is_active' => true,
+            ],
+        );
+        $user->permissions()->attach($permission->id);
+
+        return $user;
+    }
+
+    /**
+     * Deterministic test-only Ed25519 key material. Never use this key in production.
+     */
+
+    private function scannerKeyPair(): array
+    {
+        $keyPair = sodium_crypto_sign_seed_keypair(str_repeat('a', SODIUM_CRYPTO_SIGN_SEEDBYTES));
+
+        return [
+            'public' => sodium_crypto_sign_publickey($keyPair),
+            'secret' => sodium_crypto_sign_secretkey($keyPair),
+        ];
+    }
+
+    private function signedScannerSignature(string $status, string $reference, string $contents, string $secretKey): string
+    {
+        $message = implode("\n", [
+            'ARNA-CORPORATE-MEDIA-SCAN-V1',
+            $status,
+            $reference,
+            hash('sha256', $contents),
+        ]);
+
+        return base64_encode(sodium_crypto_sign_detached($message, $secretKey));
+    }
+
+
+    public function test_latest_page_editor_cannot_approve_their_own_version(): void
+    {
+        $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $editor = $this->corporateSiteReviewer();
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'reviewer-separation-page',
+            'slug_am' => 'reviewer-separation-am',
+            'slug_en' => 'reviewer-separation-en',
+            'translations' => [
+                'am' => ['title' => 'የሙከራ ገጽ'],
+                'en' => ['title' => 'Test page'],
+            ],
+            'created_by' => $author->id,
+            'updated_by' => $editor->id,
+        ]);
+
+        Sanctum::actingAs($editor);
+        $this->postJson('/api/admin/corporate-site/pages/' . $page->id . '/approve', [
+            'expected_version' => $page->version,
+        ])->assertForbidden();
+    }
+
+    public function test_latest_entry_editor_cannot_review_their_own_version(): void
+    {
+        $author = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $editor = $this->corporateSiteReviewer();
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'news',
+            'slug_am' => 'reviewer-separation-entry-am',
+            'slug_en' => 'reviewer-separation-entry-en',
+            'translations' => [
+                'am' => ['title' => 'ዜና'],
+                'en' => ['title' => 'News'],
+            ],
+            'created_by' => $author->id,
+            'updated_by' => $editor->id,
+        ]);
+
+        Sanctum::actingAs($editor);
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/approve', [
+            'expected_version' => $entry->version,
+        ])->assertForbidden();
+    }
 
 }

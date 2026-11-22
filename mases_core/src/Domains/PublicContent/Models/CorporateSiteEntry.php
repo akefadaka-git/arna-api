@@ -15,7 +15,7 @@ final class CorporateSiteEntry extends Model
     protected $fillable = [
         'entry_type', 'slug_am', 'slug_en', 'translations', 'payload', 'seo',
         'status', 'version', 'moderation_note', 'asset_path', 'asset_mime',
-        'asset_size', 'scheduled_at', 'published_at', 'created_by', 'reviewed_by',
+        'asset_size', 'scheduled_at', 'published_at', 'created_by', 'updated_by', 'reviewed_by',
     ];
 
     protected $casts = [

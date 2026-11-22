@@ -4,7 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - verify/a3-3-1-exact-sha
+    paths:
+      - .github/workflows/a3-3-1-exact-sha-verification.yml
 
 permissions:
   contents: read
