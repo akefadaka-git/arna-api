@@ -33,10 +33,11 @@ final class AdaptiveLoginAuthenticatorTest extends TestCase
         ])->assertOk();
 
         $sentCode = null;
-        $this->mock(PhoneVerificationDelivery::class, function ($mock) use (&$sentCode): void {
-            $mock->shouldReceive('send')->once()->andReturnUsing(function ($phone, $code) use (&$sentCode): void {
-                $sentCode = $code;
-            });
+        Config::set('phone-verification.gateway_url', 'https://sms.example.test/send');
+        Http::fake(function ($request) use (&$sentCode) {
+            preg_match('/code is (\\d{6})/', (string) ($request->data()['message'] ?? ''), $matches);
+            $sentCode = $matches[1] ?? null;
+            return Http::response(['accepted' => true], 200);
         });
 
         $installation = 'android-installation-identifier-12345';
