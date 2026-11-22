@@ -12,7 +12,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 /**
  * PermissionSeeder
  *
- * Seeds the platform's sixty permissions — the atomic
+ * Seeds the platform's sixty-one permissions — the atomic
  * capabilities the authorization system checks. Runs after
  * ApplicationSeeder and before RoleSeeder.
  *
@@ -150,7 +150,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
  *     )
  *
  * This makes the seeder idempotent. Running it repeatedly against a
- * database that already has the 60 permissions updates the existing
+ * database that already has the 61 permissions updates the existing
  * rows in place rather than inserting duplicates.
  *
  * =============================================================================

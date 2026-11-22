@@ -217,7 +217,7 @@ final class RolePermissionGrants
             'file.list', 'file.view', 'file.download', 'announcement.view',
             ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
         ],
-        'finance_manager' => FinanceRolePermissionGrants::MAP['finance_manager'],
+        'finance_manager' => [...FinanceRolePermissionGrants::MAP['finance_manager'], 'dashboard.executive.view'],
         'hr_manager'      => [
             'app.hr.access',
             'file.upload', 'file.download', 'file.view', 'file.list',
@@ -238,7 +238,7 @@ final class RolePermissionGrants
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['president'], 'app.admin.access',
             'user.profile.view', 'user.list',
             'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish',
-            'role.list', 'permission.list',
+            'role.list', 'permission.list', 'dashboard.executive.view',
         ],
         'secretary'       => [
             ...DocumentsRolePermissionGrants::MAP['secretary'],
@@ -250,7 +250,7 @@ final class RolePermissionGrants
             ...DocumentsRolePermissionGrants::MAP['ceo'],
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['ceo'], 'app.hr.access', 'app.admin.access',
             'user.profile.view', 'user.list', 'user.create', 'user.update',
-            'role.list', 'permission.list',
+            'role.list', 'permission.list', 'dashboard.executive.view',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
     ];

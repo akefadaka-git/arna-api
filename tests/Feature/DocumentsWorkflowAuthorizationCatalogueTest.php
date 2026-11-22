@@ -25,7 +25,7 @@ final class DocumentsWorkflowAuthorizationCatalogueTest extends TestCase
             $this->assertFalse($row['is_system']);
             $this->assertTrue($catalogue->has($row['slug']), 'Missing permission '.$row['slug']);
         }
-        $this->assertCount(73, PermissionCatalogue::ROWS);
+        $this->assertCount(74, PermissionCatalogue::ROWS);
     }
 
     public function test_document_role_grants_are_least_privilege_and_composed_into_the_canonical_seed_map(): void
