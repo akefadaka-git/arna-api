@@ -28,7 +28,7 @@ final class AdaptiveStepUpService
      *
      * @return array{challenge_token:string, channel:string, destination:string, expires_at:string}
      */
-    public function issueOtp(User $user, int $tenantId, string $action, string $channel, array $context): array
+    public function issueOtp(User $user, ?int $tenantId, string $action, string $channel, array $context): array
     {
         $this->assertSupportedAction($action);
         if (! $user->is_active || $user->trashed()) {
@@ -112,7 +112,7 @@ final class AdaptiveStepUpService
      */
     public function verify(
         User $user,
-        int $tenantId,
+        ?int $tenantId,
         string $action,
         array $context,
         string $authenticator,
@@ -170,7 +170,7 @@ final class AdaptiveStepUpService
         return $grant;
     }
 
-    public function consumeGrant(User $user, int $tenantId, string $action, array $context, string $grant): bool
+    public function consumeGrant(User $user, ?int $tenantId, string $action, array $context, string $grant): bool
     {
         if ($grant === '' || strlen($grant) !== 64) {
             return false;
@@ -204,7 +204,7 @@ final class AdaptiveStepUpService
 
     private function verifyOtp(
         User $user,
-        int $tenantId,
+        ?int $tenantId,
         string $action,
         string $contextHash,
         ?string $challengeToken,
@@ -311,7 +311,7 @@ final class AdaptiveStepUpService
         }
     }
 
-    private function audit(string $event, User $user, int $tenantId, string $action, string $factor): void
+    private function audit(string $event, User $user, ?int $tenantId, string $action, string $factor): void
     {
         try {
             app(SecurityEventService::class)->log($event, [
