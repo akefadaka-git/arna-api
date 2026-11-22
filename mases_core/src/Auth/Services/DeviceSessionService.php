@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use MaaleArna\MASES\Core\Auth\Models\DeviceSession;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
@@ -387,6 +388,47 @@ final class DeviceSessionService
      * The token-to-session link is resolved server-side; callers cannot
      * select another device session by supplying an identifier.
      */
+    /**
+     * Revoke all bearer tokens, recognized devices and database-backed
+     * browser sessions after account recovery or a credential compromise.
+     */
+    public function revokeAllForUser(User $user, string $reason = 'security_event'): void
+    {
+        DB::transaction(function () use ($user, $reason): void {
+            $sessions = DeviceSession::query()
+                ->where('user_type', $user->getMorphClass())
+                ->where('user_id', $user->getKey())
+                ->whereNull('revoked_at')
+                ->lockForUpdate()
+                ->get();
+
+            $tokenIds = $sessions->pluck('personal_access_token_id')->filter()->values()->all();
+
+            if ($sessions->isNotEmpty()) {
+                DeviceSession::query()->whereIn('id', $sessions->pluck('id'))->update([
+                    'personal_access_token_id' => null,
+                    'revoked_at' => now(),
+                    'revocation_reason' => substr($reason, 0, 64),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            if ($tokenIds !== []) {
+                PersonalAccessToken::query()->whereIn('id', $tokenIds)->delete();
+            }
+
+            $user->tokens()->delete();
+
+            if (Schema::hasTable('sessions')) {
+                DB::table('sessions')->where('user_id', $user->getKey())->delete();
+            }
+
+            foreach ($sessions as $session) {
+                $this->audit('auth.device_session.revoked_all', $user, $session);
+            }
+        }, 3);
+    }
+
     public function verifyPinForToken(User $user, PersonalAccessToken $token, string $pin): bool
     {
         if (! $this->isMobileToken($token)) {
