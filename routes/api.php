@@ -247,6 +247,14 @@ Route::post('/login/pin', [AuthController::class, 'loginWithPin'])
     ->middleware('throttle:5,1')
     ->name('api.auth.login.pin');
 
+Route::post('/login/otp/challenge', [AuthController::class, 'requestLoginOtp'])
+    ->middleware('throttle:3,10')
+    ->name('api.auth.login.otp.challenge');
+
+Route::post('/login/authenticator', [AuthController::class, 'loginWithAuthenticator'])
+    ->middleware('throttle:5,1')
+    ->name('api.auth.login.authenticator');
+
 /**
  * Register
  *
