@@ -73,7 +73,7 @@ If R4 is PASS and R5 finds no unresolved A4-scoped critical/high issue, the A4 i
 
 ## Refreshed A3 baseline and review timing (2026-11-22)
 
-The current A3 API baseline is `7d601ba67d52873ff46fbe1f534b83abf5889c88`, with implementation on `feat/dashboard-executive-overview-a3`. Historical R3 results above do not establish PASS for the refreshed branch. A4 consists of exact-head automated and internal authorization, tenant-isolation, and Finance-data checks. Independent review is reserved for A5 immediately before deployment.
+The current A3 API baseline is `5fd35bf31c1b6308e8373ff6121a0d4123f7e33b`, with implementation on `feat/dashboard-executive-overview-a3`. Historical R3 results above do not establish PASS for the refreshed branch. A4 consists of exact-head automated and internal authorization, tenant-isolation, and Finance-data checks. Independent review is reserved for A5 immediately before deployment.
 
 
 ## Exact-head evidence (2026-11-22)
