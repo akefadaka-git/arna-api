@@ -419,6 +419,16 @@ final class DeviceSessionService
 
             $user->tokens()->delete();
 
+            if (Schema::hasTable('auth_step_up_challenges')) {
+                DB::table('auth_step_up_challenges')->where('user_id', $user->getKey())
+                    ->whereNull('consumed_at')->update(['consumed_at' => now(), 'updated_at' => now()]);
+            }
+
+            if (Schema::hasTable('auth_step_up_grants')) {
+                DB::table('auth_step_up_grants')->where('user_id', $user->getKey())
+                    ->whereNull('consumed_at')->update(['consumed_at' => now(), 'updated_at' => now()]);
+            }
+
             if (Schema::hasTable('sessions')) {
                 DB::table('sessions')->where('user_id', $user->getKey())->delete();
             }
