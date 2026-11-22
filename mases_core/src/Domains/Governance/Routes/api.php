@@ -727,4 +727,23 @@ Route::name('api.governance.')->group(static function (): void {
     Route::post('/elections/{election}/candidates/{candidate}/eligibility-decision', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'decide'])
         ->whereNumber('election')->middleware('auth.permission:governance.election.committee.decide')->name('elections.candidates.eligibility-decision');
 
+
+    // AGE A3 — independently prepared, reconciled and frozen voter register.
+    Route::get('/elections/{election}/registers', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionRegisterController::class, 'show'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.registers.show');
+    Route::post('/elections/{election}/registers', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionRegisterController::class, 'prepare'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.register.manage')
+        ->name('elections.registers.prepare');
+    Route::post('/elections/{election}/registers/{snapshot}/reconcile', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionRegisterController::class, 'reconcile'])
+        ->whereNumber('election')->whereNumber('snapshot')
+        ->middleware('auth.permission:governance.election.register.manage')
+        ->name('elections.registers.reconcile');
+    Route::post('/elections/{election}/registers/{snapshot}/approve-freeze', [\\MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers\\GovernanceElectionRegisterController::class, 'approveAndFreeze'])
+        ->whereNumber('election')->whereNumber('snapshot')
+        ->middleware('auth.permission:governance.election.register.manage')
+        ->name('elections.registers.approve-freeze');
+
 });
