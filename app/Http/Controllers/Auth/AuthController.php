@@ -588,7 +588,7 @@ final class AuthController extends Controller
 
         $user = $resolution['user'];
         if ($user->last_login_at === null) {
-            throw new AuthenticationException('First authentication requires a password.', 'AUTH_PASSWORD_REQUIRED', 401);
+            throw new AuthenticationException('Invalid identifier or authenticator.', 'AUTH_INVALID_CREDENTIALS', 401);
         }
 
         $session = app(DeviceSessionService::class)->resumeWithPin(
