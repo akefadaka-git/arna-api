@@ -86,6 +86,7 @@ final class AdaptiveStepUpContext
             'wallet.balance.adjust',
             'wallet.payment.reverse',
             'loan.approve',
+            'loan.reject',
             'loan.restructure',
             'loan.disburse',
             'loan.writeoff',
