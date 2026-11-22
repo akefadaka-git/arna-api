@@ -39,7 +39,7 @@ Scope: reconcile the 16 remaining `ops/` refs against the existing Owner-approve
 
 ## Workflow and control changes
 
-- The prior deletion workflow had both manual dispatch and push-triggered deletion paths. The push-trigger path is being retired in favor of Owner-only manual dispatch.
+- The prior deletion workflow had both manual dispatch and push-triggered deletion paths. The push-trigger path has been removed; legacy evidence-ref deletion is now Owner-only manual dispatch.
 - The new `owner-governed-branch-lifecycle.yml` is the controlled path for PR work: exact head/base, non-draft PR, approved review, no unresolved review threads, passing exact-head checks, merge without immediate deletion, exact merge-SHA post-merge test, then exact source-ref deletion and HTTP 404 verification.
 - The legacy deletion workflow is restricted to `ops/` evidence refs only and requires an explicit Owner confirmation, exact SHA, reason and this register as evidence.
 - No PR was merged, no production deployment occurred, and no branch was deleted during this reconciliation.
@@ -49,3 +49,16 @@ Scope: reconcile the 16 remaining `ops/` refs against the existing Owner-approve
 App main at inventory time: `0a4f355e421337a02f223dfc3403e678e0647ae7`; 74 refs; 55 open PRs. Seventeen refs were not referenced as an open PR head or base. All 17 were compared with main; none matched an exact source head SHA from a merged PR. Several are substantially divergent, including the A3 unified experience, namespace migration, mounted-shell/A4 work, governance and executive-overview branches. They remain preserved. The alias `fix/a3-1-app-vue-tsc-minimatch-exact-head-verify` shares the exact SHA of open PR #89's source branch and is not yet eligible for retirement because PR #89 is still open.
 
 This register is a point-in-time reconciliation record. Recheck every live ref and PR before any later deletion.
+
+## Control implementation commits
+
+| Repository | Change | Commit |
+|---|---|---|
+| API | New owner-governed branch lifecycle workflow | `87c38ff5b320ca0e6081e62f90117b57dec5e921` |
+| API | Cleanup register | `4ad23998c0ddca78f5334108c7a3242e2ecba5c4` |
+| API | Legacy deletion workflow restricted to manual Owner-only `ops/` ref cleanup | `f2fbbbd2425c89a0c0d6bd10582a363b1ae20f9c` |
+| App | New owner-governed branch lifecycle workflow | `5f207642ffc6d1a0c8f3f535f0ea3c1f4a9745d4` |
+| App | Frontend CI accepts and asserts exact target SHA, including PR head SHA | `ab99070a6408aca701045b51361104ae35c604a3` |
+| App | Previous bulk merged-branch cleanup retired | `8f1f044672bbf3900437906e159856fc5b416e34` |
+
+The lifecycle workflow files have been read back from both default branches and their contents match (blob `1a263c0d69d280dd16e72935de42680a8e55b329`). The API clean-install workflow already accepts `target_sha`; the App frontend workflow now accepts `target_sha` and explicitly prints and asserts the checked-out SHA. Runtime dispatch and end-to-end deletion have **not** been run in this reconciliation.
