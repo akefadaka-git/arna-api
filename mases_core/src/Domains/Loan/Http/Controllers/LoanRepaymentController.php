@@ -209,7 +209,7 @@ final class LoanRepaymentController
         $loan = $this->resolveLoan($loanId);
 
         Gate::authorize('repay', $loan);
-        app(\\MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpGuard::class)->assert($request, 'loan.repayment.record', (int) $loan->tenant_id);
+        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'loan.repayment.record', (int) $loan->tenant_id);
 
         /** @var array<string, mixed> $validated */
         $validated = $request->validated();
