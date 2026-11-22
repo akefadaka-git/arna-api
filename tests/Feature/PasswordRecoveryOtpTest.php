@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Auth\Services\TotpMfaService;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -83,4 +84,49 @@ final class PasswordRecoveryOtpTest extends TestCase
         $this->assertIsString($response->json('data.challenge_token'));
         $this->assertDatabaseCount('auth_step_up_challenges', 0);
     }
+    #[Test]
+    public function google_authenticator_can_also_authorize_password_recovery(): void
+    {
+        $user = User::factory()->create(['is_active' => true, 'email' => 'totp-recovery@example.com']);
+        $totp = app(TotpMfaService::class);
+        $enrollment = $totp->beginEnrollment($user);
+        $totp->confirmEnrollment($user, $this->currentTotp($enrollment['secret']));
+
+        $this->postJson('/api/password/reset', [
+            'email' => $user->email,
+            'authenticator' => 'google_authenticator',
+            'code' => $this->currentTotp($enrollment['secret'], 1),
+            'password' => 'RecoveredPassword456!',
+            'password_confirmation' => 'RecoveredPassword456!',
+        ])->assertOk()->assertJsonPath('data.password_reset', true);
+
+        $this->assertTrue(Hash::check('RecoveredPassword456!', $user->fresh()->password));
+    }
+
+    private function currentTotp(string $secret, int $stepOffset = 0): string
+    {
+        $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        $buffer = 0;
+        $bits = 0;
+        $key = '';
+        foreach (str_split($secret) as $char) {
+            $buffer = ($buffer << 5) | strpos($alphabet, $char);
+            $bits += 5;
+            if ($bits >= 8) {
+                $bits -= 8;
+                $key .= chr(($buffer >> $bits) & 0xff);
+            }
+        }
+
+        $counter = intdiv(now()->timestamp, 30) + $stepOffset;
+        $hash = hash_hmac('sha1', pack('N2', 0, $counter), $key, true);
+        $offset = ord($hash[19]) & 0x0f;
+        $binary = ((ord($hash[$offset]) & 0x7f) << 24)
+            | ((ord($hash[$offset + 1]) & 0xff) << 16)
+            | ((ord($hash[$offset + 2]) & 0xff) << 8)
+            | (ord($hash[$offset + 3]) & 0xff);
+
+        return str_pad((string) ($binary % 1_000_000), 6, '0', STR_PAD_LEFT);
+    }
+
 }
