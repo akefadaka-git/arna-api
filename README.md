@@ -4,6 +4,10 @@
 
 ARNA is the master name for the Maale Arna Smart System, including its platform and intelligence capabilities. This repository contains backend/API implementation. It is not the complete ARNA system and should not be described as a generic Laravel starter project.
 
+## Public corporate website
+
+Official public website: https://www.maalearna.com.et/
+
 ## Purpose and system boundary
 
 The ARNA API provides the server-side foundation through which ARNA clients and approved system components can access backend capabilities. Its responsibilities include API endpoints, application rules, identity and authorization controls, tenant-aware operations, persistence, and integration boundaries as those capabilities are implemented and verified.
