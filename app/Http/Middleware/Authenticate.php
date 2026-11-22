@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\FirstPartySpaOrigin;
 use Closure;
 use Illuminate\Auth\Middleware\Authenticate as Middleware;
 use Illuminate\Http\Request;
@@ -158,6 +159,8 @@ class Authenticate extends Middleware
      */
     public function handle($request, Closure $next, ...$guards)
     {
+        $this->applySsoCookieBearer($request);
+
         // Throws MASES AuthenticationException::unauthenticated() on
         // failure via the overridden unauthenticated() method below.
         // The canonical renderer in bootstrap/app.php produces the
@@ -196,6 +199,27 @@ class Authenticate extends Middleware
     protected function unauthenticated($request, array $guards)
     {
         throw AuthenticationException::unauthenticated();
+    }
+
+    /**
+     * Promote the shared HttpOnly token cookie to the bearer credential
+     * expected by Sanctum. A browser Origin must be in both the explicit
+     * CORS allow-list and Sanctum's stateful-domain list.
+     */
+    private function applySsoCookieBearer(Request $request): void
+    {
+        if (! FirstPartySpaOrigin::isTrusted($request)) {
+            return;
+        }
+
+        // The shared cookie is canonical for trusted sibling SPAs. This
+        // prevents a stale origin-local sessionStorage token from overriding
+        // a newer login completed on another ARNA platform.
+        $token = $request->cookie('arna_sso_token');
+
+        if (is_string($token) && $token !== '') {
+            $request->headers->set('Authorization', 'Bearer '.$token);
+        }
     }
 
     /**
