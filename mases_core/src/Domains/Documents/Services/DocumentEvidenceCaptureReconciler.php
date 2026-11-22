@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Domains\Documents\Services;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Throwable;
