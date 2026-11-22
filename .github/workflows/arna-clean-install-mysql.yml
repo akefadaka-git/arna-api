@@ -30,6 +30,7 @@ on:
       - "phpunit.xml"
       - "config/app.php"
       - "database/seeders/**"
+      - "tests/Feature/DatabaseLifecycleIntegrationTest.php"
       - "app/Console/Commands/RotateDemoSeederCredentials.php"
       - "tests/Feature/RotateDemoSeederCredentialsTest.php"
       - "tests/Unit/DemoSeederGuardTest.php"
@@ -676,6 +677,20 @@ jobs:
             echo "Scope: disposable CI MySQL data only; no production data, secrets, hosts or backups."
           } > arna-a4-restore-evidence.txt
 
+
+      - name: Verify complete ARNA database lifecycle and controlled financial seeders
+        env:
+          APP_ENV: testing
+          APP_DEBUG: "false"
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          MASES_ENABLE_DEMO_SEEDING: "true"
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/DatabaseLifecycleIntegrationTest.php
 
       - name: Upload migration status evidence
         if: always()
