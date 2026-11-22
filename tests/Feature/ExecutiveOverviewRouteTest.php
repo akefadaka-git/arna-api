@@ -47,7 +47,13 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'tenant_id' => $tenant->id,
             'is_active' => true,
         ]);
-        $ceo->permissions()->attach($entryPermission->id);
+        $managePermission = Permission::factory()->create([
+            'slug' => 'people.manage',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'is_active' => true,
+        ]);
+        $ceo->permissions()->attach([$entryPermission->id, $managePermission->id]);
         $user->roles()->attach($ceo->id);
 
         $response = $this->actingAs($user, 'sanctum')
@@ -208,6 +214,13 @@ final class ExecutiveOverviewRouteTest extends TestCase
             ->assertJsonPath('data.widgets.0.source.metric_key', 'active_workforce')
             ->assertJsonPath('data.widgets.0.value.active', 2);
         $this->assertStringNotContainsString('EMP-', $response->getContent());
+
+        // A fresh pivot check must honor revocation on the next request.
+        $ceo->permissions()->detach($workforcePermission->id);
+        $revoked = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+        $revoked->assertOk()->assertJsonCount(0, 'data.widgets');
     }
 
     #[Test]
