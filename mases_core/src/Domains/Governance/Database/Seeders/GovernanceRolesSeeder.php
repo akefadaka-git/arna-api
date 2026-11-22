@@ -544,6 +544,9 @@ final class GovernanceRolesSeeder extends Seeder
 
             // Elections
             'governance.election.view',
+            'governance.election.count.view',
+            'governance.election.count.record',
+            'governance.election.count.witness',
             'governance.election.manage',
             'governance.election.authorize',
             'governance.election.schedule',
@@ -632,6 +635,7 @@ final class GovernanceRolesSeeder extends Seeder
 
             // Elections
             'governance.election.view',
+            'governance.election.count.view',
             'governance.election.manage',
 
             // Documents
@@ -730,6 +734,7 @@ final class GovernanceRolesSeeder extends Seeder
             'governance.action.view',
             'governance.delegation.view',
             'governance.election.view',
+            'governance.election.count.view',
             'governance.document.view',
             'governance.document.download',
             'app.governance.access',
@@ -767,6 +772,8 @@ final class GovernanceRolesSeeder extends Seeder
 
             'governance.delegation.view',
             'governance.election.view',
+            'governance.election.count.view',
+            'governance.election.count.witness',
             'governance.document.view',
             'governance.document.download',
             'app.governance.access',
@@ -804,6 +811,8 @@ final class GovernanceRolesSeeder extends Seeder
 
             'governance.delegation.view',
             'governance.election.view',
+            'governance.election.count.view',
+            'governance.election.count.record',
 
             'governance.document.view',
             'governance.document.upload',
