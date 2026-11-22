@@ -43,6 +43,32 @@ final class DocumentEvidenceCaptureLifecycle
                 ->where('tenant_id', $tenantId)->where('file_id', $fileId)->where('file_version', $fileVersion)
                 ->lockForUpdate()->first();
 
+            if ($intent !== null && $intent->status === 'deleted') {
+                // A previously reconciled, unreferenced capture may be safely
+                // captured again for a later workflow using the same immutable
+                // File Management version. The old event history is retained.
+                DB::table('document_evidence_capture_intents')->where('id', $intent->id)->update([
+                    'operation_uuid' => (string) Str::uuid(),
+                    'status' => 'reserved',
+                    'storage_disk' => null,
+                    'storage_path' => null,
+                    'sha256' => null,
+                    'size' => null,
+                    'reserved_by_user_id' => $actorId,
+                    'attempt_count' => 0,
+                    'last_error_code' => null,
+                    'cleanup_claim_token' => null,
+                    'reserved_at' => now(),
+                    'captured_at' => null,
+                    'linked_at' => null,
+                    'cleanup_claimed_at' => null,
+                    'cleanup_lease_until' => null,
+                    'updated_at' => now(),
+                ]);
+                $this->event((int) $intent->id, $tenantId, 'deleted', 'reserved', 'reserved', $actorId);
+                $intent = DB::table('document_evidence_capture_intents')->where('id', $intent->id)->first();
+            }
+
             if ($intent === null) {
                 $now = now();
                 $intentId = (int) DB::table('document_evidence_capture_intents')->insertGetId([
