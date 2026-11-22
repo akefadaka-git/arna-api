@@ -1298,31 +1298,5 @@ final class FinanceGeneralLedgerTest extends TestCase
         $this->assertFalse($snapshot['reconciliation']['source_control_totals_available']);
     }
 
-    private function ledgerFixture(): array
-    {
-        $tenant = Tenant::factory()->create(['is_active' => true]);
-        $user = User::factory()->create();
-        $entity = LegalEntity::query()->create([
-            'tenant_id' => $tenant->id, 'code' => 'MAIN', 'name_en' => 'Main Entity',
-            'base_currency' => 'ETB', 'status' => 'active',
-        ]);
-        $period = AccountingPeriod::query()->create([
-            'tenant_id' => $tenant->id, 'legal_entity_id' => $entity->id,
-            'code' => '2026-10', 'starts_on' => '2026-10-01', 'ends_on' => '2026-10-31',
-            'status' => AccountingPeriod::OPEN,
-        ]);
-        $cash = LedgerAccount::query()->create([
-            'tenant_id' => $tenant->id, 'legal_entity_id' => $entity->id, 'code' => '1000',
-            'name_en' => 'Cash', 'account_type' => 'asset', 'normal_balance' => 'debit',
-            'is_posting_allowed' => true, 'status' => 'active',
-        ]);
-        $equity = LedgerAccount::query()->create([
-            'tenant_id' => $tenant->id, 'legal_entity_id' => $entity->id, 'code' => '3000',
-            'name_en' => 'Equity', 'account_type' => 'equity', 'normal_balance' => 'credit',
-            'is_posting_allowed' => true, 'status' => 'active',
-        ]);
-
-        return [$tenant, $user, $entity, $period, $cash, $equity];
-    }
 
 }
