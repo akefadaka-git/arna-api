@@ -385,7 +385,7 @@ final class LoanController
         $loan = $this->resolveLoan($loanId);
 
         Gate::authorize('approve', $loan);
-        app(\\MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpGuard::class)->assert($request, 'loan.approve', (int) $loan->tenant_id);
+        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'loan.approve', (int) $loan->tenant_id);
 
         $loan = $this->approvalService->approve(
             loan:        $loan,
@@ -412,7 +412,7 @@ final class LoanController
         $loan = $this->resolveLoan($loanId);
 
         Gate::authorize('reject', $loan);
-        app(\\MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpGuard::class)->assert($request, 'loan.reject', (int) $loan->tenant_id);
+        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'loan.reject', (int) $loan->tenant_id);
 
         $loan = $this->approvalService->reject(
             loan:        $loan,
@@ -439,7 +439,7 @@ final class LoanController
         $loan = $this->resolveLoan($loanId);
 
         Gate::authorize('disburse', $loan);
-        app(\\MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpGuard::class)->assert($request, 'loan.disburse', (int) $loan->tenant_id);
+        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'loan.disburse', (int) $loan->tenant_id);
 
         $loan = $this->disbursementService->disburse(
             loan:        $loan,
@@ -466,7 +466,7 @@ final class LoanController
         $loan = $this->resolveLoan($loanId);
 
         Gate::authorize('restructure', $loan);
-        app(\\MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpGuard::class)->assert($request, 'loan.restructure', (int) $loan->tenant_id);
+        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'loan.restructure', (int) $loan->tenant_id);
 
         $loan = $this->restructuringService->restructure(
             loan:                 $loan,
@@ -496,7 +496,7 @@ final class LoanController
         $loan = $this->resolveLoan($loanId);
 
         Gate::authorize('writeoff', $loan);
-        app(\\MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpGuard::class)->assert($request, 'loan.writeoff', (int) $loan->tenant_id);
+        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'loan.writeoff', (int) $loan->tenant_id);
 
         $loan = $this->writeOffService->writeOff(
             loan:        $loan,
