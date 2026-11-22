@@ -1,6 +1,8 @@
 name: ARNA Executive Overview A4 API security verification
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: ["verify/**"]
     paths:
