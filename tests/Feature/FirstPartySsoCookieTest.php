@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Support\FirstPartySpaOrigin;
 use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -79,6 +82,23 @@ final class FirstPartySsoCookieTest extends TestCase
 
         $token = $login->json('data.token');
         $this->assertIsString($token);
+
+        Route::get('/__sso-cookie-debug', static function (Request $request) {
+            return response()->json([
+                'origin' => $request->headers->get('Origin'),
+                'cookie_present' => is_string($request->cookie('arna_sso_token')),
+                'trusted' => FirstPartySpaOrigin::isTrusted($request),
+            ]);
+        });
+
+        $debug = $this->withServerVariables(['HTTP_HOST' => 'api.maalearna.com.et', 'HTTPS' => 'on'])
+            ->withUnencryptedCookie('arna_sso_token', $token)
+            ->withHeader('Origin', 'https://portal.maalearna.com.et')
+            ->getJson('/__sso-cookie-debug');
+
+        $debug->assertJsonPath('origin', 'https://portal.maalearna.com.et')
+            ->assertJsonPath('cookie_present', true)
+            ->assertJsonPath('trusted', true);
 
         $this->withServerVariables(['HTTP_HOST' => 'api.maalearna.com.et', 'HTTPS' => 'on'])
             ->withUnencryptedCookie('arna_sso_token', $token)
