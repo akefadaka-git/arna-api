@@ -547,7 +547,7 @@ final class GovernanceRolesSeeder extends Seeder
             'governance.election.count.view',
             'governance.election.count.record',
             'governance.election.count.witness',
-            'governance.election.register.manage',
+
             'governance.election.ballot.issue',
             'governance.election.ballot.receive',
             'governance.election.manage',
@@ -771,7 +771,7 @@ final class GovernanceRolesSeeder extends Seeder
             'governance.election.view',
             'governance.election.count.view',
             'governance.election.count.witness',
-            'governance.election.register.manage',
+
             'governance.election.ballot.receive',
             'governance.document.view',
             'governance.document.download',
@@ -812,7 +812,7 @@ final class GovernanceRolesSeeder extends Seeder
             'governance.election.view',
             'governance.election.count.view',
             'governance.election.count.record',
-            'governance.election.register.manage',
+
             'governance.election.ballot.issue',
             'governance.election.ballot.receive',
 
