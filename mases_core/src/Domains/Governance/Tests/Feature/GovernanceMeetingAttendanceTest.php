@@ -301,6 +301,7 @@ final class GovernanceMeetingAttendanceTest extends TestCase
                 'principal_id' => $this->shareholderId,
                 'proxy_name_am' => 'ውክልና ተወካይ',
                 'proxy_reference' => 'ID-SELF-REVIEW-01',
+                'instrument_reference' => 'SIGNED-PROXY-SELF-REVIEW-01',
             ])->assertCreated();
         $proxyId = (int) $submitted->json('data.id');
 
