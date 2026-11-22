@@ -156,11 +156,20 @@ final class CorporateSiteEntryController extends Controller
         ]], 202);
     }
 
-    public function asset(string $publicId)
+    public function asset(string $publicId, CorporateMediaScanner $scanner)
     {
         $entry = CorporateSiteEntry::query()->published()->where('entry_type', 'media')->where('public_id', $publicId)->firstOrFail();
         abort_unless($entry->asset_path && Storage::disk('local')->exists($entry->asset_path), 404);
         abort_unless(in_array($entry->asset_mime, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4'], true), 404);
+        $verifiedDigest = (string) ($entry->payload['scan_sha256'] ?? '');
+        $scanSignature = (string) ($entry->payload['scan_signature'] ?? '');
+        abort_unless(
+            ($entry->payload['scan_status'] ?? null) === 'clean' &&
+            preg_match('/\\A[a-f0-9]{64}\\z/D', $verifiedDigest) === 1 &&
+            hash_equals($verifiedDigest, hash('sha256', Storage::disk('local')->get($entry->asset_path))) &&
+            $scanner->verifyVerdict('clean', $entry->public_id, $verifiedDigest, $scanSignature),
+            404,
+        );
 
         return response()->file(Storage::disk('local')->path($entry->asset_path), [
             'Content-Type' => $entry->asset_mime,
@@ -241,6 +250,11 @@ final class CorporateSiteEntryController extends Controller
         return DB::transaction(function () use ($request, $id, $validated): JsonResponse {
             $entry = CorporateSiteEntry::query()->lockForUpdate()->findOrFail($id);
             abort_unless($entry->version === (int) $validated['expected_version'], 409, 'This entry changed after it was loaded.');
+            abort_unless(
+                $entry->entry_type !== 'media' || !array_key_exists('payload', $validated),
+                422,
+                'Media scan metadata is system-managed and cannot be edited through the content API.',
+            );
             $old = ['status' => $entry->status, 'version' => $entry->version];
             $entry->fill(collect($validated)->except('expected_version')->all());
             $entry->status = 'draft';
@@ -298,6 +312,7 @@ final class CorporateSiteEntryController extends Controller
             $payload = $entry->payload ?? [];
             $payload['scan_status'] = $verdict['status'];
             $payload['scan_signature'] = $verdict['signature'];
+            $payload['scan_sha256'] = $verdict['sha256'];
             $payload['scanned_at'] = now()->toIso8601String();
             $entry->payload = $payload;
             $entry->version++;
