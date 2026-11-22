@@ -85,6 +85,7 @@ The following backend increments are now implemented on the isolated A3 branch:
 
 - Password login remains the first-authentication path and records last_login_at.
 - Returning users can authenticate with password, recognized-device PIN, email/SMS OTP, or Google Authenticator.
+- These are alternative standard-login authenticators: enrolling Google Authenticator does not silently force password-plus-TOTP for ordinary login. TOTP remains available as an independent login method and as step-up proof.
 - OTP and Google Authenticator login are denied while last_login_at is null; a password login is required first.
 - Login identifier resolution continues through the canonical resolver for all six identifiers. Unknown, ambiguous, inactive, unlinked and cross-tenant identities fail closed.
 - OTP login challenge responses use a uniform response shape for unknown, inactive, first-login and undeliverable accounts.
