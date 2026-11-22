@@ -9,6 +9,13 @@ on:
       - "mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
       - "mases_core/src/Auth/Services/AdaptiveStepUpContext.php"
       - "mases_core/src/Auth/Services/AdaptiveStepUpService.php"
+      - "mases_core/src/Auth/Services/AdaptiveStepUpGuard.php"
+      - "mases_core/src/Domains/Wallet/Http/Controllers/PaymentController.php"
+      - "mases_core/src/Domains/Wallet/Http/Controllers/WalletController.php"
+      - "mases_core/src/Domains/Wallet/Http/Controllers/AllocationController.php"
+      - "mases_core/src/Domains/Loan/Http/Controllers/LoanController.php"
+      - "mases_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php"
+      - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
       - "mases_core/src/Auth/Services/TotpMfaService.php"
       - "app/Http/Middleware/RequireAdaptiveStepUp.php"
       - "config/auth-step-up.php"
@@ -30,6 +37,13 @@ on:
       - "mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
       - "mases_core/src/Auth/Services/AdaptiveStepUpContext.php"
       - "mases_core/src/Auth/Services/AdaptiveStepUpService.php"
+      - "mases_core/src/Auth/Services/AdaptiveStepUpGuard.php"
+      - "mases_core/src/Domains/Wallet/Http/Controllers/PaymentController.php"
+      - "mases_core/src/Domains/Wallet/Http/Controllers/WalletController.php"
+      - "mases_core/src/Domains/Wallet/Http/Controllers/AllocationController.php"
+      - "mases_core/src/Domains/Loan/Http/Controllers/LoanController.php"
+      - "mases_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php"
+      - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
       - "mases_core/src/Auth/Services/TotpMfaService.php"
       - "app/Http/Middleware/RequireAdaptiveStepUp.php"
       - "config/auth-step-up.php"
@@ -86,6 +100,12 @@ jobs:
           php -l mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php
           php -l mases_core/src/Auth/Services/AdaptiveStepUpContext.php
           php -l mases_core/src/Auth/Services/AdaptiveStepUpService.php
+          php -l mases_core/src/Auth/Services/AdaptiveStepUpGuard.php
+          php -l mases_core/src/Domains/Wallet/Http/Controllers/PaymentController.php
+          php -l mases_core/src/Domains/Wallet/Http/Controllers/WalletController.php
+          php -l mases_core/src/Domains/Wallet/Http/Controllers/AllocationController.php
+          php -l mases_core/src/Domains/Loan/Http/Controllers/LoanController.php
+          php -l mases_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php
           php -l mases_core/src/Auth/Services/TotpMfaService.php
           php -l app/Http/Middleware/RequireAdaptiveStepUp.php
           php -l tests/Feature/AdaptiveStepUpServiceTest.php
