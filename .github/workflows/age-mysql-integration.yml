@@ -9,15 +9,20 @@ on:
       - ".github/workflows/age-mysql-integration.yml"
       - "mases_core/src/Domains/Governance/Database/Migrations/**"
       - "mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionPhysicalBallotService.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionManualCountService.php"
       - "mases_core/src/Domains/Governance/Security/Age*.php"
       - "mases_core/src/Domains/Governance/Services/Receipts/**"
       - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionRegisterController.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionPhysicalBallotController.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionManualCountController.php"
       - "mases_core/src/Domains/Governance/Routes/api.php"
       - "mases_core/src/Domains/Governance/Config/governance.php"
       - "mases_core/src/Domains/Governance/Database/Seeders/GovernancePermissionsSeeder.php"
       - "config/age.php"
       - "tests/Feature/AgeVoterRegister*Test.php"
       - "tests/Feature/Governance/GovernanceElectionRegisterSecurityContractTest.php"
+      - "tests/Feature/Governance/GovernanceElectionManualCountServiceTest.php"
       - "tests/Unit/AgeReceipt*Test.php"
       - "tests/Unit/Governance/GovernanceElectionRegisterServiceTest.php"
       - "phpunit.age-mysql.xml"
@@ -37,6 +42,7 @@ on:
       - "config/age.php"
       - "tests/Feature/AgeVoterRegister*Test.php"
       - "tests/Feature/Governance/GovernanceElectionRegisterSecurityContractTest.php"
+      - "tests/Feature/Governance/GovernanceElectionManualCountServiceTest.php"
       - "tests/Unit/AgeReceipt*Test.php"
       - "tests/Unit/Governance/GovernanceElectionRegisterServiceTest.php"
       - "phpunit.age-mysql.xml"
@@ -113,7 +119,9 @@ jobs:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           AGE_MYSQL_INTEGRATION: "0"
-        run: vendor/bin/phpunit -c phpunit.xml tests/Feature/Governance/GovernanceElectionRegisterSecurityContractTest.php --testdox
+        run: |
+          vendor/bin/phpunit -c phpunit.xml tests/Feature/Governance/GovernanceElectionRegisterSecurityContractTest.php --testdox
+          vendor/bin/phpunit -c phpunit.xml tests/Feature/Governance/GovernanceElectionManualCountServiceTest.php --testdox
 
       - name: Preserve PHPUnit diagnostics
         if: always()
