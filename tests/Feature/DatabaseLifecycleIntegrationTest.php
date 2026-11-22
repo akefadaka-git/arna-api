@@ -73,7 +73,8 @@ final class DatabaseLifecycleIntegrationTest extends TestCase
         // Populate realistic existing user/shareholder data only in this
         // disposable CI database. This destructive legacy seeder is never
         // called by the production/default baseline.
-        app(MasesCoreSeeder::class)->run();
+        $exitCode = Artisan::call('db:seed', ['--class' => MasesCoreSeeder::class, '--force' => true]);
+        $this->assertSame(0, $exitCode, Artisan::output());
 
         $tenant = Tenant::query()->firstOrFail();
         DB::table('legal_entities')->insert([
