@@ -111,11 +111,40 @@ final class FirstPartySsoCookieTest extends TestCase
             ->assertUnauthorized();
     }
 
-    private function createLoginIdentity(): array
+    #[Test]
+    public function shared_cookie_takes_precedence_over_an_origin_local_bearer_token(): void
+    {
+        $this->withoutMiddleware(EncryptCookies::class);
+        [$firstUser, $firstTenant] = $this->createLoginIdentity('sso-first@example.com');
+        [$secondUser, $secondTenant] = $this->createLoginIdentity('sso-second@example.com');
+
+        $firstLogin = $this->withHeader('Origin', 'https://app.maalearna.com.et')
+            ->postJson('/api/login', [
+                'email' => $firstUser->email,
+                'password' => 'Password123!',
+                'tenant_id' => $firstTenant->id,
+            ])->assertOk();
+
+        $secondLogin = $this->withHeader('Origin', 'https://portal.maalearna.com.et')
+            ->postJson('/api/login', [
+                'email' => $secondUser->email,
+                'password' => 'Password123!',
+                'tenant_id' => $secondTenant->id,
+            ])->assertOk();
+
+        $this->withCookie('arna_sso_token', $secondLogin->json('data.token'))
+            ->withHeader('Origin', 'https://app.maalearna.com.et')
+            ->withHeader('Authorization', 'Bearer '.$firstLogin->json('data.token'))
+            ->getJson('/api/user')
+            ->assertOk()
+            ->assertJsonPath('data.email', $secondUser->email);
+    }
+
+    private function createLoginIdentity(string $email = 'sso-test@example.com'): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $user = User::factory()->create([
-            'email' => 'sso-test@example.com',
+            'email' => $email,
             'password' => Hash::make('Password123!'),
             'is_active' => true,
             'email_verified_at' => now(),

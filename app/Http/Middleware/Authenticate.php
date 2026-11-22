@@ -208,10 +208,13 @@ class Authenticate extends Middleware
      */
     private function applySsoCookieBearer(Request $request): void
     {
-        if ($request->bearerToken() !== null || ! FirstPartySpaOrigin::isTrusted($request)) {
+        if (! FirstPartySpaOrigin::isTrusted($request)) {
             return;
         }
 
+        // The shared cookie is canonical for trusted sibling SPAs. This
+        // prevents a stale origin-local sessionStorage token from overriding
+        // a newer login completed on another ARNA platform.
         $token = $request->cookie('arna_sso_token');
 
         if (is_string($token) && $token !== '') {
