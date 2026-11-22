@@ -208,7 +208,7 @@ final class CorporateSiteEntryController extends Controller
     public function adminStore(Request $request): JsonResponse
     {
         $validated = Validator::make($request->all(), [
-            'entry_type' => ['required', 'in:news,announcement,publication,media,career,opportunity,business,service,advertisement,marketplace'],
+            'entry_type' => ['required', 'in:news,announcement,publication,career,opportunity,business,service,advertisement,marketplace'],
             'slug_am' => ['nullable', 'string', 'max:180', 'unique:corporate_site_entries,slug_am'],
             'slug_en' => ['nullable', 'string', 'max:180', 'unique:corporate_site_entries,slug_en'],
             'translations' => ['required', 'array'],
