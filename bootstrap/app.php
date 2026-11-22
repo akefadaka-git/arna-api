@@ -723,6 +723,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.role'         => \MaaleArna\MASES\Core\Authorization\Middleware\AuthorizationMiddleware::class,
             'auth.application'  => \MaaleArna\MASES\Core\Authorization\Middleware\AuthorizationMiddleware::class,
             'tenant.membership' => \MaaleArna\MASES\Core\Tenancy\Middleware\TenantMembershipMiddleware::class,
+            'auth.step_up'       => \App\Http\Middleware\RequireAdaptiveStepUp::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
