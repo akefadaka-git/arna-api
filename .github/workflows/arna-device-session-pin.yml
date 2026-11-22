@@ -1,0 +1,64 @@
+name: ARNA device sessions and recognized PIN
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "app/Http/Middleware/Authenticate.php"
+      - "mases_core/src/Auth/Models/DeviceSession.php"
+      - "mases_core/src/Auth/Services/DeviceSessionService.php"
+      - "database/migrations/2026_11_22_00000*.php"
+      - "tests/Feature/AndroidDeviceSessionTest.php"
+      - ".github/workflows/arna-device-session-pin.yml"
+  push:
+    branches: [feat/auth-adaptive-policy-a3]
+    paths:
+      - "app/Http/Controllers/Auth/AuthController.php"
+      - "app/Http/Middleware/Authenticate.php"
+      - "mases_core/src/Auth/Models/DeviceSession.php"
+      - "mases_core/src/Auth/Services/DeviceSessionService.php"
+      - "database/migrations/2026_11_22_00000*.php"
+      - "tests/Feature/AndroidDeviceSessionTest.php"
+      - ".github/workflows/arna-device-session-pin.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-device-session-pin-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  device-session:
+    name: Device session and PIN lifecycle (PHP 8.3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact checkout
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_sqlite, sqlite3
+          tools: composer:v2
+          coverage: none
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Lint changed authentication files
+        run: |
+          php -l app/Http/Controllers/Auth/AuthController.php
+          php -l app/Http/Middleware/Authenticate.php
+          php -l mases_core/src/Auth/Models/DeviceSession.php
+          php -l mases_core/src/Auth/Services/DeviceSessionService.php
+          php -l database/migrations/2026_11_22_000001_create_auth_device_sessions_table.php
+          php -l database/migrations/2026_11_22_000002_create_auth_device_login_challenges_table.php
+          php -l tests/Feature/AndroidDeviceSessionTest.php
+      - name: Run Android device-session and PIN regressions
+        run: vendor/bin/phpunit tests/Feature/AndroidDeviceSessionTest.php
