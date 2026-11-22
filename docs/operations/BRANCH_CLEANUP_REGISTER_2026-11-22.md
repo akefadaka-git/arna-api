@@ -62,3 +62,28 @@ This register is a point-in-time reconciliation record. Recheck every live ref a
 | App | Previous bulk merged-branch cleanup retired | `8f1f044672bbf3900437906e159856fc5b416e34` |
 
 The lifecycle workflow files have been read back from both default branches and their contents match (blob `1a263c0d69d280dd16e72935de42680a8e55b329`). The API clean-install workflow already accepts `target_sha`; the App frontend workflow now accepts `target_sha` and explicitly prints and asserts the checked-out SHA. Runtime dispatch and end-to-end deletion have **not** been run in this reconciliation.
+
+
+## Dispatch-run reconciliation — 2026-11-22
+
+The three historical dispatch refs were checked against the Actions run list and decoded job logs. Each run was completed successfully by the Owner account, and each log shows the exact recorded target SHA was checked before the delete-ref command succeeded:
+
+| Dispatch ref | Run | Event / result | Exact target verified and deleted | Current disposition |
+|---|---:|---|---|---|
+| `ops/dispatch-owner-delete-organization-filemanagement-foundation-20261120` | [44724721024](https://github.com/akefadaka-git/arna-api/actions/runs/44724721024) | push / success | `integration/organization-filemanagement-foundation` @ `1c6bc2575e852c6a4716a00f2182f0a620c0934c` | RUN VERIFIED; target absent. Keep dispatch evidence ref because the original approval did not authorize its deletion |
+| `ops/dispatch-owner-delete-p24-candidate-intake-a2-20261120` | [44733634149](https://github.com/akefadaka-git/arna-api/actions/runs/44733634149) | push / success | `docs/p2.4-candidate-intake-a2` @ `6d3c3a992d29cd3869d3aec7921ba41c782e7397` | RUN VERIFIED; target absent. Keep dispatch evidence ref because the original approval did not authorize its deletion |
+| `ops/dispatch-owner-delete-a3-3-2-exact-sha-20261120` | [44747624335](https://github.com/akefadaka-git/arna-api/actions/runs/44747624335) | push / success | `verify/a3-3-2-exact-sha` @ `959d5a29dab75cf36c57587f78b6fc01985ef473` | RUN VERIFIED; target absent. Keep dispatch evidence ref because the original approval did not authorize its deletion |
+
+For each run, the job and all steps completed successfully: request resolution, exact-head verification and deletion. The logs explicitly show the expected SHA matched the target ref before deletion. These were push-triggered runs on the historical workflow revision; they are not evidence that the new governed lifecycle workflow has been runtime-tested. No dispatch evidence refs were deleted.
+
+## First candidate assessment for the new lifecycle
+
+A fresh open-PR scan was made across both repositories. No PR currently satisfies every gate for `merge_and_retire`.
+
+- API: seven open non-draft PRs were found. None has an approving review; their combined commit status responses contain no passing checks. Several target non-default bases or are not mergeable. The nearest direct-main candidates are PRs #95, #92, #77, #51 and #49, but each lacks approval and passing exact-head check evidence; #92, #77, #51 and #49 are also currently non-mergeable. PR #194 and #195 remain drafts.
+- App: seven open non-draft PRs were found. The closest current-main candidate is PR #98 (`integration/arna-app-release-candidate` @ `c272470188c5d80a99058df7975b1c73c59cab67`), but it has no approving review and no reported passing status checks; its recorded base SHA is `0a4f355e421337a02f223dfc3403e678e0647ae7`, not the current App main `ab99070a6408aca701045b51361104ae35c604a3`. PR #65 is non-mergeable and unapproved.
+- Both repositories currently report `delete_branch_on_merge=true`. The new lifecycle workflow intentionally requires this setting to be false so the source ref remains available for exact-SHA post-merge testing before retirement. Therefore the workflow's merge-and-retire path is blocked at repository configuration until this setting is safely changed; no setting was changed in this reconciliation.
+
+**Result:** first fully eligible branch = NONE. Do not dispatch the lifecycle workflow against any candidate yet. The next candidate to prepare is App PR #98: reconcile it against the current main SHA, complete analysis/enhancement, obtain an explicit approving review and passing exact-head checks, resolve all dependent-PR references, and resolve the repository auto-delete setting before lifecycle dispatch. API PR #95 is a secondary documentation-only candidate, but likewise needs approval, passing checks, and base/head revalidation.
+
+No PR was merged, no branch was deleted, and no deployment occurred during this assessment.
