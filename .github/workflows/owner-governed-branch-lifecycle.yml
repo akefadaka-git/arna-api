@@ -40,7 +40,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: owner-governed-branch-lifecycle-${ github.repository }}
+  group: owner-governed-branch-lifecycle-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -53,16 +53,16 @@ jobs:
         id: request
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
-          REPO: ${ github.repository }}
-          ACTOR: ${ github.actor }}
-          OPERATION: ${ inputs.operation }}
-          PR_NUMBER: ${ inputs.pr_number }}
-          BRANCH: ${ inputs.branch_name }}
-          EXPECTED_HEAD: ${ inputs.expected_head_sha }}
-          EXPECTED_BASE: ${ inputs.expected_base_sha }}
-          ATTESTATION: ${ inputs.readiness_attestation }}
-          REVIEW_EVIDENCE: ${ inputs.review_evidence_url }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          OPERATION: ${{ inputs.operation }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          BRANCH: ${{ inputs.branch_name }}
+          EXPECTED_HEAD: ${{ inputs.expected_head_sha }}
+          EXPECTED_BASE: ${{ inputs.expected_base_sha }}
+          ATTESTATION: ${{ inputs.readiness_attestation }}
+          REVIEW_EVIDENCE: ${{ inputs.review_evidence_url }}
         run: |
           set -euo pipefail
           [[ "$ACTOR" == "akefadaka-git" ]] || { echo "::error::Only the repository Owner may run this workflow."; exit 1; }
@@ -113,11 +113,11 @@ jobs:
         if: inputs.operation == 'merge_and_retire'
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
-          REPO: ${ github.repository }}
-          PR_NUMBER: ${ inputs.pr_number }}
-          EXPECTED_HEAD: ${ inputs.expected_head_sha }}
-          BRANCH: ${ inputs.branch_name }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          EXPECTED_HEAD: ${{ inputs.expected_head_sha }}
+          BRANCH: ${{ inputs.branch_name }}
         run: |
           set -euo pipefail
           ANALYSIS="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json title,url,files,commits)"
@@ -144,9 +144,9 @@ jobs:
         if: inputs.operation == 'merge_and_retire'
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
-          REPO: ${ github.repository }}
-          PR_NUMBER: ${ inputs.pr_number }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
         run: |
           set -euo pipefail
           gh pr merge "$PR_NUMBER" --repo "$REPO" --squash
@@ -161,9 +161,9 @@ jobs:
         id: merged
         shell: bash
         env:
-          OPERATION: ${ inputs.operation }}
-          EXISTING_MERGE_SHA: ${ steps.request.outputs.existing_merge_sha }}
-          NEW_MERGE_SHA: ${ steps.merge.outputs.merge_sha }}
+          OPERATION: ${{ inputs.operation }}
+          EXISTING_MERGE_SHA: ${{ steps.request.outputs.existing_merge_sha }}
+          NEW_MERGE_SHA: ${{ steps.merge.outputs.merge_sha }}
         run: |
           set -euo pipefail
           if [[ "$OPERATION" == merge_and_retire ]]; then MERGE_SHA="$NEW_MERGE_SHA"; else MERGE_SHA="$EXISTING_MERGE_SHA"; fi
@@ -174,10 +174,10 @@ jobs:
         id: postmerge
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
-          REPO: ${ github.repository }}
-          DEFAULT_BRANCH: ${ steps.request.outputs.default_branch }}
-          MERGE_SHA: ${ steps.merged.outputs.merge_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ steps.request.outputs.default_branch }}
+          MERGE_SHA: ${{ steps.merged.outputs.merge_sha }}
         run: |
           set -euo pipefail
           if [[ "$REPO" == "akefadaka-git/arna-api" ]]; then TEST_WORKFLOW="arna-clean-install-mysql.yml"; elif [[ "$REPO" == "akefadaka-git/arna-app" ]]; then TEST_WORKFLOW="frontend-ci.yml"; else echo "::error::No post-merge test workflow configured."; exit 1; fi
@@ -208,13 +208,13 @@ jobs:
       - name: Delete exact source branch after tests and verify absence
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
-          REPO: ${ github.repository }}
-          BRANCH: ${ steps.request.outputs.branch }}
-          EXPECTED_HEAD: ${ steps.request.outputs.expected_head }}
-          PR_NUMBER: ${ steps.request.outputs.pr_number }}
-          MERGE_SHA: ${ steps.merged.outputs.merge_sha }}
-          TEST_URL: ${ steps.postmerge.outputs.run_url }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.request.outputs.branch }}
+          EXPECTED_HEAD: ${{ steps.request.outputs.expected_head }}
+          PR_NUMBER: ${{ steps.request.outputs.pr_number }}
+          MERGE_SHA: ${{ steps.merged.outputs.merge_sha }}
+          TEST_URL: ${{ steps.postmerge.outputs.run_url }}
         run: |
           set -euo pipefail
           OPEN_REFS="$(gh pr list --repo "$REPO" --state open --limit 1000 --json number,headRefName,baseRefName)"
