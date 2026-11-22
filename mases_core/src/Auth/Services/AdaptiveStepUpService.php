@@ -123,7 +123,7 @@ final class AdaptiveStepUpService
     ): ?string {
         $this->assertSupportedAction($action);
         $currentToken = $user->currentAccessToken();
-        $recognizedDevice = $currentToken instanceof \\Laravel\\Sanctum\\PersonalAccessToken
+        $recognizedDevice = $currentToken instanceof \Laravel\Sanctum\PersonalAccessToken
             && $this->devices->isMobileToken($currentToken);
         $requirements = $this->policy->requirementsFor($action, recognizedDevice: $recognizedDevice);
         $contextHash = $this->context->fingerprint($action, $context);
