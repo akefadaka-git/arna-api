@@ -678,6 +678,12 @@ jobs:
           } > arna-a4-restore-evidence.txt
 
 
+      - name: Reset disposable MySQL before destructive preservation fixtures
+        # This is an isolated CI service database. Resetting it prevents earlier
+        # feature tests' synthetic loans from blocking the legacy demo fixture
+        # cleanup through shareholder foreign keys. Never use this on Plesk.
+        run: php artisan migrate:fresh --force -vvv
+
       - name: Verify complete ARNA database lifecycle and controlled financial seeders
         env:
           APP_ENV: testing
