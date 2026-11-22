@@ -63,7 +63,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             'tenant_id' => 7,
             'code' => 'AGE-TEST-01',
             'title' => 'AGE database test',
-            'status' => 'authorized',
+            'status' => 'nominating',
             'authority_reference' => 'AUTH-TEST',
             'authority_evidence_id' => 1,
             'authority_verified_at' => now(),
