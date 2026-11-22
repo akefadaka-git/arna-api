@@ -9,6 +9,7 @@ on:
     branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
+      - ".github/workflows/arna-a4-synthetic-backup-restore.yml"
       - "bootstrap/app.php"
       - "mases_core/src/Exceptions/ErrorCodeRegistry.php"
       - "mases_core/src/Monitoring/ErrorDiagnosticEngine.php"
@@ -631,6 +632,51 @@ jobs:
       - name: Enforce Composer security advisory gate
         run: composer audit --format=plain
 
+      - name: Isolated synthetic-data MySQL backup and restore rehearsal
+        shell: bash
+        env:
+          SOURCE_DB: arna_migration_test
+          RESTORE_DB: arna_a4_restore_rehearsal
+        run: |
+          set -euo pipefail
+          mysql -h 127.0.0.1 -uroot -proot -e "CREATE DATABASE \`$RESTORE_DB\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          mysqldump -h 127.0.0.1 -uroot -proot --single-transaction --routines --triggers --hex-blob "$SOURCE_DB" > arna-a4-synthetic-backup.sql
+          test -s arna-a4-synthetic-backup.sql
+          sha256sum arna-a4-synthetic-backup.sql > arna-a4-backup-sha256.txt
+          mysql -h 127.0.0.1 -uroot -proot "$RESTORE_DB" < arna-a4-synthetic-backup.sql
+          manifest() {
+            local db="$1"
+            mysql -h 127.0.0.1 -uroot -proot "$db" -NBe "
+              SELECT CONCAT('table_count=',COUNT(*)) FROM information_schema.tables WHERE table_schema='${db}';
+              SELECT CONCAT('migration_count=',COUNT(*)) FROM migrations;
+              SELECT CONCAT('journal_count=',COUNT(*)) FROM journal_entries;
+              SELECT CONCAT('journal_line_count=',COUNT(*)) FROM journal_lines;
+              SELECT CONCAT('debit_minor=',COALESCE(SUM(debit_minor),0)) FROM journal_lines;
+              SELECT CONCAT('credit_minor=',COALESCE(SUM(credit_minor),0)) FROM journal_lines;
+              SELECT CONCAT('finance_audit_count=',COUNT(*)) FROM finance_audit_entries;
+              SELECT CONCAT('outbox_count=',COUNT(*)) FROM finance_outbox_messages;
+              SELECT CONCAT('inbox_count=',COUNT(*)) FROM finance_inbox_events;
+              SELECT CONCAT('foreign_key_count=',COUNT(*)) FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='${db}' AND REFERENCED_TABLE_NAME IS NOT NULL;
+            "
+          }
+          manifest "$SOURCE_DB" > arna-a4-source-manifest.txt
+          manifest "$RESTORE_DB" > arna-a4-restored-manifest.txt
+          diff -u arna-a4-source-manifest.txt arna-a4-restored-manifest.txt
+          test "$(mysql -h 127.0.0.1 -uroot -proot "$RESTORE_DB" -NBe 'SELECT SUM(debit_minor)=SUM(credit_minor) FROM journal_lines')" = "1"
+          test "$(mysql -h 127.0.0.1 -uroot -proot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM migrations')" -gt 0
+          {
+            echo "Expected SHA: ${{ steps.target.outputs.expected_sha }}"
+            echo "Actual SHA: $(git rev-parse HEAD)"
+            echo "Source manifest:"
+            cat arna-a4-source-manifest.txt
+            echo "Restored manifest:"
+            cat arna-a4-restored-manifest.txt
+            echo "Backup checksum:"
+            cat arna-a4-backup-sha256.txt
+            echo "Scope: disposable CI MySQL data only; no production data, secrets, hosts or backups."
+          } > arna-a4-restore-evidence.txt
+
+
       - name: Upload migration status evidence
         if: always()
         shell: bash
@@ -653,5 +699,10 @@ jobs:
           path: |
             clean-install-evidence.txt
             migration-status.txt
+            arna-a4-synthetic-backup.sql
+            arna-a4-backup-sha256.txt
+            arna-a4-source-manifest.txt
+            arna-a4-restored-manifest.txt
+            arna-a4-restore-evidence.txt
           if-no-files-found: warn
           retention-days: 14
