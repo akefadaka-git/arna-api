@@ -746,4 +746,15 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.election.register.manage')
         ->name('elections.registers.approve-freeze');
 
+
+    // Physical ballot custody records references only; ballot selections are never stored here.
+    Route::post('/elections/{election}/physical-ballots', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionPhysicalBallotController::class, 'issue'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.ballot.issue')
+        ->name('elections.physical-ballots.issue');
+    Route::post('/elections/{election}/physical-ballots/{ballot}/receive', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionPhysicalBallotController::class, 'receive'])
+        ->whereNumber('election')->whereNumber('ballot')
+        ->middleware('auth.permission:governance.election.ballot.receive')
+        ->name('elections.physical-ballots.receive');
+
 });
