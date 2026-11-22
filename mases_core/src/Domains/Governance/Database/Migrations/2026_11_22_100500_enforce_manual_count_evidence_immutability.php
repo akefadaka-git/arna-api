@@ -24,6 +24,11 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::table('governance_election_manual_count_batches')->exists()
+            || DB::table('governance_election_manual_count_lines')->exists()) {
+            throw new RuntimeException('Refusing to remove immutability guards while manual-count evidence exists.');
+        }
+
         $driver = DB::getDriverName();
         if ($driver === 'mysql') {
             foreach ([
