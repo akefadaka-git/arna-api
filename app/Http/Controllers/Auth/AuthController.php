@@ -18,6 +18,7 @@ use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
 use MaaleArna\MASES\Core\Auth\Models\User as CoreUser;
 use MaaleArna\MASES\Core\Auth\Services\TotpMfaService;
 use MaaleArna\MASES\Core\Auth\Services\DeviceSessionService;
+use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpService;
 use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
 
 /**
@@ -644,6 +645,127 @@ final class AuthController extends Controller
         app(DeviceSessionService::class)->revoke($user, $sessionId);
 
         return response()->json(['success' => true, 'data' => ['revoked' => true]]);
+    }
+
+
+    /**
+     * Issue a short-lived OTP challenge for a registered sensitive action.
+     * Delivery is restricted to an already verified email address or phone.
+     */
+    public function requestStepUpChallenge(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'action' => ['required', 'string', 'max:100'],
+            'channel' => ['required', 'string', 'in:email,sms'],
+            'context' => ['required', 'array'],
+        ]);
+
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            throw AuthenticationException::unauthenticated();
+        }
+
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
+            ? (int) $tenantId
+            : (int) ($user->default_tenant_id ?? 0);
+        if ($tenantId < 1 || ! $user->activeTenants()->where('tenants.id', $tenantId)->exists()) {
+            throw new AuthenticationException('A verified tenant membership is required.', 'AUTH_TENANT_CONTEXT_REQUIRED', 403);
+        }
+
+        $challenge = app(AdaptiveStepUpService::class)->issueOtp(
+            $user,
+            $tenantId,
+            $validated['action'],
+            $validated['channel'],
+            $validated['context'],
+        );
+
+        return response()->json(['success' => true, 'data' => $challenge]);
+    }
+
+    /**
+     * Verify OTP or Google Authenticator proof and issue a single-use grant.
+     * Critical operations additionally require a password or recognized PIN.
+     */
+    public function verifyStepUpChallenge(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'action' => ['required', 'string', 'max:100'],
+            'context' => ['required', 'array'],
+            'authenticator' => ['required', 'string', 'in:otp,google_authenticator'],
+            'code' => ['required', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+            'challenge_token' => ['sometimes', 'nullable', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
+            'knowledge_factor_type' => ['sometimes', 'nullable', 'string', 'in:password,pin'],
+            'knowledge_proof' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            throw AuthenticationException::unauthenticated();
+        }
+
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
+            ? (int) $tenantId
+            : (int) ($user->default_tenant_id ?? 0);
+        if ($tenantId < 1 || ! $user->activeTenants()->where('tenants.id', $tenantId)->exists()) {
+            throw new AuthenticationException('A verified tenant membership is required.', 'AUTH_TENANT_CONTEXT_REQUIRED', 403);
+        }
+
+        $grant = app(AdaptiveStepUpService::class)->verify(
+            $user,
+            $tenantId,
+            $validated['action'],
+            $validated['context'],
+            $validated['authenticator'],
+            $validated['code'],
+            $validated['challenge_token'] ?? null,
+            $validated['knowledge_factor_type'] ?? null,
+            $validated['knowledge_proof'] ?? null,
+        );
+
+        if (! is_string($grant)) {
+            throw new AuthenticationException('The additional authentication proof is invalid or expired.', 'AUTH_STEP_UP_INVALID', 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'step_up_token' => $grant,
+                'expires_in' => max(1, (int) config('auth-step-up.grant_expiry_minutes', 5)) * 60,
+                'single_use' => true,
+            ],
+        ]);
+    }
+
+    /**
+     * Enroll a PIN only for the currently authenticated Android device.
+     * The route requires an identity_change step-up grant before this runs.
+     */
+    public function enrollDevicePin(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'session_id' => ['required', 'uuid'],
+            'pin' => ['required', 'string', 'regex:/^\\d{6}$/'],
+            'pin_confirmation' => ['required', 'same:pin'],
+        ]);
+
+        $user = $request->user();
+        $token = $user?->currentAccessToken();
+        if (! $user instanceof CoreUser || ! $token instanceof PersonalAccessToken
+            || ! app(DeviceSessionService::class)->isMobileToken($token)) {
+            throw new AuthenticationException('A recognized Android device session is required.', 'AUTH_DEVICE_SESSION_REQUIRED', 403);
+        }
+
+        $session = app(DeviceSessionService::class)->validateToken($user, $token);
+        if ($session === null || ! hash_equals($session->public_id, $validated['session_id'])) {
+            throw new AuthenticationException('The requested device session is not current.', 'AUTH_DEVICE_SESSION_INVALID', 403);
+        }
+
+        app(DeviceSessionService::class)->enrollPin($user, $session->public_id, $validated['pin']);
+
+        return response()->json(['success' => true, 'data' => ['pin_enrolled' => true]]);
     }
 
     /**
