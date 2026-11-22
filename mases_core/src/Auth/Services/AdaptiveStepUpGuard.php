@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
 
-final class AdaptiveStepUpGuard
+class AdaptiveStepUpGuard
 {
     public function __construct(
         private readonly AdaptiveStepUpService $stepUp,
