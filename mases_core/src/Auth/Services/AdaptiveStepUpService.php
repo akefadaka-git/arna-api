@@ -36,7 +36,7 @@ final class AdaptiveStepUpService
         }
 
         $requirements = $this->policy->requirementsFor($action);
-        if (! $requirements['step_up_required']) {
+        if (! $requirements['step_up_required'] && $action !== 'login') {
             throw new RuntimeException('The requested action does not require step-up authentication.');
         }
 
