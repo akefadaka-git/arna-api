@@ -31,16 +31,16 @@ declare(strict_types=1);
  *
  *   The eight managed roles and their Governance grant counts:
  *
- *     super_admin    (role 1)  →  48  (all)
+ *     super_admin    (role 1)  →  47  (all except voter-register management)
  *     platform_admin (role 2)  →  37  (all except declaration.manage)
  *     tenant_admin   (role 3)  →  19  (config + read)
  *     manager        (role 4)  →   4  (view + action)
  *     board          (role 8)  →  15  (read-only board set)
- *     president      (role 9)  →  23  (board set + management/approval)
- *     secretary      (role 10) →  25  (board set + operational)
+ *     president      (role 9)  →  22  (board set + management/approval)
+ *     secretary      (role 10) →  24  (board set + operational)
  *     ceo            (role 12) →  12  (read + action management)
  *                                ──
- *                                183 total grant assignments
+ *                                180 total grant assignments
  *
  *   The four unmanaged roles — `finance_manager` (5), `hr_manager`
  *   (6), `shareholder` (7), and `cashier` (11) — receive no
@@ -485,8 +485,8 @@ final class GovernanceRolesSeeder extends Seeder
         /*
          * super_admin — role 1
          *
-         * Every Governance permission, including the sensitive
-         * `governance.declaration.manage`. The role already holds
+         * Every Governance permission except the separately assigned, sensitive
+         * `governance.election.register.manage` and `governance.declaration.manage`. The role already holds
          * every other domain's full permission set; granting the
          * full Governance set is consistent with that pattern.
          */
