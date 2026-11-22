@@ -610,7 +610,7 @@ final class FinanceGeneralLedgerTest extends TestCase
                 'Must not cross tenant boundary'
             );
             $this->fail('A tenant must not reverse another tenant\'s journal.');
-        } catch (\\Illuminate\\Database\\Eloquent\\ModelNotFoundException) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
             // Cross-tenant lookup intentionally fails as not-found to avoid disclosure.
         }
 
