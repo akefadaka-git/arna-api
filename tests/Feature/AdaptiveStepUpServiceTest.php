@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Auth\Services\AdaptiveAuthenticationPolicy;
 use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpService;
-use MaaleArna\MASES\Core\Auth\Services\PhoneVerificationDelivery;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
