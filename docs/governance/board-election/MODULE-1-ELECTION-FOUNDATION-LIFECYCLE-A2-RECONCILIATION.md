@@ -1,8 +1,8 @@
 # Module 1 — Election Foundation and Lifecycle: A2 Read-only File-by-File Reconciliation
 
-**Status:** A2 reconciliation complete; A3 implementation not started  
+**Status:** A2 refreshed against current main; Module 1 A3 implementation merged; A4 exact-head verification PASS; A5 separately gated  
 **Repository:** `akefadaka-git/arna-api`  
-**API read-only baseline:** `main` — `dc2c53aa1b0b0d192acff53880848c9e517ecf67`  
+**API read-only baseline:** `main` — `22afaaf826ee3681f0a6b6e2a11c467a9a25ee67` (refreshed 2026-11-22)  
 **Design baseline:** AGE v1.0 full architecture, approved/frozen; blob `d024291a6a5e5a45ede676dd728d16f6b50a75e1`  
 **Approval record commit:** `b9c2848e6e9b7e0e5ccbe550a7f744b9d33dcc00`  
 **Priority 2 dependency:** PR #160 merge, same API main SHA above  
@@ -191,3 +191,92 @@ Module 1 may support attaching and versioning these sources, but it must not man
 | Merge / deployment / production migration | **NOT AUTHORIZED** |
 
 **A2 conclusion:** The existing Governance domain and Priority 2 committee-security foundation provide reusable tenant, permission, audit and committee-security primitives. They do not provide the canonical election aggregate or lifecycle. Historical PR #77 is a valuable source of test intent and implementation ideas but is too divergent and too broad to port wholesale; its combined schema and ballot linkage require redesign against the frozen architecture. Module 1 is ready for a controlled A3 design/implementation plan on a fresh current-main-based branch, after this A2 artifact is recorded. No implementation is included in this record.
+
+
+---
+
+## 11. Current-main refresh — Module 1 implementation and verification reconciliation (2026-11-22)
+
+**Exact current API main SHA:** `22afaaf826ee3681f0a6b6e2a11c467a9a25ee67`  
+**Refresh type:** Read-only repository, PR, implementation, and exact-head CI evidence reconciliation.  
+**Frozen AGE architecture:** unchanged; approved architecture blob remains `d024291a6a5e5a45ede676dd728d16f6b50a75e1`, with approval record blob `7aa7e0e2fa17b4c7b1e833963131bbabe1914e67`.  
+**Application/code changes in this A2 refresh:** NONE. Only this A2 documentation record is refreshed.
+
+### 11.1 Supersession of stale baseline claims
+
+This addendum supersedes the old `dc2c53aa1b0b0d192acff53880848c9e517ecf67` API baseline and the Section 10 statements that Module 1 A3 had not started or that the canonical election aggregate/lifecycle did not yet exist on main.
+
+Module 1 implementation was subsequently integrated through PR #176. It is already merged; this refresh does not authorize a second implementation or a duplicate lifecycle branch.
+
+### 11.2 Module 1 A3 integration — PR #176
+
+| Evidence | Exact reference | Result |
+|---|---|---|
+| PR | [#176 — A3 election lifecycle current-main reconciliation](https://github.com/akefadaka-git/arna-api/pull/176) | CLOSED / MERGED |
+| Tested PR head | `a7cbc757a1d04c4ae6b9bf114dedf97e2b918fe5` | Exact-head verification recorded |
+| Merge commit | `3fca049c2fb3549d81d4ff57bc4b77776fb86db1` | Merged 2026-11-21 |
+| Current main | `22afaaf826ee3681f0a6b6e2a11c467a9a25ee67` | Contains the merge and subsequent documentation commits |
+
+The PR integrated the canonical tenant-scoped election aggregate, lifecycle transitions, strict schedule validation, durable File Management evidence binding, canonical authority snapshot generation, and selective committee authority/appointment integration. The earlier duplicate lifecycle implementation and old committee schema were not imported wholesale.
+
+### 11.3 Current-main Module 1 implementation inventory
+
+The following exact blob SHAs were read from the recursive tree at current `main`:
+
+| Canonical artifact | Current-main blob SHA |
+|---|---|
+| Election foundation migration — `2026_11_18_100000_create_governance_elections_foundation.php` | `e19e84ca3b89ca3478cdd5cbb4fe919e3e63230a` |
+| `GovernanceElection.php` | `e2e1fc86a513099f1c05cadfd72cd0bd8042b3bc` |
+| `GovernanceElectionLifecycleService.php` | `6520795d17a8dab6d6c68ae45ed00060d2e63e00` |
+| `GovernanceElectionController.php` | `8869f9d594d6c7ab30015717216a859a1ea52372` |
+| `GovernanceElectionLifecycleChanged.php` | `1cdf7b33399a4e86b013c80783f2aff037688606` |
+| `AuditGovernanceElectionLifecycleEvent.php` | `90d8b61b373df487c68e9434a01e3eecef83dfe5` |
+| `GovernanceElectionLifecycleTest.php` | `87acb28e08c642ade0fef49f534e81b74f4bfe02` |
+| Authority/committee appointment migration | `d752f741e2947574801333c409c4051eecca0599` |
+| `GovernanceElectionAuthorityService.php` | `00f3a9a0fe08a011bf807845d803d10ffb5402c2` |
+| `GovernanceElectionCommitteeAppointmentService.php` | `9f8e3d5fdc8f01eccd235e6d6df2ece6ccef3289` |
+| `GovernanceElectionCommitteeSecurityService.php` | `1e10cec0395dfb8c3398964198476f5032e87045` |
+| Authority/committee integration test | `fb8706b74dedb1340d1c7d643a81dc0785801361` |
+
+### 11.4 Exact-head verification — A4 technical gate
+
+All five required PR #176 workflows completed successfully on the exact tested head `a7cbc757a1d04c4ae6b9bf114dedf97e2b918fe5`:
+
+| Verification | Result / evidence |
+|---|---|
+| Disposable MySQL fresh migration, seed and regression | PASS — [run 44771828931](https://github.com/akefadaka-git/arna-api/actions/runs/44771828931) |
+| Governance authorization and authority/committee integration | PASS — [run 44771828893](https://github.com/akefadaka-git/arna-api/actions/runs/44771828893) |
+| G-01 tenant-isolation regression | PASS — [run 44771828911](https://github.com/akefadaka-git/arna-api/actions/runs/44771828911) |
+| Phase 0 effective-authorization audit | PASS — [run 44771828902](https://github.com/akefadaka-git/arna-api/actions/runs/44771828902) |
+| Shareholder seed-number initialization regression | PASS — [run 44771829099](https://github.com/akefadaka-git/arna-api/actions/runs/44771829099) |
+
+The MySQL workflow reports 58 steps with zero failures, including fresh migrations, seed, repeated migration execution, election lifecycle/evidence integration, committee security, and tenant-isolation regressions. These are disposable CI database results, not evidence of production migration or deployment.
+
+### 11.5 Downstream modules now present on current main
+
+- **Module 2:** PR #177 merged on 2026-11-21; tested head `1ab562c57c171466dfbcb231a81a81971c1ca612`; merge commit `8fc0638c7042d5d2dfca404ac792c2e714abb71c`. Candidate intake, nomination windows/submissions/events, candidate evidence and nomination concurrency coverage are integrated against the Module 1 lifecycle. This does not expand Module 1's responsibility boundary.
+- **Module 3 evidence disposition:** PR #179 merged documentation-only on 2026-11-21; merge commit `2ec844aaef7891271a1e1fd27a8aabdad94cd443`. The statutory register and entitlement evidence blockers remain separate and unresolved.
+
+### 11.6 Remaining election PR dependencies and deployment boundary
+
+- PR #170 (A5 remediation for the superseded PR #164) remains OPEN/DRAFT.
+- PR #172 (A5 exact-SHA verification for election lifecycle remediation) remains OPEN/DRAFT.
+- PR #161 remains OPEN/DRAFT; its authority and appointment functionality was selectively adapted into PR #176. Do not merge it wholesale or assume its independent PR is closed.
+- PRs #151 and #149 remain OPEN/DRAFT; their overlapping committee-security history must be reconciled against the current-main implementation before any action.
+- PR #157 (election dispute foundation), #138 (witnessed manual count), #148 (branch reconciliation), #127/#128 (older candidate/register work), and other AGE follow-ups remain separate branches/PRs and are not silently closed by this A2 refresh.
+
+No production migration, deployment, independent pre-deployment review, PR merge, or branch deletion is authorized by this addendum. A5 remains a separate Owner authorization gate.
+
+### 11.7 Refreshed A2 disposition
+
+| Gate | Current status |
+|---|---|
+| Original A2 architecture/current-main assessment | HISTORICAL — superseded where its main SHA and implementation state differ |
+| Module 1 A3 implementation | VERIFIED MERGED — PR #176 |
+| Module 1 A4 exact-head technical verification | PASS — five exact-head workflow runs above |
+| Module 2 downstream integration | VERIFIED MERGED — PR #177 |
+| Module 3 statutory/evidence readiness | PARTIAL — blockers remain |
+| Production migration / deployment | NOT RUN / NOT AUTHORIZED |
+| A5 independent review and deployment gate | NOT CLOSED |
+
+**Conclusion:** Module 1's lifecycle foundation is implemented and merged on current `main`, and its exact PR #176 head passed the recorded A4 technical checks. The frozen AGE architecture remains unchanged. No additional Module 1 A3 implementation is required from this A2 refresh. Preserve the existing code baseline; handle any remaining A5 remediation and deployment decision only through their separate gates.
