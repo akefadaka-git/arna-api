@@ -18,6 +18,7 @@ on:
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
       - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "tests/Feature/IdentityChangeStepUpTest.php"
+      - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
       - "mases_core/src/Auth/Services/TotpMfaService.php"
       - "app/Http/Middleware/RequireAdaptiveStepUp.php"
       - "config/auth-step-up.php"
@@ -28,6 +29,7 @@ on:
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
       - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "tests/Feature/IdentityChangeStepUpTest.php"
+      - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
       - "mases_core/src/Auth/Models/DeviceSession.php"
       - "mases_core/src/Auth/Services/DeviceSessionService.php"
       - "database/migrations/2026_11_22_00000*.php"
@@ -50,6 +52,7 @@ on:
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
       - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "tests/Feature/IdentityChangeStepUpTest.php"
+      - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
       - "mases_core/src/Auth/Services/TotpMfaService.php"
       - "app/Http/Middleware/RequireAdaptiveStepUp.php"
       - "config/auth-step-up.php"
@@ -60,6 +63,7 @@ on:
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
       - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "tests/Feature/IdentityChangeStepUpTest.php"
+      - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
       - "mases_core/src/Auth/Models/DeviceSession.php"
       - "mases_core/src/Auth/Services/DeviceSessionService.php"
       - "database/migrations/2026_11_22_00000*.php"
@@ -120,6 +124,7 @@ jobs:
           php -l tests/Feature/AdaptiveLoginAuthenticatorTest.php
           php -l tests/Feature/PasswordRecoveryOtpTest.php
           php -l tests/Feature/IdentityChangeStepUpTest.php
+          php -l tests/Unit/AdaptiveAuthenticationPolicyTest.php
       - name: Run Android device-session and PIN regressions
         run: |
           vendor/bin/phpunit tests/Feature/AndroidDeviceSessionTest.php
@@ -127,4 +132,5 @@ jobs:
           vendor/bin/phpunit tests/Feature/AdaptiveLoginAuthenticatorTest.php
           vendor/bin/phpunit tests/Feature/PasswordRecoveryOtpTest.php
           vendor/bin/phpunit tests/Feature/IdentityChangeStepUpTest.php
+          vendor/bin/phpunit tests/Unit/AdaptiveAuthenticationPolicyTest.php
           vendor/bin/phpunit tests/Feature/TotpMfaTest.php
