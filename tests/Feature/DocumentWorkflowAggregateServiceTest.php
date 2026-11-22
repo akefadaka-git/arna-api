@@ -30,6 +30,73 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         Storage::fake('local');
     }
 
+    public function test_public_file_is_rejected_as_formal_evidence_before_snapshot_capture(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey(), true);
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->once();
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Public evidence must fail closed');
+
+        try {
+            $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
+                'submitted_file_id' => $fileId,
+                'submitted_file_version' => 1,
+            ]);
+            self::fail('A publicly accessible File Management object must not be accepted as formal evidence.');
+        } catch (\Symfony\\Component\\HttpKernel\\Exception\\UnprocessableEntityHttpException) {
+            self::assertSame('draft', $workflow->fresh()->status);
+            self::assertSame(0, DB::table('document_file_versions')->where('tenant_id', $tenantId)->count());
+            self::assertSame([], Storage::disk('local')->allFiles('document-evidence'));
+        }
+    }
+
+    public function test_filesystem_snapshot_can_remain_orphaned_when_submit_database_transaction_rolls_back(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->twice();
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Filesystem rollback boundary');
+        // Reserve the next immutable event revision. Submission captures the
+        // filesystem object before the duplicate event causes the DB transaction
+        // to fail, making the filesystem/DB atomicity boundary observable.
+        DB::table('document_workflow_events')->insert([
+            'workflow_id' => $workflow->id,
+            'tenant_id' => $tenantId,
+            'revision' => 1,
+            'action' => 'reserved_submit_revision',
+            'from_status' => 'draft',
+            'to_status' => 'submitted',
+            'actor_user_id' => $actor->getKey(),
+            'reason' => 'Test-only reserved revision',
+            'metadata' => null,
+            'occurred_at' => now(),
+        ]);
+
+        try {
+            $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
+                'submitted_file_id' => $fileId,
+                'submitted_file_version' => 1,
+            ]);
+            self::fail('The duplicate workflow event must roll back the database transaction.');
+        } catch (QueryException) {
+            $sha256 = hash('sha256', 'immutable source bytes');
+            $snapshotPath = "document-evidence/{$tenantId}/{$fileId}/1/{$sha256}";
+            self::assertSame('draft', $workflow->fresh()->status);
+            self::assertSame(0, DB::table('document_file_versions')->where('tenant_id', $tenantId)->count());
+            self::assertTrue(Storage::disk('local')->exists($snapshotPath), 'The immutable snapshot is not part of the database rollback and remains as an orphan.');
+        }
+    }
+
     public function test_draft_submission_review_return_and_resume_are_persisted_as_atomic_audited_transitions(): void
     {
         [$tenantId, $legalEntityId, $unitId] = $this->issuer();
@@ -732,7 +799,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         return [$tenantId, $entityId, $unitId];
     }
 
-    private function file(int $tenantId, int $userId): int
+    private function file(int $tenantId, int $userId, bool $isPublic = false): int
     {
         Storage::disk('local')->put('documents/source.pdf', 'immutable source bytes');
 
@@ -746,7 +813,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'disk' => 'local',
             'version' => 1,
             'status' => 'published',
-            'is_public' => false,
+            'is_public' => $isPublic,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
