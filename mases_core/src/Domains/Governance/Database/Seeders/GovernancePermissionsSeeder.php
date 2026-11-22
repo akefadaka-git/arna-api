@@ -33,7 +33,7 @@ declare(strict_types=1);
  *
  *   What the seeder writes:
  *
- *     · 42 tenant-scoped permissions with the `governance.` prefix.
+ *     · 44 tenant-scoped permissions with the `governance.` prefix.
  *       Each carries `scope = 'tenant'`, `tenant_id = null`,
  *       `application_id = null`, `is_active = true`,
  *       `is_system = true`.
@@ -103,11 +103,11 @@ declare(strict_types=1);
  *     governance.action        4  (view, create, manage, verify)
  *     governance.delegation    2  (view, manage)
  *     governance.declaration   2  (view, manage)
- *     governance.election      8  (view, manage, register.manage, authorize, schedule, suspend, cancel, archive)
+ *     governance.election     10  (view, manage, register.manage, ballot.issue, ballot.receive, authorize, schedule, suspend, cancel, archive)
  *     governance.document      3  (view, upload, download)
  *     governance.report        2  (view, generate)
  *                              ──
- *                              42
+ *                              44
  *
  * Plus:
  *
@@ -266,7 +266,7 @@ declare(strict_types=1);
  *     php artisan db:seed \
  *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernanceApplicationSeeder"
  *
- *     # 2. Register the governance permissions (43 rows)
+ *     # 2. Register the governance permissions (45 rows)
  *     php artisan db:seed \
  *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernancePermissionsSeeder"
  *
@@ -327,7 +327,7 @@ use RuntimeException;
 /**
  * GovernancePermissionsSeeder
  *
- * Registers the Governance domain's 43 permissions into the
+ * Registers the Governance domain's 45 permissions into the
  * platform `permissions` table.
  *
  * =============================================================================
@@ -346,9 +346,9 @@ use RuntimeException;
  * =============================================================================
  * What this seeder writes
  * =============================================================================
- * 43 rows across 2 scopes:
+ * 45 rows across 2 scopes:
  *
- *   governance.*        42 rows (scope = 'tenant', category = 'governance')
+ *   governance.*        44 rows (scope = 'tenant', category = 'governance')
  *   app.governance.*     1 row  (scope = 'application', category = 'app_access')
  *
  * The set is frozen by the master prompt §28 as refined during the
@@ -657,6 +657,18 @@ final class GovernancePermissionsSeeder extends Seeder
             'slug'     => 'governance.election.register.manage',
             'name_am'  => 'የመራጮች መዝገብ ማስተዳደር',
             'name_en'  => 'Manage election voter registers',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.ballot.issue',
+            'name_am'  => 'የአካላዊ ድምፅ ወረቀት መስጠት',
+            'name_en'  => 'Issue physical ballots',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.ballot.receive',
+            'name_am'  => 'የድምፅ ወረቀት አስረካቢነት መመዝገብ',
+            'name_en'  => 'Record physical ballot custody',
             'category' => 'governance',
         ],
         [
