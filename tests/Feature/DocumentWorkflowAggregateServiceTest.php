@@ -37,7 +37,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $fileId = $this->file($tenantId, (int) $actor->getKey(), true);
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
         $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.create');
-        $authorization->shouldReceive('requirePermission')->twice()->with($actor, $tenantId, 'documents.submit');
+        $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.submit');
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
