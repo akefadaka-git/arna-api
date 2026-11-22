@@ -29,10 +29,11 @@ final class AdaptiveStepUpServiceTest extends TestCase
         $user->tenants()->attach($tenant->id, ['joined_at' => now(), 'status' => 'active']);
 
         $code = null;
-        $this->mock(PhoneVerificationDelivery::class, function ($mock) use (&$code): void {
-            $mock->shouldReceive('send')->once()->andReturnUsing(function ($phone, $sentCode) use (&$code): void {
-                $code = $sentCode;
-            });
+        Config::set('phone-verification.gateway_url', 'https://sms.example.test/send');
+        Http::fake(function ($request) use (&$code) {
+            preg_match('/code is (\\d{6})/', (string) ($request->data()['message'] ?? ''), $matches);
+            $code = $matches[1] ?? null;
+            return Http::response(['accepted' => true], 200);
         });
 
         $context = ['wallet_id' => '42', 'amount' => '25.5000', 'reference_type' => 'invoice', 'reference_id' => 'INV-42'];
@@ -62,10 +63,11 @@ final class AdaptiveStepUpServiceTest extends TestCase
         $user->tenants()->attach($tenant->id, ['joined_at' => now(), 'status' => 'active']);
 
         $codes = [];
-        $this->mock(PhoneVerificationDelivery::class, function ($mock) use (&$codes): void {
-            $mock->shouldReceive('send')->twice()->andReturnUsing(function ($phone, $sentCode) use (&$codes): void {
-                $codes[] = $sentCode;
-            });
+        Config::set('phone-verification.gateway_url', 'https://sms.example.test/send');
+        Http::fake(function ($request) use (&$codes) {
+            preg_match('/code is (\\d{6})/', (string) ($request->data()['message'] ?? ''), $matches);
+            $codes[] = $matches[1] ?? null;
+            return Http::response(['accepted' => true], 200);
         });
 
         $context = ['operation' => 'wallet_balance_adjustment', 'wallet_id' => '42', 'amount' => '1000.0000'];
