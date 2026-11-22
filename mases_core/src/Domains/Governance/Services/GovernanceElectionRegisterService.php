@@ -406,6 +406,75 @@ final class GovernanceElectionRegisterService
         return true;
     }
 
+    /**
+     * A voting/custody gate requires all three lifecycle receipts to be
+     * independently anchored, in order, with an unbroken receipt-hash chain.
+     * Signature verification occurs in the dispatcher before an event is
+     * marked anchored; the database trigger then makes that evidence immutable.
+     */
+    public function hasExternallyAnchoredSnapshot(int $tenantId, int $electionId, int $snapshotId): bool
+    {
+        $snapshot = DB::table('governance_election_register_snapshots')
+            ->where('tenant_id', $tenantId)
+            ->where('election_id', $electionId)
+            ->where('id', $snapshotId)
+            ->first(['snapshot_uuid', 'register_status']);
+
+        if ($snapshot === null || $snapshot->register_status !== 'frozen'
+            || !is_string($snapshot->snapshot_uuid) || $snapshot->snapshot_uuid === '') {
+            return false;
+        }
+
+        $events = DB::table('age_receipt_outbox')
+            ->where('tenant_id', $tenantId)
+            ->where('election_id', $electionId)
+            ->where('snapshot_id', $snapshotId)
+            ->where('stream_uuid', $snapshot->snapshot_uuid)
+            ->orderBy('sequence')
+            ->get([
+                'snapshot_uuid', 'sequence', 'event_type', 'delivery_state',
+                'expected_previous_sequence', 'expected_previous_receipt_sha256',
+                'receipt_payload', 'witness_payload', 'receipt_sha256', 'anchored_at',
+            ]);
+
+        $expectedTypes = ['register.prepared', 'register.reconciled', 'register.approved_frozen'];
+        if ($events->count() !== count($expectedTypes)) {
+            return false;
+        }
+
+        $previousSequence = 0;
+        $previousReceiptHash = null;
+        foreach ($events as $index => $event) {
+            if ((string) $event->snapshot_uuid !== (string) $snapshot->snapshot_uuid
+                || (int) $event->sequence !== $index + 1
+                || (string) $event->event_type !== $expectedTypes[$index]
+                || (string) $event->delivery_state !== 'anchored'
+                || (int) $event->expected_previous_sequence !== $previousSequence
+                || $event->expected_previous_receipt_sha256 !== $previousReceiptHash
+                || !is_string($event->receipt_payload) || $event->receipt_payload === ''
+                || !is_string($event->witness_payload) || $event->witness_payload === ''
+                || !is_string($event->receipt_sha256)
+                || !preg_match('/^[a-f0-9]{64}$/D', $event->receipt_sha256)
+                || $event->anchored_at === null) {
+                return false;
+            }
+
+            try {
+                if (!is_array(json_decode((string) $event->receipt_payload, true, 512, JSON_THROW_ON_ERROR))
+                    || !is_array(json_decode((string) $event->witness_payload, true, 512, JSON_THROW_ON_ERROR))) {
+                    return false;
+                }
+            } catch (\JsonException) {
+                return false;
+            }
+
+            $previousSequence = (int) $event->sequence;
+            $previousReceiptHash = (string) $event->receipt_sha256;
+        }
+
+        return true;
+    }
+
     /** Approve and freeze only after independent reconciliation and a second actor's approval. */
     public function approveAndFreeze(int $tenantId, int $electionId, int $snapshotId, int $actorId): void
     {
