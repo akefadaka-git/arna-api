@@ -146,6 +146,7 @@ final class ExecutiveOverviewController
 
         return $user->roles()
             ->where('roles.is_active', true)
+            ->whereIn('roles.scope', ['tenant', 'application'])
             ->where(function ($scope) use ($tenantId): void {
                 $scope->whereNull('roles.tenant_id')
                     ->orWhere('roles.tenant_id', $tenantId);
