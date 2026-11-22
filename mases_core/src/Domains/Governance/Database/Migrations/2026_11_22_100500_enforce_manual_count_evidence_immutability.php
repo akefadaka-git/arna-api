@@ -10,7 +10,7 @@ return new class extends Migration
     public function up(): void
     {
         $driver = DB::getDriverName();
-        if ($driver === 'mysql') {
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
             $this->createMySqlGuards();
             return;
         }
@@ -30,7 +30,7 @@ return new class extends Migration
         }
 
         $driver = DB::getDriverName();
-        if ($driver === 'mysql') {
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
             foreach ([
                 'gov_elec_manual_batch_insert_guard',
                 'gov_elec_manual_batch_update_guard',
