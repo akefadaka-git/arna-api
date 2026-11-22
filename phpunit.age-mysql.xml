@@ -8,6 +8,7 @@
         <testsuite name="AGE MySQL Integration">
             <file>tests/Feature/AgeVoterRegisterMySqlIntegrationTest.php</file>
             <file>tests/Feature/Governance/GovernanceElectionManualCountServiceTest.php</file>
+            <file>tests/Feature/Governance/GovernanceMeetingAgendaQuorumContractTest.php</file>
         </testsuite>
     </testsuites>
     <php>
