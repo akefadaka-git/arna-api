@@ -576,60 +576,60 @@ Route::name('api.governance.')->group(static function (): void {
 
     // G5 A3 — meeting attendance, proxies, penalties and Finance settlement requests.
     Route::get('/meetings', [GovernanceMeetingAttendanceController::class, 'index'])
-        ->middleware('auth.permission:governance.body.view')
+        ->middleware('auth.permission:governance.meeting.view')
         ->name('meetings.index');
     Route::post('/meetings', [GovernanceMeetingAttendanceController::class, 'store'])
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.meeting.manage')
         ->name('meetings.store');
     Route::get('/meetings/{meeting}', [GovernanceMeetingAttendanceController::class, 'show'])
         ->whereNumber('meeting')
-        ->middleware('auth.permission:governance.body.view')
+        ->middleware('auth.permission:governance.meeting.view')
         ->name('meetings.show');
     Route::post('/meetings/{meeting}/attendance', [GovernanceMeetingAttendanceController::class, 'recordAttendance'])
         ->whereNumber('meeting')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('meetings.attendance.store');
     Route::post('/meetings/{meeting}/proxies', [GovernanceMeetingAttendanceController::class, 'submitProxy'])
         ->whereNumber('meeting')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('meetings.proxies.store');
 
     Route::patch('/proxies/{proxy}/revoke', [GovernanceMeetingAttendanceController::class, 'revokeProxy'])
         ->whereNumber('proxy')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('proxies.revoke');
     Route::get('/proxies/{proxy}/verify-history', [GovernanceMeetingAttendanceController::class, 'verifyProxyHistory'])
         ->whereNumber('proxy')
-        ->middleware('auth.permission:governance.body.view')
+        ->middleware('auth.permission:governance.attendance.view')
         ->name('proxies.verify-history');
     Route::patch('/proxies/{proxy}/review', [GovernanceMeetingAttendanceController::class, 'reviewProxy'])
         ->whereNumber('proxy')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.meeting.approve')
         ->name('proxies.review');
     Route::post('/meetings/{meeting}/penalties', [GovernanceMeetingAttendanceController::class, 'assessPenalty'])
         ->whereNumber('meeting')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('meetings.penalties.store');
     Route::post('/penalties/{penalty}/settlements', [GovernanceMeetingAttendanceController::class, 'recordSettlement'])
         ->whereNumber('penalty')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('penalties.settlements.store');
 
     Route::post('/meetings/{meeting}/attendance/corrections', [GovernanceMeetingAttendanceController::class, 'requestAttendanceCorrection'])
         ->whereNumber('meeting')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('meetings.attendance.corrections.store');
     Route::patch('/attendance-corrections/{correction}/review', [GovernanceMeetingAttendanceController::class, 'reviewAttendanceCorrection'])
         ->whereNumber('correction')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.meeting.approve')
         ->name('attendance-corrections.review');
     Route::post('/penalties/{penalty}/disputes', [GovernanceMeetingAttendanceController::class, 'submitPenaltyDispute'])
         ->whereNumber('penalty')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('penalties.disputes.store');
     Route::patch('/penalty-disputes/{dispute}/review', [GovernanceMeetingAttendanceController::class, 'reviewPenaltyDispute'])
         ->whereNumber('dispute')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.meeting.approve')
         ->name('penalty-disputes.review');
 
     // GA agenda items are editable only while in draft; publication is a separate authority gate.
