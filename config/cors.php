@@ -3,16 +3,16 @@
 declare(strict_types=1);
 
 /*
-|--------------------------------------------------------------------------
+|---------------------------------------------------------------------------
 | Cross-Origin Resource Sharing (CORS) Configuration
-|--------------------------------------------------------------------------
+|---------------------------------------------------------------------------
 |
 | Enables the MASES frontend applications (running on sibling subdomains
 | of maalearna.com.et) to call the API with credentials (cookies).
 |
-| -----------------------------------------------------------------------------
+| ---------------------------------------------------------------------------
 | Why this file exists
-| -----------------------------------------------------------------------------
+| ---------------------------------------------------------------------------
 |
 | Laravel ships without a published config/cors.php. When the file is
 | absent, the framework falls back to permissive defaults that allow any
@@ -26,19 +26,20 @@ declare(strict_types=1);
 | authentication, this file is mandatory and `supports_credentials` MUST
 | be true.
 |
-| -----------------------------------------------------------------------------
+| ---------------------------------------------------------------------------
 | Interaction with SANCTUM_STATEFUL_DOMAINS
-| -----------------------------------------------------------------------------
+| ---------------------------------------------------------------------------
 |
 | The `allowed_origins` list below MUST match the origin list in
-| SANCTUM_STATEFUL_DOMAINS (see the production .env). If the two lists
-| diverge, a frontend may pass CORS but fail the stateful-domain check
-| (or vice versa), producing authentication failures that are difficult
-| to diagnose from the browser console alone.
+| SANCTUM_STATEFUL_DOMAINS (see the production .env). The Owner-approved
+| trust boundary includes all ten ARNA subdomains: www, auth, app, portal,
+| finance, admin, arna, ai, file, and api. If the two lists diverge, a
+| frontend may pass CORS but fail the stateful-domain check (or vice versa),
+| producing authentication failures that are difficult to diagnose.
 |
-| -----------------------------------------------------------------------------
+| ---------------------------------------------------------------------------
 | Do NOT use wildcards here
-| -----------------------------------------------------------------------------
+| ---------------------------------------------------------------------------
 |
 | `allowed_origins` must be an explicit list. Two reasons:
 |
@@ -46,7 +47,7 @@ declare(strict_types=1);
 |      The browser will reject the response regardless of what the server
 |      intends.
 |
-|   2. An explicit allow-list is a CSRF-adjacent security control. Any
+|   2. An explicit allow-list is an CSRF-adjacent security control. Any
 |      origin not listed here is not permitted to make credentialed
 |      requests to the API.
 |
@@ -57,9 +58,9 @@ declare(strict_types=1);
 return [
 
     /*
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     | Paths
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     |
     | Only requests matching these paths receive CORS headers. Everything
     | else is left alone.
@@ -86,9 +87,9 @@ return [
     ],
 
     /*
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     | Allowed Methods
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     |
     | HTTP methods permitted for cross-origin requests. `*` covers the
     | full REST surface (GET, POST, PUT, PATCH, DELETE, OPTIONS).
@@ -97,9 +98,9 @@ return [
     'allowed_methods' => ['*'],
 
     /*
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     | Allowed Origins
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     |
     | Explicit allow-list of MASES frontend origins. Every value must be
     | a full origin (scheme + host, no trailing slash). Subdomains must
@@ -107,6 +108,7 @@ return [
     | cover its subdomains.
     |
     | Keep this list in lock-step with SANCTUM_STATEFUL_DOMAINS in .env.
+    | All ten Owner-approved ARNA subdomains are included below.
     |
     */
     'allowed_origins' => [
@@ -121,12 +123,13 @@ return [
         'https://arna.maalearna.com.et',
         'https://ai.maalearna.com.et',
         'https://file.maalearna.com.et',
+        'https://api.maalearna.com.et',
     ],
 
     /*
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     | Allowed Origins Patterns
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     |
     | Regex patterns for origins. Left empty deliberately: an explicit
     | allow-list is easier to audit and less prone to accidental
@@ -136,9 +139,9 @@ return [
     'allowed_origins_patterns' => [],
 
     /*
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     | Allowed Headers
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     |
     | Request headers the browser is permitted to send. `*` allows all,
     | which is appropriate for first-party SPAs that need to send
@@ -149,9 +152,9 @@ return [
     'allowed_headers' => ['*'],
 
     /*
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     | Exposed Headers
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     |
     | Response headers the browser is allowed to read from a cross-origin
     | response. Left empty: the MASES canonical envelope carries error
@@ -164,9 +167,9 @@ return [
     'exposed_headers' => [],
 
     /*
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     | Max Age
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     |
     | Seconds the browser may cache the preflight (OPTIONS) response.
     | Caching reduces preflight traffic substantially for SPAs that issue
@@ -177,9 +180,9 @@ return [
     'max_age' => 3600,
 
     /*
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     | Supports Credentials
-    |--------------------------------------------------------------------------
+    |---------------------------------------------------------------------------
     |
     | REQUIRED for Sanctum cookie-based authentication. When true, the
     | browser is permitted to send and receive cookies on cross-origin
