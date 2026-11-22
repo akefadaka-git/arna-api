@@ -34,6 +34,7 @@ final class GovernanceElectionManualCountServiceTest extends TestCase
             'governance_election_manual_count_batches',
             'governance_election_candidates',
             'governance_election_committee_members',
+            'governance_election_authority_evidence',
             'person_tenant_accesses',
             'people',
             'users',
@@ -71,12 +72,19 @@ final class GovernanceElectionManualCountServiceTest extends TestCase
             $table->unsignedBigInteger('person_id');
             $table->string('status', 24);
         });
+        Schema::create('governance_election_authority_evidence', function (Blueprint $table): void {
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('election_id');
+            $table->string('status', 24);
+        });
         Schema::create('governance_election_committee_members', function (Blueprint $table): void {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedBigInteger('election_id');
             $table->unsignedBigInteger('person_id');
             $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('appointment_evidence_id');
             $table->string('member_role', 32);
             $table->string('status', 24);
             $table->dateTime('recused_at')->nullable();
@@ -130,6 +138,12 @@ final class GovernanceElectionManualCountServiceTest extends TestCase
             'authority_evidence_id' => 501,
             'authority_verified_at' => now(),
         ]);
+        DB::table('governance_election_authority_evidence')->insert([
+            'id' => 501,
+            'tenant_id' => 7,
+            'election_id' => 10,
+            'status' => 'verified',
+        ]);
         DB::table('governance_election_candidates')->insert([
             'id' => 301,
             'tenant_id' => 7,
@@ -152,6 +166,7 @@ final class GovernanceElectionManualCountServiceTest extends TestCase
             'election_id' => 10,
             'person_id' => $personId,
             'user_id' => $userId,
+            'appointment_evidence_id' => 501,
             'member_role' => $role,
             'status' => $status,
             'recused_at' => $recusedAt,
