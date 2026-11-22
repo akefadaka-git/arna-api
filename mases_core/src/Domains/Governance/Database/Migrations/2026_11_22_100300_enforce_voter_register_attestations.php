@@ -15,13 +15,13 @@ return new class extends Migration
     public function up(): void
     {
         $driver = DB::getDriverName();
-        if (!in_array($driver, ['mysql', 'sqlite'], true)) {
+        if (!in_array($driver, ['mysql', 'mariadb', 'sqlite'], true)) {
             throw new RuntimeException("AGE register attestations are not implemented for database driver [{$driver}].");
         }
 
         // Attestation columns are part of the current-main AGE register foundation.
         // This migration installs database guards only; it does not alter data or schema.
-        if ($driver === 'mysql') {
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
             $this->createMySqlTriggers();
             return;
         }
@@ -35,7 +35,7 @@ return new class extends Migration
     public function down(): void
     {
         $driver = DB::getDriverName();
-        if (!in_array($driver, ['mysql', 'sqlite'], true)) {
+        if (!in_array($driver, ['mysql', 'mariadb', 'sqlite'], true)) {
             throw new RuntimeException("Cannot safely remove AGE register attestation guards for database driver [{$driver}].");
         }
 
