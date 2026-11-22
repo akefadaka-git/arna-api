@@ -16,6 +16,7 @@ on:
       - "mases_core/src/Domains/Loan/Http/Controllers/LoanController.php"
       - "mases_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php"
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
+      - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "mases_core/src/Auth/Services/TotpMfaService.php"
       - "app/Http/Middleware/RequireAdaptiveStepUp.php"
       - "config/auth-step-up.php"
@@ -24,6 +25,7 @@ on:
       - "mases_core/src/Domains/Loan/Routes/api.php"
       - "tests/Feature/AdaptiveStepUpServiceTest.php"
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
+      - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "mases_core/src/Auth/Models/DeviceSession.php"
       - "mases_core/src/Auth/Services/DeviceSessionService.php"
       - "database/migrations/2026_11_22_00000*.php"
@@ -44,6 +46,7 @@ on:
       - "mases_core/src/Domains/Loan/Http/Controllers/LoanController.php"
       - "mases_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php"
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
+      - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "mases_core/src/Auth/Services/TotpMfaService.php"
       - "app/Http/Middleware/RequireAdaptiveStepUp.php"
       - "config/auth-step-up.php"
@@ -52,6 +55,7 @@ on:
       - "mases_core/src/Domains/Loan/Routes/api.php"
       - "tests/Feature/AdaptiveStepUpServiceTest.php"
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
+      - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "mases_core/src/Auth/Models/DeviceSession.php"
       - "mases_core/src/Auth/Services/DeviceSessionService.php"
       - "database/migrations/2026_11_22_00000*.php"
@@ -110,9 +114,11 @@ jobs:
           php -l app/Http/Middleware/RequireAdaptiveStepUp.php
           php -l tests/Feature/AdaptiveStepUpServiceTest.php
           php -l tests/Feature/AdaptiveLoginAuthenticatorTest.php
+          php -l tests/Feature/PasswordRecoveryOtpTest.php
       - name: Run Android device-session and PIN regressions
         run: |
           vendor/bin/phpunit tests/Feature/AndroidDeviceSessionTest.php
           vendor/bin/phpunit tests/Feature/AdaptiveStepUpServiceTest.php
           vendor/bin/phpunit tests/Feature/AdaptiveLoginAuthenticatorTest.php
+          vendor/bin/phpunit tests/Feature/PasswordRecoveryOtpTest.php
           vendor/bin/phpunit tests/Feature/TotpMfaTest.php
