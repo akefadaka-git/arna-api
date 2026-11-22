@@ -82,6 +82,21 @@ final class AdaptiveAuthenticationPolicyTest extends TestCase
         ], $requirements['required_factor_groups'][0]);
     }
 
+    public function test_first_login_password_rule_does_not_bypass_critical_action_step_up(): void
+    {
+        $requirements = $this->policy->requirementsFor(
+            'critical_financial_transaction',
+            firstLogin: true,
+        );
+
+        self::assertSame(AdaptiveAuthenticationPolicy::CRITICAL, $requirements['risk_level']);
+        self::assertSame(2, $requirements['required_factor_count']);
+        self::assertSame([
+            [AdaptiveAuthenticationPolicy::PASSWORD],
+            [AdaptiveAuthenticationPolicy::OTP, AdaptiveAuthenticationPolicy::GOOGLE_AUTHENTICATOR],
+        ], $requirements['required_factor_groups']);
+    }
+
     public function test_unclassified_actions_fail_closed_at_critical_level(): void
     {
         $requirements = $this->policy->requirementsFor('unknown_sensitive_operation');
