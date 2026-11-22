@@ -838,4 +838,23 @@ final class TenantIsolationTest extends TestCase
 
         return $permission;
     }
+
+    public function test_me_returns_only_the_callers_own_wallet(): void
+    {
+        $this->shareholderA->forceFill(['user_id' => $this->admin->id])->save();
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $this->tenantA->id)
+            ->getJson(route('api.wallets.me'));
+
+        $response->assertOk()
+            ->assertJsonPath('data.linked', true)
+            ->assertJsonPath('data.wallet.id', $this->walletA->id);
+        $this->assertSame(
+            $this->walletA->id,
+            $response->json('data.wallet.id'),
+            'The wallet identity endpoint must not expose another shareholder wallet.',
+        );
+    }
+
 }

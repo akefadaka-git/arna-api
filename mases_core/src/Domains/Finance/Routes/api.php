@@ -32,12 +32,26 @@ Route::get('/trial-balance', [$controller, 'trialBalance'])->middleware('auth.pe
 
 $settlementController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\GovernancePenaltySettlementController::class;
 Route::get('/governance-settlement/account-mappings', [$settlementController, 'accountMappings'])->middleware('auth.permission:finance.account.view')->name('governance-settlement.account-mappings.index');
-Route::post('/governance-settlement/account-mappings', [$settlementController, 'requestAccountMapping'])->middleware('auth.permission:finance.account.manage')->name('governance-settlement.account-mappings.store');
-Route::post('/governance-settlement/account-mappings/{mappingId}/approve', [$settlementController, 'approveAccountMapping'])->whereNumber('mappingId')->middleware('auth.permission:finance.account.manage')->name('governance-settlement.account-mappings.approve');
-Route::post('/governance-settlement/account-mappings/{mappingId}/revoke', [$settlementController, 'revokeAccountMapping'])->whereNumber('mappingId')->middleware('auth.permission:finance.account.manage')->name('governance-settlement.account-mappings.revoke');
+Route::post('/governance-settlement/account-mappings', [$settlementController, 'requestAccountMapping'])->middleware('auth.permission:finance.governance_settlement.configure')->name('governance-settlement.account-mappings.store');
+Route::post('/governance-settlement/account-mappings/{mappingId}/approve', [$settlementController, 'approveAccountMapping'])->whereNumber('mappingId')->middleware('auth.permission:finance.governance_settlement.approve')->name('governance-settlement.account-mappings.approve');
+Route::post('/governance-settlement/account-mappings/{mappingId}/revoke', [$settlementController, 'revokeAccountMapping'])->whereNumber('mappingId')->middleware('auth.permission:finance.governance_settlement.configure')->name('governance-settlement.account-mappings.revoke');
 Route::get('/governance-settlement/dividend-payables', [$settlementController, 'dividendPayables'])->middleware('auth.permission:finance.entity.view')->name('governance-settlement.dividend-payables.index');
-Route::post('/governance-settlement/dividend-payables', [$settlementController, 'createDividendPayable'])->middleware('auth.permission:finance.entity.manage')->name('governance-settlement.dividend-payables.store');
-Route::post('/governance-settlement/dividend-payables/{payableId}/approve', [$settlementController, 'approveDividendPayable'])->whereNumber('payableId')->middleware('auth.permission:finance.entity.manage')->name('governance-settlement.dividend-payables.approve');
-Route::post('/governance-settlement/settlements/{settlementId}/cash', [$settlementController, 'executeCash'])->whereNumber('settlementId')->middleware('auth.permission:finance.journal.post')->name('governance-settlement.settlements.cash');
-Route::post('/governance-settlement/settlements/{settlementId}/dividend-offset', [$settlementController, 'executeDividendOffset'])->whereNumber('settlementId')->middleware('auth.permission:finance.journal.post')->name('governance-settlement.settlements.dividend-offset');
+Route::post('/governance-settlement/dividend-payables', [$settlementController, 'createDividendPayable'])->middleware('auth.permission:finance.governance_settlement.configure')->name('governance-settlement.dividend-payables.store');
+Route::post('/governance-settlement/dividend-payables/{payableId}/approve', [$settlementController, 'approveDividendPayable'])->whereNumber('payableId')->middleware('auth.permission:finance.governance_settlement.approve')->name('governance-settlement.dividend-payables.approve');
+Route::post('/governance-settlement/settlements/{settlementId}/cash', [$settlementController, 'executeCash'])->whereNumber('settlementId')->middleware('auth.permission:finance.governance_settlement.execute')->name('governance-settlement.settlements.cash');
+Route::post('/governance-settlement/settlements/{settlementId}/dividend-offset', [$settlementController, 'executeDividendOffset'])->whereNumber('settlementId')->middleware('auth.permission:finance.governance_settlement.execute')->name('governance-settlement.settlements.dividend-offset');
 Route::get('/governance-settlement/reconciliation', [$settlementController, 'reconciliation'])->middleware('auth.permission:finance.report.view')->name('governance-settlement.reconciliation');
+
+$intelligenceController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\FinanceIntelligenceController::class;
+Route::get('/intelligence/evidence', [$intelligenceController, 'evidence'])->middleware('auth.permission:finance.ai.view')->name('intelligence.evidence');
+Route::get('/intelligence/proposals', [$intelligenceController, 'proposals'])->middleware('auth.permission:finance.ai.view')->name('intelligence.proposals.index');
+Route::post('/intelligence/proposals', [$intelligenceController, 'generate'])->middleware('auth.permission:finance.ai.propose')->name('intelligence.proposals.store');
+Route::post('/intelligence/proposals/{proposalId}/approve', [$intelligenceController, 'approve'])->whereNumber('proposalId')->middleware('auth.permission:finance.ai.approve')->name('intelligence.proposals.approve');
+Route::post('/intelligence/proposals/{proposalId}/reject', [$intelligenceController, 'reject'])->whereNumber('proposalId')->middleware('auth.permission:finance.ai.approve')->name('intelligence.proposals.reject');
+
+$subledgerInboxController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\FinanceSubledgerInboxController::class;
+Route::get('/subledger/inbox', [$subledgerInboxController, 'index'])->middleware('auth.permission:finance.subledger.view')->name('subledger.inbox.index');
+Route::post('/subledger/inbox', [$subledgerInboxController, 'receive'])->middleware('auth.permission:finance.subledger.ingest')->name('subledger.inbox.receive');
+
+$integrationHealthController = \MaaleArna\MASES\Core\Domains\Finance\Http\Controllers\FinanceIntegrationHealthController::class;
+Route::get('/operations/integration-health', $integrationHealthController)->middleware('auth.permission:finance.integration.view')->name('operations.integration-health');

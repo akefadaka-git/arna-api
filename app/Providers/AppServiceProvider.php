@@ -5,7 +5,10 @@ namespace App\Providers;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\People\Policies\PersonPolicy;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -145,6 +148,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::policy(Person::class, PersonPolicy::class);
+
         /*
          * ---------------------------------------------------------------------
          * Rate limiter registration.
