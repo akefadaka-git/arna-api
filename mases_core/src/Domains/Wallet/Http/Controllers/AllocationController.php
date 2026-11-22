@@ -413,7 +413,7 @@ final class AllocationController extends Controller
         );
 
         Gate::authorize('view', $walletModel);
-        app(\\MaaleArna\\MASES\\Core\\Auth\\Services\\AdaptiveStepUpGuard::class)->assert($request, 'wallet.payment.reverse', $tenantId);
+        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'wallet.payment.reverse', $tenantId);
 
         $actorId = $request->user()?->id;
 
