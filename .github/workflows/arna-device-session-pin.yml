@@ -29,6 +29,7 @@ on:
       - "mases_core/src/Domains/Wallet/Routes/api.php"
       - "mases_core/src/Domains/Loan/Routes/api.php"
       - "tests/Feature/AdaptiveStepUpServiceTest.php"
+      - "tests/Feature/AdaptiveStepUpGuardTest.php"
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
       - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "tests/Feature/IdentityChangeStepUpTest.php"
@@ -66,6 +67,7 @@ on:
       - "mases_core/src/Domains/Wallet/Routes/api.php"
       - "mases_core/src/Domains/Loan/Routes/api.php"
       - "tests/Feature/AdaptiveStepUpServiceTest.php"
+      - "tests/Feature/AdaptiveStepUpGuardTest.php"
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
       - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "tests/Feature/IdentityChangeStepUpTest.php"
@@ -130,6 +132,7 @@ jobs:
           php -l tests/Feature/AuthenticationLifecycleTest.php
           php -l app/Http/Middleware/RequireAdaptiveStepUp.php
           php -l tests/Feature/AdaptiveStepUpServiceTest.php
+          php -l tests/Feature/AdaptiveStepUpGuardTest.php
           php -l tests/Feature/AdaptiveLoginAuthenticatorTest.php
           php -l tests/Feature/PasswordRecoveryOtpTest.php
           php -l tests/Feature/IdentityChangeStepUpTest.php
@@ -138,6 +141,7 @@ jobs:
         run: |
           vendor/bin/phpunit tests/Feature/AndroidDeviceSessionTest.php
           vendor/bin/phpunit tests/Feature/AdaptiveStepUpServiceTest.php
+          vendor/bin/phpunit tests/Feature/AdaptiveStepUpGuardTest.php
           vendor/bin/phpunit tests/Feature/AdaptiveLoginAuthenticatorTest.php
           vendor/bin/phpunit tests/Feature/PasswordRecoveryOtpTest.php
           vendor/bin/phpunit tests/Feature/IdentityChangeStepUpTest.php
