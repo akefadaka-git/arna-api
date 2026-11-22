@@ -135,6 +135,45 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
 
 
     #[Test]
+    public function finance_entity_revocation_is_effective_even_when_a_stale_positive_cache_entry_exists(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        [$user, $role, $permissions] = $this->financeFixture($tenant);
+        $this->configuredEntity($tenant);
+
+        $authorization = new AuthorizationService();
+        $this->assertTrue($authorization->hasPermission(
+            'finance.entity.view',
+            $user,
+            (int) $tenant->id
+        ));
+
+        $first = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+        $first->assertOk()->assertJsonCount(1, 'data.widgets');
+
+        $role->revokePermissionTo($permissions['finance.entity.view']);
+        $staleKey = sprintf(
+            'auth:permission:%d:finance.entity.view:%s:null',
+            $user->id,
+            $tenant->id
+        );
+        Cache::put($staleKey, true, 300);
+        $this->assertTrue($authorization->hasPermission(
+            'finance.entity.view',
+            $user,
+            (int) $tenant->id
+        ));
+
+        $afterRevocation = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $afterRevocation->assertOk()->assertJsonPath('data.widgets', []);
+    }
+
+    #[Test]
     public function revoked_entry_permission_fails_closed_even_when_middleware_cache_is_stale(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
