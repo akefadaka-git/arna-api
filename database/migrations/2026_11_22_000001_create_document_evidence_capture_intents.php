@@ -33,6 +33,7 @@ return new class extends Migration
             $table->timestamp('cleanup_lease_until')->nullable();
             $table->timestamps();
 
+            $table->unique(['tenant_id', 'id'], 'doc_capture_tenant_id_unique');
             $table->unique(['tenant_id', 'file_id', 'file_version'], 'doc_capture_source_unique');
             $table->index(['status', 'captured_at', 'cleanup_lease_until'], 'doc_capture_reconcile_idx');
             $table->foreign(['tenant_id', 'file_id'], 'doc_capture_file_tenant_fk')
