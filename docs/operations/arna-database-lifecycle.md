@@ -8,28 +8,74 @@ named `Migrations` beneath `mases_core/src`, including Core, Policy and
 all domain migration folders. This discovery is independent of domain
 feature flags and route activation.
 
+The source inventory at the A3 baseline includes migration directories for:
+
+- Root application migrations: `database/migrations/`
+- Core platform: `mases_core/src/Migrations/`
+- Versioned Policy: `mases_core/src/Policy/Database/Migrations/`
+- Finance, Governance, Loan, Shareholder and Wallet domain migrations.
+
 Migration filenames must be globally unique by basename. Do not reuse a
 migration class/file name in another directory. New migrations must be
 additive or provide a reviewed, reversible data-preserving transition.
 Never rewrite a migration already recorded in a deployed database.
 
-## Safe baseline seeding
+## Seeder inventory and execution policy
 
-`php artisan db:seed` invokes `ArnaBaselineSeeder`. It creates or updates
-foundational tenant, application, permission and role reference data, then
-runs domain permission/role catalogues and Shareholder share-class reference
-data in dependency order.
+### Safe default baseline
 
-It intentionally excludes:
+`php artisan db:seed` invokes `ArnaBaselineSeeder`. Its dependency order is:
 
-- `MasesCoreSeeder`, which is a legacy reset-and-rebuild cohort workflow;
-- bootstrap/admin users and the 100-row shareholder demonstration cohort;
-- loan products and loan financial-policy assumptions;
-- Finance legal-entity and chart-of-accounts provisioning;
-- operational records such as wallets, loans, journals and documents.
+1. `TenantSeeder`
+2. `ApplicationSeeder`
+3. `PermissionSeeder` (composes Core, Finance and Documents catalogues)
+4. `RoleSeeder`
+5. `RolePermissionSeeder`
+6. Shareholder permissions and composite role grants
+7. Wallet permissions and composite role grants
+8. Loan permissions and composite role grants
+9. `GovernanceSeeder` (application, permissions, roles)
+10. `ShareClassSeeder`
 
-Those excluded operations require separate, explicitly controlled setup
-because they create identities, business records or financial assumptions.
+This baseline does not create or reset people, users, shareholder register
+records, wallets, loans, journals, documents, or other operational business
+records. The Core permission and role catalogues include Finance and Documents
+domain contributions; the separate domain grant seeders preserve grants
+owned by other domains using composite synchronization.
+
+### Existing seeders that remain separately controlled
+
+| Seeder | Why it is not in the default baseline |
+|---|---|
+| `MasesCoreSeeder` | Legacy reset-and-rebuild cohort workflow; clears user-linked pivots, users, tokens and shareholder rows |
+| `AdminUserSeeder` | Creates bootstrap identities and credentials |
+| `ShareholderSeeder` | Creates the 100-row shareholder cohort and role assignments |
+| `FinanceChartOfAccountsSeeder` | Creates canonical system accounts for each active legal entity; requires legal entities and an explicit accounting setup decision |
+| `LoanProductsSeeder` | Creates tenant lending product catalogue entries with example principal limits |
+| `LoanProductRulesPolicySeeder` | Creates and attaches a financial policy containing interest and arrears assumptions; requires separate financial-policy approval |
+| `DatabaseSeeder` | Entry point only; delegates to the safe baseline |
+
+Other domain catalogues such as `FinancePermissionCatalogue`,
+`FinanceRoleCatalogue`, `FinanceRolePermissionGrants`,
+`DocumentsPermissionCatalogue`, and `DocumentsRolePermissionGrants`
+are data definitions consumed by the core catalogue seeders, not standalone
+Laravel Seeder classes.
+
+### Rules for adding future domains
+
+Every new domain must declare:
+
+- migration directory and schema dependencies;
+- reference-data seeder(s) and their execution order;
+- whether each seeder is safe for repeated production execution;
+- whether it creates identities, credentials, legal/accounting policy, or
+  operational records;
+- idempotency key and conflict behavior;
+- required clean-install and upgrade tests.
+
+Do not rely on a file existing under a `Database/Seeders` folder to make it
+automatically execute. Add it to the appropriate orchestrator only after
+reviewing its side effects and prerequisites.
 
 ## Production rules
 
