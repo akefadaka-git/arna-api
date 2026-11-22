@@ -1,7 +1,7 @@
 # ARNA Executive Overview — A4 Security and Isolation Verification
 
 **Stage:** A4 — verification  
-**Current status:** A4 verification plan; exact-head tests on the refreshed canonical branch NOT RUN.  
+**Current status:** Automated A4 API preflight PASS on exact code head `17bb0e1ff1530d0a1903e2516916b28d9a9ee426`; formal A4 closure not declared.  
 **Scope:** Frozen audience authorization, Finance authorization freshness, tenant/legal-entity isolation, response disclosure, and reproducible evidence  
 **A3 API parent:** `6e8ca660d35caf9fe5e8d66ee34406bf642f2de1`  
 **A4 API baseline:** `9f5ea1ee0e221bca5007890178f249cdba20c992`  
@@ -74,3 +74,16 @@ If R4 is PASS and R5 finds no unresolved A4-scoped critical/high issue, the A4 i
 ## Refreshed A3 baseline and review timing (2026-11-22)
 
 The current A3 API baseline is `7d601ba67d52873ff46fbe1f534b83abf5889c88`, with implementation on `feat/dashboard-executive-overview-a3`. Historical R3 results above do not establish PASS for the refreshed branch. A4 consists of exact-head automated and internal authorization, tenant-isolation, and Finance-data checks. Independent review is reserved for A5 immediately before deployment.
+
+
+## Exact-head evidence (2026-11-22)
+
+- Code head: `17bb0e1ff1530d0a1903e2516916b28d9a9ee426`.
+- [Executive Overview API security workflow #45021797578 — PASS](https://github.com/akefadaka-git/arna-api/actions/runs/45021797578).
+- [Clean-install MySQL workflow #45021797455 — PASS](https://github.com/akefadaka-git/arna-api/actions/runs/45021797455).
+- MySQL frozen-audience/role-grant tests: 9 passed (65 assertions).
+- MySQL route/data-contract tests: 4 passed (25 assertions).
+- MySQL fresh-authorization/tenant-isolation tests: 14 passed (36 assertions).
+- Fresh migration and seed passed; 85 migration records; second migration run idempotent; no pending migrations.
+- The earlier 73-entry catalogue assertions were corrected to 74; the rerun passed on this exact code head.
+- These are automated preflight results, not formal A4 closure. No independent review was requested or performed; it remains reserved for A5 immediately before deployment.
