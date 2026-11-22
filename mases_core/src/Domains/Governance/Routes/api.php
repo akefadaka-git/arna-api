@@ -757,4 +757,19 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.election.ballot.receive')
         ->name('elections.physical-ballots.receive');
 
+
+    // Physical count evidence is aggregate-only, append-only and independently witnessed.
+    Route::get('/elections/{election}/count-batches', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionManualCountController::class, 'index'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.count.view')
+        ->name('elections.count-batches.index');
+    Route::post('/elections/{election}/count-batches', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionManualCountController::class, 'store'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.count.record')
+        ->name('elections.count-batches.store');
+    Route::post('/elections/{election}/count-batches/{batch}/witness', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionManualCountController::class, 'witness'])
+        ->whereNumber('election')->whereNumber('batch')
+        ->middleware('auth.permission:governance.election.count.witness')
+        ->name('elections.count-batches.witness');
+
 });
