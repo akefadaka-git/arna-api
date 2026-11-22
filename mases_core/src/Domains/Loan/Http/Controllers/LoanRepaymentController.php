@@ -209,7 +209,6 @@ final class LoanRepaymentController
         $loan = $this->resolveLoan($loanId);
 
         Gate::authorize('repay', $loan);
-        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'loan.repayment.record', (int) $loan->tenant_id);
 
         /** @var array<string, mixed> $validated */
         $validated = $request->validated();
@@ -218,6 +217,8 @@ final class LoanRepaymentController
 
         /** @var list<array{obligation_id: int, amount: string}> $allocations */
         $allocations = $validated['allocations'];
+
+        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'loan.repayment.record', (int) $loan->tenant_id);
 
         $responseFactory = static function (Loan $responseLoan) use ($request): array {
             // Build the response while the repayment transaction is still open,
