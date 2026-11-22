@@ -225,7 +225,7 @@ final class ImmutableDocumentBinaryStore
         try {
             $filesystem = Storage::disk($disk);
             $root = realpath($filesystem->path(''));
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             return false;
         }
         if ($root === false || ! is_dir($root)) {
