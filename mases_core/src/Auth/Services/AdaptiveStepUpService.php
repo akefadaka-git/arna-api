@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Auth\\Services;
+namespace MaaleArna\MASES\Core\Auth\Services;
 
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Hash;
-use Illuminate\\Support\\Facades\\Log;
-use Illuminate\\Support\\Facades\\Mail;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Security\\Services\\SecurityEventService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
 use RuntimeException;
 
 final class AdaptiveStepUpService
@@ -83,7 +83,7 @@ final class AdaptiveStepUpService
                     $message->to($destination)->subject('ARNA security verification code');
                 });
             }
-        } catch (\\Throwable $exception) {
+        } catch (\Throwable $exception) {
             DB::table('auth_step_up_challenges')
                 ->where('challenge_hash', hash('sha256', $challengeToken))
                 ->update(['consumed_at' => now(), 'updated_at' => now()]);
@@ -266,7 +266,7 @@ final class AdaptiveStepUpService
 
         if ($type === AdaptiveAuthenticationPolicy::PIN) {
             $token = $user->currentAccessToken();
-            return $token instanceof \\Laravel\\Sanctum\\PersonalAccessToken
+            return $token instanceof \Laravel\Sanctum\PersonalAccessToken
                 && $this->devices->isMobileToken($token)
                 && $this->devices->verifyPinForToken($user, $token, $proof);
         }
