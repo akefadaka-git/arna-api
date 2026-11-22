@@ -322,6 +322,65 @@ final class ExecutiveOverviewRouteTest extends TestCase
     }
 
     #[Test]
+    public function active_people_application_role_can_supply_the_tenant_workforce_grant(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $user->tenants()->attach($tenant->id);
+
+        $peopleApp = PlatformApplication::create([
+            'name_am' => 'People',
+            'name_en' => 'People',
+            'slug' => 'people',
+            'domain' => 'people.example.test',
+            'is_active' => true,
+        ]);
+        $role = Role::create([
+            'name_am' => 'People Workforce Reader',
+            'name_en' => 'People Workforce Reader',
+            'slug' => 'people_workforce_reader',
+            'scope' => 'application',
+            'tenant_id' => $tenant->id,
+            'application_id' => $peopleApp->id,
+            'is_active' => true,
+        ]);
+        $entryPermission = Permission::factory()->create([
+            'slug' => 'dashboard.executive.view',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'is_active' => true,
+        ]);
+        $workforcePermission = Permission::factory()->create([
+            'slug' => 'people.workforce.view',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $role->permissions()->attach([$entryPermission->id, $workforcePermission->id]);
+        $user->roles()->attach($role->id);
+
+        DB::table('employees')->insert([
+            'tenant_id' => $tenant->id,
+            'employee_number' => 'EMP-PEOPLE-APP',
+            'user_id' => null,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data.widgets')
+            ->assertJsonPath('data.widgets.0.key', 'people.workforce.active')
+            ->assertJsonPath('data.widgets.0.value.active', 1);
+    }
+
+    #[Test]
     public function generic_permission_denial_does_not_disclose_the_required_permission_slug(): void
     {
         $user = User::factory()->create(['is_active' => true]);
