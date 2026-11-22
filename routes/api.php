@@ -348,6 +348,18 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
         ->middleware('auth.step_up:identity_change')
         ->name('api.auth.device-pin.enroll');
 
+    Route::post('/auth/identity-change/challenge', [AuthController::class, 'requestIdentityChangeChallenge'])
+        ->middleware('throttle:3,10')
+        ->name('api.auth.identity-change.challenge');
+
+    Route::post('/auth/identity-change/verify', [AuthController::class, 'verifyIdentityChangeChallenge'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.identity-change.verify');
+
+    Route::patch('/auth/identity', [AuthController::class, 'changeIdentity'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.identity.update');
+
     // Account-level locale preference; intentionally independent of tenant context.
     Route::post('/locale', [LocalePreferenceController::class, 'update'])
         ->middleware('throttle:30,1')
