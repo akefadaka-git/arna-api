@@ -155,12 +155,14 @@ final class GovernanceElectionManualCountServiceTest extends TestCase
     private function member(int $userId, int $personId, int $tenantId = 7, string $role = 'committee_member', string $status = 'active', ?string $recusedAt = null): void
     {
         DB::table('users')->insert(['id' => $userId, 'is_active' => true, 'deleted_at' => null]);
-        DB::table('people')->insert(['id' => $personId, 'status' => 'active', 'deleted_at' => null]);
-        DB::table('person_tenant_accesses')->insert([
-            'tenant_id' => $tenantId,
-            'person_id' => $personId,
-            'status' => 'active',
-        ]);
+        DB::table('people')->updateOrInsert(
+            ['id' => $personId],
+            ['status' => 'active', 'deleted_at' => null],
+        );
+        DB::table('person_tenant_accesses')->updateOrInsert(
+            ['tenant_id' => $tenantId, 'person_id' => $personId],
+            ['status' => 'active'],
+        );
         DB::table('governance_election_committee_members')->insert([
             'tenant_id' => $tenantId,
             'election_id' => 10,
