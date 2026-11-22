@@ -16,6 +16,12 @@ on:
       - "mases_core/src/Domains/Finance/Providers/FinanceServiceProvider.php"
       - ".github/workflows/arna-clean-install-mysql.yml"
       - "docs/dashboard/ARNA-EXECUTIVE-OVERVIEW-A4-SECURITY-VERIFICATION.md"
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "Exact commit SHA to verify"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -57,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.target_sha || github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
@@ -67,7 +73,7 @@ jobs:
           coverage: none
       - name: Verify exact checkout
         env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_SHA: ${{ inputs.target_sha || github.event.pull_request.head.sha || github.sha }}
         run: |
           test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
           echo "A4 target SHA: ${EXPECTED_SHA}"
@@ -78,6 +84,8 @@ jobs:
       - name: Lint A4 PHP files
         run: |
           php -l app/Http/Controllers/ExecutiveOverviewController.php
+          php -l mases_core/src/Domains/People/Services/WorkforceAggregateProvider.php
+          php -l database/seeders/RolePermissionSeeder.php
           php -l mases_core/src/Domains/Finance/Policies/FinancePolicy.php
           php -l tests/Feature/ExecutiveOverviewA4FreshAuthorizationTest.php
       - name: Run clean MySQL migrations
