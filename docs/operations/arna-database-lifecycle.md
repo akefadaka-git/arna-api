@@ -15,6 +15,11 @@ The source inventory at the A3 baseline includes migration directories for:
 - Versioned Policy: `mases_core/src/Policy/Database/Migrations/`
 - Finance, Governance, Loan, Shareholder and Wallet domain migrations.
 
+The source inventory at this verification checkpoint contains 91 migration files
+across seven directories (the Laravel root plus six Core/domain directories).
+The current inventory has zero duplicate migration basenames. The automated
+integration test recomputes both values from the checked-out source tree.
+
 Migration filenames must be globally unique by basename. Do not reuse a
 migration class/file name in another directory. New migrations must be
 additive or provide a reviewed, reversible data-preserving transition.
@@ -34,7 +39,7 @@ Never rewrite a migration already recorded in a deployed database.
 6. Shareholder permissions and composite role grants
 7. Wallet permissions and composite role grants
 8. Loan permissions and composite role grants
-9. `GovernanceSeeder` (application, permissions, roles)
+9. `GovernanceSeeder` (application, permissions, election committee permissions, roles)
 10. `ShareClassSeeder`
 
 This baseline does not create or reset people, users, shareholder register
@@ -89,3 +94,14 @@ reviewing its side effects and prerequisites.
   for a backup and data-integrity checks.
 - Keep business policy, legal-entity setup, chart of accounts and bootstrap
   credential provisioning as separate approvals.
+
+
+## A3 verification harness
+
+The dedicated MySQL integration test validates migration discovery and duplicate
+basenames, creates a disposable pre-existing demo user/shareholder cohort, then
+runs the default safe baseline twice and compares persistent table snapshots.
+It separately executes Finance chart-of-accounts and Loan product/policy seeders
+twice against synthetic test-only tenant/legal-entity data. The CI workflow uses
+an ephemeral MySQL service; none of these fixtures or financial assumptions are
+intended for Plesk production seeding.
