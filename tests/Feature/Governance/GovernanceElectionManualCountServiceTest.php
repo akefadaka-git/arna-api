@@ -94,7 +94,7 @@ final class GovernanceElectionManualCountServiceTest extends TestCase
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedBigInteger('election_id');
             $table->string('status', 24);
-            $table->unique(['tenant_id', 'election_id', 'id'], 'manual_test_batch_tenant_id_uq');
+            $table->unique(['tenant_id', 'election_id', 'id'], 'manual_test_candidate_tenant_id_uq');
         });
         Schema::create('governance_election_manual_count_batches', function (Blueprint $table): void {
             $table->bigIncrements('id');
@@ -114,7 +114,7 @@ final class GovernanceElectionManualCountServiceTest extends TestCase
             $table->dateTime('counted_at');
             $table->timestamps();
             $table->unique(['tenant_id', 'election_id', 'batch_reference'], 'manual_test_batch_ref_uq');
-            $table->unique(['tenant_id', 'election_id', 'id']);
+            $table->unique(['tenant_id', 'election_id', 'id'], 'manual_test_batch_tenant_id_uq');
         });
         Schema::create('governance_election_manual_count_lines', function (Blueprint $table): void {
             $table->bigIncrements('id');
