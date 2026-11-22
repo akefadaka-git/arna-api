@@ -22,7 +22,7 @@ return new class extends Migration
     {
         $driver = DB::getDriverName();
 
-        if ($driver === 'mysql') {
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
             $this->createMySqlTriggers();
             return;
         }
@@ -40,7 +40,7 @@ return new class extends Migration
     public function down(): void
     {
         $driver = DB::getDriverName();
-        if (!in_array($driver, ['mysql', 'sqlite'], true)) {
+        if (!in_array($driver, ['mysql', 'mariadb', 'sqlite'], true)) {
             throw new RuntimeException(
                 "Cannot safely remove frozen voter-register triggers for database driver [{$driver}]."
             );
