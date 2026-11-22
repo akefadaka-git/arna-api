@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
-use MaaleArna\MASES\Core\Calendar\Services\CalendarReminderDispatcher;
+use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler;
 
 /*
 |--------------------------------------------------------------------------
@@ -225,14 +225,26 @@ Artisan::command('arna:rotate-compromised-bootstrap-credentials {--apply : Rotat
     return 0;
 })->purpose('Rotate accounts matching the compromised legacy bootstrap credential and revoke their API tokens');
 
-Artisan::command('calendar:dispatch-reminders {--limit=100}', function (CalendarReminderDispatcher $dispatcher): int {
-    $result = $dispatcher->dispatch((int) $this->option('limit'));
-    $this->info(sprintf(
-        'Calendar reminders: %d delivered, %d skipped, %d retried, %d failed.',
-        $result['delivered'], $result['skipped'], $result['retried'], $result['failed'],
-    ));
+/*
+ * Documents evidence reconciliation is dry-run by default. Filesystem
+ * deletion requires the explicit --apply option and is limited to durable
+ * capture intents; legacy/untracked objects are never scanned or deleted.
+ */
+Artisan::command('arna:documents:reconcile-evidence-captures {--apply : Claim and delete verified expired unreferenced captures} {--limit=100 : Maximum intents to inspect} {--grace-minutes=1440 : Minimum age before cleanup}', function (): int {
+    $limit = filter_var($this->option('limit'), FILTER_VALIDATE_INT);
+    $graceMinutes = filter_var($this->option('grace-minutes'), FILTER_VALIDATE_INT);
+    if ($limit === false || $limit < 1 || $limit > 500 || $graceMinutes === false || $graceMinutes < 60 || $graceMinutes > 43200) {
+        $this->error('Limit must be 1–500 and grace-minutes must be 60–43200. No evidence objects were changed.');
+        return 1;
+    }
+
+    $apply = (bool) $this->option('apply');
+    $result = app(DocumentEvidenceCaptureReconciler::class)->run($limit, $graceMinutes, $apply);
+    $this->info(($apply ? 'Applied' : 'Dry run') . ': ' . json_encode($result, JSON_THROW_ON_ERROR));
+    if (! $apply) {
+        $this->comment('No filesystem objects were deleted. Use --apply only after reviewing the candidate counts.');
+    }
 
     return $result['failed'] > 0 ? 1 : 0;
-})->purpose('Dispatch due tenant-scoped Calendar reminder notifications');
+})->purpose('Safely reconcile expired, unreferenced Documents evidence captures');
 
-Schedule::command('calendar:dispatch-reminders --limit=100')->everyMinute()->withoutOverlapping();
