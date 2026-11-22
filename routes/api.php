@@ -241,6 +241,12 @@ Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:5,1')
     ->name('api.auth.login');
 
+// Recognized-device PIN login is a separate path and never bootstraps a
+// new device. First-time authentication remains password-only.
+Route::post('/login/pin', [AuthController::class, 'loginWithPin'])
+    ->middleware('throttle:5,1')
+    ->name('api.auth.login.pin');
+
 /**
  * Register
  *
@@ -313,6 +319,14 @@ Route::post('/verify-email/resend', [AuthController::class, 'resendVerificationE
 // =============================================================================
 
 Route::middleware(['auth:sanctum'])->group(static function (): void {
+
+    Route::get('/auth/device-sessions', [AuthController::class, 'deviceSessions'])
+        ->name('api.auth.device-sessions.index');
+
+    Route::delete('/auth/device-sessions/{sessionId}', [AuthController::class, 'revokeDeviceSession'])
+        ->whereUuid('sessionId')
+        ->middleware('throttle:10,1')
+        ->name('api.auth.device-sessions.revoke');
 
     // Account-level locale preference; intentionally independent of tenant context.
     Route::post('/locale', [LocalePreferenceController::class, 'update'])
