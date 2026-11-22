@@ -1312,29 +1312,46 @@ final class AuthController extends Controller
     public function sendPasswordResetLink(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            // The `exists:users,email` rule was removed: it leaked
-            // whether an email is registered. See the class docblock.
-            'email' => ['required', 'string', 'email', 'max:255'],
+            'email' => ['required_without:identifier', 'nullable', 'string', 'max:255'],
+            'identifier' => ['required_without:email', 'nullable', 'string', 'max:255'],
+            'channel' => ['sometimes', 'string', 'in:email,sms'],
         ]);
 
-        $status = $this->authService->sendPasswordResetLink($validated['email']);
+        $identifier = trim((string) ($validated['identifier'] ?? $validated['email'] ?? ''));
+        $channel = $validated['channel'] ?? (filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'sms');
+        $challengeToken = bin2hex(random_bytes(32));
+        $user = $this->resolveRecoveryUser($identifier);
 
-        /*
-         * INVALID_USER means the email is not registered. That is not
-         * a failure condition for the client — the response is the
-         * same as a successful send. Any other failure status
-         * indicates a transport or rate-limit problem worth logging.
-         */
-        if ($status !== Password::RESET_LINK_SENT && $status !== Password::INVALID_USER) {
-            Log::warning('Password reset link send failed', [
-                'status'     => $status,
-                'email_hash' => hash('sha256', $validated['email']),
-            ]);
+        if ($user instanceof CoreUser && $user->is_active) {
+            $context = ['identifier_hash' => hash('sha256', strtolower($identifier))];
+            $tenantId = is_numeric($user->default_tenant_id) ? (int) $user->default_tenant_id : null;
+
+            try {
+                $challenge = app(AdaptiveStepUpService::class)->issueOtp(
+                    $user,
+                    $tenantId,
+                    'password_recovery',
+                    $channel,
+                    $context,
+                );
+                $challengeToken = $challenge['challenge_token'];
+            } catch (\Throwable $exception) {
+                // Keep the response uniform for unknown accounts and unavailable channels.
+                Log::notice('Password recovery challenge could not be issued', [
+                    'identifier_hash' => hash('sha256', strtolower($identifier)),
+                    'channel' => $channel,
+                    'exception_class' => $exception::class,
+                ]);
+            }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'If an account exists for that email address, a password reset link has been sent.',
+            'data' => [
+                'challenge_required' => true,
+                'challenge_token' => $challengeToken,
+                'message' => 'If an account with a verified recovery method exists, a verification code has been sent.',
+            ],
         ]);
     }
 
@@ -1358,48 +1375,82 @@ final class AuthController extends Controller
     public function resetPassword(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            // The `exists:users,email` rule was removed: it leaked
-            // whether an email is registered. See the class docblock.
-            'email'    => ['required', 'string', 'email', 'max:255'],
+            'email' => ['required_without:identifier', 'nullable', 'string', 'max:255'],
+            'identifier' => ['required_without:email', 'nullable', 'string', 'max:255'],
+            'authenticator' => ['required', 'string', 'in:otp,google_authenticator'],
+            'code' => ['required', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+            'challenge_token' => ['required_if:authenticator,otp', 'nullable', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'token'    => ['required', 'string'],
         ]);
 
-        $status = $this->authService->resetPassword($validated);
-
-        if ($status !== Password::PASSWORD_RESET) {
-            /*
-             * A single message for every failure mode, so the client
-             * cannot distinguish "invalid token" from "unknown
-             * email". The Laravel status is logged, not returned.
-             *
-             * The status is logged at INFO, not WARNING: an expired
-             * or reused token is a normal user experience (the user
-             * followed an old email), not an anomaly. A spike in
-             * this log — many failures from the same IP in a short
-             * window — would be a signal worth investigating, but
-             * the individual event is not.
-             */
-            Log::info('Password reset attempt failed', [
-                'status'     => $status,
-                'email_hash' => hash('sha256', $validated['email']),
-                'ip'         => $request->ip(),
-            ]);
-
+        $identifier = trim((string) ($validated['identifier'] ?? $validated['email'] ?? ''));
+        $user = $this->resolveRecoveryUser($identifier);
+        if (! $user instanceof CoreUser || ! $user->is_active) {
             throw ValidationException::withMessages([
-                'email' => [__('passwords.token')],
+                'identifier' => [__('passwords.token')],
             ]);
         }
 
-        Log::info('Password reset completed', [
-            'email_hash' => hash('sha256', $validated['email']),
-            'ip'         => $request->ip(),
+        $tenantId = is_numeric($user->default_tenant_id) ? (int) $user->default_tenant_id : null;
+        $context = ['identifier_hash' => hash('sha256', strtolower($identifier))];
+        $stepUp = app(AdaptiveStepUpService::class);
+        $grant = $stepUp->verify(
+            $user,
+            $tenantId,
+            'password_recovery',
+            $context,
+            $validated['authenticator'],
+            $validated['code'],
+            $validated['challenge_token'] ?? null,
+        );
+
+        if (! is_string($grant)
+            || ! $stepUp->consumeGrant($user, $tenantId, 'password_recovery', $context, $grant)) {
+            Log::info('Password recovery verification failed', [
+                'identifier_hash' => hash('sha256', strtolower($identifier)),
+                'ip' => $request->ip(),
+            ]);
+            throw ValidationException::withMessages([
+                'identifier' => [__('passwords.token')],
+            ]);
+        }
+
+        $user->forceFill(['password' => Hash::make($validated['password'])])->save();
+        app(DeviceSessionService::class)->revokeAllForUser($user, 'password_recovery');
+
+        Log::info('Password recovery completed', [
+            'identifier_hash' => hash('sha256', strtolower($identifier)),
+            'ip' => $request->ip(),
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Password has been reset successfully.',
+            'data' => [
+                'password_reset' => true,
+                'login_required' => true,
+            ],
+            'message' => 'Password has been reset. Please sign in again.',
         ]);
+    }
+
+    /**
+     * Resolve only a verified recovery identifier class: email or phone.
+     * Employee, shareholder and wallet identifiers are not recovery channels.
+     */
+    private function resolveRecoveryUser(string $identifier): ?CoreUser
+    {
+        $identifier = trim($identifier);
+        if ($identifier === '') {
+            return null;
+        }
+
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            return CoreUser::query()
+                ->whereRaw('LOWER(email) = ?', [strtolower($identifier)])
+                ->first();
+        }
+
+        return CoreUser::query()->where('phone', $identifier)->first();
     }
 
     // =========================================================================
