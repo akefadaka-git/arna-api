@@ -625,8 +625,8 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $fileId = $this->file($tenantId, (int) $actor->getKey());
 
         $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
-        $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.create');
-        $authorization->shouldReceive('requirePermission')->twice()->with($actor, $tenantId, 'documents.submit');
+        $authorization->shouldReceive('requirePermission')->twice()->with($actor, $tenantId, 'documents.create');
+        $authorization->shouldReceive('requirePermission')->times(4)->with($actor, $tenantId, 'documents.submit');
         $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
 
         $service = $this->app->make(DocumentWorkflowAggregateService::class);
@@ -665,6 +665,18 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             self::assertSame('captured', $intent->status);
             self::assertSame(hash('sha256', 'immutable source bytes'), $intent->sha256);
             self::assertTrue(Storage::disk('local')->exists($intent->storage_path));
+
+            // A new workflow can retry against the same durable CAPTURED
+            // intent; the evidence row and LINKED transition then commit.
+            $retryWorkflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '02', 'Retry durable capture', 9, 4);
+            $submitted = $service->transition($actor, $tenantId, (int) $retryWorkflow->id, 'submit', 0, null, [
+                'submitted_file_id' => $fileId,
+                'submitted_file_version' => 1,
+            ]);
+            self::assertSame('submitted', $submitted->status);
+            self::assertSame('linked', DB::table('document_evidence_capture_intents')
+                ->where('id', $intent->id)->value('status'));
+            self::assertSame(1, DB::table('document_file_versions')->where('tenant_id', $tenantId)->count());
         }
     }
 
