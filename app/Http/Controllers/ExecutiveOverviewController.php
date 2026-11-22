@@ -11,12 +11,14 @@ use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinancialReportContract;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\People\Services\WorkforceAggregateProvider;
 
 final class ExecutiveOverviewController
 {
     public function __construct(
         private readonly ExecutiveOverviewAccessPolicy $audience,
         private readonly FinancialReportContract $financialReports,
+        private readonly WorkforceAggregateProvider $workforce,
     ) {}
 
     public function show(Request $request): JsonResponse
@@ -118,6 +120,53 @@ final class ExecutiveOverviewController
                 'widgets' => $widgets,
             ],
         ])->header('Cache-Control', 'private, no-store');
+    }
+
+
+    /**
+     * Workforce permission proposal: people.workforce.view (tenant scope).
+     * Read current pivots so revocation cannot leave a stale positive grant.
+     */
+    private function hasFreshPeopleWorkforcePermission(User $user, int $tenantId): bool
+    {
+        $direct = $user->permissions()
+            ->where('permissions.slug', 'people.workforce.view')
+            ->where('permissions.scope', 'tenant')
+            ->where('permissions.is_active', true)
+            ->whereNull('permissions.application_id')
+            ->where(function ($scope) use ($tenantId): void {
+                $scope->whereNull('permissions.tenant_id')
+                    ->orWhere('permissions.tenant_id', $tenantId);
+            })
+            ->exists();
+
+        if ($direct) {
+            return true;
+        }
+
+        return $user->roles()
+            ->where('roles.is_active', true)
+            ->where(function ($scope) use ($tenantId): void {
+                $scope->whereNull('roles.tenant_id')
+                    ->orWhere('roles.tenant_id', $tenantId);
+            })
+            ->where(function ($application): void {
+                $application->whereNull('roles.application_id')
+                    ->orWhereHas('application', static fn ($app) => $app
+                        ->where('slug', 'people')
+                        ->where('is_active', true));
+            })
+            ->whereHas('permissions', static function ($query) use ($tenantId): void {
+                $query->where('permissions.slug', 'people.workforce.view')
+                    ->where('permissions.scope', 'tenant')
+                    ->where('permissions.is_active', true)
+                    ->whereNull('permissions.application_id')
+                    ->where(function ($scope) use ($tenantId): void {
+                        $scope->whereNull('permissions.tenant_id')
+                            ->orWhere('permissions.tenant_id', $tenantId);
+                    });
+            })
+            ->exists();
     }
 
     /**
