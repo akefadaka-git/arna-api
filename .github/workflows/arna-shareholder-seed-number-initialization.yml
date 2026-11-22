@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: arna-shareholder-seed-number-initialization
+  group: arna-shareholder-seed-number-initialization-${{ github.event.pull_request.number || inputs.target_sha || github.sha }}
   cancel-in-progress: false
 
 jobs:

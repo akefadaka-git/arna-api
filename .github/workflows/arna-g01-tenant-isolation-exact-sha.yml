@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: arna-g01-exact-sha-tenant-isolation
+  group: arna-g01-exact-sha-tenant-isolation-${{ github.event.pull_request.number || inputs.target_sha || github.sha }}
   cancel-in-progress: false
 
 jobs:
