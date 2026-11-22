@@ -584,7 +584,11 @@ final class AuthController extends Controller
         $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
         $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0 ? (int) $trustedTenantId : null;
         $requestedTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : $trustedTenantId;
-        $resolution = $this->identifierResolver->resolve($validated['identifier'], $requestedTenantId);
+        try {
+            $resolution = $this->identifierResolver->resolve($validated['identifier'], $requestedTenantId);
+        } catch (AuthenticationException) {
+            $resolution = null;
+        }
         $challengeToken = bin2hex(random_bytes(32));
 
         if (is_array($resolution) && ($resolution['user'] ?? null) instanceof CoreUser
