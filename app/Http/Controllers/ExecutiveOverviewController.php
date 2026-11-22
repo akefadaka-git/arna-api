@@ -106,11 +106,30 @@ final class ExecutiveOverviewController
             }
         }
 
+        // People workforce is independently authorized. The aggregate is
+        // queried only after the current tenant-scoped permission pivot check;
+        // neither the Executive Overview entry permission nor people.manage
+        // can substitute for this grant.
+        if ($this->hasFreshPeopleWorkforcePermission($user, (int) $tenantId)) {
+            $widgets[] = [
+                'key' => 'people.workforce.active',
+                'status' => 'available',
+                'source' => [
+                    'domain' => 'people',
+                    'metric_key' => 'active_workforce',
+                    'calculation_version' => '1',
+                ],
+                'observed_at' => now()->toIso8601String(),
+                'value' => [
+                    'active' => $this->workforce->activeEmployeeCount((int) $tenantId),
+                ],
+            ];
+        }
+
         // Status describes completeness of the providers in this contract,
         // not the completeness of every ARNA domain or every planned KPI.
-        // A3.1 exposes only the existing Finance trial-balance provider;
-        // future independently approved providers must define their own
-        // availability semantics before this can become partial.
+        // Finance trial balance and the independently authorized People
+        // workforce aggregate are the only providers in this contract.
         return response()->json([
             'success' => true,
             'data' => [
