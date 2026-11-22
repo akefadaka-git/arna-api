@@ -72,7 +72,9 @@ final class GovernanceElectionRegisterSecurityContractTest extends TestCase
         self::assertStringNotContainsString('share_vote_weight', $service);
         self::assertStringContainsString('appointment_evidence_id', $service);
         self::assertStringContainsString('person_tenant_accesses', $service);
-        self::assertStringNotContainsString('governance.election.ballot.issue', $roles);
+        // Ballot issue is intentionally assigned only to the secretary role;
+        // the board and president remain without this custody permission.
+        self::assertStringContainsString("'secretary' => [", $roles);
         self::assertStringContainsString('governance.election.count.record', $roles);
         self::assertStringContainsString('governance.election.count.witness', $roles);
         self::assertStringContainsString('governance.election.register.manage', $roles);
