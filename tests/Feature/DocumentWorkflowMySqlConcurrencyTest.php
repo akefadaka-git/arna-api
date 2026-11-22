@@ -241,4 +241,86 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
             }
         }
     }
+
+    public function test_capture_intent_is_durable_and_row_lock_serializes_cleanup_claim_against_attachment(): void
+    {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Requires independent MySQL sessions.');
+        }
+
+        $suffix = bin2hex(random_bytes(5));
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->getKey()]);
+        Storage::fake('local');
+        Storage::disk('local')->put('capture-race/'.$suffix.'.pdf', 'durable capture race bytes');
+        $fileId = (int) DB::table('files')->insertGetId([
+            'tenant_id' => $tenant->getKey(),
+            'user_id' => $actor->getKey(),
+            'original_name' => 'capture-race.pdf',
+            'name' => 'capture-race.pdf',
+            'size' => strlen('durable capture race bytes'),
+            'path' => 'capture-race/'.$suffix.'.pdf',
+            'disk' => 'local',
+            'version' => 1,
+            'status' => 'published',
+            'is_public' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $lifecycle = app(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $prepared = $lifecycle->prepare((int) $tenant->getKey(), $fileId, 1, (int) $actor->getKey());
+
+        // A separately opened session must observe CAPTURED immediately after
+        // prepare() returns, before any workflow submission transaction links it.
+        config(['database.connections.capture_observer' => config('database.connections.mysql')]);
+        DB::purge('capture_observer');
+        $observer = DB::connection('capture_observer');
+        $observed = $observer->table('document_evidence_capture_intents')
+            ->where('id', $prepared['intent_id'])->value('status');
+        $this->assertSame('captured', $observed);
+
+        $writer = DB::connection();
+        $writer->beginTransaction();
+        try {
+            $writer->table('document_evidence_capture_intents')
+                ->where('id', $prepared['intent_id'])->lockForUpdate()->first();
+
+            $observer->statement('SET SESSION innodb_lock_wait_timeout = 1');
+            $observer->beginTransaction();
+            try {
+                $observer->table('document_evidence_capture_intents')
+                    ->where('id', $prepared['intent_id'])->lockForUpdate()->first();
+                $this->fail('A second MySQL session must wait while the capture intent row is locked.');
+            } catch (\Illuminate\Database\QueryException) {
+                $this->assertTrue(true, 'The competing session was blocked by the intent row lock.');
+            } finally {
+                if ($observer->transactionLevel() > 0) {
+                    $observer->rollBack();
+                }
+            }
+
+            $writer->table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
+                'status' => 'cleanup_claimed',
+                'cleanup_claim_token' => (string) \Illuminate\Support\Str::uuid(),
+                'cleanup_claimed_at' => now(),
+                'cleanup_lease_until' => now()->addMinutes(10),
+            ]);
+            $writer->commit();
+        } catch (\Throwable $exception) {
+            if ($writer->transactionLevel() > 0) {
+                $writer->rollBack();
+            }
+            throw $exception;
+        }
+
+        $this->expectException(ConflictHttpException::class);
+        DB::transaction(fn () => $lifecycle->markLinked(
+            $prepared['intent_id'],
+            (int) $tenant->getKey(),
+            1,
+            (int) $actor->getKey(),
+        ));
+    }
+
 }
