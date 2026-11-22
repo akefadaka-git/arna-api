@@ -118,8 +118,50 @@ final class DocumentEvidenceCaptureLifecycle
         }
 
         try {
-            $snapshot = $this->store->capture($tenantId, $fileId, $fileVersion, $reservation->disk, $reservation->path);
-        } catch (\Throwable $exception) {
+            // Re-lock the authoritative File Management row while reading and
+            // sealing its bytes. The durable reservation already exists, so a
+            // process crash can be retried without losing the operation record.
+            $snapshot = DB::transaction(function () use ($intent, $tenantId, $fileId, $fileVersion, $actorId): array {
+                $file = DB::table('files')->where('id', $fileId)->where('tenant_id', $tenantId)
+                    ->whereNull('deleted_at')->where('version', $fileVersion)->where('is_public', false)
+                    ->lockForUpdate()->first(['id', 'version', 'disk', 'path']);
+                if ($file === null) {
+                    throw new UnprocessableEntityHttpException('The source file version changed or became unavailable before evidence capture.');
+                }
+
+                $locked = DB::table('document_evidence_capture_intents')->where('tenant_id', $tenantId)
+                    ->where('id', $intent->id)->lockForUpdate()->first();
+                if ($locked === null || ! in_array($locked->status, ['reserved', 'captured'], true)) {
+                    throw new ConflictHttpException('The capture intent changed state before immutable capture.');
+                }
+
+                $captured = $this->store->capture(
+                    $tenantId, $fileId, $fileVersion, (string) $file->disk, (string) $file->path,
+                );
+                if ($locked->status === 'reserved') {
+                    DB::table('document_evidence_capture_intents')->where('id', $intent->id)->update([
+                        'status' => 'captured',
+                        'storage_disk' => $captured['disk'],
+                        'storage_path' => $captured['path'],
+                        'sha256' => $captured['sha256'],
+                        'size' => $captured['size'],
+                        'captured_at' => now(),
+                        'last_error_code' => null,
+                        'updated_at' => now(),
+                    ]);
+                    $this->event((int) $intent->id, $tenantId, 'reserved', 'captured', 'captured', $actorId, [
+                        'sha256' => $captured['sha256'],
+                        'size' => $captured['size'],
+                    ]);
+                } elseif (! hash_equals((string) $locked->sha256, $captured['sha256'])
+                    || (string) $locked->storage_path !== $captured['path']
+                    || (string) $locked->storage_disk !== $captured['disk']) {
+                    throw new ConflictHttpException('A retry produced different bytes for an already captured File Management version.');
+                }
+
+                return $captured;
+            });
+        } catch (\\Throwable $exception) {
             DB::transaction(function () use ($intent, $tenantId, $actorId): void {
                 $locked = DB::table('document_evidence_capture_intents')->where('tenant_id', $tenantId)
                     ->where('id', $intent->id)->lockForUpdate()->first();
@@ -134,35 +176,6 @@ final class DocumentEvidenceCaptureLifecycle
             });
             throw $exception;
         }
-
-        DB::transaction(function () use ($intent, $tenantId, $actorId, $snapshot): void {
-            $locked = DB::table('document_evidence_capture_intents')->where('tenant_id', $tenantId)
-                ->where('id', $intent->id)->lockForUpdate()->first();
-            if ($locked === null || ! in_array($locked->status, ['reserved', 'captured'], true)) {
-                throw new ConflictHttpException('The capture intent changed state while its immutable object was being written.');
-            }
-
-            if ($locked->status === 'reserved') {
-                DB::table('document_evidence_capture_intents')->where('id', $intent->id)->update([
-                    'status' => 'captured',
-                    'storage_disk' => $snapshot['disk'],
-                    'storage_path' => $snapshot['path'],
-                    'sha256' => $snapshot['sha256'],
-                    'size' => $snapshot['size'],
-                    'captured_at' => now(),
-                    'last_error_code' => null,
-                    'updated_at' => now(),
-                ]);
-                $this->event((int) $intent->id, $tenantId, 'reserved', 'captured', 'captured', $actorId, [
-                    'sha256' => $snapshot['sha256'],
-                    'size' => $snapshot['size'],
-                ]);
-            } elseif (! hash_equals((string) $locked->sha256, $snapshot['sha256'])
-                || (string) $locked->storage_path !== $snapshot['path']
-                || (string) $locked->storage_disk !== $snapshot['disk']) {
-                throw new ConflictHttpException('A retry produced different bytes for an already captured File Management version.');
-            }
-        });
 
         return ['intent_id' => (int) $intent->id, 'snapshot' => $snapshot];
     }
