@@ -32,8 +32,9 @@ declare(strict_types=1);
 |
 | The lists are intentionally different. CORS includes all approved browser
 | origins (nine hosts). SANCTUM_STATEFUL_DOMAINS contains only the two
-| cookie-authenticated SPA hosts: app and portal. CORS permission does not
-| enable Sanctum session authentication or grant API authorization.
+| cookie-authenticated SPA hosts: app and portal. Only origins present in
+| both lists may use the shared SSO cookie; CORS-only hosts are not SSO-enabled.
+| CORS permission alone does not grant API authorization.
 |
 | -----------------------------------------------------------------------------
 | Do NOT use wildcards here
