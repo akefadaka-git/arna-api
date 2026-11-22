@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Auth\\Services;
+namespace MaaleArna\MASES\Core\Auth\Services;
 
-use Illuminate\\Http\\Request;
+use Illuminate\Http\Request;
 use JsonException;
 
 final class AdaptiveStepUpContext
@@ -30,7 +30,7 @@ final class AdaptiveStepUpContext
                 JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
             ));
         } catch (JsonException $exception) {
-            throw new \\InvalidArgumentException('Step-up context is not serializable.', previous: $exception);
+            throw new \InvalidArgumentException('Step-up context is not serializable.', previous: $exception);
         }
     }
 
