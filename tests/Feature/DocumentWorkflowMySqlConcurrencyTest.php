@@ -252,6 +252,8 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->getKey()]);
         Storage::fake('local');
+        Storage::fake('capture-intent-evidence');
+        config(['mases.documents.evidence_disk' => 'capture-intent-evidence']);
         Storage::disk('local')->put('capture-race/'.$suffix.'.pdf', 'durable capture race bytes');
         $fileId = (int) DB::table('files')->insertGetId([
             'tenant_id' => $tenant->getKey(),
