@@ -84,6 +84,6 @@ final class GovernanceElectionRegisterSecurityContractTest extends TestCase
         self::assertIsString($migration);
         self::assertStringContainsString("references(['tenant_id', 'id'])->on('governance_elections')", $migration);
         self::assertStringContainsString("references(['tenant_id', 'id'])->on('governance_election_register_snapshots')", $migration);
-        self::assertStringContainsString('Refusing to remove all voter-register evidence', $migration);
+        self::assertStringContainsString('Refusing to remove voter-register evidence', $migration);
     }
 }
