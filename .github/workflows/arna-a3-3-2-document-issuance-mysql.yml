@@ -102,6 +102,11 @@ jobs:
       - name: Run all migrations on fresh disposable MySQL
         run: php artisan migrate --force -vvv
 
+      - name: Verify evidence reconciliation command is registered and dry-run safe
+        run: |
+          php artisan list --raw | grep -F "arna:documents:reconcile-evidence-captures"
+          php artisan arna:documents:reconcile-evidence-captures --limit=100 --grace-minutes=1440
+
       - name: Run A3.3.2 aggregate, signature, immutable evidence and rollback tests on MySQL
         run: php artisan test --compact tests/Feature/DocumentWorkflowAggregateServiceTest.php
 
