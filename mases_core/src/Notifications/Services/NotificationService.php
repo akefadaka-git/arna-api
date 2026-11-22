@@ -35,16 +35,41 @@ final class NotificationService
         $created = [];
 
         return DB::transaction(function () use ($tenant, $recipients, $payload, &$created): array {
+            if (!$tenant->exists) {
+                throw new InvalidArgumentException('Notifications require a persisted tenant.');
+            }
+
+            // Never trust lifecycle flags on caller-supplied, potentially stale
+            // Eloquent instances. Lock and re-read the authoritative rows.
+            $currentTenant = Tenant::query()
+                ->whereKey($tenant->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if ($currentTenant === null || !$currentTenant->is_active) {
+                throw new InvalidArgumentException('Notifications cannot be published for a missing or inactive tenant.');
+            }
+
             foreach ($recipients as $recipient) {
                 if (!$recipient instanceof User || !$recipient->exists) {
                     throw new InvalidArgumentException('Recipients must be persisted canonical User models.');
                 }
 
+                $currentRecipient = User::query()
+                    ->whereKey($recipient->getKey())
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($currentRecipient === null || !$currentRecipient->is_active) {
+                    throw new InvalidArgumentException('Notifications cannot be published to a missing or inactive recipient account.');
+                }
+
                 $isMember = TenantMembership::query()
-                    ->where('tenant_id', $tenant->getKey())
-                    ->where('user_id', $recipient->getKey())
+                    ->where('tenant_id', $currentTenant->getKey())
+                    ->where('user_id', $currentRecipient->getKey())
                     ->where('status', TenantMembership::STATUS_ACTIVE)
-                    ->exists();
+                    ->lockForUpdate()
+                    ->first() !== null;
 
                 if (!$isMember) {
                     throw new InvalidArgumentException('Every notification recipient must be an active member of the target tenant.');
@@ -52,8 +77,8 @@ final class NotificationService
 
                 $attributes = [
                     'id' => (string) Str::uuid(),
-                    'tenant_id' => $tenant->getKey(),
-                    'user_id' => $recipient->getKey(),
+                    'tenant_id' => $currentTenant->getKey(),
+                    'user_id' => $currentRecipient->getKey(),
                     'event_key' => $payload['event_key'],
                     'category' => $payload['category'],
                     'priority' => $payload['priority'] ?? 'normal',

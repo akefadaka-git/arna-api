@@ -10,7 +10,7 @@ use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsPermissionC
 /**
  * PermissionCatalogue
  *
- * The platform's existing sixty-one permissions plus thirteen Documents workflow permissions (seventy-four total) — the atomic capabilities
+ * The unified catalogue combines platform, Documents, Finance, Admin, public-content, announcement and Calendar capabilities — the atomic permissions.
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -194,6 +194,10 @@ final class PermissionCatalogue
         ['slug' => 'security-event.resolve', 'name_am' => 'የደህንነት ክስተቶችን መፍታት', 'name_en' => 'Resolve Security Events', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
         ...FinancePermissionCatalogue::ROWS,
         ...DocumentsPermissionCatalogue::ROWS,
+        ['slug' => 'calendar.view', 'name_am' => 'ቀን መቁጠሪያ ማየት', 'name_en' => 'View Calendar', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'calendar.create', 'name_am' => 'የቀን መቁጠሪያ መፍጠር', 'name_en' => 'Create Calendar Items', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'calendar.update', 'name_am' => 'ቀን መቁጠሪያ ማዘመን', 'name_en' => 'Manage Calendar', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'calendar.reserve', 'name_am' => 'ሀብት ማስያዝ', 'name_en' => 'Reserve Calendar Resources', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'public-content.review', 'name_am' => 'ይፋዊ ይዘት መገምገምና ማተም', 'name_en' => 'Review and publish public content', 'category' => 'public_content', 'scope' => 'global', 'is_system' => false],
             ['slug' => 'announcement.view', 'name_am' => 'ማስታወቂያዎችን ማየት', 'name_en' => 'View Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.manage', 'name_am' => 'ማስታወቂያ ማዘጋጀትና ለማጽደቅ ማስገባት', 'name_en' => 'Create and Submit Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],

@@ -817,4 +817,22 @@ final class TenantIsolationTest extends TestCase
 
         return $permission;
     }
+
+    public function test_me_returns_only_loans_for_the_callers_direct_shareholder_link(): void
+    {
+        $this->borrowerA->forceFill(['user_id' => $this->admin->id])->save();
+        $loanA = $this->makeLoan($this->tenantA, $this->borrowerA, $this->productA, LoanStatus::Active);
+        $loanB = $this->makeLoan($this->tenantB, $this->borrowerB, $this->productB, LoanStatus::Active);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $this->tenantA->id)
+            ->getJson(route('api.loans.me'));
+
+        $response->assertOk()->assertJsonPath('data.linked', true);
+        $loans = $response->json('data.loans');
+        $this->assertCount(1, $loans);
+        $this->assertSame((int) $loanA->id, (int) $loans[0]['id']);
+        $this->assertNotSame((int) $loanB->id, (int) $loans[0]['id']);
+    }
+
 }

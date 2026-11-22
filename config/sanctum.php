@@ -19,9 +19,9 @@ use Laravel\Sanctum\Sanctum;
 |
 | 1. Stateful domains
 |    The `stateful` array below resolves from SANCTUM_STATEFUL_DOMAINS. In
-|    production that variable MUST be set explicitly to the approved
-|    MASES frontend origins (see the production .env). The fallback list
-|    is local-development only and must never be relied on in production.
+|    production it MUST contain only the two cookie-authenticated SPA hosts:
+|    app.maalearna.com.et and portal.maalearna.com.et. This list is not the
+|    CORS allow-list; CORS_ALLOWED_ORIGINS is intentionally broader.
 |
 | 2. Custom User model
 |    Sanctum has NO `user_model` config key. The MASES Core User model
@@ -60,9 +60,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | Requests from these domains / hosts will receive stateful API
-    | authentication cookies. In production you MUST set
-    | SANCTUM_STATEFUL_DOMAINS in .env to the explicit list of approved
-    | MASES frontend origins.
+    | authentication cookies. In production set SANCTUM_STATEFUL_DOMAINS in .env to exactly the
+    | Workspace and Shareholder Portal hosts. Bearer-token clients and public
+    | browser origins are not Sanctum stateful hosts.
     |
     | The fallback list below is local-development only. It includes
     | localhost variants plus the current application URL (which resolves

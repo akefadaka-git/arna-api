@@ -48,6 +48,7 @@ final class DocumentWorkflowAggregateService
         private readonly DocumentNumberAllocator $numberAllocator,
         private readonly EthiopianDocumentYearResolver $yearResolver,
         private readonly ImmutableDocumentBinaryStore $immutableFiles,
+        private readonly DocumentEvidenceCaptureLifecycle $captureLifecycle,
         private readonly DocumentSignatureEvidenceVerifier $signatureVerifier,
     ) {}
 
@@ -128,8 +129,33 @@ final class DocumentWorkflowAggregateService
             throw new UnprocessableEntityHttpException('Unknown document workflow action.');
         }
 
+        // Reserve and persist immutable capture state before the workflow
+        // transaction. A later SQL rollback must leave a durable CAPTURED
+        // intent that the reconciler can safely account for.
+        $preparedCapture = null;
+        if ($action === 'submit') {
+            $preflight = DocumentWorkflowAggregate::query()
+                ->where('tenant_id', $tenantId)->whereKey($workflowId)->first();
+            if ($preflight === null) {
+                throw (new ModelNotFoundException())->setModel(DocumentWorkflowAggregate::class, [$workflowId]);
+            }
+            if ((int) $preflight->revision !== $expectedRevision) {
+                throw new ConflictHttpException('The document workflow changed; reload it before retrying this action.');
+            }
+            if (! in_array($preflight->status, $definition['from'], true)) {
+                throw new ConflictHttpException('This action is not valid from the current document workflow state.');
+            }
+            $this->authorization->requirePermission($actor, $tenantId, $definition['permission']);
+            $preparedCapture = $this->captureLifecycle->prepare(
+                $tenantId,
+                (int) ($evidence['submitted_file_id'] ?? 0),
+                (int) ($evidence['submitted_file_version'] ?? 0),
+                (int) $actor->getKey(),
+            );
+        }
+
         return DB::transaction(function () use (
-            $actor, $tenantId, $workflowId, $action, $expectedRevision, $reason, $evidence, $definition,
+            $actor, $tenantId, $workflowId, $action, $expectedRevision, $reason, $evidence, $definition, $preparedCapture,
         ): DocumentWorkflowAggregate {
             $workflow = DocumentWorkflowAggregate::query()
                 ->where('tenant_id', $tenantId)
@@ -171,6 +197,8 @@ final class DocumentWorkflowAggregateService
                     (int) $workflow->author_user_id,
                 );
             } else {
+                // Recheck authorization under the workflow transaction after
+                // the potentially long filesystem capture has completed.
                 $this->authorization->requirePermission($actor, $tenantId, $definition['permission']);
             }
 
@@ -178,26 +206,19 @@ final class DocumentWorkflowAggregateService
             $metadata = [];
 
             if ($action === 'submit') {
+                if ($preparedCapture === null) {
+                    throw new ConflictHttpException('A durable evidence capture is required before submission.');
+                }
                 $fileId = (int) ($evidence['submitted_file_id'] ?? 0);
                 $fileVersion = (int) ($evidence['submitted_file_version'] ?? 0);
                 $file = DB::table('files')->where('id', $fileId)->where('tenant_id', $tenantId)
-                    ->whereNull('deleted_at')->where('version', $fileVersion)
-                    ->lockForUpdate()->first(['id', 'version', 'disk', 'path']);
+                    ->whereNull('deleted_at')->where('version', $fileVersion)->where('is_public', false)
+                    ->lockForUpdate()->first(['id', 'version', 'disk', 'path', 'is_public']);
                 if ($file === null || $fileId < 1 || $fileVersion < 1) {
-                    throw new UnprocessableEntityHttpException('Submission must bind an existing, non-deleted file version owned by the same tenant.');
+                    throw new UnprocessableEntityHttpException('Submission must bind an existing, non-deleted, private file version owned by the same tenant.');
                 }
 
-                // Snapshot the selected File Management version into a
-                // content-addressed, write-once evidence object. The database
-                // record is append-only and tied to tenant/file/version.
-                $snapshot = $this->immutableFiles->capture(
-                    $tenantId,
-                    $fileId,
-                    $fileVersion,
-                    (string) $file->disk,
-                    (string) $file->path,
-                );
-                $fileSha256 = $snapshot['sha256'];
+                $snapshot = $preparedCapture['snapshot'];
                 $existingEvidence = DB::table('document_file_versions')
                     ->where('tenant_id', $tenantId)
                     ->where('file_id', $fileId)
@@ -205,8 +226,9 @@ final class DocumentWorkflowAggregateService
                     ->lockForUpdate()
                     ->first();
                 if ($existingEvidence !== null) {
-                    if (! hash_equals((string) $existingEvidence->sha256, $fileSha256)
-                        || (string) $existingEvidence->storage_path !== (string) $snapshot['path']
+                    if (! hash_equals((string) $existingEvidence->sha256, $snapshot['sha256'])
+                        || (string) $existingEvidence->storage_path !== $snapshot['path']
+                        || (string) $existingEvidence->storage_disk !== $snapshot['disk']
                         || (int) $existingEvidence->size !== (int) $snapshot['size']) {
                         throw new UnprocessableEntityHttpException('This File Management version was already sealed with different bytes; create a new File Management version before submission.');
                     }
@@ -218,13 +240,23 @@ final class DocumentWorkflowAggregateService
                         'file_version' => $fileVersion,
                         'storage_disk' => $snapshot['disk'],
                         'storage_path' => $snapshot['path'],
-                        'sha256' => $fileSha256,
+                        'sha256' => $snapshot['sha256'],
                         'size' => $snapshot['size'],
                         'captured_by_user_id' => $actor->getKey(),
                         'captured_at' => $now,
                     ]);
                 }
 
+                // The capture state and evidence-version reference transition
+                // together. A failed workflow transaction restores CAPTURED.
+                $this->captureLifecycle->markLinked(
+                    (int) $preparedCapture['intent_id'],
+                    $tenantId,
+                    $evidenceVersionId,
+                    (int) $actor->getKey(),
+                );
+
+                $fileSha256 = $snapshot['sha256'];
                 $workflow->submitted_file_id = $fileId;
                 $workflow->submitted_file_version = $fileVersion;
                 $workflow->submitted_file_sha256 = $fileSha256;
@@ -234,6 +266,7 @@ final class DocumentWorkflowAggregateService
                     'submitted_file_version' => $fileVersion,
                     'submitted_file_sha256' => $fileSha256,
                     'submitted_file_evidence_id' => $evidenceVersionId,
+                    'capture_intent_id' => (int) $preparedCapture['intent_id'],
                 ];
             }
 
