@@ -1477,6 +1477,68 @@ final class AuthController extends Controller
         return response()->json(['success' => true, 'data' => $challenge]);
     }
 
+
+    /**
+     * Verify identity-change proof using the server-normalized proposed value.
+     */
+    public function verifyIdentityChangeChallenge(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'field' => ['required', 'string', 'in:email,username,mobile_number'],
+            'value' => ['required', 'string', 'max:255'],
+            'authenticator' => ['required', 'string', 'in:otp,google_authenticator'],
+            'code' => ['required', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+            'challenge_token' => ['required_if:authenticator,otp', 'nullable', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
+            'knowledge_factor_type' => ['sometimes', 'nullable', 'string', 'in:password,pin'],
+            'knowledge_proof' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            throw AuthenticationException::unauthenticated();
+        }
+
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
+            ? (int) $tenantId
+            : (int) ($user->default_tenant_id ?? 0);
+        if ($tenantId < 1 || ! $user->activeTenants()->where('tenants.id', $tenantId)->exists()) {
+            throw new AuthenticationException('A verified tenant membership is required.', 'AUTH_TENANT_CONTEXT_REQUIRED', 403);
+        }
+
+        $normalized = $this->normalizeIdentityChangeValue($validated['field'], $validated['value']);
+        $this->assertIdentityValueAvailable($user, $validated['field'], $normalized);
+        $context = [
+            'identity_type' => $validated['field'],
+            'new_value_hash' => hash('sha256', $normalized),
+        ];
+
+        $grant = app(AdaptiveStepUpService::class)->verify(
+            $user,
+            $tenantId,
+            'identity_change',
+            $context,
+            $validated['authenticator'],
+            $validated['code'],
+            $validated['challenge_token'] ?? null,
+            $validated['knowledge_factor_type'] ?? null,
+            $validated['knowledge_proof'] ?? null,
+        );
+
+        if (! is_string($grant)) {
+            throw new AuthenticationException('The additional authentication proof is invalid or expired.', 'AUTH_STEP_UP_INVALID', 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'step_up_token' => $grant,
+                'expires_in' => max(1, (int) config('auth-step-up.grant_expiry_minutes', 5)) * 60,
+                'single_use' => true,
+            ],
+        ]);
+    }
+
     /**
      * Apply an email, username or mobile-number change only after the
      * matching OTP/TOTP grant has been consumed. Employee, shareholder and
