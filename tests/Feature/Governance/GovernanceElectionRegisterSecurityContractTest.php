@@ -48,6 +48,34 @@ final class GovernanceElectionRegisterSecurityContractTest extends TestCase
         self::assertStringContainsString('AgeReceiptOutbox::enqueue', $service);
     }
 
+    public function test_ballot_custody_and_manual_count_routes_use_separate_permissions_and_do_not_accept_weighted_totals(): void
+    {
+        $routes = file_get_contents(base_path('mases_core/src/Domains/Governance/Routes/api.php'));
+        $controller = file_get_contents(base_path(
+            'mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionManualCountController.php'
+        ));
+        $service = file_get_contents(base_path(
+            'mases_core/src/Domains/Governance/Services/GovernanceElectionManualCountService.php'
+        ));
+        $roles = file_get_contents(base_path(
+            'mases_core/src/Domains/Governance/Database/Seeders/GovernanceRolesSeeder.php'
+        ));
+
+        self::assertIsString($routes);
+        self::assertIsString($controller);
+        self::assertIsString($service);
+        self::assertStringContainsString('governance.election.ballot.issue', $routes);
+        self::assertStringContainsString('governance.election.ballot.receive', $routes);
+        self::assertStringContainsString('governance.election.count.record', $routes);
+        self::assertStringContainsString('governance.election.count.witness', $routes);
+        self::assertStringNotContainsString('share_vote_weight', $controller);
+        self::assertStringNotContainsString('share_vote_weight', $service);
+        self::assertStringContainsString('appointment_evidence_id', $service);
+        self::assertStringContainsString('person_tenant_accesses', $service);
+        self::assertStringNotContainsString('governance.election.ballot.issue', $roles);
+        self::assertStringNotContainsString('governance.election.count.record', $roles);
+    }
+
     public function test_no_share_class_voting_rate_or_voting_method_is_activated_by_default(): void
     {
         $governance = require base_path('mases_core/src/Domains/Governance/Config/governance.php');
