@@ -63,6 +63,7 @@ final class FirstPartySsoCookieTest extends TestCase
     #[Test]
     public function sibling_spa_can_authenticate_and_logout_revokes_the_shared_token(): void
     {
+        $this->withCredentials();
         [$user, $tenant] = $this->createLoginIdentity();
 
         $login = $this->withServerVariables([
@@ -101,6 +102,7 @@ final class FirstPartySsoCookieTest extends TestCase
     #[Test]
     public function an_unapproved_sibling_origin_cannot_authenticate_with_the_cookie(): void
     {
+        $this->withCredentials();
         [$user, $tenant] = $this->createLoginIdentity();
 
         $login = $this->withServerVariables([
@@ -122,6 +124,7 @@ final class FirstPartySsoCookieTest extends TestCase
     #[Test]
     public function shared_cookie_takes_precedence_over_an_origin_local_bearer_token(): void
     {
+        $this->withCredentials();
         [$firstUser, $firstTenant] = $this->createLoginIdentity('sso-first@example.com');
         [$secondUser, $secondTenant] = $this->createLoginIdentity('sso-second@example.com');
 
