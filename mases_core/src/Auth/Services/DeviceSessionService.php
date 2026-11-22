@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Auth\Services;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
+use Illuminate\Support\Facades\Hash;
 use MaaleArna\MASES\Core\Auth\Models\DeviceSession;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
@@ -238,7 +239,7 @@ final class DeviceSessionService
     public function enrollPin(User $user, string $sessionId, string $pin): void
     {
         if (! preg_match('/^\\d{6}$/', $pin)) {
-            throw new \\InvalidArgumentException('PIN must contain exactly six digits.');
+            throw new \InvalidArgumentException('PIN must contain exactly six digits.');
         }
 
         DB::transaction(function () use ($user, $sessionId, $pin): void {
