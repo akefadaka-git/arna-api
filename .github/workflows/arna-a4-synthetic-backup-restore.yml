@@ -180,22 +180,18 @@ jobs:
       - name: Verify audit continuity, constraints and replay idempotency after restore
         run: |
           set -euo pipefail
-          mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" <<'SQL'
-          SELECT COUNT(*) INTO @before_count FROM finance_inbox_events;
-          -- Duplicate source event must be rejected by the restored unique key.
-          SET @duplicate_rejected = 0;
-          BEGIN
-            DECLARE CONTINUE HANDLER FOR 1062 SET @duplicate_rejected = 1;
-            INSERT INTO finance_inbox_events(id,tenant_key,source_event_key,processing_state)
-            VALUES (99,'tenant-synthetic-01','src-syn-001','processed');
-          END;
-          SELECT COUNT(*) INTO @after_count FROM finance_inbox_events;
-          SELECT IF(@duplicate_rejected=1 AND @before_count=@after_count,'PASS','FAIL') AS replay_idempotency;
-          SELECT IF(COUNT(*)=3,'PASS','FAIL') AS audit_continuity FROM finance_audit_entries;
-          SELECT IF(SUM(debit_minor)=SUM(credit_minor),'PASS','FAIL') AS ledger_balance FROM journal_lines;
-          SQL
-          test "$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM finance_inbox_events')" = "2"
+          before_count="$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM finance_inbox_events')"
+          # A duplicate source event must fail on the restored unique key.
+          if mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -e "INSERT INTO finance_inbox_events(id,tenant_key,source_event_key,processing_state) VALUES (99,'tenant-synthetic-01','src-syn-001','processed')" 2>duplicate-replay-error.txt; then
+            echo "ERROR: duplicate replay unexpectedly succeeded"
+            exit 1
+          fi
+          grep -qi "duplicate" duplicate-replay-error.txt
+          after_count="$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM finance_inbox_events')"
+          test "$before_count" = "$after_count"
+          test "$after_count" = "2"
           test "$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM finance_audit_entries')" = "3"
+          test "$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT SUM(debit_minor)=SUM(credit_minor) FROM journal_lines')" = "1"
       - name: Record recovery evidence and upload artifacts
         if: always()
         run: |
