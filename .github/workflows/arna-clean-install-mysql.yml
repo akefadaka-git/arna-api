@@ -40,6 +40,11 @@ on:
       - "tests/Feature/PublicContentModerationTest.php"
       - "routes/console.php"
       - "routes/api.php"
+      - "app/Http/Controllers/ExecutiveOverviewController.php"
+      - "mases_core/src/Authorization/ExecutiveOverviewAccessPolicy.php"
+      - "mases_core/src/Domains/Finance/Providers/FinanceServiceProvider.php"
+      - "tests/Feature/ExecutiveOverview*.php"
+      - ".github/workflows/executive-overview-a4-api.yml"
       - "mases_core/src/Domains/People/**"
       - "mases_core/src/Auth/Models/User.php"
       - "mases_core/src/Tenancy/Services/TenantMembershipService.php"
@@ -509,6 +514,36 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/DocumentWorkflowMySqlConcurrencyTest.php
+
+      - name: Run Executive Overview frozen-audience and role-grant tests on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/ExecutiveOverviewAuthorizationTest.php
+
+      - name: Run Executive Overview tenant and Finance widget contract tests on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/ExecutiveOverviewRouteTest.php
+
+      - name: Run Executive Overview fresh-authorization and tenant-isolation tests on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/ExecutiveOverviewA4FreshAuthorizationTest.php
 
       - name: Confirm no pending migrations
         run: php artisan migrate:status

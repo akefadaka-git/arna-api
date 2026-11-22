@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Database\Seeders\Data\RolePermissionGrants;
+use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
 use Illuminate\Database\Seeder;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
@@ -14,7 +15,7 @@ use RuntimeException;
  * RolePermissionSeeder
  *
  * Attaches permissions to roles — the join-table writes that turn the
- * twelve role definitions and sixty permissions into a
+ * twelve role definitions and sixty-one permissions into a
  * meaningful authorization graph. Runs after RoleSeeder and
  * PermissionSeeder, before the two user seeders.
  *
@@ -265,9 +266,24 @@ final class RolePermissionSeeder extends Seeder
              * ids, then sync it. sync() replaces with diff — see the
              * class docblock §"The sync semantics".
              */
-            $roles[$roleSlug]->permissions()->sync(
-                $this->resolvePermissionIds($grantSpec, $permissions)
-            );
+            $permissionIds = $this->resolvePermissionIds($grantSpec, $permissions);
+
+            // The Executive Overview audience is a frozen security boundary.
+            // Wildcard and scope grants must not leak the entry permission to
+            // roles outside CEO, President and Finance Manager.
+            $executivePermission = $permissions['dashboard.executive.view'] ?? null;
+            if (
+                $executivePermission !== null
+                && !in_array($roleSlug, ExecutiveOverviewAccessPolicy::ROLE_SLUGS, true)
+            ) {
+                $executivePermissionId = (int) $executivePermission->id;
+                $permissionIds = array_values(array_filter(
+                    $permissionIds,
+                    static fn (int $permissionId): bool => $permissionId !== $executivePermissionId
+                ));
+            }
+
+            $roles[$roleSlug]->permissions()->sync($permissionIds);
         }
     }
 

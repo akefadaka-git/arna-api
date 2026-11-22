@@ -10,7 +10,7 @@ use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsPermissionC
 /**
  * PermissionCatalogue
  *
- * The platform's existing sixty permissions plus thirteen Documents workflow permissions (seventy-three total) — the atomic capabilities
+ * The platform's existing sixty-one permissions plus thirteen Documents workflow permissions (seventy-four total) — the atomic capabilities
  * the authorization system checks. Every permission is either a
  * global platform capability (user profiles, tenants) or a
  * tenant-scoped capability (roles, files, users), or an
@@ -199,5 +199,6 @@ final class PermissionCatalogue
             ['slug' => 'announcement.manage', 'name_am' => 'ማስታወቂያ ማዘጋጀትና ለማጽደቅ ማስገባት', 'name_en' => 'Create and Submit Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.approve', 'name_am' => 'ማስታወቂያ ማጽደቅ', 'name_en' => 'Approve Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.publish', 'name_am' => 'ማስታወቂያ ማተም', 'name_en' => 'Publish Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'dashboard.executive.view', 'name_am' => 'የአስፈጻሚ አጠቃላይ እይታ ማየት', 'name_en' => 'View Executive Overview', 'category' => 'dashboard', 'scope' => 'tenant', 'is_system' => false],
 ];
 }
