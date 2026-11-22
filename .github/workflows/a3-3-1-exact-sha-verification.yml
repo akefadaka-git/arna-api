@@ -1,6 +1,7 @@
 name: A3.3.1 exact-SHA targeted verification
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - verify/a3-3-1-exact-sha
