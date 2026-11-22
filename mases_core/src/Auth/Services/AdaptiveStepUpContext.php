@@ -75,6 +75,7 @@ final class AdaptiveStepUpContext
     public function supportsAction(string $action): bool
     {
         return in_array($action, [
+            'login',
             'password_recovery',
             'password_reset',
             'identity_change',
