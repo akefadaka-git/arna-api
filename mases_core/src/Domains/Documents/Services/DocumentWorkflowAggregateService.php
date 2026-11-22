@@ -196,7 +196,9 @@ final class DocumentWorkflowAggregateService
                     $definition['permission'],
                     (int) $workflow->author_user_id,
                 );
-            } elseif ($action !== 'submit') {
+            } else {
+                // Recheck authorization under the workflow transaction after
+                // the potentially long filesystem capture has completed.
                 $this->authorization->requirePermission($actor, $tenantId, $definition['permission']);
             }
 
