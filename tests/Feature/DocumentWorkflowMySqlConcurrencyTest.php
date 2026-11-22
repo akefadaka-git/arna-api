@@ -272,6 +272,11 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
 
         $lifecycle = app(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
         $prepared = $lifecycle->prepare((int) $tenant->getKey(), $fileId, 1, (int) $actor->getKey());
+        $retried = $lifecycle->prepare((int) $tenant->getKey(), $fileId, 1, (int) $actor->getKey());
+        $this->assertSame($prepared['intent_id'], $retried['intent_id']);
+        $this->assertSame($prepared['snapshot']['path'], $retried['snapshot']['path']);
+        $this->assertSame(2, DB::table('document_evidence_capture_events')
+            ->where('capture_intent_id', $prepared['intent_id'])->count());
 
         // A separately opened session must observe CAPTURED immediately after
         // prepare() returns, before any workflow submission transaction links it.
