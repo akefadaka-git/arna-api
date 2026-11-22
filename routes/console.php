@@ -13,6 +13,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler;
+use MaaleArna\MASES\Core\Calendar\Services\CalendarReminderDispatcher;
 
 /*
 |--------------------------------------------------------------------------
@@ -248,3 +249,16 @@ Artisan::command('arna:documents:reconcile-evidence-captures {--apply : Claim an
     return $result['failed'] > 0 ? 1 : 0;
 })->purpose('Safely reconcile expired, unreferenced Documents evidence captures');
 
+
+
+Artisan::command('calendar:dispatch-reminders {--limit=100}', function (CalendarReminderDispatcher $dispatcher): int {
+    $result = $dispatcher->dispatch((int) $this->option('limit'));
+    $this->info(sprintf(
+        'Calendar reminders: %d delivered, %d skipped, %d retried, %d failed.',
+        $result['delivered'], $result['skipped'], $result['retried'], $result['failed'],
+    ));
+
+    return $result['failed'] > 0 ? 1 : 0;
+})->purpose('Dispatch due tenant-scoped Calendar reminder notifications');
+
+Schedule::command('calendar:dispatch-reminders --limit=100')->everyMinute()->withoutOverlapping();
