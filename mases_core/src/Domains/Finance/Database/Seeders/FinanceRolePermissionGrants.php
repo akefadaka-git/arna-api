@@ -28,12 +28,18 @@ final class FinanceRolePermissionGrants
             'finance.journal.cancel',
             'finance.journal.post', 'finance.journal.reverse',
             'finance.report.view',
+            'finance.ai.view', 'finance.ai.propose', 'finance.ai.approve',
+            'finance.subledger.view', 'finance.subledger.ingest', 'finance.integration.view',
+            'finance.governance_settlement.configure',
+            'finance.governance_settlement.approve',
+            'finance.governance_settlement.execute',
         ],
         'board' => ['app.finance.access'],
         'president' => ['app.finance.access'],
         'cashier' => [
             'app.finance.access', 'user.profile.view',
             'file.view', 'file.list', 'file.download', 'file.upload',
+            'finance.governance_settlement.execute',
         ],
         'ceo' => ['app.finance.access'],
     ];

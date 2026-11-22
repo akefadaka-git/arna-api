@@ -5,12 +5,18 @@ on:
     branches: [audit/g01-tenant-isolation-exact-sha]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "Exact 40-character commit SHA to test"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: arna-g01-exact-sha-tenant-isolation
+  group: arna-g01-exact-sha-tenant-isolation-${{ github.event.pull_request.number || inputs.target_sha || github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -29,12 +35,12 @@ jobs:
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
       LOG_CHANNEL: null
-      EXPECTED_TEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_TEST_SHA: ${{ inputs.target_sha || github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Check out exact proposed pull-request head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.target_sha || github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Verify exact tested head revision

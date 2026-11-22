@@ -254,6 +254,57 @@ final class GovernanceMeetingAttendanceTest extends TestCase
             ->assertJsonPath('data.status', 'submitted');
     }
 
+    public function test_proxy_submitter_cannot_review_own_submission_but_independent_reviewer_can(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+        $assembly = GovernanceBody::create([
+            'tenant_id' => $this->tenant->id,
+            'code' => 'MEETING-GA-PROXY-REVIEW',
+            'body_type' => 'assembly',
+            'name_am' => 'ጠቅላላ ጉባኤ',
+            'name_en' => 'General Assembly',
+            'is_active' => true,
+        ]);
+        $meetingId = (int) DB::table('governance_meetings')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $assembly->id,
+            'meeting_code' => 'GA-PROXY-REVIEW',
+            'meeting_kind' => 'general_assembly',
+            'starts_at' => now()->addDays(5)->setTime(9, 0)->toDateTimeString(),
+            'status' => 'scheduled',
+            'created_by' => $this->admin->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $submitted = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->postJson(route('api.governance.meetings.proxies.store', ['meeting' => $meetingId]), [
+                'principal_type' => 'shareholder',
+                'principal_id' => $this->shareholderId,
+                'proxy_name_am' => 'ውክልና ተወካይ',
+                'proxy_reference' => 'ID-SELF-REVIEW-01',
+            ])->assertCreated();
+        $proxyId = (int) $submitted->json('data.id');
+
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->patchJson(route('api.governance.proxies.review', ['proxy' => $proxyId]), [
+                'decision' => 'approved',
+                'reason' => 'Self-review must be rejected.',
+            ])->assertConflict();
+
+        $reviewer = $this->createUser('proxy-reviewer');
+        $reviewer->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+        $reviewer->permissions()->attach($this->admin->permissions->pluck('id')->all());
+        $reviewer->load('permissions');
+        Sanctum::actingAs($reviewer, ['*']);
+
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->patchJson(route('api.governance.proxies.review', ['proxy' => $proxyId]), [
+                'decision' => 'approved',
+                'reason' => 'Reviewed by an independent governance officer.',
+            ])->assertOk()->assertJsonPath('data.status', 'approved');
+    }
+
     public function test_caller_without_manage_permission_cannot_record_attendance(): void
     {
         Sanctum::actingAs($this->plainUser, ['*']);
@@ -313,7 +364,7 @@ final class GovernanceMeetingAttendanceTest extends TestCase
         ]);
     }
 
-    public function test_penalty_dispute_blocks_settlement_until_reviewed(): void
+    public function test_penalty_dispute_blocks_settlement_until_reviewed_and_requires_independent_reviewer(): void
     {
         Sanctum::actingAs($this->admin, ['*']);
         $meetingId = $this->createMeeting('BOARD-DISPUTE');
@@ -330,19 +381,40 @@ final class GovernanceMeetingAttendanceTest extends TestCase
             ])->assertCreated();
         $penaltyId = (int) $penalty->json('data.id');
 
-        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+        $dispute = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
             ->postJson(route('api.governance.penalties.disputes.store', ['penalty' => $penaltyId]), [
                 'reason' => 'The recorded arrival time is disputed.',
                 'evidence_reference' => 'attendance-register-page-2',
             ])->assertCreated();
+        $disputeId = (int) $dispute->json('data.id');
 
         $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
             ->postJson(route('api.governance.penalties.settlements.store', ['penalty' => $penaltyId]), [
                 'method' => 'cash', 'amount_cents' => 5000,
             ])->assertConflict();
-
         $this->assertDatabaseHas('governance_meeting_penalties', [
             'id' => $penaltyId, 'status' => 'disputed',
+        ]);
+
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->patchJson(route('api.governance.penalty-disputes.review', ['dispute' => $disputeId]), [
+                'decision' => 'upheld',
+                'reason' => 'The submitter cannot review their own dispute.',
+            ])->assertConflict();
+
+        $reviewer = $this->createUser('penalty-dispute-reviewer');
+        $reviewer->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
+        $reviewer->permissions()->attach($this->admin->permissions->pluck('id')->all());
+        $reviewer->load('permissions');
+        Sanctum::actingAs($reviewer, ['*']);
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+            ->patchJson(route('api.governance.penalty-disputes.review', ['dispute' => $disputeId]), [
+                'decision' => 'upheld',
+                'reason' => 'Independently reviewed against the attendance register.',
+            ])->assertOk()->assertJsonPath('data.status', 'upheld');
+
+        $this->assertDatabaseHas('governance_meeting_penalties', [
+            'id' => $penaltyId, 'status' => 'assessed',
         ]);
     }
 

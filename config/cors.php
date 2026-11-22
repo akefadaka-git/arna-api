@@ -30,11 +30,11 @@ declare(strict_types=1);
 | Interaction with SANCTUM_STATEFUL_DOMAINS
 | -----------------------------------------------------------------------------
 |
-| The `allowed_origins` list below MUST match the origin list in
-| SANCTUM_STATEFUL_DOMAINS (see the production .env). If the two lists
-| diverge, a frontend may pass CORS but fail the stateful-domain check
-| (or vice versa), producing authentication failures that are difficult
-| to diagnose from the browser console alone.
+| The lists are intentionally different. CORS includes all approved browser
+| origins (nine hosts). SANCTUM_STATEFUL_DOMAINS contains only the two
+| cookie-authenticated SPA hosts: app and portal. Only origins present in
+| both lists may use the shared SSO cookie; CORS-only hosts are not SSO-enabled.
+| CORS permission alone does not grant API authorization.
 |
 | -----------------------------------------------------------------------------
 | Do NOT use wildcards here
@@ -106,22 +106,13 @@ return [
     | be listed individually — a bare `maalearna.com.et` entry does not
     | cover its subdomains.
     |
-    | Keep this list in lock-step with SANCTUM_STATEFUL_DOMAINS in .env.
+    | This list is intentionally broader than SANCTUM_STATEFUL_DOMAINS.
     |
     */
-    'allowed_origins' => [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        'https://www.maalearna.com.et',
-        'https://auth.maalearna.com.et',
-        'https://app.maalearna.com.et',
-        'https://portal.maalearna.com.et',
-        'https://finance.maalearna.com.et',
-        'https://admin.maalearna.com.et',
-        'https://arna.maalearna.com.et',
-        'https://ai.maalearna.com.et',
-        'https://file.maalearna.com.et',
-    ],
+    'allowed_origins' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173'))
+    ))),
 
     /*
     |--------------------------------------------------------------------------

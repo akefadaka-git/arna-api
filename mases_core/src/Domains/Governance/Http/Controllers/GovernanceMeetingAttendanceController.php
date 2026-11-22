@@ -358,6 +358,9 @@ final class GovernanceMeetingAttendanceController extends Controller
         if ($record->status !== 'submitted') {
             throw new ConflictHttpException('Only submitted proxies can be reviewed.');
         }
+        if ((int) $record->submitted_by === $this->actorId()) {
+            throw new ConflictHttpException('The proxy submitter cannot review their own submission.');
+        }
         $updated = DB::table('governance_meeting_proxies')
             ->where('tenant_id', $tenantId)->where('id', $proxy)->where('status', 'submitted')
             ->update(['status' => $data['decision'], 'updated_at' => now()]);

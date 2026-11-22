@@ -589,4 +589,23 @@ final class TenantIsolationTest extends TestCase
 
         return $permission;
     }
+
+    public function test_me_returns_only_the_callers_directly_linked_shareholder(): void
+    {
+        $this->shareholderA->forceFill(['user_id' => $this->admin->id])->save();
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $this->tenantA->id)
+            ->getJson(route('api.shareholders.me'));
+
+        $response->assertOk()
+            ->assertJsonPath('data.linked', true)
+            ->assertJsonPath('data.shareholder.id', $this->shareholderA->id);
+        $this->assertSame(
+            $this->shareholderA->id,
+            $response->json('data.shareholder.id'),
+            'The identity endpoint must resolve the direct user link, not a caller-supplied shareholder identifier.',
+        );
+    }
+
 }

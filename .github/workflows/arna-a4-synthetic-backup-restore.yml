@@ -1,0 +1,222 @@
+name: ARNA A4 isolated synthetic backup and restore rehearsal
+
+on:
+  push:
+    branches:
+      - 'integration/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/arna-a4-synthetic-backup-restore.yml"
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "Exact 40-character commit SHA to test"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-a4-synthetic-restore-${{ github.event.pull_request.number || inputs.target_sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  isolated-backup-restore:
+    name: Synthetic MySQL backup, restore and integrity verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      MYSQL_PWD: root
+      SOURCE_DB: arna_synthetic_backup_source
+      RESTORE_DB: arna_synthetic_backup_restore
+    steps:
+      - name: Resolve and verify exact candidate SHA
+        id: target
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_SHA: ${{ inputs.target_sha }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            expected="$INPUT_SHA"
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            expected="$PR_SHA"
+          else
+            expected="$PUSH_SHA"
+          fi
+          [[ "$expected" =~ ^[0-9a-fA-F]{40}$ ]]
+          echo "expected_sha=${expected,,}" >> "$GITHUB_OUTPUT"
+          echo "Expected SHA: $expected"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.expected_sha }}
+          persist-credentials: false
+      - name: Verify checked-out source and initialize isolated synthetic database
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ steps.target.outputs.expected_sha }}"
+          mysql --protocol=tcp -h127.0.0.1 -uroot -e "SELECT VERSION();"
+          mysql --protocol=tcp -h127.0.0.1 -uroot -e "CREATE DATABASE \`$SOURCE_DB\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          mysql --protocol=tcp -h127.0.0.1 -uroot "$SOURCE_DB" <<'SQL'
+          CREATE TABLE schema_migrations (
+            migration_key VARCHAR(120) PRIMARY KEY,
+            applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          ) ENGINE=InnoDB;
+          CREATE TABLE journal_entries (
+            id BIGINT PRIMARY KEY,
+            tenant_key VARCHAR(80) NOT NULL,
+            currency CHAR(3) NOT NULL,
+            status VARCHAR(20) NOT NULL,
+            UNIQUE KEY uq_journal_tenant_id (tenant_key, id)
+          ) ENGINE=InnoDB;
+          CREATE TABLE journal_lines (
+            id BIGINT PRIMARY KEY,
+            journal_entry_id BIGINT NOT NULL,
+            account_code VARCHAR(40) NOT NULL,
+            debit_minor BIGINT NOT NULL DEFAULT 0,
+            credit_minor BIGINT NOT NULL DEFAULT 0,
+            CONSTRAINT fk_synthetic_lines_entry FOREIGN KEY (journal_entry_id) REFERENCES journal_entries(id),
+            CONSTRAINT chk_synthetic_nonnegative CHECK (debit_minor >= 0 AND credit_minor >= 0),
+            CONSTRAINT chk_synthetic_one_side CHECK ((debit_minor = 0) <> (credit_minor = 0))
+          ) ENGINE=InnoDB;
+          CREATE TABLE finance_audit_entries (
+            id BIGINT PRIMARY KEY,
+            tenant_key VARCHAR(80) NOT NULL,
+            event_key VARCHAR(120) NOT NULL UNIQUE,
+            event_type VARCHAR(80) NOT NULL,
+            payload_sha256 CHAR(64) NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          ) ENGINE=InnoDB;
+          CREATE TABLE finance_outbox_messages (
+            id BIGINT PRIMARY KEY,
+            tenant_key VARCHAR(80) NOT NULL,
+            event_key VARCHAR(120) NOT NULL UNIQUE,
+            delivery_state VARCHAR(20) NOT NULL,
+            attempt_count INT NOT NULL DEFAULT 0
+          ) ENGINE=InnoDB;
+          CREATE TABLE finance_inbox_events (
+            id BIGINT PRIMARY KEY,
+            tenant_key VARCHAR(80) NOT NULL,
+            source_event_key VARCHAR(120) NOT NULL,
+            processing_state VARCHAR(20) NOT NULL,
+            UNIQUE KEY uq_inbox_tenant_source (tenant_key, source_event_key)
+          ) ENGINE=InnoDB;
+          INSERT INTO schema_migrations(migration_key) VALUES
+            ('synthetic_core_v1'), ('synthetic_finance_v1'), ('synthetic_audit_v1');
+          INSERT INTO journal_entries(id,tenant_key,currency,status) VALUES
+            (1001,'tenant-synthetic-01','ETB','posted'),
+            (1002,'tenant-synthetic-01','ETB','posted'),
+            (2001,'tenant-synthetic-02','ETB','posted');
+          INSERT INTO journal_lines(id,journal_entry_id,account_code,debit_minor,credit_minor) VALUES
+            (1,1001,'1000-CASH',125000,0),(2,1001,'4000-REVENUE',0,125000),
+            (3,1002,'5000-EXPENSE',45000,0),(4,1002,'1000-CASH',0,45000),
+            (5,2001,'1000-CASH',90000,0),(6,2001,'3000-EQUITY',0,90000);
+          INSERT INTO finance_audit_entries(id,tenant_key,event_key,event_type,payload_sha256) VALUES
+            (1,'tenant-synthetic-01','audit-syn-001','journal.posted',REPEAT('a',64)),
+            (2,'tenant-synthetic-01','audit-syn-002','journal.posted',REPEAT('b',64)),
+            (3,'tenant-synthetic-02','audit-syn-003','journal.posted',REPEAT('c',64));
+          INSERT INTO finance_outbox_messages(id,tenant_key,event_key,delivery_state,attempt_count) VALUES
+            (1,'tenant-synthetic-01','out-syn-001','delivered',1),
+            (2,'tenant-synthetic-01','out-syn-002','pending',0);
+          INSERT INTO finance_inbox_events(id,tenant_key,source_event_key,processing_state) VALUES
+            (1,'tenant-synthetic-01','src-syn-001','processed'),
+            (2,'tenant-synthetic-02','src-syn-002','quarantined');
+          SQL
+      - name: Capture source integrity manifest and take transactional backup
+        run: |
+          set -euo pipefail
+          mysql --protocol=tcp -h127.0.0.1 -uroot "$SOURCE_DB" -NBe "
+            SELECT CONCAT('migration_count=',COUNT(*)) FROM schema_migrations;
+            SELECT CONCAT('journal_count=',COUNT(*)) FROM journal_entries;
+            SELECT CONCAT('line_count=',COUNT(*)) FROM journal_lines;
+            SELECT CONCAT('debit_minor=',SUM(debit_minor)) FROM journal_lines;
+            SELECT CONCAT('credit_minor=',SUM(credit_minor)) FROM journal_lines;
+            SELECT CONCAT('audit_count=',COUNT(*)) FROM finance_audit_entries;
+            SELECT CONCAT('outbox_count=',COUNT(*)) FROM finance_outbox_messages;
+            SELECT CONCAT('inbox_count=',COUNT(*)) FROM finance_inbox_events;
+            SELECT CONCAT('audit_digest=',SHA2(GROUP_CONCAT(CONCAT(event_key,':',event_type,':',payload_sha256) ORDER BY event_key SEPARATOR '|'),256)) FROM finance_audit_entries;
+          " > source-manifest.txt
+          mysqldump --protocol=tcp -h127.0.0.1 -uroot --single-transaction --routines --triggers --hex-blob "$SOURCE_DB" > synthetic-backup.sql
+          test -s synthetic-backup.sql
+          sha256sum synthetic-backup.sql | tee backup-sha256.txt
+      - name: Restore backup into a separate empty recovery database
+        run: |
+          set -euo pipefail
+          mysql --protocol=tcp -h127.0.0.1 -uroot -e "CREATE DATABASE \`$RESTORE_DB\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" < synthetic-backup.sql
+          mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe "
+            SELECT CONCAT('migration_count=',COUNT(*)) FROM schema_migrations;
+            SELECT CONCAT('journal_count=',COUNT(*)) FROM journal_entries;
+            SELECT CONCAT('line_count=',COUNT(*)) FROM journal_lines;
+            SELECT CONCAT('debit_minor=',SUM(debit_minor)) FROM journal_lines;
+            SELECT CONCAT('credit_minor=',SUM(credit_minor)) FROM journal_lines;
+            SELECT CONCAT('audit_count=',COUNT(*)) FROM finance_audit_entries;
+            SELECT CONCAT('outbox_count=',COUNT(*)) FROM finance_outbox_messages;
+            SELECT CONCAT('inbox_count=',COUNT(*)) FROM finance_inbox_events;
+            SELECT CONCAT('audit_digest=',SHA2(GROUP_CONCAT(CONCAT(event_key,':',event_type,':',payload_sha256) ORDER BY event_key SEPARATOR '|'),256)) FROM finance_audit_entries;
+          " > restore-manifest.txt
+          diff -u source-manifest.txt restore-manifest.txt
+          test "$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT SUM(debit_minor)=SUM(credit_minor) FROM journal_lines')" = "1"
+          test "$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM journal_entries WHERE tenant_key="tenant-synthetic-01"')" = "2"
+          test "$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM journal_entries WHERE tenant_key="tenant-synthetic-02"')" = "1"
+      - name: Verify audit continuity, constraints and replay idempotency after restore
+        run: |
+          set -euo pipefail
+          before_count="$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM finance_inbox_events')"
+          # A duplicate source event must fail on the restored unique key.
+          if mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -e "INSERT INTO finance_inbox_events(id,tenant_key,source_event_key,processing_state) VALUES (99,'tenant-synthetic-01','src-syn-001','processed')" 2>duplicate-replay-error.txt; then
+            echo "ERROR: duplicate replay unexpectedly succeeded"
+            exit 1
+          fi
+          grep -qi "duplicate" duplicate-replay-error.txt
+          after_count="$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM finance_inbox_events')"
+          test "$before_count" = "$after_count"
+          test "$after_count" = "2"
+          test "$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT COUNT(*) FROM finance_audit_entries')" = "3"
+          test "$(mysql --protocol=tcp -h127.0.0.1 -uroot "$RESTORE_DB" -NBe 'SELECT SUM(debit_minor)=SUM(credit_minor) FROM journal_lines')" = "1"
+      - name: Record recovery evidence and upload artifacts
+        if: always()
+        run: |
+          {
+            echo "Expected SHA: ${{ steps.target.outputs.expected_sha }}"
+            echo "Actual SHA: $(git rev-parse HEAD)"
+            echo "MySQL version: $(mysql --version)"
+            echo "Source manifest:"
+            cat source-manifest.txt 2>/dev/null || true
+            echo "Restored manifest:"
+            cat restore-manifest.txt 2>/dev/null || true
+            echo "Backup checksum:"
+            cat backup-sha256.txt 2>/dev/null || true
+            echo "Scope: synthetic records only; no production data, secrets, hosts or backups."
+          } > recovery-rehearsal-evidence.txt
+      - name: Upload synthetic recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arna-a4-synthetic-backup-restore-${{ github.run_id }}
+          path: |
+            synthetic-backup.sql
+            source-manifest.txt
+            restore-manifest.txt
+            backup-sha256.txt
+            recovery-rehearsal-evidence.txt
+          if-no-files-found: warn
+          retention-days: 14

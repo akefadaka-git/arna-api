@@ -1,14 +1,19 @@
 name: ARNA A3.3.2 exact-SHA document issuance MySQL verification
 
 on:
+  push:
+    branches:
+      - 'integration/**'
   pull_request:
     branches: [main]
     paths:
       - ".github/workflows/arna-a3-3-2-document-issuance-mysql.yml"
       - "database/migrations/2026_11_18_00000*.php"
+      - "database/migrations/2026_11_22_000001_create_document_evidence_capture_intents.php"
       - "mases_core/src/Domains/Documents/**"
       - "mases_core/src/Providers/CoreServiceProvider.php"
       - "tests/Feature/DocumentWorkflowAggregateServiceTest.php"
+      - "routes/console.php"
       - "tests/Feature/DocumentWorkflowMySqlConcurrencyTest.php"
       - "tests/Unit/Documents/ImmutableDocumentBinaryStoreSecurityTest.php"
       - "tests/Unit/Documents/DocumentSignatureTimestampValidationTest.php"
@@ -96,6 +101,11 @@ jobs:
 
       - name: Run all migrations on fresh disposable MySQL
         run: php artisan migrate --force -vvv
+
+      - name: Verify evidence reconciliation command is registered and dry-run safe
+        run: |
+          php artisan list --raw | grep -F "arna:documents:reconcile-evidence-captures"
+          php artisan arna:documents:reconcile-evidence-captures --limit=100 --grace-minutes=1440
 
       - name: Run A3.3.2 aggregate, signature, immutable evidence and rollback tests on MySQL
         run: php artisan test --compact tests/Feature/DocumentWorkflowAggregateServiceTest.php
