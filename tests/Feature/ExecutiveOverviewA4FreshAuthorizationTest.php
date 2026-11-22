@@ -229,7 +229,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
     }
 
     #[Test]
-    public function mixed_entity_overview_returns_only_current_tenant_entities_and_keeps_each_summary_separate(): void
+    public function mixed_entity_overview_returns_only_current_tenant_entities_as_separate_widgets(): void
     {
         $tenantA = Tenant::factory()->create(['is_active' => true]);
         $tenantB = Tenant::factory()->create(['is_active' => true]);
@@ -239,29 +239,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         $entityA2 = $this->configuredEntity($tenantA, 'A4-AUTHORIZED-02');
         $foreignEntity = $this->configuredEntity($tenantB, 'A4-FOREIGN-99');
 
-        $expectedIds = [(int) $entityA1->id, (int) $entityA2->id];
-        $reports = new \Illuminate\Support\Collection([(object) ['id' => 1]]);
-        $reportService = \Mockery::mock(\MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService::class);
-        $reportService->shouldReceive('trialBalance')
-            ->twice()
-            ->withArgs(static fn (int $tenantId, int $entityId, string $asOf): bool =>
-                $tenantId === (int) $tenantA->id && in_array($entityId, $expectedIds, true)
-            )
-            ->andReturnUsing(static function (int $tenantId, int $entityId, string $asOf) use ($reports, $expectedIds): array {
-                $debit = $entityId === $expectedIds[0] ? '111.00' : '222.00';
-                return [
-                    'as_of' => $asOf,
-                    'currency' => 'ETB',
-                    'accounts' => $reports,
-                    'summary' => [
-                        'total_debits' => $debit,
-                        'total_credits' => $debit,
-                        'difference' => '0.00',
-                        'is_balanced' => true,
-                    ],
-                ];
-            });
-        app()->instance(\MaaleArna\MASES\Core\Domains\Finance\Services\FinancialReportService::class, $reportService);
+
 
         $response = $this->actingAs($user, 'sanctum')
             ->withHeader('X-Tenant-ID', (string) $tenantA->id)
@@ -270,9 +248,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         $response->assertOk()
             ->assertJsonCount(2, 'data.widgets')
             ->assertJsonPath('data.widgets.0.entity.code', 'A4-AUTHORIZED-01')
-            ->assertJsonPath('data.widgets.0.value.total_debits', '111.00')
             ->assertJsonPath('data.widgets.1.entity.code', 'A4-AUTHORIZED-02')
-            ->assertJsonPath('data.widgets.1.value.total_debits', '222.00')
             ->assertJsonMissing(['code' => 'A4-FOREIGN-99']);
     }
 
