@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use App\Support\FirstPartySpaOrigin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -322,6 +323,8 @@ use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
  */
 final class AuthController extends Controller
 {
+    private const SSO_COOKIE_NAME = 'arna_sso_token';
+
     /**
      * The authentication service.
      */
@@ -499,7 +502,7 @@ final class AuthController extends Controller
             'ip'                => $request->ip(),
         ]);
 
-        return response()->json([
+        $response = response()->json([
             'success' => true,
             'data'    => [
                 'user'       => $result['user']->only(['id', 'name', 'email', 'locale', 'default_tenant_id']),
@@ -507,6 +510,8 @@ final class AuthController extends Controller
                 'token_type' => 'Bearer',
             ],
         ]);
+
+        return $this->withSsoTokenCookie($response, $request, $result['token']);
     }
 
     /**
@@ -620,7 +625,7 @@ final class AuthController extends Controller
             'ip'              => $request->ip(),
         ]);
 
-        return response()->json([
+        $response = response()->json([
             'success' => true,
             'message' => 'Registration successful.',
             'data'    => [
@@ -629,6 +634,8 @@ final class AuthController extends Controller
                 'token_type' => 'Bearer',
             ],
         ], 201);
+
+        return $this->withSsoTokenCookie($response, $request, $result['token']);
     }
 
     /**
@@ -772,10 +779,12 @@ final class AuthController extends Controller
             'user_id' => $user?->id,
         ]);
 
-        return response()->json([
+        $response = response()->json([
             'success' => true,
             'message' => 'Successfully logged out.',
         ]);
+
+        return $this->expireSsoTokenCookie($response, $request);
     }
 
     /**
@@ -819,13 +828,15 @@ final class AuthController extends Controller
 
         $newToken = $this->authService->refreshToken($user);
 
-        return response()->json([
+        $response = response()->json([
             'success' => true,
             'data'    => [
                 'token'      => $newToken,
                 'token_type' => 'Bearer',
             ],
         ]);
+
+        return $this->withSsoTokenCookie($response, $request, $newToken);
     }
 
     // =========================================================================
@@ -1342,6 +1353,71 @@ final class AuthController extends Controller
         }
 
         return str_repeat('*', strlen($digits) - 4) . substr($digits, -4);
+    }
+
+    /**
+     * Attach the revocable Sanctum bearer credential to a parent-domain,
+     * HttpOnly cookie for explicitly trusted first-party SPA origins.
+     *
+     * This does not create a Laravel web session. The cookie is converted
+     * back into a bearer header by the MASES auth middleware, so the normal
+     * Sanctum token lookup and revoked-token checks remain authoritative.
+     */
+    private function withSsoTokenCookie(JsonResponse $response, Request $request, string $token): JsonResponse
+    {
+        $domain = config('session.domain');
+
+        if (
+            ! FirstPartySpaOrigin::isTrusted($request)
+            || ! is_string($domain)
+            || strtolower(ltrim($domain, '.')) !== 'maalearna.com.et'
+            || ! (bool) config('session.secure', false)
+        ) {
+            return $response;
+        }
+
+        $minutes = max(1, (int) config('sanctum.expiration', 10080));
+
+        return $response->withCookie(cookie(
+            self::SSO_COOKIE_NAME,
+            $token,
+            $minutes,
+            '/',
+            $domain,
+            true,
+            true,
+            false,
+            'lax',
+        ));
+    }
+
+    /**
+     * Expire the shared credential only for an explicitly trusted SPA origin.
+     */
+    private function expireSsoTokenCookie(JsonResponse $response, Request $request): JsonResponse
+    {
+        $domain = config('session.domain');
+
+        if (
+            ! FirstPartySpaOrigin::isTrusted($request)
+            || ! is_string($domain)
+            || strtolower(ltrim($domain, '.')) !== 'maalearna.com.et'
+            || ! (bool) config('session.secure', false)
+        ) {
+            return $response;
+        }
+
+        return $response->withCookie(cookie(
+            self::SSO_COOKIE_NAME,
+            '',
+            -262800,
+            '/',
+            $domain,
+            true,
+            true,
+            false,
+            'lax',
+        ));
     }
 
     /**
