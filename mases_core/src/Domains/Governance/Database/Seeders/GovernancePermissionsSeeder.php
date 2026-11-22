@@ -46,7 +46,7 @@ declare(strict_types=1);
  *       other six `app.*.access` rows, all of which are
  *       `is_system = 0` except `app.admin.access`.
  *
- *   Total: 42 permission rows.
+ *   Total: 48 permission rows.
  *
  *   What the seeder deliberately does NOT do:
  *
@@ -88,7 +88,7 @@ declare(strict_types=1);
  * seeder writes.
  *
  * =============================================================================
- * The 41-slug inventory (by group)
+ * The 47-slug inventory (by group)
  * =============================================================================
  * Grouped by the resource noun the slug addresses. Counts:
  *
@@ -311,7 +311,7 @@ declare(strict_types=1);
  * Files modified:            none (this is a new file)
  * Files added:               this file only
  * Files deleted:             none
- * Permissions added:         42 (41 tenant-scoped + 1 application-scoped)
+ * Permissions added:         48 (47 tenant-scoped + 1 application-scoped)
  * Roles modified:            none (G1 file 8)
  * Users modified:            none
  * =============================================================================
