@@ -45,10 +45,10 @@ return new class extends Migration
             // Application-held HMAC attestations. Secrets never enter the DB.
             $table->string('prepared_attestation_key_id', 64)->nullable();
             $table->char('prepared_attestation_sha256', 64)->nullable();
-            $table->string('reconciled_attestation_key_id', 64)->nullable();
-            $table->char('reconciled_attestation_sha256', 64)->nullable();
-            $table->string('approved_attestation_key_id', 64)->nullable();
-            $table->char('approved_attestation_sha256', 64)->nullable();
+            $table->string('reconciliation_attestation_key_id', 64)->nullable();
+            $table->char('reconciliation_attestation_sha256', 64)->nullable();
+            $table->string('approval_attestation_key_id', 64)->nullable();
+            $table->char('approval_attestation_sha256', 64)->nullable();
 
             $table->timestamps();
 
