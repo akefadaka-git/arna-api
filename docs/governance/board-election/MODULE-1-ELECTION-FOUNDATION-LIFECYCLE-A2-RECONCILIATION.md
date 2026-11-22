@@ -2,7 +2,7 @@
 
 **Status:** A2 refreshed against current main; Module 1 A3 implementation merged; A4 exact-head verification PASS; A5 separately gated  
 **Repository:** `akefadaka-git/arna-api`  
-**API read-only baseline:** `main` — `22afaaf826ee3681f0a6b6e2a11c467a9a25ee67` (refreshed 2026-11-22)  
+**API read-only baseline:** `main` — `7d601ba67d52873ff46fbe1f534b83abf5889c88` (refreshed 2026-11-22)  
 **Design baseline:** AGE v1.0 full architecture, approved/frozen; blob `d024291a6a5e5a45ede676dd728d16f6b50a75e1`  
 **Approval record commit:** `b9c2848e6e9b7e0e5ccbe550a7f744b9d33dcc00`  
 **Priority 2 dependency:** PR #160 merge, same API main SHA above  
@@ -197,7 +197,7 @@ Module 1 may support attaching and versioning these sources, but it must not man
 
 ## 11. Current-main refresh — Module 1 implementation and verification reconciliation (2026-11-22)
 
-**Exact current API main SHA:** `22afaaf826ee3681f0a6b6e2a11c467a9a25ee67`  
+**Exact current API main SHA:** `7d601ba67d52873ff46fbe1f534b83abf5889c88`  
 **Refresh type:** Read-only repository, PR, implementation, and exact-head CI evidence reconciliation.  
 **Frozen AGE architecture:** unchanged; approved architecture blob remains `d024291a6a5e5a45ede676dd728d16f6b50a75e1`, with approval record blob `7aa7e0e2fa17b4c7b1e833963131bbabe1914e67`.  
 **Application/code changes in this A2 refresh:** NONE. Only this A2 documentation record is refreshed.
@@ -215,7 +215,7 @@ Module 1 implementation was subsequently integrated through PR #176. It is alrea
 | PR | [#176 — A3 election lifecycle current-main reconciliation](https://github.com/akefadaka-git/arna-api/pull/176) | CLOSED / MERGED |
 | Tested PR head | `a7cbc757a1d04c4ae6b9bf114dedf97e2b918fe5` | Exact-head verification recorded |
 | Merge commit | `3fca049c2fb3549d81d4ff57bc4b77776fb86db1` | Merged 2026-11-21 |
-| Current main | `22afaaf826ee3681f0a6b6e2a11c467a9a25ee67` | Contains the merge and subsequent documentation commits |
+| Current main | `7d601ba67d52873ff46fbe1f534b83abf5889c88` | Contains the merge and subsequent documentation commits |
 
 The PR integrated the canonical tenant-scoped election aggregate, lifecycle transitions, strict schedule validation, durable File Management evidence binding, canonical authority snapshot generation, and selective committee authority/appointment integration. The earlier duplicate lifecycle implementation and old committee schema were not imported wholesale.
 
