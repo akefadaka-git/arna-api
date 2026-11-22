@@ -12,8 +12,8 @@
 4. Use a production database with TLS where the provider supports it. Configure `MYSQL_ATTR_SSL_CA` to the provider CA file when required.
 5. Configure SMTP using a verified sender and credentials stored only on the server.
 6. Set `APP_DEBUG=false`, `APP_ENV=production`, HTTPS `APP_URL`, encrypted secure HTTP-only session cookies, and the exact approved Sanctum stateful host list.
-7. Set `CORS_ALLOWED_ORIGINS` to the exact HTTPS origins of approved applications and keep it synchronized with `SANCTUM_STATEFUL_DOMAINS`. The exact initial allow-list is `app.maalearna.com.et`, `portal.maalearna.com.et`, `admin.maalearna.com.et`, and `www.maalearna.com.et`. No wildcard, localhost, unapproved origin, port, path, or credential-bearing origin is permitted.
-8. The public `www` host requires cross-origin access for public corporate content and contributor verification/submission flows. Its inclusion in CORS/Sanctum is a browser-origin trust setting only: it does **not** grant access to authenticated Workspace, Portal, or Admin endpoints. Keep business authorization on the API routes/controllers; public endpoints must remain explicitly public, validated, and rate-limited.
+7. Set `SANCTUM_STATEFUL_DOMAINS` to exactly `app.maalearna.com.et,portal.maalearna.com.et`. Independently set `CORS_ALLOWED_ORIGINS` to the nine exact HTTPS origins: `www`, `auth`, `app`, `portal`, `finance`, `admin`, `arna`, `ai`, and `file` under `maalearna.com.et`. The lists are deliberately not identical: only Workspace and Shareholder Portal use Sanctum stateful cookies; Admin uses bearer tokens; public `www` and the other approved browser origins do not become stateful cookie clients. No wildcard, localhost, unapproved origin, port, path, or credential-bearing origin is permitted.
+8. The public `www` host is included in CORS only for explicitly public corporate content and contributor verification/submission flows. It is not a Sanctum stateful host. CORS permission does **not** grant access to authenticated Workspace, Portal, or Admin endpoints. Keep business authorization on API routes/controllers; public endpoints must remain explicitly public, validated, and rate-limited.
 9. Restrict filesystem permissions: `.env` readable only by the application/deployment identity; `storage/` and `bootstrap/cache/` writable by the runtime identity. Deny web access to source, `.env`, vendor metadata, logs, and backups.
 
 ## 2. Public endpoint security review
@@ -30,7 +30,7 @@ php artisan about --only=environment
 php artisan migrate:status
 ```
 
-The preflight validates production mode, HTTPS API URL, disabled debug, MySQL selection, non-placeholder database and SMTP credentials, Laravel key format, secure session cookie settings, the exact four approved stateful hosts and matching CORS origins, and required PHP extensions loaded by the PHP runtime executing the script. It never prints secret values or modifies the environment file.
+The preflight validates production mode, HTTPS API URL, disabled debug, MySQL selection, non-placeholder database and SMTP credentials, Laravel key format, secure session cookie settings, the exact two approved Sanctum stateful hosts and nine independent approved CORS origins, and required PHP extensions loaded by the PHP runtime executing the script. It never prints secret values or modifies the environment file.
 
 **Runtime distinction:** CLI preflight reports the CLI PHP runtime. Plesk may run the website through a separate PHP-FPM handler/configuration. CLI PASS is not proof of PHP-FPM extension availability.
 
@@ -78,6 +78,6 @@ The diagnostic is intentionally temporary and unauthenticated, so it must not be
 
 ## 8. A5 evidence required for clearance
 
-Attach exact commit SHA, environment preflight output (redacted of all values), PHP CLI and PHP-FPM runtime inventories, migration status, backup/restore evidence, TLS/DNS checks, CORS/CSRF browser evidence for all four origins, authentication/tenant/Finance acceptance results, monitoring logs, rollback rehearsal, and Owner release authorization.
+Attach exact commit SHA, environment preflight output (redacted of all values), PHP CLI and PHP-FPM runtime inventories, migration status, backup/restore evidence, TLS/DNS checks, CORS browser evidence for all nine origins and CSRF/cookie-authentication evidence for Workspace and Shareholder Portal, authentication/tenant/Finance acceptance results, monitoring logs, rollback rehearsal, and Owner release authorization.
 
 **No deployment is authorized by this document.** Production configuration, migrations, grants, release, and publication remain separate approval gates.

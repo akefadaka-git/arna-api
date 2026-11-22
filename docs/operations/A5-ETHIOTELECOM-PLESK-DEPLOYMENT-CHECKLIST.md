@@ -47,13 +47,13 @@ Do not assume that all four frontend hostnames are already created or point to t
 
 ## 4. Production environment contract
 
-The approved cookie-authenticated browser-origin allow-list is exactly:
+The production environment contract separates browser CORS origins from Sanctum cookie-authenticated hosts:
 
-- Sanctum stateful hosts: `app.maalearna.com.et`, `portal.maalearna.com.et`, `admin.maalearna.com.et`, `www.maalearna.com.et`
-- CORS origins: `https://app.maalearna.com.et`, `https://portal.maalearna.com.et`, `https://admin.maalearna.com.et`, `https://www.maalearna.com.et`
+- Sanctum stateful hosts (exactly two): `app.maalearna.com.et`, `portal.maalearna.com.et`
+- CORS origins (exactly nine): `https://www.maalearna.com.et`, `https://auth.maalearna.com.et`, `https://app.maalearna.com.et`, `https://portal.maalearna.com.et`, `https://finance.maalearna.com.et`, `https://admin.maalearna.com.et`, `https://arna.maalearna.com.et`, `https://ai.maalearna.com.et`, `https://file.maalearna.com.et`
 - API origin: `https://api.maalearna.com.et`
 
-The public `www` origin is included because the public corporate website calls API content and public contributor verification/submission endpoints. Those routes are explicitly outside authenticated/tenant-scoped route groups and have route-level throttles. This origin allow-list does not grant authenticated Workspace, Portal, or Admin authorization; server-side auth, tenant membership, and permission checks remain mandatory for protected routes. Keep public endpoints validated and abuse-monitored. Do not add wildcard origins.
+The public `www` site and the other listed browser origins may call explicitly permitted API routes, but they are not Sanctum stateful SPA hosts. Admin uses bearer-token authentication. CORS permission does not grant authentication, tenant membership, or authorization; protected API routes retain server-side checks. Public endpoints remain explicitly public, validated, and rate-limited. Do not add wildcard origins.
 
 Before configuration:
 - [ ] Create a least-privilege database account; do not use database root.
@@ -100,7 +100,7 @@ Never run `migrate:fresh`, destructive seeders, or unreviewed migrations against
 - [ ] DNS and HTTPS certificate checks for each hostname.
 - [ ] Redacted preflight result; no secret values.
 - [ ] Database connection and migration-status evidence.
-- [ ] CORS/CSRF cookie and login/logout browser tests for each applicable first-party origin.
+- [ ] CORS browser-origin tests for all nine allow-listed origins and cookie-authentication/CSRF/login/logout tests specifically for Workspace and Shareholder Portal.
 - [ ] Tenant resolution and authorization tests, including Finance allow/deny cases.
 - [ ] Backup timestamp and successful isolated restore evidence.
 - [ ] Static route refresh, CSP/security headers, and asset-cache checks.
