@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Support\FirstPartySpaOrigin;
-use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -67,7 +63,6 @@ final class FirstPartySsoCookieTest extends TestCase
     #[Test]
     public function sibling_spa_can_authenticate_and_logout_revokes_the_shared_token(): void
     {
-        $this->withoutMiddleware(EncryptCookies::class);
         [$user, $tenant] = $this->createLoginIdentity();
 
         $login = $this->withServerVariables([
@@ -83,39 +78,22 @@ final class FirstPartySsoCookieTest extends TestCase
         $token = $login->json('data.token');
         $this->assertIsString($token);
 
-        Route::get('/__sso-cookie-debug', static function (Request $request) {
-            return response()->json([
-                'origin' => $request->headers->get('Origin'),
-                'cookie_present' => is_string($request->cookie('arna_sso_token')),
-                'trusted' => FirstPartySpaOrigin::isTrusted($request),
-            ]);
-        });
-
-        $debug = $this->withServerVariables(['HTTP_HOST' => 'api.maalearna.com.et', 'HTTPS' => 'on'])
-            ->withUnencryptedCookie('arna_sso_token', $token)
-            ->withHeader('Origin', 'https://portal.maalearna.com.et')
-            ->getJson('/__sso-cookie-debug');
-
-        $debug->assertJsonPath('origin', 'https://portal.maalearna.com.et')
-            ->assertJsonPath('cookie_present', true)
-            ->assertJsonPath('trusted', true);
-
         $this->withServerVariables(['HTTP_HOST' => 'api.maalearna.com.et', 'HTTPS' => 'on'])
-            ->withUnencryptedCookie('arna_sso_token', $token)
+            ->withCookie('arna_sso_token', $token)
             ->withHeader('Origin', 'https://portal.maalearna.com.et')
             ->getJson('/api/user')
             ->assertOk()
             ->assertJsonPath('data.email', $user->email);
 
         $this->withServerVariables(['HTTP_HOST' => 'api.maalearna.com.et', 'HTTPS' => 'on'])
-            ->withUnencryptedCookie('arna_sso_token', $token)
+            ->withCookie('arna_sso_token', $token)
             ->withHeader('Origin', 'https://portal.maalearna.com.et')
             ->postJson('/api/logout')
             ->assertOk()
             ->assertCookieExpired('arna_sso_token');
 
         $this->withServerVariables(['HTTP_HOST' => 'api.maalearna.com.et', 'HTTPS' => 'on'])
-            ->withUnencryptedCookie('arna_sso_token', $token)
+            ->withCookie('arna_sso_token', $token)
             ->withHeader('Origin', 'https://app.maalearna.com.et')
             ->getJson('/api/user')->assertUnauthorized();
     }
@@ -123,7 +101,6 @@ final class FirstPartySsoCookieTest extends TestCase
     #[Test]
     public function an_unapproved_sibling_origin_cannot_authenticate_with_the_cookie(): void
     {
-        $this->withoutMiddleware(EncryptCookies::class);
         [$user, $tenant] = $this->createLoginIdentity();
 
         $login = $this->withServerVariables([
@@ -137,7 +114,7 @@ final class FirstPartySsoCookieTest extends TestCase
         ])->assertOk();
 
         $this->withServerVariables(['HTTP_HOST' => 'api.maalearna.com.et', 'HTTPS' => 'on'])
-            ->withUnencryptedCookie('arna_sso_token', $login->json('data.token'))
+            ->withCookie('arna_sso_token', $login->json('data.token'))
             ->withHeader('Origin', 'https://untrusted.maalearna.com.et')
             ->getJson('/api/user')->assertUnauthorized();
     }
@@ -145,7 +122,6 @@ final class FirstPartySsoCookieTest extends TestCase
     #[Test]
     public function shared_cookie_takes_precedence_over_an_origin_local_bearer_token(): void
     {
-        $this->withoutMiddleware(EncryptCookies::class);
         [$firstUser, $firstTenant] = $this->createLoginIdentity('sso-first@example.com');
         [$secondUser, $secondTenant] = $this->createLoginIdentity('sso-second@example.com');
 
@@ -170,7 +146,7 @@ final class FirstPartySsoCookieTest extends TestCase
         ])->assertOk();
 
         $this->withServerVariables(['HTTP_HOST' => 'api.maalearna.com.et', 'HTTPS' => 'on'])
-            ->withUnencryptedCookie('arna_sso_token', $secondLogin->json('data.token'))
+            ->withCookie('arna_sso_token', $secondLogin->json('data.token'))
             ->withHeader('Origin', 'https://app.maalearna.com.et')
             ->withHeader('Authorization', 'Bearer '.$firstLogin->json('data.token'))
             ->getJson('/api/user')
