@@ -181,6 +181,64 @@ final class AndroidDeviceSessionTest extends TestCase
         $this->withToken($device['token'])->getJson('/api/profile')->assertUnauthorized();
     }
 
+    #[Test]
+    public function recognized_device_pin_login_requires_prior_password_login_and_rotates_only_that_device_token(): void
+    {
+        [$user, $tenant] = $this->userWithTenant();
+        $device = $this->androidLogin($user, $tenant, 'installation-identifier-device-A');
+
+        app(DeviceSessionService::class)->enrollPin($user, $device['session_id'], '482951');
+
+        $response = $this->postJson('/api/login/pin', [
+            'identifier' => $user->email,
+            'pin' => '482951',
+            'device_installation_id' => 'installation-identifier-device-A',
+            'tenant_id' => $tenant->id,
+        ])->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.session_id', $device['session_id']);
+
+        $newToken = $response->json('data.token');
+        $this->assertIsString($newToken);
+
+        app('auth')->forgetGuards();
+        $this->withToken($device['token'])->getJson('/api/profile')->assertUnauthorized();
+        app('auth')->forgetGuards();
+        $this->withToken($newToken)->getJson('/api/profile')->assertOk();
+    }
+
+    #[Test]
+    public function pin_login_is_rejected_before_first_password_authentication(): void
+    {
+        [$user, $tenant] = $this->userWithTenant();
+
+        $this->postJson('/api/login/pin', [
+            'identifier' => $user->email,
+            'pin' => '482951',
+            'device_installation_id' => 'installation-identifier-device-A',
+            'tenant_id' => $tenant->id,
+        ])->assertUnauthorized()
+            ->assertJsonPath('error.code', 'AUTH_INVALID_CREDENTIALS');
+
+        $this->assertDatabaseCount('auth_device_sessions', 0);
+    }
+
+    #[Test]
+    public function five_invalid_pin_attempts_temporarily_lock_the_recognized_device(): void
+    {
+        [$user, $tenant] = $this->userWithTenant();
+        $device = $this->androidLogin($user, $tenant, 'installation-identifier-device-A');
+        $service = app(DeviceSessionService::class);
+        $service->enrollPin($user, $device['session_id'], '482951');
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->assertNull($service->resumeWithPin($user, $tenant->id, 'installation-identifier-device-A', '000000'));
+        }
+
+        $this->assertNull($service->resumeWithPin($user, $tenant->id, 'installation-identifier-device-A', '482951'));
+        $this->assertNotNull(DB::table('auth_device_sessions')->where('public_id', $device['session_id'])->value('pin_locked_until'));
+    }
+
     private function currentTotp(string $secret): string
     {
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
