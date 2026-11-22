@@ -130,13 +130,27 @@ The following backend increments are now implemented on the isolated A3 branch:
 - POST /api/auth/step-up/challenges
 - POST /api/auth/step-up/verify
 - POST /api/auth/device-pin/enroll
+- POST /api/auth/identity-change/challenge
+- POST /api/auth/identity-change/verify
+- PATCH /api/auth/identity
+- POST /api/password/email (OTP challenge)
+- POST /api/password/reset (OTP or Google Authenticator proof)
 
 The password login endpoint and existing browser SSO contract remain available.
 
 ### Remaining A3 work and verification boundaries
 
-- Wire step-up into password recovery and all future identity mutation endpoints before those operations are exposed.
+- Verify password recovery and self-service identity-change routes against the new OTP/TOTP flow; future identity mutation endpoints must use the same policy and context binding.
 - Complete the web and Android authenticator-selection, PIN enrollment and device-management UI.
 - Verify every route's transaction-context mapping against its request validator and controller.
 - Run exact-head PHP 8.3, SQLite feature, MySQL clean-install/concurrency, tenant-isolation, and frontend/Android regression suites.
 - A3 remains in progress until these checks pass. No merge, production migration, release or deployment is authorized by this implementation record.
+
+### Password recovery and identity changes
+
+- Password recovery now issues a neutral OTP challenge to an already verified email address or phone number; Google Authenticator is also accepted at reset time.
+- The reset operation changes the password only after OTP/TOTP verification and atomically revokes bearer tokens, recognized Android sessions, browser database sessions, outstanding step-up challenges and grants.
+- Legacy password-reset-token links are no longer accepted; the web application directs users to the OTP/TOTP recovery flow.
+- Self-service identity changes are limited to email, username and mobile number. Employee ID, shareholder number and wallet number remain controlled by their owning domains.
+- Identity-change challenges are bound to the server-normalized proposed identifier hash. A grant for one new email/username/mobile number cannot authorize a different value.
+- Email changes clear email verification and trigger a new verification notification. Mobile-number changes clear phone verification. All sessions are revoked after a successful identity change, requiring a fresh login.
