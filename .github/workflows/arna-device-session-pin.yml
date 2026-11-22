@@ -20,6 +20,9 @@ on:
       - "tests/Feature/IdentityChangeStepUpTest.php"
       - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
       - "mases_core/src/Auth/Services/TotpMfaService.php"
+      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "tests/Feature/TotpMfaTest.php"
+      - "tests/Feature/AuthenticationLifecycleTest.php"
       - "app/Http/Middleware/RequireAdaptiveStepUp.php"
       - "config/auth-step-up.php"
       - "routes/api.php"
@@ -54,6 +57,9 @@ on:
       - "tests/Feature/IdentityChangeStepUpTest.php"
       - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
       - "mases_core/src/Auth/Services/TotpMfaService.php"
+      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "tests/Feature/TotpMfaTest.php"
+      - "tests/Feature/AuthenticationLifecycleTest.php"
       - "app/Http/Middleware/RequireAdaptiveStepUp.php"
       - "config/auth-step-up.php"
       - "routes/api.php"
@@ -119,6 +125,9 @@ jobs:
           php -l mases_core/src/Domains/Loan/Http/Controllers/LoanController.php
           php -l mases_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php
           php -l mases_core/src/Auth/Services/TotpMfaService.php
+          php -l mases_core/src/Auth/Services/AuthenticationService.php
+          php -l tests/Feature/TotpMfaTest.php
+          php -l tests/Feature/AuthenticationLifecycleTest.php
           php -l app/Http/Middleware/RequireAdaptiveStepUp.php
           php -l tests/Feature/AdaptiveStepUpServiceTest.php
           php -l tests/Feature/AdaptiveLoginAuthenticatorTest.php
@@ -134,3 +143,4 @@ jobs:
           vendor/bin/phpunit tests/Feature/IdentityChangeStepUpTest.php
           vendor/bin/phpunit tests/Unit/AdaptiveAuthenticationPolicyTest.php
           vendor/bin/phpunit tests/Feature/TotpMfaTest.php
+          vendor/bin/phpunit tests/Feature/AuthenticationLifecycleTest.php
