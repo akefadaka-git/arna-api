@@ -176,8 +176,8 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'dashboard.executive.view', 'scope' => 'tenant',
             'tenant_id' => null, 'is_active' => true,
         ]);
-        // Test fixture only. This proposed permission is not added to the
-        // canonical catalogue or granted by this implementation.
+        // Test fixture only: attach the registered permission explicitly
+        // to exercise the independently authorized workforce aggregate.
         $workforcePermission = Permission::factory()->create([
             'slug' => 'people.workforce.view', 'scope' => 'tenant',
             'tenant_id' => null, 'application_id' => null, 'is_active' => true,
