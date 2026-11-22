@@ -565,6 +565,158 @@ final class AuthController extends Controller
     }
 
 
+
+    /**
+     * Request an OTP for returning-user login. The response is deliberately
+     * indistinguishable for unknown, inactive, first-login, or undeliverable
+     * accounts to prevent account enumeration.
+     */
+    public function requestLoginOtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'identifier' => ['required', 'string', 'max:255'],
+            'tenant_id' => ['sometimes', 'integer', 'exists:tenants,id'],
+            'channel' => ['required', 'string', 'in:email,sms'],
+            'client_type' => ['sometimes', 'string', 'in:android'],
+            'device_installation_id' => ['required_if:client_type,android', 'string', 'min:16', 'max:128'],
+        ]);
+
+        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0 ? (int) $trustedTenantId : null;
+        $requestedTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : $trustedTenantId;
+        $resolution = $this->identifierResolver->resolve($validated['identifier'], $requestedTenantId);
+        $challengeToken = bin2hex(random_bytes(32));
+
+        if (is_array($resolution) && ($resolution['user'] ?? null) instanceof CoreUser
+            && $resolution['user']->last_login_at !== null) {
+            $tenantId = (int) $resolution['tenant_id'];
+            $context = ['tenant_id' => (string) $tenantId];
+            if (($validated['client_type'] ?? null) === 'android') {
+                $context['device_installation_id'] = $validated['device_installation_id'];
+            }
+
+            try {
+                $challenge = app(AdaptiveStepUpService::class)->issueOtp(
+                    $resolution['user'],
+                    $tenantId,
+                    'login',
+                    $validated['channel'],
+                    $context,
+                );
+                $challengeToken = $challenge['challenge_token'];
+            } catch (\Throwable $exception) {
+                // Return the same response shape; do not disclose account or channel state.
+                Log::notice('Returning-user OTP login challenge could not be issued', [
+                    'user_id' => $resolution['user']->getKey(),
+                    'channel' => $validated['channel'],
+                    'exception_class' => $exception::class,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'challenge_required' => true,
+                'challenge_token' => $challengeToken,
+                'methods' => ['otp'],
+            ],
+        ]);
+    }
+
+    /**
+     * Authenticate a returning user with OTP or Google Authenticator alone.
+     * First-time authentication is always routed through password login.
+     */
+    public function loginWithAuthenticator(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'identifier' => ['required', 'string', 'max:255'],
+            'tenant_id' => ['sometimes', 'integer', 'exists:tenants,id'],
+            'authenticator' => ['required', 'string', 'in:otp,google_authenticator'],
+            'code' => ['required', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+            'challenge_token' => ['sometimes', 'nullable', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
+            'client_type' => ['sometimes', 'string', 'in:android'],
+            'device_installation_id' => ['required_if:client_type,android', 'string', 'min:16', 'max:128'],
+            'device_label' => ['sometimes', 'string', 'max:100'],
+            'app_version' => ['sometimes', 'string', 'max:40'],
+        ]);
+
+        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0 ? (int) $trustedTenantId : null;
+        $requestedTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : $trustedTenantId;
+        $resolution = $this->identifierResolver->resolve($validated['identifier'], $requestedTenantId);
+
+        if (! is_array($resolution) || ! ($resolution['user'] ?? null) instanceof CoreUser
+            || $resolution['user']->last_login_at === null) {
+            throw new AuthenticationException('Invalid identifier or authenticator.', 'AUTH_INVALID_CREDENTIALS', 401);
+        }
+
+        $user = $resolution['user'];
+        $tenantId = (int) $resolution['tenant_id'];
+        $context = ['tenant_id' => (string) $tenantId];
+        $isAndroidClient = ($validated['client_type'] ?? null) === 'android';
+        $deviceContext = $isAndroidClient ? [
+            'device_installation_id' => $validated['device_installation_id'],
+            'device_label' => $validated['device_label'] ?? null,
+            'app_version' => $validated['app_version'] ?? null,
+        ] : null;
+        if ($isAndroidClient) {
+            $context['device_installation_id'] = $deviceContext['device_installation_id'];
+        }
+
+        $stepUp = app(AdaptiveStepUpService::class);
+        $grant = $stepUp->verify(
+            $user,
+            $tenantId,
+            'login',
+            $context,
+            $validated['authenticator'],
+            $validated['code'],
+            $validated['challenge_token'] ?? null,
+        );
+
+        if (! is_string($grant) || ! $stepUp->consumeGrant($user, $tenantId, 'login', $context, $grant)) {
+            throw new AuthenticationException('Invalid identifier or authenticator.', 'AUTH_INVALID_CREDENTIALS', 401);
+        }
+
+        $user->recordSuccessfulLogin((string) $request->ip());
+        $token = $user->createToken('auth_token', ['*'])->plainTextToken;
+        $mobileSession = null;
+
+        if ($isAndroidClient) {
+            $mobileSession = app(DeviceSessionService::class)->establish(
+                $user,
+                $token,
+                $deviceContext,
+                $tenantId,
+            );
+            $token = $mobileSession['token'];
+        }
+
+        Log::info('Returning-user authenticator login succeeded', [
+            'identifier_hash' => hash('sha256', strtolower(trim($validated['identifier']))),
+            'user_id' => $user->getKey(),
+            'authenticator' => $validated['authenticator'],
+            'ip' => $request->ip(),
+        ]);
+
+        $response = response()->json([
+            'success' => true,
+            'data' => [
+                'user' => $user->only(['id', 'name', 'email', 'locale', 'default_tenant_id']),
+                'token' => $token,
+                'token_type' => 'Bearer',
+                ...($mobileSession !== null ? [
+                    'session_id' => $mobileSession['session_id'],
+                    'expires_at' => $mobileSession['expires_at'],
+                ] : []),
+            ],
+        ]);
+
+        return $mobileSession !== null ? $response : $this->withSsoTokenCookie($response, $request, $token);
+    }
+
     /**
      * Resume an already recognized Android device with its enrolled PIN.
      * First authentication always goes through the password login endpoint.
