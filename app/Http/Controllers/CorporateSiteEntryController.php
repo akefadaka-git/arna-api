@@ -223,6 +223,7 @@ final class CorporateSiteEntryController extends Controller
         $entry = CorporateSiteEntry::query()->create([
             ...$validated,
             'created_by' => $request->user()->id,
+            'updated_by' => $request->user()->id,
         ]);
         AuditLog::create([
             'user_id' => $request->user()->id, 'tenant_id' => null,
@@ -257,6 +258,7 @@ final class CorporateSiteEntryController extends Controller
             );
             $old = ['status' => $entry->status, 'version' => $entry->version];
             $entry->fill(collect($validated)->except('expected_version')->all());
+            $entry->updated_by = $request->user()->id;
             $entry->status = 'draft';
             $entry->published_at = null;
             $entry->reviewed_by = null;
@@ -346,7 +348,12 @@ final class CorporateSiteEntryController extends Controller
         return DB::transaction(function () use ($request, $id, $decision, $validated): JsonResponse {
             $entry = CorporateSiteEntry::query()->lockForUpdate()->findOrFail($id);
             abort_unless($entry->version === (int) $validated['expected_version'], 409, 'This submission changed after it was loaded.');
-            abort_unless((int) $entry->created_by !== (int) $request->user()->id, 403, 'The submitter cannot review their own submission.');
+            abort_unless(
+                (int) $entry->created_by !== (int) $request->user()->id &&
+                (int) ($entry->updated_by ?? $entry->created_by) !== (int) $request->user()->id,
+                403,
+                'The submitter or latest editor cannot review their own version.',
+            );
             $old = ['status' => $entry->status, 'version' => $entry->version];
 
             if ($decision === 'approve') {
