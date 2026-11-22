@@ -557,6 +557,9 @@ return [
      */
     MaaleArna\MASES\Core\Providers\CoreServiceProvider::class,
 
+    // Complete Core and domain migration discovery regardless of feature flags.
+    MaaleArna\MASES\Core\Providers\DatabaseLifecycleServiceProvider::class,
+
     /*
      * -------------------------------------------------------------------------
      * 3. Localization Service Provider
