@@ -1,0 +1,127 @@
+name: AGE Governance register verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - integration/arna-api-current-main-hardening
+    paths:
+      - ".github/workflows/age-mysql-integration.yml"
+      - "mases_core/src/Domains/Governance/Database/Migrations/**"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php"
+      - "mases_core/src/Domains/Governance/Security/Age*.php"
+      - "mases_core/src/Domains/Governance/Services/Receipts/**"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionRegisterController.php"
+      - "mases_core/src/Domains/Governance/Routes/api.php"
+      - "mases_core/src/Domains/Governance/Config/governance.php"
+      - "mases_core/src/Domains/Governance/Database/Seeders/GovernancePermissionsSeeder.php"
+      - "config/age.php"
+      - "tests/Feature/AgeVoterRegister*Test.php"
+      - "tests/Feature/Governance/GovernanceElectionRegisterSecurityContractTest.php"
+      - "tests/Unit/AgeReceipt*Test.php"
+      - "tests/Unit/Governance/GovernanceElectionRegisterServiceTest.php"
+      - "phpunit.age-mysql.xml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/age-mysql-integration.yml"
+      - "mases_core/src/Domains/Governance/Database/Migrations/**"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionRegisterService.php"
+      - "mases_core/src/Domains/Governance/Security/Age*.php"
+      - "mases_core/src/Domains/Governance/Services/Receipts/**"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionRegisterController.php"
+      - "mases_core/src/Domains/Governance/Routes/api.php"
+      - "mases_core/src/Domains/Governance/Config/governance.php"
+      - "mases_core/src/Domains/Governance/Database/Seeders/GovernancePermissionsSeeder.php"
+      - "config/age.php"
+      - "tests/Feature/AgeVoterRegister*Test.php"
+      - "tests/Feature/Governance/GovernanceElectionRegisterSecurityContractTest.php"
+      - "tests/Unit/AgeReceipt*Test.php"
+      - "tests/Unit/Governance/GovernanceElectionRegisterServiceTest.php"
+      - "phpunit.age-mysql.xml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: age-governance-register-\${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  age-governance-register:
+    name: AGE register SQLite, MySQL and security contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: arna_age_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: arna_age_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      AGE_MYSQL_INTEGRATION: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PHP 8.3 and required extensions
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            php8.3-cli php8.3-mysql php8.3-bcmath php8.3-xml \
+            php8.3-mbstring php8.3-curl php8.3-zip composer
+          php --version
+          php -m
+          composer --version
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run exact-head AGE MySQL trigger and concurrency tests
+        run: vendor/bin/phpunit -c phpunit.age-mysql.xml --testdox
+
+      - name: Run AGE receipt cryptographic and adapter unit tests
+        run: |
+          vendor/bin/phpunit -c phpunit.xml tests/Unit/AgeReceiptSignatureVerifierTest.php --testdox
+          vendor/bin/phpunit -c phpunit.xml tests/Unit/AgeReceiptAdapterContractTest.php --testdox
+          vendor/bin/phpunit -c phpunit.xml tests/Unit/Governance/GovernanceElectionRegisterServiceTest.php --testdox
+
+      - name: Run AGE SQLite register lifecycle and outbox regressions
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          AGE_MYSQL_INTEGRATION: "0"
+        run: vendor/bin/phpunit -c phpunit.xml tests/Feature/AgeVoterRegisterDatabaseTest.php --testdox
+
+      - name: Run Governance register security contracts
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          AGE_MYSQL_INTEGRATION: "0"
+        run: vendor/bin/phpunit -c phpunit.xml tests/Feature/Governance/GovernanceElectionRegisterSecurityContractTest.php --testdox
+
+      - name: Preserve PHPUnit diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: age-governance-register-\${{ github.run_id }}
+          path: |
+            .phpunit.cache/
+            storage/logs/
+          if-no-files-found: ignore
+          retention-days: 7
