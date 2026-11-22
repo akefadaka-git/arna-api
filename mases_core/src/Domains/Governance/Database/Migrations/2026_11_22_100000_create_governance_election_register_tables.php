@@ -22,6 +22,15 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::table('governance_elections', function (Blueprint $table): void {
+            if (!Schema::hasColumn('governance_elections', 'record_date')) {
+                $table->date('record_date')->nullable();
+            }
+            if (!Schema::hasColumn('governance_elections', 'voting_rule_version')) {
+                $table->string('voting_rule_version', 80)->nullable();
+            }
+        });
+
         Schema::create('governance_election_register_snapshots', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -110,5 +119,14 @@ return new class extends Migration
 
         Schema::dropIfExists('governance_election_voters');
         Schema::dropIfExists('governance_election_register_snapshots');
+
+        Schema::table('governance_elections', function (Blueprint $table): void {
+            if (Schema::hasColumn('governance_elections', 'voting_rule_version')) {
+                $table->dropColumn('voting_rule_version');
+            }
+            if (Schema::hasColumn('governance_elections', 'record_date')) {
+                $table->dropColumn('record_date');
+            }
+        });
     }
 };
