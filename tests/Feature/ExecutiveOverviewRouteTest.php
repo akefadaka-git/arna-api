@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Authorization\Middleware\CheckPermission;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -154,6 +155,59 @@ final class ExecutiveOverviewRouteTest extends TestCase
         $cacheControl = (string) $response->headers->get('Cache-Control');
         $this->assertStringContainsString('private', $cacheControl);
         $this->assertStringContainsString('no-store', $cacheControl);
+    }
+
+
+    #[Test]
+    public function workforce_widget_counts_only_active_non_deleted_employees_in_the_resolved_tenant(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $user->tenants()->attach($tenant->id);
+
+        $entryPermission = Permission::factory()->create([
+            'slug' => 'dashboard.executive.view', 'scope' => 'tenant',
+            'tenant_id' => null, 'is_active' => true,
+        ]);
+        // Test fixture only. This proposed permission is not added to the
+        // canonical catalogue or granted by this implementation.
+        $workforcePermission = Permission::factory()->create([
+            'slug' => 'people.workforce.view', 'scope' => 'tenant',
+            'tenant_id' => null, 'application_id' => null, 'is_active' => true,
+        ]);
+        $ceo = Role::create([
+            'name_am' => 'fixture', 'name_en' => 'fixture', 'slug' => 'ceo',
+            'scope' => 'tenant', 'tenant_id' => $tenant->id, 'is_active' => true,
+        ]);
+        $ceo->permissions()->attach([$entryPermission->id, $workforcePermission->id]);
+        $user->roles()->attach($ceo->id);
+
+        foreach ([
+            [$tenant->id, 'EMP-ACTIVE-1', true, null],
+            [$tenant->id, 'EMP-ACTIVE-2', true, null],
+            [$tenant->id, 'EMP-INACTIVE', false, null],
+            [$tenant->id, 'EMP-DELETED', true, now()],
+            [$otherTenant->id, 'EMP-OTHER-TENANT', true, null],
+        ] as [$tenantId, $number, $active, $deletedAt]) {
+            DB::table('employees')->insert([
+                'tenant_id' => $tenantId, 'employee_number' => $number,
+                'user_id' => null, 'is_active' => $active,
+                'created_at' => now(), 'updated_at' => now(), 'deleted_at' => $deletedAt,
+            ]);
+        }
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/dashboard/v1/overview');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data.widgets')
+            ->assertJsonPath('data.widgets.0.key', 'people.workforce.active')
+            ->assertJsonPath('data.widgets.0.source.domain', 'people')
+            ->assertJsonPath('data.widgets.0.source.metric_key', 'active_workforce')
+            ->assertJsonPath('data.widgets.0.value.active', 2);
+        $this->assertStringNotContainsString('EMP-', $response->getContent());
     }
 
     #[Test]
