@@ -413,6 +413,7 @@ final class LoanController
 
         Gate::authorize('reject', $loan);
         app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'loan.reject', (int) $loan->tenant_id);
+        app(\MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard::class)->assert($request, 'loan.reject', (int) $loan->tenant_id);
 
         $loan = $this->approvalService->reject(
             loan:        $loan,
