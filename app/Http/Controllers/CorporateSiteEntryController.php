@@ -365,7 +365,25 @@ final class CorporateSiteEntryController extends Controller
             } elseif ($decision === 'publish') {
                 abort_unless($entry->status === 'approved', 422);
                 if ($entry->entry_type === 'media') {
-                    abort_unless(($entry->payload['scan_status'] ?? null) === 'clean', 422, 'Media must pass malware scanning before publication.');
+                    $scanDigest = (string) ($entry->payload['scan_sha256'] ?? '');
+                    abort_unless(
+                        ($entry->payload['scan_status'] ?? null) === 'clean' &&
+                        filled($entry->payload['scan_signature'] ?? null) &&
+                        preg_match('/\\A[a-f0-9]{64}\\z/D', $scanDigest) === 1,
+                        422,
+                        'Media must have a verified clean scanner verdict before publication.',
+                    );
+                    abort_unless(
+                        $entry->asset_path !== null && Storage::disk('local')->exists($entry->asset_path),
+                        422,
+                        'The scanned media asset is no longer available.',
+                    );
+                    $currentDigest = hash('sha256', Storage::disk('local')->get($entry->asset_path));
+                    abort_unless(
+                        hash_equals($scanDigest, $currentDigest),
+                        422,
+                        'The media asset changed after scanning and must be scanned again.',
+                    );
                 }
                 $entry->status = 'published';
                 $entry->published_at = now();
