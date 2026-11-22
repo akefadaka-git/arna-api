@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionRegisterService;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionPhysicalBallotService;
 use MaaleArna\MASES\Core\Domains\Governance\Services\Receipts\AgeReceiptGateway;
 use MaaleArna\MASES\Core\Domains\Governance\Services\Receipts\AgeReceiptOutboxDispatcher;
 use MaaleArna\MASES\Core\Domains\Governance\Security\AgeReceiptSignatureVerifier;
@@ -529,6 +530,69 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         self::assertSame(0, DB::table('governance_election_register_snapshots')->count());
     }
 
+    public function test_physical_ballot_issue_requires_an_approved_frozen_integrity_valid_register(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        DB::table('governance_elections')->where('id', 10)->update(['status' => 'voting', 'voting_method' => 'physical']);
+
+        try {
+            (new GovernanceElectionPhysicalBallotService($this->service))
+                ->issue(7, 10, (int) DB::table('governance_election_voters')->where('snapshot_id', $snapshotId)->value('id'), 'PAPER-DRAFT-01', 103);
+            self::fail('Physical ballot issuance must fail while the register is still a draft.');
+        } catch (RuntimeException $exception) {
+            self::assertStringContainsString('approved, integrity-verified frozen voter register', $exception->getMessage());
+        }
+
+        self::assertSame(0, DB::table('governance_election_ballots')->count());
+    }
+
+    public function test_physical_ballot_issue_and_receipt_revalidate_the_externally_anchored_frozen_register(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $this->anchorLatestOutboxForTest($snapshotId);
+        $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->anchorLatestOutboxForTest($snapshotId);
+        $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+        $this->anchorLatestOutboxForTest($snapshotId);
+        DB::table('governance_elections')->where('id', 10)->update(['status' => 'voting', 'voting_method' => 'physical']);
+
+        $voterId = (int) DB::table('governance_election_voters')
+            ->where('snapshot_id', $snapshotId)->where('shareholder_id', 21)->value('id');
+        $ballots = new GovernanceElectionPhysicalBallotService($this->service);
+
+        $issued = $ballots->issue(7, 10, $voterId, 'PAPER-CONTROL-001', 103);
+        self::assertSame('issued', $issued->status);
+        self::assertSame($voterId, (int) $issued->voter_id);
+        self::assertSame('physical', $issued->channel);
+
+        $received = $ballots->receive(7, 10, (int) $issued->id, 'SEALED-BOX-AND-CUSTODY-001', 104);
+        self::assertSame('received', $received->status);
+        self::assertSame('SEALED-BOX-AND-CUSTODY-001', $received->custody_reference);
+        self::assertSame(104, (int) $received->received_by);
+        self::assertNotNull($received->received_at);
+    }
+
+    public function test_physical_ballot_custody_cannot_be_issued_for_a_missing_voter(): void
+    {
+        $snapshotId = $this->prepareRegister();
+        $this->anchorLatestOutboxForTest($snapshotId);
+        $this->service->reconcile(7, 10, $snapshotId, 101);
+        $this->anchorLatestOutboxForTest($snapshotId);
+        $this->service->approveAndFreeze(7, 10, $snapshotId, 102);
+        $this->anchorLatestOutboxForTest($snapshotId);
+        DB::table('governance_elections')->where('id', 10)->update(['status' => 'voting', 'voting_method' => 'physical']);
+
+        try {
+            (new GovernanceElectionPhysicalBallotService($this->service))
+                ->issue(7, 10, 999999, 'PAPER-MISSING-01', 103);
+            self::fail('A voter outside the frozen register must not receive a physical ballot.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            self::assertArrayHasKey('voter_id', $exception->errors());
+        }
+
+        self::assertSame(0, DB::table('governance_election_ballots')->count());
+    }
+
     public function test_register_snapshot_is_not_accessible_across_tenant_boundaries(): void
     {
         $snapshotId = $this->prepareRegister();
@@ -798,6 +862,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
         Schema::dropIfExists('share_holding_entries');
         Schema::dropIfExists('share_holdings');
         Schema::dropIfExists('share_classes');
+        Schema::dropIfExists('governance_election_ballots');
         Schema::dropIfExists('governance_election_voters');
         Schema::dropIfExists('governance_election_register_snapshots');
         Schema::dropIfExists('governance_elections');
@@ -815,6 +880,7 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             $table->string('code');
             $table->string('title');
             $table->string('status');
+            $table->string('voting_method', 24)->nullable();
             $table->date('record_date')->nullable();
             $table->string('authority_reference')->nullable();
             $table->dateTime('authority_verified_at')->nullable();
@@ -866,6 +932,24 @@ final class AgeVoterRegisterDatabaseTest extends TestCase
             $table->boolean('proxy_authorized')->default(false);
             $table->timestamps();
         });
+        Schema::create('governance_election_ballots', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('election_id');
+            $table->unsignedBigInteger('voter_id');
+            $table->string('ballot_reference', 100);
+            $table->string('channel', 24)->default('physical');
+            $table->string('status', 24)->default('issued');
+            $table->string('custody_reference', 160)->nullable();
+            $table->dateTime('issued_at')->nullable();
+            $table->dateTime('received_at')->nullable();
+            $table->unsignedBigInteger('issued_by')->nullable();
+            $table->unsignedBigInteger('received_by')->nullable();
+            $table->timestamps();
+            $table->unique(['tenant_id', 'election_id', 'voter_id'], 'age_test_ballot_voter_uq');
+            $table->unique(['tenant_id', 'election_id', 'ballot_reference'], 'age_test_ballot_ref_uq');
+        });
+
         Schema::create('share_classes', function (Blueprint $table): void {
             $table->id();
             $table->string('code');
