@@ -69,6 +69,10 @@ on:
       - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionPhysicalBallotController.php"
       - "tests/Feature/Governance/GovernanceElectionManualCountServiceTest.php"
       - "tests/Feature/Governance/GovernanceElectionRegisterSecurityContractTest.php"
+      - "tests/Feature/Governance/GovernanceMeetingAgendaQuorumContractTest.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceMeetingAgendaController.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceMeetingElectorateController.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceMeetingAttendanceController.php"
       - "mases_core/src/Domains/Governance/Routes/api.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
