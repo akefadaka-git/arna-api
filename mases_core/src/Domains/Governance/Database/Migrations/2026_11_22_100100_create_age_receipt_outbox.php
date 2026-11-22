@@ -112,6 +112,14 @@ BEGIN
     IF OLD.delivery_state = 'anchored' AND NEW.delivery_state <> 'anchored' THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'AGE anchored receipt state is monotonic.';
     END IF;
+    IF OLD.delivery_state = 'anchored'
+       AND (NOT (NEW.receipt_payload <=> OLD.receipt_payload)
+            OR NOT (NEW.witness_payload <=> OLD.witness_payload)
+            OR NOT (NEW.receipt_sha256 <=> OLD.receipt_sha256)
+            OR NOT (NEW.anchored_at <=> OLD.anchored_at))
+    THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'AGE anchored receipt and witness evidence is immutable.';
+    END IF;
     IF OLD.delivery_state = 'quarantined' AND NEW.delivery_state <> 'quarantined' THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'AGE quarantined receipt state requires a separate recovery procedure.';
     END IF;
@@ -156,6 +164,12 @@ WHEN NEW.event_uuid IS NOT OLD.event_uuid
   OR NEW.expected_previous_sequence IS NOT OLD.expected_previous_sequence
   OR NEW.expected_previous_receipt_sha256 IS NOT OLD.expected_previous_receipt_sha256
   OR (OLD.delivery_state = 'anchored' AND NEW.delivery_state <> 'anchored')
+  OR (OLD.delivery_state = 'anchored' AND (
+      NEW.receipt_payload IS NOT OLD.receipt_payload
+      OR NEW.witness_payload IS NOT OLD.witness_payload
+      OR NEW.receipt_sha256 IS NOT OLD.receipt_sha256
+      OR NEW.anchored_at IS NOT OLD.anchored_at
+  ))
   OR (OLD.delivery_state = 'quarantined' AND NEW.delivery_state <> 'quarantined')
   OR (NEW.delivery_state = 'anchored' AND (
       NEW.receipt_payload IS NULL OR NEW.witness_payload IS NULL
