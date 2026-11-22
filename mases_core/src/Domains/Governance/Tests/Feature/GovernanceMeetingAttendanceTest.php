@@ -132,6 +132,8 @@ final class GovernanceMeetingAttendanceTest extends TestCase
                 'governance_body_id' => $assembly->id,
                 'meeting_code' => 'GA-2019-001',
                 'meeting_kind' => 'general_assembly',
+                'meeting_category' => 'ordinary',
+                'meeting_round' => 1,
                 'title_am' => 'ዓመታዊ ጠቅላላ ጉባኤ',
                 'starts_at' => now()->addDays(10)->setTime(9, 0)->toDateTimeString(),
             ]);
@@ -261,6 +263,7 @@ final class GovernanceMeetingAttendanceTest extends TestCase
                 'principal_id' => $shareholderId,
                 'proxy_name_am' => 'ውክልና ተወካይ',
                 'proxy_reference' => 'ID-EXTERNAL-01',
+                'instrument_reference' => 'SIGNED-PROXY-EXTERNAL-01',
             ]);
 
         $response->assertCreated()
