@@ -1,0 +1,56 @@
+name: ARNA adaptive authentication policy
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
+      - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
+      - "docs/security/ARNA_UNIFIED_IDENTITY_ADAPTIVE_AUTHENTICATION_POLICY_V1.md"
+      - ".github/workflows/arna-adaptive-auth-policy.yml"
+  push:
+    branches:
+      - feat/auth-adaptive-policy-a3
+    paths:
+      - "mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
+      - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
+      - "docs/security/ARNA_UNIFIED_IDENTITY_ADAPTIVE_AUTHENTICATION_POLICY_V1.md"
+      - ".github/workflows/arna-adaptive-auth-policy.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-adaptive-auth-policy-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  policy:
+    name: Adaptive authentication policy unit tests (PHP 8.3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact proposed revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact revision
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_sqlite, sqlite3
+          tools: composer:v2
+          coverage: none
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Lint policy and tests
+        run: |
+          php -l mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php
+          php -l tests/Unit/AdaptiveAuthenticationPolicyTest.php
+      - name: Run policy regression tests
+        run: vendor/bin/phpunit tests/Unit/AdaptiveAuthenticationPolicyTest.php

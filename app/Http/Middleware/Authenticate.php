@@ -9,6 +9,9 @@ use Closure;
 use Illuminate\Auth\Middleware\Authenticate as Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Laravel\Sanctum\PersonalAccessToken;
+use MaaleArna\MASES\Core\Auth\Models\User as CoreUser;
+use MaaleArna\MASES\Core\Auth\Services\DeviceSessionService;
 use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
 
 /**
@@ -171,6 +174,25 @@ class Authenticate extends Middleware
         // Authentication succeeded. Enforce the revoked-token blacklist.
         if ($this->isTokenRevoked($request)) {
             throw AuthenticationException::invalidToken('authentication');
+        }
+
+        // Android bearer tokens are valid only while their server-side
+        // device session remains active and linked to this exact user.
+        $user = $request->user();
+        $token = $user?->currentAccessToken();
+        if ($token instanceof PersonalAccessToken
+            && app(DeviceSessionService::class)->isMobileToken($token)) {
+            $session = $user instanceof CoreUser
+                ? app(DeviceSessionService::class)->validateToken($user, $token)
+                : null;
+
+            if ($session === null) {
+                throw AuthenticationException::invalidToken('device_session');
+            }
+
+            if ($session->last_seen_at === null || $session->last_seen_at->lt(now()->subMinutes(5))) {
+                $session->forceFill(['last_seen_at' => now()])->save();
+            }
         }
 
         return $next($request);
