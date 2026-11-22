@@ -91,7 +91,7 @@ final class DocumentEvidenceCaptureReconciler
             return $result;
         }
 
-        $result['eligible'] = count($candidateIds);
+        $result['eligible'] = 0;
 
         foreach ($candidateIds as $intentId) {
             $claim = DB::transaction(function () use ($intentId, $cutoff): ?object {
@@ -157,6 +157,7 @@ final class DocumentEvidenceCaptureReconciler
             if ($claim === null) {
                 continue;
             }
+            $result['eligible']++;
 
             try {
                 $deleted = $this->store->deleteIfMatches(
