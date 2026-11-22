@@ -31,6 +31,7 @@ final class AdaptiveStepUpGuardTest extends TestCase
             'phone_verified_phone_hash' => hash('sha256', $phone),
         ])->save();
         $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user->tenants()->attach($tenant->id, ['joined_at' => now(), 'status' => 'active']);
 
         Config::set('phone-verification.gateway_url', 'https://sms.example.test/send');
         $sentCode = null;
