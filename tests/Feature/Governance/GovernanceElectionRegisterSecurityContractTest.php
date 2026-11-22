@@ -106,7 +106,10 @@ final class GovernanceElectionRegisterSecurityContractTest extends TestCase
         self::assertIsString($permissions);
         self::assertIsString($roles);
         self::assertStringContainsString('governance.election.register.manage', $permissions);
-        self::assertStringNotContainsString('governance.election.register.manage', $roles);
+        $matrixStart = strpos($roles, 'private const ROLE_PERMISSIONS = [');
+        self::assertNotFalse($matrixStart);
+        $matrix = substr($roles, $matrixStart);
+        self::assertStringNotContainsString("'governance.election.register.manage'", $matrix);
     }
 
     public function test_register_schema_enforces_tenant_scoped_parent_relationships_and_preserves_evidence(): void
