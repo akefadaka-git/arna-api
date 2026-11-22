@@ -618,6 +618,137 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         self::assertInstanceOf(DocumentWorkflowAuthorizationService::class, $this->app->make(DocumentWorkflowAuthorizer::class));
     }
 
+    public function test_submit_database_rollback_preserves_durable_captured_intent_and_binary(): void
+    {
+        [$tenantId, $entityId, $unitId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+
+        $authorization = Mockery::mock(DocumentWorkflowAuthorizer::class);
+        $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.create');
+        $authorization->shouldReceive('requirePermission')->once()->with($actor, $tenantId, 'documents.submit');
+        $this->app->instance(DocumentWorkflowAuthorizer::class, $authorization);
+
+        $service = $this->app->make(DocumentWorkflowAggregateService::class);
+        $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', 'Durable capture rollback', 9, 4);
+
+        // Force the final workflow-event append to fail after binary capture,
+        // evidence-row insertion and intent linking have occurred.
+        DB::table('document_workflow_events')->insert([
+            'workflow_id' => $workflow->id,
+            'tenant_id' => $tenantId,
+            'revision' => 1,
+            'action' => 'reserved_revision',
+            'from_status' => 'draft',
+            'to_status' => 'submitted',
+            'actor_user_id' => $actor->getKey(),
+            'reason' => 'Test-only conflicting revision',
+            'metadata' => null,
+            'occurred_at' => now(),
+        ]);
+
+        try {
+            $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
+                'submitted_file_id' => $fileId,
+                'submitted_file_version' => 1,
+            ]);
+            self::fail('The conflicting workflow event must roll back submission.');
+        } catch (QueryException) {
+            $fresh = $workflow->fresh();
+            self::assertSame('draft', $fresh->status);
+            self::assertSame(0, (int) $fresh->revision);
+            self::assertSame(0, DB::table('document_file_versions')->where('tenant_id', $tenantId)->count());
+
+            $intent = DB::table('document_evidence_capture_intents')
+                ->where('tenant_id', $tenantId)->where('file_id', $fileId)->where('file_version', 1)->first();
+            self::assertNotNull($intent);
+            self::assertSame('captured', $intent->status);
+            self::assertSame(hash('sha256', 'immutable source bytes'), $intent->sha256);
+            self::assertTrue(Storage::disk('local')->exists($intent->storage_path));
+        }
+    }
+
+    public function test_cleanup_claim_prevents_a_late_workflow_attachment(): void
+    {
+        [$tenantId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
+
+        DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
+            'status' => 'cleanup_claimed',
+            'cleanup_claim_token' => (string) \Illuminate\Support\Str::uuid(),
+            'cleanup_claimed_at' => now(),
+            'cleanup_lease_until' => now()->addMinutes(10),
+        ]);
+
+        try {
+            DB::transaction(fn () => $lifecycle->markLinked($prepared['intent_id'], $tenantId, 1, (int) $actor->getKey()));
+            self::fail('A cleanup-claimed intent must not be attached to a workflow.');
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException) {
+            self::assertSame('cleanup_claimed', DB::table('document_evidence_capture_intents')
+                ->where('id', $prepared['intent_id'])->value('status'));
+            self::assertTrue(Storage::disk('local')->exists($prepared['snapshot']['path']));
+        }
+    }
+
+    public function test_reconciler_deletes_only_expired_unreferenced_capture_and_is_idempotent(): void
+    {
+        [$tenantId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
+        DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])
+            ->update(['captured_at' => now()->subDays(2)]);
+
+        $reconciler = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class);
+        $dryRun = $reconciler->run(100, 1440, false);
+        self::assertSame(1, $dryRun['eligible']);
+        self::assertTrue(Storage::disk('local')->exists($prepared['snapshot']['path']));
+
+        $applied = $reconciler->run(100, 1440, true);
+        self::assertSame(1, $applied['deleted']);
+        self::assertSame('deleted', DB::table('document_evidence_capture_intents')
+            ->where('id', $prepared['intent_id'])->value('status'));
+        self::assertFalse(Storage::disk('local')->exists($prepared['snapshot']['path']));
+
+        $again = $reconciler->run(100, 1440, true);
+        self::assertSame(0, $again['deleted']);
+    }
+
+    public function test_reconciler_preserves_capture_when_committed_evidence_reference_exists(): void
+    {
+        [$tenantId] = $this->issuer();
+        $actor = User::factory()->create(['is_active' => true]);
+        $fileId = $this->file($tenantId, (int) $actor->getKey());
+        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
+        $snapshot = $prepared['snapshot'];
+
+        DB::table('document_file_versions')->insert([
+            'tenant_id' => $tenantId,
+            'file_id' => $fileId,
+            'file_version' => 1,
+            'storage_disk' => $snapshot['disk'],
+            'storage_path' => $snapshot['path'],
+            'sha256' => $snapshot['sha256'],
+            'size' => $snapshot['size'],
+            'captured_by_user_id' => $actor->getKey(),
+            'captured_at' => now(),
+        ]);
+        DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])
+            ->update(['captured_at' => now()->subDays(2)]);
+
+        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+            ->run(100, 1440, true);
+        self::assertSame(0, $result['deleted']);
+        self::assertSame('linked', DB::table('document_evidence_capture_intents')
+            ->where('id', $prepared['intent_id'])->value('status'));
+        self::assertTrue(Storage::disk('local')->exists($snapshot['path']));
+    }
+
     private function workflowReadyToIssue(
         DocumentWorkflowAggregateService $service,
         User $actor,
