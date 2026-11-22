@@ -34,6 +34,7 @@ final class AdaptiveAuthenticationPolicy
 
     private const CRITICAL_ACTIONS = [
         'loan.approve',
+        'loan.reject',
         'loan.restructure',
         'wallet.balance.adjust',
         'wallet.payment.reverse',
