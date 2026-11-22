@@ -1,0 +1,74 @@
+name: ARNA A4 evidence remediation regression
+
+on:
+  push:
+    branches:
+      - 'integration/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/arna-a4-evidence-remediation.yml"
+      - "mases_core/src/Domains/Documents/Services/DocumentWorkflowAggregateService.php"
+      - "tests/Feature/DocumentWorkflowAggregateServiceTest.php"
+      - "docs/security/A4-FILESYSTEM-TRANSACTION-BOUNDARY.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-a4-evidence-remediation-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  evidence-remediation:
+    name: Exact-head PHP feature regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "true"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+      DB_FOREIGN_KEYS: "true"
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: null
+      EXPECTED_TEST_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check out exact proposed pull-request head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact tested SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          echo "Expected tested SHA: ${EXPECTED_TEST_SHA}"
+          echo "Actual checked-out SHA: ${actual_sha}"
+          test "${actual_sha}" = "${EXPECTED_TEST_SHA}"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_sqlite, sqlite3, intl, sodium
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate Composer configuration
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Create isolated environment
+        run: ': > .env'
+
+      - name: Run document workflow evidence regressions
+        run: php artisan test --no-coverage tests/Feature/DocumentWorkflowAggregateServiceTest.php

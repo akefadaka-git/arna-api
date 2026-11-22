@@ -576,52 +576,100 @@ Route::name('api.governance.')->group(static function (): void {
 
     // G5 A3 — meeting attendance, proxies, penalties and Finance settlement requests.
     Route::get('/meetings', [GovernanceMeetingAttendanceController::class, 'index'])
-        ->middleware('auth.permission:governance.body.view')
+        ->middleware('auth.permission:governance.meeting.view')
         ->name('meetings.index');
     Route::post('/meetings', [GovernanceMeetingAttendanceController::class, 'store'])
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.meeting.manage')
         ->name('meetings.store');
     Route::get('/meetings/{meeting}', [GovernanceMeetingAttendanceController::class, 'show'])
         ->whereNumber('meeting')
-        ->middleware('auth.permission:governance.body.view')
+        ->middleware('auth.permission:governance.meeting.view')
         ->name('meetings.show');
     Route::post('/meetings/{meeting}/attendance', [GovernanceMeetingAttendanceController::class, 'recordAttendance'])
         ->whereNumber('meeting')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('meetings.attendance.store');
     Route::post('/meetings/{meeting}/proxies', [GovernanceMeetingAttendanceController::class, 'submitProxy'])
         ->whereNumber('meeting')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('meetings.proxies.store');
+
+    Route::patch('/proxies/{proxy}/revoke', [GovernanceMeetingAttendanceController::class, 'revokeProxy'])
+        ->whereNumber('proxy')
+        ->middleware('auth.permission:governance.attendance.manage')
+        ->name('proxies.revoke');
+    Route::get('/proxies/{proxy}/verify-history', [GovernanceMeetingAttendanceController::class, 'verifyProxyHistory'])
+        ->whereNumber('proxy')
+        ->middleware('auth.permission:governance.attendance.view')
+        ->name('proxies.verify-history');
     Route::patch('/proxies/{proxy}/review', [GovernanceMeetingAttendanceController::class, 'reviewProxy'])
         ->whereNumber('proxy')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.meeting.approve')
         ->name('proxies.review');
     Route::post('/meetings/{meeting}/penalties', [GovernanceMeetingAttendanceController::class, 'assessPenalty'])
         ->whereNumber('meeting')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('meetings.penalties.store');
     Route::post('/penalties/{penalty}/settlements', [GovernanceMeetingAttendanceController::class, 'recordSettlement'])
         ->whereNumber('penalty')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('penalties.settlements.store');
 
     Route::post('/meetings/{meeting}/attendance/corrections', [GovernanceMeetingAttendanceController::class, 'requestAttendanceCorrection'])
         ->whereNumber('meeting')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('meetings.attendance.corrections.store');
     Route::patch('/attendance-corrections/{correction}/review', [GovernanceMeetingAttendanceController::class, 'reviewAttendanceCorrection'])
         ->whereNumber('correction')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.meeting.approve')
         ->name('attendance-corrections.review');
     Route::post('/penalties/{penalty}/disputes', [GovernanceMeetingAttendanceController::class, 'submitPenaltyDispute'])
         ->whereNumber('penalty')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.attendance.manage')
         ->name('penalties.disputes.store');
     Route::patch('/penalty-disputes/{dispute}/review', [GovernanceMeetingAttendanceController::class, 'reviewPenaltyDispute'])
         ->whereNumber('dispute')
-        ->middleware('auth.permission:governance.body.manage')
+        ->middleware('auth.permission:governance.meeting.approve')
         ->name('penalty-disputes.review');
+
+    // GA agenda items are editable only while in draft; publication is a separate authority gate.
+    Route::get('/meetings/{meeting}/agenda', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAgendaController::class, 'index'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.agenda.view')
+        ->name('meetings.agenda.index');
+    Route::post('/meetings/{meeting}/agenda', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAgendaController::class, 'store'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.agenda.manage')
+        ->name('meetings.agenda.store');
+    Route::patch('/agenda-items/{agendaItem}', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAgendaController::class, 'update'])
+        ->whereNumber('agendaItem')
+        ->middleware('auth.permission:governance.agenda.manage')
+        ->name('agenda-items.update');
+
+    // Immutable GA electorate snapshots and fail-closed quorum evaluation.
+    Route::post('/meetings/{meeting}/electorate-snapshots', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'createSnapshot'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.attendance.manage')
+        ->name('meetings.electorate.snapshots.store');
+    Route::post('/electorate-snapshots/{snapshot}/approve', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'approveSnapshot'])
+        ->whereNumber('snapshot')
+        ->middleware('auth.permission:governance.meeting.approve')
+        ->name('electorate.snapshots.approve');
+    Route::post('/quorum-rules', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'createQuorumRule'])
+        ->middleware('auth.permission:governance.meeting.manage')
+        ->name('quorum-rules.store');
+    Route::post('/quorum-rules/{rule}/approve', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'approveQuorumRule'])
+        ->whereNumber('rule')
+        ->middleware('auth.permission:governance.meeting.approve')
+        ->name('quorum-rules.approve');
+    Route::post('/quorum-rules/{rule}/verify-legal', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'verifyQuorumRule'])
+        ->whereNumber('rule')
+        ->middleware('auth.permission:governance.meeting.approve')
+        ->name('quorum-rules.verify-legal');
+    Route::post('/meetings/{meeting}/quorum/evaluate', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingElectorateController::class, 'evaluateQuorum'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.attendance.view')
+        ->name('meetings.quorum.evaluate');
 
     // Election committee security — election-scoped authority, conflict and audit controls.
     Route::post('/elections/{election}/committee/admins', [GovernanceElectionCommitteeSecurityController::class, 'grantAdministrator'])
@@ -726,5 +774,50 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('election')->middleware('auth.permission:governance.election.manage')->name('elections.candidates.evidence');
     Route::post('/elections/{election}/candidates/{candidate}/eligibility-decision', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCandidateController::class, 'decide'])
         ->whereNumber('election')->middleware('auth.permission:governance.election.committee.decide')->name('elections.candidates.eligibility-decision');
+
+
+    // AGE A3 — independently prepared, reconciled and frozen voter register.
+    Route::get('/elections/{election}/registers', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionRegisterController::class, 'show'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.view')
+        ->name('elections.registers.show');
+    Route::post('/elections/{election}/registers', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionRegisterController::class, 'prepare'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.register.manage')
+        ->name('elections.registers.prepare');
+    Route::post('/elections/{election}/registers/{snapshot}/reconcile', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionRegisterController::class, 'reconcile'])
+        ->whereNumber('election')->whereNumber('snapshot')
+        ->middleware('auth.permission:governance.election.register.manage')
+        ->name('elections.registers.reconcile');
+    Route::post('/elections/{election}/registers/{snapshot}/approve-freeze', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionRegisterController::class, 'approveAndFreeze'])
+        ->whereNumber('election')->whereNumber('snapshot')
+        ->middleware('auth.permission:governance.election.register.manage')
+        ->name('elections.registers.approve-freeze');
+
+
+    // Physical ballot custody records references only; ballot selections are never stored here.
+    Route::post('/elections/{election}/physical-ballots', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionPhysicalBallotController::class, 'issue'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.ballot.issue')
+        ->name('elections.physical-ballots.issue');
+    Route::post('/elections/{election}/physical-ballots/{ballot}/receive', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionPhysicalBallotController::class, 'receive'])
+        ->whereNumber('election')->whereNumber('ballot')
+        ->middleware('auth.permission:governance.election.ballot.receive')
+        ->name('elections.physical-ballots.receive');
+
+
+    // Physical count evidence is aggregate-only, append-only and independently witnessed.
+    Route::get('/elections/{election}/count-batches', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionManualCountController::class, 'index'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.count.view')
+        ->name('elections.count-batches.index');
+    Route::post('/elections/{election}/count-batches', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionManualCountController::class, 'store'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.count.record')
+        ->name('elections.count-batches.store');
+    Route::post('/elections/{election}/count-batches/{batch}/witness', [\MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionManualCountController::class, 'witness'])
+        ->whereNumber('election')->whereNumber('batch')
+        ->middleware('auth.permission:governance.election.count.witness')
+        ->name('elections.count-batches.witness');
 
 });

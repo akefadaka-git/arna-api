@@ -33,7 +33,7 @@ declare(strict_types=1);
  *
  *   What the seeder writes:
  *
- *     · 41 tenant-scoped permissions with the `governance.` prefix.
+ *     · 47 tenant-scoped permissions with the `governance.` prefix.
  *       Each carries `scope = 'tenant'`, `tenant_id = null`,
  *       `application_id = null`, `is_active = true`,
  *       `is_system = true`.
@@ -46,7 +46,7 @@ declare(strict_types=1);
  *       other six `app.*.access` rows, all of which are
  *       `is_system = 0` except `app.admin.access`.
  *
- *   Total: 42 permission rows.
+ *   Total: 48 permission rows.
  *
  *   What the seeder deliberately does NOT do:
  *
@@ -88,7 +88,7 @@ declare(strict_types=1);
  * seeder writes.
  *
  * =============================================================================
- * The 41-slug inventory (by group)
+ * The 47-slug inventory (by group)
  * =============================================================================
  * Grouped by the resource noun the slug addresses. Counts:
  *
@@ -103,11 +103,11 @@ declare(strict_types=1);
  *     governance.action        4  (view, create, manage, verify)
  *     governance.delegation    2  (view, manage)
  *     governance.declaration   2  (view, manage)
- *     governance.election      7  (view, manage, authorize, schedule, suspend, cancel, archive)
+ *     governance.election     13  (view, manage, register.manage, ballot.issue, ballot.receive, count.view, count.record, count.witness, authorize, schedule, suspend, cancel, archive)
  *     governance.document      3  (view, upload, download)
  *     governance.report        2  (view, generate)
  *                              ──
- *                              41
+ *                              47
  *
  * Plus:
  *
@@ -266,7 +266,7 @@ declare(strict_types=1);
  *     php artisan db:seed \
  *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernanceApplicationSeeder"
  *
- *     # 2. Register the governance permissions (42 rows)
+ *     # 2. Register the governance permissions (48 rows)
  *     php artisan db:seed \
  *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernancePermissionsSeeder"
  *
@@ -311,7 +311,7 @@ declare(strict_types=1);
  * Files modified:            none (this is a new file)
  * Files added:               this file only
  * Files deleted:             none
- * Permissions added:         42 (41 tenant-scoped + 1 application-scoped)
+ * Permissions added:         48 (47 tenant-scoped + 1 application-scoped)
  * Roles modified:            none (G1 file 8)
  * Users modified:            none
  * =============================================================================
@@ -327,7 +327,7 @@ use RuntimeException;
 /**
  * GovernancePermissionsSeeder
  *
- * Registers the Governance domain's 42 permissions into the
+ * Registers the Governance domain's 48 permissions into the
  * platform `permissions` table.
  *
  * =============================================================================
@@ -346,9 +346,9 @@ use RuntimeException;
  * =============================================================================
  * What this seeder writes
  * =============================================================================
- * 42 rows across 2 scopes:
+ * 48 rows across 2 scopes:
  *
- *   governance.*        41 rows (scope = 'tenant', category = 'governance')
+ *   governance.*        47 rows (scope = 'tenant', category = 'governance')
  *   app.governance.*     1 row  (scope = 'application', category = 'app_access')
  *
  * The set is frozen by the master prompt §28 as refined during the
@@ -651,6 +651,42 @@ final class GovernancePermissionsSeeder extends Seeder
             'slug'     => 'governance.election.manage',
             'name_am'  => 'ምርጫዎችን ማስተዳደር',
             'name_en'  => 'Manage elections',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.register.manage',
+            'name_am'  => 'የመራጮች መዝገብ ማስተዳደር',
+            'name_en'  => 'Manage election voter registers',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.ballot.issue',
+            'name_am'  => 'የአካላዊ ድምፅ ወረቀት መስጠት',
+            'name_en'  => 'Issue physical ballots',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.ballot.receive',
+            'name_am'  => 'የድምፅ ወረቀት አስረካቢነት መመዝገብ',
+            'name_en'  => 'Record physical ballot custody',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.count.view',
+            'name_am'  => 'የድምፅ ቆጠራ ማስረጃ ማየት',
+            'name_en'  => 'View manual count evidence',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.count.record',
+            'name_am'  => 'የድምፅ ቆጠራ ማስረጃ መመዝገብ',
+            'name_en'  => 'Record manual count evidence',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.count.witness',
+            'name_am'  => 'የድምፅ ቆጠራ ማስረጃ ማረጋገጥ',
+            'name_en'  => 'Witness manual count evidence',
             'category' => 'governance',
         ],
         [

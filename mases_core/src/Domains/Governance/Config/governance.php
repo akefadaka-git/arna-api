@@ -646,21 +646,15 @@ return [
     | Election Statuses (forward declaration — consumed by G10)
     |--------------------------------------------------------------------------
     |
-    | The lifecycle of a `governance_elections` row.
+    | The current lifecycle of a `governance_elections` row is implemented by the
+    | election lifecycle service: draft → authorized → scheduled, with
+    | suspended, cancelled and archived terminal/exception paths. Nomination,
+    | voting, counting and certification are separate A3 capabilities and must
+    | not be inferred from this vocabulary.
     |
-    |   planned    — the election has been scheduled; nominations
-    |                have not yet opened
-    |   nominating — the nomination window is open
-    |   voting     — the voting window is open
-    |   counting   — voting has closed; results are being tallied
-    |   certified  — results have been certified; the row becomes
-    |                immutable
-    |   cancelled  — the election will not take place
-    |
-    | This vocabulary describes the ADMINISTRATIVE record of an
-    | election. It does NOT describe electronic voting — that is
-    | deliberately excluded by ADR-GOV-010 and by the
-    | `features.electronic_voting_enabled` flag below.
+    | This is an administrative vocabulary only. AGE A1 v1.0 includes physical,
+    | electronic, proxy and hybrid voting in product scope; activation remains
+    | separately gated by legal evidence, security acceptance and operations.
     |
     | Who certifies election results is a [BUSINESS DECISION]
     | (G0 §12 #23). It does not affect the vocabulary — only the
@@ -764,9 +758,9 @@ return [
     | a Core notification capability exists. See the file header
     | §"Notifications — the one deliberate negative default".
     |
-    | `electronic_voting_enabled` is FALSE and MUST remain false
-    | unless the organization explicitly approves a separate CR
-    | that also documents the security model (AD-GOV-010).
+    | Voting method flags remain false until the applicable LEG blockers,
+    | verified company instruments, independent security review and A4
+    | acceptance are closed. Scope inclusion does not imply activation.
     |
     | `arna_integration_enabled` is FALSE and stays so until G13.
     | It gates whether ARNA may consume governance records through
@@ -776,9 +770,22 @@ return [
     | ARNA integration CR's approval.
     |
     */
+    // AGE A1 v1.0 includes all four methods in product scope. Legal and
+    // operational activation remains fail-closed until the corresponding
+    // authoritative instruments and acceptance gates are satisfied.
+    'election_voting' => [
+        // Empty by default: no share-class voting rate is presumed.
+        // Populate only from verified company instruments after LEG-01/02 review.
+        'verified_class_entitlements' => [],
+        'methods_in_scope' => ['physical', 'electronic', 'proxy', 'hybrid'],
+    ],
+
     'features' => [
         'notifications_enabled'      => (bool) env('MASES_GOVERNANCE_NOTIFICATIONS', false),
+        'physical_voting_enabled'    => false,
         'electronic_voting_enabled'  => false,
+        'proxy_voting_enabled'       => false,
+        'hybrid_voting_enabled'      => false,
         'arna_integration_enabled'   => false,
     ],
 

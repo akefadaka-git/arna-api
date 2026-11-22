@@ -473,7 +473,7 @@ final class FileService
         $file = $this->resolveFile($file);
         $user = $user ?? mases_user();
 
-        $this->authorizeAction('file.delete', $file, $user);
+        $this->authorizeAction('file.force_delete', $file, $user);
 
         if (Storage::disk($file->disk)->exists($file->path)) {
             Storage::disk($file->disk)->delete($file->path);

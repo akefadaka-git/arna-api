@@ -6,7 +6,9 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use InvalidArgumentException;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Notifications\Models\PlatformNotification;
 use MaaleArna\MASES\Core\Notifications\Services\NotificationService;
 use MaaleArna\MASES\Core\Tenancy\Middleware\TenantMembershipMiddleware;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -74,6 +76,86 @@ final class CentralNotificationsTest extends TestCase
             ->withHeader('X-Tenant-ID', (string) $tenant->id)
             ->postJson('/api/notifications/'.$notification->id.'/read')
             ->assertNotFound();
+    }
+
+    public function test_mixed_valid_and_invalid_recipients_roll_back_the_entire_publication(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $validRecipient = User::factory()->create();
+        $nonMemberRecipient = User::factory()->create();
+        $validRecipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+
+        try {
+            app(NotificationService::class)->publish($tenant, [$validRecipient, $nonMemberRecipient], [
+                'event_key' => 'test.atomic',
+                'category' => 'system',
+                'title' => ['en' => 'Atomic publication'],
+            ]);
+            $this->fail('Publishing to a non-member recipient must be rejected.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertSame(
+                'Every notification recipient must be an active member of the target tenant.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertSame(
+            0,
+            PlatformNotification::query()->where('tenant_id', $tenant->id)->count(),
+            'The valid recipient must not retain a notification when a later recipient fails validation.',
+        );
+    }
+
+    public function test_mark_all_read_changes_only_the_authenticated_users_notifications(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $owner->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        $otherUser->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+
+        app(NotificationService::class)->publish($tenant, [$owner], [
+            'event_key' => 'test.owner',
+            'category' => 'system',
+            'title' => ['en' => 'Owner notification'],
+        ]);
+        app(NotificationService::class)->publish($tenant, [$otherUser], [
+            'event_key' => 'test.other',
+            'category' => 'system',
+            'title' => ['en' => 'Other notification'],
+        ]);
+
+        $this->actingAs($owner, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/notifications/read-all')
+            ->assertOk()
+            ->assertJsonPath('data.updated', 1);
+
+        $this->assertNotNull(PlatformNotification::query()->where('tenant_id', $tenant->id)->where('user_id', $owner->id)->value('read_at'));
+        $this->assertNull(PlatformNotification::query()->where('tenant_id', $tenant->id)->where('user_id', $otherUser->id)->value('read_at'));
+    }
+
+    public function test_notification_from_another_tenant_cannot_be_marked_read(): void
+    {
+        $tenantA = Tenant::factory()->create();
+        $tenantB = Tenant::factory()->create();
+        $owner = User::factory()->create();
+        $intruder = User::factory()->create();
+        $owner->tenants()->attach($tenantA->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        $intruder->tenants()->attach($tenantB->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+
+        $notification = app(NotificationService::class)->publish($tenantA, [$owner], [
+            'event_key' => 'test.cross-tenant',
+            'category' => 'system',
+            'title' => ['en' => 'Tenant A only'],
+        ])[0];
+
+        $this->actingAs($intruder, 'sanctum')
+            ->withHeader('X-Tenant-ID', (string) $tenantB->id)
+            ->postJson('/api/notifications/'.$notification->id.'/read')
+            ->assertNotFound();
+
+        $this->assertNull($notification->fresh()->read_at);
     }
 
     public function test_notification_endpoints_require_a_resolved_tenant(): void

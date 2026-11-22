@@ -195,6 +195,99 @@ final class ImmutableDocumentBinaryStore
         }
     }
 
+    /**
+     * Delete only the exact tenant/file/version content-addressed object after
+     * the caller has atomically claimed its durable capture intent and checked
+     * all database references. Uses the same per-version flock as capture.
+     *
+     * Returns false for path, symlink, digest or size mismatches. Missing
+     * objects are treated as an idempotently completed deletion.
+     */
+    public function deleteIfMatches(
+        string $disk,
+        int $tenantId,
+        int $fileId,
+        int $version,
+        string $path,
+        string $sha256,
+        int $size,
+    ): bool {
+        if ($tenantId < 1 || $fileId < 1 || $version < 1
+            || ! preg_match('/^[a-f0-9]{64}$/', $sha256)) {
+            return false;
+        }
+
+        $expected = 'document-evidence/' . $tenantId . '/' . $fileId . '/' . $version . '/' . $sha256;
+        if (! hash_equals($expected, $path)) {
+            return false;
+        }
+
+        try {
+            $filesystem = Storage::disk($disk);
+            $root = realpath($filesystem->path(''));
+        } catch (\Throwable) {
+            return false;
+        }
+        if ($root === false || ! is_dir($root)) {
+            return false;
+        }
+
+        $fileDirectory = $root . DIRECTORY_SEPARATOR . 'document-evidence'
+            . DIRECTORY_SEPARATOR . $tenantId . DIRECTORY_SEPARATOR . $fileId;
+        $versionDirectory = $fileDirectory . DIRECTORY_SEPARATOR . $version;
+        $target = $versionDirectory . DIRECTORY_SEPARATOR . $sha256;
+        $lockPath = $fileDirectory . DIRECTORY_SEPARATOR . '.version-' . $version . '.lock';
+
+        foreach ([$root . DIRECTORY_SEPARATOR . 'document-evidence',
+            $root . DIRECTORY_SEPARATOR . 'document-evidence' . DIRECTORY_SEPARATOR . $tenantId,
+            $fileDirectory, $versionDirectory] as $directory) {
+            if (is_link($directory)) {
+                return false;
+            }
+        }
+        if (! is_dir($fileDirectory)) {
+            return ! file_exists($target) && ! is_link($target);
+        }
+
+        if (is_link($lockPath)) {
+            return false;
+        }
+        $lock = fopen($lockPath, 'c');
+        if (! is_resource($lock)) {
+            return false;
+        }
+
+        try {
+            if (! flock($lock, LOCK_EX)) {
+                return false;
+            }
+            if (is_link($target)) {
+                return false;
+            }
+            if (! is_file($target)) {
+                return ! file_exists($target);
+            }
+            if (! $this->verify($disk, $path, $sha256, $size)) {
+                return false;
+            }
+            if (! @chmod($versionDirectory, 0700)) {
+                return false;
+            }
+            if (! @unlink($target)) {
+                @chmod($versionDirectory, 0500);
+                return false;
+            }
+            if (! @chmod($versionDirectory, 0500)) {
+                return false;
+            }
+
+            return true;
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+    }
+
     public function verify(string $disk, string $path, string $sha256, int $size): bool
     {
         if (! preg_match('/^[a-f0-9]{64}$/', $sha256) || $size < 0

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Database\Seeders\Data\RolePermissionGrants;
+use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
 use Illuminate\Database\Seeder;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
@@ -261,13 +262,44 @@ final class RolePermissionSeeder extends Seeder
             }
 
             /*
-             * Resolve the grant spec to a concrete list of permission
-             * ids, then sync it. sync() replaces with diff — see the
-             * class docblock §"The sync semantics".
+             * Resolve the canonical grant spec to permission ids. These
+             * grants are added without replacing permissions assigned by
+             * administrators or other governed workflows.
              */
-            $roles[$roleSlug]->permissions()->sync(
-                $this->resolvePermissionIds($grantSpec, $permissions)
-            );
+            $permissionIds = $this->resolvePermissionIds($grantSpec, $permissions);
+
+            /*
+             * The tenant-scoped Executive Overview permission must never
+             * flow through legacy wildcard grants. It is explicitly revoked
+             * below for roles outside the frozen audience, even when it was
+             * previously attached as a direct/custom role grant.
+             */
+            $executivePermission = $permissions['dashboard.executive.view'] ?? null;
+            if (
+                $executivePermission !== null
+                && !in_array($roleSlug, ExecutiveOverviewAccessPolicy::ROLE_SLUGS, true)
+            ) {
+                $executivePermissionId = (int) $executivePermission->id;
+                $permissionIds = array_values(array_filter(
+                    $permissionIds,
+                    static fn (int $permissionId): bool => $permissionId !== $executivePermissionId
+                ));
+            }
+
+            // Catalogue seeding is additive: preserve custom grants that
+            // are not represented in the canonical grant map. The model
+            // dispatches RolePermissionsChanged after a successful write.
+            $roles[$roleSlug]->grantPermissions($permissionIds);
+
+            // The Executive Overview audience is a hard security boundary,
+            // not an additive grant. Remove this one permission from every
+            // role outside the approved audience, including legacy grants.
+            if (
+                $executivePermission !== null
+                && !in_array($roleSlug, ExecutiveOverviewAccessPolicy::ROLE_SLUGS, true)
+            ) {
+                $roles[$roleSlug]->revokePermissionTo($executivePermission);
+            }
         }
     }
 

@@ -61,6 +61,18 @@ on:
       - "mases_core/src/Domains/Governance/Events/GovernanceElectionLifecycleChanged.php"
       - "mases_core/src/Domains/Governance/Listeners/AuditGovernanceElectionLifecycleEvent.php"
       - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php"
+      - "mases_core/src/Domains/Governance/Database/Migrations/2026_11_22_100400_create_manual_count_evidence_tables.php"
+      - "mases_core/src/Domains/Governance/Database/Migrations/2026_11_22_100500_enforce_manual_count_evidence_immutability.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionManualCountService.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionPhysicalBallotService.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionManualCountController.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionPhysicalBallotController.php"
+      - "tests/Feature/Governance/GovernanceElectionManualCountServiceTest.php"
+      - "tests/Feature/Governance/GovernanceElectionRegisterSecurityContractTest.php"
+      - "tests/Feature/Governance/GovernanceMeetingAgendaQuorumContractTest.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceMeetingAgendaController.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceMeetingElectorateController.php"
+      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceMeetingAttendanceController.php"
       - "mases_core/src/Domains/Governance/Routes/api.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.

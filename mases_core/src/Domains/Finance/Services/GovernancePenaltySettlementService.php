@@ -148,6 +148,10 @@ final class GovernancePenaltySettlementService
             $entityId = (int)$this->resolveEntity($tenantId,$settlementId);
             foreach ([GovernanceSettlementAccountMapping::ROLE_FINE_RECEIVABLE, GovernanceSettlementAccountMapping::ROLE_PENALTY_INCOME, $method==='cash'?GovernanceSettlementAccountMapping::ROLE_CASH_BANK:GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE] as $role) {
                 if (!$entityMapping->has($role)) throw ValidationException::withMessages(['account_mapping'=>'Finance must approve all required settlement account mappings first.']);
+                $mapping = $entityMapping[$role];
+                if ((int)$mapping->created_by === $actorId || (int)$mapping->approved_by === $actorId) {
+                    throw new ConflictHttpException('Settlement execution must be performed by an officer other than the mapping configurator and approver.');
+                }
             }
             $debitRole = $method==='cash'?GovernanceSettlementAccountMapping::ROLE_CASH_BANK:GovernanceSettlementAccountMapping::ROLE_DIVIDEND_PAYABLE;
             $debitAccount = (int)$entityMapping[$debitRole]->ledger_account_id;
@@ -156,6 +160,9 @@ final class GovernancePenaltySettlementService
             if ($method==='dividend_offset') {
                 $payable = ShareholderDividendPayable::query()->where('tenant_id',$tenantId)->where('legal_entity_id',$entityId)->whereKey($payableId)->lockForUpdate()->first();
                 if (!$payable || !$payable->isEligibleForPenaltyOffset()) throw ValidationException::withMessages(['dividend_payable'=>'A real, approved, due shareholder dividend payable is required.']);
+                if ((int)$payable->created_by === $actorId || (int)$payable->approved_by === $actorId) {
+                    throw new ConflictHttpException('Dividend offset execution must be performed by an officer other than the payable creator and approver.');
+                }
                 $shareholder = DB::table('shareholders')->where('tenant_id',$tenantId)->where('id',$payable->shareholder_id)->first(['user_id','representative_user_id']);
                 $sameBeneficiary = $attendance->subject_type === 'shareholder'
                     ? (int)$attendance->subject_id === (int)$payable->shareholder_id
