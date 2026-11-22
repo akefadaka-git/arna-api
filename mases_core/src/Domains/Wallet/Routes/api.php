@@ -346,7 +346,7 @@ Route::name('api.wallets.')->group(static function (): void {
     // constraint.
     // =========================================================================
     Route::post('/{wallet}/adjust', [WalletController::class, 'adjust'])
-        ->middleware('auth.permission:wallet.adjust')
+        ->middleware(['auth.permission:wallet.adjust', 'auth.step_up:wallet.balance.adjust'])
         ->whereNumber('wallet')
         ->name('adjust');
 
@@ -375,7 +375,7 @@ Route::name('api.wallets.')->group(static function (): void {
     // layer (2B.28 §"store").
     // =========================================================================
     Route::post('/{wallet}/payments', [PaymentController::class, 'store'])
-        ->middleware('auth.permission:wallet.payment.record')
+        ->middleware(['auth.permission:wallet.payment.record', 'auth.step_up:wallet.payment.record'])
         ->whereNumber('wallet')
         ->name('payments.store');
 
@@ -420,7 +420,7 @@ Route::name('api.wallets.')->group(static function (): void {
         '/{wallet}/allocations/{allocation}/reverse',
         [AllocationController::class, 'reverse'],
     )
-        ->middleware('auth.permission:wallet.allocation.reverse')
+        ->middleware(['auth.permission:wallet.allocation.reverse', 'auth.step_up:wallet.payment.reverse'])
         ->whereNumber('wallet')
         ->whereNumber('allocation')
         ->name('allocations.reverse');
