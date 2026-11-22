@@ -33,6 +33,10 @@ final class AdaptiveAuthenticationPolicy
     ];
 
     private const CRITICAL_ACTIONS = [
+        'wallet.balance.adjust',
+        'wallet.payment.reverse',
+        'loan.disburse',
+        'loan.writeoff',
         'critical_financial_transaction',
         'wallet_ownership_transfer',
         'privilege_escalation',
