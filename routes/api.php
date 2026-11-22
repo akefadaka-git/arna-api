@@ -320,13 +320,13 @@ Route::post('/verify-email/resend', [AuthController::class, 'resendVerificationE
 
 Route::middleware(['auth:sanctum'])->group(static function (): void {
 
-    Route::get('/auth/device-sessions', [AuthController::class, 'deviceSessions'])
-        ->name('api.auth.device-sessions.index');
+    Route::get('/auth/sessions', [AuthController::class, 'deviceSessions'])
+        ->name('api.auth.sessions.index');
 
-    Route::delete('/auth/device-sessions/{sessionId}', [AuthController::class, 'revokeDeviceSession'])
+    Route::delete('/auth/sessions/{sessionId}', [AuthController::class, 'revokeDeviceSession'])
         ->whereUuid('sessionId')
         ->middleware('throttle:10,1')
-        ->name('api.auth.device-sessions.revoke');
+        ->name('api.auth.sessions.revoke');
 
     // Account-level locale preference; intentionally independent of tenant context.
     Route::post('/locale', [LocalePreferenceController::class, 'update'])
