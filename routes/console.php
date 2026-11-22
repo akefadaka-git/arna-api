@@ -6,6 +6,10 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Audit\Models\AuditLog;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 
@@ -96,3 +100,126 @@ Artisan::command('corporate-site:publish-scheduled', function (): int {
     return 0;
 })->purpose('Publish approved corporate pages whose schedule time has arrived');
 
+
+/*
+ * P0.9 incident response: rotate only accounts whose stored password hash
+ * matches the compromised legacy bootstrap credential. The secret is supplied
+ * at runtime through ARNA_COMPROMISED_BOOTSTRAP_PASSWORD and is never emitted.
+ * Dry-run is the default; --apply is required to rotate and revoke API tokens.
+ */
+Artisan::command('arna:rotate-compromised-bootstrap-credentials {--apply : Rotate matching credentials and revoke their API tokens}', function (): int {
+    $compromisedPassword = getenv('ARNA_COMPROMISED_BOOTSTRAP_PASSWORD');
+
+    if (!is_string($compromisedPassword) || $compromisedPassword === '') {
+        $this->error('ARNA_COMPROMISED_BOOTSTRAP_PASSWORD must be set in the process environment.');
+        return 1;
+    }
+
+    $apply = (bool) $this->option('apply');
+    $matches = 0;
+    $rotated = 0;
+    $tokensRevoked = 0;
+    $hasPasswordChangedAt = Schema::hasColumn('users', 'password_changed_at');
+    $hasPersonalAccessTokens = Schema::hasTable('personal_access_tokens');
+    $sessionsRevoked = 0;
+    $sessionDriver = (string) config('session.driver');
+    $sessionTable = (string) config('session.table', 'sessions');
+    $userConnection = (new User())->getConnection();
+    $sessionConnection = DB::connection(config('session.connection'));
+
+    // Browser-session revocation is supported only for Laravel's database
+    // session driver. Validate the complete target before changing any account.
+    if ($apply) {
+        if ($sessionDriver !== 'database') {
+            $this->error("Cannot apply credential rotation: session driver [{$sessionDriver}] is not database-backed; no accounts or tokens were changed.");
+            return 1;
+        }
+
+        if ($sessionConnection->getName() !== $userConnection->getName()) {
+            $this->error('Cannot apply credential rotation: session and user records use different database connections; no accounts or tokens were changed.');
+            return 1;
+        }
+
+        $sessionSchema = Schema::connection($sessionConnection->getName());
+        if (!$sessionSchema->hasTable($sessionTable) || !$sessionSchema->hasColumn($sessionTable, 'user_id')) {
+            $this->error("Cannot apply credential rotation: configured session table [{$sessionTable}] is missing or has no user_id column; no accounts or tokens were changed.");
+            return 1;
+        }
+    }
+
+    User::query()->select(['id', 'password'])->chunkById(200, function ($users) use (
+        $compromisedPassword,
+        $apply,
+        &$matches,
+        &$rotated,
+        &$tokensRevoked,
+        &$sessionsRevoked,
+        $hasPasswordChangedAt,
+        $hasPersonalAccessTokens,
+        $sessionTable,
+        $userConnection,
+    ): void {
+        foreach ($users as $candidate) {
+            if (!Hash::check($compromisedPassword, (string) $candidate->password)) {
+                continue;
+            }
+
+            $matches++;
+            if (!$apply) {
+                continue;
+            }
+
+            // Re-read and lock the account inside the same transaction as the
+            // rotation. A concurrent password reset must not be overwritten.
+            $userConnection->transaction(function () use (
+                $candidate,
+                $compromisedPassword,
+                $hasPasswordChangedAt,
+                $hasPersonalAccessTokens,
+                $sessionTable,
+                $userConnection,
+                &$rotated,
+                &$tokensRevoked,
+                &$sessionsRevoked,
+            ): void {
+                $user = User::query()
+                    ->whereKey($candidate->getKey())
+                    ->lockForUpdate()
+                    ->first(['id', 'password']);
+
+                if ($user === null || !Hash::check($compromisedPassword, (string) $user->password)) {
+                    return;
+                }
+
+                $user->password = Hash::make(Str::random(64));
+                $user->remember_token = Str::random(60);
+                if ($hasPasswordChangedAt) {
+                    $user->password_changed_at = null;
+                }
+                $user->save();
+                $rotated++;
+
+                if ($hasPersonalAccessTokens) {
+                    $tokensRevoked += $userConnection->table('personal_access_tokens')
+                        ->where('tokenable_type', $user->getMorphClass())
+                        ->where('tokenable_id', $user->getKey())
+                        ->delete();
+                }
+
+                $sessionsRevoked += $userConnection->table($sessionTable)
+                    ->where('user_id', $user->getKey())
+                    ->delete();
+            });
+        }
+    });
+
+    if (!$apply) {
+        $this->info("Dry run complete: {$matches} account(s) match the compromised credential. No accounts or tokens were changed.");
+        $this->comment('Re-run with --apply after confirming the target environment and recovery-email readiness.');
+        return 0;
+    }
+
+    $this->info("Rotation complete: {$rotated} account(s) rotated; {$tokensRevoked} personal access token(s) revoked; {$sessionsRevoked} browser session(s) invalidated.");
+    $this->comment('Affected users must establish a new password through the normal password-reset flow.');
+    return 0;
+})->purpose('Rotate accounts matching the compromised legacy bootstrap credential and revoke their API tokens');

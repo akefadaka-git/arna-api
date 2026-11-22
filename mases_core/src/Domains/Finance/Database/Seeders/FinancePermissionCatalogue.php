@@ -36,5 +36,8 @@ final class FinancePermissionCatalogue
         ['slug' => 'finance.journal.post', 'name_am' => 'የመዝገብ ማስታወሻ መለጠፍ', 'name_en' => 'Post Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.journal.reverse', 'name_am' => 'የመዝገብ ማስታወሻ መቀልበስ', 'name_en' => 'Reverse Journal Entries', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'finance.report.view', 'name_am' => 'የፋይናንስ ሪፖርቶችን ማየት', 'name_en' => 'View Financial Reports', 'category' => 'accounting', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.governance_settlement.configure', 'name_am' => 'የአስተዳደር ቅጣት ክፍያ ማዋቀር', 'name_en' => 'Configure Governance Settlements', 'category' => 'governance_settlement', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.governance_settlement.approve', 'name_am' => 'የአስተዳደር ቅጣት ክፍያ ማጽደቅ', 'name_en' => 'Approve Governance Settlements', 'category' => 'governance_settlement', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'finance.governance_settlement.execute', 'name_am' => 'የአስተዳደር ቅጣት ክፍያ መፈጸም', 'name_en' => 'Execute Governance Settlements', 'category' => 'governance_settlement', 'scope' => 'tenant', 'is_system' => false],
     ];
 }
