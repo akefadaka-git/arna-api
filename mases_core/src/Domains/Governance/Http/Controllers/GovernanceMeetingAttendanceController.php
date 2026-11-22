@@ -58,9 +58,17 @@ final class GovernanceMeetingAttendanceController extends Controller
             'title_am' => ['nullable', 'string', 'max:190'],
             'title_en' => ['nullable', 'string', 'max:190'],
             'meeting_kind' => ['required', 'in:general_assembly,board'],
+            'meeting_category' => ['required_if:meeting_kind,general_assembly', 'nullable', 'in:ordinary,extraordinary'],
+            'meeting_round' => ['required_if:meeting_kind,general_assembly', 'nullable', 'integer', 'min:1', 'max:3'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
         ]);
+        if ($data['meeting_kind'] === 'board' && (!empty($data['meeting_category']) || !empty($data['meeting_round']))) {
+            throw ValidationException::withMessages(['meeting_category' => 'Board meetings do not use General Assembly category or round values.']);
+        }
+        if ($data['meeting_kind'] === 'general_assembly' && $data['meeting_category'] === 'ordinary' && (int) $data['meeting_round'] > 2) {
+            throw ValidationException::withMessages(['meeting_round' => 'Ordinary General Assembly meetings support only the first or second meeting round.']);
+        }
         $tenantId = $this->tenantId();
         $body = DB::table('governance_bodies')
             ->where('tenant_id', $tenantId)
@@ -85,6 +93,8 @@ final class GovernanceMeetingAttendanceController extends Controller
                     'title_am' => $data['title_am'] ?? null,
                     'title_en' => $data['title_en'] ?? null,
                     'meeting_kind' => $data['meeting_kind'],
+                    'meeting_category' => $data['meeting_category'] ?? null,
+                    'meeting_round' => $data['meeting_round'] ?? null,
                     'starts_at' => CarbonImmutable::parse($data['starts_at'])->toDateTimeString(),
                     'ends_at' => isset($data['ends_at']) ? CarbonImmutable::parse($data['ends_at'])->toDateTimeString() : null,
                     'status' => 'scheduled',
@@ -114,6 +124,7 @@ final class GovernanceMeetingAttendanceController extends Controller
         $record = $this->meeting($tenantId, $meeting);
         $record->attendance = DB::table('governance_meeting_attendance')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
         $record->proxies = DB::table('governance_meeting_proxies')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
+        $record->proxy_events = DB::table('governance_meeting_proxy_events')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
         $record->penalties = DB::table('governance_meeting_penalties')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
         $record->settlements = DB::table('governance_penalty_settlements')
             ->where('tenant_id', $tenantId)
@@ -132,6 +143,9 @@ final class GovernanceMeetingAttendanceController extends Controller
             'subject_type' => ['required', 'in:shareholder,director'],
             'subject_id' => ['required', 'integer', 'min:1'],
             'user_id' => ['nullable', 'integer', 'min:1'],
+            'proxy_id' => ['nullable', 'integer', 'min:1'],
+            'represented_by_user_id' => ['nullable', 'integer', 'min:1'],
+            'represented_by_name' => ['nullable', 'string', 'max:150'],
             'attendance_status' => ['required', 'in:present,late,absent,excused,represented'],
             'arrived_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
@@ -189,12 +203,32 @@ final class GovernanceMeetingAttendanceController extends Controller
             ->where('principal_type', $data['subject_type'])
             ->where('principal_id', $data['subject_id'])
             ->where('status', 'approved')
-            ->exists();
-        if ($status === 'represented' && !$approvedProxy) {
-            throw ValidationException::withMessages(['attendance_status' => 'Represented attendance requires an approved proxy for this principal and meeting.']);
-        }
-        if ($approvedProxy && in_array($status, ['present', 'late'], true)) {
+            ->first();
+        if ($status === 'represented') {
+            if (!$approvedProxy || empty($data['proxy_id']) || (int) $data['proxy_id'] !== (int) $approvedProxy->id) {
+                throw ValidationException::withMessages(['proxy_id' => 'Represented attendance must identify the exact approved proxy instrument for this principal and meeting.']);
+            }
+            if (!$arrivedAt) {
+                throw ValidationException::withMessages(['arrived_at' => 'The proxy arrival time is required for represented attendance.']);
+            }
+            if (!empty($approvedProxy->proxy_user_id)) {
+                if ((int) ($data['represented_by_user_id'] ?? 0) !== (int) $approvedProxy->proxy_user_id) {
+                    throw ValidationException::withMessages(['represented_by_user_id' => 'The attending proxy user does not match the approved proxy instrument.']);
+                }
+            } else {
+                $representedName = trim((string) ($data['represented_by_name'] ?? ''));
+                $allowedNames = array_filter([
+                    trim((string) ($approvedProxy->proxy_name_am ?? '')),
+                    trim((string) ($approvedProxy->proxy_name_en ?? '')),
+                ]);
+                if ($representedName === '' || !in_array($representedName, $allowedNames, true)) {
+                    throw ValidationException::withMessages(['represented_by_name' => 'The attending external proxy name must match the approved proxy instrument.']);
+                }
+            }
+        } elseif ($approvedProxy && in_array($status, ['present', 'late'], true)) {
             throw ValidationException::withMessages(['attendance_status' => 'A principal with an approved proxy cannot also attend personally in the same meeting.']);
+        } elseif (!empty($data['proxy_id']) || !empty($data['represented_by_user_id']) || !empty($data['represented_by_name'])) {
+            throw ValidationException::withMessages(['proxy_id' => 'Proxy identity fields are accepted only for represented attendance.']);
         }
         if ($status === 'excused' && trim((string) ($data['notes'] ?? '')) === '') {
             throw ValidationException::withMessages(['notes' => 'Permission or supporting evidence reference is required for excused absence.']);
@@ -208,6 +242,9 @@ final class GovernanceMeetingAttendanceController extends Controller
                     'subject_type' => $data['subject_type'],
                     'subject_id' => $data['subject_id'],
                     'user_id' => $canonicalUserId,
+                    'proxy_id' => $status === 'represented' ? (int) $data['proxy_id'] : null,
+                    'represented_by_user_id' => $status === 'represented' ? ($data['represented_by_user_id'] ?? null) : null,
+                    'represented_by_name' => $status === 'represented' ? ($data['represented_by_name'] ?? null) : null,
                     'attendance_status' => $status,
                     'arrived_at' => $arrivedAt?->toDateTimeString(),
                     'recorded_by' => $this->actorId(),
@@ -240,7 +277,7 @@ final class GovernanceMeetingAttendanceController extends Controller
             'proxy_name_am' => ['nullable', 'string', 'max:150'],
             'proxy_name_en' => ['nullable', 'string', 'max:150'],
             'proxy_reference' => ['nullable', 'string', 'max:100'],
-            'instrument_reference' => ['nullable', 'string', 'max:2000'],
+            'instrument_reference' => ['required', 'string', 'min:3', 'max:2000'],
         ]);
         $tenantId = $this->tenantId();
         $meetingRecord = $this->meeting($tenantId, $meeting);
@@ -260,6 +297,8 @@ final class GovernanceMeetingAttendanceController extends Controller
             $principalExists = DB::table('shareholders')
                 ->where('tenant_id', $tenantId)
                 ->where('id', $data['principal_id'])
+                ->where('is_active', true)
+                ->whereNull('deleted_at')
                 ->exists();
             if (!$principalExists) {
                 throw ValidationException::withMessages(['principal_id' => 'Shareholder is not registered in this tenant.']);
@@ -330,6 +369,10 @@ final class GovernanceMeetingAttendanceController extends Controller
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
+                $this->recordProxyEvent(
+                    $tenantId, $meeting, $id, 'submitted', null, 'submitted',
+                    'Proxy instrument submitted.', $data['instrument_reference'] ?? null
+                );
                 $this->activity($tenantId, $meeting, 'proxy.submitted', ['proxy_id' => $id, 'principal_type' => $data['principal_type']]);
                 return $id;
             });
@@ -347,30 +390,166 @@ final class GovernanceMeetingAttendanceController extends Controller
     {
         $data = $request->validate([
             'decision' => ['required', 'in:approved,rejected'],
-            'reason' => ['nullable', 'string', 'max:2000'],
+            'reason' => [$request->input('decision') === 'rejected' ? 'required' : 'nullable', 'string', 'min:3', 'max:2000'],
         ]);
+        $tenantId = $this->tenantId();
+
+        $result = DB::transaction(function () use ($tenantId, $proxy, $data): object {
+            $record = DB::table('governance_meeting_proxies')
+                ->where('tenant_id', $tenantId)->where('id', $proxy)
+                ->lockForUpdate()->first();
+            if (!$record) {
+                throw new NotFoundHttpException('Proxy was not found.');
+            }
+            if ($record->status !== 'submitted') {
+                throw new ConflictHttpException('Only submitted proxies can be reviewed.');
+            }
+            if ((int) $record->submitted_by === $this->actorId()) {
+                throw new ConflictHttpException('The proxy submitter cannot approve or reject their own proxy.');
+            }
+            if ($data['decision'] === 'approved') {
+                if (trim((string) ($record->instrument_reference ?? '')) === '') {
+                    throw new ConflictHttpException('Proxy approval requires a recorded proxy-instrument evidence reference.');
+                }
+                $meeting = $this->meeting($tenantId, (int) $record->meeting_id);
+                if ($meeting->meeting_kind === 'board' && !empty($record->proxy_user_id)) {
+                    $alreadyHoldsProxy = DB::table('governance_meeting_proxies')
+                        ->where('tenant_id', $tenantId)->where('meeting_id', $record->meeting_id)
+                        ->where('proxy_user_id', $record->proxy_user_id)->where('id', '<>', $proxy)
+                        ->where('status', 'approved')->exists();
+                    if ($alreadyHoldsProxy) {
+                        throw new ConflictHttpException('This director already holds an approved Board proxy for the meeting.');
+                    }
+                }
+            }
+
+            $updated = DB::table('governance_meeting_proxies')
+                ->where('tenant_id', $tenantId)->where('id', $proxy)->where('status', 'submitted')
+                ->update(['status' => $data['decision'], 'updated_at' => now()]);
+            if ($updated !== 1) {
+                throw new ConflictHttpException('Proxy was already reviewed by another request.');
+            }
+
+            $this->recordProxyEvent(
+                $tenantId, (int) $record->meeting_id, $proxy, 'reviewed',
+                'submitted', $data['decision'], $data['reason'] ?? null,
+                $record->instrument_reference ?? null
+            );
+            $this->activity($tenantId, (int) $record->meeting_id, 'proxy.reviewed', [
+                'proxy_id' => $proxy, 'decision' => $data['decision'],
+                'reason' => $data['reason'] ?? null, 'reviewed_by' => $this->actorId(),
+            ]);
+
+            return DB::table('governance_meeting_proxies')
+                ->where('tenant_id', $tenantId)->find($proxy);
+        });
+
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
+    public function verifyProxyHistory(int $proxy): JsonResponse
+    {
         $tenantId = $this->tenantId();
         $record = DB::table('governance_meeting_proxies')
             ->where('tenant_id', $tenantId)->where('id', $proxy)->first();
         if (!$record) {
             throw new NotFoundHttpException('Proxy was not found.');
         }
-        if ($record->status !== 'submitted') {
-            throw new ConflictHttpException('Only submitted proxies can be reviewed.');
+
+        $events = DB::table('governance_meeting_proxy_events')
+            ->where('tenant_id', $tenantId)->where('proxy_id', $proxy)
+            ->orderBy('id')->get();
+        $previousHash = null;
+        $verified = $events->isNotEmpty();
+        $failedEventId = null;
+
+        foreach ($events as $event) {
+            $payload = [
+                'tenant_id' => (int) $event->tenant_id,
+                'meeting_id' => (int) $event->meeting_id,
+                'proxy_id' => (int) $event->proxy_id,
+                'event_type' => (string) $event->event_type,
+                'previous_status' => $event->previous_status,
+                'next_status' => $event->next_status,
+                'actor_id' => (int) $event->actor_id,
+                'reason' => $event->reason,
+                'evidence_reference' => $event->evidence_reference,
+                'previous_event_hash' => $event->previous_event_hash,
+                'occurred_at' => (string) $event->occurred_at,
+            ];
+            $expected = hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+            if ($event->previous_event_hash !== $previousHash || !hash_equals((string) $event->event_hash, $expected)) {
+                $verified = false;
+                $failedEventId = (int) $event->id;
+                break;
+            }
+            $previousHash = (string) $event->event_hash;
         }
-        if ((int) $record->submitted_by === $this->actorId()) {
-            throw new ConflictHttpException('The proxy submitter cannot review their own submission.');
+
+        if ($verified && (string) $events->last()->next_status !== (string) $record->status) {
+            $verified = false;
         }
-        $updated = DB::table('governance_meeting_proxies')
-            ->where('tenant_id', $tenantId)->where('id', $proxy)->where('status', 'submitted')
-            ->update(['status' => $data['decision'], 'updated_at' => now()]);
-        if ($updated !== 1) {
-            throw new ConflictHttpException('Proxy was already reviewed by another request.');
-        }
-        $this->activity($tenantId, (int) $record->meeting_id, 'proxy.reviewed', [
-            'proxy_id' => $proxy, 'decision' => $data['decision'], 'reason' => $data['reason'] ?? null,
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'status' => $events->isEmpty() ? 'BLOCKED' : ($verified ? 'PASS' : 'FAIL'),
+                'proxy_id' => $proxy,
+                'event_count' => $events->count(),
+                'verified_through_event_id' => $verified ? ($events->last()->id ?? null) : null,
+                'failed_event_id' => $failedEventId,
+                'chain_root' => $previousHash,
+                'integrity_verified' => $verified,
+                'current_status_matches_chain' => $events->isNotEmpty() && (string) $events->last()->next_status === (string) $record->status,
+                'note' => 'This verifies the stored per-proxy hash chain and current status linkage. It is not an independent blockchain anchor.',
+            ],
         ]);
-        return response()->json(['success' => true, 'data' => DB::table('governance_meeting_proxies')->where('tenant_id', $tenantId)->find($proxy)]);
+    }
+
+    public function revokeProxy(Request $request, int $proxy): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+        $tenantId = $this->tenantId();
+
+        $result = DB::transaction(function () use ($tenantId, $proxy, $data): object {
+            $record = DB::table('governance_meeting_proxies')
+                ->where('tenant_id', $tenantId)->where('id', $proxy)
+                ->lockForUpdate()->first();
+            if (!$record) {
+                throw new NotFoundHttpException('Proxy was not found.');
+            }
+            if (!in_array($record->status, ['submitted', 'approved'], true)) {
+                throw new ConflictHttpException('Only submitted or approved proxies can be revoked.');
+            }
+            if ((int) $record->submitted_by !== $this->actorId()) {
+                throw new ConflictHttpException('Only the original proxy submitter may request revocation.');
+            }
+            $represented = DB::table('governance_meeting_attendance')
+                ->where('tenant_id', $tenantId)->where('meeting_id', $record->meeting_id)
+                ->where('subject_type', $record->principal_type)->where('subject_id', $record->principal_id)
+                ->where('attendance_status', 'represented')->exists();
+            if ($represented) {
+                throw new ConflictHttpException('A proxy already used for represented attendance cannot be revoked through this endpoint. Submit an attendance correction for independent review.');
+            }
+
+            $previous = (string) $record->status;
+            DB::table('governance_meeting_proxies')
+                ->where('tenant_id', $tenantId)->where('id', $proxy)
+                ->whereIn('status', ['submitted', 'approved'])
+                ->update(['status' => 'revoked', 'updated_at' => now()]);
+            $this->recordProxyEvent(
+                $tenantId, (int) $record->meeting_id, $proxy, 'revoked',
+                $previous, 'revoked', $data['reason'], $record->instrument_reference ?? null
+            );
+            $this->activity($tenantId, (int) $record->meeting_id, 'proxy.revoked', [
+                'proxy_id' => $proxy, 'reason' => $data['reason'],
+            ]);
+            return DB::table('governance_meeting_proxies')->where('tenant_id', $tenantId)->find($proxy);
+        });
+
+        return response()->json(['success' => true, 'data' => $result]);
     }
 
     public function assessPenalty(Request $request, int $meeting): JsonResponse
@@ -610,6 +789,38 @@ final class GovernanceMeetingAttendanceController extends Controller
             return DB::table('governance_penalty_disputes')->where('tenant_id', $tenantId)->find($dispute);
         });
         return response()->json(['success' => true, 'data' => $result]);
+    }
+
+    private function recordProxyEvent(
+        int $tenantId,
+        int $meetingId,
+        int $proxyId,
+        string $eventType,
+        ?string $previousStatus,
+        ?string $nextStatus,
+        ?string $reason,
+        ?string $evidenceReference,
+    ): void {
+        $previousHash = DB::table('governance_meeting_proxy_events')
+            ->where('tenant_id', $tenantId)->where('proxy_id', $proxyId)
+            ->orderByDesc('id')->value('event_hash');
+        $event = [
+            'tenant_id' => $tenantId,
+            'meeting_id' => $meetingId,
+            'proxy_id' => $proxyId,
+            'event_type' => $eventType,
+            'previous_status' => $previousStatus,
+            'next_status' => $nextStatus,
+            'actor_id' => $this->actorId(),
+            'reason' => $reason,
+            'evidence_reference' => $evidenceReference,
+            'previous_event_hash' => $previousHash,
+            'occurred_at' => now()->toDateTimeString(),
+        ];
+        $event['event_hash'] = hash('sha256', json_encode($event, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        $event['created_at'] = now();
+        $event['updated_at'] = now();
+        DB::table('governance_meeting_proxy_events')->insert($event);
     }
 
     private function meeting(int $tenantId, int $id): object
