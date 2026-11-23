@@ -49,6 +49,7 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
 
     protected function tearDown(): void
     {
+        \Illuminate\Support\Carbon::setTestNow();
         Cache::flush();
         parent::tearDown();
     }
@@ -136,6 +137,21 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
     public function test_author_cannot_self_review_and_submitted_configuration_cannot_be_edited(): void
     {
         $draft = $this->service->createDraft((int) $this->tenant->id, $this->author, $this->validConfiguration());
+
+        try {
+            $this->service->updateDraft((int) $this->tenant->id, (int) $draft->id, $this->reviewer, $this->validConfiguration());
+            $this->fail('A non-author must not edit another user\'s draft.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('submission', $exception->errors());
+        }
+
+        try {
+            $this->service->review((int) $this->tenant->id, (int) $draft->id, $this->reviewer, true);
+            $this->fail('A draft cannot be reviewed before submission.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('submission', $exception->errors());
+        }
+
         $submitted = $this->service->submit((int) $this->tenant->id, (int) $draft->id, $this->author);
 
         try {
