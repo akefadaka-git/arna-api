@@ -39,6 +39,7 @@ final class ProductionCoreSeeder extends Seeder
 
         $roles = (new RoleSeeder())->seed($tenant, $applications);
         (new RolePermissionSeeder())->seed($roles, $permissions);
+        $this->call(ProductionDomainReferenceSeeder::class);
 
         $admins = (new AdminUserSeeder())->seed($tenant, $roles);
         $shareholderSeeder = new ShareholderSeeder();
