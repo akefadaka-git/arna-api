@@ -91,7 +91,10 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
         $policy = VersionedPolicy::query()->findOrFail($approved->published_policy_version_id);
         $product = LoanProduct::query()->findOrFail($approved->published_product_id);
         $this->assertSame('loan_product_rules', $policy->policy_type);
-        $this->assertSame($configuration['financial_policy'], $policy->payload);
+        $this->assertSame(
+            $this->canonicalizePolicyPayload($configuration['financial_policy']),
+            $this->canonicalizePolicyPayload($policy->payload),
+        );
         $this->assertSame('2026-12-01', $policy->effective_from->toDateString());
         $this->assertFalse((bool) $product->is_active);
         $this->assertSame($policy->id, $product->product_rules_policy_version_id);
@@ -101,7 +104,10 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
             $policy->save();
             $this->fail('Published policy versions must be immutable.');
         } catch (LogicException) {
-            $this->assertSame($configuration['financial_policy'], $policy->fresh()->payload);
+            $this->assertSame(
+                $this->canonicalizePolicyPayload($configuration['financial_policy']),
+                $this->canonicalizePolicyPayload($policy->fresh()->payload),
+            );
         }
 
         try {
@@ -235,6 +241,25 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('financial_policy.fees', $exception->errors());
         }
+    }
+
+    /**
+     * MySQL normalizes key order when storing JSON objects. Compare the
+     * persisted policy structurally while preserving list ordering and values.
+     */
+    private function canonicalizePolicyPayload(array $payload): array
+    {
+        foreach ($payload as $key => $value) {
+            if (is_array($value)) {
+                $payload[$key] = $this->canonicalizePolicyPayload($value);
+            }
+        }
+
+        if (!array_is_list($payload)) {
+            ksort($payload);
+        }
+
+        return $payload;
     }
 
     private function validConfiguration(): array
