@@ -6,15 +6,17 @@ namespace MaaleArna\MASES\Core\Domains\PublicContent\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 final class CorporateSitePage extends Model
 {
+    use SoftDeletes;
     protected $table = 'corporate_site_pages';
 
     protected $fillable = [
         'page_key', 'slug_am', 'slug_en', 'translations', 'sections', 'seo',
-        'status', 'version', 'scheduled_at', 'published_at', 'created_by',
+        'status', 'version', 'is_enabled', 'archived_at', 'scheduled_at', 'published_at', 'created_by',
         'updated_by', 'reviewed_by',
     ];
 
@@ -25,6 +27,8 @@ final class CorporateSitePage extends Model
         'scheduled_at' => 'datetime',
         'published_at' => 'datetime',
         'version' => 'integer',
+        'is_enabled' => 'boolean',
+        'archived_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -41,6 +45,8 @@ final class CorporateSitePage extends Model
         return $query->where('status', 'published')
             ->whereNotNull('published_at')
             ->where('published_at', '<=', now())
+            ->where('is_enabled', true)
+            ->whereNull('archived_at')
             ->where(function (Builder $window): void {
                 $window->whereNull('scheduled_at')->orWhere('scheduled_at', '<=', now());
             });

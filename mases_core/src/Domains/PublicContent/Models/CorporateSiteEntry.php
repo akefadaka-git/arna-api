@@ -6,15 +6,17 @@ namespace MaaleArna\MASES\Core\Domains\PublicContent\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 final class CorporateSiteEntry extends Model
 {
+    use SoftDeletes;
     protected $table = 'corporate_site_entries';
 
     protected $fillable = [
         'entry_type', 'slug_am', 'slug_en', 'translations', 'payload', 'seo',
-        'status', 'version', 'moderation_note', 'asset_path', 'asset_mime',
+        'status', 'version', 'is_enabled', 'archived_at', 'moderation_note', 'asset_path', 'asset_mime',
         'asset_size', 'scheduled_at', 'published_at', 'created_by', 'updated_by', 'reviewed_by',
     ];
 
@@ -26,6 +28,8 @@ final class CorporateSiteEntry extends Model
         'published_at' => 'datetime',
         'asset_size' => 'integer',
         'version' => 'integer',
+        'is_enabled' => 'boolean',
+        'archived_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -41,6 +45,8 @@ final class CorporateSiteEntry extends Model
     {
         return $query->where('status', 'published')
             ->whereNotNull('published_at')
-            ->where('published_at', '<=', now());
+            ->where('published_at', '<=', now())
+            ->where('is_enabled', true)
+            ->whereNull('archived_at');
     }
 }
