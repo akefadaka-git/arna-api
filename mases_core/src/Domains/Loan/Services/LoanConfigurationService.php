@@ -237,6 +237,16 @@ final class LoanConfigurationService
             if (($term['frequency'] ?? null) !== 'monthly') {
                 $errors['financial_policy.term.frequency'][] = 'The current Loan engine supports monthly repayment only.';
             }
+
+            // The schedule engine explicitly rejects non-zero interest grace.
+            // Do not publish a policy that passes review but fails at disbursement.
+            if (isset($term['interest_grace_months']) && $term['interest_grace_months'] !== 0) {
+                $errors['financial_policy.term.interest_grace_months'][] = 'The current Loan engine does not support interest grace; use 0.';
+            }
+            if (isset($term['principal_grace_months'], $term['max_months'])
+                && $term['principal_grace_months'] >= $term['max_months']) {
+                $errors['financial_policy.term.principal_grace_months'][] = 'Principal grace must leave at least one amortizing installment.';
+            }
             foreach (['min_months', 'max_months', 'principal_grace_months', 'interest_grace_months'] as $key) {
                 if (isset($term[$key]) && (!is_int($term[$key]) || $term[$key] < 0)) {
                     $errors['financial_policy.term.' . $key][] = 'This value must be a non-negative integer.';
@@ -287,6 +297,9 @@ final class LoanConfigurationService
             if (($collateral['required'] ?? false) && empty($collateral['permitted_types'])) {
                 $errors['financial_policy.collateral.permitted_types'][] = 'At least one collateral type is required for secured products.';
             }
+            if (($collateral['required'] ?? false) === true) {
+                $errors['financial_policy.collateral.required'][] = 'Mandatory collateral is not enforced at loan application in the current Loan workflow; publish only unsecured products until that control is implemented.';
+            }
             if (isset($collateral['coverage_ratio']) && $collateral['coverage_ratio'] !== null &&
                 (!is_string($collateral['coverage_ratio']) || !preg_match('/^(0|[0-9]+)(\.[0-9]{1,8})?$/', $collateral['coverage_ratio']))) {
                 $errors['financial_policy.collateral.coverage_ratio'][] = 'Coverage ratio must be null or a non-negative decimal string.';
@@ -301,6 +314,11 @@ final class LoanConfigurationService
                         !is_string($fee['amount']) || !preg_match('/^[0-9]+(\.[0-9]{1,8})?$/', $fee['amount'])) {
                         $errors['financial_policy.fees.' . $index][] = 'Each fee requires a code, non-negative decimal amount, and fee component.';
                     }
+                }
+                // LoanDisbursementService does not yet create fee obligations.
+                // Reject non-empty schedules rather than publishing ignored terms.
+                if ($fees !== []) {
+                    $errors['financial_policy.fees'][] = 'Non-empty fee schedules cannot be published until disbursement fee collection is implemented.';
                 }
             }
         }
