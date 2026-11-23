@@ -319,7 +319,7 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
                     'name_am' => 'የብድር ውቅር',
                     'name_en' => 'Loan configuration',
                     'category' => 'loan',
-                    'scope' => 'platform',
+                    'scope' => 'tenant',
                     'tenant_id' => null,
                     'application_id' => null,
                     'is_active' => true,
