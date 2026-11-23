@@ -174,11 +174,13 @@ final class LoanConfigurationService
             if (isset($product['currency']) && (!is_string($product['currency']) || !preg_match('/^[A-Za-z]{3}$/', $product['currency']))) {
                 $errors['product.currency'][] = 'Currency must be a three-letter ISO code.';
             }
+            $principalPattern = '/^[0-9]{1,16}(\\.[0-9]{1,4})?$/';
             if (isset($product['min_principal'], $product['max_principal']) &&
-                (!is_numeric($product['min_principal']) || !is_numeric($product['max_principal']) ||
-                 bccomp((string) $product['min_principal'], (string) $product['max_principal'], 4) > 0 ||
-                 bccomp((string) $product['min_principal'], '0', 4) <= 0)) {
-                $errors['product.max_principal'][] = 'Principal bounds must be positive and maximum must be >= minimum.';
+                (!is_string($product['min_principal']) || !preg_match($principalPattern, $product['min_principal']) ||
+                 !is_string($product['max_principal']) || !preg_match($principalPattern, $product['max_principal']) ||
+                 bccomp($product['min_principal'], $product['max_principal'], 4) > 0 ||
+                 bccomp($product['min_principal'], '0', 4) <= 0)) {
+                $errors['product.max_principal'][] = 'Principal bounds must be positive decimal strings with at most four fractional digits and maximum >= minimum.';
             }
             if (isset($product['min_term_months'], $product['max_term_months']) &&
                 (!is_int($product['min_term_months']) || !is_int($product['max_term_months']) ||
