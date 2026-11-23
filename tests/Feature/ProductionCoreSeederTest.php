@@ -97,6 +97,19 @@ final class ProductionCoreSeederTest extends TestCase
                 ->whereIn('user_id', $shareholderUserIds)->distinct()->count('user_id'),
         );
 
+        $this->assertSame(
+            4,
+            DB::table('permissions')->whereIn('slug', [
+                'shareholder.view_own',
+                'wallet.view_own',
+                'loan.apply',
+                'governance.view',
+            ])->count(),
+        );
+        $this->assertSame(2, DB::table('share_classes')->count());
+        $this->assertDatabaseHas('share_classes', ['code' => 'FOUNDERS']);
+        $this->assertDatabaseHas('share_classes', ['code' => 'STANDARD']);
+
         $this->assertSame(100, DB::table('shareholder_number_reservations')->count());
         $this->assertSame(100, DB::table('shareholder_legacy_aliases')->count());
 
