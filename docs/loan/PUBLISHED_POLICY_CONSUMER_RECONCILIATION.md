@@ -37,8 +37,17 @@
 
 - Fee obligation implementation and associated Wallet/accounting tests.
 - Mandatory-collateral enforcement at origination.
-- Existing-product policy revision workflow.
-- Audit-history read endpoint.
-- Owner-approved role-to-permission assignments.
+- Owner-approved role-to-permission assignments. The dedicated audit permission is catalogued but is not assigned to any role by this change.
 
 These are not represented as complete by the lifecycle tests. The MySQL lifecycle suite verifies the implemented submission, review, publication, activation, audit-write, immutability, and tenant-isolation paths only.
+
+
+## Existing-product revision and audit-history lifecycle (PR #209 follow-up)
+
+- A revision draft identifies its existing product with `product.id`. The submission stores `revision_product_id` and snapshots `previous_policy_version_id` as its revision lineage.
+- Review publishes a new immutable policy version but does not change the existing product's active policy pointer or product metadata.
+- Activation is blocked before `effective_from`. At activation, the product is locked and its current policy pointer is compared with the captured previous version. A stale revision fails closed rather than overwriting a newer revision.
+- Successful activation switches the product pointer and applies the approved catalogue metadata in the same transaction. Existing loans retain their own `frozen_policy_version_id`; no loan is repointed.
+- New-product creation retains its existing inactive-publication / separate-activation lifecycle.
+- `GET /api/loans/configuration/audit` returns chronological tenant-scoped audit entries, optionally filtered by `submission_id`, and requires the dedicated `loan.configuration.audit.view` permission. The permission is added to the Loan permission catalogue but is not assigned to roles pending Owner governance.
+- MySQL lifecycle coverage now includes revision-pointer preservation before effective activation, revision metadata/policy switch, chronological audit reads, missing-permission denial, and cross-tenant isolation. These tests remain **NOT VERIFIED** until the exact-head MySQL workflow completes successfully.
