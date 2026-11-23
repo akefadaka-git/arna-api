@@ -81,6 +81,22 @@ final class ProductionCoreSeederTest extends TestCase
                 ->count('user_id'),
         );
 
+        $shareholderRoleId = DB::table('roles')->where('slug', 'shareholder')->value('id');
+        $boardRoleId = DB::table('roles')->where('slug', 'board')->value('id');
+
+        $this->assertNotNull($shareholderRoleId);
+        $this->assertNotNull($boardRoleId);
+        $this->assertSame(
+            100,
+            DB::table('user_has_roles')->where('role_id', $shareholderRoleId)
+                ->whereIn('user_id', $shareholderUserIds)->distinct()->count('user_id'),
+        );
+        $this->assertSame(
+            8,
+            DB::table('user_has_roles')->where('role_id', $boardRoleId)
+                ->whereIn('user_id', $shareholderUserIds)->distinct()->count('user_id'),
+        );
+
         $this->assertSame(100, DB::table('shareholder_number_reservations')->count());
         $this->assertSame(100, DB::table('shareholder_legacy_aliases')->count());
 
