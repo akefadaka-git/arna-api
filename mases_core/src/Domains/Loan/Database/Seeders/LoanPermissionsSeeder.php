@@ -304,6 +304,7 @@ final class LoanPermissionsSeeder extends Seeder
         'loan.configuration.submit' => ['name_am' => 'የብድር ፖሊሲ ለግምገማ ማቅረብ', 'name_en' => 'Submit loan policy for review'],
         'loan.configuration.approve' => ['name_am' => 'የብድር ፖሊሲ ማጽደቅ', 'name_en' => 'Approve loan financial policy'],
         'loan.configuration.activate' => ['name_am' => 'የጸደቀ የብድር ምርት ማንቃት', 'name_en' => 'Activate approved loan product'],
+        'loan.configuration.audit.view' => ['name_am' => 'የብድር ውቅር የኦዲት ታሪክ ማየት', 'name_en' => 'View loan configuration audit history'],
         'loan.view' => [
             'name_am' => 'ብድሮችን ማየት',
             'name_en' => 'View loans',
