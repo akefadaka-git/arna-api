@@ -41,16 +41,10 @@ use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
  *            identifier, IP address, user agent, and outcome. See
  *            the class docblock §"Audit logging" below.
  *
- *          · Email normalization. resolveLoginEmail() lowercases and
- *            trims the identifier before format checking and before
- *            the phone lookup. Email addresses are case-insensitive
- *            per RFC 5321; the previous implementation could fail to
- *            match a user who typed a differently-cased address than
- *            the one stored.
- *
- *          · Phone-resolution logging. When the phone → email
- *            branch fires, the fact is logged (masked) for
- *            diagnostics.
+ *          · Identifier resolution is delegated to
+ *            LoginIdentifierResolver, which supports email, username,
+ *            phone, employee number, shareholder number, and wallet
+ *            number with tenant-scoped, fail-closed domain lookups.
  *
  *          · Route-level rate limiting documentation. See §"Rate
  *            limiting" below.
@@ -126,25 +120,16 @@ use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
  * -----------------------------------------------------------------------------
  * Login identifier
  * -----------------------------------------------------------------------------
- * The `email` field on the login request may carry an email address
- * or a phone number. The field name is retained for backward
- * compatibility with clients that predate this change.
- *
- * The controller resolves the identifier to an email address via
- * resolveLoginEmail() before handing off to AuthenticationService,
- * which expects an email. The resolver:
- *
- *   · passes an email-formatted identifier through unchanged;
- *   · maps a phone number to the email of the user whose `phone`
- *     column matches it;
- *   · returns null when no user matches — in which case login()
- *     passes the raw identifier through and the service produces its
- *     standard AUTH_INVALID_CREDENTIALS envelope.
- *
- * Username is NOT supported. The `users` table has no `username`
- * column; adding one requires a migration and a Change Request. When
- * that CR lands, resolveLoginEmail() gains a third lookup branch and
- * this docblock is updated.
+ * The legacy `email` request field carries an opaque sign-in
+ * identifier for backward compatibility. LoginIdentifierResolver
+ * supports email, username, mobile number, employee number,
+ * shareholder number, and wallet number. Direct user identifiers and
+ * domain-linked identifiers are tenant-scoped as applicable; missing,
+ * inactive, unlinked, non-member, or ambiguous matches fail closed.
+ * The controller then passes only the resolved user's email to the
+ * existing AuthenticationService credential verifier. Unresolved
+ * identifiers use a non-matching sentinel and retain the standard
+ * AUTH_INVALID_CREDENTIALS response to prevent account enumeration.
  *
  * -----------------------------------------------------------------------------
  * Password reset neutrality
@@ -352,16 +337,14 @@ final class AuthController extends Controller
     // =========================================================================
 
     /**
-     * Log in a user with an identifier (email or phone) and password.
+     * Log in with an opaque identifier and password.
      *
-     * The `email` field accepts:
-     *   · a valid email address;
-     *   · a phone number matching a user's `phone` column.
-     *
-     * Any other identifier is passed through to the service, which
-     * produces its standard AUTH_INVALID_CREDENTIALS error. The
-     * response is identical whether the identifier matches a user or
-     * not — this is deliberate and prevents account enumeration.
+     * The legacy `email` field accepts email, username, mobile number,
+     * employee number, shareholder number, or wallet number. The
+     * canonical resolver applies tenant membership and fail-closed
+     * checks before the existing email-based credential verifier runs.
+     * Unknown identifiers and wrong passwords remain indistinguishable
+     * to prevent account enumeration.
      *
      * Every attempt is logged (see the class docblock §"Audit
      * logging"). The raw identifier is never logged; a masked form
