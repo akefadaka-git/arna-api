@@ -357,8 +357,18 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'application_id' => null,
             'is_active' => true,
         ]);
-        $role->permissions()->attach([$entryPermission->id, $workforcePermission->id]);
-        $user->roles()->attach($role->id);
+        $executiveRole = Role::create([
+            'name_am' => 'Chief Executive',
+            'name_en' => 'Chief Executive',
+            'slug' => 'ceo',
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $executiveRole->permissions()->attach($entryPermission->id);
+        $role->permissions()->attach($workforcePermission->id);
+        $user->roles()->attach([$executiveRole->id, $role->id]);
 
         DB::table('employees')->insert([
             'tenant_id' => $tenant->id,
