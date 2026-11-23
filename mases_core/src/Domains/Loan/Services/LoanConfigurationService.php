@@ -32,6 +32,19 @@ final class LoanConfigurationService
             ->paginate(25);
     }
 
+    public function auditHistoryForTenant(int $tenantId, User $actor, ?int $submissionId = null)
+    {
+        $this->authorize('loan.configuration.audit.view', $actor, $tenantId);
+
+        $query = DB::table('loan_configuration_audit_logs')
+            ->where('tenant_id', $tenantId);
+        if ($submissionId !== null) {
+            $query->where('submission_id', $submissionId);
+        }
+
+        return $query->orderBy('id')->paginate(50);
+    }
+
     public function updateDraft(int $tenantId, int $submissionId, User $actor, array $configuration): LoanConfigurationSubmission
     {
         $this->authorize('loan.configuration.manage', $actor, $tenantId);
@@ -42,7 +55,8 @@ final class LoanConfigurationService
             if ($submission->status !== 'draft' || (int) $submission->created_by !== (int) $actor->getKey()) {
                 throw ValidationException::withMessages(['submission' => ['Only the author may edit their own draft submission.']]);
             }
-            $submission->forceFill(['configuration' => $configuration])->save();
+            $revision = $this->revisionLineage($tenantId, $configuration);
+            $submission->forceFill(array_merge(['configuration' => $configuration], $revision))->save();
             $this->audit($submission, $actor, 'draft_updated');
             return $submission->refresh();
         });
@@ -54,12 +68,12 @@ final class LoanConfigurationService
         $this->validateConfiguration($configuration);
 
         return DB::transaction(function () use ($tenantId, $actor, $configuration): LoanConfigurationSubmission {
-            $submission = LoanConfigurationSubmission::create([
+            $submission = LoanConfigurationSubmission::create(array_merge([
                 'tenant_id' => $tenantId,
                 'created_by' => $actor->getKey(),
                 'status' => 'draft',
                 'configuration' => $configuration,
-            ]);
+            ], $this->revisionLineage($tenantId, $configuration)));
             $this->audit($submission, $actor, 'draft_created');
             return $submission->refresh();
         });
@@ -109,23 +123,34 @@ final class LoanConfigurationService
                     $config['financial_policy'],
                     $effectiveFrom,
                 );
-                $product = LoanProduct::create([
-                    'tenant_id' => $tenantId,
-                    'code' => $config['product']['code'],
-                    'name_am' => $config['product']['name_am'] ?? null,
-                    'name_en' => $config['product']['name_en'] ?? null,
-                    'description_am' => $config['product']['description_am'] ?? null,
-                    'description_en' => $config['product']['description_en'] ?? null,
-                    'purpose' => $config['product']['purpose'] ?? null,
-                    'currency' => strtoupper($config['product']['currency']),
-                    'min_principal' => $config['product']['min_principal'],
-                    'max_principal' => $config['product']['max_principal'],
-                    'min_term_months' => $config['product']['min_term_months'],
-                    'max_term_months' => $config['product']['max_term_months'],
-                    'default_installment_frequency' => 'monthly',
-                    'is_active' => false,
-                    'product_rules_policy_version_id' => $policy->getKey(),
-                ]);
+                if ($submission->revision_product_id !== null) {
+                    $product = LoanProduct::query()
+                        ->where('tenant_id', $tenantId)
+                        ->whereKey($submission->revision_product_id)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+                    if ((int) $product->product_rules_policy_version_id !== (int) $submission->previous_policy_version_id) {
+                        throw ValidationException::withMessages(['product' => ['The product policy changed after this revision was drafted. Create a new revision against the current version.']]);
+                    }
+                } else {
+                    $product = LoanProduct::create([
+                        'tenant_id' => $tenantId,
+                        'code' => $config['product']['code'],
+                        'name_am' => $config['product']['name_am'] ?? null,
+                        'name_en' => $config['product']['name_en'] ?? null,
+                        'description_am' => $config['product']['description_am'] ?? null,
+                        'description_en' => $config['product']['description_en'] ?? null,
+                        'purpose' => $config['product']['purpose'] ?? null,
+                        'currency' => strtoupper($config['product']['currency']),
+                        'min_principal' => $config['product']['min_principal'],
+                        'max_principal' => $config['product']['max_principal'],
+                        'min_term_months' => $config['product']['min_term_months'],
+                        'max_term_months' => $config['product']['max_term_months'],
+                        'default_installment_frequency' => 'monthly',
+                        'is_active' => false,
+                        'product_rules_policy_version_id' => $policy->getKey(),
+                    ]);
+                }
                 $fields['published_policy_version_id'] = $policy->getKey();
                 $fields['published_product_id'] = $product->getKey();
             }
@@ -150,9 +175,34 @@ final class LoanConfigurationService
                 throw ValidationException::withMessages(['effective_from' => ['A product cannot be activated before its approved policy effective date.']]);
             }
             $product = LoanProduct::query()->where('tenant_id', $tenantId)->whereKey($submission->published_product_id)->lockForUpdate()->firstOrFail();
-            $product->forceFill(['is_active' => true])->save();
+            if ($submission->revision_product_id !== null) {
+                if ((int) $product->product_rules_policy_version_id !== (int) $submission->previous_policy_version_id) {
+                    throw ValidationException::withMessages(['product' => ['The active policy changed after this revision was approved; activation is blocked to prevent overwriting a newer revision.']]);
+                }
+                $config = $submission->configuration['product'];
+                $product->forceFill([
+                    'code' => $config['code'],
+                    'name_am' => $config['name_am'] ?? null,
+                    'name_en' => $config['name_en'] ?? null,
+                    'description_am' => $config['description_am'] ?? null,
+                    'description_en' => $config['description_en'] ?? null,
+                    'purpose' => $config['purpose'] ?? null,
+                    'currency' => strtoupper($config['currency']),
+                    'min_principal' => $config['min_principal'],
+                    'max_principal' => $config['max_principal'],
+                    'min_term_months' => $config['min_term_months'],
+                    'max_term_months' => $config['max_term_months'],
+                    'product_rules_policy_version_id' => $submission->published_policy_version_id,
+                ])->save();
+            } else {
+                $product->forceFill(['is_active' => true])->save();
+            }
             $submission->forceFill(['status' => 'active', 'activated_at' => now()])->save();
-            $this->audit($submission, $actor, 'product_activated', ['product_id' => $product->getKey()]);
+            $this->audit($submission, $actor, $submission->revision_product_id !== null ? 'product_policy_revision_activated' : 'product_activated', [
+                'product_id' => $product->getKey(),
+                'previous_policy_version_id' => $submission->previous_policy_version_id,
+                'policy_version_id' => $submission->published_policy_version_id,
+            ]);
             return $submission->refresh();
         });
     }
@@ -169,6 +219,9 @@ final class LoanConfigurationService
             }
         }
         if (is_array($product)) {
+            if (array_key_exists('id', $product) && (!is_int($product['id']) || $product['id'] < 1)) {
+                $errors['product.id'][] = 'Revision product id must be a positive integer.';
+            }
             if (isset($product['code']) && (!is_string($product['code']) || !preg_match('/^[A-Z0-9_-]{2,32}$/', $product['code']))) {
                 $errors['product.code'][] = 'Use 2–32 uppercase letters, digits, underscores or hyphens.';
             }
@@ -341,6 +394,36 @@ final class LoanConfigurationService
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * Capture the existing product's policy pointer when a revision draft is
+     * created or edited. The pointer is rechecked under lock at approval and
+     * activation to prevent stale revisions from replacing newer policy.
+     *
+     * @return array{revision_product_id: int|null, previous_policy_version_id: int|null}
+     */
+    private function revisionLineage(int $tenantId, array $configuration): array
+    {
+        $productId = $configuration['product']['id'] ?? null;
+        if ($productId === null) {
+            return ['revision_product_id' => null, 'previous_policy_version_id' => null];
+        }
+
+        $product = LoanProduct::query()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($productId)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        if (!$product->product_rules_policy_version_id) {
+            throw ValidationException::withMessages(['product.id' => ['An existing product must have a published policy before it can be revised.']]);
+        }
+
+        return [
+            'revision_product_id' => (int) $product->getKey(),
+            'previous_policy_version_id' => (int) $product->product_rules_policy_version_id,
+        ];
     }
 
     private function findForTenant(int $tenantId, int $submissionId): LoanConfigurationSubmission
