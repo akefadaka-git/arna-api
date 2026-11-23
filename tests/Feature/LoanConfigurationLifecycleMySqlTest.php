@@ -245,7 +245,7 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
 
     public function test_mysql_existing_product_revision_preserves_live_pointer_until_effective_activation(): void
     {
-        \\Illuminate\\Support\\Carbon::setTestNow('2026-11-23 10:00:00');
+        \Illuminate\Support\Carbon::setTestNow('2026-11-23 10:00:00');
         $initial = $this->validConfiguration();
         $initial['effective_from'] = '2026-11-01T00:00:00Z';
         $draft = $this->service->createDraft((int) $this->tenant->id, $this->author, $initial);
@@ -291,7 +291,7 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
         }
         $this->assertSame($oldPolicyId, (int) $product->fresh()->product_rules_policy_version_id);
 
-        \\Illuminate\\Support\\Carbon::setTestNow('2026-12-01 00:00:00');
+        \Illuminate\Support\Carbon::setTestNow('2026-12-01 00:00:00');
         $revisionActive = $this->service->activate((int) $this->tenant->id, (int) $revisionApproved->id, $this->reviewer);
         $product->refresh();
         $this->assertSame('active', $revisionActive->status);
@@ -312,7 +312,7 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
             'product_policy_revision_activated',
         ], $events);
 
-        \\Illuminate\\Support\\Carbon::setTestNow();
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_audit_history_requires_dedicated_permission_and_is_chronological_and_tenant_scoped(): void
@@ -334,7 +334,7 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
         try {
             $this->service->auditHistoryForTenant((int) $this->tenant->id, $unauthorized);
             $this->fail('Audit history must require the dedicated audit permission.');
-        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\HttpException $exception) {
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
             $this->assertSame(403, $exception->getStatusCode());
         }
     }
