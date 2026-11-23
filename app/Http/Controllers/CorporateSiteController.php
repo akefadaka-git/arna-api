@@ -276,9 +276,15 @@ final class CorporateSiteController extends Controller
                 continue;
             }
 
-            if (in_array(strtolower(trim((string) $section['type'])), [
+            $isCommunityResponsibility = in_array(strtolower(trim((string) $section['type'])), [
                 'community_responsibility', 'community-responsibility', 'responsibility',
-            ], true)) {
+            ], true);
+
+            if (!$isCommunityResponsibility && (($section['content']['visible'] ?? true) === false)) {
+                continue;
+            }
+
+            if ($isCommunityResponsibility) {
                 foreach (['am', 'en'] as $language) {
                     if (!is_array($section['content'][$language] ?? null)) {
                         continue;
