@@ -937,14 +937,8 @@ final class ShareholderSeeder extends Seeder
         $existing = $matches->first();
 
         if ($existing !== null) {
-            /*
-             * Existing register entry: update in place. The
-             * `updated_at` timestamp was set in $attributes above.
-             * The `created_at` column is left untouched.
-             */
-            DB::table('shareholders')
-                ->where('id', $existing->id)
-                ->update($attributes);
+            // Existing register entries may contain operator corrections or
+            // lifecycle decisions. Preserve them; only create missing rows.
             return;
         }
 
