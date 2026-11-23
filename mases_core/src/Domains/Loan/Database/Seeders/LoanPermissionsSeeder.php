@@ -299,6 +299,10 @@ final class LoanPermissionsSeeder extends Seeder
      * @var array<string, array{name_am: string, name_en: string}>
      */
     private const PERMISSIONS = [
+        'loan.configuration.manage' => ['name_am' => 'የብድር ምርት ውቅር ማስተዳደር', 'name_en' => 'Manage loan product configuration'],
+        'loan.configuration.submit' => ['name_am' => 'የብድር ፖሊሲ ለግምገማ ማቅረብ', 'name_en' => 'Submit loan policy for review'],
+        'loan.configuration.approve' => ['name_am' => 'የብድር ፖሊሲ ማጽደቅ', 'name_en' => 'Approve loan financial policy'],
+        'loan.configuration.activate' => ['name_am' => 'የጸደቀ የብድር ምርት ማንቃት', 'name_en' => 'Activate approved loan product'],
         'loan.view' => [
             'name_am' => 'ብድሮችን ማየት',
             'name_en' => 'View loans',
