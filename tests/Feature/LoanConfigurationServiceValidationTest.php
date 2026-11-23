@@ -20,7 +20,7 @@ final class LoanConfigurationServiceValidationTest extends TestCase
         $authorization = $this->createMock(AuthorizationService::class);
         $authorization->method('hasPermission')->willReturn(true);
 
-        $service = new LoanConfigurationService($authorization, $this->createMock(VersionedPolicyRegistry::class));
+        $service = new LoanConfigurationService($authorization, new VersionedPolicyRegistry());
         $actor = new User();
         $actor->setAttribute('id', 17);
 
