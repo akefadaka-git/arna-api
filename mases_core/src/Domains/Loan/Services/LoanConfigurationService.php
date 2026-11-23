@@ -146,8 +146,9 @@ final class LoanConfigurationService
             }
             if (isset($product['min_principal'], $product['max_principal']) &&
                 (!is_numeric($product['min_principal']) || !is_numeric($product['max_principal']) ||
-                 bccomp((string) $product['min_principal'], (string) $product['max_principal'], 4) > 0)) {
-                $errors['product.max_principal'][] = 'Maximum principal must be greater than or equal to minimum principal.';
+                 bccomp((string) $product['min_principal'], (string) $product['max_principal'], 4) > 0 ||
+                 bccomp((string) $product['min_principal'], '0', 4) <= 0)) {
+                $errors['product.max_principal'][] = 'Principal bounds must be positive and maximum must be >= minimum.';
             }
             if (isset($product['min_term_months'], $product['max_term_months']) &&
                 (!is_int($product['min_term_months']) || !is_int($product['max_term_months']) ||
@@ -164,31 +165,111 @@ final class LoanConfigurationService
             $errors['financial_policy'][] = 'Financial policy must be an object.';
         } else {
             foreach ($sections as $section) {
-                if (!array_key_exists($section, $policy) || !is_array($policy[$section])) {
+                if (!isset($policy[$section]) || !is_array($policy[$section])) {
                     $errors['financial_policy.' . $section][] = 'This policy section is required.';
                 }
             }
-            if (isset($policy['interest']) && (!isset($policy['interest']['annual_rate']) ||
-                !is_string($policy['interest']['annual_rate']) ||
-                !preg_match('/^(0|[0-9]+)(\.[0-9]{1,8})?$/', $policy['interest']['annual_rate']))) {
+
+            $interest = $policy['interest'] ?? [];
+            $interestKeys = ['basis', 'rate_representation', 'computation_method', 'periodicity', 'day_count', 'rounding', 'precision', 'annual_rate'];
+            foreach ($interestKeys as $key) {
+                if (!array_key_exists($key, $interest)) {
+                    $errors['financial_policy.interest.' . $key][] = 'This interest rule is required.';
+                }
+            }
+            $fixedInterestRules = [
+                'basis' => 'declining_balance',
+                'rate_representation' => 'annual_percentage',
+                'computation_method' => 'annuity',
+                'periodicity' => 'monthly',
+                'day_count' => 'actual_365',
+                'rounding' => 'half_up',
+                'precision' => 4,
+            ];
+            foreach ($fixedInterestRules as $key => $expected) {
+                if (array_key_exists($key, $interest) && $interest[$key] !== $expected) {
+                    $errors['financial_policy.interest.' . $key][] = 'This calculation method is not supported by the current Loan engine.';
+                }
+            }
+            if (isset($interest['annual_rate']) &&
+                (!is_string($interest['annual_rate']) || !preg_match('/^(0|[0-9]+)(\.[0-9]{1,8})?$/', $interest['annual_rate']))) {
                 $errors['financial_policy.interest.annual_rate'][] = 'Annual rate must be a non-negative decimal string.';
             }
-            if (isset($policy['term']) && (!isset($policy['term']['min_months'], $policy['term']['max_months']) ||
-                !is_int($policy['term']['min_months']) || !is_int($policy['term']['max_months']) ||
-                $policy['term']['min_months'] < 1 || $policy['term']['max_months'] < $policy['term']['min_months'])) {
-                $errors['financial_policy.term'][] = 'Term policy bounds must be valid positive integers.';
+
+            $term = $policy['term'] ?? [];
+            foreach (['min_months', 'max_months', 'frequency', 'principal_grace_months', 'interest_grace_months'] as $key) {
+                if (!array_key_exists($key, $term)) {
+                    $errors['financial_policy.term.' . $key][] = 'This term rule is required.';
+                }
             }
-            if (isset($policy['arrears']) && ($policy['arrears']['enabled'] ?? null) === true &&
-                (!isset($policy['arrears']['penalty_rate'], $policy['arrears']['grace_days']) ||
-                 !is_string($policy['arrears']['penalty_rate']) || !is_int($policy['arrears']['grace_days']) ||
-                 $policy['arrears']['grace_days'] < 0)) {
-                $errors['financial_policy.arrears'][] = 'Enabled arrears requires a decimal penalty rate and non-negative grace days.';
+            if (($term['frequency'] ?? null) !== 'monthly') {
+                $errors['financial_policy.term.frequency'][] = 'The current Loan engine supports monthly repayment only.';
             }
-            if (isset($policy['collateral']) && !is_bool($policy['collateral']['required'] ?? null)) {
-                $errors['financial_policy.collateral.required'][] = 'Collateral required must be explicitly true or false.';
+            foreach (['min_months', 'max_months', 'principal_grace_months', 'interest_grace_months'] as $key) {
+                if (isset($term[$key]) && (!is_int($term[$key]) || $term[$key] < 0)) {
+                    $errors['financial_policy.term.' . $key][] = 'This value must be a non-negative integer.';
+                }
             }
-            if (isset($policy['fees']) && !array_is_list($policy['fees'])) {
+            if (isset($term['min_months'], $term['max_months']) &&
+                ($term['min_months'] < 1 || $term['max_months'] < $term['min_months'])) {
+                $errors['financial_policy.term.max_months'][] = 'Maximum term must be >= minimum term and at least one month.';
+            }
+            if (is_array($product) && isset($term['min_months'], $term['max_months'], $product['min_term_months'], $product['max_term_months']) &&
+                ($term['min_months'] !== $product['min_term_months'] || $term['max_months'] !== $product['max_term_months'])) {
+                $errors['financial_policy.term'][] = 'Policy term bounds must match the product catalogue bounds.';
+            }
+
+            $arrears = $policy['arrears'] ?? [];
+            if (!is_bool($arrears['enabled'] ?? null)) {
+                $errors['financial_policy.arrears.enabled'][] = 'Arrears enablement must be explicitly true or false.';
+            }
+            if (($arrears['enabled'] ?? false) === true) {
+                foreach (['penalty_rate', 'grace_days', 'basis'] as $key) {
+                    if (!array_key_exists($key, $arrears)) {
+                        $errors['financial_policy.arrears.' . $key][] = 'This enabled-arrears rule is required.';
+                    }
+                }
+                if (isset($arrears['penalty_rate']) &&
+                    (!is_string($arrears['penalty_rate']) || !preg_match('/^(0|[0-9]+)(\.[0-9]{1,8})?$/', $arrears['penalty_rate']))) {
+                    $errors['financial_policy.arrears.penalty_rate'][] = 'Penalty rate must be a non-negative decimal string.';
+                }
+                if (isset($arrears['grace_days']) && (!is_int($arrears['grace_days']) || $arrears['grace_days'] < 0)) {
+                    $errors['financial_policy.arrears.grace_days'][] = 'Grace days must be a non-negative integer.';
+                }
+                if (isset($arrears['basis']) && $arrears['basis'] !== 'overdue_installment') {
+                    $errors['financial_policy.arrears.basis'][] = 'The current Loan engine supports overdue_installment basis only.';
+                }
+                if (isset($arrears['cap']) && $arrears['cap'] !== null &&
+                    (!is_string($arrears['cap']) || !preg_match('/^(0|[0-9]+)(\.[0-9]{1,8})?$/', $arrears['cap']))) {
+                    $errors['financial_policy.arrears.cap'][] = 'Penalty cap must be null or a non-negative decimal string.';
+                }
+            }
+
+            $collateral = $policy['collateral'] ?? [];
+            if (!is_bool($collateral['required'] ?? null)) {
+                $errors['financial_policy.collateral.required'][] = 'Collateral requirement must be explicitly true or false.';
+            }
+            if (!isset($collateral['permitted_types']) || !is_array($collateral['permitted_types']) || !array_is_list($collateral['permitted_types'])) {
+                $errors['financial_policy.collateral.permitted_types'][] = 'Permitted collateral types must be a list.';
+            }
+            if (($collateral['required'] ?? false) && empty($collateral['permitted_types'])) {
+                $errors['financial_policy.collateral.permitted_types'][] = 'At least one collateral type is required for secured products.';
+            }
+            if (isset($collateral['coverage_ratio']) && $collateral['coverage_ratio'] !== null &&
+                (!is_string($collateral['coverage_ratio']) || !preg_match('/^(0|[0-9]+)(\.[0-9]{1,8})?$/', $collateral['coverage_ratio']))) {
+                $errors['financial_policy.collateral.coverage_ratio'][] = 'Coverage ratio must be null or a non-negative decimal string.';
+            }
+
+            $fees = $policy['fees'] ?? null;
+            if (!is_array($fees) || !array_is_list($fees)) {
                 $errors['financial_policy.fees'][] = 'Fees must be a list; use an empty list when no fees apply.';
+            } else {
+                foreach ($fees as $index => $fee) {
+                    if (!is_array($fee) || empty($fee['code']) || empty($fee['amount']) || ($fee['component'] ?? null) !== 'fee' ||
+                        !is_string($fee['amount']) || !preg_match('/^[0-9]+(\.[0-9]{1,8})?$/', $fee['amount'])) {
+                        $errors['financial_policy.fees.' . $index][] = 'Each fee requires a code, non-negative decimal amount, and fee component.';
+                    }
+                }
             }
         }
 
