@@ -90,6 +90,8 @@ on:
       - "app/Http/Controllers/LocalePreferenceController.php"
       - "tests/Feature/LocalePreferenceTest.php"
       - "tests/Feature/ProductionCoreSeederTest.php"
+      - "tests/Feature/LoanFinancialSeederGuardTest.php"
+      - "mases_core/src/Domains/Loan/Database/Seeders/**"
   workflow_dispatch:
     inputs:
       target_sha:
@@ -224,6 +226,9 @@ jobs:
 
       - name: Run focused demo seeder guard tests
         run: php artisan test --compact tests/Unit/DemoSeederGuardTest.php
+
+      - name: Run retired hard-coded Loan seeder guard tests
+        run: php artisan test --compact tests/Feature/LoanFinancialSeederGuardTest.php
 
       - name: Run Loan domain unit tests with hermetic SQLite
         env:
