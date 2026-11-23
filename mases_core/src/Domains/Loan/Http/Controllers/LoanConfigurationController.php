@@ -121,6 +121,36 @@ final class LoanConfigurationController
         return response()->json(['success' => true, 'data' => $result]);
     }
 
+    public function auditHistory(Request $request): JsonResponse
+    {
+        $actor = $this->actor($request);
+        $tenantId = $this->tenantId();
+        if (!$this->authorization->hasPermission('loan.configuration.audit.view', $actor, $tenantId)) {
+            abort(403, 'You are not authorized to view loan configuration audit history.');
+        }
+
+        $validated = $request->validate([
+            'submission_id' => ['sometimes', 'integer', 'min:1'],
+        ]);
+        $events = $this->configurations->auditHistoryForTenant(
+            $tenantId,
+            $actor,
+            isset($validated['submission_id']) ? (int) $validated['submission_id'] : null,
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $events->items(),
+            'meta' => [
+                'current_page' => $events->currentPage(),
+                'last_page' => $events->lastPage(),
+                'per_page' => $events->perPage(),
+                'total' => $events->total(),
+                'ordering' => 'chronological',
+            ],
+        ]);
+    }
+
     private function actor(Request $request): User
     {
         $actor = $request->user();
