@@ -564,6 +564,7 @@ Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
         Route::get('/', [CorporateSiteController::class, 'adminIndex'])->name('index');
         Route::post('/', [CorporateSiteController::class, 'adminStore'])->name('store');
         Route::put('/{id}', [CorporateSiteController::class, 'adminUpdate'])->whereNumber('id')->name('update');
+        Route::post('/{id}/lifecycle', [CorporateSiteController::class, 'lifecycle'])->whereNumber('id')->name('lifecycle');
         Route::post('/{id}/{decision}', [CorporateSiteController::class, 'adminReview'])
             ->whereNumber('id')
             ->whereIn('decision', ['approve', 'publish', 'schedule', 'unpublish'])
@@ -580,6 +581,7 @@ Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
         Route::get('/entries', [CorporateSiteEntryController::class, 'adminEntries'])->name('entries.index');
         Route::post('/entries', [CorporateSiteEntryController::class, 'adminStore'])->name('entries.store');
         Route::put('/entries/{id}', [CorporateSiteEntryController::class, 'adminUpdate'])->whereNumber('id')->name('entries.update');
+        Route::post('/entries/{id}/lifecycle', [CorporateSiteEntryController::class, 'lifecycle'])->whereNumber('id')->name('entries.lifecycle');
         Route::post('/entries/{id}/scan', [CorporateSiteEntryController::class, 'scanMedia'])->whereNumber('id')->name('entries.scan');
         Route::post('/entries/{id}/{decision}', [CorporateSiteEntryController::class, 'review'])
             ->whereNumber('id')->whereIn('decision', ['approve', 'publish', 'reject', 'unpublish'])->name('entries.review');
