@@ -15,7 +15,7 @@ final class PhoneVerificationDelivery
      * Gateway contract: POST JSON {to, message, sender?}, with an optional
      * bearer token. The response must be a 2xx status. The code is never logged.
      */
-    public function send(string $phone, string $code): void
+    public function send(string $phone, string $code, ?int $expiryMinutes = null): void
     {
         $url = trim((string) config('phone-verification.gateway_url', ''));
         $token = trim((string) config('phone-verification.gateway_token', ''));
@@ -29,7 +29,7 @@ final class PhoneVerificationDelivery
         $message = sprintf(
             'Your ARNA verification code is %s. It expires in %d minutes. Do not share this code.',
             $code,
-            max(1, (int) config('phone-verification.expiry_minutes', 10)),
+            max(1, $expiryMinutes ?? (int) config('phone-verification.expiry_minutes', 10)),
         );
 
         $request = Http::acceptJson()->asJson()->timeout(5);

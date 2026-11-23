@@ -397,25 +397,19 @@ final class AuthenticationService
         $tenantId = $effectiveTenantId;
 
         // ---------------------------------------------------------------------
-        // 3. Enforce TOTP MFA before issuing any bearer token.
+        // 3. Apply the single-authenticator login policy.
+        //
+        // TOTP is an independent login authenticator and remains available
+        // through AuthController::loginWithAuthenticator. Enrolling TOTP does
+        // not silently convert password login into mandatory two-factor login;
+        // ARNA's standard login policy permits one selected authenticator.
+        //
+        // The explicit legacy challenge fields remain accepted for a short
+        // compatibility window, but the server no longer issues new mandatory
+        // TOTP challenges after a correct password.
         // ---------------------------------------------------------------------
         $mfa = app(TotpMfaService::class);
-        if ($mfa->isEnabled($user)) {
-            if ($mfaChallengeToken === null && $mfaCode === null) {
-                $challengeToken = $mfa->createLoginChallenge($user, (int) $tenantId, $remember);
-                $this->logSecurityEvent('login.mfa_challenge_issued', [
-                    'user_id' => $user->id,
-                    'tenant_id' => $tenantId,
-                    'ip' => request()->ip(),
-                ]);
-
-                return [
-                    'user' => $user,
-                    'mfa_required' => true,
-                    'challenge_token' => $challengeToken,
-                ];
-            }
-
+        if ($mfaChallengeToken !== null || $mfaCode !== null) {
             if (
                 $mfaChallengeToken === null
                 || $mfaCode === null
@@ -439,12 +433,6 @@ final class AuthenticationService
                 'tenant_id' => $tenantId,
                 'ip' => request()->ip(),
             ]);
-        } elseif ($mfaChallengeToken !== null || $mfaCode !== null) {
-            throw new AuthenticationException(
-                'Invalid authentication challenge.',
-                'AUTH_MFA_INVALID',
-                401
-            );
         }
 
         // ---------------------------------------------------------------------
