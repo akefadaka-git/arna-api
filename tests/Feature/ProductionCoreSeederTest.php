@@ -26,36 +26,12 @@ final class ProductionCoreSeederTest extends TestCase
             '--force' => true,
             '--no-interaction' => true,
         ]);
-
         $this->assertSame(0, $firstExitCode, Artisan::output());
         $this->assertProductionCohortIsComplete();
 
-        // A production bootstrap rerun must reconcile, not duplicate, the cohort.
-        $secondExitCode = Artisan::call('db:seed', [
-            '--force' => true,
-            '--no-interaction' => true,
-        ]);
-
-        $this->assertSame(0, $secondExitCode, Artisan::output());
-        $this->assertProductionCohortIsComplete();
-    }
-
-    public function test_production_bootstrap_rerun_preserves_existing_operational_account_and_register_state(): void
-    {
-        config([
-            'app.env' => 'production',
-            'app.demo_seeders_enabled' => false,
-        ]);
-
-        $firstExitCode = Artisan::call('db:seed', [
-            '--force' => true,
-            '--no-interaction' => true,
-        ]);
-        $this->assertSame(0, $firstExitCode, Artisan::output());
-
+        // Model operator-maintained state before the production bootstrap rerun.
         $superAdminEmail = BootstrapUsers::SUPER_ADMIN['email'];
         $shareholderEmail = (new \Database\Seeders\ShareholderSeeder())->seededAccountEmails()[0];
-
         $superAdmin = DB::table('users')->where('email', $superAdminEmail)->first();
         $shareholder = DB::table('users')->where('email', $shareholderEmail)->first();
         $this->assertNotNull($superAdmin);
@@ -77,11 +53,13 @@ final class ProductionCoreSeederTest extends TestCase
             'first_name_en' => 'Operator-corrected register name',
         ]);
 
+        // A production bootstrap rerun must reconcile, not overwrite, the cohort.
         $secondExitCode = Artisan::call('db:seed', [
             '--force' => true,
             '--no-interaction' => true,
         ]);
         $this->assertSame(0, $secondExitCode, Artisan::output());
+        $this->assertProductionCohortIsComplete();
 
         foreach ([$superAdmin->id, $shareholder->id] as $userId) {
             $user = DB::table('users')->where('id', $userId)->first();
