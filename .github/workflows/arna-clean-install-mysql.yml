@@ -555,11 +555,9 @@ jobs:
       - name: Run migrations a second time (idempotence)
         run: php artisan migrate --force -vvv
 
-      - name: Verify full fresh migration and seed on disposable MySQL
-        # Explicitly permit demo/bootstrap seed data only inside this disposable CI database.
-        # Production environments must never set this flag.
-        env:
-          MASES_ENABLE_DEMO_SEEDING: "true"
+      - name: Verify full fresh migration and production-safe seed on disposable MySQL
+        # The default DatabaseSeeder is production-safe and does not require the
+        # destructive demo-seeding opt-in. Demo reset behavior is tested separately.
         run: php artisan migrate:fresh --seed --force -vvv
 
       - name: Verify production bootstrap cohort after migrate:fresh --seed
