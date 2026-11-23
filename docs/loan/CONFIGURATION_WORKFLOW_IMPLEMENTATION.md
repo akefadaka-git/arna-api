@@ -43,9 +43,9 @@ The existing Loan calculation engine currently supports declining-balance annual
 
 ### Still outstanding
 
-- Automated MySQL migration and end-to-end workflow tests.
+- Automated MySQL migration and end-to-end workflow tests are implemented; the most recent exact-head run passed before the current minimum-term grace and stale-revision regression additions, which require a new A4 run.
 - Explicit Owner-approved permission-to-role assignments for designated product drafters, submitters, reviewers, and activators.
-- Policy revision workflow for existing products, product retirement, audit-history read endpoint, and reviewer queue UX.
-- Independent review of the financial payload contract against every Loan consumer before enabling production lending.
+- Product retirement and reviewer queue UX. Existing-product policy revision and the tenant-scoped audit-history read endpoint are implemented and covered by MySQL lifecycle tests.
+- Independent review of the financial payload contract against every Loan consumer before enabling production lending. Remaining unsupported fee obligations and mandatory-collateral enforcement stay explicitly fail-closed.
 
 Until A4 passes and the role assignments and financial governance are approved, do not activate products or enable loan origination. Existing loan servicing remains governed by each loan's frozen policy version.
