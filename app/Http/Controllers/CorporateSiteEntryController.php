@@ -419,6 +419,95 @@ final class CorporateSiteEntryController extends Controller
         });
     }
 
+    public function lifecycle(Request $request, int $id): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'expected_version' => ['required', 'integer', 'min:1'],
+            'action' => ['required', 'in:enable,disable,archive,restore,delete'],
+        ])->validate();
+
+        return DB::transaction(function () use ($request, $id, $validated): JsonResponse {
+            $entry = CorporateSiteEntry::withTrashed()->lockForUpdate()->findOrFail($id);
+            abort_unless($entry->version === (int) $validated['expected_version'], 409, 'This entry changed after it was loaded.');
+            $action = $validated['action'];
+            $wasDeleted = $entry->trashed();
+            $old = [
+                'status' => $entry->status,
+                'version' => $entry->version,
+                'is_enabled' => (bool) $entry->is_enabled,
+                'archived_at' => $entry->archived_at?->toIso8601String(),
+                'deleted_at' => $entry->deleted_at?->toIso8601String(),
+            ];
+
+            if ($action === 'enable') {
+                abort_unless(!$wasDeleted && $entry->status !== 'archived' && !$entry->archived_at, 422, 'Archived or deleted content must be restored before enabling.');
+                $entry->is_enabled = true;
+            } elseif ($action === 'disable') {
+                abort_unless(!$wasDeleted && $entry->status !== 'archived', 422, 'Archived or deleted content cannot be disabled.');
+                $entry->is_enabled = false;
+            } elseif ($action === 'archive') {
+                abort_unless(!$wasDeleted && $entry->status !== 'archived', 422, 'This entry is already archived or deleted.');
+                $entry->status = 'archived';
+                $entry->is_enabled = false;
+                $entry->archived_at = now();
+                $entry->published_at = null;
+                $entry->scheduled_at = null;
+            } elseif ($action === 'restore') {
+                abort_unless($wasDeleted || $entry->status === 'archived' || $entry->archived_at !== null, 422, 'Only archived or deleted content can be restored.');
+                if ($wasDeleted) {
+                    $entry->restore();
+                }
+                $entry->status = 'draft';
+                $entry->is_enabled = true;
+                $entry->archived_at = null;
+                $entry->published_at = null;
+                $entry->scheduled_at = null;
+                $entry->reviewed_by = null;
+            } else {
+                abort_unless(!$wasDeleted && ($entry->status === 'archived' || $entry->archived_at !== null), 422, 'Archive this entry before deleting it.');
+                $entry->version++;
+                $entry->updated_by = $request->user()->id;
+                $entry->save();
+                $entry->delete();
+            }
+
+            if ($action !== 'delete') {
+                $entry->version++;
+                $entry->updated_by = $request->user()->id;
+                $entry->save();
+            }
+
+            AuditLog::create([
+                'user_id' => $request->user()->id, 'tenant_id' => null,
+                'action' => 'corporate_site_entry.' . $action,
+                'resource_type' => 'corporate_site_entry',
+                'resource_id' => (string) $entry->id,
+                'old_values' => $old,
+                'new_values' => [
+                    'status' => $entry->status,
+                    'version' => $entry->version,
+                    'is_enabled' => (bool) $entry->is_enabled,
+                    'archived_at' => $entry->archived_at?->toIso8601String(),
+                    'deleted_at' => $entry->deleted_at?->toIso8601String(),
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 1000),
+                'request_id' => $request->header('X-Request-ID') ? substr((string) $request->header('X-Request-ID'), 0, 64) : null,
+                'metadata' => ['public_id' => $entry->public_id, 'entry_type' => $entry->entry_type],
+            ]);
+
+            return response()->json(['success' => true, 'data' => [
+                'id' => $entry->id,
+                'public_id' => $entry->public_id,
+                'status' => $entry->status,
+                'version' => $entry->version,
+                'is_enabled' => (bool) $entry->is_enabled,
+                'archived_at' => $entry->archived_at?->toIso8601String(),
+                'deleted_at' => $entry->deleted_at?->toIso8601String(),
+            ]]);
+        });
+    }
+
     public function adminInquiries(Request $request): JsonResponse
     {
         $query = CorporateSiteInquiry::query()->orderByDesc('created_at');
