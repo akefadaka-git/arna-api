@@ -442,7 +442,7 @@ final class ShareholderSeeder extends Seeder
     private const REGISTER_TYPE_INDIVIDUAL = 'individual';
 
     /**
-     * Return the exact email addresses generated from the canonical demo
+     * Return the exact email addresses generated from the canonical
      * shareholder register, using the same collision-suffix algorithm as
      * seed(). This lets security maintenance target only seeded identities
      * without rotating unrelated shareholders or their representatives.
@@ -904,12 +904,10 @@ final class ShareholderSeeder extends Seeder
         ];
 
         /*
-         * Lookup by user_id. For individual rows, the register entry
-         * and the user row are one-to-one via the user_id column.
-         * For entity rows, the user_id column is null; the lookup
-         * will not find an existing entity row by user_id. See the
-         * class docblock §"Consequence for the upsert key" for the
-         * reasoning and the reliance on UserPivotCleaner.
+         * Resolve the existing row using the D11-compatible identity:
+         * individuals are linked through user_id; entity rows are
+         * linked through representative_user_id while user_id stays
+         * null. The tenant predicate prevents cross-tenant matches.
          */
         $existingQuery = DB::table('shareholders')
             ->where('tenant_id', $tenant->id);
