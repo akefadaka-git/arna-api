@@ -241,6 +241,20 @@ Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:5,1')
     ->name('api.auth.login');
 
+// Recognized-device PIN login is a separate path and never bootstraps a
+// new device. First-time authentication remains password-only.
+Route::post('/login/pin', [AuthController::class, 'loginWithPin'])
+    ->middleware('throttle:5,1')
+    ->name('api.auth.login.pin');
+
+Route::post('/login/otp/challenge', [AuthController::class, 'requestLoginOtp'])
+    ->middleware('throttle:3,10')
+    ->name('api.auth.login.otp.challenge');
+
+Route::post('/login/authenticator', [AuthController::class, 'loginWithAuthenticator'])
+    ->middleware('throttle:5,1')
+    ->name('api.auth.login.authenticator');
+
 /**
  * Register
  *
@@ -313,6 +327,38 @@ Route::post('/verify-email/resend', [AuthController::class, 'resendVerificationE
 // =============================================================================
 
 Route::middleware(['auth:sanctum'])->group(static function (): void {
+
+    Route::get('/auth/sessions', [AuthController::class, 'deviceSessions'])
+        ->name('api.auth.sessions.index');
+
+    Route::delete('/auth/sessions/{sessionId}', [AuthController::class, 'revokeDeviceSession'])
+        ->whereUuid('sessionId')
+        ->middleware('throttle:10,1')
+        ->name('api.auth.sessions.revoke');
+
+    Route::post('/auth/step-up/challenges', [AuthController::class, 'requestStepUpChallenge'])
+        ->middleware('throttle:3,10')
+        ->name('api.auth.step-up.challenges');
+
+    Route::post('/auth/step-up/verify', [AuthController::class, 'verifyStepUpChallenge'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.step-up.verify');
+
+    Route::post('/auth/device-pin/enroll', [AuthController::class, 'enrollDevicePin'])
+        ->middleware('auth.step_up:identity_change')
+        ->name('api.auth.device-pin.enroll');
+
+    Route::post('/auth/identity-change/challenge', [AuthController::class, 'requestIdentityChangeChallenge'])
+        ->middleware('throttle:3,10')
+        ->name('api.auth.identity-change.challenge');
+
+    Route::post('/auth/identity-change/verify', [AuthController::class, 'verifyIdentityChangeChallenge'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.identity-change.verify');
+
+    Route::patch('/auth/identity', [AuthController::class, 'changeIdentity'])
+        ->middleware('throttle:5,1')
+        ->name('api.auth.identity.update');
 
     // Account-level locale preference; intentionally independent of tenant context.
     Route::post('/locale', [LocalePreferenceController::class, 'update'])
