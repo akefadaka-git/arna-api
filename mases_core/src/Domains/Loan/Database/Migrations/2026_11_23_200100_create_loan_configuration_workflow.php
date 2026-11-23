@@ -25,7 +25,9 @@ return new class extends Migration
             $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $table->foreignId('reviewed_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->foreignId('published_product_id')->nullable()->constrained('loan_products')->restrictOnDelete();
-            $table->foreignId('published_policy_version_id')->nullable()->constrained('versioned_policies')->restrictOnDelete();
+            $table->unsignedBigInteger('published_policy_version_id')->nullable();
+            $table->foreign('published_policy_version_id', 'loan_cfg_policy_version_fk')
+                ->references('id')->on('versioned_policies')->restrictOnDelete();
             $table->string('status', 24)->default('draft');
             $table->json('configuration');
             $table->timestamp('submitted_at')->nullable();
