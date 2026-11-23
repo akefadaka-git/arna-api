@@ -211,6 +211,9 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
     {
         $unsupported = [
             ['term', 'interest_grace_months', 1],
+            // Grace must leave an amortizing installment even at the
+            // product's shortest permitted term, not merely its maximum.
+            ['term', 'principal_grace_months', 1],
             ['collateral', 'required', true],
             ['collateral', 'coverage_ratio', '1.25'],
             ['collateral', 'permitted_types', ['guarantor']],
