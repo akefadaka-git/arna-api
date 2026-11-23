@@ -11,6 +11,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Domains\Loan\Models\LoanConfigurationSubmission;
 use MaaleArna\MASES\Core\Domains\Loan\Models\LoanProduct;
+use MaaleArna\MASES\Core\Domains\Loan\Enums\CollateralType;
 use MaaleArna\MASES\Core\Policy\Services\VersionedPolicyRegistry;
 
 final class LoanConfigurationService
@@ -299,6 +300,16 @@ final class LoanConfigurationService
             }
             if (($collateral['required'] ?? false) === true) {
                 $errors['financial_policy.collateral.required'][] = 'Mandatory collateral is not enforced at loan application in the current Loan workflow; publish only unsecured products until that control is implemented.';
+            }
+            if (($collateral['coverage_ratio'] ?? null) !== null) {
+                $errors['financial_policy.collateral.coverage_ratio'][] = 'Collateral coverage-ratio enforcement is not implemented by the current Loan collateral consumer.';
+            }
+            if (is_array($collateral['permitted_types'] ?? null)) {
+                foreach ($collateral['permitted_types'] as $index => $type) {
+                    if (!is_string($type) || !in_array($type, CollateralType::values(), true)) {
+                        $errors['financial_policy.collateral.permitted_types.' . $index][] = 'Each permitted type must be a currently implemented CollateralType value.';
+                    }
+                }
             }
             if (isset($collateral['coverage_ratio']) && $collateral['coverage_ratio'] !== null &&
                 (!is_string($collateral['coverage_ratio']) || !preg_match('/^(0|[0-9]+)(\.[0-9]{1,8})?$/', $collateral['coverage_ratio']))) {
