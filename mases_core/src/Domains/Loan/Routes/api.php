@@ -285,7 +285,9 @@ Route::name('api.loans.')->group(function (): void {
     // See the class docblock §"The route-ORDERING rule" for the rationale
     // on the ordering and the constraint.
     // =========================================================================
+    Route::get('configuration', [LoanConfigurationController::class, 'index'])->name('configuration.index');
     Route::post('configuration', [LoanConfigurationController::class, 'store'])->name('configuration.store');
+    Route::put('configuration/{submission}', [LoanConfigurationController::class, 'update'])->whereNumber('submission')->name('configuration.update');
     Route::post('configuration/{submission}/submit', [LoanConfigurationController::class, 'submit'])->whereNumber('submission')->name('configuration.submit');
     Route::post('configuration/{submission}/review', [LoanConfigurationController::class, 'review'])->whereNumber('submission')->name('configuration.review');
     Route::post('configuration/{submission}/activate', [LoanConfigurationController::class, 'activate'])->whereNumber('submission')->name('configuration.activate');
