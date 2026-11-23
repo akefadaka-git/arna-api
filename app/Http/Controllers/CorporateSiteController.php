@@ -179,6 +179,84 @@ final class CorporateSiteController extends Controller
         });
     }
 
+    public function lifecycle(Request $request, int $id): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'expected_version' => ['required', 'integer', 'min:1'],
+            'action' => ['required', 'in:enable,disable,archive,restore,delete'],
+        ])->validate();
+
+        return DB::transaction(function () use ($request, $id, $validated): JsonResponse {
+            $page = CorporateSitePage::withTrashed()->lockForUpdate()->findOrFail($id);
+            abort_unless($page->version === (int) $validated['expected_version'], 409, 'This page changed after it was loaded.');
+            $action = $validated['action'];
+            $wasDeleted = $page->trashed();
+            $old = [
+                'status' => $page->status,
+                'version' => $page->version,
+                'is_enabled' => (bool) $page->is_enabled,
+                'archived_at' => $page->archived_at?->toIso8601String(),
+                'deleted_at' => $page->deleted_at?->toIso8601String(),
+            ];
+
+            if ($action === 'enable') {
+                abort_unless(!$wasDeleted && $page->status !== 'archived' && !$page->archived_at, 422, 'Archived or deleted content must be restored before enabling.');
+                $page->is_enabled = true;
+            } elseif ($action === 'disable') {
+                abort_unless(!$wasDeleted && $page->status !== 'archived', 422, 'Archived or deleted content cannot be disabled.');
+                $page->is_enabled = false;
+            } elseif ($action === 'archive') {
+                abort_unless(!$wasDeleted && $page->status !== 'archived', 422, 'This page is already archived or deleted.');
+                $page->status = 'archived';
+                $page->is_enabled = false;
+                $page->archived_at = now();
+                $page->published_at = null;
+                $page->scheduled_at = null;
+            } elseif ($action === 'restore') {
+                abort_unless($wasDeleted || $page->status === 'archived' || $page->archived_at !== null, 422, 'Only archived or deleted content can be restored.');
+                if ($wasDeleted) {
+                    $page->restore();
+                }
+                $page->status = 'draft';
+                $page->is_enabled = true;
+                $page->archived_at = null;
+                $page->published_at = null;
+                $page->scheduled_at = null;
+                $page->reviewed_by = null;
+            } else {
+                abort_unless(!$wasDeleted && ($page->status === 'archived' || $page->archived_at !== null), 422, 'Archive this page before deleting it.');
+                $page->version++;
+                $page->updated_by = $request->user()->id;
+                $page->save();
+                $page->delete();
+            }
+
+            if ($action !== 'delete') {
+                $page->version++;
+                $page->updated_by = $request->user()->id;
+                $page->save();
+            }
+
+            $this->audit($request, 'corporate_site_page.' . $action, $page, $old, [
+                'status' => $page->status,
+                'version' => $page->version,
+                'is_enabled' => (bool) $page->is_enabled,
+                'archived_at' => $page->archived_at?->toIso8601String(),
+                'deleted_at' => $page->deleted_at?->toIso8601String(),
+            ]);
+
+            return response()->json(['success' => true, 'data' => [
+                'id' => $page->id,
+                'public_id' => $page->public_id,
+                'status' => $page->status,
+                'version' => $page->version,
+                'is_enabled' => (bool) $page->is_enabled,
+                'archived_at' => $page->archived_at?->toIso8601String(),
+                'deleted_at' => $page->deleted_at?->toIso8601String(),
+            ]]);
+        });
+    }
+
     /**
      * Public project claims in the permanent Community Responsibility section
      * require both an explicit approval state and a documentary evidence reference.
