@@ -279,7 +279,9 @@ final class CorporateSiteEntryController extends Controller
 
     public function adminEntries(Request $request): JsonResponse
     {
-        $query = CorporateSiteEntry::query()->orderByDesc('updated_at');
+        $query = CorporateSiteEntry::query();
+        if ($request->boolean('include_deleted')) $query->withTrashed();
+        $query->orderByDesc('updated_at');
         if ($request->filled('status')) $query->where('status', $request->string('status')->toString());
         if ($request->filled('type')) $query->where('entry_type', $request->string('type')->toString());
 
