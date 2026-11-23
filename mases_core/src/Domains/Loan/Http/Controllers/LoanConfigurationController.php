@@ -62,7 +62,7 @@ final class LoanConfigurationController
     {
         $actor = $this->actor($request);
         $tenantId = $this->tenantId();
-        if (!$this->authorization->hasPermission('loan.configuration.manage', $actor, $tenantId, 'loan')) {
+        if (!$this->authorization->hasPermission('loan.configuration.manage', $actor, $tenantId)) {
             abort(403, 'You are not authorized to perform this loan configuration action.');
         }
 
@@ -79,7 +79,7 @@ final class LoanConfigurationController
     {
         $actor = $this->actor($request);
         $tenantId = $this->tenantId();
-        if (!$this->authorization->hasPermission('loan.configuration.submit', $actor, $tenantId, 'loan')) {
+        if (!$this->authorization->hasPermission('loan.configuration.submit', $actor, $tenantId)) {
             abort(403, 'You are not authorized to perform this loan configuration action.');
         }
 
@@ -91,7 +91,7 @@ final class LoanConfigurationController
     {
         $actor = $this->actor($request);
         $tenantId = $this->tenantId();
-        if (!$this->authorization->hasPermission('loan.configuration.approve', $actor, $tenantId, 'loan')) {
+        if (!$this->authorization->hasPermission('loan.configuration.approve', $actor, $tenantId)) {
             abort(403, 'You are not authorized to perform this loan configuration action.');
         }
 
@@ -113,7 +113,7 @@ final class LoanConfigurationController
     {
         $actor = $this->actor($request);
         $tenantId = $this->tenantId();
-        if (!$this->authorization->hasPermission('loan.configuration.activate', $actor, $tenantId, 'loan')) {
+        if (!$this->authorization->hasPermission('loan.configuration.activate', $actor, $tenantId)) {
             abort(403, 'You are not authorized to perform this loan configuration action.');
         }
 
