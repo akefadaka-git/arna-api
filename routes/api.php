@@ -234,8 +234,10 @@ Route::post(
 /**
  * Login
  *
- * Authenticates a user with email/password. If `tenant_id` is provided,
- * membership is validated before the token is issued.
+ * Authenticates a user with a supported sign-in identifier and password.
+ * The legacy `email` field accepts email, username, mobile number,
+ * employee number, shareholder number, or wallet number. If `tenant_id`
+ * is provided, membership is validated before a token is issued.
  */
 Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:5,1')
@@ -243,6 +245,8 @@ Route::post('/login', [AuthController::class, 'login'])
 
 // Recognized-device PIN login is a separate path and never bootstraps a
 // new device. First-time authentication remains password-only.
+// Returning-user OTP challenge and OTP/Google Authenticator login are
+// separate public routes; responses do not disclose account or delivery state.
 Route::post('/login/pin', [AuthController::class, 'loginWithPin'])
     ->middleware('throttle:5,1')
     ->name('api.auth.login.pin');
