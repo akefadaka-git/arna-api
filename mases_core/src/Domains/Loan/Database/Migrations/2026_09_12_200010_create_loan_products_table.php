@@ -420,7 +420,7 @@ return new class extends Migration
             // serviced.
             // -----------------------------------------------------------------
             $table->boolean('is_active')
-                  ->default(true)
+                  ->default(false)
                   ->comment('Whether the product is currently offered for new applications');
 
             // -----------------------------------------------------------------
