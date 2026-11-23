@@ -23,7 +23,13 @@ The two entity shareholders are represented through representative_user_id; thei
 
 ## Fresh installation
 
-After the required migrations have completed successfully, run:
+For a truly empty database where every existing table and row may be discarded, the combined fresh-install command is:
+
+    php artisan migrate:fresh --seed --force
+
+This drops all tables before rebuilding the schema. Use it only when the target database is intentionally disposable or empty.
+
+If migrations have already completed (as in a deployment where migrate:fresh was already run without --seed), do not repeat the destructive reset. Run:
 
     php artisan migrate:status
     php artisan db:seed --force
