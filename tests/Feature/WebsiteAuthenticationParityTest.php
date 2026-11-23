@@ -19,7 +19,46 @@ final class WebsiteAuthenticationParityTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function website_login_endpoint_accepts_all_six_supported_identifier_types(): void
+    #[DataProvider('identifierCases')]
+    public function website_login_endpoint_accepts_each_supported_identifier_type(string $type): void
+    {
+        $fixture = $this->makeIdentifierFixture();
+        $identifier = $fixture['identifiers'][$type];
+        $tenant = $fixture['tenant'];
+        $user = $fixture['user'];
+
+        $response = $this->postJson(route('api.auth.login'), [
+            // The website intentionally retains the legacy email wire key.
+            'email' => $identifier,
+            'password' => 'Password123!',
+            'tenant_id' => $tenant->id,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.user.id', $user->id)
+            ->assertJsonPath('data.user.email', $user->email)
+            ->assertJsonPath('data.token_type', 'Bearer');
+
+        $this->assertNotEmpty($response->json('data.token'), $type);
+    }
+
+    public static function identifierCases(): array
+    {
+        return [
+            'email' => ['email'],
+            'username' => ['username'],
+            'mobile number' => ['mobile number'],
+            'employee ID' => ['employee ID'],
+            'shareholder number' => ['shareholder number'],
+            'wallet number' => ['wallet number'],
+        ];
+    }
+
+    /**
+     * @return array{tenant:Tenant,user:User,identifiers:array<string,string>}
+     */
+    private function makeIdentifierFixture(): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $user = User::factory()->create([
@@ -69,31 +108,18 @@ final class WebsiteAuthenticationParityTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $identifiers = [
-            'email' => $user->email,
-            'username' => 'website-parity-user',
-            'mobile number' => '+251911000041',
-            'employee ID' => 'EMP-WEB-000041',
-            'shareholder number' => 'SH-WEB-000041',
-            'wallet number' => 'ACC-WEB-000041',
+        return [
+            'tenant' => $tenant,
+            'user' => $user,
+            'identifiers' => [
+                'email' => $user->email,
+                'username' => 'website-parity-user',
+                'mobile number' => '+251911000041',
+                'employee ID' => 'EMP-WEB-000041',
+                'shareholder number' => 'SH-WEB-000041',
+                'wallet number' => 'ACC-WEB-000041',
+            ],
         ];
-
-        foreach ($identifiers as $type => $identifier) {
-            $response = $this->postJson(route('api.auth.login'), [
-                // The website intentionally retains the legacy email wire key.
-                'email' => $identifier,
-                'password' => 'Password123!',
-                'tenant_id' => $tenant->id,
-            ]);
-
-            $response->assertOk()
-                ->assertJsonPath('success', true)
-                ->assertJsonPath('data.user.id', $user->id)
-                ->assertJsonPath('data.user.email', $user->email)
-                ->assertJsonPath('data.token_type', 'Bearer');
-
-            $this->assertNotEmpty($response->json('data.token'), $type);
-        }
     }
 
     #[Test]
