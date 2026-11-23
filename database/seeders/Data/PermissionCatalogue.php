@@ -186,6 +186,7 @@ final class PermissionCatalogue
         ['slug' => 'tenant.update', 'name_am' => 'ቴናንት ማዘመን',        'name_en' => 'Update Tenant',  'category' => 'tenant', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'tenant.delete', 'name_am' => 'ቴናንት መሰረዝ',        'name_en' => 'Delete Tenant',  'category' => 'tenant', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'test.permission', 'name_am' => 'ፈቃድ መሞከር', 'name_en' => 'Test Permission', 'category' => 'test', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'people.workforce.view', 'name_am' => 'የሰው ኃይል አጠቃላይ መረጃን ማየት', 'name_en' => 'View Workforce Aggregate', 'category' => 'user', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'people.manage', 'name_am' => 'የሰው መገለጫዎችን ማስተዳደር', 'name_en' => 'Manage People Profiles', 'category' => 'user', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'people.account-link.manage', 'name_am' => 'የሰው መገለጫና መለያ ግንኙነትን ማስተዳደር', 'name_en' => 'Manage Global Person Account Links', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'people.tenant-access.manage', 'name_am' => 'የሰው መገለጫን በቴናንት መካከል መፍቀድ', 'name_en' => 'Manage Global Person Tenant Access', 'category' => 'user', 'scope' => 'global', 'is_system' => false],
