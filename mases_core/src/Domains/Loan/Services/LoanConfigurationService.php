@@ -118,6 +118,10 @@ final class LoanConfigurationService
             if ($submission->status !== 'approved' || !$submission->published_product_id || !$submission->published_policy_version_id) {
                 throw ValidationException::withMessages(['submission' => ['Only an approved and published product can be activated.']]);
             }
+            $effectiveFrom = CarbonImmutable::parse($submission->configuration['effective_from']);
+            if ($effectiveFrom->isFuture()) {
+                throw ValidationException::withMessages(['effective_from' => ['A product cannot be activated before its approved policy effective date.']]);
+            }
             $product = LoanProduct::query()->where('tenant_id', $tenantId)->whereKey($submission->published_product_id)->lockForUpdate()->firstOrFail();
             $product->forceFill(['is_active' => true])->save();
             $submission->forceFill(['status' => 'active', 'activated_at' => now()])->save();
