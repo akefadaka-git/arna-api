@@ -9,13 +9,15 @@ It provisions, in dependency order:
 1. The default tenant.
 2. The seven registered platform applications.
 3. The core permission catalogue and Governance election-committee permissions.
-4. The twelve core roles.
-5. The role-to-permission grants.
-6. The two bootstrap administrator accounts.
-7. The 100-row shareholder register and its 100 user identities.
-8. Tenant memberships and role assignments, including the eight board-member assignments.
-9. Permanent shareholder numbers, reservations, legacy aliases, and the next-number sequence.
-10. Post-write integrity checks for all 102 expected identities and 100 shareholder records.
+4. The twelve core roles and core role-to-permission grants.
+5. Governance application, permissions, and role grants.
+6. Shareholder, Wallet, and Loan permission catalogues and composite role grants.
+7. Shareholder share classes.
+8. The two bootstrap administrator accounts.
+9. The 100-row shareholder register and its 100 user identities.
+10. Tenant memberships and role assignments, including the eight board-member assignments.
+11. Permanent shareholder numbers, reservations, legacy aliases, and the next-number sequence.
+12. Post-write integrity checks for all 102 expected identities and 100 shareholder records.
 
 The two entity shareholders are represented through representative_user_id; their direct user_id remains null. Individual shareholders use user_id.
 
@@ -53,7 +55,7 @@ MasesCoreSeeder remains a separate destructive reset flow. It clears the user gr
 
 ## Not included in the core bootstrap
 
-Domain-specific reference data is not automatically enabled merely because a seeder class exists. Shareholder, Wallet, Loan, Governance aggregate, and Finance chart-of-accounts seeders require a separate dependency and activation review. Finance chart-of-accounts additionally requires an active legal entity and its own accounting-policy approval. Do not invoke those seeders until their dependencies and authorization are verified.
+ProductionDomainReferenceSeeder includes the deterministic Shareholder, Wallet, Loan, and Governance permission/role reference data plus the two Shareholder share classes. It does not create operational lending products or activate a loan policy. LoanProductsSeeder and LoanProductRulesPolicySeeder remain separate because they create active financial products and an effective approval policy. Finance chart-of-accounts remains separate because no legal-entity bootstrap seeder exists; it requires a configured active legal entity and Finance accounting-policy approval. The corporate-site baseline seeder also remains a separate optional operation and inserts draft pages only.
 
 ## Recovery
 
