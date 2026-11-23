@@ -125,13 +125,27 @@ final class ProductionCoreSeeder extends Seeder
             );
         }
 
+        $shareholderUserIds = DB::table('users')
+            ->whereIn('email', $shareholderEmails)
+            ->pluck('id');
+
+        if ($shareholderUserIds->count() !== 100) {
+            throw new RuntimeException(
+                "ProductionCoreSeeder expected 100 shareholder user identities; found {$shareholderUserIds->count()}."
+            );
+        }
+
         $registerRows = DB::table('shareholders')
             ->where('tenant_id', $tenantId)
+            ->where(function ($query) use ($shareholderUserIds): void {
+                $query->whereIn('user_id', $shareholderUserIds)
+                    ->orWhereIn('representative_user_id', $shareholderUserIds);
+            })
             ->get(['id', 'user_id', 'representative_user_id', 'shareholder_number']);
 
         if ($registerRows->count() !== 100) {
             throw new RuntimeException(
-                "ProductionCoreSeeder expected 100 shareholder register rows for tenant {$tenantId}; found {$registerRows->count()}."
+                "ProductionCoreSeeder expected 100 register rows for the seeded shareholder identities; found {$registerRows->count()}."
             );
         }
 
@@ -152,10 +166,6 @@ final class ProductionCoreSeeder extends Seeder
                 "ProductionCoreSeeder found invalid shareholder links or missing permanent numbers (unlinked={$unlinked}, double_linked={$doubleLinked}, unnumbered={$unnumbered})."
             );
         }
-
-        $shareholderUserIds = DB::table('users')
-            ->whereIn('email', $shareholderEmails)
-            ->pluck('id');
 
         $roleAssignedUsers = DB::table('user_has_roles')
             ->whereIn('user_id', $shareholderUserIds)
