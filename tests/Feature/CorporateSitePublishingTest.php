@@ -672,6 +672,37 @@ final class CorporateSitePublishingTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_public_media_payload_does_not_expose_private_scanner_metadata(): void
+    {
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'media',
+            'slug_am' => 'public-media-am',
+            'slug_en' => 'public-media-en',
+            'translations' => [
+                'am' => ['title' => 'ይፋዊ ሚዲያ'],
+                'en' => ['title' => 'Public media'],
+            ],
+            'payload' => [
+                'category' => 'gallery',
+                'quarantine' => false,
+                'scan_status' => 'clean',
+                'scan_signature' => 'private-signature',
+                'scan_sha256' => str_repeat('a', 64),
+                'scanned_at' => now()->toIso8601String(),
+            ],
+        ]);
+        $entry->forceFill(['status' => 'published', 'published_at' => now()->subMinute()])->save();
+
+        $this->getJson('/api/public/site/content/media?locale=en')
+            ->assertOk()
+            ->assertJsonPath('data.items.0.payload.category', 'gallery')
+            ->assertJsonMissingPath('data.items.0.payload.quarantine')
+            ->assertJsonMissingPath('data.items.0.payload.scan_status')
+            ->assertJsonMissingPath('data.items.0.payload.scan_signature')
+            ->assertJsonMissingPath('data.items.0.payload.scan_sha256')
+            ->assertJsonMissingPath('data.items.0.payload.scanned_at');
+    }
+
     public function test_public_page_hides_disabled_sections_but_preserves_community_responsibility(): void
     {
         $page = CorporateSitePage::query()->create([
