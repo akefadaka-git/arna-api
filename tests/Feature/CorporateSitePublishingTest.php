@@ -777,6 +777,9 @@ final class CorporateSitePublishingTest extends TestCase
 
         $home = CorporateSitePage::query()->where('page_key', 'home')->firstOrFail();
         self::assertTrue(\App\Services\CorporateSite\CorporateHomeInvariant::hasRequiredCommunityResponsibilitySection($home->sections));
+        $community = collect($home->sections)->first(fn (array $section): bool => ($section['type'] ?? null) === 'community_responsibility');
+        self::assertCount(4, $community['content']['am']['items'] ?? []);
+        self::assertCount(4, $community['content']['en']['items'] ?? []);
         self::assertSame('draft', $home->status);
         $this->getJson('/api/public/site/home?locale=am')->assertJsonPath('data', null);
     }
