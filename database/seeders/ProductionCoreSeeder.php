@@ -141,7 +141,7 @@ final class ProductionCoreSeeder extends Seeder
                 $query->whereIn('user_id', $shareholderUserIds)
                     ->orWhereIn('representative_user_id', $shareholderUserIds);
             })
-            ->get(['id', 'user_id', 'representative_user_id', 'shareholder_number']);
+            ->get(['id', 'shareholder_type', 'user_id', 'representative_user_id', 'shareholder_number']);
 
         if ($registerRows->count() !== 100) {
             throw new RuntimeException(
@@ -157,13 +157,24 @@ final class ProductionCoreSeeder extends Seeder
             fn (object $row): bool => $row->user_id !== null && $row->representative_user_id !== null
         )->count();
 
+        $invalidIndividualLinks = $registerRows->filter(
+            fn (object $row): bool => $row->shareholder_type === 'individual'
+                && ($row->user_id === null || $row->representative_user_id !== null)
+        )->count();
+
+        $invalidEntityLinks = $registerRows->filter(
+            fn (object $row): bool => $row->shareholder_type !== 'individual'
+                && ($row->user_id !== null || $row->representative_user_id === null)
+        )->count();
+
         $unnumbered = $registerRows->filter(
             fn (object $row): bool => $row->shareholder_number === null || $row->shareholder_number === ''
         )->count();
 
-        if ($unlinked !== 0 || $doubleLinked !== 0 || $unnumbered !== 0) {
+        if ($unlinked !== 0 || $doubleLinked !== 0 || $invalidIndividualLinks !== 0
+            || $invalidEntityLinks !== 0 || $unnumbered !== 0) {
             throw new RuntimeException(
-                "ProductionCoreSeeder found invalid shareholder links or missing permanent numbers (unlinked={$unlinked}, double_linked={$doubleLinked}, unnumbered={$unnumbered})."
+                "ProductionCoreSeeder found invalid shareholder links or missing permanent numbers (unlinked={$unlinked}, double_linked={$doubleLinked}, invalid_individual_links={$invalidIndividualLinks}, invalid_entity_links={$invalidEntityLinks}, unnumbered={$unnumbered})."
             );
         }
 
