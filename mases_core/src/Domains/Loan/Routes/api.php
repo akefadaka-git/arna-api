@@ -267,7 +267,8 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use MaaleArna\MASES\Core\Domains\Loan\Http\Controllers\LoanCollateralController;
 use MaaleArna\MASES\Core\Domains\Loan\Http\Controllers\LoanController;
-use MaaleArna\MASES\Core\Domains\Loan\Http\Controllers\LoanProductController;\nuse MaaleArna\MASES\Core\Domains\Loan\Http\Controllers\LoanConfigurationController;
+use MaaleArna\MASES\Core\Domains\Loan\Http\Controllers\LoanProductController;
+use MaaleArna\MASES\Core\Domains\Loan\Http\Controllers\LoanConfigurationController;
 use MaaleArna\MASES\Core\Domains\Loan\Http\Controllers\LoanReconciliationController;
 use MaaleArna\MASES\Core\Domains\Loan\Http\Controllers\LoanRepaymentController;
 use MaaleArna\MASES\Core\Domains\Loan\Http\Controllers\LoanScheduleController;
@@ -284,7 +285,12 @@ Route::name('api.loans.')->group(function (): void {
     // See the class docblock §"The route-ORDERING rule" for the rationale
     // on the ordering and the constraint.
     // =========================================================================
-    Route::post('configuration', [LoanConfigurationController::class, 'store'])->name('configuration.store');\n    Route::post('configuration/{submission}/submit', [LoanConfigurationController::class, 'submit'])->whereNumber('submission')->name('configuration.submit');\n    Route::post('configuration/{submission}/review', [LoanConfigurationController::class, 'review'])->whereNumber('submission')->name('configuration.review');\n    Route::post('configuration/{submission}/activate', [LoanConfigurationController::class, 'activate'])->whereNumber('submission')->name('configuration.activate');\n\n    Route::get('products', [LoanProductController::class, 'index'])
+    Route::post('configuration', [LoanConfigurationController::class, 'store'])->name('configuration.store');
+    Route::post('configuration/{submission}/submit', [LoanConfigurationController::class, 'submit'])->whereNumber('submission')->name('configuration.submit');
+    Route::post('configuration/{submission}/review', [LoanConfigurationController::class, 'review'])->whereNumber('submission')->name('configuration.review');
+    Route::post('configuration/{submission}/activate', [LoanConfigurationController::class, 'activate'])->whereNumber('submission')->name('configuration.activate');
+
+    Route::get('products', [LoanProductController::class, 'index'])
         ->name('products.index');
 
     // =========================================================================
