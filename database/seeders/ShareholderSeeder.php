@@ -778,6 +778,12 @@ final class ShareholderSeeder extends Seeder
         $user = User::firstOrNew(['email' => $email]);
         $isNew = ! $user->exists;
 
+        // Existing accounts are operational records; never reset their
+        // profile, active/verification state or login history during seeding.
+        if (! $isNew) {
+            return $user;
+        }
+
         $isEntity = $definition['type'] !== self::REGISTER_TYPE_INDIVIDUAL;
 
         /*
