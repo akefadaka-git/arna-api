@@ -45,6 +45,8 @@ final class CorporateSitePage extends Model
         return $query->where('status', 'published')
             ->whereNotNull('published_at')
             ->where('published_at', '<=', now())
+            ->where('is_enabled', true)
+            ->whereNull('archived_at')
             ->where(function (Builder $window): void {
                 $window->whereNull('scheduled_at')->orWhere('scheduled_at', '<=', now());
             });
