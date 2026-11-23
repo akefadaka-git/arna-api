@@ -21,6 +21,7 @@ use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
 use Tests\TestCase;
+use Database\Seeders\CorporateSiteBaselineSeeder;
 
 final class CorporateSitePublishingTest extends TestCase
 {
@@ -669,6 +670,45 @@ final class CorporateSitePublishingTest extends TestCase
             ],
             'payload' => ['scan_status' => 'clean'],
         ])->assertUnprocessable();
+    }
+
+    public function test_corporate_site_baseline_seeder_inserts_bilingual_drafts_without_overwriting_existing_pages(): void
+    {
+        $existing = CorporateSitePage::query()->create([
+            'page_key' => 'about',
+            'slug_am' => 'existing-about-am',
+            'slug_en' => 'existing-about-en',
+            'translations' => [
+                'am' => ['title' => 'Existing owner edit'],
+                'en' => ['title' => 'Existing owner edit'],
+            ],
+        ]);
+
+        app(CorporateSiteBaselineSeeder::class)->run();
+
+        $this->assertDatabaseHas('corporate_site_pages', [
+            'page_key' => 'home',
+            'status' => 'draft',
+            'version' => 1,
+            'is_enabled' => 1,
+        ]);
+        $this->assertDatabaseHas('corporate_site_pages', [
+            'page_key' => 'vision-mission-values',
+            'status' => 'draft',
+        ]);
+        $this->assertDatabaseHas('corporate_site_pages', [
+            'page_key' => 'public-disclosures',
+            'status' => 'draft',
+        ]);
+
+        $existing->refresh();
+        self::assertSame('Existing owner edit', $existing->translations['am']['title']);
+        self::assertSame('draft', $existing->status);
+
+        $home = CorporateSitePage::query()->where('page_key', 'home')->firstOrFail();
+        self::assertTrue(\App\Services\CorporateSite\CorporateHomeInvariant::hasRequiredCommunityResponsibilitySection($home->sections));
+        self::assertSame('draft', $home->status);
+        $this->getJson('/api/public/site/home?locale=am')->assertJsonPath('data', null);
     }
 
     public function test_page_visibility_lifecycle_is_version_checked_audited_and_controls_public_access(): void
