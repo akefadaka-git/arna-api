@@ -550,7 +550,7 @@ jobs:
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/ProductionCoreSeederTest.php
 
-      - name: Run complete Loan configuration lifecycle integration tests on MySQL
+      - name: Run complete Loan configuration lifecycle integration tests on migrated MySQL
         env:
           DB_CONNECTION: mysql
           DB_DATABASE: arna_migration_test
