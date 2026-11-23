@@ -496,7 +496,6 @@ final class ShareholderSeeder extends Seeder
      */
     public function seed(Tenant $tenant, array $roles, User $superAdmin): array
     {
-        \Database\Seeders\Support\DemoSeederGuard::assertAllowed();
         /*
          * Read the register from the Data\ layer. See Unit S-1 for
          * the row shape. The register is a MAP keyed by SH-ID; the
@@ -916,7 +915,26 @@ final class ShareholderSeeder extends Seeder
          * class docblock §"Consequence for the upsert key" for the
          * reasoning and the reliance on UserPivotCleaner.
          */
-        $existing = DB::table('shareholders')->where('user_id', $user->id)->first();
+        $existingQuery = DB::table('shareholders')
+            ->where('tenant_id', $tenant->id);
+
+        if ($isEntity) {
+            $existingQuery
+                ->whereNull('user_id')
+                ->where('representative_user_id', $user->id);
+        } else {
+            $existingQuery->where('user_id', $user->id);
+        }
+
+        $matches = $existingQuery->get();
+
+        if ($matches->count() > 1) {
+            throw new RuntimeException(
+                "Shareholder register identity for user {$user->id} resolves to multiple rows; refusing to update ambiguous records."
+            );
+        }
+
+        $existing = $matches->first();
 
         if ($existing !== null) {
             /*
