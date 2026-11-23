@@ -231,6 +231,9 @@ jobs:
       - name: Run retired hard-coded Loan seeder guard tests
         run: php artisan test --compact tests/Feature/LoanFinancialSeederGuardTest.php
 
+      - name: Run Loan configuration validation tests
+        run: php artisan test --compact tests/Feature/LoanConfigurationServiceValidationTest.php
+
       - name: Run Loan domain unit tests with hermetic SQLite
         env:
           DB_CONNECTION: sqlite
