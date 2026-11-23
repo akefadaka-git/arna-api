@@ -54,7 +54,7 @@ final class ProductionCoreSeederTest extends TestCase
         $this->assertSame(0, $firstExitCode, Artisan::output());
 
         $superAdminEmail = BootstrapUsers::SUPER_ADMIN['email'];
-        $shareholderEmail = (new \\Database\\Seeders\\ShareholderSeeder())->seededAccountEmails()[0];
+        $shareholderEmail = (new \Database\Seeders\ShareholderSeeder())->seededAccountEmails()[0];
 
         $superAdmin = DB::table('users')->where('email', $superAdminEmail)->first();
         $shareholder = DB::table('users')->where('email', $shareholderEmail)->first();
