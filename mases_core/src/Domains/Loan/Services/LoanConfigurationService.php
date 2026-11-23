@@ -21,6 +21,32 @@ final class LoanConfigurationService
     ) {
     }
 
+    public function listForTenant(int $tenantId, User $actor)
+    {
+        $this->authorize('loan.configuration.view', $actor, $tenantId);
+        return LoanConfigurationSubmission::query()
+            ->where('tenant_id', $tenantId)
+            ->with(['creator', 'reviewer', 'publishedProduct', 'publishedPolicy'])
+            ->orderByDesc('id')
+            ->paginate(25);
+    }
+
+    public function updateDraft(int $tenantId, int $submissionId, User $actor, array $configuration): LoanConfigurationSubmission
+    {
+        $this->authorize('loan.configuration.manage', $actor, $tenantId);
+        $this->validateConfiguration($configuration);
+
+        return DB::transaction(function () use ($tenantId, $submissionId, $actor, $configuration): LoanConfigurationSubmission {
+            $submission = $this->findForTenant($tenantId, $submissionId);
+            if ($submission->status !== 'draft' || (int) $submission->created_by !== (int) $actor->getKey()) {
+                throw ValidationException::withMessages(['submission' => ['Only the author may edit their own draft submission.']]);
+            }
+            $submission->forceFill(['configuration' => $configuration])->save();
+            $this->audit($submission, $actor, 'draft_updated');
+            return $submission->refresh();
+        });
+    }
+
     public function createDraft(int $tenantId, User $actor, array $configuration): LoanConfigurationSubmission
     {
         $this->authorize('loan.configuration.manage', $actor, $tenantId);
