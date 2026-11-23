@@ -555,6 +555,16 @@ final class CorporateSiteEntryController extends Controller
         return in_array($locale, ['am', 'en'], true) ? $locale : 'am';
     }
 
+    private function publicPayload(CorporateSiteEntry $entry): array
+    {
+        $payload = $entry->payload ?? [];
+        foreach (['quarantine', 'scan_status', 'scan_signature', 'scan_sha256', 'scanned_at'] as $privateField) {
+            unset($payload[$privateField]);
+        }
+
+        return $payload;
+    }
+
     private function resource(CorporateSiteEntry $entry, string $locale): array
     {
         $translation = $entry->translations[$locale] ?? [];
@@ -567,7 +577,7 @@ final class CorporateSiteEntryController extends Controller
             'title' => (string) ($translation['title'] ?? ''),
             'summary' => (string) ($translation['summary'] ?? ''),
             'body' => (string) ($translation['body'] ?? ''),
-            'payload' => $entry->payload,
+            'payload' => $this->publicPayload($entry),
             'asset_url' => $entry->asset_path ? url('/api/public/site/media/' . $entry->public_id . '/asset') : null,
             'seo' => $entry->seo[$locale] ?? null,
             'published_at' => $entry->published_at?->toIso8601String(),
