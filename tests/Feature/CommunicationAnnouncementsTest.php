@@ -39,7 +39,7 @@ final class CommunicationAnnouncementsTest extends TestCase
         $catalogue = collect(PermissionCatalogue::ROWS)->keyBy('slug');
 
         // Merged catalogue: 61 platform capabilities, 13 Documents, and 13 Finance/Admin capabilities.
-        $this->assertCount(87, PermissionCatalogue::ROWS);
+        $this->assertCount(88, PermissionCatalogue::ROWS);
 
         foreach (['announcement.view', 'announcement.manage', 'announcement.approve', 'announcement.publish'] as $slug) {
             $this->assertTrue($catalogue->has($slug), "Missing canonical permission: {$slug}");
