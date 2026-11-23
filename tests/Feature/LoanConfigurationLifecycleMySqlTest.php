@@ -206,6 +206,8 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
         $unsupported = [
             ['term', 'interest_grace_months', 1],
             ['collateral', 'required', true],
+            ['collateral', 'coverage_ratio', '1.25'],
+            ['collateral', 'permitted_types', ['guarantor']],
         ];
 
         foreach ($unsupported as [$section, $key, $value]) {
