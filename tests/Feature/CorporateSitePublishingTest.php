@@ -21,6 +21,7 @@ use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
 use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
 use Tests\TestCase;
+use Database\Seeders\CorporateSiteBaselineSeeder;
 
 final class CorporateSitePublishingTest extends TestCase
 {
@@ -669,6 +670,226 @@ final class CorporateSitePublishingTest extends TestCase
             ],
             'payload' => ['scan_status' => 'clean'],
         ])->assertUnprocessable();
+    }
+
+    public function test_public_media_payload_does_not_expose_private_scanner_metadata(): void
+    {
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'media',
+            'slug_am' => 'public-media-am',
+            'slug_en' => 'public-media-en',
+            'translations' => [
+                'am' => ['title' => 'ይፋዊ ሚዲያ'],
+                'en' => ['title' => 'Public media'],
+            ],
+            'payload' => [
+                'category' => 'gallery',
+                'quarantine' => false,
+                'scan_status' => 'clean',
+                'scan_signature' => 'private-signature',
+                'scan_sha256' => str_repeat('a', 64),
+                'scanned_at' => now()->toIso8601String(),
+            ],
+        ]);
+        $entry->forceFill(['status' => 'published', 'published_at' => now()->subMinute()])->save();
+
+        $this->getJson('/api/public/site/content/media?locale=en')
+            ->assertOk()
+            ->assertJsonPath('data.items.0.payload.category', 'gallery')
+            ->assertJsonMissingPath('data.items.0.payload.quarantine')
+            ->assertJsonMissingPath('data.items.0.payload.scan_status')
+            ->assertJsonMissingPath('data.items.0.payload.scan_signature')
+            ->assertJsonMissingPath('data.items.0.payload.scan_sha256')
+            ->assertJsonMissingPath('data.items.0.payload.scanned_at');
+    }
+
+    public function test_public_page_hides_disabled_sections_but_preserves_community_responsibility(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'section-visibility-test',
+            'slug_am' => 'section-visibility-am',
+            'slug_en' => 'section-visibility-en',
+            'translations' => [
+                'am' => ['title' => 'የክፍል ታይነት'],
+                'en' => ['title' => 'Section visibility'],
+            ],
+            'sections' => [
+                [
+                    'id' => 'hidden-section',
+                    'type' => 'text',
+                    'content' => [
+                        'visible' => false,
+                        'am' => ['title' => 'የተደበቀ'],
+                        'en' => ['title' => 'Hidden section'],
+                    ],
+                ],
+                [
+                    'id' => 'community-responsibility',
+                    'type' => 'community_responsibility',
+                    'content' => [
+                        'visible' => false,
+                        'am' => ['title' => 'ማኅበረሰባዊ ኃላፊነት'],
+                        'en' => ['title' => 'Community Responsibility'],
+                    ],
+                ],
+            ],
+        ]);
+        $page->forceFill(['status' => 'published', 'published_at' => now()->subMinute()])->save();
+
+        $this->getJson('/api/public/site/pages/en/section-visibility-en')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.sections')
+            ->assertJsonPath('data.sections.0.id', 'community-responsibility');
+    }
+
+    public function test_corporate_site_baseline_seeder_inserts_bilingual_drafts_without_overwriting_existing_pages(): void
+    {
+        $existing = CorporateSitePage::query()->create([
+            'page_key' => 'about',
+            'slug_am' => 'existing-about-am',
+            'slug_en' => 'existing-about-en',
+            'translations' => [
+                'am' => ['title' => 'Existing owner edit'],
+                'en' => ['title' => 'Existing owner edit'],
+            ],
+        ]);
+
+        app(CorporateSiteBaselineSeeder::class)->run();
+
+        $this->assertDatabaseHas('corporate_site_pages', [
+            'page_key' => 'home',
+            'status' => 'draft',
+            'version' => 1,
+            'is_enabled' => 1,
+        ]);
+        $this->assertDatabaseHas('corporate_site_pages', [
+            'page_key' => 'vision-mission-values',
+            'status' => 'draft',
+        ]);
+        $this->assertDatabaseHas('corporate_site_pages', [
+            'page_key' => 'public-disclosures',
+            'status' => 'draft',
+        ]);
+
+        $existing->refresh();
+        self::assertSame('Existing owner edit', $existing->translations['am']['title']);
+        self::assertSame('draft', $existing->status);
+
+        $home = CorporateSitePage::query()->where('page_key', 'home')->firstOrFail();
+        self::assertTrue(\App\Services\CorporateSite\CorporateHomeInvariant::hasRequiredCommunityResponsibilitySection($home->sections));
+        $community = collect($home->sections)->first(fn (array $section): bool => ($section['type'] ?? null) === 'community_responsibility');
+        self::assertCount(4, $community['content']['am']['items'] ?? []);
+        self::assertCount(4, $community['content']['en']['items'] ?? []);
+        self::assertSame('draft', $home->status);
+        $this->getJson('/api/public/site/home?locale=am')->assertJsonPath('data', null);
+    }
+
+    public function test_page_visibility_lifecycle_is_version_checked_audited_and_controls_public_access(): void
+    {
+        $reviewer = $this->corporateSiteReviewer();
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'visibility-test-page',
+            'slug_am' => 'visibility-test-am',
+            'slug_en' => 'visibility-test-en',
+            'translations' => [
+                'am' => ['title' => 'የታይነት ሙከራ'],
+                'en' => ['title' => 'Visibility test'],
+            ],
+        ]);
+        $page->forceFill(['status' => 'published', 'published_at' => now()->subMinute()])->save();
+
+        Sanctum::actingAs($reviewer);
+        $this->postJson('/api/admin/corporate-site/pages/' . $page->id . '/lifecycle', [
+            'expected_version' => 1,
+            'action' => 'disable',
+        ])->assertOk()->assertJsonPath('data.version', 2)->assertJsonPath('data.is_enabled', false);
+
+        $this->getJson('/api/public/site/pages/en/visibility-test-en')->assertNotFound();
+
+        $this->postJson('/api/admin/corporate-site/pages/' . $page->id . '/lifecycle', [
+            'expected_version' => 1,
+            'action' => 'enable',
+        ])->assertStatus(409);
+
+        $this->postJson('/api/admin/corporate-site/pages/' . $page->id . '/lifecycle', [
+            'expected_version' => 2,
+            'action' => 'enable',
+        ])->assertOk()->assertJsonPath('data.version', 3)->assertJsonPath('data.is_enabled', true);
+
+        $this->getJson('/api/public/site/pages/en/visibility-test-en')->assertOk();
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'corporate_site_page.disable',
+            'resource_type' => 'corporate_site_page',
+            'resource_id' => (string) $page->id,
+        ]);
+    }
+
+    public function test_entry_archive_restore_and_soft_delete_require_current_version_and_are_audited(): void
+    {
+        $reviewer = $this->corporateSiteReviewer();
+        $entry = CorporateSiteEntry::query()->create([
+            'entry_type' => 'news',
+            'slug_am' => 'lifecycle-news-am',
+            'slug_en' => 'lifecycle-news-en',
+            'translations' => [
+                'am' => ['title' => 'የሕይወት ዑደት ዜና'],
+                'en' => ['title' => 'Lifecycle news'],
+            ],
+        ]);
+        $entry->forceFill(['status' => 'published', 'published_at' => now()->subMinute()])->save();
+
+        Sanctum::actingAs($reviewer);
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/lifecycle', [
+            'expected_version' => 1,
+            'action' => 'archive',
+        ])->assertOk()->assertJsonPath('data.status', 'archived')->assertJsonPath('data.version', 2);
+        $this->getJson('/api/public/site/content/news/lifecycle-news-en?locale=en')->assertNotFound();
+
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/lifecycle', [
+            'expected_version' => 2,
+            'action' => 'restore',
+        ])->assertOk()->assertJsonPath('data.status', 'draft')->assertJsonPath('data.version', 3);
+
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/lifecycle', [
+            'expected_version' => 3,
+            'action' => 'archive',
+        ])->assertOk()->assertJsonPath('data.version', 4);
+
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/lifecycle', [
+            'expected_version' => 4,
+            'action' => 'delete',
+        ])->assertOk()->assertJsonPath('data.version', 5);
+
+        $this->assertSoftDeleted('corporate_site_entries', ['id' => $entry->id]);
+        $this->getJson('/api/public/site/content/news/lifecycle-news-en?locale=en')->assertNotFound();
+
+        $this->postJson('/api/admin/corporate-site/entries/' . $entry->id . '/lifecycle', [
+            'expected_version' => 5,
+            'action' => 'restore',
+        ])->assertOk()->assertJsonPath('data.status', 'draft')->assertJsonPath('data.version', 6);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'corporate_site_entry.delete',
+            'resource_type' => 'corporate_site_entry',
+            'resource_id' => (string) $entry->id,
+        ]);
+    }
+
+    public function test_lifecycle_routes_require_corporate_content_permission(): void
+    {
+        $user = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'permission-test-page',
+            'slug_am' => 'permission-test-am',
+            'slug_en' => 'permission-test-en',
+            'translations' => ['am' => ['title' => 'ሙከራ'], 'en' => ['title' => 'Test']],
+        ]);
+
+        Sanctum::actingAs($user);
+        $this->postJson('/api/admin/corporate-site/pages/' . $page->id . '/lifecycle', [
+            'expected_version' => 1,
+            'action' => 'disable',
+        ])->assertForbidden();
     }
 
     private function corporateSiteReviewer(): User

@@ -64,7 +64,13 @@ jobs:
       - name: PHP syntax lint
         run: |
           php -l app/Http/Controllers/CorporateSiteController.php
+          php -l app/Http/Controllers/CorporateSiteEntryController.php
           php -l app/Services/CorporateSite/CorporateHomeInvariant.php
+          php -l mases_core/src/Domains/PublicContent/Models/CorporateSitePage.php
+          php -l mases_core/src/Domains/PublicContent/Models/CorporateSiteEntry.php
+          php -l database/migrations/2026_11_23_000001_add_corporate_site_content_lifecycle.php
+          php -l database/seeders/CorporateSiteBaselineSeeder.php
+          php -l routes/api.php
           php -l tests/Unit/CorporateHomeInvariantTest.php
           php -l tests/Feature/CorporateSitePublishingTest.php
 
