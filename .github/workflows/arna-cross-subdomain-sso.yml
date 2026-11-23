@@ -13,7 +13,7 @@ on:
       - "config/sanctum.php"
       - "config/session.php"
   push:
-    branches: [fix/cross-subdomain-sso-cookie]
+    branches: [main, fix/cross-subdomain-sso-cookie]
     paths:
       - "app/Http/Controllers/Auth/AuthController.php"
       - "app/Http/Middleware/Authenticate.php"
@@ -23,6 +23,8 @@ on:
       - "config/cors.php"
       - "config/sanctum.php"
       - "config/session.php"
+
+  workflow_dispatch:
 
 permissions:
   contents: read
