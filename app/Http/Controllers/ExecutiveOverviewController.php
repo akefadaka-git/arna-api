@@ -11,12 +11,14 @@ use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinancialReportContract;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\People\Services\WorkforceAggregateProvider;
 
 final class ExecutiveOverviewController
 {
     public function __construct(
         private readonly ExecutiveOverviewAccessPolicy $audience,
         private readonly FinancialReportContract $financialReports,
+        private readonly WorkforceAggregateProvider $workforce,
     ) {}
 
     public function show(Request $request): JsonResponse
@@ -104,17 +106,87 @@ final class ExecutiveOverviewController
             }
         }
 
-        // Never emit omitted-widget names, permission slugs, denial reasons,
-        // or hidden-domain metadata. Sensitive financial responses are not
-        // stored in shared or browser caches.
+        // People workforce is independently authorized. The aggregate is
+        // queried only after the current tenant-scoped permission pivot check;
+        // neither the Executive Overview entry permission nor people.manage
+        // can substitute for this grant.
+        if ($this->hasFreshPeopleWorkforcePermission($user, (int) $tenantId)) {
+            $widgets[] = [
+                'key' => 'people.workforce.active',
+                'status' => 'available',
+                'source' => [
+                    'domain' => 'people',
+                    'metric_key' => 'active_workforce',
+                    'calculation_version' => '1',
+                ],
+                'observed_at' => now()->toIso8601String(),
+                'value' => [
+                    'active' => $this->workforce->activeEmployeeCount((int) $tenantId),
+                ],
+            ];
+        }
+
+        // Status describes completeness of the providers in this contract,
+        // not the completeness of every ARNA domain or every planned KPI.
+        // Finance trial balance and the independently authorized People
+        // workforce aggregate are the only providers in this contract.
         return response()->json([
             'success' => true,
             'data' => [
+                'status' => 'complete',
                 'contract_version' => '1.0',
                 'generated_at' => now()->toIso8601String(),
                 'widgets' => $widgets,
             ],
         ])->header('Cache-Control', 'private, no-store');
+    }
+
+
+    /**
+     * Workforce permission proposal: people.workforce.view (tenant scope).
+     * Read current pivots so revocation cannot leave a stale positive grant.
+     */
+    private function hasFreshPeopleWorkforcePermission(User $user, int $tenantId): bool
+    {
+        $direct = $user->permissions()
+            ->where('permissions.slug', 'people.workforce.view')
+            ->where('permissions.scope', 'tenant')
+            ->where('permissions.is_active', true)
+            ->whereNull('permissions.application_id')
+            ->where(function ($scope) use ($tenantId): void {
+                $scope->whereNull('permissions.tenant_id')
+                    ->orWhere('permissions.tenant_id', $tenantId);
+            })
+            ->exists();
+
+        if ($direct) {
+            return true;
+        }
+
+        return $user->roles()
+            ->where('roles.is_active', true)
+            ->whereIn('roles.scope', ['tenant', 'application'])
+            ->where(function ($scope) use ($tenantId): void {
+                $scope->whereNull('roles.tenant_id')
+                    ->orWhere('roles.tenant_id', $tenantId);
+            })
+            ->where(function ($application): void {
+                $application->whereNull('roles.application_id')
+                    ->orWhereHas('application', static fn ($app) => $app
+                        ->where('slug', 'people')
+                        ->where('is_active', true));
+            })
+            ->whereHas('permissions', static function ($query) use ($tenantId): void {
+                $query->where('permissions.slug', 'people.workforce.view')
+                    ->where('permissions.scope', 'tenant')
+                    ->where('permissions.is_active', true)
+                    ->whereNull('permissions.application_id')
+                    ->where(function ($scope) use ($tenantId): void {
+                        $scope->whereNull('permissions.tenant_id')
+                            ->orWhere('permissions.tenant_id', $tenantId);
+                    });
+            })
+            ->exists();
     }
 
     /**
