@@ -778,6 +778,12 @@ final class ShareholderSeeder extends Seeder
         $user = User::firstOrNew(['email' => $email]);
         $isNew = ! $user->exists;
 
+        // Existing accounts are operational records; never reset their
+        // profile, active/verification state or login history during seeding.
+        if (! $isNew) {
+            return $user;
+        }
+
         $isEntity = $definition['type'] !== self::REGISTER_TYPE_INDIVIDUAL;
 
         /*
@@ -931,14 +937,8 @@ final class ShareholderSeeder extends Seeder
         $existing = $matches->first();
 
         if ($existing !== null) {
-            /*
-             * Existing register entry: update in place. The
-             * `updated_at` timestamp was set in $attributes above.
-             * The `created_at` column is left untouched.
-             */
-            DB::table('shareholders')
-                ->where('id', $existing->id)
-                ->update($attributes);
+            // Existing register entries may contain operator corrections or
+            // lifecycle decisions. Preserve them; only create missing rows.
             return;
         }
 

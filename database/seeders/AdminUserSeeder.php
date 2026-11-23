@@ -400,6 +400,12 @@ final class AdminUserSeeder extends Seeder
         $user = User::firstOrNew(['email' => $definition['email']]);
         $isNew = ! $user->exists;
 
+        // Existing accounts are operational records, not bootstrap templates.
+        // Preserve their profile, active/verification state and login history.
+        if (! $isNew) {
+            return $user;
+        }
+
         /*
          * The fill array carries the nine columns that are fillable
          * on the User model. The password is NOT in this array — it

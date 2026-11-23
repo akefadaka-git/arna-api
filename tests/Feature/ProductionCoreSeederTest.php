@@ -26,18 +26,53 @@ final class ProductionCoreSeederTest extends TestCase
             '--force' => true,
             '--no-interaction' => true,
         ]);
-
         $this->assertSame(0, $firstExitCode, Artisan::output());
         $this->assertProductionCohortIsComplete();
 
-        // A production bootstrap rerun must reconcile, not duplicate, the cohort.
+        // Model operator-maintained state before the production bootstrap rerun.
+        $superAdminEmail = BootstrapUsers::SUPER_ADMIN['email'];
+        $shareholderEmail = (new \Database\Seeders\ShareholderSeeder())->seededAccountEmails()[0];
+        $superAdmin = DB::table('users')->where('email', $superAdminEmail)->first();
+        $shareholder = DB::table('users')->where('email', $shareholderEmail)->first();
+        $this->assertNotNull($superAdmin);
+        $this->assertNotNull($shareholder);
+
+        $register = DB::table('shareholders')->where('user_id', $shareholder->id)->first();
+        $this->assertNotNull($register);
+
+        $loginAt = '2026-11-01 12:34:56';
+        DB::table('users')->whereIn('id', [$superAdmin->id, $shareholder->id])->update([
+            'is_active' => false,
+            'email_verified_at' => null,
+            'last_login_at' => $loginAt,
+            'last_login_ip' => '203.0.113.10',
+            'address' => 'Operator-corrected address',
+        ]);
+        DB::table('shareholders')->where('id', $register->id)->update([
+            'is_active' => false,
+            'first_name_en' => 'Operator-corrected register name',
+        ]);
+
+        // A production bootstrap rerun must reconcile, not overwrite, the cohort.
         $secondExitCode = Artisan::call('db:seed', [
             '--force' => true,
             '--no-interaction' => true,
         ]);
-
         $this->assertSame(0, $secondExitCode, Artisan::output());
         $this->assertProductionCohortIsComplete();
+
+        foreach ([$superAdmin->id, $shareholder->id] as $userId) {
+            $user = DB::table('users')->where('id', $userId)->first();
+            $this->assertFalse((bool) $user->is_active);
+            $this->assertNull($user->email_verified_at);
+            $this->assertSame($loginAt, $user->last_login_at);
+            $this->assertSame('203.0.113.10', $user->last_login_ip);
+            $this->assertSame('Operator-corrected address', $user->address);
+        }
+
+        $preservedRegister = DB::table('shareholders')->where('id', $register->id)->first();
+        $this->assertFalse((bool) $preservedRegister->is_active);
+        $this->assertSame('Operator-corrected register name', $preservedRegister->first_name_en);
     }
 
     private function assertProductionCohortIsComplete(): void
