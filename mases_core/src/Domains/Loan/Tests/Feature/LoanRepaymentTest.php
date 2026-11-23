@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Domains\Loan\Enums\LoanStatus;
 use MaaleArna\MASES\Core\Domains\Loan\Models\Loan;
@@ -141,6 +142,12 @@ final class LoanRepaymentTest extends TestCase
         gc_collect_cycles();
 
         parent::setUp();
+
+        // This suite isolates loan repayment business invariants. The
+        // dedicated adaptive-authentication tests exercise the real guard.
+        $stepUpGuard = Mockery::mock(AdaptiveStepUpGuard::class);
+        $stepUpGuard->shouldReceive('assert')->zeroOrMoreTimes();
+        $this->app->instance(AdaptiveStepUpGuard::class, $stepUpGuard);
 
         $this->tenant = Tenant::create([
             'slug'      => 'main-tenant',
