@@ -318,6 +318,96 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
         \Illuminate\Support\Carbon::setTestNow();
     }
 
+    public function test_mysql_stale_revision_is_rejected_at_review_after_a_newer_revision_activates(): void
+    {
+        \\Illuminate\\Support\\Carbon::setTestNow('2026-11-23 10:00:00');
+
+        $initial = $this->validConfiguration();
+        $initial['effective_from'] = '2026-11-01T00:00:00Z';
+        $draft = $this->service->createDraft((int) $this->tenant->id, $this->author, $initial);
+        $submitted = $this->service->submit((int) $this->tenant->id, (int) $draft->id, $this->author);
+        $approved = $this->service->review((int) $this->tenant->id, (int) $submitted->id, $this->reviewer, true);
+        $active = $this->service->activate((int) $this->tenant->id, (int) $approved->id, $this->reviewer);
+        $product = LoanProduct::query()->findOrFail($active->published_product_id);
+
+        $stale = $this->validConfiguration();
+        $stale['product']['id'] = (int) $product->id;
+        $stale['effective_from'] = '2026-12-01T00:00:00Z';
+        $staleDraft = $this->service->createDraft((int) $this->tenant->id, $this->author, $stale);
+        $staleSubmitted = $this->service->submit((int) $this->tenant->id, (int) $staleDraft->id, $this->author);
+
+        $winner = $this->validConfiguration();
+        $winner['product']['id'] = (int) $product->id;
+        $winner['product']['name_en'] = 'Winning revision';
+        $winner['effective_from'] = '2026-11-01T00:00:00Z';
+        $winnerDraft = $this->service->createDraft((int) $this->tenant->id, $this->author, $winner);
+        $winnerSubmitted = $this->service->submit((int) $this->tenant->id, (int) $winnerDraft->id, $this->author);
+        $winnerApproved = $this->service->review((int) $this->tenant->id, (int) $winnerSubmitted->id, $this->reviewer, true);
+        $this->service->activate((int) $this->tenant->id, (int) $winnerApproved->id, $this->reviewer);
+
+        try {
+            $this->service->review((int) $this->tenant->id, (int) $staleSubmitted->id, $this->reviewer, true);
+            $this->fail('A revision drafted against an obsolete policy pointer must not be approved.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('product', $exception->errors());
+        }
+
+        $this->assertSame('submitted', $staleSubmitted->fresh()->status);
+        $this->assertNull($staleSubmitted->fresh()->published_policy_version_id);
+        $this->assertSame(2, VersionedPolicy::query()->where('policy_type', 'loan_product_rules')->count());
+
+        \\Illuminate\\Support\\Carbon::setTestNow();
+    }
+
+    public function test_mysql_stale_approved_revision_cannot_overwrite_a_newer_active_policy(): void
+    {
+        \\Illuminate\\Support\\Carbon::setTestNow('2026-11-23 10:00:00');
+
+        $initial = $this->validConfiguration();
+        $initial['effective_from'] = '2026-11-01T00:00:00Z';
+        $draft = $this->service->createDraft((int) $this->tenant->id, $this->author, $initial);
+        $submitted = $this->service->submit((int) $this->tenant->id, (int) $draft->id, $this->author);
+        $approved = $this->service->review((int) $this->tenant->id, (int) $submitted->id, $this->reviewer, true);
+        $active = $this->service->activate((int) $this->tenant->id, (int) $approved->id, $this->reviewer);
+        $product = LoanProduct::query()->findOrFail($active->published_product_id);
+
+        $first = $this->validConfiguration();
+        $first['product']['id'] = (int) $product->id;
+        $first['product']['name_en'] = 'First competing revision';
+        $first['effective_from'] = '2026-11-01T00:00:00Z';
+        $firstDraft = $this->service->createDraft((int) $this->tenant->id, $this->author, $first);
+        $firstSubmitted = $this->service->submit((int) $this->tenant->id, (int) $firstDraft->id, $this->author);
+        $firstApproved = $this->service->review((int) $this->tenant->id, (int) $firstSubmitted->id, $this->reviewer, true);
+
+        $second = $this->validConfiguration();
+        $second['product']['id'] = (int) $product->id;
+        $second['product']['name_en'] = 'Stale competing revision';
+        $second['effective_from'] = '2026-11-01T00:00:00Z';
+        $secondDraft = $this->service->createDraft((int) $this->tenant->id, $this->author, $second);
+        $secondSubmitted = $this->service->submit((int) $this->tenant->id, (int) $secondDraft->id, $this->author);
+        $secondApproved = $this->service->review((int) $this->tenant->id, (int) $secondSubmitted->id, $this->reviewer, true);
+
+        $firstActive = $this->service->activate((int) $this->tenant->id, (int) $firstApproved->id, $this->reviewer);
+        $winningPolicyId = (int) $firstActive->published_policy_version_id;
+
+        try {
+            $this->service->activate((int) $this->tenant->id, (int) $secondApproved->id, $this->reviewer);
+            $this->fail('A stale approved revision must not overwrite a newer active policy pointer.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('product', $exception->errors());
+        }
+
+        $this->assertSame('approved', $secondApproved->fresh()->status);
+        $this->assertSame($winningPolicyId, (int) $product->fresh()->product_rules_policy_version_id);
+        $this->assertSame('First competing revision', $product->fresh()->name_en);
+        $this->assertDatabaseMissing('loan_configuration_audit_logs', [
+            'submission_id' => $secondDraft->id,
+            'event' => 'product_policy_revision_activated',
+        ]);
+
+        \\Illuminate\\Support\\Carbon::setTestNow();
+    }
+
     public function test_audit_history_requires_dedicated_permission_and_is_chronological_and_tenant_scoped(): void
     {
         $draft = $this->service->createDraft((int) $this->tenant->id, $this->author, $this->validConfiguration());
