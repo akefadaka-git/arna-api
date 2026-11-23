@@ -17,6 +17,8 @@ use MaaleArna\MASES\Core\Auth\Services\AuthenticationService;
 use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
 use MaaleArna\MASES\Core\Auth\Models\User as CoreUser;
 use MaaleArna\MASES\Core\Auth\Services\TotpMfaService;
+use MaaleArna\MASES\Core\Auth\Services\DeviceSessionService;
+use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpService;
 use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
 
 /**
@@ -382,6 +384,10 @@ final class AuthController extends Controller
             'tenant_id' => ['sometimes', 'integer', 'exists:tenants,id'],
             'mfa_challenge_token' => ['sometimes', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
             'mfa_code' => ['sometimes', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+            'client_type' => ['sometimes', 'string', 'in:android'],
+            'device_installation_id' => ['required_if:client_type,android', 'string', 'min:16', 'max:128'],
+            'device_label' => ['sometimes', 'string', 'max:100'],
+            'app_version' => ['sometimes', 'string', 'max:40'],
         ]);
 
         /*
@@ -400,6 +406,26 @@ final class AuthController extends Controller
         $requestedTenantId = $bodyTenantId ?? $trustedTenantId;
 
         $resolution = $this->identifierResolver->resolve($validated['email'], $requestedTenantId);
+
+        $isAndroidClient = ($validated['client_type'] ?? null) === 'android';
+        $deviceContext = $isAndroidClient ? [
+            'device_installation_id' => $validated['device_installation_id'],
+            'device_label' => $validated['device_label'] ?? null,
+            'app_version' => $validated['app_version'] ?? null,
+        ] : null;
+        $deviceSessions = $isAndroidClient ? app(DeviceSessionService::class) : null;
+
+        if ($isAndroidClient && isset($validated['mfa_challenge_token'])) {
+            $challengeUser = $resolution['user'] ?? null;
+            if (! $challengeUser instanceof CoreUser || ! $deviceSessions->loginChallengeMatches(
+                $validated['mfa_challenge_token'],
+                $challengeUser,
+                $resolution['tenant_id'] ?? $requestedTenantId,
+                $deviceContext['device_installation_id'],
+            )) {
+                throw new AuthenticationException('Invalid authentication challenge.', 'AUTH_MFA_INVALID', 401);
+            }
+        }
 
         /*
          * Never pass an unresolved non-email identifier to a service that
@@ -485,6 +511,14 @@ final class AuthController extends Controller
         }
 
         if (($result['mfa_required'] ?? false) === true) {
+            if ($isAndroidClient) {
+                $deviceSessions->bindLoginChallenge(
+                    $result['challenge_token'],
+                    $result['user'],
+                    $effectiveTenantId,
+                    $deviceContext['device_installation_id'],
+                );
+            }
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -493,6 +527,21 @@ final class AuthController extends Controller
                     'methods' => ['totp', 'recovery_code'],
                 ],
             ]);
+        }
+
+        $result['user']->recordSuccessfulLogin((string) $request->ip());
+
+        $mobileSession = null;
+        if ($isAndroidClient) {
+            $mobileSession = $deviceSessions->establish(
+                $result['user'],
+                $result['token'],
+                $deviceContext,
+                isset($effectiveTenantId) ? (int) $effectiveTenantId : null,
+            );
+            if (isset($validated['mfa_challenge_token'])) {
+                $deviceSessions->consumeLoginChallenge($validated['mfa_challenge_token']);
+            }
         }
 
         Log::info('Login attempt succeeded', [
@@ -506,12 +555,373 @@ final class AuthController extends Controller
             'success' => true,
             'data'    => [
                 'user'       => $result['user']->only(['id', 'name', 'email', 'locale', 'default_tenant_id']),
-                'token'      => $result['token'],
+                'token'      => $mobileSession['token'] ?? $result['token'],
                 'token_type' => 'Bearer',
+                ...($mobileSession !== null ? ['session_id' => $mobileSession['session_id'], 'expires_at' => $mobileSession['expires_at']] : []),
             ],
         ]);
 
-        return $this->withSsoTokenCookie($response, $request, $result['token']);
+        return $mobileSession !== null ? $response : $this->withSsoTokenCookie($response, $request, $result['token']);
+    }
+
+
+
+    /**
+     * Request an OTP for returning-user login. The response is deliberately
+     * indistinguishable for unknown, inactive, first-login, or undeliverable
+     * accounts to prevent account enumeration.
+     */
+    public function requestLoginOtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'identifier' => ['required', 'string', 'max:255'],
+            'tenant_id' => ['sometimes', 'integer', 'exists:tenants,id'],
+            'channel' => ['required', 'string', 'in:email,sms'],
+            'client_type' => ['sometimes', 'string', 'in:android'],
+            'device_installation_id' => ['required_if:client_type,android', 'string', 'min:16', 'max:128'],
+        ]);
+
+        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0 ? (int) $trustedTenantId : null;
+        $requestedTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : $trustedTenantId;
+        try {
+            $resolution = $this->identifierResolver->resolve($validated['identifier'], $requestedTenantId);
+        } catch (AuthenticationException) {
+            $resolution = null;
+        }
+        $challengeToken = bin2hex(random_bytes(32));
+
+        if (is_array($resolution) && ($resolution['user'] ?? null) instanceof CoreUser
+            && $resolution['user']->last_login_at !== null) {
+            $tenantId = (int) $resolution['tenant_id'];
+            $context = ['tenant_id' => (string) $tenantId];
+            if (($validated['client_type'] ?? null) === 'android') {
+                $context['device_installation_id'] = $validated['device_installation_id'];
+            }
+
+            try {
+                $challenge = app(AdaptiveStepUpService::class)->issueOtp(
+                    $resolution['user'],
+                    $tenantId,
+                    'login',
+                    $validated['channel'],
+                    $context,
+                );
+                $challengeToken = $challenge['challenge_token'];
+            } catch (\Throwable $exception) {
+                // Return the same response shape; do not disclose account or channel state.
+                Log::notice('Returning-user OTP login challenge could not be issued', [
+                    'user_id' => $resolution['user']->getKey(),
+                    'channel' => $validated['channel'],
+                    'exception_class' => $exception::class,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'challenge_required' => true,
+                'challenge_token' => $challengeToken,
+                'methods' => ['otp'],
+            ],
+        ]);
+    }
+
+    /**
+     * Authenticate a returning user with OTP or Google Authenticator alone.
+     * First-time authentication is always routed through password login.
+     */
+    public function loginWithAuthenticator(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'identifier' => ['required', 'string', 'max:255'],
+            'tenant_id' => ['sometimes', 'integer', 'exists:tenants,id'],
+            'authenticator' => ['required', 'string', 'in:otp,google_authenticator'],
+            'code' => ['required', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+            'challenge_token' => ['sometimes', 'nullable', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
+            'client_type' => ['sometimes', 'string', 'in:android'],
+            'device_installation_id' => ['required_if:client_type,android', 'string', 'min:16', 'max:128'],
+            'device_label' => ['sometimes', 'string', 'max:100'],
+            'app_version' => ['sometimes', 'string', 'max:40'],
+        ]);
+
+        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0 ? (int) $trustedTenantId : null;
+        $requestedTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : $trustedTenantId;
+        $resolution = $this->identifierResolver->resolve($validated['identifier'], $requestedTenantId);
+
+        if (! is_array($resolution) || ! ($resolution['user'] ?? null) instanceof CoreUser
+            || $resolution['user']->last_login_at === null) {
+            throw new AuthenticationException('Invalid identifier or authenticator.', 'AUTH_INVALID_CREDENTIALS', 401);
+        }
+
+        $user = $resolution['user'];
+        $tenantId = (int) $resolution['tenant_id'];
+        $context = ['tenant_id' => (string) $tenantId];
+        $isAndroidClient = ($validated['client_type'] ?? null) === 'android';
+        $deviceContext = $isAndroidClient ? [
+            'device_installation_id' => $validated['device_installation_id'],
+            'device_label' => $validated['device_label'] ?? null,
+            'app_version' => $validated['app_version'] ?? null,
+        ] : null;
+        if ($isAndroidClient) {
+            $context['device_installation_id'] = $deviceContext['device_installation_id'];
+        }
+
+        $stepUp = app(AdaptiveStepUpService::class);
+        $grant = $stepUp->verify(
+            $user,
+            $tenantId,
+            'login',
+            $context,
+            $validated['authenticator'],
+            $validated['code'],
+            $validated['challenge_token'] ?? null,
+        );
+
+        if (! is_string($grant) || ! $stepUp->consumeGrant($user, $tenantId, 'login', $context, $grant)) {
+            throw new AuthenticationException('Invalid identifier or authenticator.', 'AUTH_INVALID_CREDENTIALS', 401);
+        }
+
+        $user->recordSuccessfulLogin((string) $request->ip());
+        $token = $user->createToken('auth_token', ['*'])->plainTextToken;
+        $mobileSession = null;
+
+        if ($isAndroidClient) {
+            $mobileSession = app(DeviceSessionService::class)->establish(
+                $user,
+                $token,
+                $deviceContext,
+                $tenantId,
+            );
+            $token = $mobileSession['token'];
+        }
+
+        Log::info('Returning-user authenticator login succeeded', [
+            'identifier_hash' => hash('sha256', strtolower(trim($validated['identifier']))),
+            'user_id' => $user->getKey(),
+            'authenticator' => $validated['authenticator'],
+            'ip' => $request->ip(),
+        ]);
+
+        $response = response()->json([
+            'success' => true,
+            'data' => [
+                'user' => $user->only(['id', 'name', 'email', 'locale', 'default_tenant_id']),
+                'token' => $token,
+                'token_type' => 'Bearer',
+                ...($mobileSession !== null ? [
+                    'session_id' => $mobileSession['session_id'],
+                    'expires_at' => $mobileSession['expires_at'],
+                ] : []),
+            ],
+        ]);
+
+        return $mobileSession !== null ? $response : $this->withSsoTokenCookie($response, $request, $token);
+    }
+
+    /**
+     * Resume an already recognized Android device with its enrolled PIN.
+     * First authentication always goes through the password login endpoint.
+     */
+    public function loginWithPin(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'identifier' => ['required', 'string', 'max:255'],
+            'pin' => ['required', 'string', 'regex:/^\d{6}$/'],
+            'device_installation_id' => ['required', 'string', 'min:16', 'max:128'],
+            'tenant_id' => ['sometimes', 'integer', 'exists:tenants,id'],
+        ]);
+
+        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0 ? (int) $trustedTenantId : null;
+        $tenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : $trustedTenantId;
+        $resolution = $this->identifierResolver->resolve($validated['identifier'], $tenantId);
+
+        if (! is_array($resolution) || ! $resolution['user'] instanceof CoreUser) {
+            throw new AuthenticationException('Invalid identifier or authenticator.', 'AUTH_INVALID_CREDENTIALS', 401);
+        }
+
+        $user = $resolution['user'];
+        if ($user->last_login_at === null) {
+            throw new AuthenticationException('Invalid identifier or authenticator.', 'AUTH_INVALID_CREDENTIALS', 401);
+        }
+
+        $session = app(DeviceSessionService::class)->resumeWithPin(
+            $user,
+            (int) $resolution['tenant_id'],
+            $validated['device_installation_id'],
+            $validated['pin'],
+        );
+
+        if ($session === null) {
+            throw new AuthenticationException('Invalid identifier or authenticator.', 'AUTH_INVALID_CREDENTIALS', 401);
+        }
+
+        $user->recordSuccessfulLogin((string) $request->ip());
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'user' => $user->only(['id', 'name', 'email', 'locale', 'default_tenant_id']),
+                ...$session,
+            ],
+        ]);
+    }
+
+    /**
+     * List only the authenticated user's recognized device sessions.
+     */
+    public function deviceSessions(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof CoreUser, 401);
+        $token = $user->currentAccessToken();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'sessions' => app(DeviceSessionService::class)->listFor(
+                    $user,
+                    $token instanceof PersonalAccessToken ? $token->getKey() : null,
+                ),
+            ],
+        ]);
+    }
+
+    /**
+     * Revoke one recognized device session owned by the authenticated user.
+     */
+    public function revokeDeviceSession(Request $request, string $sessionId): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof CoreUser, 401);
+        abort_unless((bool) preg_match('/^[0-9a-f-]{36}$/i', $sessionId), 404);
+        app(DeviceSessionService::class)->revoke($user, $sessionId);
+
+        return response()->json(['success' => true, 'data' => ['revoked' => true]]);
+    }
+
+
+    /**
+     * Issue a short-lived OTP challenge for a registered sensitive action.
+     * Delivery is restricted to an already verified email address or phone.
+     */
+    public function requestStepUpChallenge(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'action' => ['required', 'string', 'max:100'],
+            'channel' => ['required', 'string', 'in:email,sms'],
+            'context' => ['required', 'array'],
+        ]);
+
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            throw AuthenticationException::unauthenticated();
+        }
+
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
+            ? (int) $tenantId
+            : (int) ($user->default_tenant_id ?? 0);
+        if ($tenantId < 1 || ! $user->activeTenants()->where('tenants.id', $tenantId)->exists()) {
+            throw new AuthenticationException('A verified tenant membership is required.', 'AUTH_TENANT_CONTEXT_REQUIRED', 403);
+        }
+
+        $challenge = app(AdaptiveStepUpService::class)->issueOtp(
+            $user,
+            $tenantId,
+            $validated['action'],
+            $validated['channel'],
+            $validated['context'],
+        );
+
+        return response()->json(['success' => true, 'data' => $challenge]);
+    }
+
+    /**
+     * Verify OTP or Google Authenticator proof and issue a single-use grant.
+     * Critical operations additionally require a password or recognized PIN.
+     */
+    public function verifyStepUpChallenge(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'action' => ['required', 'string', 'max:100'],
+            'context' => ['required', 'array'],
+            'authenticator' => ['required', 'string', 'in:otp,google_authenticator'],
+            'code' => ['required', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+            'challenge_token' => ['sometimes', 'nullable', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
+            'knowledge_factor_type' => ['sometimes', 'nullable', 'string', 'in:password,pin'],
+            'knowledge_proof' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            throw AuthenticationException::unauthenticated();
+        }
+
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
+            ? (int) $tenantId
+            : (int) ($user->default_tenant_id ?? 0);
+        if ($tenantId < 1 || ! $user->activeTenants()->where('tenants.id', $tenantId)->exists()) {
+            throw new AuthenticationException('A verified tenant membership is required.', 'AUTH_TENANT_CONTEXT_REQUIRED', 403);
+        }
+
+        $grant = app(AdaptiveStepUpService::class)->verify(
+            $user,
+            $tenantId,
+            $validated['action'],
+            $validated['context'],
+            $validated['authenticator'],
+            $validated['code'],
+            $validated['challenge_token'] ?? null,
+            $validated['knowledge_factor_type'] ?? null,
+            $validated['knowledge_proof'] ?? null,
+        );
+
+        if (! is_string($grant)) {
+            throw new AuthenticationException('The additional authentication proof is invalid or expired.', 'AUTH_STEP_UP_INVALID', 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'step_up_token' => $grant,
+                'expires_in' => max(1, (int) config('auth-step-up.grant_expiry_minutes', 5)) * 60,
+                'single_use' => true,
+            ],
+        ]);
+    }
+
+    /**
+     * Enroll a PIN only for the currently authenticated Android device.
+     * The route requires an identity_change step-up grant before this runs.
+     */
+    public function enrollDevicePin(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'session_id' => ['required', 'uuid'],
+            'pin' => ['required', 'string', 'regex:/^\\d{6}$/'],
+            'pin_confirmation' => ['required', 'same:pin'],
+        ]);
+
+        $user = $request->user();
+        $token = $user?->currentAccessToken();
+        if (! $user instanceof CoreUser || ! $token instanceof PersonalAccessToken
+            || ! app(DeviceSessionService::class)->isMobileToken($token)) {
+            throw new AuthenticationException('A recognized Android device session is required.', 'AUTH_DEVICE_SESSION_REQUIRED', 403);
+        }
+
+        $session = app(DeviceSessionService::class)->validateToken($user, $token);
+        if ($session === null || ! hash_equals($session->public_id, $validated['session_id'])) {
+            throw new AuthenticationException('The requested device session is not current.', 'AUTH_DEVICE_SESSION_INVALID', 403);
+        }
+
+        app(DeviceSessionService::class)->enrollPin($user, $session->public_id, $validated['pin']);
+
+        return response()->json(['success' => true, 'data' => ['pin_enrolled' => true]]);
     }
 
     /**
@@ -751,11 +1161,16 @@ final class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
+        $currentToken = $user?->currentAccessToken();
 
-        $this->deleteIncomingBearerToken($request);
-
-        if ($user !== null) {
-            $this->authService->logout($user, revokeTokens: true);
+        if ($user instanceof CoreUser && $currentToken instanceof PersonalAccessToken
+            && app(DeviceSessionService::class)->isMobileToken($currentToken)) {
+            app(DeviceSessionService::class)->logoutCurrent($user, $currentToken);
+        } else {
+            $this->deleteIncomingBearerToken($request);
+            if ($user !== null) {
+                $this->authService->logout($user, revokeTokens: true);
+            }
         }
 
         try {
@@ -822,6 +1237,15 @@ final class AuthController extends Controller
                     'message' => 'Not authenticated.',
                 ],
             ], 401);
+        }
+
+        $currentToken = $user->currentAccessToken();
+        if ($user instanceof CoreUser && $currentToken instanceof PersonalAccessToken
+            && app(DeviceSessionService::class)->isMobileToken($currentToken)) {
+            return response()->json([
+                'success' => true,
+                'data' => app(DeviceSessionService::class)->refresh($user, $currentToken),
+            ]);
         }
 
         $this->deleteIncomingBearerToken($request);
@@ -892,29 +1316,46 @@ final class AuthController extends Controller
     public function sendPasswordResetLink(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            // The `exists:users,email` rule was removed: it leaked
-            // whether an email is registered. See the class docblock.
-            'email' => ['required', 'string', 'email', 'max:255'],
+            'email' => ['required_without:identifier', 'nullable', 'string', 'max:255'],
+            'identifier' => ['required_without:email', 'nullable', 'string', 'max:255'],
+            'channel' => ['sometimes', 'string', 'in:email,sms'],
         ]);
 
-        $status = $this->authService->sendPasswordResetLink($validated['email']);
+        $identifier = trim((string) ($validated['identifier'] ?? $validated['email'] ?? ''));
+        $channel = $validated['channel'] ?? (filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'sms');
+        $challengeToken = bin2hex(random_bytes(32));
+        $user = $this->resolveRecoveryUser($identifier);
 
-        /*
-         * INVALID_USER means the email is not registered. That is not
-         * a failure condition for the client — the response is the
-         * same as a successful send. Any other failure status
-         * indicates a transport or rate-limit problem worth logging.
-         */
-        if ($status !== Password::RESET_LINK_SENT && $status !== Password::INVALID_USER) {
-            Log::warning('Password reset link send failed', [
-                'status'     => $status,
-                'email_hash' => hash('sha256', $validated['email']),
-            ]);
+        if ($user instanceof CoreUser && $user->is_active) {
+            $context = ['identifier_hash' => hash('sha256', strtolower($identifier))];
+            $tenantId = is_numeric($user->default_tenant_id) ? (int) $user->default_tenant_id : null;
+
+            try {
+                $challenge = app(AdaptiveStepUpService::class)->issueOtp(
+                    $user,
+                    $tenantId,
+                    'password_recovery',
+                    $channel,
+                    $context,
+                );
+                $challengeToken = $challenge['challenge_token'];
+            } catch (\Throwable $exception) {
+                // Keep the response uniform for unknown accounts and unavailable channels.
+                Log::notice('Password recovery challenge could not be issued', [
+                    'identifier_hash' => hash('sha256', strtolower($identifier)),
+                    'channel' => $channel,
+                    'exception_class' => $exception::class,
+                ]);
+            }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'If an account exists for that email address, a password reset link has been sent.',
+            'data' => [
+                'challenge_required' => true,
+                'challenge_token' => $challengeToken,
+                'message' => 'If an account with a verified recovery method exists, a verification code has been sent.',
+            ],
         ]);
     }
 
@@ -938,48 +1379,310 @@ final class AuthController extends Controller
     public function resetPassword(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            // The `exists:users,email` rule was removed: it leaked
-            // whether an email is registered. See the class docblock.
-            'email'    => ['required', 'string', 'email', 'max:255'],
+            'email' => ['required_without:identifier', 'nullable', 'string', 'max:255'],
+            'identifier' => ['required_without:email', 'nullable', 'string', 'max:255'],
+            'authenticator' => ['required', 'string', 'in:otp,google_authenticator'],
+            'code' => ['required', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+            'challenge_token' => ['required_if:authenticator,otp', 'nullable', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'token'    => ['required', 'string'],
         ]);
 
-        $status = $this->authService->resetPassword($validated);
-
-        if ($status !== Password::PASSWORD_RESET) {
-            /*
-             * A single message for every failure mode, so the client
-             * cannot distinguish "invalid token" from "unknown
-             * email". The Laravel status is logged, not returned.
-             *
-             * The status is logged at INFO, not WARNING: an expired
-             * or reused token is a normal user experience (the user
-             * followed an old email), not an anomaly. A spike in
-             * this log — many failures from the same IP in a short
-             * window — would be a signal worth investigating, but
-             * the individual event is not.
-             */
-            Log::info('Password reset attempt failed', [
-                'status'     => $status,
-                'email_hash' => hash('sha256', $validated['email']),
-                'ip'         => $request->ip(),
-            ]);
-
+        $identifier = trim((string) ($validated['identifier'] ?? $validated['email'] ?? ''));
+        $user = $this->resolveRecoveryUser($identifier);
+        if (! $user instanceof CoreUser || ! $user->is_active) {
             throw ValidationException::withMessages([
-                'email' => [__('passwords.token')],
+                'identifier' => [__('passwords.token')],
             ]);
         }
 
-        Log::info('Password reset completed', [
-            'email_hash' => hash('sha256', $validated['email']),
-            'ip'         => $request->ip(),
+        $tenantId = is_numeric($user->default_tenant_id) ? (int) $user->default_tenant_id : null;
+        $context = ['identifier_hash' => hash('sha256', strtolower($identifier))];
+        $stepUp = app(AdaptiveStepUpService::class);
+        $grant = $stepUp->verify(
+            $user,
+            $tenantId,
+            'password_recovery',
+            $context,
+            $validated['authenticator'],
+            $validated['code'],
+            $validated['challenge_token'] ?? null,
+        );
+
+        if (! is_string($grant)
+            || ! $stepUp->consumeGrant($user, $tenantId, 'password_recovery', $context, $grant)) {
+            Log::info('Password recovery verification failed', [
+                'identifier_hash' => hash('sha256', strtolower($identifier)),
+                'ip' => $request->ip(),
+            ]);
+            throw ValidationException::withMessages([
+                'identifier' => [__('passwords.token')],
+            ]);
+        }
+
+        $user->forceFill(['password' => Hash::make($validated['password'])])->save();
+        app(DeviceSessionService::class)->revokeAllForUser($user, 'password_recovery');
+
+        Log::info('Password recovery completed', [
+            'identifier_hash' => hash('sha256', strtolower($identifier)),
+            'ip' => $request->ip(),
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Password has been reset successfully.',
+            'data' => [
+                'password_reset' => true,
+                'login_required' => true,
+            ],
+            'message' => 'Password has been reset. Please sign in again.',
         ]);
+    }
+
+
+    /**
+     * Start a self-service login-identity change after checking the proposed
+     * value and binding the step-up challenge to its normalized hash.
+     */
+    public function requestIdentityChangeChallenge(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'field' => ['required', 'string', 'in:email,username,mobile_number'],
+            'value' => ['required', 'string', 'max:255'],
+            'channel' => ['required', 'string', 'in:email,sms'],
+        ]);
+
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            throw AuthenticationException::unauthenticated();
+        }
+
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
+            ? (int) $tenantId
+            : (int) ($user->default_tenant_id ?? 0);
+        if ($tenantId < 1 || ! $user->activeTenants()->where('tenants.id', $tenantId)->exists()) {
+            throw new AuthenticationException('A verified tenant membership is required.', 'AUTH_TENANT_CONTEXT_REQUIRED', 403);
+        }
+
+        $normalized = $this->normalizeIdentityChangeValue($validated['field'], $validated['value']);
+        $this->assertIdentityValueAvailable($user, $validated['field'], $normalized);
+
+        $context = [
+            'identity_type' => $validated['field'],
+            'new_value_hash' => hash('sha256', $normalized),
+        ];
+        $challenge = app(AdaptiveStepUpService::class)->issueOtp(
+            $user,
+            $tenantId,
+            'identity_change',
+            $validated['channel'],
+            $context,
+        );
+
+        return response()->json(['success' => true, 'data' => $challenge]);
+    }
+
+
+    /**
+     * Verify identity-change proof using the server-normalized proposed value.
+     */
+    public function verifyIdentityChangeChallenge(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'field' => ['required', 'string', 'in:email,username,mobile_number'],
+            'value' => ['required', 'string', 'max:255'],
+            'authenticator' => ['required', 'string', 'in:otp,google_authenticator'],
+            'code' => ['required', 'string', 'min:6', 'max:64', 'regex:/^[A-Za-z0-9]{6,64}$/'],
+            'challenge_token' => ['required_if:authenticator,otp', 'nullable', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/'],
+            'knowledge_factor_type' => ['sometimes', 'nullable', 'string', 'in:password,pin'],
+            'knowledge_proof' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            throw AuthenticationException::unauthenticated();
+        }
+
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
+            ? (int) $tenantId
+            : (int) ($user->default_tenant_id ?? 0);
+        if ($tenantId < 1 || ! $user->activeTenants()->where('tenants.id', $tenantId)->exists()) {
+            throw new AuthenticationException('A verified tenant membership is required.', 'AUTH_TENANT_CONTEXT_REQUIRED', 403);
+        }
+
+        $normalized = $this->normalizeIdentityChangeValue($validated['field'], $validated['value']);
+        $this->assertIdentityValueAvailable($user, $validated['field'], $normalized);
+        $context = [
+            'identity_type' => $validated['field'],
+            'new_value_hash' => hash('sha256', $normalized),
+        ];
+
+        $grant = app(AdaptiveStepUpService::class)->verify(
+            $user,
+            $tenantId,
+            'identity_change',
+            $context,
+            $validated['authenticator'],
+            $validated['code'],
+            $validated['challenge_token'] ?? null,
+            $validated['knowledge_factor_type'] ?? null,
+            $validated['knowledge_proof'] ?? null,
+        );
+
+        if (! is_string($grant)) {
+            throw new AuthenticationException('The additional authentication proof is invalid or expired.', 'AUTH_STEP_UP_INVALID', 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'step_up_token' => $grant,
+                'expires_in' => max(1, (int) config('auth-step-up.grant_expiry_minutes', 5)) * 60,
+                'single_use' => true,
+            ],
+        ]);
+    }
+
+    /**
+     * Apply an email, username or mobile-number change only after the
+     * matching OTP/TOTP grant has been consumed. Employee, shareholder and
+     * wallet identifiers remain controlled by their owning domains.
+     */
+    public function changeIdentity(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'field' => ['required', 'string', 'in:email,username,mobile_number'],
+            'value' => ['required', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        if (! $user instanceof CoreUser) {
+            throw AuthenticationException::unauthenticated();
+        }
+
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
+            ? (int) $tenantId
+            : (int) ($user->default_tenant_id ?? 0);
+        if ($tenantId < 1 || ! $user->activeTenants()->where('tenants.id', $tenantId)->exists()) {
+            throw new AuthenticationException('A verified tenant membership is required.', 'AUTH_TENANT_CONTEXT_REQUIRED', 403);
+        }
+
+        $normalized = $this->normalizeIdentityChangeValue($validated['field'], $validated['value']);
+        $this->assertIdentityValueAvailable($user, $validated['field'], $normalized);
+        $context = [
+            'identity_type' => $validated['field'],
+            'new_value_hash' => hash('sha256', $normalized),
+        ];
+        $grant = (string) ($request->header('X-ARNA-Step-Up-Token') ?? $request->input('step_up_token', ''));
+
+        if (! app(AdaptiveStepUpService::class)->consumeGrant($user, $tenantId, 'identity_change', $context, $grant)) {
+            throw new AuthenticationException('Additional authentication is required for this identity change.', 'AUTH_STEP_UP_REQUIRED', 403);
+        }
+
+        $attributes = match ($validated['field']) {
+            'email' => ['email' => $normalized, 'email_verified_at' => null],
+            'username' => ['username' => $normalized],
+            'mobile_number' => [
+                'phone' => $normalized,
+                'phone_verified_at' => null,
+                'phone_verified_phone_hash' => null,
+            ],
+        };
+
+        $user->forceFill($attributes)->save();
+
+        if ($validated['field'] === 'email') {
+            $user->sendEmailVerificationNotification();
+        }
+
+        app(DeviceSessionService::class)->revokeAllForUser($user, 'identity_change');
+
+        Log::info('ARNA login identity changed', [
+            'user_id' => $user->getKey(),
+            'identity_type' => $validated['field'],
+            'new_value_hash' => hash('sha256', $normalized),
+            'ip' => $request->ip(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'identity_updated' => true,
+                'field' => $validated['field'],
+                'verification_required' => in_array($validated['field'], ['email', 'mobile_number'], true),
+                'login_required' => true,
+            ],
+        ]);
+    }
+
+    private function normalizeIdentityChangeValue(string $field, string $value): string
+    {
+        $value = trim($value);
+
+        if ($field === 'email') {
+            $normalized = strtolower($value);
+            if (! filter_var($normalized, FILTER_VALIDATE_EMAIL)) {
+                throw ValidationException::withMessages(['value' => ['A valid email address is required.']]);
+            }
+
+            return $normalized;
+        }
+
+        if ($field === 'username') {
+            $normalized = strtolower($value);
+            if (! preg_match('/^[a-z0-9._-]{3,50}$/', $normalized)) {
+                throw ValidationException::withMessages(['value' => ['Username must be 3–50 characters using letters, numbers, dot, underscore or hyphen.']]);
+            }
+
+            return $normalized;
+        }
+
+        if (! preg_match('/^\\+[1-9][0-9]{7,14}$/', $value)) {
+            throw ValidationException::withMessages(['value' => ['Mobile number must use international E.164 format.']]);
+        }
+
+        return $value;
+    }
+
+    private function assertIdentityValueAvailable(CoreUser $user, string $field, string $value): void
+    {
+        $column = match ($field) {
+            'email' => 'email',
+            'username' => 'username',
+            'mobile_number' => 'phone',
+        };
+
+        $query = CoreUser::query()->where('id', '!=', $user->getKey());
+        if (in_array($field, ['email', 'username'], true)) {
+            $query->whereRaw('LOWER('.$column.') = ?', [strtolower($value)]);
+        } else {
+            $query->where($column, $value);
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages(['value' => ['This identifier is already assigned to another account.']]);
+        }
+    }
+
+    /**
+     * Resolve only a verified recovery identifier class: email or phone.
+     * Employee, shareholder and wallet identifiers are not recovery channels.
+     */
+    private function resolveRecoveryUser(string $identifier): ?CoreUser
+    {
+        $identifier = trim($identifier);
+        if ($identifier === '') {
+            return null;
+        }
+
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            return CoreUser::query()
+                ->whereRaw('LOWER(email) = ?', [strtolower($identifier)])
+                ->first();
+        }
+
+        return CoreUser::query()->where('phone', $identifier)->first();
     }
 
     // =========================================================================
