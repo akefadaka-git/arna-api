@@ -286,6 +286,7 @@ Route::name('api.loans.')->group(function (): void {
     // on the ordering and the constraint.
     // =========================================================================
     Route::get('configuration', [LoanConfigurationController::class, 'index'])->name('configuration.index');
+    Route::get('configuration/audit', [LoanConfigurationController::class, 'auditHistory'])->name('configuration.audit');
     Route::post('configuration', [LoanConfigurationController::class, 'store'])->name('configuration.store');
     Route::put('configuration/{submission}', [LoanConfigurationController::class, 'update'])->whereNumber('submission')->name('configuration.update');
     Route::post('configuration/{submission}/submit', [LoanConfigurationController::class, 'submit'])->whereNumber('submission')->name('configuration.submit');
