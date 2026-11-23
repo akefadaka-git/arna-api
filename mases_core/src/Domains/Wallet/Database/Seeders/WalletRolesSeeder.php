@@ -294,10 +294,6 @@ final class WalletRolesSeeder extends Seeder
             count(self::ROLE_PERMISSIONS),
             array_sum(array_map('count', self::ROLE_PERMISSIONS)),
         ));
-        $this->command->warn(
-            'Amharic labels for the Wallet permissions are NULL. '
-            . 'CR-WALLET-PERM-AMHARIC backfills them.'
-        );
         // NOTE: the 1.0.0 revision printed a second warning about the
         // destructive sync() semantics. That warning has been removed
         // because the composite-sync pattern used by 1.1.0 does not
