@@ -14,7 +14,7 @@
 | Principal grace | Non-negative integer, less than the maximum term | `LoanScheduleService` prepends zero-principal grace installments and amortizes the remaining term | **Aligned.** Validation also requires at least one amortizing installment. |
 | Interest grace | Must be zero | `LoanScheduleService` rejects non-zero interest grace because capitalization/deferral semantics are not implemented | **Fail-closed.** Configuration validation now rejects non-zero values before draft persistence. |
 | Arrears enablement, grace, basis, rate, cap | Explicit boolean; non-negative grace days; supported basis `overdue_installment`; decimal-fraction rate; optional decimal cap | `DetectArrearsCommand` reads `arrears.grace_days` to select eligible installments; `LoanArrearsService` reads enabled, basis, penalty_rate, and cap and computes the penalty against the overdue installment | **Aligned.** The command owns the grace threshold; the service owns penalty calculation and idempotent accrual. |
-| Collateral permitted types | Explicit required boolean and list of permitted types | `LoanCollateralService` checks `collateral.permitted_types` when collateral is registered, using the loan's frozen policy where available | **Partially supported.** Permitted-type restrictions are consumed, but the current origination workflow does not enforce `collateral.required`. Validation now rejects `required=true` rather than publishing an unenforced mandatory-collateral rule. |
+| Collateral permitted types / required / coverage | List of implemented `CollateralType` values; required flag and coverage ratio must remain disabled | `LoanCollateralService` checks `collateral.permitted_types` when collateral is registered, using the loan's frozen policy where available | **Partially supported.** The reader enforces the permitted-type list only. It does not enforce mandatory collateral or the configured coverage ratio. Validation rejects `required=true`, non-null `coverage_ratio`, and unsupported type names rather than publishing ignored controls. |
 | Fees | Empty list is supported; non-empty entries are structurally validated | `LoanDisbursementService` currently creates the principal obligation and schedule but does not read `fees` or create fee obligations | **Not implemented.** Validation now rejects non-empty fee schedules. Fee-bearing products remain unavailable until the disbursement-to-Wallet fee obligation path and its accounting/idempotency tests are implemented. |
 
 ## Version and repayment invariants
@@ -29,7 +29,8 @@
 
 - Reject non-zero `term.interest_grace_months` at configuration validation, matching the schedule engine's existing hard rejection.
 - Reject principal grace that consumes the entire maximum term.
-- Reject `collateral.required=true` until loan origination enforces mandatory collateral.
+- Reject `collateral.required=true` and non-null `collateral.coverage_ratio` until the Loan workflow enforces both controls.
+- Restrict `collateral.permitted_types` to the two implemented enum values (`external`, `shareholding`).
 - Reject non-empty `fees` until disbursement actually records the fee obligation. This prevents a product from being approved with charges that would never be collected.
 
 ## Explicitly outside this reconciliation
