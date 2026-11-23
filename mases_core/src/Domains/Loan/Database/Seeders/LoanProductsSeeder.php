@@ -250,7 +250,7 @@ final class LoanProductsSeeder extends Seeder
         $tenants = Tenant::query()->get();
 
         if ($tenants->isEmpty()) {
-            $this->command->warn(
+            $this->command?->warn(
                 'LoanProductsSeeder: no tenants found. Nothing to seed.'
             );
             return;
@@ -295,7 +295,7 @@ final class LoanProductsSeeder extends Seeder
                 $created++;
             }
 
-            $this->command->info(sprintf(
+            $this->command?->info(sprintf(
                 'LoanProductsSeeder: tenant #%d (%s) — %d product(s) created, %d preserved.',
                 $tenant->id,
                 $tenant->slug ?? $tenant->name ?? '—',
@@ -304,7 +304,7 @@ final class LoanProductsSeeder extends Seeder
             ));
         }
 
-        $this->command->info(
+        $this->command?->info(
             'LoanProductsSeeder: complete. Products without a policy '
             . 'version can be drafted and submitted; approving a loan '
             . 'under them requires attaching a loan_product_rules '
