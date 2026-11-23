@@ -323,7 +323,7 @@ final class LoanConfigurationService
 
     private function authorize(string $permission, User $actor, int $tenantId): void
     {
-        if (!$this->authorization->hasPermission($permission, $actor, $tenantId, 'loan')) {
+        if (!$this->authorization->hasPermission($permission, $actor, $tenantId)) {
             abort(403, 'You are not authorized to manage this loan configuration.');
         }
     }
