@@ -98,6 +98,19 @@ final class CorporateSiteBaselineSeeder extends Seeder
         ];
 
         $communityAm = 'የማኅበረሰብ ኃላፊነት የኩባንያው ቋሚ ተቋማዊ ትኩረት ነው። ቅድሚያ የሚሰጣቸው ዘርፎች ትምህርትና የክህሎት ልማት፣ የማኅበረሰብ ጤናና ደህንነት፣ የአካባቢ ጥበቃ፣ እንዲሁም የአካባቢ ኢኮኖሚ ዕድሎችና ዘላቂ ኑሮ መሻሻል ናቸው። እነዚህ ቅድሚያዎች የተወሰነ ፕሮጀክት በአሁኑ ጊዜ እየተካሄደ መሆኑን አያመለክቱም።';
+        $communityItemsAm = [
+            ['kind' => 'priority', 'title' => 'ትምህርትና የክህሎት ልማት', 'body' => 'የትምህርትና የክህሎት እድገትን መደገፍ።'],
+            ['kind' => 'priority', 'title' => 'የማኅበረሰብ ጤናና ደህንነት', 'body' => 'የማኅበረሰብ ጤናና ደህንነትን ማበረታታት።'],
+            ['kind' => 'priority', 'title' => 'የአካባቢ ጥበቃ', 'body' => 'የአካባቢ ጥበቃና ዘላቂነትን መደገፍ።'],
+            ['kind' => 'priority', 'title' => 'የአካባቢ ኢኮኖሚ ዕድሎች', 'body' => 'የአካባቢ ኢኮኖሚ ዕድሎችንና ዘላቂ ኑሮን ማበረታታት።'],
+        ];
+        $communityItemsEn = [
+            ['kind' => 'priority', 'title' => 'Education and skills development', 'body' => 'Support education and the development of practical skills.'],
+            ['kind' => 'priority', 'title' => 'Community health and well-being', 'body' => 'Promote community health and well-being.'],
+            ['kind' => 'priority', 'title' => 'Environmental care', 'body' => 'Support environmental care and sustainability.'],
+            ['kind' => 'priority', 'title' => 'Local economic opportunity', 'body' => 'Encourage local economic opportunity and sustainable livelihoods.'],
+        ];
+
         $communityEn = 'Community Responsibility is a permanent institutional priority. Its focus areas include education and skills development, community health and well-being, environmental care, and local economic opportunity and sustainable livelihoods. These priorities do not imply that a specific project is currently underway.';
 
         $governanceAm = 'የዳይሬክተሮች ቦርድ በመተዳደሪያ ደንቡና በሚመለከታቸው የኩባንያ ውሳኔዎች መሠረት የስትራቴጂ አቅጣጫንና ቁጥጥርን ይመራል። የአሁኑ የቦርድ አባላት ስም፣ የሥራ ዘመንና የሙያ መግለጫ የሚታተመው ከኩባንያው ወቅታዊ መዝገብ ተረጋግጦ ሲፈቀድ ብቻ ነው።';
@@ -129,8 +142,8 @@ final class CorporateSiteBaselineSeeder extends Seeder
                 'en' => ['items' => array_map(static fn (string $value): array => ['title' => $value], $businessEn)],
             ]),
             $section('community_responsibility', 'ማኅበረሰባዊ ኃላፊነት', $communityAm, 'Community Responsibility', $communityEn, [
-                'am' => ['priorities' => ['ትምህርትና የክህሎት ልማት', 'የማኅበረሰብ ጤናና ደህንነት', 'የአካባቢ ጥበቃ', 'የአካባቢ ኢኮኖሚ ዕድሎች']],
-                'en' => ['priorities' => ['Education and skills development', 'Community health and well-being', 'Environmental care', 'Local economic opportunity']],
+                'am' => ['items' => $communityItemsAm],
+                'en' => ['items' => $communityItemsEn],
             ]),
             $section('text', 'የኩባንያ አስተዳደር', $governanceAm, 'Corporate governance', $governanceEn),
             $section('text', 'ይፋዊ መግለጫዎች', $disclosureAm, 'Public disclosures', $disclosureEn),
@@ -202,8 +215,8 @@ final class CorporateSiteBaselineSeeder extends Seeder
                     'en' => ['title' => 'Community Responsibility', 'summary' => 'The Company’s permanent community responsibility priorities.', 'body' => $communityEn],
                 ],
                 'sections' => [$section('community_responsibility', 'ቋሚ ቅድሚያዎች', $communityAm, 'Permanent priorities', $communityEn, [
-                    'am' => ['priorities' => ['ትምህርትና የክህሎት ልማት', 'ጤናና ደህንነት', 'አካባቢ ጥበቃ', 'የአካባቢ ኢኮኖሚ ዕድሎች']],
-                    'en' => ['priorities' => ['Education and skills development', 'Health and well-being', 'Environmental care', 'Local economic opportunity']],
+                    'am' => ['items' => $communityItemsAm],
+                    'en' => ['items' => $communityItemsEn],
                 ])],
                 'seo' => ['am' => ['title' => 'ማኅበረሰባዊ ኃላፊነት | ማሌ ዓርና', 'description' => $communityAm], 'en' => ['title' => 'Community Responsibility | Maale Arna', 'description' => $communityEn]],
             ],
