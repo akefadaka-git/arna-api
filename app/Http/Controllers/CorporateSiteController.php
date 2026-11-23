@@ -48,9 +48,11 @@ final class CorporateSiteController extends Controller
     }
 
 
-    public function adminIndex(): JsonResponse
+    public function adminIndex(Request $request): JsonResponse
     {
-        $pages = CorporateSitePage::query()->orderBy('page_key')->paginate(30);
+        $query = CorporateSitePage::query();
+        if ($request->boolean('include_deleted')) $query->withTrashed();
+        $pages = $query->orderBy('page_key')->paginate(30);
 
         return response()->json(['success' => true, 'data' => $pages]);
     }
