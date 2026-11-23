@@ -281,6 +281,27 @@ final class TotpMfaService
         });
     }
 
+    /**
+     * Verify a current Google Authenticator code or one-time recovery code
+     * for a sensitive operation. TOTP steps and recovery codes are consumed
+     * atomically so the same proof cannot be replayed.
+     */
+    public function verifyForStepUp(User $user, string $code): bool
+    {
+        if (! $user->is_active || $user->trashed() || ! $this->isEnabled($user)) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($user, $code): bool {
+            $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
+            if ($locked === null || ! $locked->is_active || $locked->trashed() || ! $this->isEnabled($locked)) {
+                return false;
+            }
+
+            return $this->verifyCurrentFactorLocked($locked, $code);
+        }, 3);
+    }
+
     public function disable(User $user, string $code): bool
     {
         if (! $this->isEnabled($user)) {
