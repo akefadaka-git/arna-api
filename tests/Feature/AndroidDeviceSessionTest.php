@@ -213,6 +213,19 @@ final class AndroidDeviceSessionTest extends TestCase
         $this->assertNotNull(DB::table('auth_device_sessions')->where('public_id', $device['session_id'])->value('pin_locked_until'));
     }
 
+    private function enrolledUser(): array
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $enrollment = app(TotpMfaService::class)->beginEnrollment($user);
+        $codes = app(TotpMfaService::class)->confirmEnrollment(
+            $user,
+            $this->currentTotp($enrollment['secret']),
+        );
+        $this->assertNotNull($codes);
+
+        return [$user];
+    }
+
     private function currentTotp(string $secret): string
     {
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
