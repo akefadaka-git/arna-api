@@ -52,8 +52,6 @@ return new class extends Migration
     {
         Schema::dropIfExists('loan_configuration_audit_logs');
         Schema::dropIfExists('loan_configuration_submissions');
-        Schema::table('loan_products', function (Blueprint $table): void {
-            $table->boolean('is_active')->default(true)->change();
-        });
+
     }
 };
