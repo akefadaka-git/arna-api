@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Loan\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
+use Mockery;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
