@@ -672,6 +672,45 @@ final class CorporateSitePublishingTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_public_page_hides_disabled_sections_but_preserves_community_responsibility(): void
+    {
+        $page = CorporateSitePage::query()->create([
+            'page_key' => 'section-visibility-test',
+            'slug_am' => 'section-visibility-am',
+            'slug_en' => 'section-visibility-en',
+            'translations' => [
+                'am' => ['title' => 'የክፍል ታይነት'],
+                'en' => ['title' => 'Section visibility'],
+            ],
+            'sections' => [
+                [
+                    'id' => 'hidden-section',
+                    'type' => 'text',
+                    'content' => [
+                        'visible' => false,
+                        'am' => ['title' => 'የተደበቀ'],
+                        'en' => ['title' => 'Hidden section'],
+                    ],
+                ],
+                [
+                    'id' => 'community-responsibility',
+                    'type' => 'community_responsibility',
+                    'content' => [
+                        'visible' => false,
+                        'am' => ['title' => 'ማኅበረሰባዊ ኃላፊነት'],
+                        'en' => ['title' => 'Community Responsibility'],
+                    ],
+                ],
+            ],
+        ]);
+        $page->forceFill(['status' => 'published', 'published_at' => now()->subMinute()])->save();
+
+        $this->getJson('/api/public/site/pages/en/section-visibility-en')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.sections')
+            ->assertJsonPath('data.sections.0.id', 'community-responsibility');
+    }
+
     public function test_corporate_site_baseline_seeder_inserts_bilingual_drafts_without_overwriting_existing_pages(): void
     {
         $existing = CorporateSitePage::query()->create([
