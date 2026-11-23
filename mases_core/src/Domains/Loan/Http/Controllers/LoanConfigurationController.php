@@ -16,6 +16,32 @@ final class LoanConfigurationController
     {
     }
 
+    public function index(Request $request): JsonResponse
+    {
+        $submissions = $this->configurations->listForTenant($this->tenantId(), $this->actor($request));
+        return response()->json([
+            'success' => true,
+            'data' => $submissions->items(),
+            'meta' => [
+                'current_page' => $submissions->currentPage(),
+                'last_page' => $submissions->lastPage(),
+                'per_page' => $submissions->perPage(),
+                'total' => $submissions->total(),
+            ],
+        ]);
+    }
+
+    public function update(Request $request, int $submission): JsonResponse
+    {
+        $result = $this->configurations->updateDraft(
+            $this->tenantId(),
+            $submission,
+            $this->actor($request),
+            (array) $request->input('configuration', []),
+        );
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $submission = $this->configurations->createDraft(
