@@ -320,7 +320,7 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
 
     public function test_mysql_stale_revision_is_rejected_at_review_after_a_newer_revision_activates(): void
     {
-        \\Illuminate\\Support\\Carbon::setTestNow('2026-11-23 10:00:00');
+        \Illuminate\Support\Carbon::setTestNow('2026-11-23 10:00:00');
 
         $initial = $this->validConfiguration();
         $initial['effective_from'] = '2026-11-01T00:00:00Z';
@@ -356,12 +356,12 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
         $this->assertNull($staleSubmitted->fresh()->published_policy_version_id);
         $this->assertSame(2, VersionedPolicy::query()->where('policy_type', 'loan_product_rules')->count());
 
-        \\Illuminate\\Support\\Carbon::setTestNow();
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_mysql_stale_approved_revision_cannot_overwrite_a_newer_active_policy(): void
     {
-        \\Illuminate\\Support\\Carbon::setTestNow('2026-11-23 10:00:00');
+        \Illuminate\Support\Carbon::setTestNow('2026-11-23 10:00:00');
 
         $initial = $this->validConfiguration();
         $initial['effective_from'] = '2026-11-01T00:00:00Z';
@@ -405,7 +405,7 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
             'event' => 'product_policy_revision_activated',
         ]);
 
-        \\Illuminate\\Support\\Carbon::setTestNow();
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_audit_history_requires_dedicated_permission_and_is_chronological_and_tenant_scoped(): void
