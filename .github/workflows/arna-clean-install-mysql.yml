@@ -89,6 +89,7 @@ on:
       - "tests/Feature/CentralNotificationsTest.php"
       - "app/Http/Controllers/LocalePreferenceController.php"
       - "tests/Feature/LocalePreferenceTest.php"
+      - "tests/Feature/ProductionCoreSeederTest.php"
   workflow_dispatch:
     inputs:
       target_sha:
@@ -527,6 +528,16 @@ jobs:
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/ShareholderSeedNumberInitializationTest.php
 
+      - name: Run production-safe 102-identity bootstrap and domain reference tests on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/ProductionCoreSeederTest.php
+
       - name: Lint bootstrap credential remediation
         run: |
           php -l app/Console/Commands/RotateDemoSeederCredentials.php
@@ -550,6 +561,32 @@ jobs:
         env:
           MASES_ENABLE_DEMO_SEEDING: "true"
         run: php artisan migrate:fresh --seed --force -vvv
+
+      - name: Verify production bootstrap cohort after migrate:fresh --seed
+        shell: bash
+        run: |
+          set -euo pipefail
+          users="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM users")"
+          shareholders="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM shareholders")"
+          individuals="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM shareholders WHERE shareholder_type='individual'")"
+          entities="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM shareholders WHERE shareholder_type<>'individual'")"
+          reservations="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM shareholder_number_reservations")"
+          aliases="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM shareholder_legacy_aliases")"
+          share_classes="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM share_classes")"
+          shareholder_role="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(DISTINCT uhr.user_id) FROM user_has_roles uhr JOIN roles r ON r.id=uhr.role_id WHERE r.slug='shareholder'")"
+          board_role="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(DISTINCT uhr.user_id) FROM user_has_roles uhr JOIN roles r ON r.id=uhr.role_id WHERE r.slug='board'")"
+          sequence="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT next_number FROM shareholder_number_sequences LIMIT 1")"
+          printf 'users=%s shareholders=%s individuals=%s entities=%s reservations=%s aliases=%s share_classes=%s shareholder_role_users=%s board_role_users=%s next_number=%s\n' "$users" "$shareholders" "$individuals" "$entities" "$reservations" "$aliases" "$share_classes" "$shareholder_role" "$board_role" "$sequence"
+          test "$users" -eq 102
+          test "$shareholders" -eq 100
+          test "$individuals" -eq 98
+          test "$entities" -eq 2
+          test "$reservations" -eq 100
+          test "$aliases" -eq 100
+          test "$share_classes" -eq 2
+          test "$shareholder_role" -eq 100
+          test "$board_role" -eq 8
+          test "$sequence" -eq 101
 
       - name: Verify Organization tables after fresh migration and seed
         shell: bash
