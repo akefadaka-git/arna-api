@@ -15,13 +15,15 @@ final class LoanConfigurationSubmission extends Model
     protected $table = 'loan_configuration_submissions';
 
     protected $fillable = [
-        'tenant_id', 'created_by', 'reviewed_by', 'published_product_id',
+        'tenant_id', 'revision_product_id', 'previous_policy_version_id', 'created_by', 'reviewed_by', 'published_product_id',
         'published_policy_version_id', 'status', 'configuration',
         'submitted_at', 'reviewed_at', 'review_note', 'activated_at',
     ];
 
     protected $casts = [
         'tenant_id' => 'integer',
+        'revision_product_id' => 'integer',
+        'previous_policy_version_id' => 'integer',
         'created_by' => 'integer',
         'reviewed_by' => 'integer',
         'published_product_id' => 'integer',
