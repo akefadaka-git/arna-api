@@ -92,6 +92,9 @@ on:
       - "tests/Feature/ProductionCoreSeederTest.php"
       - "tests/Feature/LoanFinancialSeederGuardTest.php"
       - "tests/Feature/LoanConfigurationServiceValidationTest.php"
+      - "tests/Feature/LoanConfigurationLifecycleMySqlTest.php"
+      - "mases_core/src/Domains/Loan/Services/LoanConfigurationService.php"
+      - "docs/loan/PUBLISHED_POLICY_CONSUMER_RECONCILIATION.md"
       - "mases_core/src/Domains/Loan/Database/Seeders/**"
   workflow_dispatch:
     inputs:
@@ -546,6 +549,16 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/ProductionCoreSeederTest.php
+
+      - name: Run complete Loan configuration lifecycle integration tests on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/LoanConfigurationLifecycleMySqlTest.php
 
       - name: Lint bootstrap credential remediation
         run: |
