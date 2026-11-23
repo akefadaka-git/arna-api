@@ -8,16 +8,26 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use LogicException;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Domains\Loan\Services\LoanConfigurationService;
 
 final class LoanConfigurationController
 {
-    public function __construct(private readonly LoanConfigurationService $configurations)
+    public function __construct(
+        private readonly LoanConfigurationService $configurations,
+        private readonly AuthorizationService $authorization,
+    )
     {
     }
 
     public function index(Request $request): JsonResponse
     {
+        $actor = $this->actor($request);
+        $tenantId = $this->tenantId();
+        if (!$this->authorization->hasPermission('loan.configuration.view', $actor, $tenantId, 'loan')) {
+            abort(403, 'You are not authorized to perform this loan configuration action.');
+        }
+
         $submissions = $this->configurations->listForTenant($this->tenantId(), $this->actor($request));
         return response()->json([
             'success' => true,
@@ -33,6 +43,12 @@ final class LoanConfigurationController
 
     public function update(Request $request, int $submission): JsonResponse
     {
+        $actor = $this->actor($request);
+        $tenantId = $this->tenantId();
+        if (!$this->authorization->hasPermission('loan.configuration.manage', $actor, $tenantId, 'loan')) {
+            abort(403, 'You are not authorized to perform this loan configuration action.');
+        }
+
         $result = $this->configurations->updateDraft(
             $this->tenantId(),
             $submission,
@@ -44,6 +60,12 @@ final class LoanConfigurationController
 
     public function store(Request $request): JsonResponse
     {
+        $actor = $this->actor($request);
+        $tenantId = $this->tenantId();
+        if (!$this->authorization->hasPermission('loan.configuration.manage', $actor, $tenantId, 'loan')) {
+            abort(403, 'You are not authorized to perform this loan configuration action.');
+        }
+
         $submission = $this->configurations->createDraft(
             $this->tenantId(),
             $this->actor($request),
@@ -55,12 +77,24 @@ final class LoanConfigurationController
 
     public function submit(Request $request, int $submission): JsonResponse
     {
+        $actor = $this->actor($request);
+        $tenantId = $this->tenantId();
+        if (!$this->authorization->hasPermission('loan.configuration.submit', $actor, $tenantId, 'loan')) {
+            abort(403, 'You are not authorized to perform this loan configuration action.');
+        }
+
         $result = $this->configurations->submit($this->tenantId(), $submission, $this->actor($request));
         return response()->json(['success' => true, 'data' => $result]);
     }
 
     public function review(Request $request, int $submission): JsonResponse
     {
+        $actor = $this->actor($request);
+        $tenantId = $this->tenantId();
+        if (!$this->authorization->hasPermission('loan.configuration.approve', $actor, $tenantId, 'loan')) {
+            abort(403, 'You are not authorized to perform this loan configuration action.');
+        }
+
         $validated = $request->validate([
             'approve' => ['required', 'boolean'],
             'note' => ['nullable', 'string', 'max:2000'],
@@ -77,6 +111,12 @@ final class LoanConfigurationController
 
     public function activate(Request $request, int $submission): JsonResponse
     {
+        $actor = $this->actor($request);
+        $tenantId = $this->tenantId();
+        if (!$this->authorization->hasPermission('loan.configuration.activate', $actor, $tenantId, 'loan')) {
+            abort(403, 'You are not authorized to perform this loan configuration action.');
+        }
+
         $result = $this->configurations->activate($this->tenantId(), $submission, $this->actor($request));
         return response()->json(['success' => true, 'data' => $result]);
     }
