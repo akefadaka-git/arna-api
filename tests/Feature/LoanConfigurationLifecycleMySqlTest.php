@@ -243,6 +243,102 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
         }
     }
 
+    public function test_mysql_existing_product_revision_preserves_live_pointer_until_effective_activation(): void
+    {
+        \\Illuminate\\Support\\Carbon::setTestNow('2026-11-23 10:00:00');
+        $initial = $this->validConfiguration();
+        $initial['effective_from'] = '2026-11-01T00:00:00Z';
+        $draft = $this->service->createDraft((int) $this->tenant->id, $this->author, $initial);
+        $submitted = $this->service->submit((int) $this->tenant->id, (int) $draft->id, $this->author);
+        $approved = $this->service->review((int) $this->tenant->id, (int) $submitted->id, $this->reviewer, true);
+        $activated = $this->service->activate((int) $this->tenant->id, (int) $approved->id, $this->reviewer);
+
+        $product = LoanProduct::query()->findOrFail($activated->published_product_id);
+        $oldPolicyId = (int) $product->product_rules_policy_version_id;
+        $this->assertTrue((bool) $product->is_active);
+
+        $revision = $this->validConfiguration();
+        $revision['product']['id'] = (int) $product->id;
+        $revision['product']['name_en'] = 'Revised existing product';
+        $revision['financial_policy']['interest']['annual_rate'] = '0.15';
+        $revision['effective_from'] = '2026-12-01T00:00:00Z';
+
+        $revisionDraft = $this->service->createDraft((int) $this->tenant->id, $this->author, $revision);
+        $this->assertSame((int) $product->id, (int) $revisionDraft->revision_product_id);
+        $this->assertSame($oldPolicyId, (int) $revisionDraft->previous_policy_version_id);
+
+        $revisionSubmitted = $this->service->submit((int) $this->tenant->id, (int) $revisionDraft->id, $this->author);
+        $revisionApproved = $this->service->review(
+            (int) $this->tenant->id,
+            (int) $revisionSubmitted->id,
+            $this->reviewer,
+            true,
+            'Policy revision approved',
+        );
+
+        $product->refresh();
+        $this->assertSame($oldPolicyId, (int) $product->product_rules_policy_version_id);
+        $this->assertSame('Test loan product', $product->name_en);
+        $this->assertTrue((bool) $product->is_active);
+        $this->assertSame((int) $product->id, (int) $revisionApproved->published_product_id);
+        $this->assertNotSame($oldPolicyId, (int) $revisionApproved->published_policy_version_id);
+
+        try {
+            $this->service->activate((int) $this->tenant->id, (int) $revisionApproved->id, $this->reviewer);
+            $this->fail('A future-dated policy revision must not replace the active policy pointer early.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('effective_from', $exception->errors());
+        }
+        $this->assertSame($oldPolicyId, (int) $product->fresh()->product_rules_policy_version_id);
+
+        \\Illuminate\\Support\\Carbon::setTestNow('2026-12-01 00:00:00');
+        $revisionActive = $this->service->activate((int) $this->tenant->id, (int) $revisionApproved->id, $this->reviewer);
+        $product->refresh();
+        $this->assertSame('active', $revisionActive->status);
+        $this->assertSame((int) $revisionApproved->published_policy_version_id, (int) $product->product_rules_policy_version_id);
+        $this->assertSame('Revised existing product', $product->name_en);
+        $this->assertTrue((bool) $product->is_active);
+        $this->assertSame($oldPolicyId, (int) VersionedPolicy::query()->findOrFail($oldPolicyId)->id);
+
+        $events = DB::table('loan_configuration_audit_logs')
+            ->where('submission_id', $revisionDraft->id)
+            ->orderBy('id')
+            ->pluck('event')
+            ->all();
+        $this->assertSame([
+            'draft_created',
+            'submitted',
+            'approved_and_published_inactive',
+            'product_policy_revision_activated',
+        ], $events);
+
+        \\Illuminate\\Support\\Carbon::setTestNow();
+    }
+
+    public function test_audit_history_requires_dedicated_permission_and_is_chronological_and_tenant_scoped(): void
+    {
+        $draft = $this->service->createDraft((int) $this->tenant->id, $this->author, $this->validConfiguration());
+        $this->service->updateDraft((int) $this->tenant->id, (int) $draft->id, $this->author, $this->validConfiguration());
+        $this->service->submit((int) $this->tenant->id, (int) $draft->id, $this->author);
+
+        $history = $this->service->auditHistoryForTenant((int) $this->tenant->id, $this->reviewer, (int) $draft->id);
+        $events = collect($history->items())->pluck('event')->all();
+        $this->assertSame(['draft_created', 'draft_updated', 'submitted'], $events);
+        $ids = collect($history->items())->pluck('id')->all();
+        $this->assertSame($ids, collect($ids)->sort()->values()->all());
+
+        $otherTenantHistory = $this->service->auditHistoryForTenant((int) $this->otherTenant->id, $this->otherTenantReviewer);
+        $this->assertSame(0, $otherTenantHistory->total());
+
+        $unauthorized = $this->makeUser($this->tenant, 'no-audit-permission');
+        try {
+            $this->service->auditHistoryForTenant((int) $this->tenant->id, $unauthorized);
+            $this->fail('Audit history must require the dedicated audit permission.');
+        } catch (\\Symfony\\Component\\HttpKernel\\Exception\\HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+    }
+
     /**
      * MySQL normalizes key order when storing JSON objects. Compare the
      * persisted policy structurally while preserving list ordering and values.
@@ -337,6 +433,7 @@ final class LoanConfigurationLifecycleMySqlTest extends TestCase
             'loan.configuration.submit',
             'loan.configuration.approve',
             'loan.configuration.activate',
+            'loan.configuration.audit.view',
         ] as $slug) {
             $permission = Permission::query()->firstOrCreate(
                 ['slug' => $slug],
