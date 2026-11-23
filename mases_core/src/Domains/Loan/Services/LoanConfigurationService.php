@@ -297,9 +297,11 @@ final class LoanConfigurationService
             if (isset($term['interest_grace_months']) && $term['interest_grace_months'] !== 0) {
                 $errors['financial_policy.term.interest_grace_months'][] = 'The current Loan engine does not support interest grace; use 0.';
             }
-            if (isset($term['principal_grace_months'], $term['max_months'])
-                && $term['principal_grace_months'] >= $term['max_months']) {
-                $errors['financial_policy.term.principal_grace_months'][] = 'Principal grace must leave at least one amortizing installment.';
+            if (isset($term['principal_grace_months'], $term['min_months'])
+                && is_int($term['principal_grace_months'])
+                && is_int($term['min_months'])
+                && $term['principal_grace_months'] >= $term['min_months']) {
+                $errors['financial_policy.term.principal_grace_months'][] = 'Principal grace must be strictly less than the minimum permitted loan term so every valid loan term retains an amortizing installment.';
             }
             foreach (['min_months', 'max_months', 'principal_grace_months', 'interest_grace_months'] as $key) {
                 if (isset($term[$key]) && (!is_int($term[$key]) || $term[$key] < 0)) {
