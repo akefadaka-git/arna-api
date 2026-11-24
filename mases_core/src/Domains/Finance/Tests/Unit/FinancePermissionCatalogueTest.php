@@ -23,8 +23,13 @@ final class FinancePermissionCatalogueTest extends TestCase
         $financeSlugs = array_column(FinancePermissionCatalogue::ROWS, 'slug');
         $platformSlugs = array_column(PermissionCatalogue::ROWS, 'slug');
 
-        $this->assertCount(22, $financeSlugs);
+        $this->assertCount(23, $financeSlugs);
         $this->assertCount(count($financeSlugs), array_unique($financeSlugs));
+
+        $execute = collect(FinancePermissionCatalogue::ROWS)
+            ->keyBy('slug');
+        $this->assertSame('tenant', $execute['finance.governance_settlement.execute']['scope']);
+        $this->assertSame('application', $execute['finance.governance_settlement.execute.app']['scope']);
 
         foreach ($financeSlugs as $slug) {
             $this->assertSame(
