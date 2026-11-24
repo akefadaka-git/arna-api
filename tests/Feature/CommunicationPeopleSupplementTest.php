@@ -149,13 +149,13 @@ final class CommunicationPeopleSupplementTest extends TestCase
         $this->request($recipient, $tenant)->getJson('/api/communication/conversations')
             ->assertOk()->assertExactJson(['success' => true, 'data' => []]);
         $this->request($recipient, $tenant)->getJson("/api/communication/conversations/$id/messages")
-            ->assertNotFound();
+            ->assertForbidden();
         $this->request($recipient, $tenant)->postJson("/api/communication/conversations/$id/messages", [
             'body' => 'After revocation',
             'idempotency_key' => 'after-revocation',
-        ])->assertNotFound();
+        ])->assertForbidden();
         $this->request($recipient, $tenant)->postJson("/api/communication/conversations/$id/read")
-            ->assertNotFound();
+            ->assertForbidden();
 
         $this->assertDatabaseCount('communication_messages', 1);
         $this->assertDatabaseCount('communication_message_reads', 0);
