@@ -12,7 +12,7 @@ on:
       - "mases_core/src/Tenancy/**"
       - "routes/api.php"
       - "tests/Feature/Admin*RouteOwnershipTest.php"
-      - "tests/Feature/TenantMembershipLifecycleTest.php"
+      - "tests/Feature/TenantMembershipLifecycleTest.php"\n      - "tests/Feature/AuthorizationTenantCacheInvalidationTest.php"\n      - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
   pull_request:
     branches: [main]
     paths:
