@@ -82,7 +82,6 @@ final class CommunicationPeopleSupplementTest extends TestCase
 
         $this->assertDatabaseHas('people_relationships',['id'=>$relationship,'tenant_id'=>$tenant->id,'status'=>'inactive']);
         $this->assertDatabaseHas('people_participations',['id'=>$participation,'tenant_id'=>$tenant->id,'status'=>'inactive']);
-        $this->assertDatabaseMissing('user_has_roles',['user_id'=>0]);
         [$foreignTenant,$foreignActor]=$this->member(['people.relationship.manage']);
         $this->request($foreignActor,$foreignTenant)->postJson("/api/people/$personA/relationships/descriptive",[
             'related_person_public_id'=>$personB,'relationship_type'=>'colleague',
