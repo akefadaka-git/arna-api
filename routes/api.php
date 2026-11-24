@@ -150,6 +150,7 @@ use App\Http\Controllers\CorporateSiteEntryController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\LocalePreferenceController;
 use App\Http\Controllers\CommunicationAnnouncementController;
+use App\Http\Controllers\Admin\AdminControlPlaneController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -553,6 +554,42 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
     Route::get('/tenant-context', [TenantContextController::class, 'show'])
         ->name('api.tenant.context');
 });
+
+// =============================================================================
+// Platform Admin Control Plane — global read-only administration
+// =============================================================================
+// These endpoints intentionally bypass tenant.membership because they expose
+// platform-wide records. Each endpoint has its own global permission boundary.
+// Tenant-scoped permissions (user.list, role.list, permission.list) do not grant
+// access to these platform-wide views.
+Route::middleware(['auth:sanctum', 'auth.permission:platform.identity.read'])
+    ->prefix('admin/platform/identity')
+    ->name('api.admin.platform.identity.')
+    ->group(static function (): void {
+        Route::get('/users', [AdminControlPlaneController::class, 'users'])
+            ->name('users.index');
+    });
+
+Route::middleware(['auth:sanctum', 'auth.permission:platform.rbac.read'])
+    ->prefix('admin/platform/rbac')
+    ->name('api.admin.platform.rbac.')
+    ->group(static function (): void {
+        Route::get('/roles', [AdminControlPlaneController::class, 'roles'])
+            ->name('roles.index');
+        Route::get('/permissions', [AdminControlPlaneController::class, 'permissions'])
+            ->name('permissions.index');
+    });
+
+Route::middleware(['auth:sanctum', 'auth.permission:platform.tenancy.read'])
+    ->prefix('admin/platform/tenants')
+    ->name('api.admin.platform.tenants.')
+    ->group(static function (): void {
+        Route::get('/', [AdminControlPlaneController::class, 'tenants'])
+            ->name('index');
+        Route::get('/{tenant}/memberships', [AdminControlPlaneController::class, 'memberships'])
+            ->whereNumber('tenant')
+            ->name('memberships.index');
+    });
 
 // =============================================================================
 // Corporate Site CMS Administration — platform-wide, permission-gated
