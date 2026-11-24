@@ -89,7 +89,7 @@ No migration, seeder execution, live database, deployment, merge, or PR closure 
 - PHP syntax checks: NOT RUN.
 - Laravel route:list / duplicate-route inspection: NOT RUN.
 - MySQL migration/seed verification: NOT RUN.
-- CI workflow evidence: NOT RUN / NOT YET OBSERVED.
+- CI workflow evidence: PASS — GitHub Actions run [45318150111](https://github.com/akefadaka-git/arna-api/actions/runs/45318150111), workflow `ARNA Executive Overview A4 API security verification`, completed successfully on intermediate branch commit `f5b9af864126d1ed16ae5681804cbf22022d723c`. This run was triggered by the permission-catalogue commit and is not the Admin route-ownership test; it predates the route test and final documentation commits. The Admin route test remains NOT RUN.
 
 ## 5. Next work
 
