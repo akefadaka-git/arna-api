@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
@@ -128,6 +129,63 @@ final class TenantRoleOwnerApprovalTest extends TestCase
                 'payload_sha256' => $challenge['payload_sha256'],
             ]);
         }
+    }
+
+    public function test_expired_challenge_cannot_be_executed_or_consumed(): void
+    {
+        [$tenant, $actor, $owner, $target, $role, $secretKey] = $this->fixture();
+        $service = app(TenantRoleOwnerApprovalService::class);
+        [$challenge, $evidence] = $this->signedChallenge($service, $actor, $tenant, $secretKey, [
+            'owner_user_id' => $owner->id,
+            'action' => TenantRoleOwnerApprovalService::ACTION_ASSIGN,
+            'role_id' => $role->id,
+            'target_user_id' => $target->id,
+            'permission_slugs' => [],
+            'reason' => 'Expired approval challenge test',
+        ]);
+
+        Carbon::setTestNow(now()->utc()->addMinutes(11));
+        try {
+            $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
+            $service->execute($actor, (int) $tenant->id, $challenge['challenge_id'], $evidence);
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
+        $this->assertDatabaseMissing('admin_owner_approval_consumptions', [
+            'tenant_id' => $tenant->id,
+            'payload_sha256' => $challenge['payload_sha256'],
+        ]);
+    }
+
+    public function test_revoked_owner_signing_key_cannot_authorize_a_pending_challenge(): void
+    {
+        [$tenant, $actor, $owner, $target, $role, $secretKey] = $this->fixture();
+        $service = app(TenantRoleOwnerApprovalService::class);
+        [$challenge, $evidence] = $this->signedChallenge($service, $actor, $tenant, $secretKey, [
+            'owner_user_id' => $owner->id,
+            'action' => TenantRoleOwnerApprovalService::ACTION_ASSIGN,
+            'role_id' => $role->id,
+            'target_user_id' => $target->id,
+            'permission_slugs' => [],
+            'reason' => 'Revoked Owner key must fail closed',
+        ]);
+
+        $keyId = DB::table('document_signing_keys')
+            ->where('tenant_id', $tenant->id)
+            ->where('signer_user_id', $owner->id)
+            ->value('id');
+        DB::table('document_signing_key_revocations')->insert([
+            'tenant_id' => $tenant->id,
+            'signing_key_id' => $keyId,
+            'revoked_by_user_id' => $owner->id,
+            'reason' => 'Test-only Owner approval key revocation',
+            'revoked_at' => now(),
+        ]);
+
+        $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
+        $service->execute($actor, (int) $tenant->id, $challenge['challenge_id'], $evidence);
     }
 
     public function test_self_reviewed_owner_key_is_not_an_approval_trust_anchor(): void
