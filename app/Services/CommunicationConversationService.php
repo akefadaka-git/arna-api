@@ -105,20 +105,27 @@ final class CommunicationConversationService
     public function markRead(int $tenantId, string $conversationId, int $userId): int
     {
         $this->assertParticipant($tenantId, $conversationId, $userId);
-        $messages = DB::table('communication_messages')->where('tenant_id', $tenantId)
-            ->where('conversation_id', $conversationId)->where('sender_id', '<>', $userId)
-            ->where('status', 'sent')->pluck('id');
-        $now = now();
-        foreach ($messages as $messageId) {
-            DB::table('communication_message_reads')->insertOrIgnore([
-                'message_id' => $messageId, 'conversation_id' => $conversationId,
-                'tenant_id' => $tenantId, 'user_id' => $userId, 'read_at' => $now,
-                'created_at' => $now, 'updated_at' => $now,
-            ]);
-        }
-        DB::table('communication_conversation_participants')->where('conversation_id', $conversationId)
-            ->where('tenant_id', $tenantId)->where('user_id', $userId)
-            ->update(['last_read_at' => $now, 'updated_at' => $now]);
-        return $messages->count();
+
+        return DB::transaction(function () use ($tenantId, $conversationId, $userId): int {
+            $messages = DB::table('communication_messages')->where('tenant_id', $tenantId)
+                ->where('conversation_id', $conversationId)->where('sender_id', '<>', $userId)
+                ->where('status', 'sent')->pluck('id');
+            $now = now();
+            $recorded = 0;
+
+            foreach ($messages as $messageId) {
+                $recorded += DB::table('communication_message_reads')->insertOrIgnore([
+                    'message_id' => $messageId, 'conversation_id' => $conversationId,
+                    'tenant_id' => $tenantId, 'user_id' => $userId, 'read_at' => $now,
+                    'created_at' => $now, 'updated_at' => $now,
+                ]);
+            }
+
+            DB::table('communication_conversation_participants')->where('conversation_id', $conversationId)
+                ->where('tenant_id', $tenantId)->where('user_id', $userId)
+                ->update(['last_read_at' => $now, 'updated_at' => $now]);
+
+            return $recorded;
+        });
     }
 }
