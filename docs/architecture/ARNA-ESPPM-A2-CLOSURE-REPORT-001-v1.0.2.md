@@ -727,7 +727,7 @@ The #212/#213/#215 branches remain one commit behind API main because their base
 | R06 Evidence/contradiction reconciliation | **COMPLETE** | D01, D15 and D17 conflicts decided; R05 incorporated; exact current-main/PR index preserved. |
 | R07 Owner closure submission | **SUBMITTED; OWNER DECISION RECORDED** | Owner decision: KEEP A2 OPEN — DO NOT CLOSE. The decision does not close A2 or authorize merge/A3/A4/A5. |
 
-**A2 closure recommendation remains DO NOT CLOSE.** Completing R06 and submitting R07 does not mean the A2 exit criteria have been met. The 30-domain inventory is complete, but domain contract, legal authority, Treasury, integration and current-head verification gaps remain. The Owner is asked to decide whether to close A2 with explicit residual exceptions or keep A2 open for further evidence work; no closure approval is presumed.
+**A2 closure recommendation remains DO NOT CLOSE.** Completing R06 and submitting R07 does not mean the A2 exit criteria have been met. The 30-domain inventory is complete, but domain contract, legal authority, Treasury, integration and current-head verification gaps remain. The Owner's decision is recorded: **KEEP A2 OPEN — DO NOT CLOSE** (2026-11-24). Residual exceptions are not accepted as grounds to close A2.
 
 ### 13.5 Updated progress and authorization status
 
