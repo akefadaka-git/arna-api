@@ -152,6 +152,7 @@ use App\Http\Controllers\LocalePreferenceController;
 use App\Http\Controllers\CommunicationAnnouncementController;
 use App\Http\Controllers\Admin\AdminControlPlaneController;
 use App\Http\Controllers\Admin\TenantMembershipAdminController;
+use App\Http\Controllers\Admin\TenantRoleOwnerApprovalController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -620,6 +621,28 @@ Route::middleware([
         Route::post('/{user}/revoke', [$controller, 'revoke'])
             ->whereNumber('user')
             ->name('revoke');
+    });
+
+// =============================================================================
+// Tenant RBAC — consequential mutations require one-use Owner-signed evidence
+// =============================================================================
+// This permission only allows an administrator to request an approval challenge.
+// The challenge is bound to the exact actor, target, role, permission set and reason.
+// No role or permission mutation occurs until the trusted Owner's Ed25519 signature
+// verifies against the server-issued canonical payload.
+Route::middleware([
+    'auth:sanctum',
+    'tenant.membership',
+    'auth.permission:tenant.membership.manage',
+])
+    ->prefix('admin/tenant/rbac')
+    ->name('api.admin.tenant.rbac.')
+    ->group(static function (): void {
+        Route::post('/approval-challenges', [TenantRoleOwnerApprovalController::class, 'challenge'])
+            ->name('approval-challenges.create');
+        Route::post('/approval-challenges/{challenge}/execute', [TenantRoleOwnerApprovalController::class, 'execute'])
+            ->whereUuid('challenge')
+            ->name('approval-challenges.execute');
     });
 
 // =============================================================================
