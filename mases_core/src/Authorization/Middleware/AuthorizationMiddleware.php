@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Authorization\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use MaaleArna\MASES\Core\Events\AuthorizationFailureEvent;
@@ -224,7 +225,7 @@ final class AuthorizationMiddleware
      */
     private function hasAnyPermission(
         string $value,
-        \\MaaleArna\\MASES\\Core\\Auth\\Models\\User $user,
+        User $user,
         int|string|null $tenantId,
         ?string $applicationSlug
     ): bool {
@@ -336,6 +337,7 @@ final class AuthorizationMiddleware
     private function inferActionFromPermission(string $permissionSlug): ?string
     {
         $permissionSlug = explode('|', $permissionSlug, 2)[0];
+        $permissionSlug = explode('|', $permissionSlug, 2)[0];
         $parts = explode('.', $permissionSlug);
 
         if (count($parts) < 2) {
@@ -356,6 +358,7 @@ final class AuthorizationMiddleware
      */
     private function inferResourceFromPermission(string $permissionSlug): ?string
     {
+        $permissionSlug = explode('|', $permissionSlug, 2)[0];
         $parts = explode('.', $permissionSlug);
 
         if (count($parts) < 3) {
