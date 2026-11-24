@@ -208,6 +208,12 @@ final class PermissionCatalogue
         ['slug' => 'platform.domains.read', 'name_am' => 'የመድረክ ዶሜይኖችን ማየት', 'name_en' => 'View Platform Domains', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.domains.manage', 'name_am' => 'የመድረክ ዶሜይኖችን ማስተዳደር', 'name_en' => 'Manage Platform Domain Registry', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.domains.verify', 'name_am' => 'የዶሜይን ባለቤትነትን ማረጋገጥ', 'name_en' => 'Verify Domain Ownership', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.settings.read', 'name_am' => 'የመድረክ ቅንብሮችን ማየት', 'name_en' => 'View Platform Settings', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.settings.manage', 'name_am' => 'የመድረክ ቅንብር ለውጥ መጠየቅ', 'name_en' => 'Request Platform Settings Changes', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.settings.approve', 'name_am' => 'የመድረክ ቅንብር ለውጦችን ማጽደቅ', 'name_en' => 'Approve Platform Settings Changes', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.configuration.read', 'name_am' => 'የመድረክ ውቅርን ማየት', 'name_en' => 'View Platform Configuration', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.configuration.manage', 'name_am' => 'የመድረክ ውቅር ለውጥ መጠየቅ', 'name_en' => 'Request Platform Configuration Changes', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.configuration.approve', 'name_am' => 'የመድረክ ውቅር ለውጦችን ማጽደቅ', 'name_en' => 'Approve Platform Configuration Changes', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.overview.read', 'name_am' => 'የመድረክ አጠቃላይ እይታን ማየት', 'name_en' => 'View Platform Overview', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.applications.read', 'name_am' => 'የመድረክ መተግበሪያዎችን ማየት', 'name_en' => 'View Platform Applications', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
 ];
