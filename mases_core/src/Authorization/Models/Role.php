@@ -386,8 +386,13 @@ final class Role extends Model
                 && $permission->tenant_id === null
                 && $permission->application_id === null
             ) || (
+                // Tenant-scoped catalogue permissions are shared definitions
+                // (tenant_id NULL); the tenant-bound role pivot supplies the
+                // effective tenant boundary. Explicitly tenant-bound permission
+                // rows must still match this role's tenant exactly.
                 $permission->scope === 'tenant'
-                && (string) $permission->tenant_id === (string) $this->tenant_id
+                && ($permission->tenant_id === null
+                    || (string) $permission->tenant_id === (string) $this->tenant_id)
                 && $permission->application_id === null
             ),
 

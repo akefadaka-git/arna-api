@@ -51,7 +51,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         ]);
         $entryPermission = Permission::factory()->create([
             'slug' => 'dashboard.executive.view',
-            'scope' => 'global',
+            'scope' => 'tenant',
             'tenant_id' => null,
             'application_id' => null,
             'is_active' => true,

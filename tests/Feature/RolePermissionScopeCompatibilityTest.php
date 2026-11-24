@@ -166,6 +166,36 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
         ]);
     }
 
+    public function test_tenant_role_can_use_shared_tenant_scope_catalogue_permission_template(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $role = Role::query()->create([
+            'name_en' => 'Tenant Catalogue Template Role',
+            'slug' => 'tenant-catalogue-template-' . $tenant->id,
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $permission = Permission::query()->create([
+            'name_en' => 'Shared Tenant Permission Template',
+            'slug' => 'tenant.template.view.' . $tenant->id,
+            'category' => 'test',
+            'scope' => 'tenant',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+
+        $role->syncPermissions([$permission->id]);
+
+        $this->assertDatabaseHas('role_has_permissions', [
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+        ]);
+    }
+
     public function test_tenant_role_accepts_permission_bound_to_the_same_tenant(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);

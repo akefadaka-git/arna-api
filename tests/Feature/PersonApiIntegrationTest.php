@@ -547,7 +547,7 @@ final class PersonApiIntegrationTest extends TestCase
             'slug' => 'people.manage',
             'category' => 'user',
             'scope' => 'tenant',
-            'tenant_id' => $tenant->getKey(),
+            'tenant_id' => null,
             'application_id' => null,
             'is_active' => true,
             'is_system' => false,
