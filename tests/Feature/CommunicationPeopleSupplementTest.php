@@ -33,7 +33,10 @@ final class CommunicationPeopleSupplementTest extends TestCase
             'application_id' => null,
             'is_active' => true,
         ]);
-        $readerRole->permissions()->attach($readPermission->id, ['assigned_at' => now()]);
+        $readerRole->permissions()->attach([
+            $viewPermission->id => ['assigned_at' => now()],
+            $readPermission->id => ['assigned_at' => now()],
+        ]);
         $recipient->roles()->attach($readerRole->id, ['assigned_at' => now(), 'assigned_by' => $actor->id]);
         $id = $this->request($actor,$tenant)->postJson('/api/communication/conversations', ['type'=>'direct','participant_ids'=>[$recipient->id]])
             ->assertCreated()->json('data.id');
@@ -118,6 +121,7 @@ final class CommunicationPeopleSupplementTest extends TestCase
         ]);
         $recipient = User::factory()->create();
         $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        $viewPermission = Permission::where('slug', 'communication.conversation.view')->firstOrFail();
         $readPermission = Permission::where('slug', 'communication.message.read')->firstOrFail();
         $readerRole = Role::create([
             'name_en' => 'Revocation Test Reader',
