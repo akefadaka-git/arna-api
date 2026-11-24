@@ -764,6 +764,21 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::post('/read-all', [NotificationController::class, 'markAllRead'])->name('read-all');
     });
 
+    // Tenant-scoped direct/group/department conversations. Every read and write
+    // is additionally restricted to active conversation participants.
+    Route::prefix('/communication/conversations')->name('api.communication.conversations.')->group(static function (): void {
+        Route::get('/', [CommunicationConversationController::class, 'index'])
+            ->middleware('auth.permission:communication.conversation.view')->name('index');
+        Route::post('/', [CommunicationConversationController::class, 'store'])
+            ->middleware('auth.permission:communication.conversation.create')->name('store');
+        Route::get('/{conversationId}/messages', [CommunicationConversationController::class, 'messages'])
+            ->whereUuid('conversationId')->middleware('auth.permission:communication.conversation.view')->name('messages.index');
+        Route::post('/{conversationId}/messages', [CommunicationConversationController::class, 'send'])
+            ->whereUuid('conversationId')->middleware('auth.permission:communication.message.send')->name('messages.store');
+        Route::post('/{conversationId}/read', [CommunicationConversationController::class, 'markRead'])
+            ->whereUuid('conversationId')->middleware('auth.permission:communication.message.read')->name('read');
+    });
+
     // Official announcements remain tenant-scoped. The controller applies
     // distinct manage, approve and publish permissions and prevents self-approval.
     Route::prefix('/announcements')->name('api.announcements.')->group(static function (): void {
@@ -844,6 +859,26 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
             ->name('update');
+
+        $supplement = PeopleSupplementController::class;
+        Route::get('/{publicId}/contacts', [$supplement, 'contacts'])->whereUuid('publicId')
+            ->middleware('auth.permission:people.contact.view')->name('contacts.index');
+        Route::post('/{publicId}/contacts', [$supplement, 'addContact'])->whereUuid('publicId')
+            ->middleware('auth.permission:people.contact.manage')->name('contacts.store');
+        Route::delete('/{publicId}/contacts/{contactId}', [$supplement, 'deactivateContact'])->whereUuid('publicId')->whereNumber('contactId')
+            ->middleware('auth.permission:people.contact.manage')->name('contacts.deactivate');
+        Route::get('/{publicId}/relationships/descriptive', [$supplement, 'relationships'])->whereUuid('publicId')
+            ->middleware('auth.permission:people.relationship.view')->name('relationships.descriptive.index');
+        Route::post('/{publicId}/relationships/descriptive', [$supplement, 'addRelationship'])->whereUuid('publicId')
+            ->middleware('auth.permission:people.relationship.manage')->name('relationships.descriptive.store');
+        Route::delete('/{publicId}/relationships/descriptive/{relationshipId}', [$supplement, 'deactivateRelationship'])->whereUuid('publicId')->whereNumber('relationshipId')
+            ->middleware('auth.permission:people.relationship.manage')->name('relationships.descriptive.deactivate');
+        Route::get('/{publicId}/participations', [$supplement, 'participations'])->whereUuid('publicId')
+            ->middleware('auth.permission:people.participation.view')->name('participations.index');
+        Route::post('/{publicId}/participations', [$supplement, 'addParticipation'])->whereUuid('publicId')
+            ->middleware('auth.permission:people.participation.manage')->name('participations.store');
+        Route::delete('/{publicId}/participations/{participationId}', [$supplement, 'deactivateParticipation'])->whereUuid('publicId')->whereNumber('participationId')
+            ->middleware('auth.permission:people.participation.manage')->name('participations.deactivate');
     });
 
     // File Management
