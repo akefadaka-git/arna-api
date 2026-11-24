@@ -138,6 +138,8 @@ final class PlatformSettingsController extends Controller
         $actorId = (int) $request->user()->getAuthIdentifier();
         $now = now();
         $id = DB::transaction(function () use ($data, $category, $actorId, $now, $request): int {
+            $current = DB::table('platform_settings')->where('category', $category)
+                ->where('setting_key', $data['key'])->where('environment', $data['environment'] ?? 'production')->lockForUpdate()->first();
             $id = DB::table('platform_setting_change_requests')->insertGetId([
                 'setting_key' => $data['key'],
                 'category' => $category,
@@ -146,6 +148,7 @@ final class PlatformSettingsController extends Controller
                 'description' => $data['description'] ?? null,
                 'environment' => $data['environment'] ?? 'production',
                 'requested_by' => $actorId,
+                'base_version' => $current === null ? 0 : (int) $current->version,
                 'status' => 'pending',
                 'reason' => $data['reason'],
                 'created_at' => $now,
@@ -188,8 +191,10 @@ final class PlatformSettingsController extends Controller
 
             $current = DB::table('platform_settings')->where('category', $category)
                 ->where('setting_key', $pending->setting_key)
-                ->where('environment', $pending->environment)->first();
-            $version = $current === null ? 1 : ((int) $current->version + 1);
+                ->where('environment', $pending->environment)->lockForUpdate()->first();
+            $currentVersion = $current === null ? 0 : (int) $current->version;
+            abort_unless($currentVersion === (int) $pending->base_version, 409, 'A newer setting version exists; create a fresh change request.');
+            $version = $currentVersion + 1;
             $now = now();
             DB::table('platform_settings')->updateOrInsert(
                 ['category' => $category, 'setting_key' => $pending->setting_key, 'environment' => $pending->environment],
