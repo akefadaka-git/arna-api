@@ -306,12 +306,12 @@ final class Role extends Model
             if (is_string($permission)) {
                 $id = Permission::where('slug', $permission)->value('id');
                 if ($id === null) {
-                    throw new \\InvalidArgumentException('Unknown permission slug: ' . $permission);
+                    throw new \InvalidArgumentException('Unknown permission slug: ' . $permission);
                 }
                 return $id;
             }
             if (!is_int($permission) && !(is_string($permission) && ctype_digit($permission))) {
-                throw new \\InvalidArgumentException('Role permissions must be IDs, slugs, or Permission instances.');
+                throw new \InvalidArgumentException('Role permissions must be IDs, slugs, or Permission instances.');
             }
             return $permission;
         })->filter(static fn ($id) => $id !== null)->unique()->values()->all();
@@ -321,7 +321,7 @@ final class Role extends Model
         // an application role may only carry permissions bound to that app.
         $permissionsById = Permission::query()->whereIn('id', $permissionIds)->get();
         if ($permissionsById->count() !== count($permissionIds)) {
-            throw new \\InvalidArgumentException('One or more role permissions do not exist.');
+            throw new \InvalidArgumentException('One or more role permissions do not exist.');
         }
 
         foreach ($permissionsById as $permission) {
@@ -329,7 +329,7 @@ final class Role extends Model
                 $this->scope === 'tenant'
                 && ($permission->scope !== 'tenant' || (string) $permission->tenant_id !== (string) $this->tenant_id)
             ) {
-                throw new \\DomainException('Tenant roles may only receive permissions scoped to the same tenant.');
+                throw new \DomainException('Tenant roles may only receive permissions scoped to the same tenant.');
             }
 
             if (
@@ -340,11 +340,11 @@ final class Role extends Model
                     || ($permission->tenant_id !== null && (string) $permission->tenant_id !== (string) $this->tenant_id)
                 )
             ) {
-                throw new \\DomainException('Application roles may only receive permissions scoped to the same application and tenant boundary.');
+                throw new \DomainException('Application roles may only receive permissions scoped to the same application and tenant boundary.');
             }
 
             if ($this->scope === 'platform' && $permission->scope === 'application') {
-                throw new \\DomainException('Platform roles cannot receive application-scoped permissions.');
+                throw new \DomainException('Platform roles cannot receive application-scoped permissions.');
             }
         }
 
