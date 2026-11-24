@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Tenancy\Services;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
 use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
 use RuntimeException;
@@ -21,6 +22,7 @@ final class TenantMembershipService
 {
     public function __construct(
         private readonly SecurityEventService $securityEvents,
+        private readonly AuthorizationService $authorization,
     ) {
     }
 
@@ -100,6 +102,12 @@ final class TenantMembershipService
                     'Tenant membership creation was rolled back because its security event could not be persisted.'
                 );
             }
+
+            // Clear stale positive or negative authorization results for this
+            // tenant before the membership transaction can commit.
+            $memberModel = new User();
+            $memberModel->id = $userId;
+            $this->authorization->clearUserTenantCache($memberModel, $tenantId);
         });
     }
 
@@ -210,6 +218,13 @@ final class TenantMembershipService
                     'Tenant membership transition was rolled back because its security event could not be persisted.'
                 );
             }
+
+            // Membership is an independent authorization prerequisite.
+            // Invalidate only this user's permission results for this tenant.
+            // A cache failure aborts and rolls back the state transition.
+            $memberModel = new User();
+            $memberModel->id = $userId;
+            $this->authorization->clearUserTenantCache($memberModel, $tenantId);
         });
     }
 }
