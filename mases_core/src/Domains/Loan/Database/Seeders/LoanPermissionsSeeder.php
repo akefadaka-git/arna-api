@@ -10,13 +10,13 @@ use MaaleArna\MASES\Core\Authorization\Models\Permission;
 /**
  * LoanPermissionsSeeder
  *
- * Seeds the fifteen Loan-domain permissions into the platform's
+ * Seeds the twenty Loan-domain permissions into the platform's
  * permission table.
  *
  * =============================================================================
  * Revision history
  * =============================================================================
- * 1.0.0  — initial delivery. Fifteen permissions, keyed by slug, with
+ * 1.0.0  — initial delivery. Twenty permissions, keyed by slug, with
  *          `name_am` and `description_am` seeded as NULL. The
  *          docblock §"The permission slugs and their display names"
  *          recorded the future `name_am` sibling as an extension that
@@ -40,7 +40,7 @@ use MaaleArna\MASES\Core\Authorization\Models\Permission;
  *            Amharic values instead of `null`. The description
  *            mirrors the name (the file's reuse-name policy,
  *            unchanged from 1.0.0).
- *          · The fifteen slugs, the English labels, the `CATEGORY`
+ *          · The twenty slugs, the English labels, the `CATEGORY`
  *            constant (`'loan'`), the `SCOPE` constant (`'tenant'`),
  *            and the other fields written by `updateOrCreate` are
  *            all unchanged from 1.0.1. Only the two Amharic columns
@@ -105,7 +105,7 @@ use MaaleArna\MASES\Core\Authorization\Models\Permission;
  * =============================================================================
  * The permission slugs and their display names
  * =============================================================================
- * The fifteen slugs and their bilingual labels, in the order this
+ * The twenty slugs and their bilingual labels, in the order this
  * seeder creates them:
  *
  *   loan.view                 View loans
@@ -299,6 +299,12 @@ final class LoanPermissionsSeeder extends Seeder
      * @var array<string, array{name_am: string, name_en: string}>
      */
     private const PERMISSIONS = [
+        'loan.configuration.view' => ['name_am' => 'የብድር ውቅር ማየት', 'name_en' => 'View loan configuration'],
+        'loan.configuration.manage' => ['name_am' => 'የብድር ምርት ውቅር ማስተዳደር', 'name_en' => 'Manage loan product configuration'],
+        'loan.configuration.submit' => ['name_am' => 'የብድር ፖሊሲ ለግምገማ ማቅረብ', 'name_en' => 'Submit loan policy for review'],
+        'loan.configuration.approve' => ['name_am' => 'የብድር ፖሊሲ ማጽደቅ', 'name_en' => 'Approve loan financial policy'],
+        'loan.configuration.activate' => ['name_am' => 'የጸደቀ የብድር ምርት ማንቃት', 'name_en' => 'Activate approved loan product'],
+        'loan.configuration.audit.view' => ['name_am' => 'የብድር ውቅር የኦዲት ታሪክ ማየት', 'name_en' => 'View loan configuration audit history'],
         'loan.view' => [
             'name_am' => 'ብድሮችን ማየት',
             'name_en' => 'View loans',

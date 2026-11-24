@@ -327,20 +327,15 @@ use RuntimeException;
  * `representative_user_id` populated (the user REPRESENTS the
  * shareholder).
  *
- * ## Consequence for the upsert key
+ * ## Production-safe upsert identity
  * ##
- * The `shareholders` upsert keys on `user_id`. For entity rows,
- * `user_id` is now null, so an upsert that looks for an existing
- * entity row by `user_id` will not find one on a re-run. This is not
- * a defect: the orchestrator (MasesCoreSeeder) invokes
- * UserPivotCleaner::clear() before every run, which deletes every
- * `shareholders` row. The upsert therefore always starts from an
- * empty table and the INSERT branch runs. A direct invocation of
- * ShareholderSeeder::run() outside the orchestrator, against a
- * database that already contains entity rows, would insert
- * duplicates; the run() method's docblock does not document such an
- * invocation as supported. A future CR that needs a broader upsert
- * key adds it here.
+ * Individual rows are located by `tenant_id + user_id`. Entity rows
+ * cannot use `user_id` because D11 requires it to remain null; they
+ * are located by `tenant_id + representative_user_id` instead.
+ * Both branches reject an ambiguous match when more than one row is
+ * found, rather than silently updating an arbitrary record. This
+ * permits the production bootstrap to be rerun without deleting
+ * shareholder records or duplicating the two entity rows.
  *
  * =============================================================================
  * The shareholders-table guard
@@ -447,7 +442,7 @@ final class ShareholderSeeder extends Seeder
     private const REGISTER_TYPE_INDIVIDUAL = 'individual';
 
     /**
-     * Return the exact email addresses generated from the canonical demo
+     * Return the exact email addresses generated from the canonical
      * shareholder register, using the same collision-suffix algorithm as
      * seed(). This lets security maintenance target only seeded identities
      * without rotating unrelated shareholders or their representatives.
@@ -473,9 +468,10 @@ final class ShareholderSeeder extends Seeder
      * each user's pivots, and return the map of persisted models
      * keyed by SH-ID.
      *
-     * Idempotent: each user is upserted by email, each shareholder
-     * row is upserted by user_id, and every pivot attach is guarded
-     * by an existence check in UserAttacher.
+     * Idempotent: each user is upserted by email, individual register
+     * rows are reconciled by user_id, entity rows by tenant and
+     * representative_user_id, and every pivot attach is guarded by
+     * an existence check in UserAttacher.
      *
      * @param Tenant $tenant
      *        the tenant the cohort is scoped to
@@ -496,7 +492,6 @@ final class ShareholderSeeder extends Seeder
      */
     public function seed(Tenant $tenant, array $roles, User $superAdmin): array
     {
-        \Database\Seeders\Support\DemoSeederGuard::assertAllowed();
         /*
          * Read the register from the Data\ layer. See Unit S-1 for
          * the row shape. The register is a MAP keyed by SH-ID; the
@@ -909,14 +904,31 @@ final class ShareholderSeeder extends Seeder
         ];
 
         /*
-         * Lookup by user_id. For individual rows, the register entry
-         * and the user row are one-to-one via the user_id column.
-         * For entity rows, the user_id column is null; the lookup
-         * will not find an existing entity row by user_id. See the
-         * class docblock §"Consequence for the upsert key" for the
-         * reasoning and the reliance on UserPivotCleaner.
+         * Resolve the existing row using the D11-compatible identity:
+         * individuals are linked through user_id; entity rows are
+         * linked through representative_user_id while user_id stays
+         * null. The tenant predicate prevents cross-tenant matches.
          */
-        $existing = DB::table('shareholders')->where('user_id', $user->id)->first();
+        $existingQuery = DB::table('shareholders')
+            ->where('tenant_id', $tenant->id);
+
+        if ($isEntity) {
+            $existingQuery
+                ->whereNull('user_id')
+                ->where('representative_user_id', $user->id);
+        } else {
+            $existingQuery->where('user_id', $user->id);
+        }
+
+        $matches = $existingQuery->get();
+
+        if ($matches->count() > 1) {
+            throw new RuntimeException(
+                "Shareholder register identity for user {$user->id} resolves to multiple rows; refusing to update ambiguous records."
+            );
+        }
+
+        $existing = $matches->first();
 
         if ($existing !== null) {
             /*
