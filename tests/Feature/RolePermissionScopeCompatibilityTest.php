@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
 use DomainException;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Permission;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Role;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Authorization\Models\Role;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use Tests\TestCase;
 
 final class RolePermissionScopeCompatibilityTest extends TestCase
 {
