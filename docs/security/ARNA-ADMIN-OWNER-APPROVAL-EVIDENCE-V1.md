@@ -3,7 +3,7 @@
 - **Document ID:** ARNA-ADMIN-OWNER-APPROVAL-EVIDENCE-001
 - **Version:** 1.0.0
 - **Status:** Implemented on the A3 candidate branch; production trust-anchor provisioning remains separately controlled
-- **Repository:** ake fadaka-git/arna-api
+- **Repository:** akefadaka-git/arna-api
 - **Applies to:** tenant role assignment, tenant role revocation, and tenant role-permission synchronization
 
 ## 1. Security objective
@@ -36,7 +36,26 @@ Trust-anchor provisioning is deliberately **not exposed as an API** and is not s
 4. Independently review the row and test a non-production challenge before relying on the trust anchor.
 5. Revoke a trust anchor by appending to admin_owner_approval_trust_anchor_revocations; revoke the underlying signing key through the existing append-only signing-key revocation ledger as appropriate.
 
-No production Owner trust anchor is included in migrations, seeders, test fixtures, or this PR. Until a valid anchor is provisioned, every consequential RBAC operation fails closed.
+No production Owner trust anchor is included in migrations, seed data, or this PR. An explicit, opt-in AdminOwnerApprovalTrustAnchorSeeder is provided for a separately controlled provisioning operation; it requires an already verified active Owner, an already trusted tenant-scoped Ed25519 key, an independent active trust reviewer, an authority reference, and a SHA-256 evidence digest. It is not called by DatabaseSeeder and creates no Owner user, role assignment, direct permission grant, or key. Until a valid anchor is provisioned, every consequential RBAC operation fails closed.
+
+### Explicit Owner trust-anchor bootstrap
+
+After out-of-band identity and authority verification and after the public key is registered through the existing signing-key process, an operator may explicitly run:
+
+```bash
+php artisan db:seed --class=Database\\Seeders\\AdminOwnerApprovalTrustAnchorSeeder
+```
+
+Required environment values:
+
+- ARNA_OWNER_BOOTSTRAP_TENANT_ID
+- ARNA_OWNER_BOOTSTRAP_USER_ID
+- ARNA_OWNER_BOOTSTRAP_TRUSTED_BY_USER_ID (must be a different active account)
+- ARNA_OWNER_BOOTSTRAP_KEY_ID
+- ARNA_OWNER_BOOTSTRAP_AUTHORITY_REFERENCE
+- ARNA_OWNER_BOOTSTRAP_EVIDENCE_SHA256
+
+The seeder is deterministic and non-destructive. Repeating the exact same bootstrap is a no-op; a conflicting or revoked anchor fails rather than being overwritten. It never infers the Owner from the first user, super_admin, platform_admin, or any seeded identity.
 
 ## 4. Challenge lifecycle
 
