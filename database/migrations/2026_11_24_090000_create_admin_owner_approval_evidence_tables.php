@@ -32,7 +32,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained('tenants')->restrictOnDelete();
             $table->unsignedBigInteger('trust_anchor_id');
-            $table->foreignId('revoked_by_user_id')->constrained('users')->restrictOnDelete();
+            $table->unsignedBigInteger('revoked_by_user_id');
+            $table->foreign('revoked_by_user_id', 'aoatar_revoked_by_fk')
+                ->references('id')->on('users')->restrictOnDelete();
             $table->string('reason', 500);
             $table->timestamp('revoked_at');
             $table->unique(['tenant_id', 'trust_anchor_id'], 'aoatar_once_unique');
