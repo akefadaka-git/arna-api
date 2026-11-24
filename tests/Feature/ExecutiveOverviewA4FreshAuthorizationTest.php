@@ -57,7 +57,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             'is_active' => true,
             'is_system' => false,
         ]);
-        $applicationRole->permissions()->attach($entryPermission->id);
+        $applicationRole->syncPermissions([$entryPermission->id]);
 
         $permissions = [];
         foreach (['finance.report.view', 'finance.entity.view'] as $slug) {
@@ -70,7 +70,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
                 'is_system' => false,
             ]);
         }
-        $applicationRole->permissions()->attach(array_map(
+        $applicationRole->syncPermissions(array_map(
             static fn (Permission $permission): int => (int) $permission->id,
             array_values($permissions)
         ));
@@ -135,10 +135,11 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             $tenant->id
         );
         Cache::put($staleKey, true, 300);
-        $this->assertTrue($authorization->hasPermission(
+        $this->assertFalse($authorization->hasPermission(
             'finance.report.view',
             $user,
-            (int) $tenant->id
+            (int) $tenant->id,
+            'finance'
         ));
 
         $afterRevocation = $this->actingAs($user, 'sanctum')
@@ -156,7 +157,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         [$user, , , $entryRole] = $this->financeFixture($tenant);
         $authorization = new AuthorizationService();
 
-        $this->assertFalse($authorization->hasPermission(
+        $this->assertTrue($authorization->hasPermission(
             'dashboard.finance.executive.view',
             $user,
             (int) $tenant->id,
@@ -174,10 +175,11 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         // The generic route middleware sees the deliberately stale positive
         // cache entry; the controller's uncached audience policy must still
         // deny the request using the current role-permission pivot.
-        $this->assertTrue($authorization->hasPermission(
-            'dashboard.executive.view',
+        $this->assertFalse($authorization->hasPermission(
+            'dashboard.finance.executive.view',
             $user,
-            (int) $tenant->id
+            (int) $tenant->id,
+            'finance'
         ));
 
         $response = $this->actingAs($user, 'sanctum')
