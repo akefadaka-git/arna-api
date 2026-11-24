@@ -147,7 +147,7 @@ final class CommunicationPeopleSupplementTest extends TestCase
             ->update(['status' => 'inactive', 'updated_at' => now()]);
 
         $this->request($recipient, $tenant)->getJson('/api/communication/conversations')
-            ->assertOk()->assertExactJson(['success' => true, 'data' => []]);
+            ->assertForbidden();
         $this->request($recipient, $tenant)->getJson("/api/communication/conversations/$id/messages")
             ->assertForbidden();
         $this->request($recipient, $tenant)->postJson("/api/communication/conversations/$id/messages", [
