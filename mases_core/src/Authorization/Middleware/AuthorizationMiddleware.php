@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use MaaleArna\MASES\Core\Events\AuthorizationFailureEvent;
 use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
 
@@ -151,7 +152,11 @@ final class AuthorizationMiddleware
         // ---------------------------------------------------------------------
         // 3. Perform the check (named arguments — see class docblock).
         // ---------------------------------------------------------------------
-        $tenantId = mases_tenant_id();
+        // Read the middleware-owned context directly. The helper memoizes by
+        // Request instance and can be stale in long-lived/test request reuse.
+        // This service value is populated by TenantContextMiddleware and never
+        // comes from an untrusted request selector.
+        $tenantId = app(TenantContextService::class)->getTenantId();
         $applicationSlug = $this->resolveApplicationSlug($request);
 
         $allowed = match ($type) {
