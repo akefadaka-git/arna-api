@@ -34,8 +34,10 @@ final class PlatformDomainRegistryController extends Controller
 
         if ($source === null || $source === 'registry') {
             $items = DB::table('platform_domains')
-                ->when($search !== '', fn ($query) => $query->where('fqdn', 'like', '%' . $search . '%')
-                    ->orWhere('display_name', 'like', '%' . $search . '%'))
+                ->when($search !== '', fn ($query) => $query->where(function ($inner) use ($search): void {
+                    $inner->where('fqdn', 'like', '%' . $search . '%')
+                        ->orWhere('display_name', 'like', '%' . $search . '%');
+                }))
                 ->orderBy('fqdn')
                 ->get()
                 ->map(static fn ($domain): array => [
@@ -144,7 +146,7 @@ final class PlatformDomainRegistryController extends Controller
         ]);
         $fqdn = strtolower(rtrim($data['fqdn'], '.'));
         $ownerType = $data['owner_type'] ?? 'platform';
-        $ownerId = $data['owner_id'] ?? null;
+        $ownerId = isset($data['owner_id']) ? (int) $data['owner_id'] : null;
         $this->assertOwnerExists($ownerType, $ownerId);
 
         if (DB::table('platform_domains')->where('fqdn', $fqdn)->exists()) {
