@@ -166,16 +166,10 @@ final class ExecutiveOverviewController
 
         return $user->roles()
             ->where('roles.is_active', true)
-            ->whereIn('roles.scope', ['tenant', 'application'])
+            ->where('roles.scope', 'tenant')
             ->where(function ($scope) use ($tenantId): void {
                 $scope->whereNull('roles.tenant_id')
                     ->orWhere('roles.tenant_id', $tenantId);
-            })
-            ->where(function ($application): void {
-                $application->whereNull('roles.application_id')
-                    ->orWhereHas('application', static fn ($app) => $app
-                        ->where('slug', 'people')
-                        ->where('is_active', true));
             })
             ->whereHas('permissions', static function ($query) use ($tenantId): void {
                 $query->where('permissions.slug', 'people.workforce.view')
