@@ -690,6 +690,48 @@ final class AuthorizationService
     }
 
     /**
+     * Clear only one user's permission-result cache entries for one tenant.
+     *
+     * Cache keys are auth:permission:{user}:{permission}:{tenant}:{application}.
+     * Registry writes are updated after deleting matching entries. Any cache
+     * failure is deliberately propagated so a caller can roll back the
+     * authorization mutation rather than leave stale-positive access active.
+     */
+    public function clearUserTenantCache(User $user, int|string $tenantId): void
+    {
+        $registryKey = $this->registryKeyFor($user);
+        $keys = $this->getUserCacheKeys($user);
+        $tenant = (string) $tenantId;
+        $matched = [];
+        $remaining = [];
+
+        foreach ($keys as $key) {
+            $parts = explode(':', $key, 6);
+            if (
+                count($parts) === 6
+                && $parts[0] === 'auth'
+                && $parts[1] === 'permission'
+                && $parts[2] === (string) $user->id
+                && $parts[4] === $tenant
+            ) {
+                $matched[] = $key;
+            } else {
+                $remaining[] = $key;
+            }
+        }
+
+        if ($matched !== []) {
+            $this->cache->deleteMultiple($matched);
+        }
+
+        if ($remaining === []) {
+            $this->cache->forget($registryKey);
+        } else {
+            $this->cache->put($registryKey, array_values($remaining), self::REGISTRY_DURATION);
+        }
+    }
+
+    /**
      * Clear cached application-ID lookups.
      *
      * Intended for the rare case where an application's slug is changed or
