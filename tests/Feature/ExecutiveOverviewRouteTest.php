@@ -380,9 +380,9 @@ final class ExecutiveOverviewRouteTest extends TestCase
         ]);
         $workforcePermission = Permission::factory()->create([
             'slug' => 'people.workforce.view',
-            'scope' => 'application',
+            'scope' => 'tenant',
             'tenant_id' => $tenant->id,
-            'application_id' => $peopleApp->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $executiveRole = Role::create([
