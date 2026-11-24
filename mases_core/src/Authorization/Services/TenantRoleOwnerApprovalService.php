@@ -197,10 +197,8 @@ final class TenantRoleOwnerApprovalService
         }
 
         $signatureEncoded = (string) ($evidence['signature'] ?? '');
-        $signedAtRaw = (string) ($evidence['signed_at'] ?? '');
-        $signedAt = $this->parseUtc($signedAtRaw);
 
-        return DB::transaction(function () use ($actor, $tenantId, $challengeId, $signatureEncoded, $signedAt): array {
+        return DB::transaction(function () use ($actor, $tenantId, $challengeId, $signatureEncoded): array {
             $challenge = DB::table('admin_owner_approval_challenges')
                 ->where('tenant_id', $tenantId)
                 ->where('challenge_uuid', $challengeId)
@@ -221,8 +219,8 @@ final class TenantRoleOwnerApprovalService
             $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
             $issuedAt = new DateTimeImmutable((string) $challenge->issued_at, new DateTimeZone('UTC'));
             $expiresAt = new DateTimeImmutable((string) $challenge->expires_at, new DateTimeZone('UTC'));
-            if ($now > $expiresAt || $signedAt < $issuedAt || $signedAt > $expiresAt || $signedAt > $now) {
-                throw new AuthorizationException('The Owner approval signature is outside the challenge validity interval.');
+            if ($now < $issuedAt || $now > $expiresAt) {
+                throw new AuthorizationException('The Owner approval challenge is not currently within its validity interval.');
             }
 
             if (!User::query()->whereKey($challenge->owner_user_id)->where('is_active', true)->exists()) {
@@ -232,7 +230,7 @@ final class TenantRoleOwnerApprovalService
             $anchor = $this->activeOwnerAnchor(
                 $tenantId,
                 (int) $challenge->owner_user_id,
-                $signedAt,
+                $now,
                 true,
                 (int) $challenge->signing_key_id,
             );
@@ -273,7 +271,6 @@ final class TenantRoleOwnerApprovalService
                 'signing_key_id' => $anchor->signing_key_id,
                 'action' => $challenge->action,
                 'signature_base64' => $signatureEncoded,
-                'signed_at' => $signedAt->format('Y-m-d H:i:s'),
                 'verified_at' => $now->format('Y-m-d H:i:s'),
                 'payload_sha256' => $challenge->payload_sha256,
             ]);
@@ -504,20 +501,6 @@ final class TenantRoleOwnerApprovalService
                 throw ValidationException::withMessages(['permission_slugs' => ['An application permission is bound to another tenant.']]);
             }
         }
-    }
-
-    private function parseUtc(string $value): DateTimeImmutable
-    {
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $value)) {
-            throw ValidationException::withMessages(['signed_at' => ['Use a UTC ISO-8601 instant in YYYY-MM-DDTHH:MM:SSZ format.']]);
-        }
-        $date = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s\Z', $value, new DateTimeZone('UTC'));
-        $errors = DateTimeImmutable::getLastErrors();
-        if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))
-            || $date->format('Y-m-d\TH:i:s\Z') !== $value) {
-            throw ValidationException::withMessages(['signed_at' => ['The Owner signature timestamp is invalid.']]);
-        }
-        return $date;
     }
 
     private function requireSecurityEvent(mixed $event): void
