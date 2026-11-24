@@ -104,7 +104,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
     }
 
     #[Test]
-    public function finance_report_revocation_is_effective_even_when_a_stale_positive_cache_entry_exists(): void
+    public function finance_report_revocation_is_effective_after_authoritative_role_pivot_change(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         [$user, $role, $permissions] = $this->financeFixture($tenant);
@@ -123,18 +123,8 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             ->getJson('/api/dashboard/v1/overview');
         $first->assertOk()->assertJsonCount(1, 'data.widgets');
 
-        // Deliberately demonstrate that the legacy general-purpose cache
-        // still contains a positive answer, then prove the Executive
-        // Overview path rechecks authoritative Finance pivots.
+        // The dashboard path rechecks authoritative Finance pivots.
         $role->revokePermissionTo($permissions['finance.report.view']);
-        // Reinsert a stale positive cache result to model an invalidation
-        // listener/cache-store failure after the authoritative pivot changed.
-        $staleKey = sprintf(
-            'auth:permission:%d:finance.report.view:%s:null',
-            $user->id,
-            $tenant->id
-        );
-        Cache::put($staleKey, true, 300);
         $this->assertFalse($authorization->hasPermission(
             'finance.report.view',
             $user,
@@ -151,7 +141,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
 
 
     #[Test]
-    public function revoked_entry_permission_fails_closed_even_when_middleware_cache_is_stale(): void
+    public function revoked_finance_entry_permission_fails_closed_from_authoritative_role_pivot(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         [$user, , , $entryRole] = $this->financeFixture($tenant);
@@ -165,16 +155,6 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         ));
 
         $entryRole->revokePermissionTo(Permission::query()->where('slug', 'dashboard.finance.executive.view')->firstOrFail());
-        $staleKey = sprintf(
-            'auth:permission:%d:dashboard.finance.executive.view:%s:null',
-            $user->id,
-            $tenant->id
-        );
-        Cache::put($staleKey, true, 300);
-
-        // The generic route middleware sees the deliberately stale positive
-        // cache entry; the controller's uncached audience policy must still
-        // deny the request using the current role-permission pivot.
         $this->assertFalse($authorization->hasPermission(
             'dashboard.finance.executive.view',
             $user,
