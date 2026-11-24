@@ -119,7 +119,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'is_active' => true,
             'is_system' => false,
         ]);
-        $role->permissions()->attach($entryPermission->id);
+        $role->syncPermissions([$entryPermission->id]);
 
         $permissions = [];
         foreach ([
@@ -129,13 +129,13 @@ final class ExecutiveOverviewRouteTest extends TestCase
             $permissions[] = Permission::factory()->create([
                 'slug' => $slug,
                 'scope' => 'application',
-                'tenant_id' => $tenant->id,
+                'tenant_id' => null,
                 'application_id' => $financeApp->id,
                 'is_active' => true,
                 'is_system' => false,
             ]);
         }
-        $role->permissions()->attach(array_map(static fn (Permission $permission): int => (int) $permission->id, $permissions));
+        $role->syncPermissions(array_map(static fn (Permission $permission): int => (int) $permission->id, $permissions));
         $user->roles()->attach($role->id);
 
         $configuredEntity = LegalEntity::create([
@@ -349,7 +349,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
     }
 
     #[Test]
-    public function active_people_application_role_can_supply_the_tenant_workforce_grant(): void
+    public function people_application_role_cannot_supply_a_tenant_scoped_workforce_grant(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $user = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
@@ -412,10 +412,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             ->withHeader('X-Tenant-ID', (string) $tenant->id)
             ->getJson('/api/dashboard/v1/overview');
 
-        $response->assertOk()
-            ->assertJsonCount(1, 'data.widgets')
-            ->assertJsonPath('data.widgets.0.key', 'people.workforce.active')
-            ->assertJsonPath('data.widgets.0.value.active', 1);
+        $response->assertOk()->assertJsonCount(0, 'data.widgets');
     }
 
     #[Test]
