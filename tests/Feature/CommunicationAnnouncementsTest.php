@@ -65,11 +65,12 @@ final class CommunicationAnnouncementsTest extends TestCase
         $this->assertContains('announcement.approve', $grants['president']);
         $this->assertContains('announcement.publish', $grants['president']);
 
-        // Existing platform-wide role policy grants tenant-scoped permissions
-        // to platform_admin and tenant_admin; super_admin remains wildcard.
-        $this->assertContains('scope:tenant', $grants['platform_admin']);
+        // Platform roles receive global permissions only; tenant_admin receives
+        // tenant-scoped grants. super_admin is also constrained to global scope.
+        $this->assertContains('scope:global', $grants['platform_admin']);
+        $this->assertNotContains('scope:tenant', $grants['platform_admin']);
         $this->assertContains('scope:tenant', $grants['tenant_admin']);
-        $this->assertSame(['*'], $grants['super_admin']);
+        $this->assertSame(['scope:global'], $grants['super_admin']);
     }
 
     public function test_user_without_manage_permission_cannot_create_announcement(): void
