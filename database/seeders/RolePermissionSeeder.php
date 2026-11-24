@@ -31,8 +31,8 @@ use RuntimeException;
  * run(): void resolves the persisted prerequisites and delegates to seed().
  * Missing prerequisites or incompatible grants fail closed.
  *
- * @see Database\\Seeders\\Data\\RolePermissionGrants
- * @see MaaleArna\\MASES\\Core\\Authorization\\Models\\Role::syncPermissions
+ * @see Database\Seeders\Data\RolePermissionGrants
+ * @see MaaleArna\MASES\Core\Authorization\Models\Role::syncPermissions
  */
 
 final class RolePermissionSeeder extends Seeder
