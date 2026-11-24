@@ -412,6 +412,11 @@ final class TenantRoleOwnerApprovalService
             ->where('anchor.tenant_id', $tenantId)
             ->where('anchor.owner_user_id', $ownerId)
             ->where('signing_key.signer_user_id', $ownerId)
+            ->whereColumn('anchor.trusted_by_user_id', '<>', 'anchor.owner_user_id')
+            ->whereColumn('signing_key.trusted_by_user_id', '=', 'anchor.trusted_by_user_id')
+            ->whereNotNull('anchor.authority_reference')
+            ->where('anchor.authority_reference', '<>', '')
+            ->whereNotNull('anchor.evidence_sha256')
             ->where('signing_key.algorithm', 'Ed25519')
             ->where('anchor.trusted_at', '<=', $at->format('Y-m-d H:i:s'))
             ->where(function ($query) use ($at): void {
@@ -439,12 +444,20 @@ final class TenantRoleOwnerApprovalService
             $query->lockForUpdate();
         }
 
-        return $query->orderBy('anchor.id')->first([
+        $anchor = $query->orderBy('anchor.id')->first([
             'anchor.id as trust_anchor_id',
             'anchor.signing_key_id',
             'signing_key.key_id',
             'signing_key.public_key_base64',
+            'anchor.authority_reference',
+            'anchor.evidence_sha256',
         ]);
+
+        if ($anchor === null || !preg_match('/^[a-f0-9]{64}$/', (string) $anchor->evidence_sha256)) {
+            return null;
+        }
+
+        return $anchor;
     }
 
     private function assertTenantAndActor(User $actor, int $tenantId): void
