@@ -218,3 +218,91 @@ A3.0 is not marked VERIFIED-CLOSED until the API current-main test evidence is o
 | 1.0.0 | 24 November 2026 | Initial live API/App baseline, exact-SHA CI inventory, material PR collision register, governance safeguards and A3.0 evidence status. |
 
 **Governance statement:** This record does not alter `main`, merge PRs, close or rewrite existing work, execute migrations, change production systems, authorize A3.4–A3.8, or grant A4/A5 authority.
+
+
+---
+
+# Controlled A3.0 reconciliation addendum — v1.0.1
+
+**Recorded:** 24 November 2026  
+**Purpose:** Close pagination and branch-boundary evidence gaps; record dedicated implementation branch creation; disposition CI evidence that cannot safely be triggered through the connected GitHub actions.
+
+## A. Exhaustive pagination results
+
+The earlier page-limit caveat is superseded by the completed pagination below:
+
+| Inventory | API | App | Result |
+|---|---:|---:|---|
+| Open pull requests | 119 (100 + 19) | 76 (76 + 0) | All pages retrieved |
+| Branches | 164 (100 + 64) | 102 (100 + 2) | All pages retrieved |
+
+No further pages were returned. These are complete inventories as of this reconciliation snapshot, not guarantees that no new branches or PRs will be created afterward.
+
+Relevant API collision inventory includes:
+- PR #98 / `feat/executive-overview-a3` at `98f09a4cb2ed18415b06b52d05be023862b336bc`: earlier Executive Overview implementation candidate; do not assume it is equivalent to current main.
+- PR #201 / `feat/a3-executive-overview-trial-balance` at `e54c7cca8979016308c74b4a070d85daf71ebef1`: stale-base A3.1 candidate.
+- PR #202 / `feat/a3-2-workforce-aggregate` at `bc950b8d1bd5a7e93af82141151650116eb437a2`: dependent workforce candidate.
+- PR #214 / `feat/admin-a3-route-separation` at `d6eb1b5244fc7933472359403ae1a86853491a52`: separate Admin tenant-RBAC/Audit workstream; preserve.
+- PR #216 / `feat/communication-people-contracts-a3` at `f3042d364cbe515a77f925dcf395994bbd7090b9`, based on PR #214 head `adcbfaa8fcc8b73dbd68edfd201735772839c6df`: separate Communication/People workstream; preserve.
+- PR #217 and #218 remain documentation-only governance PRs.
+
+The earlier PR #216 head SHA `5d1fe749f15bf3d7aa3b103897b651228ccd644d` recorded in v1.0.0 was stale. The live inventory value is `f3042d364cbe515a77f925dcf395994bbd7090b9`; the current PR #214 head is `d6eb1b5244fc7933472359403ae1a86853491a52`, while PR #216's base SHA is `adcbfaa8fcc8b73dbd68edfd201735772839c6df`. This correction does not alter either PR.
+
+Relevant App branches and PRs remain the older Executive Overview candidates #45, #104, #105 and #107. They are not selected as the new P0 implementation base. Existing unrelated Admin, accessibility, Finance, Calendar, Android and public-site work remains untouched.
+
+## B. Dedicated P0 implementation branches established
+
+Two empty implementation branches were created, each directly from the exact live `main` SHA recorded in Section 2:
+
+| Repository | Branch | Exact base/head SHA at creation | Status |
+|---|---|---|---|
+| `akefadaka-git/arna-api` | `feat/arna-ecc-a3-p0` | `6e274c25ecc55b84e026e879d735b77f0e51592f` | CREATED; verified in branch listing |
+| `akefadaka-git/arna-app` | `feat/arna-ecc-a3-p0` | `ffe0495c0eb7c8b5d2013419123aac5b68893d51` | CREATED; verified in branch listing |
+
+Both branches were confirmed to point to their respective baseline SHA. No code or documentation commit has been added to either implementation branch. They are clean starting points; before the first code change, re-check whether `main` has advanced and either preserve the recorded base or perform a new explicit reconciliation.
+
+The branch name is intentionally the same in the two repositories; the repositories remain separate Git histories and PR streams.
+
+## C. CI evidence gap disposition
+
+The API baseline workflow `.github/workflows/executive-overview-a4-api.yml` supports `workflow_dispatch` with a required `target_sha` input and verifies that exact checkout before running PHP 8.3, Composer installation, clean MySQL migrations, and Executive Overview authorization/route/security tests.
+
+However, the connected GitHub tool surface available for this task exposes read-only workflow-run inspection and rerun of failed jobs, but no workflow-dispatch operation. No browser-driven dispatch was attempted. No test was falsely represented as run, and no paid service or billing action was initiated.
+
+- API `main` exact-SHA workflow evidence: **MISSING / NOT RUN**.
+- App `main` exact-SHA evidence: **PASS for the two previously recorded workflows only** (run 45166431549 and 45166431331).
+- PR #218 G-01 run 45388020322: **PASS**, but this is a pull-request event on documentation head `b467f2bbb4f8808063a007c1f27c840dd52195fb`, not API `main` verification and not an API test-suite result.
+
+The API CI gap is therefore explicitly dispositioned as a tooling limitation, not closed as a successful test. It remains a verification blocker for declaring the baseline fully verified. A user-authorized GitHub Actions workflow dispatch with `target_sha=6e274c25ecc55b84e026e879d735b77f0e51592f` is the precise outstanding verification action when Actions dispatch capability is available. This does not require altering `main`, but it may consume Actions minutes; no paid upgrade or deposit is assumed.
+
+## D. Revised A3.0 evidence register status
+
+| Evidence item | Revised status | Disposition |
+|---|---|---|
+| Complete open PR pagination | PASS | API 119; App 76 |
+| Complete branch pagination | PASS | API 164; App 102 |
+| Relevant ECC/Admin/People branch collision review | PASS | Existing candidates identified and preserved |
+| Dedicated API P0 branch | PASS | `feat/arna-ecc-a3-p0` at exact API baseline |
+| Dedicated App P0 branch | PASS | `feat/arna-ecc-a3-p0` at exact App baseline |
+| API exact-main test execution | MISSING / NOT RUN | Workflow dispatch unavailable through connected tool surface |
+| App exact-main workflows | PASS (limited) | Two workflow runs only |
+| Main branch protection | CONTROL GAP | Both main branches remain unprotected; no change made |
+
+**Revised A3.0 status: PARTIAL — repository, pagination, collision, and branch-boundary evidence complete; API exact-main test execution remains outstanding.**
+
+The remaining test gap is not silently waived. It does not prevent the creation of clean implementation branches, but no claim of complete A3.0 verification or current-main API test pass is made.
+
+## E. Handover to A3.1
+
+A3.1 KPI governance may now begin on the dedicated API/App P0 branches under the existing P0-only Owner authorization. Its first deliverable must be a 30-domain KPI readiness and ownership register, distinguishing:
+1. domains with an established authoritative source, calculation, owner and stewardship;
+2. domains with partial source readiness or incomplete definitions; and
+3. domains without a currently supportable KPI/provider contract.
+
+Do not invent KPIs, create unsupported enterprise aggregates, change RBAC grants, implement P1/P2 dashboards, merge, or deploy. A3.2 and A3.3 remain authorized P0 packages but retain their own acceptance evidence. A4 and A5 remain separate gates.
+
+## F. Change log
+
+| Version | Date | Change |
+|---|---|---|
+| 1.0.1 | 24 November 2026 | Completed PR/branch pagination; corrected live PR #216 SHA/base references; recorded exact-base API/App P0 implementation branches; formally dispositioned API exact-main CI gap as tooling-limited and NOT RUN. |
