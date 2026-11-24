@@ -945,6 +945,33 @@ Route::get('/admin/platform/domains/{domain}/history', [\App\Http\Controllers\Ad
     ->middleware(['auth:sanctum', 'auth.permission:platform.domains.read'])
     ->name('api.admin.platform.domains.history');
 
+// Platform settings and configuration use encrypted values and a two-person approval lifecycle.
+Route::middleware('auth:sanctum')->prefix('admin/platform')->name('api.admin.platform.')->group(static function (): void {
+    $controller = \\App\\Http\\Controllers\\Admin\\PlatformSettingsController::class;
+
+    Route::get('/settings', [$controller, 'settings'])
+        ->middleware('auth.permission:platform.settings.read')->name('settings.index');
+    Route::get('/settings/change-requests', [$controller, 'settingRequests'])
+        ->middleware('auth.permission:platform.settings.approve')->name('settings.requests.index');
+    Route::post('/settings/change-requests', [$controller, 'requestSettingChange'])
+        ->middleware('auth.permission:platform.settings.manage')->name('settings.requests.store');
+    Route::post('/settings/change-requests/{changeRequest}/approve', [$controller, 'approveSettingChange'])
+        ->whereNumber('changeRequest')->middleware('auth.permission:platform.settings.approve')->name('settings.requests.approve');
+    Route::post('/settings/change-requests/{changeRequest}/reject', [$controller, 'rejectSettingChange'])
+        ->whereNumber('changeRequest')->middleware('auth.permission:platform.settings.approve')->name('settings.requests.reject');
+
+    Route::get('/configuration', [$controller, 'configuration'])
+        ->middleware('auth.permission:platform.configuration.read')->name('configuration.index');
+    Route::get('/configuration/change-requests', [$controller, 'configurationRequests'])
+        ->middleware('auth.permission:platform.configuration.approve')->name('configuration.requests.index');
+    Route::post('/configuration/change-requests', [$controller, 'requestConfigurationChange'])
+        ->middleware('auth.permission:platform.configuration.manage')->name('configuration.requests.store');
+    Route::post('/configuration/change-requests/{changeRequest}/approve', [$controller, 'approveConfigurationChange'])
+        ->whereNumber('changeRequest')->middleware('auth.permission:platform.configuration.approve')->name('configuration.requests.approve');
+    Route::post('/configuration/change-requests/{changeRequest}/reject', [$controller, 'rejectConfigurationChange'])
+        ->whereNumber('changeRequest')->middleware('auth.permission:platform.configuration.approve')->name('configuration.requests.reject');
+});
+
 Route::fallback(static function (): never {
     throw new NotFoundHttpException('The requested endpoint does not exist.');
 })->name('api.fallback');
