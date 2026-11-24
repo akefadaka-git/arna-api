@@ -46,7 +46,6 @@ final class TenantRoleOwnerApprovalController
 
         $data = $request->validate([
             'signature' => ['required', 'string', 'max:256'],
-            'signed_at' => ['required', 'date_format:Y-m-d\TH:i:s\Z'],
         ]);
 
         $result = $this->approvals->execute($actor, $this->tenantId(), $challenge, $data);
