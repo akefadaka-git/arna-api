@@ -615,8 +615,9 @@ final class TenantResolutionTest extends TestCase
             'slug' => 'shareholder.view',
             'name_en' => 'View shareholders',
             'name_am' => 'ባለአክሲዮኖችን ማየት',
-            'scope' => 'tenant',
+            'scope' => 'global',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
             'is_system' => false,
         ]);

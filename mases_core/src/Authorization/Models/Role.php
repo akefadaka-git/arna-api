@@ -42,8 +42,9 @@ use MaaleArna\MASES\Core\Auth\Models\User;
  *          permission mutation helpers, and locale-aware display-name
  *          accessors.
  *
- * 1.0.1  — D-11b. `syncPermissions()` now dispatches a
- *          `RolePermissionsChanged` event after a successful sync.
+ * 1.0.2  — RBAC scope and cache-race correction. Permission scope
+ *          compatibility is enforced by one canonical matrix, and the
+ *          change event fences cache generations before and after commit.
  *
  *          WHY
  *          ---
@@ -70,9 +71,11 @@ use MaaleArna\MASES\Core\Auth\Models\User;
  *
  *          WHAT EXACTLY CHANGES
  *          ---------------------
- *          In `syncPermissions()`, immediately after the existing
- *          `$this->permissions()->sync($permissionIds)` call succeeds
- *          and immediately before `return $this`, one line is added:
+ *          In `syncPermissions()`, the permission mutation is validated
+ *          before pivot writes. A cache-generation invalidation event is
+ *          dispatched inside the transaction and again after commit so
+ *          that checks racing the transaction cannot leave a stale result
+ *          reachable under the new generation:
  *
  *              RolePermissionsChanged::dispatch(
  *                  roleId: $this->id,

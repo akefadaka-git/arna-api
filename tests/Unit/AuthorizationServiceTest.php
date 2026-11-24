@@ -200,6 +200,77 @@ final class AuthorizationServiceTest extends TestCase
         $this->assertFalse($this->service->hasPermission('cache.revocation.test', $this->user));
     }
 
+    #[Test]
+    public function role_scope_matrix_is_enforced_again_at_runtime_for_legacy_pivots(): void
+    {
+        $application = PlatformApplication::factory()->create();
+
+        $applicationPermission = Permission::factory()->create([
+            'slug' => 'scope.application.permission',
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $application->id,
+        ]);
+        $tenantPermission = Permission::factory()->create([
+            'slug' => 'scope.tenant.permission',
+            'scope' => 'tenant',
+            'tenant_id' => $this->tenant->id,
+            'application_id' => null,
+        ]);
+
+        $tenantRole = Role::factory()->tenantScope()->create([
+            'tenant_id' => $this->tenant->id,
+            'application_id' => null,
+        ]);
+        $tenantRole->permissions()->attach($applicationPermission->id);
+        $this->user->roles()->attach($tenantRole->id);
+
+        $this->assertFalse($this->service->hasPermission(
+            'scope.application.permission',
+            $this->user,
+            $this->tenant->id,
+            $application->slug,
+        ));
+
+        $this->user->roles()->detach($tenantRole->id);
+        $platformRole = Role::factory()->create([
+            'scope' => 'platform',
+            'tenant_id' => null,
+            'application_id' => null,
+        ]);
+        $platformRole->permissions()->attach($tenantPermission->id);
+        $this->user->roles()->attach($platformRole->id);
+
+        $this->assertFalse($this->service->hasPermission(
+            'scope.tenant.permission',
+            $this->user,
+            $this->tenant->id,
+        ));
+
+        $this->user->roles()->detach($platformRole->id);
+        $applicationRole = Role::factory()->applicationScope()->create([
+            'tenant_id' => null,
+            'application_id' => $application->id,
+        ]);
+        $applicationRole->permissions()->attach($tenantPermission->id);
+        $this->user->roles()->attach($applicationRole->id);
+
+        $this->assertFalse($this->service->hasPermission(
+            'scope.tenant.permission',
+            $this->user,
+            $this->tenant->id,
+            $application->slug,
+        ));
+
+        $applicationRole->permissions()->sync([$applicationPermission->id]);
+        $this->assertTrue($this->service->hasPermission(
+            'scope.application.permission',
+            $this->user,
+            $this->tenant->id,
+            $application->slug,
+        ));
+    }
+
     // =========================================================================
     // requirePermission – correct order: slug first, user second
     // =========================================================================

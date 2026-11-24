@@ -140,41 +140,15 @@ use RuntimeException;
  * Cache tags are therefore unavailable.
  *
  * -----------------------------------------------------------------------------
- * Cache invalidation — the key-registry approach
+ * Cache invalidation — atomic generation keys
  * -----------------------------------------------------------------------------
- * To still support precise, per-user invalidation without cache tags, this
- * service maintains a per-user registry of every cache key it writes:
- *
- *     auth:user_keys:{userId}  →  [ "auth:permission:1:...", "auth:permission:1:...", ... ]
- *
- * The registry is written by `addUserCacheKey()`, which is called from
- * `hasPermission()` immediately before each `remember()` call. Registration
- * is idempotent: if the key is already listed, no cache write happens. This
- * means the hot path (a repeated permission check) costs one extra cache
- * read for the registry, and no write.
- *
- * Invalidation then becomes straightforward:
- *
- *   `clearUserCache($user)`:
- *     1. Read the registry for that user.
- *     2. Delete every key listed in the registry.
- *     3. Delete the registry key itself.
- *
- * No tags required. No wildcard support required. No driver-specific APIs.
- *
- * -----------------------------------------------------------------------------
- * Registry lifetime
- * -----------------------------------------------------------------------------
- * The registry uses a longer TTL than the cached entries it tracks
- * (REGISTRY_DURATION > CACHE_DURATION). This guarantees a registry entry
- * cannot expire while one of the keys it registers is still valid.
- *
- * If the opposite were true — registry shorter than entries — an entry could
- * outlive its own registration, and invalidation would silently miss it.
- *
- * Stale entries in the registry (keys that already expired on their own TTL)
- * are harmless: forgetting an already-expired key is a no-op for every
- * Laravel cache driver.
+ * Permission-result keys include a per-user generation plus tenant and
+ * application generations where those contexts apply. Mutations advance the
+ * relevant generation with the cache store's atomic increment operation.
+ * This avoids a read/modify/write key registry: concurrent registrations
+ * cannot overwrite one another, and any late result written under an older
+ * generation is unreachable to subsequent checks. Generation counters live
+ * longer than permission-result entries.
  *
  * -----------------------------------------------------------------------------
  * What this class does NOT do
