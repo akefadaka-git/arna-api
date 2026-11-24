@@ -115,17 +115,23 @@ The API stores both ordinary values and secret values encrypted with Laravel's a
 
 The current implementation provides a two-person separation-of-duties gate. It is not represented as an Owner-signed Ed25519 approval. Owner-only cryptographic approval remains a separate hardening requirement for designated high-impact settings before production use.
 
-## 8. Audit requirements
+## 8. Integration registry and operations health
+
+The provider catalogue exposes DNS, registrar, certificate, hosting/Plesk, edge-routing, monitoring and email-delivery categories. Credential presence is exposed only as a boolean; credential ciphertext is never serialized. Provider health checks, provider mutations and automated remediation remain disabled until adapter contracts, credentials, approval gates and verification tests are delivered.
+
+The operations health endpoint performs a read-only database reachability query and labels queue, cache, object storage and external providers as `not_observed` unless a recorded observation exists. It does not convert missing telemetry into a healthy status. Observation history is queryable separately. No provider or hosting state is inferred from the application inventory.
+
+## 9. Audit requirements
 
 Every privileged operation records actor, acting scope, target, action, reason, request/correlation ID, timestamp, approval reference, before/after state (redacted), result, and provider receipt where applicable. Audit evidence must be written in the same transaction as local authorization/configuration mutations whenever possible. Provider operations require a durable intent record before dispatch and a result record after completion.
 
-## 9. Delivery and stage gates
+## 10. Delivery and stage gates
 
 - A3: implement in isolated branches; no merge or deployment.
 - A4: exact-head API tests, clean-install MySQL, tenant isolation, permission-negative tests, frontend type-check/build, route and accessibility contracts, and provider-adapter safety tests.
 - A5: separate Owner authorization. Production trust-anchor provisioning, provider credentials, DNS, hosting and certificate changes are excluded until explicitly authorized.
 
-## 10. Current known constraints
+## 11. Current known constraints
 
 - Existing API main and frontend main are the source of truth.
 - The API and frontend candidate PRs require contract reconciliation; older frontend paths must not be revived merely to satisfy stale UI.
