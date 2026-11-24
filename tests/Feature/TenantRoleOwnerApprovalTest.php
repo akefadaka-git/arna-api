@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use Illuminate\Support\Carbon;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
@@ -215,6 +217,7 @@ final class TenantRoleOwnerApprovalTest extends TestCase
 
     private function fixture(bool $selfReviewedOwnerKey = false): array
     {
+        Cache::flush();
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->id]);
         $owner = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->id]);
@@ -260,6 +263,11 @@ final class TenantRoleOwnerApprovalTest extends TestCase
             'assigned_at' => now(),
             'assigned_by' => $actor->id,
         ]);
+        $this->assertTrue(app(AuthorizationService::class)->hasPermission(
+            'tenant.membership.manage',
+            $actor,
+            (int) $tenant->id,
+        ));
 
         $pair = sodium_crypto_sign_keypair();
         $publicKey = sodium_crypto_sign_publickey($pair);
