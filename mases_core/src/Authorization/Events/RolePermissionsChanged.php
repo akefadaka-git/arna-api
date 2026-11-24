@@ -182,6 +182,8 @@ final class RolePermissionsChanged
         int $roleId,
         string $roleSlug,
         array $permissionIds,
+        string $scope = 'platform',
+        int|string|null $tenantId = null,
         ?DateTimeImmutable $occurredAt = null
     ) {
         $this->roleId = $roleId;
@@ -189,6 +191,8 @@ final class RolePermissionsChanged
         $this->permissionIds = array_values(
             array_map(static fn (int|string $id): int => (int) $id, $permissionIds)
         );
+        $this->scope = $scope;
+        $this->tenantId = $tenantId;
         $this->occurredAt = $occurredAt ?? new DateTimeImmutable('now');
     }
 
