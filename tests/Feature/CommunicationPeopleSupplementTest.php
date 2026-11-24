@@ -109,6 +109,65 @@ final class CommunicationPeopleSupplementTest extends TestCase
         ])->assertNotFound();
     }
 
+    #[Test]
+    public function revoked_tenant_membership_removes_all_existing_conversation_access(): void
+    {
+        [$tenant, $actor] = $this->member([
+            'communication.conversation.view','communication.conversation.create',
+            'communication.message.send','communication.message.read',
+        ]);
+        $recipient = User::factory()->create();
+        $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        $readPermission = Permission::where('slug', 'communication.message.read')->firstOrFail();
+        $readerRole = Role::create([
+            'name_en' => 'Revocation Test Reader',
+            'slug' => 'revocation-test-reader-'.$recipient->id,
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $readerRole->permissions()->attach($readPermission->id, ['assigned_at' => now()]);
+        $recipient->roles()->attach($readerRole->id, ['assigned_at' => now(), 'assigned_by' => $actor->id]);
+
+        $id = $this->request($actor, $tenant)
+            ->postJson('/api/communication/conversations', ['type' => 'direct', 'participant_ids' => [$recipient->id]])
+            ->assertCreated()->json('data.id');
+        $messageId = $this->request($actor, $tenant)
+            ->postJson("/api/communication/conversations/$id/messages", [
+                'body' => 'Before revocation',
+                'idempotency_key' => 'before-revocation',
+            ])->assertCreated()->json('data.id');
+
+        $this->assertCount(1, $this->request($recipient, $tenant)
+            ->getJson('/api/communication/conversations')->assertOk()->json('data'));
+
+        DB::table('tenant_memberships')->where('tenant_id', $tenant->id)
+            ->where('user_id', $recipient->id)
+            ->update(['status' => 'inactive', 'updated_at' => now()]);
+
+        $this->request($recipient, $tenant)->getJson('/api/communication/conversations')
+            ->assertOk()->assertExactJson(['success' => true, 'data' => []]);
+        $this->request($recipient, $tenant)->getJson("/api/communication/conversations/$id/messages")
+            ->assertNotFound();
+        $this->request($recipient, $tenant)->postJson("/api/communication/conversations/$id/messages", [
+            'body' => 'After revocation',
+            'idempotency_key' => 'after-revocation',
+        ])->assertNotFound();
+        $this->request($recipient, $tenant)->postJson("/api/communication/conversations/$id/read")
+            ->assertNotFound();
+
+        $this->assertDatabaseCount('communication_messages', 1);
+        $this->assertDatabaseCount('communication_message_reads', 0);
+        $this->assertDatabaseHas('communication_messages', ['id' => $messageId, 'body' => 'Before revocation']);
+        $this->assertDatabaseHas('communication_conversation_participants', [
+            'conversation_id' => $id,
+            'tenant_id' => $tenant->id,
+            'user_id' => $recipient->id,
+            'status' => 'active',
+        ]);
+    }
+
     private function member(array $slugs): array
     {
         $tenant=Tenant::factory()->create(['is_active'=>true]);
