@@ -6,7 +6,7 @@ on:
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
-    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api]
+    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/admin-a3-route-separation]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - ".github/workflows/arna-a4-synthetic-backup-restore.yml"
@@ -455,6 +455,17 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/CommunicationAnnouncementsTest.php
+
+      - name: Run Communication conversations and People supplement tenant-isolation tests on MySQL
+        if: ${{ hashFiles('tests/Feature/CommunicationPeopleSupplementTest.php') != '' }}
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/CommunicationPeopleSupplementTest.php
 
       - name: Run Owner-signed tenant RBAC approval feature tests on MySQL
         env:
