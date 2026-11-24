@@ -24,6 +24,85 @@ final class TenantMembershipService
     ) {
     }
 
+    public function attach(
+        int $tenantId,
+        int $userId,
+        User|int|null $actor,
+        ?string $reason = null,
+    ): void {
+        $actorId = $actor instanceof User ? $actor->id : $actor;
+
+        if ($actorId === null) {
+            throw new RuntimeException('A recorded actor is required to create a tenant membership.');
+        }
+
+        DB::transaction(function () use ($tenantId, $userId, $actorId, $reason): void {
+            $tenant = DB::table('tenants')
+                ->where('id', $tenantId)
+                ->where('is_active', true)
+                ->lockForUpdate()
+                ->first();
+
+            if ($tenant === null) {
+                throw new RuntimeException('Active tenant does not exist.');
+            }
+
+            $member = DB::table('users')
+                ->where('id', $userId)
+                ->where('is_active', true)
+                ->lockForUpdate()
+                ->first();
+
+            if ($member === null) {
+                throw new RuntimeException('Active user does not exist.');
+            }
+
+            $exists = DB::table('tenant_memberships')
+                ->where('tenant_id', $tenantId)
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($exists) {
+                throw new DomainException('Tenant membership already exists; use the lifecycle transition operation.');
+            }
+
+            $now = now();
+            DB::table('tenant_memberships')->insert([
+                'tenant_id' => $tenantId,
+                'user_id' => $userId,
+                'joined_at' => $now,
+                'status' => TenantMembership::STATUS_ACTIVE,
+                'settings' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            // Membership authority and its mandatory security evidence commit
+            // together. A null event means SecurityEventService could not persist.
+            $event = $this->securityEvents->log(
+                'tenant.membership.created',
+                [
+                    'tenant_id' => $tenantId,
+                    'user_id' => $actorId,
+                    'actor_user_id' => $actorId,
+                    'member_user_id' => $userId,
+                    'previous_status' => null,
+                    'new_status' => TenantMembership::STATUS_ACTIVE,
+                    'reason' => $reason,
+                ],
+                'warning',
+                'Tenant membership created.',
+            );
+
+            if ($event === null) {
+                throw new RuntimeException(
+                    'Tenant membership creation was rolled back because its security event could not be persisted.'
+                );
+            }
+        });
+    }
+
     public function suspend(
         int $tenantId,
         int $userId,
