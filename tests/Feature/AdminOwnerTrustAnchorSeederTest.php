@@ -65,6 +65,11 @@ final class AdminOwnerTrustAnchorSeederTest extends TestCase
                 'trusted_by_user_id' => $reviewer->id,
             ]);
             $this->assertSame(1, DB::table('admin_owner_approval_trust_anchors')->count());
+            $this->assertDatabaseHas('security_events', [
+                'event_type' => 'admin.owner_approval.trust_anchor.created',
+                'tenant_id' => $tenant->id,
+                'user_id' => $reviewer->id,
+            ]);
             $this->assertSame($beforeRolePivots, DB::table('user_has_roles')->count());
             $this->assertSame($beforeDirectGrants, DB::table('user_has_permissions')->count());
         } finally {
