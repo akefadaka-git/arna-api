@@ -39,6 +39,9 @@ use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
  *
  *          ->middleware('auth.permission:permission,finance.transaction.create')
  *
+ *      Multiple permission alternatives may be separated with `|`; any one
+ *      matching the active tenant/application context is sufficient.
+ *
  * -----------------------------------------------------------------------------
  * Named arguments for AuthorizationService
  * -----------------------------------------------------------------------------
@@ -162,10 +165,10 @@ final class AuthorizationMiddleware
         $applicationSlug = $this->resolveApplicationSlug($request);
 
         $allowed = match ($type) {
-            'permission' => $this->authService->hasPermission(
-                permissionSlug:  $value,
-                user:            $user,
-                tenantId:        $tenantId,
+            'permission' => $this->hasAnyPermission(
+                value: $value,
+                user: $user,
+                tenantId: $tenantId,
                 applicationSlug: $applicationSlug,
             ),
             'role' => $this->authService->hasRole(
@@ -213,6 +216,31 @@ final class AuthorizationMiddleware
     // =========================================================================
     // Private helpers
     // =========================================================================
+
+    /**
+     * Check one or more alternative permission slugs. Each candidate is
+     * evaluated independently against the same trusted tenant/application
+     * context; no scope or wildcard relaxation is introduced.
+     */
+    private function hasAnyPermission(
+        string $value,
+        \\MaaleArna\\MASES\\Core\\Auth\\Models\\User $user,
+        int|string|null $tenantId,
+        ?string $applicationSlug
+    ): bool {
+        foreach (array_filter(explode('|', $value), static fn (string $slug): bool => $slug !== '') as $permissionSlug) {
+            if ($this->authService->hasPermission(
+                permissionSlug: $permissionSlug,
+                user: $user,
+                tenantId: $tenantId,
+                applicationSlug: $applicationSlug,
+            )) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /**
      * Infer the check type from the route's middleware alias.
@@ -307,6 +335,7 @@ final class AuthorizationMiddleware
      */
     private function inferActionFromPermission(string $permissionSlug): ?string
     {
+        $permissionSlug = explode('|', $permissionSlug, 2)[0];
         $parts = explode('.', $permissionSlug);
 
         if (count($parts) < 2) {
