@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
@@ -16,6 +15,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -113,6 +113,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
     public function finance_report_revocation_is_effective_after_authoritative_role_pivot_change(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
+        app(TenantContextService::class)->setTenantById($tenant->id);
         [$user, $role, $permissions] = $this->financeFixture($tenant);
         $this->configuredEntity($tenant);
 
@@ -150,6 +151,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
     public function revoked_finance_entry_permission_fails_closed_from_authoritative_role_pivot(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
+        app(TenantContextService::class)->setTenantById($tenant->id);
         [$user, , , $entryRole] = $this->financeFixture($tenant);
         $authorization = new AuthorizationService();
 
