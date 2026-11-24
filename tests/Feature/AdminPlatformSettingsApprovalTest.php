@@ -29,6 +29,7 @@ final class AdminPlatformSettingsApprovalTest extends TestCase
             $this->assertNotNull($route, "Missing route {$name}");
             $this->assertContains('auth:sanctum', $route->gatherMiddleware());
             $this->assertContains($permission, $route->gatherMiddleware());
+            $this->assertNotContains('tenant.membership', $route->gatherMiddleware());
         }
     }
 
