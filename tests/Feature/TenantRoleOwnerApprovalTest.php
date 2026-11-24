@@ -151,22 +151,14 @@ final class TenantRoleOwnerApprovalTest extends TestCase
                 $this->fail('An expired Owner approval challenge must be rejected.');
             } catch (\Illuminate\Auth\Access\AuthorizationException) {
                 $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
+                $this->assertDatabaseMissing('admin_owner_approval_consumptions', [
+                    'tenant_id' => $tenant->id,
+                    'payload_sha256' => $challenge['payload_sha256'],
+                ]);
             }
         } finally {
             Carbon::setTestNow();
         }
-
-        $this->assertDatabaseMissing('admin_owner_approval_consumptions', [
-            'tenant_id' => $tenant->id,
-            'payload_sha256' => $challenge['payload_sha256'],
-        ]);
-        }
-
-        $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
-        $this->assertDatabaseMissing('admin_owner_approval_consumptions', [
-            'tenant_id' => $tenant->id,
-            'payload_sha256' => $challenge['payload_sha256'],
-        ]);
     }
 
     public function test_revoked_owner_signing_key_cannot_authorize_a_pending_challenge(): void
