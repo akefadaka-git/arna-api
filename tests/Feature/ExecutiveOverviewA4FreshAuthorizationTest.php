@@ -52,7 +52,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             $permissions[$slug] = Permission::factory()->create([
                 'slug' => $slug,
                 'scope' => 'tenant',
-                'tenant_id' => null,
+                'tenant_id' => $tenant->id,
                 'is_active' => true,
                 'is_system' => false,
             ]);
