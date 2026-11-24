@@ -920,6 +920,11 @@ Route::get('/admin/platform/overview', \App\Http\Controllers\Admin\PlatformOverv
     ->middleware(['auth:sanctum', 'auth.permission:platform.overview.read'])
     ->name('api.admin.platform.overview');
 
+// Platform application registry — read-only catalogue and frontend readiness.
+Route::get('/admin/platform/applications', [\App\Http\Controllers\Admin\PlatformApplicationsController::class, 'index'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.applications.read'])
+    ->name('api.admin.platform.applications.index');
+
 // Platform domain inventory — read-only projection of registered application and tenant domains.
 // Provider ownership, DNS, TLS, and hosting states remain explicitly unverified until adapters are connected.
 Route::get('/admin/platform/domains', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'index'])
