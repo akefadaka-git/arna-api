@@ -6,7 +6,7 @@ on:
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
-    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api]
+    branches: [main, feat/admin-a3-route-separation, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - ".github/workflows/arna-a4-synthetic-backup-restore.yml"
@@ -43,6 +43,11 @@ on:
       - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/**"
       - "app/Http/Controllers/PersonController.php"
+      - "app/Http/Controllers/PeopleSupplementController.php"
+      - "app/Http/Controllers/CommunicationConversationController.php"
+      - "app/Services/PeopleSupplementService.php"
+      - "app/Services/CommunicationConversationService.php"
+      - "tests/Feature/CommunicationPeopleSupplementTest.php"
       - "app/Http/Controllers/PublicContentController.php"
       - "mases_core/src/Domains/PublicContent/**"
       - "tests/Feature/PublicContentModerationTest.php"
