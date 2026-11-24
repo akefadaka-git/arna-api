@@ -208,6 +208,7 @@ final class RolePermissionGrants
      */
     public const WILDCARD_EXCLUSIONS = [
         'people.workforce.view', 'dashboard.finance.executive.view',
+        'finance.governance_settlement.execute', 'finance.governance_settlement.execute.app',
     ];
 
     public const MAP = [
