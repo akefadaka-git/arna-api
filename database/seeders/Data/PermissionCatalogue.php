@@ -213,5 +213,15 @@ final class PermissionCatalogue
             // CEO/President use tenant scope; Finance Manager uses the Finance-application-scoped entry below.
             ['slug' => 'dashboard.executive.view', 'name_am' => 'የአስፈጻሚ አጠቃላይ እይታ ማየት', 'name_en' => 'View Executive Overview', 'category' => 'dashboard', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'dashboard.finance.executive.view', 'name_am' => 'የፋይናንስ አፕሊኬሽን አስፈጻሚ አጠቃላይ እይታ ማየት', 'name_en' => 'View Finance Executive Overview', 'category' => 'dashboard', 'scope' => 'application', 'is_system' => false],
+        ['slug' => 'people.contact.view', 'name_am' => 'የሰው የመገናኛ መረጃ ማየት', 'name_en' => 'View Person Contact Points', 'category' => 'people', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'people.contact.manage', 'name_am' => 'የሰው የመገናኛ መረጃ ማስተዳደር', 'name_en' => 'Manage Person Contact Points', 'category' => 'people', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'people.relationship.view', 'name_am' => 'የሰዎች ግንኙነት ማየት', 'name_en' => 'View Person Relationships', 'category' => 'people', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'people.relationship.manage', 'name_am' => 'የሰዎች ግንኙነት ማስተዳደር', 'name_en' => 'Manage Person Relationships', 'category' => 'people', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'people.participation.view', 'name_am' => 'የሰው ተሳትፎ ማየት', 'name_en' => 'View Person Participations', 'category' => 'people', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'people.participation.manage', 'name_am' => 'የሰው ተሳትፎ ማስተዳደር', 'name_en' => 'Manage Person Participations', 'category' => 'people', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'communication.conversation.view', 'name_am' => 'ውይይቶችን ማየት', 'name_en' => 'View Conversations', 'category' => 'communication', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'communication.conversation.create', 'name_am' => 'ውይይት መፍጠር', 'name_en' => 'Create Conversations', 'category' => 'communication', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'communication.message.send', 'name_am' => 'መልዕክት መላክ', 'name_en' => 'Send Conversation Messages', 'category' => 'communication', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'communication.message.read', 'name_am' => 'የመልዕክት ንባብ ማረጋገጥ', 'name_en' => 'Record Message Read Receipts', 'category' => 'communication', 'scope' => 'tenant', 'is_system' => false],
 ];
 }
