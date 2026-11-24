@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Admin;
+namespace App\Http\Controllers\Admin;
 
-use App\\Http\\Controllers\\Controller;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Exceptions\\AuthenticationException;
-use MaaleArna\\MASES\\Core\\Exceptions\\TenantException;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\TenantMembership;
-use MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantContextService;
-use MaaleArna\\MASES\\Core\\Tenancy\\Services\\TenantMembershipService;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
+use MaaleArna\MASES\Core\Exceptions\TenantException;
+use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantMembershipService;
 
 final class TenantMembershipAdminController extends Controller
 {
