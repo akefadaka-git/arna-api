@@ -319,7 +319,7 @@ final class Role extends Model
         // Enforce the selected current-main scope model before any pivot write.
         // A tenant role may only carry permissions bound to that same tenant;
         // an application role may only carry permissions bound to that app.
-        $permissionsById = Permission::query()->whereIn('id', $permissionIds)->get();
+        $permissionsById = Permission::query()->whereIn('id', $permissionIds)->where('is_active', true)->get();
         if ($permissionsById->count() !== count($permissionIds)) {
             throw new \InvalidArgumentException('One or more role permissions do not exist.');
         }
