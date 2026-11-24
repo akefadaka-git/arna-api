@@ -319,13 +319,22 @@ final class TenantRoleOwnerApprovalTest extends TestCase
             'permission_slugs' => [],
             'reason' => 'Altered payload must fail closed',
         ]);
-        DB::table('admin_owner_approval_challenges')
+        // Challenge evidence is append-only at the database layer. Insert a
+        // corrupted persisted record to exercise the service's independent
+        // payload-hash check without disabling or bypassing that invariant.
+        $stored = DB::table('admin_owner_approval_challenges')
             ->where('tenant_id', $tenant->id)
             ->where('challenge_uuid', $challenge['challenge_id'])
-            ->update(['canonical_payload' => $challenge['canonical_payload'] . ' ']);
+            ->firstOrFail();
+        $tampered = (array) $stored;
+        unset($tampered['id']);
+        $tamperedChallengeId = (string) \Illuminate\Support\Str::uuid();
+        $tampered['challenge_uuid'] = $tamperedChallengeId;
+        $tampered['canonical_payload'] = (string) $tampered['canonical_payload'] . ' ';
+        DB::table('admin_owner_approval_challenges')->insert($tampered);
 
         try {
-            $service->execute($actor, (int) $tenant->id, $challenge['challenge_id'], $evidence);
+            $service->execute($actor, (int) $tenant->id, $tamperedChallengeId, $evidence);
             $this->fail('An altered stored challenge payload must be rejected.');
         } catch (\Illuminate\Auth\Access\AuthorizationException) {
             $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
