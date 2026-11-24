@@ -27,6 +27,6 @@ final class AdminDomainRegistryRouteTest extends TestCase
         $this->assertStringContainsString("'ownership_state' => 'not_verified'", $controller);
         $this->assertStringContainsString("'dns_state' => 'not_observed'", $controller);
         $this->assertStringContainsString("'tls_state' => 'not_observed'", $controller);
-        $this->assertStringContainsString("'live_mutations_enabled' => false", $controller);
+        $this->assertStringContainsString("'live_provider_mutations_enabled' => false", $controller);
     }
 }
