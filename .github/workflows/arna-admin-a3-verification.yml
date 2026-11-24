@@ -17,6 +17,7 @@ on:
       - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
       - "tests/Feature/TenantRoleOwnerApprovalTest.php"
       - "tests/Feature/AdminOwnerTrustAnchorSeederTest.php"
+      - "tests/Feature/ExecutiveOverviewA4FreshAuthorizationTest.php"
       - "database/seeders/AdminOwnerApprovalTrustAnchorSeeder.php"
       - "database/migrations/2026_11_24_090000_create_admin_owner_approval_evidence_tables.php"
       - "docs/security/ARNA-ADMIN-OWNER-APPROVAL-EVIDENCE-V1.md"
@@ -160,4 +161,7 @@ jobs:
           php artisan test --compact tests/Feature/RolePermissionScopeCompatibilityTest.php
           php artisan test --compact tests/Feature/TenantRoleOwnerApprovalTest.php
           php artisan test --compact tests/Feature/AdminOwnerTrustAnchorSeederTest.php
+
+      - name: Run Executive Overview fresh-authorization and tenant-isolation regressions
+        run: php artisan test --compact tests/Feature/ExecutiveOverviewA4FreshAuthorizationTest.php
 
