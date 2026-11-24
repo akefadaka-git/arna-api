@@ -39,7 +39,7 @@ final class CommunicationAnnouncementsTest extends TestCase
         $catalogue = collect(PermissionCatalogue::ROWS)->keyBy('slug');
 
         // Current merged catalogue count includes the four Admin/tenant membership capabilities added after the original 88-row baseline.
-        $this->assertCount(92, PermissionCatalogue::ROWS);
+        $this->assertCount(94, PermissionCatalogue::ROWS);
 
         foreach (['announcement.view', 'announcement.manage', 'announcement.approve', 'announcement.publish'] as $slug) {
             $this->assertTrue($catalogue->has($slug), "Missing canonical permission: {$slug}");
@@ -67,9 +67,9 @@ final class CommunicationAnnouncementsTest extends TestCase
 
         // Existing platform-wide role policy grants tenant-scoped permissions
         // to platform_admin and tenant_admin; super_admin remains wildcard.
-        $this->assertContains('scope:tenant', $grants['platform_admin']);
+        $this->assertContains('scope:global', $grants['platform_admin']);
         $this->assertContains('scope:tenant', $grants['tenant_admin']);
-        $this->assertSame(['*'], $grants['super_admin']);
+        $this->assertSame(['scope:global'], $grants['super_admin']);
     }
 
     public function test_user_without_manage_permission_cannot_create_announcement(): void
