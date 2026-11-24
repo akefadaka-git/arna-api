@@ -12,7 +12,11 @@ on:
       - "mases_core/src/Tenancy/**"
       - "routes/api.php"
       - "tests/Feature/Admin*RouteOwnershipTest.php"
-      - "tests/Feature/TenantMembershipLifecycleTest.php"\n      - "tests/Feature/AuthorizationTenantCacheInvalidationTest.php"\n      - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
+      - "tests/Feature/TenantMembershipLifecycleTest.php"
+      - "tests/Feature/AuthorizationTenantCacheInvalidationTest.php"
+      - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
+      - "tests/Feature/AuthorizationTenantCacheInvalidationTest.php"
+      - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
   pull_request:
     branches: [main]
     paths:
@@ -24,6 +28,8 @@ on:
       - "routes/api.php"
       - "tests/Feature/Admin*RouteOwnershipTest.php"
       - "tests/Feature/TenantMembershipLifecycleTest.php"
+      - "tests/Feature/AuthorizationTenantCacheInvalidationTest.php"
+      - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
 
 permissions:
   contents: read
@@ -139,3 +145,8 @@ jobs:
 
       - name: Run tenant membership lifecycle and audit atomicity tests
         run: php artisan test --compact tests/Feature/TenantMembershipLifecycleTest.php
+
+      - name: Run tenant RBAC scope and targeted cache invalidation tests
+        run: |
+          php artisan test --compact tests/Feature/AuthorizationTenantCacheInvalidationTest.php
+          php artisan test --compact tests/Feature/RolePermissionScopeCompatibilityTest.php
