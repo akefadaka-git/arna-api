@@ -221,26 +221,15 @@ final class TenantMembershipLifecycleTest extends TestCase
         );
     }
 
-    public function test_membership_suspension_invalidates_only_the_members_tenant_permission_cache(): void
+    public function test_membership_suspension_advances_only_the_members_tenant_permission_generation(): void
     {
         [$tenant, $member, $actor] = $this->createMembership();
 
         $cache = Cache::store();
-        $tenantKey = sprintf(
-            'auth:permission:%d:tenant.membership.manage:%d:null',
-            $member->id,
-            $tenant->id,
-        );
-        $otherTenantKey = sprintf(
-            'auth:permission:%d:tenant.membership.manage:%d:null',
-            $member->id,
-            $tenant->id + 1000,
-        );
-        $registryKey = 'auth:user_keys:' . $member->id;
-
-        $cache->put($tenantKey, true, 300);
-        $cache->put($otherTenantKey, true, 300);
-        $cache->put($registryKey, [$tenantKey, $otherTenantKey], 600);
+        $tenantVersionKey = sprintf('auth:user_tenant_version:%d:%d', $member->id, $tenant->id);
+        $otherTenantVersionKey = sprintf('auth:user_tenant_version:%d:%d', $member->id, $tenant->id + 1000);
+        $cache->put($tenantVersionKey, 0, 31536000);
+        $cache->put($otherTenantVersionKey, 0, 31536000);
 
         app(TenantMembershipService::class)->suspend(
             (int) $tenant->id,
@@ -249,10 +238,10 @@ final class TenantMembershipLifecycleTest extends TestCase
             'Cache invalidation regression',
         );
 
-        $this->assertNull($cache->get($tenantKey));
-        $this->assertTrue($cache->get($otherTenantKey));
-        $this->assertSame([$otherTenantKey], $cache->get($registryKey));
+        $this->assertSame(1, $cache->get($tenantVersionKey));
+        $this->assertSame(0, $cache->get($otherTenantVersionKey));
     }
+
 
     /** @return array{Tenant, User, User} */
     private function createMembership(string $status = TenantMembership::STATUS_ACTIVE): array
