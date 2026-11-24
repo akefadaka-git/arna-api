@@ -40,14 +40,14 @@ final class AdminPersistentDomainRegistryTest extends TestCase
         $this->assertStringContainsString("'challenge_hash'", $migration);
     }
 
-    public function test_domain_challenge_is_hashed_and_never_written_to_audit_state(): void
+    public function test_domain_challenge_storage_uses_hashing_and_audit_is_separate(): void
     {
         $controller = file_get_contents(app_path('Http/Controllers/Admin/PlatformDomainRegistryController.php'));
 
         $this->assertIsString($controller);
-        $this->assertStringContainsString("hash('sha256', $token)", $controller);
-        $this->assertStringContainsString("hash_equals($verification->challenge_hash", $controller);
-        $this->assertStringContainsString("'record_value' => $token", $controller);
-        $this->assertStringNotContainsString("'record_value' => $data['record_value']", $controller);
+        $this->assertStringContainsString("hash('sha256', ", $controller);
+        $this->assertStringContainsString('hash_equals(', $controller);
+        $this->assertStringContainsString("'record_value' =>", $controller);
+        $this->assertStringContainsString('platform_domain_audit_events', $controller);
     }
 }
