@@ -260,6 +260,8 @@ final class RolePermissionGrants
             ...DocumentsRolePermissionGrants::MAP['secretary'],
             'calendar.view', 'calendar.create', 'calendar.update',
             'app.portal.access', 'user.profile.view', 'announcement.view', 'announcement.manage',
+            'communication.conversation.view', 'communication.conversation.create',
+            'communication.message.send', 'communication.message.read',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
         'cashier'         => FinanceRolePermissionGrants::MAP['cashier'],
