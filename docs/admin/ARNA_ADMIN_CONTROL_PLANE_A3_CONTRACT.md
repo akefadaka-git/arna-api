@@ -93,6 +93,16 @@ Permission seeds should follow existing slug conventions and be additive. Initia
 - `admin.domains.routing.view`, `admin.domains.routing.manage`
 - `admin.domains.security.view`, `admin.domains.security.manage`
 
+Implemented global read permissions in this branch:
+- `platform.overview.read`
+- `platform.applications.read`
+- `platform.identity.read`
+- `platform.rbac.read`
+- `platform.tenancy.read`
+- `platform.domains.read`
+
+These are distinct from the proposed `admin.*` permission namespace below. They are additive to the current RBAC catalogue and are granted by the existing platform-scope grant policy; no new RBAC tables are introduced.
+
 These are proposed additions, not proof that the slugs already exist. Before seeding or attaching route middleware, reconcile naming against the current permission catalogue and the Owner-approved RBAC implementation.
 
 ## 7. Audit requirements
