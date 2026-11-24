@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Authorization\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -235,7 +236,9 @@ final class Role extends Model
             : Permission::where('slug', $permission)->value('id');
 
         if ($permissionId && !$this->permissions()->where('permission_id', $permissionId)->exists()) {
-            $this->permissions()->attach($permissionId, ['assigned_at' => now()]);
+            $ids = $this->permissions()->pluck('permissions.id')->all();
+            $ids[] = (int) $permissionId;
+            $this->syncPermissions($ids);
         }
 
         return $this;
@@ -254,7 +257,9 @@ final class Role extends Model
             : Permission::where('slug', $permission)->value('id');
 
         if ($permissionId) {
-            $this->permissions()->detach($permissionId);
+            $ids = $this->permissions()->where('permissions.id', '!=', $permissionId)
+                ->pluck('permissions.id')->all();
+            $this->syncPermissions($ids);
         }
 
         return $this;
@@ -304,17 +309,19 @@ final class Role extends Model
             return $permission;
         })->filter()->unique()->values()->all();
 
-        $this->permissions()->sync($permissionIds);
+        DB::transaction(function () use ($permissionIds): void {
+            $this->permissions()->sync($permissionIds);
 
-        // Announce the mutation so registered listeners can invalidate
-        // any cached authorization answers belonging to the users who
-        // hold this role. The event is inert until a listener is
-        // registered against it (see D-11d).
-        RolePermissionsChanged::dispatch(
-            roleId: $this->id,
-            roleSlug: $this->slug,
-            permissionIds: $permissionIds,
-        );
+            // Cache invalidation runs synchronously inside the transaction.
+            // A failure propagates and rolls back the permission pivot change.
+            RolePermissionsChanged::dispatch(
+                roleId: $this->id,
+                roleSlug: $this->slug,
+                permissionIds: $permissionIds,
+                scope: (string) $this->scope,
+                tenantId: $this->tenant_id,
+            );
+        });
 
         return $this;
     }
