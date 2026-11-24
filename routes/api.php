@@ -721,7 +721,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
     // Read-only Executive Overview; the controller enforces the frozen role audience
     // and independently authorizes each Finance widget against the current tenant.
     Route::get('/dashboard/v1/overview', [\App\Http\Controllers\ExecutiveOverviewController::class, 'show'])
-        ->middleware(['auth.permission:dashboard.executive.view', 'throttle:60,1'])
+        ->middleware(['throttle:60,1'])
         ->name('api.dashboard.executive-overview');
 
     // -------------------------------------------------------------------------
