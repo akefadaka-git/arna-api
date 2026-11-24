@@ -592,6 +592,36 @@ Route::middleware(['auth:sanctum', 'auth.permission:platform.tenancy.read'])
     });
 
 // =============================================================================
+// Tenant Admin Control Plane — tenant-bound membership lifecycle
+// =============================================================================
+// Unlike platform-wide reads, these operations require a resolved active tenant,
+// active membership of the acting administrator, and a tenant-scoped permission.
+// No tenant identifier is accepted in the route or request body.
+Route::middleware([
+    'auth:sanctum',
+    'tenant.membership',
+    'auth.permission:tenant.membership.manage',
+])
+    ->prefix('admin/tenant/memberships/users')
+    ->name('api.admin.tenant.memberships.users.')
+    ->group(static function (): void {
+        $controller = TenantMembershipAdminController::class;
+
+        Route::post('/{user}', [$controller, 'attach'])
+            ->whereNumber('user')
+            ->name('attach');
+        Route::post('/{user}/suspend', [$controller, 'suspend'])
+            ->whereNumber('user')
+            ->name('suspend');
+        Route::post('/{user}/reactivate', [$controller, 'reactivate'])
+            ->whereNumber('user')
+            ->name('reactivate');
+        Route::post('/{user}/revoke', [$controller, 'revoke'])
+            ->whereNumber('user')
+            ->name('revoke');
+    });
+
+// =============================================================================
 // Corporate Site CMS Administration — platform-wide, permission-gated
 // =============================================================================
 Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
