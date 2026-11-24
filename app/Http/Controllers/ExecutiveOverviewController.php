@@ -232,4 +232,5 @@ final class ExecutiveOverviewController
                     ->where('permissions.is_active', true);
             })
             ->exists();
-    }}
+    }
+}
