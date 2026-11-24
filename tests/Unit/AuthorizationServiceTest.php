@@ -127,6 +127,24 @@ final class AuthorizationServiceTest extends TestCase
         $this->assertTrue($has);
     }
 
+    #[Test]
+    public function clearing_user_cache_advances_generation_and_removes_stale_positive_result(): void
+    {
+        $permission = Permission::factory()->create([
+            'slug' => 'cache.revocation.test',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'application_id' => null,
+        ]);
+        $this->user->permissions()->attach($permission->id);
+
+        $this->assertTrue($this->service->hasPermission('cache.revocation.test', $this->user));
+        $this->user->permissions()->detach($permission->id);
+        $this->service->clearUserCache($this->user);
+
+        $this->assertFalse($this->service->hasPermission('cache.revocation.test', $this->user));
+    }
+
     // =========================================================================
     // requirePermission – correct order: slug first, user second
     // =========================================================================

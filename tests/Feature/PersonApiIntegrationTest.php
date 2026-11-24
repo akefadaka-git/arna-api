@@ -548,6 +548,7 @@ final class PersonApiIntegrationTest extends TestCase
             'category' => 'user',
             'scope' => 'tenant',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
             'is_system' => false,
         ]);

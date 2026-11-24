@@ -8,191 +8,38 @@ use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionG
 use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsRolePermissionGrants;
 
 /**
- * RolePermissionGrants
+ * Canonical role-to-permission grant catalogue.
  *
- * The mapping of which permissions each of the twelve platform roles
- * holds. This is the join-table data the seeder writes into the
- * role-to-permission pivot; the pivot's name is discovered from the
- * Role model at runtime (typically `role_has_permissions` or
- * `permission_role`), not hardcoded here.
+ * Revision 1.2.0 records the approved platform/tenant/application scope matrix:
+ * - Platform roles receive global permissions only.
+ * - Tenant roles receive global and shared/same-tenant tenant permissions.
+ * - Application roles receive global and same-application permissions, with
+ *   tenant binding shared/null or matching the role tenant.
  *
- * =============================================================================
- * Revision history
- * =============================================================================
- * 1.0.0  — initial delivery (Unit S-6). Extracted from MasesCoreSeeder
- *          during the seeder refactoring. Twelve roles, three grant-
- *          spec forms ('*', 'scope:{scope}', literal slugs).
+ * Current scope-sensitive grants:
+ * - super_admin and platform_admin use scope:global; neither is a wildcard role.
+ * - tenant_admin uses scope:tenant, with sensitive permissions excluded below.
+ * - finance_manager is Finance-application-scoped and receives Finance app
+ *   permissions plus dashboard.finance.executive.view.
+ * - hr_manager is HR-application-scoped.
+ * - cashier retains the tenant-scoped Finance settlement execute permission.
+ * - Finance Manager receives the separate Finance-app-scoped settlement
+ *   execute variant.
  *
- * 1.1.0  — platform_admin application access reconciliation (Unit C-1):
- *          · The `platform_admin` grant gains three explicit
- *            application-access slugs:
+ * Scope wildcards are convenience grant specs, not scope relaxations. Every
+ * resolved grant is passed through Role::syncPermissions(), which enforces the
+ * model-level compatibility matrix. Sensitive audience and settlement grants
+ * are excluded from wildcards and assigned only by explicit role grants.
  *
- *              app.admin.access
- *              app.app.access
- *              app.launcher.access
+ * Supported grant forms:
+ * - '*' (legacy syntax; no current role uses it)
+ * - 'scope:global', 'scope:tenant', 'scope:application'
+ * - literal permission slug
  *
- *          · The three form the "platform-operation" subset of the
- *            register — the applications that serve the platform's
- *            own operation, as distinct from the four end-user
- *            applications (portal, finance, hr, arna). Prior to this
- *            revision, platform_admin held no application access at
- *            all, and a user with only that role saw an empty
- *            launcher.
- *
- *          · The change preserves the role hierarchy: super_admin
- *            remains the only role with universal access (its ['*']
- *            wildcard resolves to every current PermissionCatalogue row), and the four
- *            end-user applications remain exclusive to the roles
- *            whose purpose they serve (tenant_admin for the tenant-
- *            scoped grants, and the end-user roles for their own).
- *
- *          · No other role's grant changed. The other eleven roles'
- *            specs are byte-for-byte identical to 1.0.0.
- *
- *          · MINOR version bump. The change is additive to one role's
- *            grant spec; the file's shape, the three grant-spec
- *            forms, and every other role's definition are unchanged.
- *
- *          · RE-ISSUED after the launcher-track validation's Layer 3.5
- *            reported platform_admin with zero app_access slugs. The
- *            file's content is byte-for-byte identical to the original
- *            1.1.0 delivery. The re-issue exists so that the operator
- *            can be certain of the file state before re-seeding; no
- *            code changed.
- *
- * =============================================================================
- * What this class is — and is not
- * =============================================================================
- * This is a DATA class. It contains no logic, no queries, and no side
- * effects. It exists so that the grant map — the answer to "what can
- * each role do?" — lives in a file whose contents can be reviewed and
- * corrected independently of the seeding algorithm.
- *
- * =============================================================================
- * The grant-spec vocabulary
- * =============================================================================
- * A grant spec is a STRING. Three forms are recognised by the seeder:
- *
- *   1. '*' — the wildcard grant. Matches every permission in the
- *            catalogue.
- *
- *      Used by: super_admin.
- *
- *   2. 'scope:{scope}' — the scope grant. Matches every permission
- *                        in the catalogue whose `scope` field equals
- *                        the named scope. The scope names are the
- *                        three values defined by PermissionCatalogue:
- *
- *                          scope:global
- *                          scope:tenant
- *                          scope:application
- *
- *      Used by: platform_admin (scope:global, scope:tenant),
- *               tenant_admin (scope:tenant).
- *
- *   3. A literal permission slug — the exact grant. Matches the one
- *      permission whose slug equals the string. Every slug used
- *      below is defined in PermissionCatalogue; a slug that does not
- *      resolve to a permission is silently skipped by the seeder.
- *
- *      Used by: every role except super_admin.
- *
- * =============================================================================
- * The form is a map, keyed by role slug
- * =============================================================================
- * This constant is a MAP keyed by role slug, matching the shape of
- * RoleCatalogue (Unit S-5). Each value is an integer-indexed list of
- * grant specs, which may mix all three forms above.
- *
- * The outer keys MUST match the role slugs defined in RoleCatalogue.
- *
- * =============================================================================
- * Precedence and deduplication
- * =============================================================================
- * When a role's grant list mixes forms, the resulting permission list
- * is the UNION of everything matched. Duplicates are removed by the
- * seeder's resolvePermissionIds method before the pivot sync.
- *
- * =============================================================================
- * The twelve roles and their grant strategy
- * =============================================================================
- *   super_admin     — '*'              : every permission
- *
- *   platform_admin  — scope:global + scope:tenant
- *                     + app.admin.access + app.app.access
- *                     + app.launcher.access
- *                                      : the two non-application scopes
- *                                        plus the three platform-operation
- *                                        applications
- *
- *   tenant_admin    — scope:tenant + every 'app.*.access'
- *                                      : everything scoped to a tenant,
- *                                        plus explicit access to all
- *                                        seven applications
- *
- *   manager         — a hand-picked list: profile, user list, read-only
- *                                       files, and three application
- *                                       accesses (finance, hr, portal)
- *
- *   finance_manager — finance application access + the four file
- *                                       permissions needed for the
- *                                       finance workflow
- *
- *   hr_manager      — hr application access + the same four file
- *                                       permissions
- *
- *   shareholder     — portal access + own profile + read-only files
- *
- *   board           — portal and finance access + profile + read-only
- *                                       files
- *
- *   president       — as board, plus admin application access, user
- *                                       list, and the two list-read
- *                                       permissions for roles and
- *                                       permissions
- *
- *   secretary       — portal access + profile + files including upload
- *                                       and update
- *
- *   cashier         — finance access + profile + files including upload
- *
- *   ceo             — the four application accesses + profile, user
- *                                       list, user create/update, role
- *                                       list, permission list, and files
- *                                       including upload and update
- *
- * =============================================================================
- * The platform-operation subset
- * =============================================================================
- * The three applications granted to platform_admin by Unit C-1 are
- * the "platform-operation" subset of the register:
- *
- *   app.admin.access    — Administration.
- *   app.app.access      — MASES Workspace.
- *   app.launcher.access — Application Launcher.
- *
- * The four end-user applications — portal, finance, hr, arna — are
- * deliberately excluded. A platform administrator's job is
- * administering the platform, not using the applications that serve
- * the platform's user base.
- *
- * =============================================================================
- * What this class deliberately does NOT do
- * =============================================================================
- *   - It does NOT validate. A grant spec that names a permission that
- *     does not exist in the catalogue is silently skipped by the
- *     seeder.
- *
- *   - It does NOT enumerate the resolved permissions per role. That
- *     is the seeder's job.
- *
- *   - It does NOT carry the pivot's table name.
- *
- *   - It does NOT reference application access permissions by any
- *     shorthand.
- *
- * @package Database\Seeders\Data
+ * @see FinanceRolePermissionGrants
+ * @see RolePermissionSeeder
  */
+
 final class RolePermissionGrants
 {
     /**
@@ -207,46 +54,43 @@ final class RolePermissionGrants
      * @var array<int, string>
      */
     public const WILDCARD_EXCLUSIONS = [
-        'people.workforce.view',
+        'people.workforce.view', 'dashboard.finance.executive.view',
+        'finance.governance_settlement.execute', 'finance.governance_settlement.execute.app',
     ];
 
     public const MAP = [
-        'super_admin'     => ['*'],
+        'super_admin'     => ['scope:global'],
         'platform_admin'  => [
-            'scope:global', 'scope:tenant',
-            'app.admin.access', 'app.app.access', 'app.launcher.access',
+            'scope:global',
         ],
         'tenant_admin'    => [
             'scope:tenant',
-            'app.portal.access', ...FinanceRolePermissionGrants::MAP['tenant_admin'], 'app.hr.access',
-            'app.admin.access', 'app.arna.access', 'app.app.access', 'app.launcher.access',
         ],
         'manager'         => [
             ...DocumentsRolePermissionGrants::MAP['manager'],
             'calendar.view', 'calendar.create', 'calendar.update',
             'user.profile.view', 'user.list',
             'file.list', 'file.view', 'file.download', 'announcement.view',
-            ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
+            // Finance application access is assigned only to an application-scoped role.
         ],
-        'finance_manager' => [...FinanceRolePermissionGrants::MAP['finance_manager'], 'dashboard.executive.view'],
+        'finance_manager' => [...FinanceRolePermissionGrants::MAP['finance_manager'], 'dashboard.finance.executive.view'],
         'hr_manager'      => [
             'app.hr.access',
-            'file.upload', 'file.download', 'file.view', 'file.list',
             'user.profile.view',
         ],
         'shareholder'     => [
-            'calendar.view', 'app.portal.access', 'user.profile.view',
+            'calendar.view', 'user.profile.view',
             'file.view', 'file.list', 'file.download',
         ],
         'board'           => [
             ...DocumentsRolePermissionGrants::MAP['board'],
-            'calendar.view', 'app.portal.access', ...FinanceRolePermissionGrants::MAP['board'],
+            'calendar.view',
             'user.profile.view',
             'file.view', 'file.list', 'file.download',
         ],
         'president'       => [
             ...DocumentsRolePermissionGrants::MAP['president'],
-            'calendar.view', 'app.portal.access', ...FinanceRolePermissionGrants::MAP['president'], 'app.admin.access',
+            'calendar.view',
             'user.profile.view', 'user.list',
             'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish',
             'role.list', 'permission.list', 'dashboard.executive.view',
@@ -254,14 +98,14 @@ final class RolePermissionGrants
         'secretary'       => [
             ...DocumentsRolePermissionGrants::MAP['secretary'],
             'calendar.view', 'calendar.create', 'calendar.update',
-            'app.portal.access', 'user.profile.view', 'announcement.view', 'announcement.manage',
+            'user.profile.view', 'announcement.view', 'announcement.manage',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
         'cashier'         => FinanceRolePermissionGrants::MAP['cashier'],
         'ceo'             => [
             ...DocumentsRolePermissionGrants::MAP['ceo'],
             'calendar.view', 'calendar.create', 'calendar.update', 'calendar.reserve',
-            'app.portal.access', ...FinanceRolePermissionGrants::MAP['ceo'], 'app.hr.access', 'app.admin.access',
+            ...FinanceRolePermissionGrants::MAP['ceo'],
             'user.profile.view', 'user.list', 'user.create', 'user.update',
             'role.list', 'permission.list', 'dashboard.executive.view',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',

@@ -150,6 +150,9 @@ use App\Http\Controllers\CorporateSiteEntryController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\LocalePreferenceController;
 use App\Http\Controllers\CommunicationAnnouncementController;
+use App\Http\Controllers\Admin\AdminControlPlaneController;
+use App\Http\Controllers\Admin\TenantMembershipAdminController;
+use App\Http\Controllers\Admin\TenantRoleOwnerApprovalController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
@@ -555,6 +558,94 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
 });
 
 // =============================================================================
+// Platform Admin Control Plane — global read-only administration
+// =============================================================================
+// These endpoints intentionally bypass tenant.membership because they expose
+// platform-wide records. Each endpoint has its own global permission boundary.
+// Tenant-scoped permissions (user.list, role.list, permission.list) do not grant
+// access to these platform-wide views.
+Route::middleware(['auth:sanctum', 'auth.permission:platform.identity.read'])
+    ->prefix('admin/platform/identity')
+    ->name('api.admin.platform.identity.')
+    ->group(static function (): void {
+        Route::get('/users', [AdminControlPlaneController::class, 'users'])
+            ->name('users.index');
+    });
+
+Route::middleware(['auth:sanctum', 'auth.permission:platform.rbac.read'])
+    ->prefix('admin/platform/rbac')
+    ->name('api.admin.platform.rbac.')
+    ->group(static function (): void {
+        Route::get('/roles', [AdminControlPlaneController::class, 'roles'])
+            ->name('roles.index');
+        Route::get('/permissions', [AdminControlPlaneController::class, 'permissions'])
+            ->name('permissions.index');
+    });
+
+Route::middleware(['auth:sanctum', 'auth.permission:platform.tenancy.read'])
+    ->prefix('admin/platform/tenants')
+    ->name('api.admin.platform.tenants.')
+    ->group(static function (): void {
+        Route::get('/', [AdminControlPlaneController::class, 'tenants'])
+            ->name('index');
+        Route::get('/{tenant}/memberships', [AdminControlPlaneController::class, 'memberships'])
+            ->whereNumber('tenant')
+            ->name('memberships.index');
+    });
+
+// =============================================================================
+// Tenant Admin Control Plane — tenant-bound membership lifecycle
+// =============================================================================
+// Unlike platform-wide reads, these operations require a resolved active tenant,
+// active membership of the acting administrator, and a tenant-scoped permission.
+// No tenant identifier is accepted in the route or request body.
+Route::middleware([
+    'auth:sanctum',
+    'tenant.membership',
+    'auth.permission:tenant.membership.manage',
+])
+    ->prefix('admin/tenant/memberships/users')
+    ->name('api.admin.tenant.memberships.users.')
+    ->group(static function (): void {
+        $controller = TenantMembershipAdminController::class;
+
+        Route::post('/{user}', [$controller, 'attach'])
+            ->whereNumber('user')
+            ->name('attach');
+        Route::post('/{user}/suspend', [$controller, 'suspend'])
+            ->whereNumber('user')
+            ->name('suspend');
+        Route::post('/{user}/reactivate', [$controller, 'reactivate'])
+            ->whereNumber('user')
+            ->name('reactivate');
+        Route::post('/{user}/revoke', [$controller, 'revoke'])
+            ->whereNumber('user')
+            ->name('revoke');
+    });
+
+// =============================================================================
+// Tenant RBAC — consequential mutations require one-use Owner-signed evidence
+// =============================================================================
+// This permission only allows an administrator to request an approval challenge.
+// The challenge is bound to the exact actor, target, role, permission set and reason.
+// No role or permission mutation occurs until the trusted Owner's Ed25519 signature
+// verifies against the server-issued canonical payload.
+Route::middleware([
+    'auth:sanctum',
+    'tenant.membership',
+    'auth.permission:tenant.membership.manage',
+])
+    ->prefix('admin/tenant/rbac')
+    ->name('api.admin.tenant.rbac.')
+    ->group(static function (): void {
+        Route::post('/approval-challenges', [TenantRoleOwnerApprovalController::class, 'challenge'])
+            ->name('approval-challenges.create');
+        Route::post('/approval-challenges/{challenge}/execute', [TenantRoleOwnerApprovalController::class, 'execute'])
+            ->whereUuid('challenge')
+            ->name('approval-challenges.execute');
+    });
+
+// =============================================================================
 // Corporate Site CMS Administration — platform-wide, permission-gated
 // =============================================================================
 Route::middleware(['auth:sanctum', 'auth.permission:public-content.review'])
@@ -630,7 +721,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
     // Read-only Executive Overview; the controller enforces the frozen role audience
     // and independently authorizes each Finance widget against the current tenant.
     Route::get('/dashboard/v1/overview', [\App\Http\Controllers\ExecutiveOverviewController::class, 'show'])
-        ->middleware(['auth.permission:dashboard.executive.view', 'throttle:60,1'])
+        ->middleware(['throttle:60,1'])
         ->name('api.dashboard.executive-overview');
 
     // -------------------------------------------------------------------------

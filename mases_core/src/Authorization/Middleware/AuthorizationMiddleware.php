@@ -7,7 +7,9 @@ namespace MaaleArna\MASES\Core\Authorization\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use MaaleArna\MASES\Core\Events\AuthorizationFailureEvent;
 use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
 
@@ -37,6 +39,9 @@ use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
  *   2. Two-parameter form (explicit, for advanced use):
  *
  *          ->middleware('auth.permission:permission,finance.transaction.create')
+ *
+ *      Multiple permission alternatives may be separated with `|`; any one
+ *      matching the active tenant/application context is sufficient.
  *
  * -----------------------------------------------------------------------------
  * Named arguments for AuthorizationService
@@ -132,7 +137,9 @@ final class AuthorizationMiddleware
         // ---------------------------------------------------------------------
         // 2. Resolve the authenticated user.
         // ---------------------------------------------------------------------
-        $user = auth()->user();
+        // Use the authenticated principal resolved for this request/guard.
+        // auth()->user() can resolve a different default guard than auth:sanctum.
+        $user = $request->user('sanctum');
 
         if (!$user) {
             $this->emitFailureEvent(
@@ -151,14 +158,18 @@ final class AuthorizationMiddleware
         // ---------------------------------------------------------------------
         // 3. Perform the check (named arguments — see class docblock).
         // ---------------------------------------------------------------------
-        $tenantId = mases_tenant_id();
+        // Read the middleware-owned context directly. The helper memoizes by
+        // Request instance and can be stale in long-lived/test request reuse.
+        // This service value is populated by TenantContextMiddleware and never
+        // comes from an untrusted request selector.
+        $tenantId = app(TenantContextService::class)->getTenantId();
         $applicationSlug = $this->resolveApplicationSlug($request);
 
         $allowed = match ($type) {
-            'permission' => $this->authService->hasPermission(
-                permissionSlug:  $value,
-                user:            $user,
-                tenantId:        $tenantId,
+            'permission' => $this->hasAnyPermission(
+                value: $value,
+                user: $user,
+                tenantId: $tenantId,
                 applicationSlug: $applicationSlug,
             ),
             'role' => $this->authService->hasRole(
@@ -206,6 +217,31 @@ final class AuthorizationMiddleware
     // =========================================================================
     // Private helpers
     // =========================================================================
+
+    /**
+     * Check one or more alternative permission slugs. Each candidate is
+     * evaluated independently against the same trusted tenant/application
+     * context; no scope or wildcard relaxation is introduced.
+     */
+    private function hasAnyPermission(
+        string $value,
+        User $user,
+        int|string|null $tenantId,
+        ?string $applicationSlug
+    ): bool {
+        foreach (array_filter(explode('|', $value), static fn (string $slug): bool => $slug !== '') as $permissionSlug) {
+            if ($this->authService->hasPermission(
+                permissionSlug: $permissionSlug,
+                user: $user,
+                tenantId: $tenantId,
+                applicationSlug: $applicationSlug,
+            )) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /**
      * Infer the check type from the route's middleware alias.
@@ -300,6 +336,8 @@ final class AuthorizationMiddleware
      */
     private function inferActionFromPermission(string $permissionSlug): ?string
     {
+        $permissionSlug = explode('|', $permissionSlug, 2)[0];
+        $permissionSlug = explode('|', $permissionSlug, 2)[0];
         $parts = explode('.', $permissionSlug);
 
         if (count($parts) < 2) {
@@ -320,6 +358,7 @@ final class AuthorizationMiddleware
      */
     private function inferResourceFromPermission(string $permissionSlug): ?string
     {
+        $permissionSlug = explode('|', $permissionSlug, 2)[0];
         $parts = explode('.', $permissionSlug);
 
         if (count($parts) < 3) {

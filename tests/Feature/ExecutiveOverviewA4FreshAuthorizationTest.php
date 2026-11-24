@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
@@ -15,6 +14,8 @@ use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinancialReportContract;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -28,7 +29,9 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $user->tenants()->attach($tenant->id);
+        $user->tenants()->attach($tenant->id, [
+            'status' => TenantMembership::STATUS_ACTIVE,
+        ]);
 
         $application = PlatformApplication::create([
             'name_am' => 'Finance',
@@ -37,7 +40,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             'domain' => 'finance.example.test',
             'is_active' => true,
         ]);
-        $role = Role::create([
+        $applicationRole = Role::create([
             'name_am' => 'Finance Manager',
             'name_en' => 'Finance Manager',
             'slug' => 'finance_manager',
@@ -46,24 +49,43 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             'application_id' => $application->id,
             'is_active' => true,
         ]);
+        $entryPermission = Permission::factory()->create([
+            'slug' => 'dashboard.finance.executive.view',
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $application->id,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $applicationRole->syncPermissions([$entryPermission->id]);
 
         $permissions = [];
-        foreach (['dashboard.executive.view', 'finance.report.view', 'finance.entity.view'] as $slug) {
+        foreach (['finance.report.view', 'finance.entity.view'] as $slug) {
             $permissions[$slug] = Permission::factory()->create([
                 'slug' => $slug,
-                'scope' => 'tenant',
+                'scope' => 'application',
                 'tenant_id' => null,
+                'application_id' => $application->id,
                 'is_active' => true,
                 'is_system' => false,
             ]);
         }
-        $role->permissions()->attach(array_map(
-            static fn (Permission $permission): int => (int) $permission->id,
-            array_values($permissions)
-        ));
-        $user->roles()->attach($role->id);
+        $this->assertSame('application', $entryPermission->scope);
+        $this->assertSame($application->id, $entryPermission->application_id);
+        $this->assertNull($entryPermission->tenant_id);
+        $this->assertSame('application', $applicationRole->scope);
+        $this->assertSame($application->id, $applicationRole->application_id);
 
-        return [$user, $role, $permissions];
+        $applicationRole->syncPermissions([
+            $entryPermission->id,
+            ...array_map(
+                static fn (Permission $permission): int => (int) $permission->id,
+                array_values($permissions)
+            ),
+        ]);
+        $user->roles()->attach($applicationRole->id);
+
+        return [$user, $applicationRole, $permissions, $applicationRole];
     }
 
     private function configuredEntity(Tenant $tenant, string $code = 'A4-ENTITY'): LegalEntity
@@ -91,9 +113,10 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
     }
 
     #[Test]
-    public function finance_report_revocation_is_effective_even_when_a_stale_positive_cache_entry_exists(): void
+    public function finance_report_revocation_is_effective_after_authoritative_role_pivot_change(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
+        app(TenantContextService::class)->setTenantById($tenant->id);
         [$user, $role, $permissions] = $this->financeFixture($tenant);
         $this->configuredEntity($tenant);
 
@@ -101,7 +124,8 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         $this->assertTrue($authorization->hasPermission(
             'finance.report.view',
             $user,
-            (int) $tenant->id
+            (int) $tenant->id,
+            'finance'
         ));
 
         $first = $this->actingAs($user, 'sanctum')
@@ -109,22 +133,13 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             ->getJson('/api/dashboard/v1/overview');
         $first->assertOk()->assertJsonCount(1, 'data.widgets');
 
-        // Deliberately demonstrate that the legacy general-purpose cache
-        // still contains a positive answer, then prove the Executive
-        // Overview path rechecks authoritative Finance pivots.
+        // The dashboard path rechecks authoritative Finance pivots.
         $role->revokePermissionTo($permissions['finance.report.view']);
-        // Reinsert a stale positive cache result to model an invalidation
-        // listener/cache-store failure after the authoritative pivot changed.
-        $staleKey = sprintf(
-            'auth:permission:%d:finance.report.view:%s:null',
-            $user->id,
-            $tenant->id
-        );
-        Cache::put($staleKey, true, 300);
-        $this->assertTrue($authorization->hasPermission(
+        $this->assertFalse($authorization->hasPermission(
             'finance.report.view',
             $user,
-            (int) $tenant->id
+            (int) $tenant->id,
+            'finance'
         ));
 
         $afterRevocation = $this->actingAs($user, 'sanctum')
@@ -136,33 +151,26 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
 
 
     #[Test]
-    public function revoked_entry_permission_fails_closed_even_when_middleware_cache_is_stale(): void
+    public function revoked_finance_entry_permission_fails_closed_from_authoritative_role_pivot(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
-        [$user, $role, $permissions] = $this->financeFixture($tenant);
+        app(TenantContextService::class)->setTenantById($tenant->id);
+        [$user, , , $entryRole] = $this->financeFixture($tenant);
         $authorization = new AuthorizationService();
 
         $this->assertTrue($authorization->hasPermission(
-            'dashboard.executive.view',
+            'dashboard.finance.executive.view',
             $user,
-            (int) $tenant->id
+            (int) $tenant->id,
+            'finance'
         ));
 
-        $role->revokePermissionTo($permissions['dashboard.executive.view']);
-        $staleKey = sprintf(
-            'auth:permission:%d:dashboard.executive.view:%s:null',
-            $user->id,
-            $tenant->id
-        );
-        Cache::put($staleKey, true, 300);
-
-        // The generic route middleware sees the deliberately stale positive
-        // cache entry; the controller's uncached audience policy must still
-        // deny the request using the current role-permission pivot.
-        $this->assertTrue($authorization->hasPermission(
-            'dashboard.executive.view',
+        $entryRole->revokePermissionTo(Permission::query()->where('slug', 'dashboard.finance.executive.view')->firstOrFail());
+        $this->assertFalse($authorization->hasPermission(
+            'dashboard.finance.executive.view',
             $user,
-            (int) $tenant->id
+            (int) $tenant->id,
+            'finance'
         ));
 
         $response = $this->actingAs($user, 'sanctum')
@@ -371,27 +379,34 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
 
 
     #[Test]
-    public function application_scoped_finance_report_permission_does_not_satisfy_tenant_report_authorization(): void
+    public function application_scoped_finance_report_permission_authorizes_the_same_tenant_finance_manager(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         [$user, , $permissions] = $this->financeFixture($tenant);
         $this->configuredEntity($tenant);
-        $permissions['finance.report.view']->update(['scope' => 'application']);
+        $this->assertSame('application', $permissions['finance.report.view']->scope);
 
         $response = $this->actingAs($user, 'sanctum')
             ->withHeader('X-Tenant-ID', (string) $tenant->id)
             ->getJson('/api/dashboard/v1/overview');
 
-        $response->assertOk()->assertJsonPath('data.widgets', []);
+        $response->assertOk()->assertJsonPath('data.widgets.0.key', 'finance.trial_balance');
     }
 
     #[Test]
-    public function application_scoped_entity_permission_does_not_authorize_tenant_legal_entity_reads(): void
+    public function finance_entity_permission_bound_to_another_application_is_not_used_for_this_tenant(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         [$user, , $permissions] = $this->financeFixture($tenant);
         $this->configuredEntity($tenant);
-        $permissions['finance.entity.view']->update(['scope' => 'application']);
+        $otherApplication = PlatformApplication::query()->create([
+            'name_am' => 'Other application',
+            'name_en' => 'Other application',
+            'slug' => 'other-finance-test-' . uniqid(),
+            'domain' => 'other-finance-' . uniqid() . '.example.test',
+            'is_active' => true,
+        ]);
+        $permissions['finance.entity.view']->update(['application_id' => $otherApplication->id]);
 
         $response = $this->actingAs($user, 'sanctum')
             ->withHeader('X-Tenant-ID', (string) $tenant->id)

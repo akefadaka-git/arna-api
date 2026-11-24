@@ -149,6 +149,15 @@ final class RolePermissionsChanged
     public readonly array $permissionIds;
 
     /**
+     * Role scope and tenant binding used to select the invalidation boundary.
+     */
+    public readonly string $scope;
+
+    public readonly int|string|null $tenantId;
+
+    public readonly int|string|null $applicationId;
+
+    /**
      * The moment the mutation completed.
      *
      * @var DateTimeImmutable
@@ -182,6 +191,9 @@ final class RolePermissionsChanged
         int $roleId,
         string $roleSlug,
         array $permissionIds,
+        string $scope = 'platform',
+        int|string|null $tenantId = null,
+        int|string|null $applicationId = null,
         ?DateTimeImmutable $occurredAt = null
     ) {
         $this->roleId = $roleId;
@@ -189,6 +201,9 @@ final class RolePermissionsChanged
         $this->permissionIds = array_values(
             array_map(static fn (int|string $id): int => (int) $id, $permissionIds)
         );
+        $this->scope = $scope;
+        $this->tenantId = $tenantId;
+        $this->applicationId = $applicationId;
         $this->occurredAt = $occurredAt ?? new DateTimeImmutable('now');
     }
 

@@ -185,6 +185,10 @@ final class PermissionCatalogue
         ['slug' => 'tenant.create', 'name_am' => 'ቴናንት መፍጠር',        'name_en' => 'Create Tenant',  'category' => 'tenant', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'tenant.update', 'name_am' => 'ቴናንት ማዘመን',        'name_en' => 'Update Tenant',  'category' => 'tenant', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'tenant.delete', 'name_am' => 'ቴናንት መሰረዝ',        'name_en' => 'Delete Tenant',  'category' => 'tenant', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'tenant.membership.manage', 'name_am' => 'የቴናንት አባልነትን ማስተዳደር', 'name_en' => 'Manage Tenant Memberships', 'category' => 'tenant', 'scope' => 'tenant', 'is_system' => true],
+        ['slug' => 'platform.identity.read', 'name_am' => 'የመለያ ማዕከል ማየት', 'name_en' => 'View Central Identity', 'category' => 'platform_admin', 'scope' => 'global', 'is_system' => true],
+        ['slug' => 'platform.rbac.read', 'name_am' => 'የሚናና ፈቃድ ማዕከል ማየት', 'name_en' => 'View Central RBAC', 'category' => 'platform_admin', 'scope' => 'global', 'is_system' => true],
+        ['slug' => 'platform.tenancy.read', 'name_am' => 'የቴናንት ማዕከል ማየት', 'name_en' => 'View Central Tenancy', 'category' => 'platform_admin', 'scope' => 'global', 'is_system' => true],
         ['slug' => 'test.permission', 'name_am' => 'ፈቃድ መሞከር', 'name_en' => 'Test Permission', 'category' => 'test', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'people.workforce.view', 'name_am' => 'የሰው ኃይል አጠቃላይ መረጃን ማየት', 'name_en' => 'View Workforce Aggregate', 'category' => 'user', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'people.manage', 'name_am' => 'የሰው መገለጫዎችን ማስተዳደር', 'name_en' => 'Manage People Profiles', 'category' => 'user', 'scope' => 'tenant', 'is_system' => false],
@@ -193,6 +197,8 @@ final class PermissionCatalogue
         ['slug' => 'audit.view', 'name_am' => 'የኦዲት መዝገቦችን ማየት', 'name_en' => 'View Audit Logs', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'security-event.view', 'name_am' => 'የደህንነት ክስተቶችን ማየት', 'name_en' => 'View Security Events', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'security-event.resolve', 'name_am' => 'የደህንነት ክስተቶችን መፍታት', 'name_en' => 'Resolve Security Events', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
+        // Settlement execution has tenant and Finance-app variants; both are excluded from scope wildcards.
+        // Finance application-scoped entries are bound to the registered Finance application by PermissionSeeder.
         ...FinancePermissionCatalogue::ROWS,
         ...DocumentsPermissionCatalogue::ROWS,
         ['slug' => 'calendar.view', 'name_am' => 'ቀን መቁጠሪያ ማየት', 'name_en' => 'View Calendar', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
@@ -204,6 +210,8 @@ final class PermissionCatalogue
             ['slug' => 'announcement.manage', 'name_am' => 'ማስታወቂያ ማዘጋጀትና ለማጽደቅ ማስገባት', 'name_en' => 'Create and Submit Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.approve', 'name_am' => 'ማስታወቂያ ማጽደቅ', 'name_en' => 'Approve Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.publish', 'name_am' => 'ማስታወቂያ ማተም', 'name_en' => 'Publish Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
+            // CEO/President use tenant scope; Finance Manager uses the Finance-application-scoped entry below.
             ['slug' => 'dashboard.executive.view', 'name_am' => 'የአስፈጻሚ አጠቃላይ እይታ ማየት', 'name_en' => 'View Executive Overview', 'category' => 'dashboard', 'scope' => 'tenant', 'is_system' => false],
+            ['slug' => 'dashboard.finance.executive.view', 'name_am' => 'የፋይናንስ አፕሊኬሽን አስፈጻሚ አጠቃላይ እይታ ማየት', 'name_en' => 'View Finance Executive Overview', 'category' => 'dashboard', 'scope' => 'application', 'is_system' => false],
 ];
 }

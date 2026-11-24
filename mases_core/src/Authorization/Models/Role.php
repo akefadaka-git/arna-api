@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Authorization\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -41,8 +42,9 @@ use MaaleArna\MASES\Core\Auth\Models\User;
  *          permission mutation helpers, and locale-aware display-name
  *          accessors.
  *
- * 1.0.1  — D-11b. `syncPermissions()` now dispatches a
- *          `RolePermissionsChanged` event after a successful sync.
+ * 1.0.2  — RBAC scope and cache-race correction. Permission scope
+ *          compatibility is enforced by one canonical matrix, and the
+ *          change event fences cache generations before and after commit.
  *
  *          WHY
  *          ---
@@ -69,9 +71,11 @@ use MaaleArna\MASES\Core\Auth\Models\User;
  *
  *          WHAT EXACTLY CHANGES
  *          ---------------------
- *          In `syncPermissions()`, immediately after the existing
- *          `$this->permissions()->sync($permissionIds)` call succeeds
- *          and immediately before `return $this`, one line is added:
+ *          In `syncPermissions()`, the permission mutation is validated
+ *          before pivot writes. A cache-generation invalidation event is
+ *          dispatched inside the transaction and again after commit so
+ *          that checks racing the transaction cannot leave a stale result
+ *          reachable under the new generation:
  *
  *              RolePermissionsChanged::dispatch(
  *                  roleId: $this->id,
@@ -235,7 +239,9 @@ final class Role extends Model
             : Permission::where('slug', $permission)->value('id');
 
         if ($permissionId && !$this->permissions()->where('permission_id', $permissionId)->exists()) {
-            $this->permissions()->attach($permissionId, ['assigned_at' => now()]);
+            $ids = $this->permissions()->pluck('permissions.id')->all();
+            $ids[] = (int) $permissionId;
+            $this->syncPermissions($ids);
         }
 
         return $this;
@@ -254,7 +260,9 @@ final class Role extends Model
             : Permission::where('slug', $permission)->value('id');
 
         if ($permissionId) {
-            $this->permissions()->detach($permissionId);
+            $ids = $this->permissions()->where('permissions.id', '!=', $permissionId)
+                ->pluck('permissions.id')->all();
+            $this->syncPermissions($ids);
         }
 
         return $this;
@@ -298,25 +306,127 @@ final class Role extends Model
             if ($permission instanceof Permission) {
                 return $permission->id;
             }
-            if (is_string($permission)) {
-                return Permission::where('slug', $permission)->value('id');
+            if (is_string($permission) && !ctype_digit($permission)) {
+                $id = Permission::where('slug', $permission)->value('id');
+                if ($id === null) {
+                    throw new \InvalidArgumentException('Unknown permission slug: ' . $permission);
+                }
+                return (int) $id;
             }
-            return $permission;
-        })->filter()->unique()->values()->all();
+            if (!is_int($permission) && !(is_string($permission) && ctype_digit($permission))) {
+                throw new \InvalidArgumentException('Role permissions must be IDs, slugs, or Permission instances.');
+            }
+            return (int) $permission;
+        })->filter(static fn ($id) => $id !== null)->unique()->values()->all();
 
-        $this->permissions()->sync($permissionIds);
+        // Enforce the selected current-main scope model before any pivot write.
+        // A tenant role may only carry permissions bound to that same tenant;
+        // an application role may only carry permissions bound to that app.
+        $permissionsById = Permission::query()->whereIn('id', $permissionIds)->where('is_active', true)->get();
+        if ($permissionsById->count() !== count($permissionIds)) {
+            throw new \InvalidArgumentException('One or more role permissions do not exist.');
+        }
 
-        // Announce the mutation so registered listeners can invalidate
-        // any cached authorization answers belonging to the users who
-        // hold this role. The event is inert until a listener is
-        // registered against it (see D-11d).
-        RolePermissionsChanged::dispatch(
-            roleId: $this->id,
-            roleSlug: $this->slug,
-            permissionIds: $permissionIds,
-        );
+        foreach ($permissionsById as $permission) {
+            $this->assertPermissionScopeCompatible($permission);
+        }
+
+        DB::transaction(function () use ($permissionIds): void {
+            $this->permissions()->sync($permissionIds);
+
+            // Cache invalidation runs synchronously inside the transaction.
+            // A failure propagates and rolls back the permission pivot change.
+            RolePermissionsChanged::dispatch(
+                roleId: $this->id,
+                roleSlug: $this->slug,
+                permissionIds: $permissionIds,
+                scope: (string) $this->scope,
+                tenantId: $this->tenant_id,
+                applicationId: $this->application_id,
+            );
+
+            // Fence checks that began while the transaction was still open:
+            // the post-commit dispatch advances the generation a second time,
+            // making any pre-commit stale result unreachable.
+            DB::afterCommit(function (): void {
+                RolePermissionsChanged::dispatch(
+                    roleId: $this->id,
+                    roleSlug: $this->slug,
+                    permissionIds: $this->permissions()->pluck('permissions.id')->map(static fn ($id): int => (int) $id)->all(),
+                    scope: (string) $this->scope,
+                    tenantId: $this->tenant_id,
+                    applicationId: $this->application_id,
+                );
+            });
+        });
 
         return $this;
+    }
+
+    /**
+     * Enforce the approved role-to-permission scope compatibility matrix.
+     *
+     * Platform roles accept global permissions only. Tenant roles accept
+     * global permissions and permissions bound to the same tenant.
+     * Application roles accept global permissions and permissions bound to
+     * the same application; a tenant-bound application permission must also
+     * match the role's tenant binding.
+     *
+     * @throws \DomainException when the permission cannot be attached.
+     */
+    public function assertPermissionScopeCompatible(Permission $permission): void
+    {
+        $compatible = match ($this->scope) {
+            'platform' => $permission->scope === 'global'
+                && $permission->tenant_id === null
+                && $permission->application_id === null,
+
+            'tenant' => (
+                $permission->scope === 'global'
+                && $permission->tenant_id === null
+                && $permission->application_id === null
+            ) || (
+                // Tenant-scoped catalogue permissions are shared definitions
+                // (tenant_id NULL); the tenant-bound role pivot supplies the
+                // effective tenant boundary. Explicitly tenant-bound permission
+                // rows must still match this role's tenant exactly.
+                $permission->scope === 'tenant'
+                && ($permission->tenant_id === null
+                    || (string) $permission->tenant_id === (string) $this->tenant_id)
+                && $permission->application_id === null
+            ),
+
+            'application' => (
+                $permission->scope === 'global'
+                && $permission->tenant_id === null
+                && $permission->application_id === null
+            ) || (
+                $permission->scope === 'application'
+                && (string) $permission->application_id === (string) $this->application_id
+                && (
+                    $permission->tenant_id === null
+                    || ($this->tenant_id !== null
+                        && (string) $permission->tenant_id === (string) $this->tenant_id)
+                )
+            ),
+
+            default => false,
+        };
+
+        if (!$compatible) {
+            $message = match ($this->scope) {
+                'platform' => 'Platform roles may receive global permissions only.',
+                'tenant' => $permission->scope === 'tenant'
+                    ? 'Tenant roles cannot receive permissions bound to another tenant.'
+                    : 'Tenant roles may receive only global permissions or permissions bound to the same tenant.',
+                'application' => $permission->scope === 'tenant'
+                    ? 'Application roles cannot receive tenant-scoped permissions.'
+                    : 'Application roles may receive only global permissions or permissions bound to the same application and tenant boundary.',
+                default => 'The role scope or binding is invalid for this permission.',
+            };
+
+            throw new \DomainException($message);
+        }
     }
 
     /**

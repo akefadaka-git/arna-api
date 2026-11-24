@@ -16,6 +16,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -37,6 +38,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'dashboard.executive.view',
             'scope' => 'tenant',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $ceo = Role::create([
@@ -45,21 +47,33 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'ceo',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $managePermission = Permission::factory()->create([
             'slug' => 'people.manage',
             'scope' => 'tenant',
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $ceo->permissions()->attach([$entryPermission->id, $managePermission->id]);
         $user->roles()->attach($ceo->id);
 
+        // Verify the same tenant-bound role grant directly before exercising
+        // the complete HTTP middleware pipeline.
+        app(TenantContextService::class)->setTenantById((int) $tenant->id);
+        $this->assertTrue(app(AuthorizationService::class)->hasPermission(
+            'dashboard.executive.view',
+            $user,
+        ));
+
         $response = $this->actingAs($user, 'sanctum')
             ->withHeader('X-Tenant-ID', (string) $tenant->id)
             ->getJson('/api/dashboard/v1/overview');
 
+        $this->assertSame($tenant->id, app(TenantContextService::class)->getTenantId());
+        $this->assertSame($user->id, auth()->guard('sanctum')->user()?->id);
         $response->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', 'complete')
@@ -97,22 +111,31 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'application_id' => $financeApp->id,
             'is_active' => true,
         ]);
+        $entryPermission = Permission::factory()->create([
+            'slug' => 'dashboard.finance.executive.view',
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $financeApp->id,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $role->syncPermissions([$entryPermission->id]);
 
         $permissions = [];
         foreach ([
-            'dashboard.executive.view',
             'finance.report.view',
             'finance.entity.view',
         ] as $slug) {
             $permissions[] = Permission::factory()->create([
                 'slug' => $slug,
-                'scope' => 'tenant',
+                'scope' => 'application',
                 'tenant_id' => null,
+                'application_id' => $financeApp->id,
                 'is_active' => true,
                 'is_system' => false,
             ]);
         }
-        $role->permissions()->attach(array_map(static fn (Permission $permission): int => (int) $permission->id, $permissions));
+        $role->syncPermissions([$entryPermission->id, ...array_map(static fn (Permission $permission): int => (int) $permission->id, $permissions)]);
         $user->roles()->attach($role->id);
 
         $configuredEntity = LegalEntity::create([
@@ -174,17 +197,17 @@ final class ExecutiveOverviewRouteTest extends TestCase
 
         $entryPermission = Permission::factory()->create([
             'slug' => 'dashboard.executive.view', 'scope' => 'tenant',
-            'tenant_id' => null, 'is_active' => true,
+            'tenant_id' => null, 'application_id' => null, 'is_active' => true,
         ]);
         // Test fixture only: attach the registered permission explicitly
         // to exercise the independently authorized workforce aggregate.
         $workforcePermission = Permission::factory()->create([
             'slug' => 'people.workforce.view', 'scope' => 'tenant',
-            'tenant_id' => null, 'application_id' => null, 'is_active' => true,
+            'tenant_id' => $tenant->id, 'application_id' => null, 'is_active' => true,
         ]);
         $ceo = Role::create([
             'name_am' => 'fixture', 'name_en' => 'fixture', 'slug' => 'ceo',
-            'scope' => 'tenant', 'tenant_id' => $tenant->id, 'is_active' => true,
+            'scope' => 'tenant', 'tenant_id' => $tenant->id, 'application_id' => null, 'is_active' => true,
         ]);
         $ceo->permissions()->attach([$entryPermission->id, $workforcePermission->id]);
         $user->roles()->attach($ceo->id);
@@ -235,6 +258,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'dashboard.executive.view',
             'scope' => 'tenant',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $workforcePermission = Permission::factory()->create([
@@ -250,6 +274,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'ceo',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $ceo->permissions()->attach([$entryPermission->id, $workforcePermission->id]);
@@ -289,6 +314,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'dashboard.executive.view',
             'scope' => 'tenant',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $ceo = Role::create([
@@ -297,6 +323,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'ceo',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $ceo->permissions()->attach($entryPermission->id);
@@ -322,7 +349,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
     }
 
     #[Test]
-    public function active_people_application_role_can_supply_the_tenant_workforce_grant(): void
+    public function people_application_role_cannot_supply_a_tenant_scoped_workforce_grant(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $user = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
@@ -348,12 +375,13 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'dashboard.executive.view',
             'scope' => 'tenant',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $workforcePermission = Permission::factory()->create([
             'slug' => 'people.workforce.view',
             'scope' => 'tenant',
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'application_id' => null,
             'is_active' => true,
         ]);
@@ -384,10 +412,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             ->withHeader('X-Tenant-ID', (string) $tenant->id)
             ->getJson('/api/dashboard/v1/overview');
 
-        $response->assertOk()
-            ->assertJsonCount(1, 'data.widgets')
-            ->assertJsonPath('data.widgets.0.key', 'people.workforce.active')
-            ->assertJsonPath('data.widgets.0.value.active', 1);
+        $response->assertOk()->assertJsonCount(0, 'data.widgets');
     }
 
     #[Test]
@@ -429,6 +454,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'dashboard.executive.view',
             'scope' => 'tenant',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $user->permissions()->attach($entryPermission->id);
@@ -439,6 +465,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'manager',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $user->roles()->attach($manager->id);

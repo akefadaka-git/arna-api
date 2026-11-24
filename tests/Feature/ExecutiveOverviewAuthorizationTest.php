@@ -57,6 +57,11 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
         $this->assertSame('dashboard', $permission['category']);
         $this->assertFalse($permission['is_system']);
 
+        $financePermission = collect(PermissionCatalogue::ROWS)
+            ->firstWhere('slug', 'dashboard.finance.executive.view');
+        $this->assertNotNull($financePermission);
+        $this->assertSame('application', $financePermission['scope']);
+
         $allowed = ExecutiveOverviewAccessPolicy::ROLE_SLUGS;
         $this->assertSame(['ceo', 'president', 'finance_manager'], $allowed);
 
@@ -94,9 +99,14 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
 
         foreach (RolePermissionGrants::MAP as $roleSlug => $grants) {
             $this->assertSame(
-                in_array($roleSlug, $allowed, true),
+                in_array($roleSlug, ['ceo', 'president'], true),
                 in_array('dashboard.executive.view', $grants, true),
-                "Unexpected executive permission grant for role [{$roleSlug}]."
+                "Unexpected tenant Executive Overview permission grant for role [{$roleSlug}]."
+            );
+            $this->assertSame(
+                $roleSlug === 'finance_manager',
+                in_array('dashboard.finance.executive.view', $grants, true),
+                "Unexpected Finance Executive Overview permission grant for role [{$roleSlug}]."
             );
         }
     }
@@ -128,17 +138,33 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
             'is_active' => true,
             'is_system' => false,
         ]);
+        $financePermission = Permission::factory()->create([
+            'slug' => 'dashboard.finance.executive.view',
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $financeApp->id,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
         (new RolePermissionSeeder())->seed(
             $roles,
-            ['dashboard.executive.view' => $permission],
+            [
+                'dashboard.executive.view' => $permission,
+                'dashboard.finance.executive.view' => $financePermission,
+            ],
         );
 
         foreach ($roles as $slug => $role) {
-            $expected = in_array($slug, ExecutiveOverviewAccessPolicy::ROLE_SLUGS, true);
+            $expected = in_array($slug, ['ceo', 'president'], true);
             $this->assertSame(
                 $expected,
                 $role->fresh()->hasPermission('dashboard.executive.view'),
-                "Unexpected persisted executive permission state for role [{$slug}]."
+                "Unexpected persisted tenant Executive Overview permission state for role [{$slug}]."
+            );
+            $this->assertSame(
+                $slug === 'finance_manager',
+                $role->fresh()->hasPermission('dashboard.finance.executive.view'),
+                "Unexpected persisted Finance Executive Overview permission state for role [{$slug}]."
             );
         }
 
@@ -222,12 +248,14 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
             'is_active' => true,
         ]);
         $permission = Permission::factory()->create([
-            'slug' => 'dashboard.executive.view',
-            'scope' => 'tenant',
+            'slug' => 'dashboard.finance.executive.view',
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $finance->id,
             'is_active' => true,
             'is_system' => false,
         ]);
-        $validRole->permissions()->attach($permission->id);
+        $validRole->syncPermissions([$permission->id]);
         $user->roles()->attach($validRole->id);
 
         $policy = new ExecutiveOverviewAccessPolicy();
