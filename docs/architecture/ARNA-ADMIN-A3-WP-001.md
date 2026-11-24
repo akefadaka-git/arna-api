@@ -2,12 +2,12 @@
 
 **Work Package ID:** ARNA-ADMIN-A3-WP-001  
 **Version:** 1.0.0  
-**Status:** Prepared against Owner-approved P0 specifications  
+**Status:** A3 implementation in progress; A3.4 Owner-approval gate implemented on candidate branch; A4 verification pending  
 **Repository:** `akefadaka-git/arna-api`  
 **Source of truth:** `main` at the implementation branch creation point  
 **Architecture baseline:** `docs/architecture/ARNA-ADMIN-P0-RBAC-001.md`  
 **Route baseline:** `docs/architecture/ARNA-ADMIN-P0-ROUTES-001.md`  
-**Implementation state:** IN PROGRESS — A3.0–A3.3 delivered to candidate branch; A3.4 partially implemented
+**Implementation state:** IN PROGRESS — A3.0–A3.4 candidate implementation present; A3.6–A3.8 verification and closure pending
 
 ## 1. Objective
 
@@ -114,13 +114,17 @@ This work package is intentionally implementation-ready but does not itself auth
 - Audit failure rolls back pivot mutation.
 - Cache tests prove role change/revocation takes effect immediately or fail closed.
 
-### A3.4 implementation note — Owner approval gate and cache safety
+### A3.4 implementation note — Owner-signed approval and cache safety
 
-The first A3.4 implementation slice adds tenant-bound role/permission scope validation and targeted cache invalidation. Role-permission synchronization now executes the pivot mutation and synchronous invalidation in one database transaction; invalidation exceptions propagate so the pivot change rolls back. Tenant-role changes invalidate only the affected tenant's tracked permission keys; application-role changes invalidate only the affected application/tenant intersection; platform-role changes retain user-wide invalidation. Tenant membership attach/suspend/reactivate/revoke also invalidates only the affected user's permission results for that tenant inside the membership transaction.
+The implementation preserves the current-main RBAC tables and introduces no direct-user permission grant path. Tenant roles may retain compatible global permissions and application permissions whose tenant binding is null or matches the role tenant. Cross-tenant-bound permissions are rejected before pivot mutation.
 
-**Consequential-grant limitation:** repository inspection did not identify a verified, runtime Owner-approval evidence service or canonical approval record that can bind an approval to the exact tenant, actor, target user, role, permission set, reason, and validity interval. A role slug or ordinary admin permission is not Owner approval. Therefore A3.4 must not expose role assignment, role-permission grant, or direct-permission mutation routes until that approval-verification dependency is implemented and tested. This is a fail-closed implementation gate, not permission to substitute a caller-supplied boolean or free-form reference.
+Role-permission synchronization executes the pivot mutation and synchronous, scope-targeted cache invalidation within a database transaction. Tenant-role changes invalidate only the affected tenant's tracked permission keys; application-role changes invalidate the affected application/tenant intersection; platform-role changes retain user-wide invalidation. Tenant membership attach/suspend/reactivate/revoke invalidates the affected user's permission results for that tenant inside the membership transaction.
 
-The user_has_permissions pivot remains unchanged and no direct-user grant route is added. The next A3.4 slice is to establish a verifiable Owner approval contract (or integrate an already-authoritative one after evidence is found), then implement audited tenant role assignment/revocation and permission-set changes behind that verifier.
+**Owner approval contract implemented:** `docs/security/ARNA-ADMIN-OWNER-APPROVAL-EVIDENCE-V1.md`. A server-issued, ten-minute, immutable challenge binds tenant, requester, selected Owner, trusted signing key, exact action, target user, tenant role, complete permission set, reason, nonce and validity interval. The Owner signs the canonical payload with detached Ed25519. The verifier checks the existing tenant-scoped signing-key registry and revocation ledger plus a separately provisioned Owner-purpose trust anchor. A unique append-only consumption record prevents replay.
+
+**Mutation API:** only challenge creation and challenge execution routes exist under `/api/admin/tenant/rbac/approval-challenges`. The requester capability `tenant.membership.manage` allows challenge requests only. The execute path verifies the Owner signature before assignment, revocation or permission-set synchronization. Mutation, targeted cache invalidation, mandatory security event and challenge consumption share one transaction. No direct role assignment or direct-user permission endpoint exists.
+
+**Trust-anchor gate:** production Owner trust anchors are not seeded and no trust-anchor provisioning API exists. An independently reviewed, out-of-band Owner key dossier and trust-anchor insertion are required before production consequential RBAC actions can succeed. Missing, expired, mismatched or revoked anchors fail closed.
 
 ### A3.5 — Platform-wide read-only Admin APIs
 
