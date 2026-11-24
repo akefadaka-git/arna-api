@@ -89,6 +89,7 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
         ));
 
         $user->roles()->detach($tenantRole->id);
+        $authorization->clearUserCache($user);
         $platformRole = Role::query()->create([
             'name_am' => 'Platform runtime role',
             'name_en' => 'Platform runtime role',
@@ -100,10 +101,12 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
         ]);
         $platformRole->permissions()->attach($tenantPermission->id);
         $user->roles()->attach($platformRole->id);
+        $authorization->clearUserCache($user);
 
         $this->assertFalse($authorization->hasPermission($tenantPermission->slug, $user, $tenant->id));
 
         $user->roles()->detach($platformRole->id);
+        $authorization->clearUserCache($user);
         $applicationRole = Role::query()->create([
             'name_am' => 'Application runtime role',
             'name_en' => 'Application runtime role',
@@ -115,6 +118,7 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
         ]);
         $applicationRole->permissions()->attach($tenantPermission->id);
         $user->roles()->attach($applicationRole->id);
+        $authorization->clearUserCache($user);
 
         $this->assertFalse($authorization->hasPermission(
             $tenantPermission->slug,
@@ -124,6 +128,7 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
         ));
 
         $applicationRole->permissions()->sync([$applicationPermission->id]);
+        $authorization->clearUserCache($user);
         $this->assertTrue($authorization->hasPermission(
             $applicationPermission->slug,
             $user,
