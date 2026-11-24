@@ -12,6 +12,7 @@ use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
+use RuntimeException;
 
 /**
  * =============================================================================
@@ -682,11 +683,13 @@ final class AuthorizationService
         $registryKey = $this->registryKeyFor($user);
         $keys        = $this->getUserCacheKeys($user);
 
-        if (!empty($keys)) {
-            $this->cache->deleteMultiple($keys);
+        if (!empty($keys) && $this->cache->deleteMultiple($keys) !== true) {
+            throw new RuntimeException('Authorization permission cache entries could not be deleted.');
         }
 
-        $this->cache->forget($registryKey);
+        if ($this->cache->forget($registryKey) !== true) {
+            throw new RuntimeException('Authorization permission cache registry could not be removed.');
+        }
     }
 
     /**
@@ -720,14 +723,16 @@ final class AuthorizationService
             }
         }
 
-        if ($matched !== []) {
-            $this->cache->deleteMultiple($matched);
+        if ($matched !== [] && $this->cache->deleteMultiple($matched) !== true) {
+            throw new RuntimeException('Tenant-scoped authorization cache entries could not be deleted.');
         }
 
         if ($remaining === []) {
-            $this->cache->forget($registryKey);
-        } else {
-            $this->cache->put($registryKey, array_values($remaining), self::REGISTRY_DURATION);
+            if ($this->cache->forget($registryKey) !== true) {
+                throw new RuntimeException('Tenant-scoped authorization cache registry could not be removed.');
+            }
+        } elseif ($this->cache->put($registryKey, array_values($remaining), self::REGISTRY_DURATION) !== true) {
+            throw new RuntimeException('Tenant-scoped authorization cache registry could not be updated.');
         }
     }
 
@@ -764,14 +769,16 @@ final class AuthorizationService
             }
         }
 
-        if ($matched !== []) {
-            $this->cache->deleteMultiple($matched);
+        if ($matched !== [] && $this->cache->deleteMultiple($matched) !== true) {
+            throw new RuntimeException('Application-scoped authorization cache entries could not be deleted.');
         }
 
         if ($remaining === []) {
-            $this->cache->forget($registryKey);
-        } else {
-            $this->cache->put($registryKey, array_values($remaining), self::REGISTRY_DURATION);
+            if ($this->cache->forget($registryKey) !== true) {
+                throw new RuntimeException('Application-scoped authorization cache registry could not be removed.');
+            }
+        } elseif ($this->cache->put($registryKey, array_values($remaining), self::REGISTRY_DURATION) !== true) {
+            throw new RuntimeException('Application-scoped authorization cache registry could not be updated.');
         }
     }
 
