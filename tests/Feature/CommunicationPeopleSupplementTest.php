@@ -53,6 +53,42 @@ final class CommunicationPeopleSupplementTest extends TestCase
         $this->request($otherActor,$otherTenant)->getJson("/api/people/$publicId/contacts")->assertNotFound();
     }
 
+    #[Test]
+    public function descriptive_relationships_and_participations_require_same_tenant_and_do_not_create_authority_records(): void
+    {
+        [$tenant,$actor] = $this->member([
+            'people.manage','people.relationship.view','people.relationship.manage',
+            'people.participation.view','people.participation.manage',
+        ]);
+        $personA=$this->request($actor,$tenant)->postJson('/api/people',['first_name_en'=>'Person A'])->assertCreated()->json('data.public_id');
+        $personB=$this->request($actor,$tenant)->postJson('/api/people',['first_name_en'=>'Person B'])->assertCreated()->json('data.public_id');
+
+        $relationship=$this->request($actor,$tenant)->postJson("/api/people/$personA/relationships/descriptive",[
+            'related_person_public_id'=>$personB,'relationship_type'=>'colleague','description'=>'Descriptive only',
+        ])->assertCreated()->json('data.id');
+        $this->request($actor,$tenant)->getJson("/api/people/$personA/relationships/descriptive")
+            ->assertOk()->assertJsonPath('data.0.relationship_type','colleague');
+
+        $participation=$this->request($actor,$tenant)->postJson("/api/people/$personA/participations",[
+            'participation_type'=>'volunteer','title'=>'Community cleanup','organization_label'=>'Local initiative',
+        ])->assertCreated()->json('data.id');
+        $this->request($actor,$tenant)->getJson("/api/people/$personA/participations")
+            ->assertOk()->assertJsonPath('data.0.title','Community cleanup');
+
+        $this->request($actor,$tenant)->deleteJson("/api/people/$personA/relationships/descriptive/$relationship")
+            ->assertOk()->assertJsonPath('data.deactivated',true);
+        $this->request($actor,$tenant)->deleteJson("/api/people/$personA/participations/$participation")
+            ->assertOk()->assertJsonPath('data.deactivated',true);
+
+        $this->assertDatabaseHas('people_relationships',['id'=>$relationship,'tenant_id'=>$tenant->id,'status'=>'inactive']);
+        $this->assertDatabaseHas('people_participations',['id'=>$participation,'tenant_id'=>$tenant->id,'status'=>'inactive']);
+        $this->assertDatabaseMissing('user_has_roles',['user_id'=>0]);
+        [$foreignTenant,$foreignActor]=$this->member(['people.relationship.manage']);
+        $this->request($foreignActor,$foreignTenant)->postJson("/api/people/$personA/relationships/descriptive",[
+            'related_person_public_id'=>$personB,'relationship_type'=>'colleague',
+        ])->assertNotFound();
+    }
+
     private function member(array $slugs): array
     {
         $tenant=Tenant::factory()->create(['is_active'=>true]);
