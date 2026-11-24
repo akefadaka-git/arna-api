@@ -150,6 +150,8 @@ use App\Http\Controllers\CorporateSiteEntryController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\LocalePreferenceController;
 use App\Http\Controllers\CommunicationAnnouncementController;
+use App\Http\Controllers\CommunicationConversationController;
+use App\Http\Controllers\PeopleSupplementController;
 use App\Http\Controllers\Admin\AdminControlPlaneController;
 use App\Http\Controllers\Admin\TenantMembershipAdminController;
 use App\Http\Controllers\Admin\TenantRoleOwnerApprovalController;
