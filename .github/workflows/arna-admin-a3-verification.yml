@@ -15,8 +15,8 @@ on:
       - "tests/Feature/TenantMembershipLifecycleTest.php"
       - "tests/Feature/AuthorizationTenantCacheInvalidationTest.php"
       - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
-      - "tests/Feature/AuthorizationTenantCacheInvalidationTest.php"
-      - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
+      - "tests/Feature/TenantRoleOwnerApprovalTest.php"
+      - "database/migrations/2026_11_24_090000_create_admin_owner_approval_evidence_tables.php"
   pull_request:
     branches: [main]
     paths:
@@ -30,6 +30,8 @@ on:
       - "tests/Feature/TenantMembershipLifecycleTest.php"
       - "tests/Feature/AuthorizationTenantCacheInvalidationTest.php"
       - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
+      - "tests/Feature/TenantRoleOwnerApprovalTest.php"
+      - "database/migrations/2026_11_24_090000_create_admin_owner_approval_evidence_tables.php"
 
 permissions:
   contents: read
@@ -129,6 +131,8 @@ jobs:
                 "api.admin.tenant.memberships.users.suspend",
                 "api.admin.tenant.memberships.users.reactivate",
                 "api.admin.tenant.memberships.users.revoke",
+                "api.admin.tenant.rbac.approval-challenges.create",
+                "api.admin.tenant.rbac.approval-challenges.execute",
             ];
             $missing = array_values(array_diff($expected, $names));
             if ($missing !== []) {
@@ -150,3 +154,5 @@ jobs:
         run: |
           php artisan test --compact tests/Feature/AuthorizationTenantCacheInvalidationTest.php
           php artisan test --compact tests/Feature/RolePermissionScopeCompatibilityTest.php
+          php artisan test --compact tests/Feature/TenantRoleOwnerApprovalTest.php
+
