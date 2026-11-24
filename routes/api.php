@@ -151,6 +151,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\LocalePreferenceController;
 use App\Http\Controllers\CommunicationAnnouncementController;
 use App\Http\Controllers\Admin\AdminControlPlaneController;
+use App\Http\Controllers\Admin\TenantMembershipAdminController;
 use MaaleArna\MASES\Core\Auth\Models\User;
 
 // =============================================================================
