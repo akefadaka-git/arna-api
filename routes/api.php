@@ -925,11 +925,25 @@ Route::get('/admin/platform/applications', [\App\Http\Controllers\Admin\Platform
     ->middleware(['auth:sanctum', 'auth.permission:platform.applications.read'])
     ->name('api.admin.platform.applications.index');
 
-// Platform domain inventory — read-only projection of registered application and tenant domains.
-// Provider ownership, DNS, TLS, and hosting states remain explicitly unverified until adapters are connected.
+// Platform domain registry — read and manage inventory, proof challenges and audit history.
 Route::get('/admin/platform/domains', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'index'])
     ->middleware(['auth:sanctum', 'auth.permission:platform.domains.read'])
     ->name('api.admin.platform.domains.index');
+Route::post('/admin/platform/domains', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'store'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.domains.manage'])
+    ->name('api.admin.platform.domains.store');
+Route::patch('/admin/platform/domains/{domain}', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'update'])
+    ->whereNumber('domain')
+    ->middleware(['auth:sanctum', 'auth.permission:platform.domains.manage'])
+    ->name('api.admin.platform.domains.update');
+Route::post('/admin/platform/domains/{domain}/verify', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'verify'])
+    ->whereNumber('domain')
+    ->middleware(['auth:sanctum', 'auth.permission:platform.domains.verify'])
+    ->name('api.admin.platform.domains.verify');
+Route::get('/admin/platform/domains/{domain}/history', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'history'])
+    ->whereNumber('domain')
+    ->middleware(['auth:sanctum', 'auth.permission:platform.domains.read'])
+    ->name('api.admin.platform.domains.history');
 
 Route::fallback(static function (): never {
     throw new NotFoundHttpException('The requested endpoint does not exist.');
