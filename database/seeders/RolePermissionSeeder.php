@@ -283,6 +283,24 @@ final class RolePermissionSeeder extends Seeder
                 ));
             }
 
+            // The two entry permissions are audience-specific even if a
+            // future wildcard or catalogue edit introduces an accidental grant.
+            $financeExecutivePermission = $permissions['dashboard.finance.executive.view'] ?? null;
+            if ($financeExecutivePermission !== null && $roleSlug !== 'finance_manager') {
+                $financeExecutivePermissionId = (int) $financeExecutivePermission->id;
+                $permissionIds = array_values(array_filter(
+                    $permissionIds,
+                    static fn (int $permissionId): bool => $permissionId !== $financeExecutivePermissionId
+                ));
+            }
+            if ($executivePermission !== null && $roleSlug === 'finance_manager') {
+                $executivePermissionId = (int) $executivePermission->id;
+                $permissionIds = array_values(array_filter(
+                    $permissionIds,
+                    static fn (int $permissionId): bool => $permissionId !== $executivePermissionId
+                ));
+            }
+
             $roles[$roleSlug]->syncPermissions($permissionIds);
         }
     }
