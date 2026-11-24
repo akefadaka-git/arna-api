@@ -38,7 +38,12 @@ final class PeopleSupplementService
             ->where('person_id', $person->id)->where('status', 'active')->whereNull('deleted_at')
             ->orderByDesc('is_primary')->orderBy('id')
             ->get(['id', 'type', 'label', 'value_masked', 'is_primary', 'is_verified', 'verified_at', 'created_at'])
-            ->map(fn ($row) => (array) $row)->all();
+            ->map(function ($row): array {
+                $contact = (array) $row;
+                $contact['is_primary'] = (bool) $contact['is_primary'];
+                $contact['is_verified'] = (bool) $contact['is_verified'];
+                return $contact;
+            })->all();
     }
 
     public function addContact(int $tenantId, string $publicId, int $actorId, array $data): array
@@ -56,8 +61,12 @@ final class PeopleSupplementService
             'created_by' => $actorId, 'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        return (array) DB::table('people_contact_points')->where('id', $id)
+        $contact = (array) DB::table('people_contact_points')->where('id', $id)
             ->first(['id', 'type', 'label', 'value_masked', 'is_primary', 'is_verified', 'verified_at', 'created_at']);
+        $contact['is_primary'] = (bool) $contact['is_primary'];
+        $contact['is_verified'] = (bool) $contact['is_verified'];
+
+        return $contact;
     }
 
     public function deactivateContact(int $tenantId, string $publicId, int $contactId): void
