@@ -131,7 +131,22 @@ final class TenantRoleOwnerApprovalTest extends TestCase
         }
     }
 
-    private function fixture(): array
+    public function test_self_reviewed_owner_key_is_not_an_approval_trust_anchor(): void
+    {
+        [$tenant, $actor, $owner, , $role] = $this->fixture(true);
+
+        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        app(TenantRoleOwnerApprovalService::class)->createChallenge($actor, (int) $tenant->id, [
+            'owner_user_id' => $owner->id,
+            'action' => TenantRoleOwnerApprovalService::ACTION_SYNC_PERMISSIONS,
+            'role_id' => $role->id,
+            'target_user_id' => null,
+            'permission_slugs' => [],
+            'reason' => 'Self-reviewed Owner trust must fail closed',
+        ]);
+    }
+
+    private function fixture(bool $selfReviewedOwnerKey = false): array
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->id]);
@@ -184,6 +199,7 @@ final class TenantRoleOwnerApprovalTest extends TestCase
         $secretKey = sodium_crypto_sign_secretkey($pair);
         $keyId = 'owner-approval-' . $tenant->id;
         $trustedAt = now()->subMinute();
+        $trustReviewerId = $selfReviewedOwnerKey ? $owner->id : $reviewer->id;
 
         $signingKeyId = DB::table('document_signing_keys')->insertGetId([
             'tenant_id' => $tenant->id,
@@ -191,7 +207,7 @@ final class TenantRoleOwnerApprovalTest extends TestCase
             'signer_user_id' => $owner->id,
             'algorithm' => 'Ed25519',
             'public_key_base64' => base64_encode($publicKey),
-            'trusted_by_user_id' => $reviewer->id,
+            'trusted_by_user_id' => $trustReviewerId,
             'trust_reference' => 'Owner-approved test trust dossier',
             'trusted_at' => $trustedAt,
             'valid_until' => null,
@@ -203,7 +219,7 @@ final class TenantRoleOwnerApprovalTest extends TestCase
             'signing_key_id' => $signingKeyId,
             'authority_reference' => 'TEST-OWNER-AUTHORITY',
             'evidence_sha256' => hash('sha256', 'test Owner authority evidence'),
-            'trusted_by_user_id' => $reviewer->id,
+            'trusted_by_user_id' => $trustReviewerId,
             'trusted_at' => $trustedAt,
             'valid_until' => null,
         ]);
