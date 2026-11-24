@@ -107,9 +107,9 @@ final class ExecutiveOverviewRouteTest extends TestCase
         ] as $slug) {
             $permissions[] = Permission::factory()->create([
                 'slug' => $slug,
-                'scope' => 'tenant',
+                'scope' => 'application',
                 'tenant_id' => $tenant->id,
-                'application_id' => null,
+                'application_id' => $financeApp->id,
                 'is_active' => true,
                 'is_system' => false,
             ]);
