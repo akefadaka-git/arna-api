@@ -58,15 +58,15 @@ No provider adapter may perform live mutation in this A3 phase without its own c
 
 ## 5. API contract — current implementation status
 
-The first read-only platform endpoints are implemented in this branch and are permission-gated: the overview returns database-backed aggregate counts, the application registry reads `platform_applications`, and the Domain Registry projects domains already recorded against platform applications and tenants. None of these endpoints claims provider verification or live operational health. Remaining endpoints below are target contracts and must be established by route registration, controller implementation, authorization tests, and exact-head workflow evidence before the frontend depends on them.
+The first read-only platform endpoints are implemented in this branch and are permission-gated: overview counts; application registry; identity directory; role and permission catalogues; tenant and membership directory; and Domain Registry projection. None of these endpoints claims provider verification or live operational health. Remaining endpoints below are target contracts and must be established by route registration, controller implementation, authorization tests, and exact-head workflow evidence before the frontend depends on them.
 
 - `GET /api/admin/platform/overview` — IMPLEMENTED; requires `platform.overview.read`; returns database-backed counts and generation timestamp.
 - `GET /api/admin/platform/applications` — IMPLEMENTED; requires `platform.applications.read`; returns the platform application catalogue and frontend readiness.
 - `GET /api/admin/platform/applications`
-- `GET /api/admin/platform/identity/users`
-- `GET /api/admin/platform/rbac/roles`
-- `GET /api/admin/platform/rbac/permissions`
-- `GET /api/admin/platform/tenants`
+- `GET /api/admin/platform/identity/users` — IMPLEMENTED; requires `platform.identity.read`.
+- `GET /api/admin/platform/rbac/roles` — IMPLEMENTED; requires `platform.rbac.read`.
+- `GET /api/admin/platform/rbac/permissions` — IMPLEMENTED; requires `platform.rbac.read`.
+- `GET /api/admin/platform/tenants` — IMPLEMENTED; requires `platform.tenancy.read`.
 - `GET /api/admin/platform/domains` — IMPLEMENTED as read-only inventory projection; requires `platform.domains.read`; reports ownership/DNS/TLS/hosting as unverified/unobserved and all live mutations disabled.
 - `GET /api/admin/platform/domains/{domain}` — TARGET
 - `GET /api/admin/platform/domains/{domain}/dns-records`
