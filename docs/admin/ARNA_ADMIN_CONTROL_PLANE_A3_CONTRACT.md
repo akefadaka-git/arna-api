@@ -63,11 +63,14 @@ This branch implements the read-only platform overview, application registry, an
 - `GET /api/admin/platform/overview` — IMPLEMENTED; requires `platform.overview.read`; returns database-backed counts and generation timestamp.
 - `GET /api/admin/platform/applications` — IMPLEMENTED; requires `platform.applications.read`; returns the platform application catalogue and frontend readiness.
 - `GET /api/admin/platform/identity/users`, `/api/admin/platform/rbac/roles`, `/api/admin/platform/rbac/permissions`, `/api/admin/platform/tenants`, and `/api/admin/platform/tenants/{tenant}/memberships` — provided by API PR #214 candidate; not duplicated here and not yet merged.
-- `GET /api/admin/platform/domains` — IMPLEMENTED as read-only inventory projection; requires `platform.domains.read`; reports ownership/DNS/TLS/hosting as unverified/unobserved and all live mutations disabled.
-- `GET /api/admin/platform/domains/{domain}` — TARGET
-- `GET /api/admin/platform/domains/{domain}/dns-records`
-- `GET /api/admin/platform/domains/{domain}/certificates`
-- `GET /api/admin/platform/domains/{domain}/events`
+- `GET /api/admin/platform/domains` — IMPLEMENTED; merges persistent registry records with legacy application/tenant projections; requires `platform.domains.read`.
+- `POST /api/admin/platform/domains` — IMPLEMENTED; creates a pending-verification record and one-time DNS TXT challenge; requires `platform.domains.manage`.
+- `PATCH /api/admin/platform/domains/{domain}` — IMPLEMENTED; updates display metadata/environment only, records before/after audit evidence, and requires `platform.domains.manage`.
+- `POST /api/admin/platform/domains/{domain}/verify` — IMPLEMENTED; verifies a one-use, expiring DNS TXT challenge using a stored SHA-256 hash; requires `platform.domains.verify`.
+- `GET /api/admin/platform/domains/{domain}/history` — IMPLEMENTED; returns append-only domain audit events; requires `platform.domains.read`.
+- DNS zone, registrar, nameserver, certificate, hosting, routing and provider event APIs — TARGET; no provider connection or live mutation is claimed.
+
+Persistent storage is split across `platform_domains`, `platform_domain_verifications`, and `platform_domain_audit_events`. The raw verification challenge is returned once and stored only as a hash. Domain registration and metadata changes write audit evidence transactionally. FQDN reassignment, provider mutations and destructive lifecycle operations remain excluded until separate approval workflows and provider adapters are implemented.
 
 Mutations must be added only with permission-specific server checks, scope validation, approval challenges where required, transactionally coupled audit evidence, and cache/session invalidation where authorization changes. The API PR #214 candidate is an integration reference only; it is not assumed merged or production-active.
 
@@ -93,6 +96,8 @@ Implemented global read permissions in this branch:
 - `platform.overview.read`
 - `platform.applications.read`
 - `platform.domains.read`
+- `platform.domains.manage`
+- `platform.domains.verify`
 
 These are distinct from the proposed `admin.*` permission namespace below. They are additive to the current RBAC catalogue and are granted by the existing platform-scope grant policy; no new RBAC tables are introduced.
 
