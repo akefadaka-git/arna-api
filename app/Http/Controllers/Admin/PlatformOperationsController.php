@@ -68,9 +68,13 @@ final class PlatformOperationsController extends Controller
             $databaseSummary = 'The application database health query failed.';
         }
 
-        $observed = DB::table('platform_health_observations')
-            ->orderByDesc('checked_at')->get()
-            ->unique('component_key')->keyBy('component_key');
+        try {
+            $observed = DB::table('platform_health_observations')
+                ->orderByDesc('checked_at')->get()
+                ->unique('component_key')->keyBy('component_key');
+        } catch (Throwable) {
+            $observed = collect();
+        }
 
         $components = [
             ['key' => 'admin-api', 'type' => 'application', 'name' => 'Admin API', 'status' => 'healthy', 'summary' => 'This health endpoint is responding.'],
