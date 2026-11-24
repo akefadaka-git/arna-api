@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Support\\Facades\\Cache;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Authorization\\Services\\AuthorizationService;
-use Tests\\TestCase;
+use Illuminate\Support\Facades\Cache;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use Tests\TestCase;
 
 final class AuthorizationTenantCacheInvalidationTest extends TestCase
 {
