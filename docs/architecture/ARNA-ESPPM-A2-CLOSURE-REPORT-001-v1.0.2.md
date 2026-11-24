@@ -1,7 +1,7 @@
 # ARNA ESPPM A2 Closure Report 001
 
 - **Document ID:** ARNA-ESPPM-A2-CLOSURE-REPORT-001
-- **Version:** 1.0.3
+- **Version:** 1.0.2
 - **Prepared:** 2026-11-24 (Ethiopia, E.C./G.C. display follows ARNA localization policy)
 - **Stage:** A2 — read-only reconciliation
 - **Disposition:** **CLOSURE NOT RECOMMENDED — PARTIAL / NOT VERIFIED-CLOSED**
@@ -76,7 +76,6 @@ Read-only inspection covered:
 6. Exact Git commit, branch, PR and selected file-blob identifiers.
 7. D12 Treasury A2 requirements and source-to-requirement traceability against exact current API/App main snapshots.
 7. A sample of current GitHub Actions runs to distinguish candidate-branch CI from mainline evidence.
-8. D04/D05 risk and compliance/control draft evidence, requirement traceability, and repository boundary statements.
 
 ### 2.2 Repository baselines
 
@@ -732,10 +731,9 @@ The #212/#213/#215 branches remain one commit behind API main because their base
 
 ### 13.5 Updated progress and authorization status
 
-- R01–R06 and R08: 7 work packages complete; R07 submitted with the Owner decision recorded.
-- R08 D04/D05 traceability artifact: `docs/architecture/ARNA-ESPPM-D04-D05-A2-TRACEABILITY-001-v1.0.0.md` — blob `ae922a9d41460fa23bf5e7995dd4b3953a0c48f9`; artifact commit `e0aedcd13246e87a4c73a000f1ed6f03b8fe8de0`.
-- D04 remains UNVERIFIED; D05 remains UNVERIFIED. No domain disposition upgrade.
-- Domain reconciliation: 29/30 domains deeply reconciled (96.7%); D01 remains UNVERIFIED and its accepted disposition is preserved.
+- R01–R06: 6/7 work packages complete (85.7%).
+- R07: submitted; explicit Owner decision recorded — KEEP A2 OPEN — DO NOT CLOSE.
+- Domain reconciliation: 27/30 domains deeply reconciled (90%).
 - Disposition coverage: 30/30 (100%).
 - A2 overall: **PARTIAL — NOT VERIFIED-CLOSED**.
 - Tests/CI for this documentation-only reconciliation: **NOT RUN**.
@@ -808,33 +806,3 @@ The #212/#213/#215 branches remain one commit behind API main because their base
 This addendum is documentation-only on the existing PR #219 branch. The API `main` and App `main` snapshots above remain the source-of-truth baselines; neither branch is to be advanced by this work. The D12 addendum commit `b357e14942d35d8f5ff3d4669b0da8687fe7816b` is the PR branch head immediately before this report successor is added. The final PR head is recorded in live PR #219 metadata and its description after the successor report commit. The D12 baseline's full requirement-level traceability table is authoritative for its 18 source entries.
 
 **End of controlled A2 closure report v1.0.2.**
-
-
----
-
-## 15. Controlled A2-R08 D04/D05 risk and compliance reconciliation — v1.0.3
-
-- **Authority:** Owner instruction to proceed with bounded read-only A2 reconciliation of D04 Enterprise Risk Management and D05 Compliance & Internal Control Management.
-- **New controlled artifact:** `docs/architecture/ARNA-ESPPM-D04-D05-A2-TRACEABILITY-001-v1.0.0.md`.
-- **Artifact blob:** `ae922a9d41460fa23bf5e7995dd4b3953a0c48f9`.
-- **Artifact commit:** `e0aedcd13246e87a4c73a000f1ed6f03b8fe8de0`.
-- **Inspected API main:** `6e274c25ecc55b84e026e879d735b77f0e51592f`.
-- **Inspected App main:** `ffe0495c0eb7c8b5d2013419123aac5b68893d51`.
-- **D04 requirement assessment:** 6 PARTIAL / 9 MISSING / 0 VERIFIED-CLOSED. PARTIAL denotes draft concepts only.
-- **D05 requirement assessment:** 13 PARTIAL / 5 MISSING / 0 VERIFIED-CLOSED. PARTIAL denotes draft concepts only.
-- **D04 disposition:** UNVERIFIED — PRESERVED. Draft risk references do not establish an accepted enterprise risk contract, approved appetite, risk register, residual-risk model or risk-acceptance authority.
-- **D05 disposition:** UNVERIFIED — PRESERVED. PSC draft policy and provisional matrix do not establish an adopted compliance/internal-control contract, authoritative obligation register, verified committee mandate or operating effectiveness.
-- **Source blobs:** PSC policy `0486e6f1870f52fa596460b1c5cc2d8c5f10b485`; provisional PSC matrix `07eb3f567bcc67fe2c7ac8e66c0a993c0d1e69c2`; API README `b2f730fc147347cb3f2cc3385fa962e036544897`; App README `e0a341263168f177e455f313d0ece04ff55eb839`.
-- **R08 result:** COMPLETE — A2 evidence reconciliation only. No domain closure, disposition upgrade, residual-risk acceptance or A3 authorization.
-- **Progress:** R01–R06 and R08 complete; R07 submitted with Owner decision recorded. D04/D05 bring deep domain reconciliation to 29/30; D01 remains UNVERIFIED. Disposition coverage remains 30/30.
-- **Verification:** application tests and A4 scenarios NOT RUN; operating effectiveness NOT RUN; legal adoption and committee authority remain UNRESOLVED.
-- **Change class:** documentation only on PR #219 branch. No API/App source, schema, migrations, seeders, runtime configuration, production data or main branch changed.
-- **Owner decision:** KEEP A2 OPEN — DO NOT CLOSE (2026-11-24). PR merge, A3, A4 and A5 remain NOT AUTHORIZED.
-
-### 15.1 R08 preservation and boundary
-
-The D04/D05 baseline is a traceability candidate, not an approved A1 domain contract. Draft policy references are not adopted controls. D04 risk management remains distinct from D05 compliance and internal-control assurance. D06 Legal remains authoritative for legal interpretation; D03 Governance remains responsible for competent corporate appointments and authority records; D20 remains the records-platform owner; source domains retain their operational decisions.
-
-No bank information or financial source records were requested or used in R08. The existing evidence-timing decision remains unchanged.
-
-**End of controlled A2-R08 reconciliation addendum.**
