@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Crypt;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Route;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Permission;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use Tests\TestCase;
 
 final class AdminPlatformSettingsApprovalTest extends TestCase
 {
@@ -45,7 +45,7 @@ final class AdminPlatformSettingsApprovalTest extends TestCase
         $controller = file_get_contents(app_path('Http/Controllers/Admin/PlatformSettingsController.php'));
 
         $this->assertIsString($controller);
-        $this->assertStringContainsString('Crypt::encryptString($data[\\'value\\'])', $controller);
+        $this->assertStringContainsString('Crypt::encryptString($data[\'value\'])', $controller);
         $this->assertStringContainsString("'value' => $row->is_secret ? null", $controller);
         $this->assertStringContainsString("'proposed_value' => $row->is_secret ? null", $controller);
         $this->assertStringContainsString("'secret_value_provided' =>", $controller);
