@@ -82,6 +82,14 @@ final class CommunicationPeopleSupplementTest extends TestCase
         $this->request($actor,$tenant)->getJson("/api/people/$personA/relationships/descriptive")
             ->assertOk()->assertJsonPath('data.0.relationship_type','colleague');
 
+        // A relationship must not keep exposing a related Person after this
+        // tenant's explicit visibility grant has been revoked.
+        $relatedPersonId = (int) DB::table('people')->where('public_id', $personB)->value('id');
+        DB::table('person_tenant_accesses')->where('tenant_id', $tenant->getKey())
+            ->where('person_id', $relatedPersonId)->update(['status' => 'revoked', 'updated_at' => now()]);
+        $this->request($actor,$tenant)->getJson("/api/people/$personA/relationships/descriptive")
+            ->assertOk()->assertExactJson(['success' => true, 'data' => []]);
+
         $participation=$this->request($actor,$tenant)->postJson("/api/people/$personA/participations",[
             'participation_type'=>'volunteer','title'=>'Community cleanup','organization_label'=>'Local initiative',
         ])->assertCreated()->json('data.id');
