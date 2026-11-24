@@ -82,18 +82,21 @@ Each domain must have one clearly identified accountable owner for its authorita
 
 The following capabilities are shared platform services. They support all domains and must not be misrepresented as extra business domains or duplicated as domain-owned sources of truth:
 
-- Identity, authentication and account lifecycle.
-- Tenant isolation and tenant-context resolution.
-- Authorization, roles, permissions and policy enforcement.
+- Identity, authentication, recognized-device security and account lifecycle.
+- Tenant resolution, tenant isolation and tenant-membership context.
+- Authorization, roles, permissions, delegation and policy enforcement.
 - Audit trails, security events and immutable evidence.
-- Notification delivery and communication transport.
-- Integration/API/event infrastructure and idempotent message exchange.
-- Data governance, data quality, metadata, lineage and controlled reference data.
+- Notification delivery and messaging transport.
+- Integration/API/event infrastructure, contracts and idempotent message exchange.
+- Data governance, data quality, metadata, lineage and controlled master/reference data.
 - Cybersecurity, privacy, secrets and key management.
-- Workflow/automation orchestration primitives.
+- Workflow, orchestration and automation primitives.
 - Binary file/object storage and file-version transport.
 - Localization and accessibility, including Amharic-first experience and Ethiopian Calendar support.
-- Backup, disaster recovery, observability and platform operations.
+- Backup and disaster-recovery capabilities.
+- Observability and shared platform operations.
+
+**Count control:** v1.2.0 records these as 13 grouped cross-cutting platform capability areas. The historical 15-capability crosswalk associated with v1.1 is a preserved historical view and must not be silently substituted for the v1.2.0 grouping.
 
 Domain-specific business rules, records and decisions remain owned by their domain even when shared platform services execute common technical functions.
 
