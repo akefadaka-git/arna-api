@@ -379,27 +379,34 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
 
 
     #[Test]
-    public function application_scoped_finance_report_permission_does_not_satisfy_tenant_report_authorization(): void
+    public function application_scoped_finance_report_permission_authorizes_the_same_tenant_finance_manager(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         [$user, , $permissions] = $this->financeFixture($tenant);
         $this->configuredEntity($tenant);
-        $permissions['finance.report.view']->update(['scope' => 'application']);
+        $this->assertSame('application', $permissions['finance.report.view']->scope);
 
         $response = $this->actingAs($user, 'sanctum')
             ->withHeader('X-Tenant-ID', (string) $tenant->id)
             ->getJson('/api/dashboard/v1/overview');
 
-        $response->assertOk()->assertJsonPath('data.widgets', []);
+        $response->assertOk()->assertJsonPath('data.widgets.0.key', 'finance.trial_balance');
     }
 
     #[Test]
-    public function application_scoped_entity_permission_does_not_authorize_tenant_legal_entity_reads(): void
+    public function finance_entity_permission_bound_to_another_application_is_not_used_for_this_tenant(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         [$user, , $permissions] = $this->financeFixture($tenant);
         $this->configuredEntity($tenant);
-        $permissions['finance.entity.view']->update(['scope' => 'application']);
+        $otherApplication = PlatformApplication::query()->create([
+            'name_am' => 'Other application',
+            'name_en' => 'Other application',
+            'slug' => 'other-finance-test-' . uniqid(),
+            'domain' => 'other-finance-' . uniqid() . '.example.test',
+            'is_active' => true,
+        ]);
+        $permissions['finance.entity.view']->update(['application_id' => $otherApplication->id]);
 
         $response = $this->actingAs($user, 'sanctum')
             ->withHeader('X-Tenant-ID', (string) $tenant->id)
