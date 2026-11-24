@@ -54,6 +54,12 @@ on:
       - "tests/Feature/AdminPlatformOverviewRouteTest.php"
       - "app/Http/Controllers/Admin/PlatformApplicationsController.php"
       - "tests/Feature/AdminPlatformApplicationsRouteTest.php"
+      - "tests/Feature/AdminPersistentDomainRegistryTest.php"
+      - "tests/Feature/AdminPlatformSettingsApprovalTest.php"
+      - "tests/Feature/AdminPlatformOperationsTest.php"
+      - "tests/Feature/AdminControlPlaneAuthorizationNegativeTest.php"
+      - "app/Http/Controllers/Admin/PlatformSettingsController.php"
+      - "app/Http/Controllers/Admin/PlatformOperationsController.php"
       - "tests/Unit/AdminPlatformPermissionCatalogueTest.php"
       - "database/seeders/Data/PermissionCatalogue.php"
       - "app/Http/Controllers/ExecutiveOverviewController.php"
@@ -300,6 +306,20 @@ jobs:
 
       - name: Run platform Admin permission catalogue scope test
         run: php artisan test --compact tests/Unit/AdminPlatformPermissionCatalogueTest.php
+
+      - name: Run persistent domain registry and runtime permission-negative tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/AdminPersistentDomainRegistryTest.php tests/Feature/AdminControlPlaneAuthorizationNegativeTest.php
+
+      - name: Run settings approval and provider operations contract tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/AdminPlatformSettingsApprovalTest.php tests/Feature/AdminPlatformOperationsTest.php
 
       - name: Confirm test database is empty
         shell: bash
