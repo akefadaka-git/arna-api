@@ -177,6 +177,7 @@ final class InvalidateAuthorizationCacheListener
     public function handle(RolePermissionsChanged $event): void
     {
         $tenantScoped = $event->scope === 'tenant' && $event->tenantId !== null;
+        $applicationScoped = $event->scope === 'application' && $event->applicationId !== null;
 
         User::query()
             ->whereHas('roles', function ($query) use ($event): void {
@@ -187,10 +188,16 @@ final class InvalidateAuthorizationCacheListener
                     $tenantQuery->where('tenants.id', $event->tenantId);
                 });
             })
-            ->chunkById(self::CHUNK_SIZE, function ($users) use ($event, $tenantScoped): void {
+            ->chunkById(self::CHUNK_SIZE, function ($users) use ($event, $tenantScoped, $applicationScoped): void {
                 foreach ($users as $user) {
                     if ($tenantScoped) {
                         $this->authorizationService->clearUserTenantCache($user, $event->tenantId);
+                    } elseif ($applicationScoped) {
+                        $this->authorizationService->clearUserApplicationCache(
+                            $user,
+                            $event->applicationId,
+                            $event->tenantId,
+                        );
                     } else {
                         $this->authorizationService->clearUserCache($user);
                     }
