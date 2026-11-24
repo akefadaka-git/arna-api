@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use DomainException;
-use Database\\Seeders\\Data\\RolePermissionGrants;
-use MaaleArna\\MASES\\Core\\Domains\\Finance\\Database\\Seeders\\FinanceRolePermissionGrants;
+use Database\Seeders\Data\RolePermissionGrants;
+use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
