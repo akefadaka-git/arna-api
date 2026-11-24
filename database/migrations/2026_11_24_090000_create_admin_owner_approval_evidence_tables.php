@@ -76,7 +76,6 @@ return new class extends Migration
             $table->unsignedBigInteger('signing_key_id');
             $table->string('action', 80);
             $table->text('signature_base64');
-            $table->timestamp('signed_at');
             $table->timestamp('verified_at');
             $table->char('payload_sha256', 64);
             $table->unique(['tenant_id', 'challenge_id'], 'aoac_consume_once_unique');
