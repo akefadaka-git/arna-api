@@ -73,6 +73,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             ->getJson('/api/dashboard/v1/overview');
 
         $this->assertSame($tenant->id, app(TenantContextService::class)->getTenantId());
+        $this->assertSame($user->id, auth()->guard('sanctum')->user()?->id);
         $response->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', 'complete')
