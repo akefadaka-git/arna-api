@@ -32,7 +32,7 @@ final class FinanceRolePermissionGrants
             'finance.subledger.view', 'finance.subledger.ingest', 'finance.integration.view',
             'finance.governance_settlement.configure',
             'finance.governance_settlement.approve',
-            'finance.governance_settlement.execute',
+            'finance.governance_settlement.execute.app',
         ],
         'board' => ['app.finance.access'],
         'president' => ['app.finance.access'],
