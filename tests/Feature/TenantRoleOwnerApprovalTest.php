@@ -146,10 +146,20 @@ final class TenantRoleOwnerApprovalTest extends TestCase
 
         Carbon::setTestNow(now()->utc()->addMinutes(11));
         try {
-            $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
-            $service->execute($actor, (int) $tenant->id, $challenge['challenge_id'], $evidence);
+            try {
+                $service->execute($actor, (int) $tenant->id, $challenge['challenge_id'], $evidence);
+                $this->fail('An expired Owner approval challenge must be rejected.');
+            } catch (\Illuminate\Auth\Access\AuthorizationException) {
+                $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
+            }
         } finally {
             Carbon::setTestNow();
+        }
+
+        $this->assertDatabaseMissing('admin_owner_approval_consumptions', [
+            'tenant_id' => $tenant->id,
+            'payload_sha256' => $challenge['payload_sha256'],
+        ]);
         }
 
         $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
@@ -184,8 +194,16 @@ final class TenantRoleOwnerApprovalTest extends TestCase
             'revoked_at' => now(),
         ]);
 
-        $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
-        $service->execute($actor, (int) $tenant->id, $challenge['challenge_id'], $evidence);
+        try {
+            $service->execute($actor, (int) $tenant->id, $challenge['challenge_id'], $evidence);
+            $this->fail('A revoked Owner signing key must be rejected.');
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+            $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
+            $this->assertDatabaseMissing('admin_owner_approval_consumptions', [
+                'tenant_id' => $tenant->id,
+                'payload_sha256' => $challenge['payload_sha256'],
+            ]);
+        }
     }
 
     public function test_self_reviewed_owner_key_is_not_an_approval_trust_anchor(): void
