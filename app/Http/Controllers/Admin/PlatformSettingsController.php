@@ -231,7 +231,7 @@ final class PlatformSettingsController extends Controller
             abort_unless((int) $pending->requested_by !== $actorId, 403, 'The requester cannot reject their own change.');
             $now = now();
             DB::table('platform_setting_change_requests')->where('id', $changeRequest)->update([
-                'status' => 'rejected', 'approved_by' => $actorId,
+                'status' => 'rejected', 'decided_by' => $actorId,
                 'approval_note' => $data['approval_note'], 'updated_at' => $now,
             ]);
             $this->audit($changeRequest, $actorId, $pending->setting_key, 'change.rejected', null,
