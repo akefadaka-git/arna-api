@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MaaleArna\MASES\Core\Listeners;
 
-use Illuminate\Support\Facades\Log;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Events\RolePermissionsChanged;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
@@ -177,29 +176,24 @@ final class InvalidateAuthorizationCacheListener
      */
     public function handle(RolePermissionsChanged $event): void
     {
-        try {
-            User::query()
-                ->whereHas('roles', function ($query) use ($event): void {
-                    $query->where('roles.id', $event->roleId);
-                })
-                ->chunkById(self::CHUNK_SIZE, function ($users): void {
-                    foreach ($users as $user) {
+        $tenantScoped = $event->scope === 'tenant' && $event->tenantId !== null;
+
+        User::query()
+            ->whereHas('roles', function ($query) use ($event): void {
+                $query->where('roles.id', $event->roleId);
+            })
+            ->when($tenantScoped, function ($query) use ($event): void {
+                $query->whereHas('tenants', function ($tenantQuery) use ($event): void {
+                    $tenantQuery->where('tenants.id', $event->tenantId);
+                });
+            })
+            ->chunkById(self::CHUNK_SIZE, function ($users) use ($event, $tenantScoped): void {
+                foreach ($users as $user) {
+                    if ($tenantScoped) {
+                        $this->authorizationService->clearUserTenantCache($user, $event->tenantId);
+                    } else {
                         $this->authorizationService->clearUserCache($user);
                     }
-                });
-        } catch (\Throwable $e) {
-            // The listener must never break the request lifecycle.
-            // A failed invalidation degrades to the pre-listener state:
-            // stale cache entries self-correct within the 300-second TTL.
-            Log::error(
-                'Failed to invalidate authorization caches after role permission change',
-                [
-                    'error'         => $e->getMessage(),
-                    'role_id'       => $event->roleId,
-                    'role_slug'     => $event->roleSlug,
-                    'permission_count' => count($event->permissionIds),
-                ]
-            );
-        }
-    }
-}
+                }
+            });
+    }}
