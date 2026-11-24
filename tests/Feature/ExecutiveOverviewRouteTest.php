@@ -135,7 +135,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
                 'is_system' => false,
             ]);
         }
-        $role->syncPermissions(array_map(static fn (Permission $permission): int => (int) $permission->id, $permissions));
+        $role->syncPermissions([$entryPermission->id, ...array_map(static fn (Permission $permission): int => (int) $permission->id, $permissions)]);
         $user->roles()->attach($role->id);
 
         $configuredEntity = LegalEntity::create([
