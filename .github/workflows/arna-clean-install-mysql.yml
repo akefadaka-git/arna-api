@@ -48,6 +48,9 @@ on:
       - "tests/Feature/PublicContentModerationTest.php"
       - "routes/console.php"
       - "routes/api.php"
+      - "app/Http/Controllers/Admin/PlatformDomainRegistryController.php"
+      - "tests/Feature/AdminDomainRegistryRouteTest.php"
+      - "database/seeders/Data/PermissionCatalogue.php"
       - "app/Http/Controllers/ExecutiveOverviewController.php"
       - "mases_core/src/Authorization/ExecutiveOverviewAccessPolicy.php"
       - "mases_core/src/Domains/Finance/Providers/FinanceServiceProvider.php"
@@ -268,6 +271,13 @@ jobs:
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/PublicContentModerationTest.php
+
+      - name: Run platform domain registry route and safety contract tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/AdminDomainRegistryRouteTest.php
 
       - name: Confirm test database is empty
         shell: bash
