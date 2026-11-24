@@ -228,7 +228,6 @@ final class RolePermissionGrants
         'finance_manager' => [...FinanceRolePermissionGrants::MAP['finance_manager'], 'dashboard.finance.executive.view'],
         'hr_manager'      => [
             'app.hr.access',
-            'file.upload', 'file.download', 'file.view', 'file.list',
             'user.profile.view',
         ],
         'shareholder'     => [
