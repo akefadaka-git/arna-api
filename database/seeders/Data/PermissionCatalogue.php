@@ -206,6 +206,8 @@ final class PermissionCatalogue
             ['slug' => 'announcement.publish', 'name_am' => 'ማስታወቂያ ማተም', 'name_en' => 'Publish Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'dashboard.executive.view', 'name_am' => 'የአስፈጻሚ አጠቃላይ እይታ ማየት', 'name_en' => 'View Executive Overview', 'category' => 'dashboard', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'platform.domains.read', 'name_am' => 'የመድረክ ዶሜይኖችን ማየት', 'name_en' => 'View Platform Domains', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.domains.manage', 'name_am' => 'የመድረክ ዶሜይኖችን ማስተዳደር', 'name_en' => 'Manage Platform Domain Registry', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.domains.verify', 'name_am' => 'የዶሜይን ባለቤትነትን ማረጋገጥ', 'name_en' => 'Verify Domain Ownership', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.overview.read', 'name_am' => 'የመድረክ አጠቃላይ እይታን ማየት', 'name_en' => 'View Platform Overview', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.applications.read', 'name_am' => 'የመድረክ መተግበሪያዎችን ማየት', 'name_en' => 'View Platform Applications', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
 ];
