@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use DomainException;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\PlatformApplication;
-use MaaleArna\\MASES\\Core\\Authorization\\Services\\AuthorizationService;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
