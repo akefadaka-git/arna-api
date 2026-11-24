@@ -248,7 +248,7 @@ final class TenantRoleOwnerApprovalTest extends TestCase
             'is_system' => true,
         ]);
 
-        $role = Role::query()->create([
+        $requesterRole = Role::query()->create([
             'name_en' => 'Tenant RBAC Requester',
             'slug' => 'tenant-rbac-requester-' . $tenant->id,
             'scope' => 'tenant',
@@ -256,12 +256,21 @@ final class TenantRoleOwnerApprovalTest extends TestCase
             'application_id' => null,
             'is_active' => true,
         ]);
-        $role->syncPermissions(['tenant.membership.manage']);
+        $requesterRole->syncPermissions(['tenant.membership.manage']);
         DB::table('user_has_roles')->insert([
             'user_id' => $actor->id,
-            'role_id' => $role->id,
+            'role_id' => $requesterRole->id,
             'assigned_at' => now(),
             'assigned_by' => $actor->id,
+        ]);
+
+        $role = Role::query()->create([
+            'name_en' => 'Tenant RBAC Target Role',
+            'slug' => 'tenant-rbac-target-' . $tenant->id,
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
         ]);
         $this->assertTrue(app(AuthorizationService::class)->hasPermission(
             'tenant.membership.manage',
