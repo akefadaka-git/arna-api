@@ -733,7 +733,7 @@ The #212/#213/#215 branches remain one commit behind API main because their base
 ### 13.5 Updated progress and authorization status
 
 - R01–R06 and R08: 7 work packages complete; R07 submitted with the Owner decision recorded.
-- R08 D04/D05 traceability artifact: `docs/architecture/ARNA-ESPPM-D04-D05-A2-TRACEABILITY-001-v1.0.0.md` (added on the PR branch; exact blob recorded in the PR index after commit verification).
+- R08 D04/D05 traceability artifact: `docs/architecture/ARNA-ESPPM-D04-D05-A2-TRACEABILITY-001-v1.0.0.md` — blob `ae922a9d41460fa23bf5e7995dd4b3953a0c48f9`; artifact commit `e0aedcd13246e87a4c73a000f1ed6f03b8fe8de0`.
 - D04 remains UNVERIFIED; D05 remains UNVERIFIED. No domain disposition upgrade.
 - Domain reconciliation: 29/30 domains deeply reconciled (96.7%); D01 remains UNVERIFIED and its accepted disposition is preserved.
 - Disposition coverage: 30/30 (100%).
@@ -816,6 +816,7 @@ This addendum is documentation-only on the existing PR #219 branch. The API `mai
 
 - **Authority:** Owner instruction to proceed with bounded read-only A2 reconciliation of D04 Enterprise Risk Management and D05 Compliance & Internal Control Management.
 - **New controlled artifact:** `docs/architecture/ARNA-ESPPM-D04-D05-A2-TRACEABILITY-001-v1.0.0.md`.
+- **Artifact blob:** `ae922a9d41460fa23bf5e7995dd4b3953a0c48f9`.
 - **Artifact commit:** `e0aedcd13246e87a4c73a000f1ed6f03b8fe8de0`.
 - **Inspected API main:** `6e274c25ecc55b84e026e879d735b77f0e51592f`.
 - **Inspected App main:** `ffe0495c0eb7c8b5d2013419123aac5b68893d51`.
