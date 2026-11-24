@@ -3,7 +3,7 @@ name: ARNA clean-install MySQL verification
 
 on:
   push:
-    branches: [main, integration/**]
+    branches: [main, integration/**, feat/communication-people-contracts-a3]
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
