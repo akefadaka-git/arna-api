@@ -214,6 +214,8 @@ final class PermissionCatalogue
         ['slug' => 'platform.configuration.read', 'name_am' => 'የመድረክ ውቅርን ማየት', 'name_en' => 'View Platform Configuration', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.configuration.manage', 'name_am' => 'የመድረክ ውቅር ለውጥ መጠየቅ', 'name_en' => 'Request Platform Configuration Changes', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.configuration.approve', 'name_am' => 'የመድረክ ውቅር ለውጦችን ማጽደቅ', 'name_en' => 'Approve Platform Configuration Changes', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.integrations.read', 'name_am' => 'የአቅራቢ ግንኙነቶችን ማየት', 'name_en' => 'View Platform Integrations', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.operations.read', 'name_am' => 'የመድረክ ኦፕሬሽኖችን ማየት', 'name_en' => 'View Platform Operations Health', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.overview.read', 'name_am' => 'የመድረክ አጠቃላይ እይታን ማየት', 'name_en' => 'View Platform Overview', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.applications.read', 'name_am' => 'የመድረክ መተግበሪያዎችን ማየት', 'name_en' => 'View Platform Applications', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
 ];
