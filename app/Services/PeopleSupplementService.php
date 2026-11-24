@@ -86,6 +86,11 @@ final class PeopleSupplementService
         $person = $this->person($tenantId, $publicId);
         return DB::table('people_relationships as r')
             ->join('people as p', 'p.id', '=', 'r.related_person_id')
+            ->join('person_tenant_accesses as related_access', function ($join) use ($tenantId): void {
+                $join->on('related_access.person_id', '=', 'p.id')
+                    ->where('related_access.tenant_id', '=', $tenantId)
+                    ->where('related_access.status', '=', 'active');
+            })
             ->where('r.tenant_id', $tenantId)->where('r.person_id', $person->id)
             ->where('r.status', 'active')->whereNull('r.deleted_at')
             ->where('p.status', 'active')->whereNull('p.deleted_at')
