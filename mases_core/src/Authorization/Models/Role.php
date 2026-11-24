@@ -359,6 +359,7 @@ final class Role extends Model
                 permissionIds: $permissionIds,
                 scope: (string) $this->scope,
                 tenantId: $this->tenant_id,
+                applicationId: $this->application_id,
             );
         });
 
