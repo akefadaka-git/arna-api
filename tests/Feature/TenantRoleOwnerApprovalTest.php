@@ -119,7 +119,6 @@ final class TenantRoleOwnerApprovalTest extends TestCase
         try {
             $service->execute($actor, (int) $tenant->id, $challenge['challenge_id'], [
                 'signature' => base64_encode(random_bytes(SODIUM_CRYPTO_SIGN_BYTES)),
-                'signed_at' => json_decode($challenge['canonical_payload'], true, 512, JSON_THROW_ON_ERROR)['issued_at'],
             ]);
             $this->fail('Invalid Owner signature must be rejected.');
         } catch (\Illuminate\Auth\Access\AuthorizationException) {
@@ -235,14 +234,12 @@ final class TenantRoleOwnerApprovalTest extends TestCase
         array $input,
     ): array {
         $challenge = $service->createChallenge($actor, (int) $tenant->id, $input);
-        $payload = json_decode($challenge['canonical_payload'], true, 512, JSON_THROW_ON_ERROR);
         $signature = sodium_crypto_sign_detached($challenge['canonical_payload'], $secretKey);
 
         return [
             $challenge,
             [
                 'signature' => base64_encode($signature),
-                'signed_at' => $payload['issued_at'],
             ],
         ];
     }
