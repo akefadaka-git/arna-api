@@ -304,10 +304,17 @@ final class Role extends Model
                 return $permission->id;
             }
             if (is_string($permission)) {
-                return Permission::where('slug', $permission)->value('id');
+                $id = Permission::where('slug', $permission)->value('id');
+                if ($id === null) {
+                    throw new \\InvalidArgumentException('Unknown permission slug: ' . $permission);
+                }
+                return $id;
+            }
+            if (!is_int($permission) && !(is_string($permission) && ctype_digit($permission))) {
+                throw new \\InvalidArgumentException('Role permissions must be IDs, slugs, or Permission instances.');
             }
             return $permission;
-        })->filter()->unique()->values()->all();
+        })->filter(static fn ($id) => $id !== null)->unique()->values()->all();
 
         // Enforce the selected current-main scope model before any pivot write.
         // A tenant role may only carry permissions bound to that same tenant;
