@@ -37,9 +37,9 @@ final class ExecutiveOverviewController
             ], 400);
         }
 
-        // The route permission is the first gate. This uncached role-pivot
-        // check is authoritative and prevents direct grants and platform
-        // wildcard roles from widening the frozen audience.
+        // Authentication and active tenant membership are enforced by route
+        // middleware. This uncached role-pivot check is authoritative and
+        // prevents direct grants or platform roles widening the audience.
         if (!$this->audience->allows($user, (int) $tenantId)) {
             return response()->json([
                 'success' => false,
