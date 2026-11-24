@@ -68,8 +68,8 @@ Historical reports v1.0.0–v1.0.3 remain separate immutable artifacts. The olde
 
 - **Severity:** MEDIUM — evidence-index integrity.
 - **Observed:** Live PR metadata and commit comparison identify PR #223 head `06483f578ab75e4a9824bc01e213abb0418c0288`, 13 ahead / 0 behind current API main. The PR description still names `1a6197c2c1e73ea774f13f3f4156c67175a094b4` as its latest head and lists the v1.0.7 supplement as latest.
-- **Resolution:** The live head is controlling. Fetch-back at the live head verified D01 traceability v1.0.8 blob `12dbb73cef6fde2d3cf8889a6422dfaef0af6191` and D01 evidence register v1.0.3 blob `454adbf71c5145d330a30d5354da6285f9d3c6ed`. PR description requires a metadata-only correction to reflect the live head and v1.0.8/v1.0.3 artifacts. No branch commit or disposition change is needed.
-- **Status:** CONTENT VERIFIED; PR DESCRIPTION CORRECTION REQUIRED.
+- **Resolution:** The live head is controlling. Fetch-back at the live head verified D01 traceability v1.0.8 blob `12dbb73cef6fde2d3cf8889a6422dfaef0af6191` and D01 evidence register v1.0.3 blob `454adbf71c5145d330a30d5354da6285f9d3c6ed`. PR #223's description was corrected to the live head and v1.0.8/v1.0.3 artifacts, then re-fetched and verified. No branch commit or disposition change was needed.
+- **Status:** RESOLVED — DESCRIPTION SYNCHRONIZED; DOMAIN DISPOSITION UNCHANGED.
 
 ### EX-02 — D01 subordinate A1 objective ownership conflicts with frozen catalogue
 
@@ -82,8 +82,8 @@ Historical reports v1.0.0–v1.0.3 remain separate immutable artifacts. The olde
 
 - **Severity:** MEDIUM — decision chronology / evidence interpretation.
 - **Observed:** PR #215's archived addendum v1.0.2 still describes D15/D17 PARTIAL refinements as awaiting Owner decision. The controlling R06 decision in the consolidated A2 record rejected both proposed upgrades.
-- **Resolution:** Treat PR #215 as historical supplemental evidence only. The later Owner decision controls: D15 remains MISSING and D17 remains MISSING. The addendum's pending-decision language is superseded, not silently rewritten. PR #215 description should carry a clear supersession note.
-- **Status:** DOMAIN DECISION RESOLVED; HISTORICAL DOCUMENT LABEL SUPERSEDED.
+- **Resolution:** Treat PR #215 as historical supplemental evidence only. The later Owner decision controls: D15 remains MISSING and D17 remains MISSING. The addendum's pending-decision language is superseded, not silently rewritten. PR #215's description was updated with the rejected upgrades and controlling MISSING dispositions, then re-fetched and verified.
+- **Status:** RESOLVED — DESCRIPTION SYNCHRONIZED; HISTORICAL DOCUMENT LABEL SUPERSEDED.
 
 ### EX-04 — Historical PR index rows in report v1.0.4 are not live branch metadata
 
@@ -166,4 +166,4 @@ The R06 Owner decisions remain controlling:
 
 R10 completes the requested exact-SHA evidence-index and exception-register revalidation for the identified open documentation branches and current API/App main snapshots. It does not override the Owner decision, accept residual exceptions, or represent A2 as closure-ready.
 
-The next valid action is limited metadata hygiene on PR #215 and PR #223 to mark their descriptions with the superseding decisions/current heads, followed by a fresh fetch-back of those PR descriptions and PR #219's final head. Any later A2 closure submission requires a separate explicit Owner decision. No A3, A4, A5 or merge authority is inferred.
+Metadata hygiene is complete: PR #215 and PR #223 descriptions were corrected and re-fetched; PR #219 remains OPEN / DRAFT / UNMERGED with its final head recorded in live PR metadata. The next governance action is a separately authorized A2 closure submission only if the outstanding exit gaps are resolved and the Owner changes the controlling decision. No A3, A4, A5 or merge authority is inferred.
