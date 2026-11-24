@@ -54,5 +54,7 @@ final class AdminPlatformSettingsApprovalTest extends TestCase
         $this->assertStringContainsString('DB::transaction(function () use ($changeRequest', $controller);
         $this->assertStringContainsString("'status' => 'approved'", $controller);
         $this->assertStringContainsString("'status' => 'rejected'", $controller);
+        $this->assertStringContainsString("'base_version' =>", $controller);
+        $this->assertStringContainsString('A newer setting version exists', $controller);
     }
 }
