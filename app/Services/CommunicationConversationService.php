@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\\Services;
+namespace App\Services;
 
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Str;
-use Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class CommunicationConversationService
 {
