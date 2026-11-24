@@ -71,6 +71,7 @@ final class RolePermissionGrants
             'calendar.view', 'calendar.create', 'calendar.update',
             'user.profile.view', 'user.list',
             'file.list', 'file.view', 'file.download', 'announcement.view',
+            'people.contact.view', 'people.relationship.view', 'people.participation.view', 'communication.conversation.view',
             // Finance application access is assigned only to an application-scoped role.
         ],
         'finance_manager' => [...FinanceRolePermissionGrants::MAP['finance_manager'], 'dashboard.finance.executive.view'],
@@ -94,11 +95,15 @@ final class RolePermissionGrants
             'user.profile.view', 'user.list',
             'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish',
             'role.list', 'permission.list', 'dashboard.executive.view',
+            'people.contact.view', 'people.relationship.view', 'people.participation.view', 'communication.conversation.view',
         ],
         'secretary'       => [
             ...DocumentsRolePermissionGrants::MAP['secretary'],
             'calendar.view', 'calendar.create', 'calendar.update',
             'user.profile.view', 'announcement.view', 'announcement.manage',
+            'people.contact.view', 'people.contact.manage', 'people.relationship.view', 'people.relationship.manage',
+            'people.participation.view', 'people.participation.manage',
+            'communication.conversation.view', 'communication.conversation.create', 'communication.message.send', 'communication.message.read',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
         'cashier'         => FinanceRolePermissionGrants::MAP['cashier'],
@@ -108,6 +113,9 @@ final class RolePermissionGrants
             ...FinanceRolePermissionGrants::MAP['ceo'],
             'user.profile.view', 'user.list', 'user.create', 'user.update',
             'role.list', 'permission.list', 'dashboard.executive.view',
+            'people.contact.view', 'people.contact.manage', 'people.relationship.view', 'people.relationship.manage',
+            'people.participation.view', 'people.participation.manage',
+            'communication.conversation.view', 'communication.conversation.create', 'communication.message.send', 'communication.message.read',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
     ];
