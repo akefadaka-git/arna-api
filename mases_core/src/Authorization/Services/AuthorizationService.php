@@ -462,7 +462,10 @@ final class AuthorizationService
                                 $scopeQuery->orWhere(function ($application): void {
                                     $application->where('permissions.scope', 'application')
                                         ->whereColumn('permissions.application_id', 'roles.application_id')
-                                        ->whereColumn('permissions.tenant_id', 'roles.tenant_id');
+                                        ->where(function ($tenantBinding): void {
+                                            $tenantBinding->whereNull('permissions.tenant_id')
+                                                ->orWhereColumn('permissions.tenant_id', 'roles.tenant_id');
+                                        });
                                 });
                             }
                         });

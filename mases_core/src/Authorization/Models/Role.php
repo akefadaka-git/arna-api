@@ -341,6 +341,20 @@ final class Role extends Model
                 tenantId: $this->tenant_id,
                 applicationId: $this->application_id,
             );
+
+            // Fence checks that began while the transaction was still open:
+            // the post-commit dispatch advances the generation a second time,
+            // making any pre-commit stale result unreachable.
+            DB::afterCommit(function (): void {
+                RolePermissionsChanged::dispatch(
+                    roleId: $this->id,
+                    roleSlug: $this->slug,
+                    permissionIds: $this->permissions()->pluck('permissions.id')->map(static fn ($id): int => (int) $id)->all(),
+                    scope: (string) $this->scope,
+                    tenantId: $this->tenant_id,
+                    applicationId: $this->application_id,
+                );
+            });
         });
 
         return $this;
