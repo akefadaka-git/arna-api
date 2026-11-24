@@ -24,7 +24,7 @@
 
 The read-only repository and governance-record reconciliation accounts for all 30 domains in the frozen A1 v1.2.0 catalogue. It establishes the approved A2 dispositions, identifies the relevant implementation and documentation evidence found in the inspected repository scope, records material contract gaps, and maps the principal cross-domain dependencies.
 
-The evidence is not sufficient to certify A2 closure. Material domain contracts remain missing or incomplete; legal and financial authority questions remain unresolved; supplemental evidence for D15 and D17 proposes status refinements that have not received separate Owner approval; and not every domain has an accepted, versioned contract with a fully reconciled current-main implementation and verification record.
+The evidence is not sufficient to certify A2 closure. Material domain contracts remain missing or incomplete; legal and financial authority questions remain unresolved; the D15 and D17 PARTIAL status proposals have been explicitly rejected and their approved MISSING dispositions retained; and not every domain has an accepted, versioned contract with a fully reconciled current-main implementation and verification record.
 
 This report therefore recommends that A2 remain open for bounded evidence reconciliation. It does not authorize A3 implementation, PR merge, migration, financial execution, A4 verification or A5 deployment.
 
@@ -547,7 +547,7 @@ All work packages remain A2 read-only documentation/reconciliation. They do not 
 **Recommendation:** DO NOT CLOSE A2  
 **Recommended A2 disposition:** PARTIAL — NOT VERIFIED-CLOSED
 
-**Rationale:** The 30-domain inventory and initial dependency register are complete, but contract acceptance, legal authority, Treasury evidence, supplemental D15/D17 decisions and exact-head verification remain incomplete.
+**Rationale:** The 30-domain inventory and initial dependency register are complete, but contract acceptance, legal authority, Treasury evidence, source-domain integration completeness and exact-head verification remain incomplete. The D01, D15 and D17 proposal conflicts have been explicitly decided; their underlying domain evidence gaps remain open.
 
 ### 11.2 Owner decision fields
 
@@ -685,7 +685,7 @@ The following is the current evidence snapshot used for this addendum. Commit SH
 | #212 | `docs/esppm-a1-v1.2.0-frozen-catalogue` | `631b7a0eb7f027c17751b7af39bbc826fd70124e` | 2 | 1 | OPEN / DRAFT / UNMERGED | Frozen A1 archive proposal; based on historical A2 parent. |
 | #213 | `docs/esppm-a2-owner-decision-record-001` | `ded7b487544972588f163a0dd7b14a9f02f6fe69` | 1 | 1 | OPEN / DRAFT / UNMERGED | Owner-approved A2 decision-record archive proposal; historical base. |
 | #215 | `docs/esppm-a2-treasury-psc-evidence-addendum-001` | `4c65ada3343571167bcb9c2e47e7f92abd4b89d8` | 3 | 1 | OPEN / DRAFT / UNMERGED | Supplemental Treasury/PSC evidence; D15/D17 PARTIAL proposals explicitly rejected by this addendum. |
-| #219 | `docs/esppm-a2-closure-report-001` | `f306814c05f0f34fd0e2dcf6798adbafb1bd2c42` | 2 | 0 | OPEN / DRAFT / UNMERGED before this addendum commit | Consolidated report branch immediately before v1.0.1 successor creation. |
+| #219 | `docs/esppm-a2-closure-report-001` | `4d75a24e32cfa13585f15f8be4a1297b8447c949` | 3 | 0 | OPEN / DRAFT / UNMERGED at snapshot cutoff | Branch head immediately before this evidence-index correction; v1.0.1 report commit follows as a documentation-only successor. |
 | #220 | `feat/arna-ecc-a3-p0` | `8d0e4f236cc23eea21b0c44b4f3571d0710f2120` | 1 | 0 | OPEN / DRAFT / UNMERGED | Separate ECC KPI readiness workstream; no ESPPM disposition authority. |
 | #222 | `docs/arna-d01-a1-spec-a2-evidence` | `cf4486f0c983641bfd3f81ad284b5efe4e57c401` | 1 | 0 | OPEN / DRAFT / UNMERGED | D01 subordinate A1 draft; Owner review pending. |
 | #223 | `docs/arna-d01-a2-evidence-register` | `3cdde5acb82d95ef1d008126e0f583f04bca73e0` | 3 | 0 | OPEN / DRAFT / UNMERGED | D01 evidence proposal; latest v1.0.2 addendum does not establish adopted strategy authority. |
@@ -695,6 +695,7 @@ The following is the current evidence snapshot used for this addendum. Commit SH
 | Document | Exact blob SHA | Branch/ref |
 |---|---|---|
 | Consolidated A2 closure report v1.0.0 predecessor | `49f571fb7797ab8cf7027a5a66f072b0e2d17d80` | `docs/esppm-a2-closure-report-001` |
+| Consolidated A2 closure report v1.0.1 successor (before index correction) | `a0f04f48d6adcb6abc4e05ec725dd99d6c8df77f` | `docs/esppm-a2-closure-report-001`; index-correction commit follows |
 | D01 A1 subordinate specification | `c04dc84e21ccc9114d8952ba4d38913e36e58004` | PR #222 |
 | D01 A2 evidence register v1.0.2 | `729644771e7097d6e6be95897cf7ab7ee3d8d710` | PR #223 |
 | Treasury/PSC evidence addendum v1.0.2 | `9c88fcd23a58954fde9d63017cea5aad88b030dd` | PR #215 |
@@ -710,7 +711,7 @@ The following is the current evidence snapshot used for this addendum. Commit SH
 - #222: https://github.com/akefadaka-git/arna-api/pull/222  
 - #223: https://github.com/akefadaka-git/arna-api/pull/223  
 
-The #212/#213/#215 branches remain one commit behind API main because their bases are the historical commit `40428db0a41d54397dd2aee482c9395f7950e9d0`; the intervening mainline commit is documentation/progress-only. Their historical branch content is preserved and is not silently rebased. PRs #220/#222/#223 are based on the current API main SHA. The #219 head shown above is the pre-amendment head; the new successor file commit will advance that branch and its final head is recorded in the PR metadata after creation.
+The #212/#213/#215 branches remain one commit behind API main because their bases are the historical commit `40428db0a41d54397dd2aee482c9395f7950e9d0`; the intervening mainline commit is documentation/progress-only. Their historical branch content is preserved and is not silently rebased. PRs #220/#222/#223 are based on the current API main SHA. The #219 row records the exact branch head at the start of this evidence-index correction. The successor report blob and commit are listed in the document index; this correction itself advances the branch by one documentation-only commit. The live PR metadata remains the authority for the post-commit head.
 
 ### 13.4 A2-R06 and A2-R07 stage disposition
 
