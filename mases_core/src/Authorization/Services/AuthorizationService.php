@@ -732,6 +732,50 @@ final class AuthorizationService
     }
 
     /**
+     * Clear one user's permission-result entries for one application.
+     * When a tenant ID is supplied, only that tenant/application intersection
+     * is invalidated. Cache failures propagate to the enclosing mutation.
+     */
+    public function clearUserApplicationCache(
+        User $user,
+        int|string $applicationId,
+        int|string|null $tenantId = null
+    ): void {
+        $registryKey = $this->registryKeyFor($user);
+        $keys = $this->getUserCacheKeys($user);
+        $application = (string) $applicationId;
+        $tenant = $tenantId === null ? null : (string) $tenantId;
+        $matched = [];
+        $remaining = [];
+
+        foreach ($keys as $key) {
+            $parts = explode(':', $key, 6);
+            $matches = count($parts) === 6
+                && $parts[0] === 'auth'
+                && $parts[1] === 'permission'
+                && $parts[2] === (string) $user->id
+                && $parts[5] === $application
+                && ($tenant === null || $parts[4] === $tenant);
+
+            if ($matches) {
+                $matched[] = $key;
+            } else {
+                $remaining[] = $key;
+            }
+        }
+
+        if ($matched !== []) {
+            $this->cache->deleteMultiple($matched);
+        }
+
+        if ($remaining === []) {
+            $this->cache->forget($registryKey);
+        } else {
+            $this->cache->put($registryKey, array_values($remaining), self::REGISTRY_DURATION);
+        }
+    }
+
+    /**
      * Clear cached application-ID lookups.
      *
      * Intended for the rare case where an application's slug is changed or
