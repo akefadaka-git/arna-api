@@ -15,11 +15,10 @@ final class FinanceRolePermissionGrants
 {
     /** @var array<string, list<string>> */
     public const MAP = [
-        'tenant_admin' => ['app.finance.access'],
-        'manager' => ['app.finance.access'],
+        'tenant_admin' => [],
+        'manager' => [],
         'finance_manager' => [
             'app.finance.access',
-            'file.upload', 'file.download', 'file.view', 'file.list',
             'user.profile.view',
             'finance.entity.view',
             'finance.account.view', 'finance.account.manage',
@@ -34,13 +33,13 @@ final class FinanceRolePermissionGrants
             'finance.governance_settlement.approve',
             'finance.governance_settlement.execute.app',
         ],
-        'board' => ['app.finance.access'],
-        'president' => ['app.finance.access'],
+        'board' => [],
+        'president' => [],
         'cashier' => [
-            'app.finance.access', 'user.profile.view',
+            'user.profile.view',
             'file.view', 'file.list', 'file.download', 'file.upload',
             'finance.governance_settlement.execute',
         ],
-        'ceo' => ['app.finance.access'],
+        'ceo' => [],
     ];
 }
