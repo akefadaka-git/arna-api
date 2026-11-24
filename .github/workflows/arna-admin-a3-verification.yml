@@ -17,6 +17,8 @@ on:
       - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
       - "tests/Feature/TenantRoleOwnerApprovalTest.php"
       - "database/migrations/2026_11_24_090000_create_admin_owner_approval_evidence_tables.php"
+      - "docs/security/ARNA-ADMIN-OWNER-APPROVAL-EVIDENCE-V1.md"
+      - "docs/security/ARNA-ADMIN-OWNER-APPROVAL-EVIDENCE-V1.md"
   pull_request:
     branches: [main]
     paths:
