@@ -54,6 +54,8 @@ on:
       - "tests/Feature/AdminPlatformOverviewRouteTest.php"
       - "app/Http/Controllers/Admin/PlatformApplicationsController.php"
       - "tests/Feature/AdminPlatformApplicationsRouteTest.php"
+      - "app/Http/Controllers/Admin/AdminControlPlaneController.php"
+      - "tests/Feature/AdminPlatformDirectoryRouteTest.php"
       - "database/seeders/Data/PermissionCatalogue.php"
       - "app/Http/Controllers/ExecutiveOverviewController.php"
       - "mases_core/src/Authorization/ExecutiveOverviewAccessPolicy.php"
@@ -296,6 +298,13 @@ jobs:
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/AdminPlatformApplicationsRouteTest.php
+
+      - name: Run platform identity, RBAC and tenant directory boundary tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/AdminPlatformDirectoryRouteTest.php
 
       - name: Confirm test database is empty
         shell: bash
