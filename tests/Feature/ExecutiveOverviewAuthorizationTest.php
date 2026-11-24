@@ -248,12 +248,14 @@ final class ExecutiveOverviewAuthorizationTest extends TestCase
             'is_active' => true,
         ]);
         $permission = Permission::factory()->create([
-            'slug' => 'dashboard.executive.view',
-            'scope' => 'tenant',
+            'slug' => 'dashboard.finance.executive.view',
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $finance->id,
             'is_active' => true,
             'is_system' => false,
         ]);
-        $validRole->permissions()->attach($permission->id);
+        $validRole->syncPermissions([$permission->id]);
         $user->roles()->attach($validRole->id);
 
         $policy = new ExecutiveOverviewAccessPolicy();
