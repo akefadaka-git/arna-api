@@ -303,17 +303,17 @@ final class Role extends Model
             if ($permission instanceof Permission) {
                 return $permission->id;
             }
-            if (is_string($permission)) {
+            if (is_string($permission) && !ctype_digit($permission)) {
                 $id = Permission::where('slug', $permission)->value('id');
                 if ($id === null) {
                     throw new \InvalidArgumentException('Unknown permission slug: ' . $permission);
                 }
-                return $id;
+                return (int) $id;
             }
             if (!is_int($permission) && !(is_string($permission) && ctype_digit($permission))) {
                 throw new \InvalidArgumentException('Role permissions must be IDs, slugs, or Permission instances.');
             }
-            return $permission;
+            return (int) $permission;
         })->filter(static fn ($id) => $id !== null)->unique()->values()->all();
 
         // Enforce the selected current-main scope model before any pivot write.
@@ -325,43 +325,7 @@ final class Role extends Model
         }
 
         foreach ($permissionsById as $permission) {
-            if (
-                $this->scope === 'tenant'
-                && (
-                    ($permission->scope === 'tenant' && (string) $permission->tenant_id !== (string) $this->tenant_id)
-                    || ($permission->scope === 'application'
-                        && $permission->tenant_id !== null
-                        && (string) $permission->tenant_id !== (string) $this->tenant_id)
-                )
-            ) {
-                throw new \DomainException('Tenant roles cannot receive permissions bound to another tenant.');
-            }
-
-            if (
-                $this->scope === 'application'
-                && (
-                    ($permission->scope === 'application'
-                        && (
-                            (string) $permission->application_id !== (string) $this->application_id
-                            || ($permission->tenant_id !== null
-                                && ($this->tenant_id === null || (string) $permission->tenant_id !== (string) $this->tenant_id))
-                        ))
-                    || ($permission->scope === 'tenant'
-                        && $permission->tenant_id !== null
-                        && ($this->tenant_id === null || (string) $permission->tenant_id !== (string) $this->tenant_id))
-                    || !in_array($permission->scope, ['global', 'tenant', 'application'], true)
-                )
-            ) {
-                throw new \DomainException('Application roles may only receive global permissions, unbound or same-tenant permissions, and permissions scoped to the same application and tenant boundary.');
-            }
-
-            if (
-                $this->scope === 'platform'
-                && $permission->scope === 'tenant'
-                && $permission->tenant_id !== null
-            ) {
-                throw new \DomainException('Platform roles cannot receive permissions bound to a specific tenant.');
-            }
+            $this->assertPermissionScopeCompatible($permission);
         }
 
         DB::transaction(function () use ($permissionIds): void {
@@ -380,6 +344,60 @@ final class Role extends Model
         });
 
         return $this;
+    }
+
+    /**
+     * Enforce the approved role-to-permission scope compatibility matrix.
+     *
+     * Platform roles accept global permissions only. Tenant roles accept
+     * global permissions and permissions bound to the same tenant.
+     * Application roles accept global permissions and permissions bound to
+     * the same application; a tenant-bound application permission must also
+     * match the role's tenant binding.
+     *
+     * @throws \DomainException when the permission cannot be attached.
+     */
+    public function assertPermissionScopeCompatible(Permission $permission): void
+    {
+        $compatible = match ($this->scope) {
+            'platform' => $permission->scope === 'global'
+                && $permission->tenant_id === null
+                && $permission->application_id === null,
+
+            'tenant' => (
+                $permission->scope === 'global'
+                && $permission->tenant_id === null
+                && $permission->application_id === null
+            ) || (
+                $permission->scope === 'tenant'
+                && (string) $permission->tenant_id === (string) $this->tenant_id
+                && $permission->application_id === null
+            ),
+
+            'application' => (
+                $permission->scope === 'global'
+                && $permission->tenant_id === null
+                && $permission->application_id === null
+            ) || (
+                $permission->scope === 'application'
+                && (string) $permission->application_id === (string) $this->application_id
+                && (
+                    $permission->tenant_id === null
+                    || ($this->tenant_id !== null
+                        && (string) $permission->tenant_id === (string) $this->tenant_id)
+                )
+            ),
+
+            default => false,
+        };
+
+        if (!$compatible) {
+            throw new \DomainException(sprintf(
+                'Permission scope [%s] is incompatible with role scope [%s] and its bindings.',
+                (string) $permission->scope,
+                (string) $this->scope,
+            ));
+        }
     }
 
     /**

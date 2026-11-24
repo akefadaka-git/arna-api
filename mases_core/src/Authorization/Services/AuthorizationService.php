@@ -232,6 +232,9 @@ final class AuthorizationService
      */
     private const REGISTRY_DURATION = 600;
 
+    /** Persistent generation counters outlive permission-result entries. */
+    private const VERSION_DURATION = 31536000;
+
     /**
      * The cache repository instance.
      *
@@ -339,26 +342,31 @@ final class AuthorizationService
             ? $this->resolveApplicationId($applicationSlug)
             : null;
 
-        // Build the fully-qualified cache key for this specific check.
-        // Every dimension of the check appears in the key, so different
-        // contexts (same user, different tenant) never collide.
+        // Versioned keys avoid a mutable key registry. Concurrent invalidation
+        // advances a generation atomically, so a stale cache write cannot be
+        // reached by any subsequent permission check.
+        $userVersion = $this->cacheVersion($this->userVersionKey($user));
+        $tenantVersion = $tenantId === null
+            ? 0
+            : $this->cacheVersion($this->tenantVersionKey($user, $tenantId));
+        $applicationWildcardVersion = $applicationId === null
+            ? 0
+            : $this->cacheVersion($this->applicationVersionKey($user, $applicationId, null));
+        $applicationTenantVersion = ($applicationId === null || $tenantId === null)
+            ? 0
+            : $this->cacheVersion($this->applicationVersionKey($user, $applicationId, $tenantId));
+
         $cacheKey = sprintf(
-            'auth:permission:%d:%s:%s:%s',
+            'auth:permission:%d:%d:%d:%d:%d:%s:%s:%s',
             $user->id,
+            $userVersion,
+            $tenantVersion,
+            $applicationWildcardVersion,
+            $applicationTenantVersion,
             $permissionSlug,
             $tenantId ?: 'null',
             $applicationId ?: 'null'
         );
-
-        // Register the key BEFORE the remember() call. Two reasons:
-        //   1. If the closure throws (e.g. DB error), the key was still
-        //      tracked, so an invalidation later will still attempt to
-        //      remove it — harmless if it never got written.
-        //   2. The registry is consulted by addUserCacheKey() to decide
-        //      whether a write is needed; registering first means the very
-        //      first check on a cold cache performs one write, subsequent
-        //      checks on the same key perform zero writes.
-        $this->addUserCacheKey($user, $cacheKey);
 
         return $this->cache->remember($cacheKey, self::CACHE_DURATION, function () use (
             $user,
@@ -403,36 +411,61 @@ final class AuthorizationService
             // tenant and application scoping rules as Path A.
             // ------------------------------------------------------------
             return $user->roles()
-                ->where('is_active', true)
-                ->whereHas('permissions', function ($query) use ($permissionSlug, $tenantId) {
+                ->where('roles.is_active', true)
+                ->where(function ($roleScope) use ($tenantId, $applicationId): void {
+                    $roleScope->where(function ($query): void {
+                        $query->where('roles.scope', 'platform')
+                            ->whereNull('roles.tenant_id')
+                            ->whereNull('roles.application_id');
+                    });
+
+                    if ($tenantId !== null) {
+                        $roleScope->orWhere(function ($query) use ($tenantId): void {
+                            $query->where('roles.scope', 'tenant')
+                                ->where('roles.tenant_id', $tenantId)
+                                ->whereNull('roles.application_id');
+                        });
+                    }
+
+                    if ($applicationId !== null) {
+                        $roleScope->orWhere(function ($query) use ($tenantId, $applicationId): void {
+                            $query->where('roles.scope', 'application')
+                                ->where('roles.application_id', $applicationId)
+                                ->where(function ($tenantQuery) use ($tenantId): void {
+                                    $tenantQuery->whereNull('roles.tenant_id');
+                                    if ($tenantId !== null) {
+                                        $tenantQuery->orWhere('roles.tenant_id', $tenantId);
+                                    }
+                                });
+                        });
+                    }
+                })
+                ->whereHas('permissions', function ($query) use ($permissionSlug, $tenantId, $applicationId): void {
                     $query->where('slug', $permissionSlug)
                         ->where('is_active', true)
-                        ->when(
-                            $tenantId !== null,
-                            function ($permissionQuery) use ($tenantId) {
-                                $permissionQuery->where(function ($q) use ($tenantId) {
-                                    $q->where('tenant_id', $tenantId)
-                                        ->orWhereNull('tenant_id');
+                        ->where(function ($scopeQuery) use ($tenantId, $applicationId): void {
+                            $scopeQuery->where(function ($global): void {
+                                $global->where('permissions.scope', 'global')
+                                    ->whereNull('permissions.tenant_id')
+                                    ->whereNull('permissions.application_id');
+                            });
+
+                            if ($tenantId !== null) {
+                                $scopeQuery->orWhere(function ($tenant): void {
+                                    $tenant->where('permissions.scope', 'tenant')
+                                        ->whereColumn('permissions.tenant_id', 'roles.tenant_id')
+                                        ->whereNull('permissions.application_id');
                                 });
-                            },
-                            fn ($permissionQuery) => $permissionQuery->whereNull('tenant_id')
-                        );
-                })
-                ->when(
-                    $tenantId !== null,
-                    function ($query) use ($tenantId) {
-                        $query->where(function ($q) use ($tenantId) {
-                            $q->where('tenant_id', $tenantId)
-                                ->orWhereNull('tenant_id');
+                            }
+
+                            if ($applicationId !== null) {
+                                $scopeQuery->orWhere(function ($application): void {
+                                    $application->where('permissions.scope', 'application')
+                                        ->whereColumn('permissions.application_id', 'roles.application_id')
+                                        ->whereColumn('permissions.tenant_id', 'roles.tenant_id');
+                                });
+                            }
                         });
-                    },
-                    fn ($query) => $query->whereNull('tenant_id')
-                )
-                ->when($applicationId !== null, function ($query) use ($applicationId) {
-                    $query->where(function ($q) use ($applicationId) {
-                        $q->where('application_id', $applicationId)
-                            ->orWhereNull('application_id');
-                    });
                 })
                 ->exists();
         });
@@ -680,136 +713,31 @@ final class AuthorizationService
      */
     public function clearUserCache(User $user): void
     {
-        $registryKey = $this->registryKeyFor($user);
-        $keys        = $this->getUserCacheKeys($user);
-
-        if (!empty($keys) && $this->cache->deleteMultiple($keys) !== true) {
-            throw new RuntimeException('Authorization permission cache entries could not be deleted.');
-        }
-
-        if ($this->cache->has($registryKey) && $this->cache->forget($registryKey) !== true) {
-            throw new RuntimeException('Authorization permission cache registry could not be removed.');
-        }
+        $this->bumpCacheVersion($this->userVersionKey($user));
     }
 
     /**
-     * Clear only one user's permission-result cache entries for one tenant.
-     *
-     * Cache keys are auth:permission:{user}:{permission}:{tenant}:{application}.
-     * Registry writes are updated after deleting matching entries. Any cache
-     * failure is deliberately propagated so a caller can roll back the
-     * authorization mutation rather than leave stale-positive access active.
+     * Invalidate permission results for one user and tenant using an atomic
+     * generation increment rather than a read/modify/write key registry.
      */
     public function clearUserTenantCache(User $user, int|string $tenantId): void
     {
-        $registryKey = $this->registryKeyFor($user);
-        $keys = $this->getUserCacheKeys($user);
-        $tenant = (string) $tenantId;
-        $matched = [];
-        $remaining = [];
-
-        foreach ($keys as $key) {
-            $parts = explode(':', $key, 6);
-            if (
-                count($parts) === 6
-                && $parts[0] === 'auth'
-                && $parts[1] === 'permission'
-                && $parts[2] === (string) $user->id
-                && $parts[4] === $tenant
-            ) {
-                $matched[] = $key;
-            } else {
-                $remaining[] = $key;
-            }
-        }
-
-        if ($matched !== [] && $this->cache->deleteMultiple($matched) !== true) {
-            throw new RuntimeException('Tenant-scoped authorization cache entries could not be deleted.');
-        }
-
-        if ($remaining === []) {
-            if ($this->cache->has($registryKey) && $this->cache->forget($registryKey) !== true) {
-                throw new RuntimeException('Tenant-scoped authorization cache registry could not be removed.');
-            }
-        } elseif ($this->cache->put($registryKey, array_values($remaining), self::REGISTRY_DURATION) !== true) {
-            throw new RuntimeException('Tenant-scoped authorization cache registry could not be updated.');
-        }
+        $this->bumpCacheVersion($this->tenantVersionKey($user, $tenantId));
     }
 
     /**
-     * Clear one user's permission-result entries for one application.
-     * When a tenant ID is supplied, only that tenant/application intersection
-     * is invalidated. Cache failures propagate to the enclosing mutation.
+     * Invalidate one user's application permission results. A null tenant
+     * advances the wildcard generation; a concrete tenant advances only
+     * that application/tenant intersection.
      */
     public function clearUserApplicationCache(
         User $user,
         int|string $applicationId,
         int|string|null $tenantId = null
     ): void {
-        $registryKey = $this->registryKeyFor($user);
-        $keys = $this->getUserCacheKeys($user);
-        $application = (string) $applicationId;
-        $tenant = $tenantId === null ? null : (string) $tenantId;
-        $matched = [];
-        $remaining = [];
-
-        foreach ($keys as $key) {
-            $parts = explode(':', $key, 6);
-            $matches = count($parts) === 6
-                && $parts[0] === 'auth'
-                && $parts[1] === 'permission'
-                && $parts[2] === (string) $user->id
-                && $parts[5] === $application
-                && ($tenant === null || $parts[4] === $tenant);
-
-            if ($matches) {
-                $matched[] = $key;
-            } else {
-                $remaining[] = $key;
-            }
-        }
-
-        if ($matched !== [] && $this->cache->deleteMultiple($matched) !== true) {
-            throw new RuntimeException('Application-scoped authorization cache entries could not be deleted.');
-        }
-
-        if ($remaining === []) {
-            if ($this->cache->has($registryKey) && $this->cache->forget($registryKey) !== true) {
-                throw new RuntimeException('Application-scoped authorization cache registry could not be removed.');
-            }
-        } elseif ($this->cache->put($registryKey, array_values($remaining), self::REGISTRY_DURATION) !== true) {
-            throw new RuntimeException('Application-scoped authorization cache registry could not be updated.');
-        }
+        $this->bumpCacheVersion($this->applicationVersionKey($user, $applicationId, $tenantId));
     }
 
-    /**
-     * Clear cached application-ID lookups.
-     *
-     * Intended for the rare case where an application's slug is changed or
-     * an application is deactivated. In practice this is close to never.
-     *
-     * -----------------------------------------------------------------------------
-     * DEFERRED FINDING — P1-A5-FLUSH-001
-     * -----------------------------------------------------------------------------
-     * The current implementation calls `$this->cache->flush()`, which on the
-     * database cache driver deletes EVERY row from the `cache` table. That
-     * includes:
-     *
-     *   - Every `auth:permission:*` entry (forcing re-query for every user).
-     *   - Every `auth:app_id:*` entry (forcing re-query for every app slug).
-     *   - Every `auth:user_keys:*` registry.
-     *   - EVERY OTHER CACHED VALUE written by ANY other service on the platform.
-     *
-     * This is a hazard. It was acknowledged and NOT fixed in A5 because A5's
-     * approved scope was limited to per-user cache invalidation. A separate
-     * Change Request should replace `flush()` with a targeted loop over
-     * `PlatformApplication::pluck('slug')` forgetting each `auth:app_id:*` key.
-     *
-     * Do not call this method casually in production code.
-     * -----------------------------------------------------------------------------
-     *
-     * @return void
-     */
     public function clearApplicationCache(): void
     {
         // We can't easily wildcard delete with all cache drivers, but we can
@@ -903,81 +831,46 @@ final class AuthorizationService
         });
     }
 
-    /**
-     * Build the cache key of the per-user invalidation registry.
-     *
-     * Format: `auth:user_keys:{userId}`. One registry per user.
-     *
-     * @param User $user
-     *
-     * @return string
-     */
-    private function registryKeyFor(User $user): string
+    private function userVersionKey(User $user): string
     {
-        return sprintf('auth:user_keys:%d', $user->id);
+        return sprintf('auth:user_version:%d', $user->id);
     }
 
-    /**
-     * Read the registry of cache keys belonging to a user.
-     *
-     * Returns an empty array if the registry does not exist (i.e. this user
-     * has never had a permission check performed against them, or their
-     * registry has already been cleared).
-     *
-     * The registry key itself is NOT included in the returned array. This is
-     * a deliberate difference from the pre-A5 version of this method, which
-     * appended the registry key into the list of keys to delete. Including
-     * it was harmless but blurred the separation of concerns between
-     * "these are the tracked keys" and "this is the registry"; the new
-     * version keeps them distinct and lets `clearUserCache()` explicitly
-     * forget the registry after deleting the tracked keys.
-     *
-     * @param User $user
-     *
-     * @return array<int, string>
-     */
-    private function getUserCacheKeys(User $user): array
+    private function tenantVersionKey(User $user, int|string $tenantId): string
     {
-        $keys = $this->cache->get($this->registryKeyFor($user), []);
-
-        return is_array($keys) ? array_values($keys) : [];
+        return sprintf('auth:user_tenant_version:%d:%s', $user->id, (string) $tenantId);
     }
 
-    /**
-     * Register a cache key in the user's invalidation registry.
-     *
-     * Idempotent: if the key is already present in the registry, nothing is
-     * written. This keeps the hot path cheap — a repeated `hasPermission()`
-     * call for the same (user, permission, tenant, application) tuple does
-     * exactly one cache read (for the registry) and one cache read (for the
-     * boolean result), and zero writes.
-     *
-     * If the registry does not yet exist, it is created with a single-entry
-     * list. If it exists but is not an array (possible if something else
-     * wrote to the same key), it is overwritten with a fresh array — this
-     * is defensive against cache-key collisions but should never trigger
-     * given the `auth:` namespace prefix.
-     *
-     * TTL is REGISTRY_DURATION (longer than CACHE_DURATION) so the registry
-     * always outlives the keys it tracks.
-     *
-     * @param User   $user
-     * @param string $cacheKey
-     *
-     * @return void
-     */
-    private function addUserCacheKey(User $user, string $cacheKey): void
+    private function applicationVersionKey(
+        User $user,
+        int|string $applicationId,
+        int|string|null $tenantId
+    ): string {
+        return sprintf(
+            'auth:user_application_version:%d:%s:%s',
+            $user->id,
+            (string) $applicationId,
+            $tenantId === null ? '*' : (string) $tenantId,
+        );
+    }
+
+    private function cacheVersion(string $key): int
     {
-        $registryKey = $this->registryKeyFor($user);
-        $keys        = $this->cache->get($registryKey, []);
+        $version = $this->cache->get($key, 0);
 
-        if (!is_array($keys)) {
-            $keys = [];
-        }
+        return is_numeric($version) ? (int) $version : 0;
+    }
 
-        if (!in_array($cacheKey, $keys, true)) {
-            $keys[] = $cacheKey;
-            $this->cache->put($registryKey, array_values($keys), self::REGISTRY_DURATION);
+    private function bumpCacheVersion(string $key): void
+    {
+        // add() initializes the counter atomically; increment() is an atomic
+        // cache-store operation, preventing lost updates under concurrency.
+        $this->cache->add($key, 0, self::VERSION_DURATION);
+        $version = $this->cache->increment($key);
+
+        if ($version === false) {
+            throw new RuntimeException('Authorization cache generation could not be advanced.');
         }
     }
+
 }

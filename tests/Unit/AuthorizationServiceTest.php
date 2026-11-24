@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
+use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
@@ -125,6 +126,78 @@ final class AuthorizationServiceTest extends TestCase
 
         $has = $this->service->hasPermission('files.upload', $this->user);
         $this->assertTrue($has);
+    }
+
+    #[Test]
+    public function role_permission_scope_matrix_rejects_incompatible_grants(): void
+    {
+        $application = PlatformApplication::factory()->create();
+        $tenantRole = Role::factory()->tenantScope()->create([
+            'tenant_id' => $this->tenant->id,
+            'application_id' => null,
+        ]);
+        $applicationRole = Role::factory()->applicationScope()->create([
+            'tenant_id' => null,
+            'application_id' => $application->id,
+        ]);
+        $platformRole = Role::factory()->create([
+            'scope' => 'platform',
+            'tenant_id' => null,
+            'application_id' => null,
+        ]);
+
+        $global = Permission::factory()->create([
+            'scope' => 'global', 'tenant_id' => null, 'application_id' => null,
+        ]);
+        $tenantPermission = Permission::factory()->create([
+            'scope' => 'tenant', 'tenant_id' => $this->tenant->id, 'application_id' => null,
+        ]);
+        $applicationPermission = Permission::factory()->create([
+            'scope' => 'application', 'tenant_id' => null, 'application_id' => $application->id,
+        ]);
+
+        $tenantRole->syncPermissions([$global->id, $tenantPermission->id]);
+        $applicationRole->syncPermissions([$global->id, $applicationPermission->id]);
+        $platformRole->syncPermissions([$global->id]);
+
+        $this->expectException(\DomainException::class);
+        $tenantRole->syncPermissions([$applicationPermission->id]);
+    }
+
+    #[Test]
+    public function numeric_string_permission_ids_are_normalized_as_ids(): void
+    {
+        $permission = Permission::factory()->create([
+            'scope' => 'global', 'tenant_id' => null, 'application_id' => null,
+        ]);
+        $role = Role::factory()->create([
+            'scope' => 'platform', 'tenant_id' => null, 'application_id' => null,
+        ]);
+
+        $role->syncPermissions([(string) $permission->id]);
+
+        $this->assertDatabaseHas('role_has_permissions', [
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+        ]);
+    }
+
+    #[Test]
+    public function clearing_user_cache_advances_generation_and_removes_stale_positive_result(): void
+    {
+        $permission = Permission::factory()->create([
+            'slug' => 'cache.revocation.test',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'application_id' => null,
+        ]);
+        $this->user->permissions()->attach($permission->id);
+
+        $this->assertTrue($this->service->hasPermission('cache.revocation.test', $this->user));
+        $this->user->permissions()->detach($permission->id);
+        $this->service->clearUserCache($this->user);
+
+        $this->assertFalse($this->service->hasPermission('cache.revocation.test', $this->user));
     }
 
     // =========================================================================

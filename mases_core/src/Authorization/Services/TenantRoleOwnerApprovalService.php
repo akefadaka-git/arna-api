@@ -505,13 +505,14 @@ final class TenantRoleOwnerApprovalService
         if ($permissions->count() !== count($slugs)) {
             throw ValidationException::withMessages(['permission_slugs' => ['Every requested permission must exist in the canonical permission catalogue.']]);
         }
+
         foreach ($permissions as $permission) {
-            if ($permission->scope === 'tenant' && (string) $permission->tenant_id !== (string) $tenantId) {
-                throw ValidationException::withMessages(['permission_slugs' => ['A tenant role cannot receive a permission bound to another tenant.']]);
-            }
-            if ($permission->scope === 'application' && $permission->tenant_id !== null
-                && (string) $permission->tenant_id !== (string) $tenantId) {
-                throw ValidationException::withMessages(['permission_slugs' => ['An application permission is bound to another tenant.']]);
+            try {
+                $role->assertPermissionScopeCompatible($permission);
+            } catch (\DomainException $exception) {
+                throw ValidationException::withMessages([
+                    'permission_slugs' => [$exception->getMessage()],
+                ]);
             }
         }
     }

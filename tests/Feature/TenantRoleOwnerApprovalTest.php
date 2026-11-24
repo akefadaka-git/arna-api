@@ -215,6 +215,126 @@ final class TenantRoleOwnerApprovalTest extends TestCase
         ]);
     }
 
+    public function test_wrong_tenant_cannot_execute_or_consume_owner_challenge(): void
+    {
+        [$tenant, $actor, $owner, $target, $role, $secretKey] = $this->fixture();
+        $service = app(TenantRoleOwnerApprovalService::class);
+        [$challenge, $evidence] = $this->signedChallenge($service, $actor, $tenant, $secretKey, [
+            'owner_user_id' => $owner->id,
+            'action' => TenantRoleOwnerApprovalService::ACTION_ASSIGN,
+            'role_id' => $role->id,
+            'target_user_id' => $target->id,
+            'permission_slugs' => [],
+            'reason' => 'Wrong tenant must fail closed',
+        ]);
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+
+        try {
+            $service->execute($actor, (int) $otherTenant->id, $challenge['challenge_id'], $evidence);
+            $this->fail('A challenge must not execute in another tenant.');
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+            $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
+            $this->assertDatabaseMissing('admin_owner_approval_consumptions', [
+                'tenant_id' => $tenant->id, 'payload_sha256' => $challenge['payload_sha256'],
+            ]);
+        }
+    }
+
+    public function test_different_requester_cannot_execute_owner_challenge(): void
+    {
+        [$tenant, $actor, $owner, $target, $role, $secretKey] = $this->fixture();
+        $service = app(TenantRoleOwnerApprovalService::class);
+        [$challenge, $evidence] = $this->signedChallenge($service, $actor, $tenant, $secretKey, [
+            'owner_user_id' => $owner->id,
+            'action' => TenantRoleOwnerApprovalService::ACTION_ASSIGN,
+            'role_id' => $role->id,
+            'target_user_id' => $target->id,
+            'permission_slugs' => [],
+            'reason' => 'Wrong requester must fail closed',
+        ]);
+
+        $otherActor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->id]);
+        DB::table('tenant_memberships')->insert([
+            'tenant_id' => $tenant->id, 'user_id' => $otherActor->id,
+            'joined_at' => now(), 'status' => 'active', 'settings' => null,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $requesterRole = Role::query()->where('slug', 'tenant-rbac-requester-' . $tenant->id)->firstOrFail();
+        DB::table('user_has_roles')->insert([
+            'user_id' => $otherActor->id, 'role_id' => $requesterRole->id,
+            'assigned_at' => now(), 'assigned_by' => $actor->id,
+        ]);
+
+        try {
+            $service->execute($otherActor, (int) $tenant->id, $challenge['challenge_id'], $evidence);
+            $this->fail('A challenge must remain bound to its original requester.');
+        } catch (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
+            $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
+            $this->assertDatabaseMissing('admin_owner_approval_consumptions', [
+                'tenant_id' => $tenant->id, 'payload_sha256' => $challenge['payload_sha256'],
+            ]);
+        }
+    }
+
+    public function test_signature_from_wrong_owner_signing_key_cannot_execute_challenge(): void
+    {
+        [$tenant, $actor, $owner, $target, $role, $secretKey] = $this->fixture();
+        $service = app(TenantRoleOwnerApprovalService::class);
+        [$challenge] = $this->signedChallenge($service, $actor, $tenant, $secretKey, [
+            'owner_user_id' => $owner->id,
+            'action' => TenantRoleOwnerApprovalService::ACTION_ASSIGN,
+            'role_id' => $role->id,
+            'target_user_id' => $target->id,
+            'permission_slugs' => [],
+            'reason' => 'Wrong signing key must fail closed',
+        ]);
+        $wrongPair = sodium_crypto_sign_keypair();
+        $wrongSignature = sodium_crypto_sign_detached(
+            $challenge['canonical_payload'],
+            sodium_crypto_sign_secretkey($wrongPair),
+        );
+
+        try {
+            $service->execute($actor, (int) $tenant->id, $challenge['challenge_id'], [
+                'signature' => base64_encode($wrongSignature),
+            ]);
+            $this->fail('A signature from an untrusted key must be rejected.');
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+            $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
+            $this->assertDatabaseMissing('admin_owner_approval_consumptions', [
+                'tenant_id' => $tenant->id, 'payload_sha256' => $challenge['payload_sha256'],
+            ]);
+        }
+    }
+
+    public function test_altered_stored_challenge_payload_cannot_execute_or_consume(): void
+    {
+        [$tenant, $actor, $owner, $target, $role, $secretKey] = $this->fixture();
+        $service = app(TenantRoleOwnerApprovalService::class);
+        [$challenge, $evidence] = $this->signedChallenge($service, $actor, $tenant, $secretKey, [
+            'owner_user_id' => $owner->id,
+            'action' => TenantRoleOwnerApprovalService::ACTION_ASSIGN,
+            'role_id' => $role->id,
+            'target_user_id' => $target->id,
+            'permission_slugs' => [],
+            'reason' => 'Altered payload must fail closed',
+        ]);
+        DB::table('admin_owner_approval_challenges')
+            ->where('tenant_id', $tenant->id)
+            ->where('challenge_uuid', $challenge['challenge_id'])
+            ->update(['canonical_payload' => $challenge['canonical_payload'] . ' ']);
+
+        try {
+            $service->execute($actor, (int) $tenant->id, $challenge['challenge_id'], $evidence);
+            $this->fail('An altered stored challenge payload must be rejected.');
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+            $this->assertDatabaseMissing('user_has_roles', ['user_id' => $target->id, 'role_id' => $role->id]);
+            $this->assertDatabaseMissing('admin_owner_approval_consumptions', [
+                'tenant_id' => $tenant->id, 'payload_sha256' => $challenge['payload_sha256'],
+            ]);
+        }
+    }
+
     private function fixture(bool $selfReviewedOwnerKey = false): array
     {
         Cache::flush();
