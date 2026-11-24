@@ -50,6 +50,8 @@ on:
       - "routes/api.php"
       - "app/Http/Controllers/Admin/PlatformDomainRegistryController.php"
       - "tests/Feature/AdminDomainRegistryRouteTest.php"
+      - "app/Http/Controllers/Admin/PlatformOverviewController.php"
+      - "tests/Feature/AdminPlatformOverviewRouteTest.php"
       - "database/seeders/Data/PermissionCatalogue.php"
       - "app/Http/Controllers/ExecutiveOverviewController.php"
       - "mases_core/src/Authorization/ExecutiveOverviewAccessPolicy.php"
@@ -278,6 +280,13 @@ jobs:
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/AdminDomainRegistryRouteTest.php
+
+      - name: Run platform overview route ownership tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/AdminPlatformOverviewRouteTest.php
 
       - name: Confirm test database is empty
         shell: bash
