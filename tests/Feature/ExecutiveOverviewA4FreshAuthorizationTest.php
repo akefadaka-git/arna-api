@@ -41,9 +41,9 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             'name_am' => 'Finance Manager',
             'name_en' => 'Finance Manager',
             'slug' => 'finance_manager',
-            'scope' => 'application',
+            'scope' => 'tenant',
             'tenant_id' => $tenant->id,
-            'application_id' => $application->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
 
