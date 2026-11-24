@@ -24,6 +24,17 @@ final class CommunicationPeopleSupplementTest extends TestCase
         [$tenant, $actor] = $this->member(['communication.conversation.view','communication.conversation.create','communication.message.send','communication.message.read']);
         $recipient = User::factory()->create();
         $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        $readPermission = Permission::where('slug', 'communication.message.read')->firstOrFail();
+        $readerRole = Role::create([
+            'name_en' => 'Conversation Reader',
+            'slug' => 'conversation-reader-'.$recipient->id,
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $readerRole->permissions()->attach($readPermission->id, ['assigned_at' => now()]);
+        $recipient->roles()->attach($readerRole->id, ['assigned_at' => now(), 'assigned_by' => $actor->id]);
         $id = $this->request($actor,$tenant)->postJson('/api/communication/conversations', ['type'=>'direct','participant_ids'=>[$recipient->id]])
             ->assertCreated()->json('data.id');
         $payload = ['body'=>'Hello','idempotency_key'=>'message-1'];
