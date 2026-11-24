@@ -1,7 +1,7 @@
 # ARNA ESPPM A2 Evidence Addendum 001 — Treasury, Procurement and Sales
 
 **Document ID:** ARNA-ESPPM-A2-EVIDENCE-ADD-001  
-**Version:** 1.0.1 (proposed controlled archival record; supplemental Treasury source review)  
+**Version:** 1.0.2 (proposed controlled archival record; supplemental Treasury and mailbox source review)  
 **Stage:** A2 — read-only reconciliation  
 **Status:** Evidence assessment updated with supplemental D12 source review; Owner decision on revised dispositions pending  
 **Repository baseline:** `akefadaka-git/arna-api`  
@@ -250,3 +250,16 @@ To close the evidence gate, obtain and authenticate:
 7. Approved liquidity forecasting, cash positioning and inter-entity transfer rules, if applicable.
 
 **Control instruction:** continue to deny any unsupported payment, bank-signatory, transfer, reconciliation sign-off or period-close authority. Preserve legacy exports as historical leads only; do not treat them as current ARNA records.
+
+
+## 11. Supplemental connected-mailbox search — 2026-11-24
+
+A read-only search was performed in the connected Gmail mailbox for:
+- bank mandate, bank signatory, authorized signatory and specimen signature;
+- Maale Arna bank account, bank statement and bank reconciliation;
+- attachments matching bank, statement, mandate or reconciliation;
+- cash management and payment authorization in the Maale Arna / MASES context.
+
+No relevant Maale Arna bank mandate, bank-account confirmation, statement, reconciliation record, or payment-authority email/attachment was returned. Two broad signatory-term matches were inspected and were unrelated (a NÚ MAALE administrative-register referral and an ORG-03 institutional-evidence request). The attachment-focused and Maale Arna bank-account searches returned no relevant threads.
+
+**Scope limitation:** this is a search of the connected mailbox using the stated terms and indexed email content; it does not prove that no such records exist in another mailbox, offline archive, bank portal, paper file, or unindexed attachment. No message was sent, modified, or deleted.
