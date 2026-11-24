@@ -70,6 +70,12 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
                 'is_system' => false,
             ]);
         }
+        $this->assertSame('application', $entryPermission->scope);
+        $this->assertSame($application->id, $entryPermission->application_id);
+        $this->assertNull($entryPermission->tenant_id);
+        $this->assertSame('application', $applicationRole->scope);
+        $this->assertSame($application->id, $applicationRole->application_id);
+
         $applicationRole->syncPermissions(array_map(
             static fn (Permission $permission): int => (int) $permission->id,
             array_values($permissions)
