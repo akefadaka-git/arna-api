@@ -42,8 +42,8 @@ return new class extends Migration
             $table->string('approval_note', 500)->nullable();
             $table->timestamp('applied_at')->nullable();
             $table->timestamps();
-            $table->index(['status', 'category', 'created_at']);
-            $table->index(['setting_key', 'environment']);
+            $table->index(['status', 'category', 'created_at'], 'pscr_status_category_created_idx');
+            $table->index(['setting_key', 'environment'], 'pscr_setting_environment_idx');
         });
 
         Schema::create('platform_setting_audit_events', function (Blueprint $table): void {
