@@ -42,6 +42,8 @@ final class CommunicationPeopleSupplementTest extends TestCase
         $this->request($actor,$tenant)->postJson("/api/communication/conversations/$id/messages",$payload)->assertCreated()->assertJsonPath('data.id',$message);
         $this->assertSame(1,DB::table('communication_messages')->where('tenant_id',$tenant->id)->count());
         $this->request($recipient,$tenant)->postJson("/api/communication/conversations/$id/read")->assertOk()->assertJsonPath('data.read_receipts_recorded',1);
+        $this->request($recipient,$tenant)->postJson("/api/communication/conversations/$id/read")->assertOk()->assertJsonPath('data.read_receipts_recorded',0);
+        $this->assertDatabaseCount('communication_message_reads',1);
         $this->assertDatabaseHas('communication_message_reads',['message_id'=>$message,'user_id'=>$recipient->id,'tenant_id'=>$tenant->id]);
         [$foreignTenant,$foreign]= $this->member(['communication.conversation.view']);
         $this->request($foreign,$foreignTenant)->getJson("/api/communication/conversations/$id/messages")->assertNotFound();
