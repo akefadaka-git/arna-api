@@ -31,6 +31,7 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
         ]);
 
         $global = Permission::query()->create([
+            'name_am' => 'Global test permission',
             'name_en' => 'Global test permission',
             'slug' => 'scope.runtime.global.' . $tenant->id,
             'category' => 'test',
@@ -41,6 +42,7 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
             'is_system' => false,
         ]);
         $tenantPermission = Permission::query()->create([
+            'name_am' => 'Tenant test permission',
             'name_en' => 'Tenant test permission',
             'slug' => 'scope.runtime.tenant.' . $tenant->id,
             'category' => 'test',
@@ -51,6 +53,7 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
             'is_system' => false,
         ]);
         $applicationPermission = Permission::query()->create([
+            'name_am' => 'Application test permission',
             'name_en' => 'Application test permission',
             'slug' => 'scope.runtime.application.' . $tenant->id,
             'category' => 'test',
@@ -62,6 +65,7 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
         ]);
 
         $tenantRole = Role::query()->create([
+            'name_am' => 'Tenant runtime role',
             'name_en' => 'Tenant runtime role',
             'slug' => 'tenant-runtime-' . $tenant->id,
             'scope' => 'tenant',
@@ -86,6 +90,7 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
 
         $user->roles()->detach($tenantRole->id);
         $platformRole = Role::query()->create([
+            'name_am' => 'Platform runtime role',
             'name_en' => 'Platform runtime role',
             'slug' => 'platform-runtime-' . $tenant->id,
             'scope' => 'platform',
@@ -100,6 +105,7 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
 
         $user->roles()->detach($platformRole->id);
         $applicationRole = Role::query()->create([
+            'name_am' => 'Application runtime role',
             'name_en' => 'Application runtime role',
             'slug' => 'application-runtime-' . $tenant->id,
             'scope' => 'application',
