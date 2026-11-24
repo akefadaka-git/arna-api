@@ -56,9 +56,9 @@ Provider adapters are separate capabilities:
 
 No provider adapter may perform live mutation in this A3 phase without its own credentials, capability verification, explicit per-operation authorization, dry-run/diff, confirmation, audit record, and rollback plan. No registrar, DNS, Plesk, certificate or hosting credentials are to be stored in frontend code or returned by API.
 
-## 5. API contract — target, not yet claimed as implemented
+## 5. API contract — current implementation status
 
-All endpoints below are target contracts. Their existence must be established by route registration, controller implementation, authorization tests, and exact-head workflow evidence before the frontend depends on them.
+The Domain Registry inventory endpoint is implemented in this branch and is permission-gated. It projects only domains already recorded against platform applications and tenants; it does not claim provider verification. Remaining endpoints below are target contracts and must be established by route registration, controller implementation, authorization tests, and exact-head workflow evidence before the frontend depends on them.
 
 - `GET /api/admin/platform/overview`
 - `GET /api/admin/platform/applications`
@@ -66,8 +66,8 @@ All endpoints below are target contracts. Their existence must be established by
 - `GET /api/admin/platform/rbac/roles`
 - `GET /api/admin/platform/rbac/permissions`
 - `GET /api/admin/platform/tenants`
-- `GET /api/admin/platform/domains`
-- `GET /api/admin/platform/domains/{domain}`
+- `GET /api/admin/platform/domains` — IMPLEMENTED as read-only inventory projection; requires `platform.domains.read`; reports ownership/DNS/TLS/hosting as unverified/unobserved and all live mutations disabled.
+- `GET /api/admin/platform/domains/{domain}` — TARGET
 - `GET /api/admin/platform/domains/{domain}/dns-records`
 - `GET /api/admin/platform/domains/{domain}/certificates`
 - `GET /api/admin/platform/domains/{domain}/events`
