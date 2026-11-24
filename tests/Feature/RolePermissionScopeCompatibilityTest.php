@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use DomainException;
+use Database\\Seeders\\Data\\RolePermissionGrants;
+use MaaleArna\\MASES\\Core\\Domains\\Finance\\Database\\Seeders\\FinanceRolePermissionGrants;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
@@ -17,6 +19,31 @@ use Tests\TestCase;
 final class RolePermissionScopeCompatibilityTest extends TestCase
 {
     use RefreshDatabase;
+
+
+    public function test_finance_settlement_execution_is_explicit_and_excluded_from_scope_wildcards(): void
+    {
+        $this->assertContains(
+            'finance.governance_settlement.execute',
+            RolePermissionGrants::WILDCARD_EXCLUSIONS,
+        );
+        $this->assertContains(
+            'finance.governance_settlement.execute.app',
+            RolePermissionGrants::WILDCARD_EXCLUSIONS,
+        );
+        $this->assertContains(
+            'finance.governance_settlement.execute',
+            FinanceRolePermissionGrants::MAP['cashier'],
+        );
+        $this->assertContains(
+            'finance.governance_settlement.execute.app',
+            FinanceRolePermissionGrants::MAP['finance_manager'],
+        );
+        $this->assertNotContains(
+            'finance.governance_settlement.execute',
+            RolePermissionGrants::MAP['tenant_admin'],
+        );
+    }
 
     public function test_runtime_enforces_scope_matrix_for_roles_even_when_legacy_pivots_bypass_sync_validation(): void
     {
