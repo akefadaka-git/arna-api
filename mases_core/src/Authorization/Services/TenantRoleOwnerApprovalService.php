@@ -66,6 +66,7 @@ final class TenantRoleOwnerApprovalService
         }
 
         return DB::transaction(function () use ($actor, $tenantId, $ownerId, $roleId, $action, $targetId, $reason, $slugs): array {
+            $this->assertActiveMembershipLocked($tenantId, (int) $actor->getKey());
             $role = Role::query()
                 ->whereKey($roleId)
                 ->where('scope', 'tenant')
@@ -79,13 +80,10 @@ final class TenantRoleOwnerApprovalService
 
             if ($action === self::ACTION_ASSIGN || $action === self::ACTION_REVOKE) {
                 $target = User::query()->whereKey($targetId)->where('is_active', true)->lockForUpdate()->first();
-                if (!$target || !DB::table('tenant_memberships')
-                    ->where('tenant_id', $tenantId)
-                    ->where('user_id', $targetId)
-                    ->where('status', 'active')
-                    ->exists()) {
+                if (!$target) {
                     throw ValidationException::withMessages(['target_user_id' => ['The target must be an active user with active membership in this tenant.']]);
                 }
+                $this->assertActiveMembershipLocked($tenantId, (int) $targetId);
 
                 $assigned = DB::table('user_has_roles')
                     ->where('user_id', $targetId)
@@ -100,7 +98,7 @@ final class TenantRoleOwnerApprovalService
                 $this->assertPermissionSetCompatible($role, $tenantId, $slugs);
             }
 
-            $owner = User::query()->whereKey($ownerId)->where('is_active', true)->exists();
+            $owner = User::query()->whereKey($ownerId)->where('is_active', true)->lockForUpdate()->first();
             if (!$owner) {
                 throw ValidationException::withMessages(['owner_user_id' => ['The selected Owner approver must be an active account.']]);
             }
@@ -209,6 +207,7 @@ final class TenantRoleOwnerApprovalService
             if ($challenge === null) {
                 throw new NotFoundHttpException('The approval challenge was not found for this actor and tenant.');
             }
+            $this->assertActiveMembershipLocked($tenantId, (int) $actor->getKey());
             if (DB::table('admin_owner_approval_consumptions')
                 ->where('tenant_id', $tenantId)
                 ->where('challenge_id', $challenge->id)
@@ -223,7 +222,7 @@ final class TenantRoleOwnerApprovalService
                 throw new AuthorizationException('The Owner approval challenge is not currently within its validity interval.');
             }
 
-            if (!User::query()->whereKey($challenge->owner_user_id)->where('is_active', true)->exists()) {
+            if (!User::query()->whereKey($challenge->owner_user_id)->where('is_active', true)->lockForUpdate()->first()) {
                 throw new AuthorizationException('The Owner approver account is no longer active.');
             }
 
@@ -335,10 +334,10 @@ final class TenantRoleOwnerApprovalService
         $targetId = $challenge->target_user_id === null ? null : (int) $challenge->target_user_id;
         if ($challenge->action === self::ACTION_ASSIGN || $challenge->action === self::ACTION_REVOKE) {
             $target = User::query()->whereKey($targetId)->where('is_active', true)->lockForUpdate()->first();
-            if (!$target || !DB::table('tenant_memberships')->where('tenant_id', $tenantId)
-                ->where('user_id', $targetId)->where('status', 'active')->exists()) {
-                throw new AuthorizationException('The target user is no longer an active member of the approved tenant.');
+            if (!$target) {
+                throw new AuthorizationException('The target user is no longer active.');
             }
+            $this->assertActiveMembershipLocked($tenantId, $targetId);
 
             $pivot = DB::table('user_has_roles')->where('user_id', $targetId)->where('role_id', $role->id);
             if ($challenge->action === self::ACTION_ASSIGN) {
@@ -471,6 +470,20 @@ final class TenantRoleOwnerApprovalService
         }
     }
 
+    private function assertActiveMembershipLocked(int $tenantId, int $userId): void
+    {
+        $membership = DB::table('tenant_memberships')
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $userId)
+            ->where('status', 'active')
+            ->lockForUpdate()
+            ->first();
+
+        if ($membership === null) {
+            throw new AuthorizationException('An active tenant membership is required at the moment of the RBAC operation.');
+        }
+    }
+
     private function normalizeSlugs(mixed $slugs): array
     {
         if (!is_array($slugs) || count($slugs) > 250) {
@@ -488,7 +501,7 @@ final class TenantRoleOwnerApprovalService
 
     private function assertPermissionSetCompatible(Role $role, int $tenantId, array $slugs): void
     {
-        $permissions = Permission::query()->whereIn('slug', $slugs)->get()->keyBy('slug');
+        $permissions = Permission::query()->whereIn('slug', $slugs)->where('is_active', true)->get()->keyBy('slug');
         if ($permissions->count() !== count($slugs)) {
             throw ValidationException::withMessages(['permission_slugs' => ['Every requested permission must exist in the canonical permission catalogue.']]);
         }
