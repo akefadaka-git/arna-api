@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\\Services;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Str;
+use Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException;
 
 final class CommunicationConversationService
 {
@@ -14,6 +14,13 @@ final class CommunicationConversationService
     {
         $row = DB::table('communication_conversation_participants as p')
             ->join('communication_conversations as c', 'c.id', '=', 'p.conversation_id')
+            ->join('tenant_memberships as tm', function ($join) use ($tenantId, $userId): void {
+                $join->on('tm.tenant_id', '=', 'p.tenant_id')
+                    ->on('tm.user_id', '=', 'p.user_id')
+                    ->where('tm.tenant_id', '=', $tenantId)
+                    ->where('tm.user_id', '=', $userId)
+                    ->where('tm.status', '=', 'active');
+            })
             ->where('c.id', $conversationId)->where('c.tenant_id', $tenantId)
             ->where('c.status', 'active')->where('p.tenant_id', $tenantId)
             ->where('p.user_id', $userId)->where('p.status', 'active')->first(['c.id']);
@@ -27,6 +34,13 @@ final class CommunicationConversationService
     {
         return DB::table('communication_conversations as c')
             ->join('communication_conversation_participants as p', 'p.conversation_id', '=', 'c.id')
+            ->join('tenant_memberships as tm', function ($join) use ($tenantId, $userId): void {
+                $join->on('tm.tenant_id', '=', 'p.tenant_id')
+                    ->on('tm.user_id', '=', 'p.user_id')
+                    ->where('tm.tenant_id', '=', $tenantId)
+                    ->where('tm.user_id', '=', $userId)
+                    ->where('tm.status', '=', 'active');
+            })
             ->where('c.tenant_id', $tenantId)->where('c.status', 'active')
             ->where('p.tenant_id', $tenantId)->where('p.user_id', $userId)->where('p.status', 'active')
             ->orderByDesc('c.updated_at')
