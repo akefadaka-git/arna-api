@@ -947,7 +947,7 @@ Route::get('/admin/platform/domains/{domain}/history', [\App\Http\Controllers\Ad
 
 // Platform settings and configuration use encrypted values and a two-person approval lifecycle.
 Route::middleware('auth:sanctum')->prefix('admin/platform')->name('api.admin.platform.')->group(static function (): void {
-    $controller = \\App\\Http\\Controllers\\Admin\\PlatformSettingsController::class;
+    $controller = \App\Http\Controllers\Admin\PlatformSettingsController::class;
 
     Route::get('/settings', [$controller, 'settings'])
         ->middleware('auth.permission:platform.settings.read')->name('settings.index');
