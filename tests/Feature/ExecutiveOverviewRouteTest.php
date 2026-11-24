@@ -35,8 +35,9 @@ final class ExecutiveOverviewRouteTest extends TestCase
 
         $entryPermission = Permission::factory()->create([
             'slug' => 'dashboard.executive.view',
-            'scope' => 'tenant',
+            'scope' => 'global',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $ceo = Role::create([
@@ -50,7 +51,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
         $managePermission = Permission::factory()->create([
             'slug' => 'people.manage',
             'scope' => 'tenant',
-            'tenant_id' => null,
+            'tenant_id' => $tenant->id,
             'is_active' => true,
         ]);
         $ceo->permissions()->attach([$entryPermission->id, $managePermission->id]);
@@ -107,7 +108,8 @@ final class ExecutiveOverviewRouteTest extends TestCase
             $permissions[] = Permission::factory()->create([
                 'slug' => $slug,
                 'scope' => 'tenant',
-                'tenant_id' => null,
+                'tenant_id' => $tenant->id,
+                'application_id' => null,
                 'is_active' => true,
                 'is_system' => false,
             ]);
@@ -173,14 +175,14 @@ final class ExecutiveOverviewRouteTest extends TestCase
         $user->tenants()->attach($tenant->id);
 
         $entryPermission = Permission::factory()->create([
-            'slug' => 'dashboard.executive.view', 'scope' => 'tenant',
-            'tenant_id' => null, 'is_active' => true,
+            'slug' => 'dashboard.executive.view', 'scope' => 'global',
+            'tenant_id' => null, 'application_id' => null, 'is_active' => true,
         ]);
         // Test fixture only: attach the registered permission explicitly
         // to exercise the independently authorized workforce aggregate.
         $workforcePermission = Permission::factory()->create([
             'slug' => 'people.workforce.view', 'scope' => 'tenant',
-            'tenant_id' => null, 'application_id' => null, 'is_active' => true,
+            'tenant_id' => $tenant->id, 'application_id' => null, 'is_active' => true,
         ]);
         $ceo = Role::create([
             'name_am' => 'fixture', 'name_en' => 'fixture', 'slug' => 'ceo',
@@ -233,8 +235,9 @@ final class ExecutiveOverviewRouteTest extends TestCase
 
         $entryPermission = Permission::factory()->create([
             'slug' => 'dashboard.executive.view',
-            'scope' => 'tenant',
+            'scope' => 'global',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $workforcePermission = Permission::factory()->create([
@@ -287,8 +290,9 @@ final class ExecutiveOverviewRouteTest extends TestCase
 
         $entryPermission = Permission::factory()->create([
             'slug' => 'dashboard.executive.view',
-            'scope' => 'tenant',
+            'scope' => 'global',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $ceo = Role::create([
@@ -346,15 +350,16 @@ final class ExecutiveOverviewRouteTest extends TestCase
         ]);
         $entryPermission = Permission::factory()->create([
             'slug' => 'dashboard.executive.view',
-            'scope' => 'tenant',
+            'scope' => 'global',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $workforcePermission = Permission::factory()->create([
             'slug' => 'people.workforce.view',
-            'scope' => 'tenant',
-            'tenant_id' => null,
-            'application_id' => null,
+            'scope' => 'application',
+            'tenant_id' => $tenant->id,
+            'application_id' => $peopleApp->id,
             'is_active' => true,
         ]);
         $executiveRole = Role::create([
@@ -427,8 +432,9 @@ final class ExecutiveOverviewRouteTest extends TestCase
 
         $entryPermission = Permission::factory()->create([
             'slug' => 'dashboard.executive.view',
-            'scope' => 'tenant',
+            'scope' => 'global',
             'tenant_id' => null,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $user->permissions()->attach($entryPermission->id);
