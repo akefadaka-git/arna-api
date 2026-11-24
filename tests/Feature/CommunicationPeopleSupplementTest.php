@@ -24,6 +24,7 @@ final class CommunicationPeopleSupplementTest extends TestCase
         [$tenant, $actor] = $this->member(['communication.conversation.view','communication.conversation.create','communication.message.send','communication.message.read']);
         $recipient = User::factory()->create();
         $recipient->tenants()->attach($tenant->id, ['status' => TenantMembership::STATUS_ACTIVE]);
+        $viewPermission = Permission::where('slug', 'communication.conversation.view')->firstOrFail();
         $readPermission = Permission::where('slug', 'communication.message.read')->firstOrFail();
         $readerRole = Role::create([
             'name_en' => 'Conversation Reader',
@@ -131,7 +132,10 @@ final class CommunicationPeopleSupplementTest extends TestCase
             'application_id' => null,
             'is_active' => true,
         ]);
-        $readerRole->permissions()->attach($readPermission->id, ['assigned_at' => now()]);
+        $readerRole->permissions()->attach([
+            $viewPermission->id => ['assigned_at' => now()],
+            $readPermission->id => ['assigned_at' => now()],
+        ]);
         $recipient->roles()->attach($readerRole->id, ['assigned_at' => now(), 'assigned_by' => $actor->id]);
 
         $id = $this->request($actor, $tenant)
