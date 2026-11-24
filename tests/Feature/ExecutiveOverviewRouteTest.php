@@ -16,6 +16,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -46,21 +47,32 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'ceo',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $managePermission = Permission::factory()->create([
             'slug' => 'people.manage',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $ceo->permissions()->attach([$entryPermission->id, $managePermission->id]);
         $user->roles()->attach($ceo->id);
 
+        // Verify the same tenant-bound role grant directly before exercising
+        // the complete HTTP middleware pipeline.
+        app(TenantContextService::class)->setTenantById((int) $tenant->id);
+        $this->assertTrue(app(AuthorizationService::class)->hasPermission(
+            'dashboard.executive.view',
+            $user,
+        ));
+
         $response = $this->actingAs($user, 'sanctum')
             ->withHeader('X-Tenant-ID', (string) $tenant->id)
             ->getJson('/api/dashboard/v1/overview');
 
+        $this->assertSame($tenant->id, app(TenantContextService::class)->getTenantId());
         $response->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', 'complete')
@@ -253,6 +265,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'ceo',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $ceo->permissions()->attach([$entryPermission->id, $workforcePermission->id]);
@@ -301,6 +314,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'ceo',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $ceo->permissions()->attach($entryPermission->id);
@@ -445,6 +459,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'slug' => 'manager',
             'scope' => 'tenant',
             'tenant_id' => $tenant->id,
+            'application_id' => null,
             'is_active' => true,
         ]);
         $user->roles()->attach($manager->id);
