@@ -22,7 +22,13 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $user = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->id]);
-        $application = PlatformApplication::factory()->create();
+        $application = PlatformApplication::query()->create([
+            'name_am' => 'Runtime test application',
+            'name_en' => 'Runtime test application',
+            'slug' => 'runtime-test-' . uniqid(),
+            'domain' => 'runtime-' . uniqid() . '.example.test',
+            'is_active' => true,
+        ]);
 
         $global = Permission::query()->create([
             'name_en' => 'Global test permission',
