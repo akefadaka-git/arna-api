@@ -196,4 +196,5 @@ final class InvalidateAuthorizationCacheListener
                     }
                 }
             });
-    }}
+    }
+}
