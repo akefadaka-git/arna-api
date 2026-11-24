@@ -133,7 +133,9 @@ final class AuthorizationMiddleware
         // ---------------------------------------------------------------------
         // 2. Resolve the authenticated user.
         // ---------------------------------------------------------------------
-        $user = auth()->user();
+        // Use the authenticated principal resolved for this request/guard.
+        // auth()->user() can resolve a different default guard than auth:sanctum.
+        $user = $request->user();
 
         if (!$user) {
             $this->emitFailureEvent(
