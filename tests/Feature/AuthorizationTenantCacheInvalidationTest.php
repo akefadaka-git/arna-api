@@ -51,4 +51,29 @@ final class AuthorizationTenantCacheInvalidationTest extends TestCase
         $this->assertNull($cache->get($tenantKey));
         $this->assertNull($cache->get($registry));
     }
+    public function test_application_invalidation_preserves_other_application_and_tenant_entries(): void
+    {
+        $user = new User();
+        $user->id = 79;
+
+        $cache = Cache::store('array');
+        $appA = 'auth:permission:79:finance.journal.post:101:4';
+        $appB = 'auth:permission:79:finance.journal.post:101:5';
+        $otherTenant = 'auth:permission:79:finance.journal.post:202:4';
+        $registry = 'auth:user_keys:79';
+
+        $cache->put($appA, true, 300);
+        $cache->put($appB, true, 300);
+        $cache->put($otherTenant, true, 300);
+        $cache->put($registry, [$appA, $appB, $otherTenant], 600);
+
+        (new AuthorizationService($cache))->clearUserApplicationCache($user, 4, 101);
+
+        $this->assertNull($cache->get($appA));
+        $this->assertTrue($cache->get($appB));
+        $this->assertTrue($cache->get($otherTenant));
+        $this->assertSame([$appB, $otherTenant], $cache->get($registry));
+    }
+
+
 }
