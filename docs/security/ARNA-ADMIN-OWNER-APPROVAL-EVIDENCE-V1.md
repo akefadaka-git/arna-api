@@ -102,9 +102,9 @@ For a permission-set synchronization, target_user_id is null and permission_slug
 
 The execute request supplies only:
 - signature: base64-encoded 64-byte detached Ed25519 signature;
-- signed_at: UTC YYYY-MM-DDTHH:MM:SSZ instant.
+- No client-supplied timestamp is accepted. The server's verification instant is authoritative for challenge expiry, Owner-key validity and revocation checks.
 
-The verifier checks the exact stored challenge bytes and digest, requester and tenant binding, Owner trust anchor, key validity/revocation, signature time, challenge expiry, and Ed25519 signature. A caller cannot replace challenge fields at execution time.
+The verifier checks the exact stored challenge bytes and digest, requester and tenant binding, Owner trust anchor, key validity/revocation at server verification time, challenge expiry, and Ed25519 signature. A caller cannot replace challenge fields at execution time.
 
 ## 6. Atomic execution and replay protection
 
@@ -117,7 +117,7 @@ Within one database transaction, ARNA:
 5. Applies only the approved role assignment, role revocation, or permission-set synchronization.
 6. Invalidates the affected user/tenant cache or the role holders' scope-specific permission caches.
 7. Persists the mandatory security event.
-8. Appends the unique challenge-consumption record, including signature and verified payload digest.
+8. Appends the unique challenge-consumption record, including signature and verified payload digest plus server verification time.
 
 The unique (tenant_id, challenge_id) consumption key prevents replay. Any mutation, cache invalidation, security-event, or consumption failure rolls back the transaction. The challenge and trust/consumption evidence tables are append-only on MySQL and SQLite. A failed signature does not consume the challenge and does not change RBAC state.
 
