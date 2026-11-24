@@ -7,7 +7,7 @@
 **Source of truth:** `main` at the implementation branch creation point  
 **Architecture baseline:** `docs/architecture/ARNA-ADMIN-P0-RBAC-001.md`  
 **Route baseline:** `docs/architecture/ARNA-ADMIN-P0-ROUTES-001.md`  
-**Implementation state:** NOT STARTED
+**Implementation state:** IN PROGRESS — A3.0–A3.3 delivered to candidate branch; A3.4 partially implemented
 
 ## 1. Objective
 
@@ -116,7 +116,7 @@ This work package is intentionally implementation-ready but does not itself auth
 
 ### A3.4 implementation note — Owner approval gate and cache safety
 
-The first A3.4 implementation slice adds tenant-bound role/permission scope validation and tenant-targeted cache invalidation. Role-permission synchronization now executes the pivot mutation and synchronous invalidation in one database transaction; invalidation exceptions propagate so the pivot change rolls back. Tenant-role changes invalidate only the affected tenant's tracked permission keys; platform/application role changes retain user-wide invalidation.
+The first A3.4 implementation slice adds tenant-bound role/permission scope validation and targeted cache invalidation. Role-permission synchronization now executes the pivot mutation and synchronous invalidation in one database transaction; invalidation exceptions propagate so the pivot change rolls back. Tenant-role changes invalidate only the affected tenant's tracked permission keys; application-role changes invalidate only the affected application/tenant intersection; platform-role changes retain user-wide invalidation. Tenant membership attach/suspend/reactivate/revoke also invalidates only the affected user's permission results for that tenant inside the membership transaction.
 
 **Consequential-grant limitation:** repository inspection did not identify a verified, runtime Owner-approval evidence service or canonical approval record that can bind an approval to the exact tenant, actor, target user, role, permission set, reason, and validity interval. A role slug or ordinary admin permission is not Owner approval. Therefore A3.4 must not expose role assignment, role-permission grant, or direct-permission mutation routes until that approval-verification dependency is implemented and tested. This is a fail-closed implementation gate, not permission to substitute a caller-supplied boolean or free-form reference.
 
