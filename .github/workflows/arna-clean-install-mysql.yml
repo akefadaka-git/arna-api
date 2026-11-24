@@ -1,4 +1,5 @@
 name: ARNA clean-install MySQL verification
+# The stacked Admin A3 API contract PR also runs this fresh MySQL gate.
 
 on:
   push:
