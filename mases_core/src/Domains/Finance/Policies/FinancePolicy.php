@@ -22,7 +22,7 @@ abstract class FinancePolicy
         $trusted = $this->tenantId();
         $target = $tenantId ?? $trusted;
         if ($trusted === null || $target === null || $trusted !== $target) return false;
-        return $this->authorization->hasPermission(permissionSlug: $permission, user: $user, tenantId: $target);
+        return $this->authorization->hasPermission(permissionSlug: $permission, user: $user, tenantId: $target, applicationSlug: 'finance');
     }
 
     protected function belongsToCurrentTenant(object $model): bool
