@@ -8,6 +8,7 @@ use Illuminate\Contracts\Cache\Repository as CacheContract;
 use Illuminate\Support\Facades\Cache;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use MaaleArna\MASES\Core\Authorization\Models\Role;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
@@ -311,7 +312,7 @@ final class AuthorizationService
             return false;
         }
 
-        $tenantId      = $tenantId ?? mases_tenant_id();
+        $tenantId      = $tenantId ?? $this->resolveTrustedTenantId();
         $applicationId = $applicationSlug
             ? $this->resolveApplicationId($applicationSlug)
             : null;
@@ -489,7 +490,7 @@ final class AuthorizationService
             return false;
         }
 
-        $tenantId      = $tenantId ?? mases_tenant_id();
+        $tenantId      = $tenantId ?? $this->resolveTrustedTenantId();
         $applicationId = $applicationSlug
             ? $this->resolveApplicationId($applicationSlug)
             : null;
@@ -743,6 +744,26 @@ final class AuthorizationService
      * Non-HTTP execution retains the existing explicit-tenant behavior for
      * commands and queued work that deliberately supplies its tenant scope.
      */
+    /**
+     * Resolve the tenant only from trusted context. The helper remains the
+     * canonical first source; the service fallback handles a request where
+     * its per-request memo was populated before TenantContextMiddleware set
+     * the TenantContextService. No request input or raw header is consulted.
+     */
+    private function resolveTrustedTenantId(): int|string|null
+    {
+        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        if ($tenantId !== null) {
+            return $tenantId;
+        }
+
+        try {
+            return app(TenantContextService::class)->getTenantId();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     private function explicitTenantMatchesTrustedContext(int|string $tenantId): bool
     {
         try {
