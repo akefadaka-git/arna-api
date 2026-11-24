@@ -443,9 +443,14 @@ final class AuthorizationService
                                     $application->where('roles.scope', 'application')
                                         ->where('permission.scope', 'application')
                                         ->where('permission.application_id', $applicationId)
-                                        ->where(function ($tenantBinding): void {
-                                            $tenantBinding->whereNull('permission.tenant_id')
-                                                ->orWhereColumn('permission.tenant_id', 'roles.tenant_id');
+                                        ->where(function ($tenantBinding) use ($tenantId): void {
+                                            $tenantBinding->whereNull('permission.tenant_id');
+                                            if ($tenantId !== null) {
+                                                $tenantBinding->orWhere(function ($sameTenant) use ($tenantId): void {
+                                                    $sameTenant->where('permission.tenant_id', $tenantId)
+                                                        ->where('roles.tenant_id', $tenantId);
+                                                });
+                                            }
                                         });
                                 });
                             }
