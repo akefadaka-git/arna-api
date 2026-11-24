@@ -409,11 +409,18 @@ final class Role extends Model
         };
 
         if (!$compatible) {
-            throw new \DomainException(sprintf(
-                'Permission scope [%s] is incompatible with role scope [%s] and its bindings.',
-                (string) $permission->scope,
-                (string) $this->scope,
-            ));
+            $message = match ($this->scope) {
+                'platform' => 'Platform roles may receive global permissions only.',
+                'tenant' => $permission->scope === 'tenant'
+                    ? 'Tenant roles cannot receive permissions bound to another tenant.'
+                    : 'Tenant roles may receive only global permissions or permissions bound to the same tenant.',
+                'application' => $permission->scope === 'tenant'
+                    ? 'Application roles cannot receive tenant-scoped permissions.'
+                    : 'Application roles may receive only global permissions or permissions bound to the same application and tenant boundary.',
+                default => 'The role scope or binding is invalid for this permission.',
+            };
+
+            throw new \DomainException($message);
         }
     }
 
