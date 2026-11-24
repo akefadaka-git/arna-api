@@ -293,3 +293,85 @@ The A2 inspection SHAs were historical snapshots, not guaranteed current heads. 
 **Owner:** Akefa Ayele Daka  
 **Approval date:** 24 November 2026  
 **Record:** ARNA-ECC-A3-PLAN-001 v1.0.0
+
+
+---
+
+## 13. Controlled review addendum — PR #217
+
+**Review record:** 24 November 2026  
+**Reviewed PR:** #217  
+**Reviewed base SHA:** `6e274c25ecc55b84e026e879d735b77f0e51592f`  
+**Reviewed head SHA before addendum:** `918346f6933bed23c2f47dc7775d19e00ce3be3a`
+
+The documentation-only PR was reviewed. The reviewed change contained one file, with 295 additions and no deletions. Content review found the A3 work breakdown, priority sequence, governance boundaries and separate A4/A5 gates consistent with the accepted A1/A2 baselines. No PR review submissions, inline review threads or PR comments were present at the time of review.
+
+Review disposition: **CONTENT ACCEPTABLE, WITH CONTROLLED CLARIFICATIONS BELOW**. This is not a merge approval.
+
+### 13.1 KPI readiness clarification
+
+A3.1 must distinguish:
+1. A 30-domain readiness and ownership register, which is required for every domain; and
+2. Approved KPI definitions, which may only be finalized for metrics whose authoritative sources, formulas, aggregation rules, accountable owners and data stewards have been established.
+
+A domain may be marked assessed or partially ready without being represented as KPI-ready. Missing source evidence or ownership must be recorded explicitly; no KPI may be invented to fill a gap.
+
+### 13.2 Authorization-cache remediation clarification
+
+A3.3 must define a bounded remediation work item for `RISK-A4-01` before changing shared authorization-cache behavior. The work item must include:
+- the affected cache keys, permission paths and invalidation events;
+- failure modes and stale-positive exposure;
+- intended invalidation/expiry behavior and fail-safe expectations;
+- regression tests for role changes, direct permission changes, tenant changes and invalidation failures;
+- compatibility and performance impact;
+- exact evidence required to close the risk.
+
+No unrestricted authorization rewrite is authorized by this plan. Any remediation beyond the bounded Executive Overview/dashboard authorization scope requires a separately documented impact assessment and approval.
+
+### 13.3 Repository governance observation
+
+At review time, repository metadata indicated branch protection and required status checks were not configured. This is a repository-governance observation, not an A3 implementation deliverable or permission to change repository settings. Any change to branch protection or repository administration requires separate authorization.
+
+### 13.4 Review evidence qualification
+
+The review observed a successful tenant-isolation regression workflow and a successful shareholder seed-number initialization regression workflow. The Executive Overview API security verification workflow was still running at the time of inspection. These observations do not constitute complete A3 verification, and no claim of A3 test completion is made.
+
+## 14. Owner authorization addendum — P0 only
+
+**Authorization record:** `ARNA-ECC-A3-AUTH-001`  
+**Owner decision:** APPROVED — P0 ONLY  
+**Decision date:** 24 November 2026  
+**Basis:** The Owner's instruction, “Yes add and save,” following the recommendation to authorize P0 only and incorporate the controlled review clarifications.
+
+The Owner authorizes implementation of the following work packages only:
+
+- **A3.0** — Execution baseline and safeguards.
+- **A3.1** — Enterprise KPI governance foundation, including the 30-domain readiness/ownership register and only those KPI definitions supported by authoritative sources and accountable owners.
+- **A3.2** — Shared provider and data contract.
+- **A3.3** — Bounded dashboard/Executive Overview authorization and security controls, including investigation and scoped remediation of `RISK-A4-01` under Section 13.2.
+
+### 14.1 Explicitly not authorized by this decision
+
+- A3.4 priority domain-provider implementation.
+- A3.5 reusable dashboard frontend expansion.
+- A3.6 implementation of the six priority dashboard workspaces.
+- A3.7 remaining domain-provider waves.
+- A3.8 full programme integration and closure beyond P0 handover evidence.
+- Merge to `main`, production database changes, production configuration changes or deployment.
+- Broad or wildcard permission grants, unapproved financial consolidation, or unrestricted platform-wide authorization changes.
+
+P1/P2 implementation requires a separate Owner authorization after P0 evidence is reviewed. A4 verification remains a distinct stage, and A5 deployment remains a separate Owner gate.
+
+### 14.2 P0 completion and handover gate
+
+Before requesting P1 authorization, provide:
+1. Exact API/app base and head SHAs and affected-file inventories.
+2. KPI catalogue and 30-domain readiness/ownership register.
+3. Versioned provider contract and compatibility notes.
+4. Security/cache-risk impact assessment and bounded remediation evidence.
+5. Unit, feature, integration and security test results, including workflow links.
+6. Migration/rollback assessment where applicable.
+7. Explicit PASS/PARTIAL/MISSING/UNRESOLVED/UNKNOWN/NOT RUN outcomes.
+8. Remaining risks and a recommendation for the next Owner decision.
+
+**Current control status:** A3 plan OWNER-APPROVED; P0 implementation AUTHORIZED; P1/P2 implementation NOT AUTHORIZED; merge NOT AUTHORIZED; A4 NOT STARTED; A5 NOT AUTHORIZED.
