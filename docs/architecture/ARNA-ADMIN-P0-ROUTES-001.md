@@ -111,7 +111,7 @@ PR #85 retains tenant-scoped lifecycle ownership. Use an explicit `/api/admin/te
 | PUT | `/api/admin/tenant/identity/users/{id}/roles` | Tenant membership + `user.assign_roles` |
 | GET | `/api/admin/tenant/authorization/permissions` | Tenant membership + `permission.list` |
 
-The existing PR #85 tenant directory/detail endpoints must be placed under `/api/admin/platform/tenants` only if they are truly global and use the platform tenancy permission; otherwise move them under a distinct tenant-admin registry path and define the intended caller scope. Do not retain the ambiguous duplicate `GET /api/admin/tenants`.
+PR #85's current `GET /api/admin/tenants` and `GET /api/admin/tenants/{id}` routes are removed from the tenant-lifecycle surface. The platform-wide tenant registry and cross-tenant detail belong exclusively to PR #84 at `/api/admin/platform/tenants` and its membership subresource. If the tenant console needs to display the current tenant's profile, expose a separate `GET /api/admin/tenant/context` endpoint that derives the tenant only from trusted middleware context; it must not accept an arbitrary tenant ID. Do not retain a second tenant-list/detail route family in PR #85.
 
 **Compatibility:** These are target paths for A3. Existing clients and route consumers must be searched before path changes. If a compatibility alias is required, it must be a single explicit route with one documented authorization meaning; never expose the same method/path with two controllers or middleware stacks.
 
