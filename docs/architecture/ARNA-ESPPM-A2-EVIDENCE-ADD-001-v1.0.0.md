@@ -1,9 +1,9 @@
 # ARNA ESPPM A2 Evidence Addendum 001 — Treasury, Procurement and Sales
 
 **Document ID:** ARNA-ESPPM-A2-EVIDENCE-ADD-001  
-**Version:** 1.0.0 (proposed controlled archival record)  
+**Version:** 1.0.1 (proposed controlled archival record; supplemental Treasury source review)  
 **Stage:** A2 — read-only reconciliation  
-**Status:** Evidence assessment prepared; Owner decision on revised dispositions pending  
+**Status:** Evidence assessment updated with supplemental D12 source review; Owner decision on revised dispositions pending  
 **Repository baseline:** `akefadaka-git/arna-api`  
 **Base commit:** `40428db0a41d54397dd2aee482c9395f7950e9d0`  
 **Prepared:** 2026-11-24  
@@ -178,3 +178,75 @@ The original approved A2 package and PR #213 must retain their historical D12/D1
 - This addendum itself must remain unmerged until separately authorized.
 
 **Requested Owner decision:** review and explicitly approve, reject, or amend the proposed D15/D17 disposition refinement and confirm D12 remains MISSING at domain level. Until then, the original approved A2 dispositions remain controlling.
+
+
+## 10. Supplemental D12 Treasury source review — 2026-11-24
+
+This section records additional Library and repository evidence located after the initial v1.0.0 draft. It supplements Section 3; it does not change the recommended D12 disposition.
+
+### 10.1 Recovered hard-copy training manual — limited operational evidence
+
+**Library document:** *MAALE ARNA S.C. — የግዥ፣ የሽያጭ፣ የቁጥጥር ኮሚቴ፣ የመዝገብ አያያዝና ሪፖርት አዘገጃጀት: የሃርድ ኮፒ ተግባራዊ ስልጠና ማኑዋል እና የሙከራ ቅፆች***; version 1.0.0; dated 18 September 2026.
+
+The document describes itself as a hard-copy training package for practising procurement, sales, control-committee, records and reporting workflows before later conversion into MASES. It is not described as a Board/General Assembly-approved Treasury policy or bank mandate.
+
+**Supporting content recovered:**
+- General controls require traceable transaction references, segregation of duties, evidence before payment/approval, no backdating, and version control.
+- Procurement flow includes budget/authority check, approval/award, PO/contract, receipt/inspection, invoice/payment package and filing.
+- Procurement evidence sequence includes a payment voucher and proof of payment.
+- Sales records link customer order, pricing/credit approval, invoice/receipt, delivery evidence and payment evidence.
+- Form 06 is a payment-file checklist that includes approval and proof-of-payment evidence.
+
+**Treasury limitation:** text search of the extracted manual content found no occurrence of the Amharic bank term (ባንክ) or the searched reconciliation term (ማስታረቅ). The reviewed content does not provide company bank-account ownership, bank mandates, signatories, payment execution limits, bank-statement procedures, or bank reconciliation rules. The manual is useful as operational training evidence for D15/D17 and payment-file traceability, not as D12 authority evidence.
+
+### 10.2 Legacy MASES SQL export — cash-drawer controls, not bank authority
+
+**Library file:** `maale_arna_smart_system(1).sql` (legacy system export; not the current ARNA database and not a verified current accounting record).
+
+The extracted SQL contains:
+- `cash_drawer` with a Main Cash Drawer at Head Office and opening/current balances recorded as zero in the exported row;
+- `cash_transactions` fields for cash-in, cash-out and transfer, drawer/account references, status, creator, approver and paid-by metadata;
+- `sp_approve_cash_transaction`, which checks that a transaction exists and is in draft status, then records `approved_by` and `approved_at`;
+- `sp_cashier_close_session`, which computes expected drawer cash from opening balance and posted cash transactions, then compares it with the counted closing balance.
+
+These are legacy cash-handling design artifacts. The approval procedure does not, by itself, prove the approver's corporate delegation, bank mandate, limit, or dual-signatory authority. The session-close calculation is a physical cash-drawer reconciliation, not a bank-statement reconciliation. Targeted searches within this SQL export did not find a `CREATE TABLE bank...` definition or a `bank_reconciliation` object.
+
+**Disposition:** SUPPORTING / LEGACY ONLY. Do not migrate its user IDs, drawer balances, cash transactions, or approval semantics into current ARNA as authoritative opening balances, current cash positions, bank-account records, or payment authority.
+
+### 10.3 Finance and Wallet architecture proposals — explicit design intent, still pending
+
+- The Library-held `MASES-FIN-INT-001` G2 architecture proposal places Treasury in the operational-domain layer and proposes cash/bank registers, transfers, statement import and reconciliation. It states no live bank integration at G2; live integration is deferred pending provider/legal verification. Its status is PROPOSAL pending Owner approval.
+- The Library-held Phase 2 Shareholder Charter v0.6.0 is explicitly DRAFT — NOT APPROVED. It describes Wallet as a statement-of-account ledger, not a bank account or outbound-transfer rail. Bank-transfer provider selection, merchant/collection account details, matching, statement format and reconciliation remain pending decisions/source documents.
+- Repository CoA v1.0.0 proposes Finance/Treasury ownership for cash and bank control accounts, but accounting-policy/tax review and Owner approval remain pending; each control account needs a defined reconciliation owner and evidence schedule before adapter activation.
+- The repository Finance A3.8 hybrid-controls baseline states source-domain control-total reconciliation is NOT IMPLEMENTED and reconciliation remains NOT_RECONCILED until authoritative source control totals and event versions are supplied.
+
+These artifacts corroborate an architectural requirement and known evidence gaps. None is an adopted Treasury policy, a bank's executed mandate, an account ownership certificate, or evidence that bank reconciliation is operating.
+
+### 10.4 Supplemental evidence disposition
+
+| Evidence requirement | Supplemental result | Status |
+|---|---|---|
+| Current legal-entity bank-account ownership register | No primary account register, account-opening instrument or bank confirmation located in inspected sources | NOT LOCATED IN INSPECTED SCOPE |
+| Current bank mandate and authorized signatories | No executed bank mandate, specimen-signature schedule or bank confirmation located | NOT LOCATED IN INSPECTED SCOPE |
+| Payment initiation/approval/execution authority | Training/manual and legacy SQL show workflow concepts only; no current adopted authority matrix or bank execution mandate | UNRESOLVED |
+| Approved cash-management/Treasury policy | Training manual is a paper-workflow training package; PSC policy is draft; Finance G2 is proposal | MISSING |
+| Bank-statement reconciliation procedures and completed evidence | Legacy cash-drawer close exists; no bank-statement matching procedure, reconciliation worksheet or signed reviewer evidence located | NOT LOCATED IN INSPECTED SCOPE |
+| Treasury-to-GL control totals and named reconciliation owner | CoA and Finance architecture identify proposed ownership/design; operational adapter/control totals remain absent | PARTIAL DESIGN ONLY; OPERATIONAL PROOF MISSING |
+| Liquidity forecast and inter-entity transfer authority | Legacy forecast table and G2 proposal show concepts; no adopted liquidity/transfer policy or approval evidence located | UNRESOLVED |
+
+### 10.5 D12 determination after supplemental review
+
+**D12 remains MISSING at domain level.** The additional sources improve understanding of legacy cash-drawer workflow and the intended Treasury architecture, but do not close the primary evidence gaps.
+
+No current bank account, bank mandate, signatory, payment limit, or cash/bank balance is asserted in this record. No bank authority may be inferred from legacy database fields, application roles, Finance/Treasury labels, training forms, or draft proposals.
+
+To close the evidence gate, obtain and authenticate:
+1. Current bank-account ownership/confirmation for each legal entity, including account holder name and account status.
+2. Executed bank mandates and specimen-signature/authorized-user records, including effective dates and revocations.
+3. Adopted Board/General Assembly resolutions and valid delegation instruments supporting the mandates and payment powers.
+4. Approved Treasury/cash-management and payment-control policies, including initiation, verification, approval, execution, limits, dual control, emergency controls and revocation.
+5. Bank statements and completed bank reconciliations for a defined sample period, with preparer/reviewer evidence, reconciling-item ageing and follow-up.
+6. Cashbook and physical-cash count records, cash deposit slips, receipts and payment vouchers tied to source transactions and GL entries.
+7. Approved liquidity forecasting, cash positioning and inter-entity transfer rules, if applicable.
+
+**Control instruction:** continue to deny any unsupported payment, bank-signatory, transfer, reconciliation sign-off or period-close authority. Preserve legacy exports as historical leads only; do not treat them as current ARNA records.
