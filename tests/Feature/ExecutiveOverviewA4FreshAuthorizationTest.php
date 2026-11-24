@@ -15,6 +15,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinancialReportContract;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -28,7 +29,9 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $user->tenants()->attach($tenant->id);
+        $user->tenants()->attach($tenant->id, [
+            'status' => TenantMembership::STATUS_ACTIVE,
+        ]);
 
         $application = PlatformApplication::create([
             'name_am' => 'Finance',
