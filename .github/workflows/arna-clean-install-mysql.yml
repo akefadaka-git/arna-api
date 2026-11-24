@@ -61,6 +61,8 @@ on:
       - "app/Http/Controllers/Admin/TenantRoleOwnerApprovalController.php"
       - "mases_core/src/Authorization/Services/TenantRoleOwnerApprovalService.php"
       - "tests/Feature/TenantRoleOwnerApprovalTest.php"
+      - "tests/Feature/AdminOwnerTrustAnchorSeederTest.php"
+      - "database/seeders/AdminOwnerApprovalTrustAnchorSeeder.php"
       - "tests/Feature/AdminPlatformRouteOwnershipTest.php"
       - "tests/Feature/AdminTenantRouteOwnershipTest.php"
       - "tests/Feature/TenantMembershipMySqlConcurrencyTest.php"
@@ -463,6 +465,16 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/TenantRoleOwnerApprovalTest.php
+
+      - name: Run explicit Owner trust-anchor bootstrap seeder tests on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/AdminOwnerTrustAnchorSeederTest.php
 
       - name: Run independent-connection People identity concurrency regression
         if: ${{ hashFiles('tests/Feature/PersonIdentityMySqlConcurrencyTest.php') != '' }}
