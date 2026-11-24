@@ -49,6 +49,11 @@ final class FinancePermissionCatalogueTest extends TestCase
             $this->assertSame($definition, RoleCatalogue::ROWS[$slug] ?? null);
         }
 
+        $this->assertContains('finance.governance_settlement.execute', RolePermissionGrants::WILDCARD_EXCLUSIONS);
+        $this->assertContains('finance.governance_settlement.execute.app', RolePermissionGrants::WILDCARD_EXCLUSIONS);
+        $this->assertContains('finance.governance_settlement.execute', FinanceRolePermissionGrants::MAP['cashier']);
+        $this->assertContains('finance.governance_settlement.execute.app', FinanceRolePermissionGrants::MAP['finance_manager']);
+
         foreach (FinanceRolePermissionGrants::MAP as $role => $financeGrants) {
             $actual = RolePermissionGrants::MAP[$role] ?? [];
             foreach ($financeGrants as $grant) {
