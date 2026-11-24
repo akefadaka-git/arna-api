@@ -327,9 +327,14 @@ final class Role extends Model
         foreach ($permissionsById as $permission) {
             if (
                 $this->scope === 'tenant'
-                && ($permission->scope !== 'tenant' || (string) $permission->tenant_id !== (string) $this->tenant_id)
+                && (
+                    ($permission->scope === 'tenant' && (string) $permission->tenant_id !== (string) $this->tenant_id)
+                    || ($permission->scope === 'application'
+                        && $permission->tenant_id !== null
+                        && (string) $permission->tenant_id !== (string) $this->tenant_id)
+                )
             ) {
-                throw new \DomainException('Tenant roles may only receive permissions scoped to the same tenant.');
+                throw new \DomainException('Tenant roles cannot receive permissions bound to another tenant.');
             }
 
             if (
@@ -343,8 +348,12 @@ final class Role extends Model
                 throw new \DomainException('Application roles may only receive permissions scoped to the same application and tenant boundary.');
             }
 
-            if ($this->scope === 'platform' && $permission->scope === 'application') {
-                throw new \DomainException('Platform roles cannot receive application-scoped permissions.');
+            if (
+                $this->scope === 'platform'
+                && $permission->scope === 'tenant'
+                && $permission->tenant_id !== null
+            ) {
+                throw new \DomainException('Platform roles cannot receive permissions bound to a specific tenant.');
             }
         }
 
