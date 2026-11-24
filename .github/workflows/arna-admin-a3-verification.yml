@@ -1,0 +1,141 @@
+name: ARNA Admin A3 exact-head verification
+
+on:
+  push:
+    branches:
+      - feat/admin-a3-route-separation
+    paths:
+      - ".github/workflows/arna-admin-a3-verification.yml"
+      - "app/Http/Controllers/Admin/**"
+      - "database/seeders/Data/PermissionCatalogue.php"
+      - "mases_core/src/Authorization/**"
+      - "mases_core/src/Tenancy/**"
+      - "routes/api.php"
+      - "tests/Feature/Admin*RouteOwnershipTest.php"
+      - "tests/Feature/TenantMembershipLifecycleTest.php"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/arna-admin-a3-verification.yml"
+      - "app/Http/Controllers/Admin/**"
+      - "database/seeders/Data/PermissionCatalogue.php"
+      - "mases_core/src/Authorization/**"
+      - "mases_core/src/Tenancy/**"
+      - "routes/api.php"
+      - "tests/Feature/Admin*RouteOwnershipTest.php"
+      - "tests/Feature/TenantMembershipLifecycleTest.php"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-admin-a3-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  admin-a3:
+    name: PHP 8.3 Admin routes and membership audit atomicity
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: arna_admin_a3_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: arna_admin_a3_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify checked-out SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          echo "Expected: ${EXPECTED_SHA}"
+          echo "Actual:   ${actual}"
+          test "${actual}" = "${EXPECTED_SHA}"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Prepare runner-local environment
+        run: touch .env
+
+      - name: Validate Composer and install locked dependencies
+        run: |
+          composer validate --no-check-publish
+          composer install --prefer-dist --no-interaction --no-progress
+
+      - name: PHP syntax lint — every tracked PHP file
+        run: git ls-files -z -- '*.php' | xargs -0 -n1 php -l
+
+      - name: Verify Laravel route registration and uniqueness
+        shell: bash
+        run: |
+          set -euo pipefail
+          php artisan route:list --json > /tmp/arna-routes.json
+          php -r '
+            $routes = json_decode(file_get_contents("/tmp/arna-routes.json"), true, 512, JSON_THROW_ON_ERROR);
+            $names = array_values(array_filter(array_column($routes, "name")));
+            $duplicates = array_keys(array_filter(array_count_values($names), static fn (int $count): bool => $count > 1));
+            if ($duplicates !== []) {
+                fwrite(STDERR, "Duplicate route names: " . implode(", ", $duplicates) . PHP_EOL);
+                exit(1);
+            }
+            $expected = [
+                "api.admin.platform.identity.users.index",
+                "api.admin.platform.rbac.roles.index",
+                "api.admin.platform.rbac.permissions.index",
+                "api.admin.platform.tenants.index",
+                "api.admin.platform.tenants.memberships.index",
+                "api.admin.tenant.memberships.users.attach",
+                "api.admin.tenant.memberships.users.suspend",
+                "api.admin.tenant.memberships.users.reactivate",
+                "api.admin.tenant.memberships.users.revoke",
+            ];
+            $missing = array_values(array_diff($expected, $names));
+            if ($missing !== []) {
+                fwrite(STDERR, "Missing Admin routes: " . implode(", ", $missing) . PHP_EOL);
+                exit(1);
+            }
+            echo "Registered Admin routes are unique and complete." . PHP_EOL;
+          '
+
+      - name: Run Admin route ownership feature tests
+        run: |
+          php artisan test --compact tests/Feature/AdminPlatformRouteOwnershipTest.php
+          php artisan test --compact tests/Feature/AdminTenantRouteOwnershipTest.php
+
+      - name: Run tenant membership lifecycle and audit atomicity tests
+        run: php artisan test --compact tests/Feature/TenantMembershipLifecycleTest.php
