@@ -211,22 +211,19 @@ final class RolePermissionGrants
     ];
 
     public const MAP = [
-        'super_admin'     => ['*'],
+        'super_admin'     => ['scope:global'],
         'platform_admin'  => [
-            'scope:global', 'scope:tenant',
-            'app.admin.access', 'app.app.access', 'app.launcher.access',
+            'scope:global',
         ],
         'tenant_admin'    => [
             'scope:tenant',
-            'app.portal.access', ...FinanceRolePermissionGrants::MAP['tenant_admin'], 'app.hr.access',
-            'app.admin.access', 'app.arna.access', 'app.app.access', 'app.launcher.access',
         ],
         'manager'         => [
             ...DocumentsRolePermissionGrants::MAP['manager'],
             'calendar.view', 'calendar.create', 'calendar.update',
             'user.profile.view', 'user.list',
             'file.list', 'file.view', 'file.download', 'announcement.view',
-            ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
+            // Finance application access is assigned only to an application-scoped role.
         ],
         'finance_manager' => [...FinanceRolePermissionGrants::MAP['finance_manager'], 'dashboard.finance.executive.view'],
         'hr_manager'      => [
@@ -235,18 +232,18 @@ final class RolePermissionGrants
             'user.profile.view',
         ],
         'shareholder'     => [
-            'calendar.view', 'app.portal.access', 'user.profile.view',
+            'calendar.view', 'user.profile.view',
             'file.view', 'file.list', 'file.download',
         ],
         'board'           => [
             ...DocumentsRolePermissionGrants::MAP['board'],
-            'calendar.view', 'app.portal.access', ...FinanceRolePermissionGrants::MAP['board'],
+            'calendar.view',
             'user.profile.view',
             'file.view', 'file.list', 'file.download',
         ],
         'president'       => [
             ...DocumentsRolePermissionGrants::MAP['president'],
-            'calendar.view', 'app.portal.access', ...FinanceRolePermissionGrants::MAP['president'], 'app.admin.access',
+            'calendar.view',
             'user.profile.view', 'user.list',
             'file.view', 'file.list', 'file.download', 'announcement.view', 'announcement.approve', 'announcement.publish',
             'role.list', 'permission.list', 'dashboard.executive.view',
@@ -254,14 +251,14 @@ final class RolePermissionGrants
         'secretary'       => [
             ...DocumentsRolePermissionGrants::MAP['secretary'],
             'calendar.view', 'calendar.create', 'calendar.update',
-            'app.portal.access', 'user.profile.view', 'announcement.view', 'announcement.manage',
+            'user.profile.view', 'announcement.view', 'announcement.manage',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
         'cashier'         => FinanceRolePermissionGrants::MAP['cashier'],
         'ceo'             => [
             ...DocumentsRolePermissionGrants::MAP['ceo'],
             'calendar.view', 'calendar.create', 'calendar.update', 'calendar.reserve',
-            'app.portal.access', ...FinanceRolePermissionGrants::MAP['ceo'], 'app.hr.access', 'app.admin.access',
+            ...FinanceRolePermissionGrants::MAP['ceo'],
             'user.profile.view', 'user.list', 'user.create', 'user.update',
             'role.list', 'permission.list', 'dashboard.executive.view',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
