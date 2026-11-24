@@ -59,9 +59,12 @@ final class PlatformDomainRegistryController extends Controller
                 ]);
         }
 
+        $registeredFqdns = $items->pluck('fqdn')->all();
+
         if ($source === null || $source === 'application') {
             $items = $items->concat(PlatformApplication::query()
                 ->whereNotNull('domain')->where('domain', '<>', '')
+                ->when($registeredFqdns !== [], fn ($query) => $query->whereNotIn('domain', $registeredFqdns))
                 ->when($search !== '', fn ($query) => $query->where(function ($inner) use ($search): void {
                     $inner->where('domain', 'like', '%' . $search . '%')
                         ->orWhere('slug', 'like', '%' . $search . '%')
