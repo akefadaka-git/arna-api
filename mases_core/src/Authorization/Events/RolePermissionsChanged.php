@@ -149,6 +149,13 @@ final class RolePermissionsChanged
     public readonly array $permissionIds;
 
     /**
+     * Role scope and tenant binding used to select the invalidation boundary.
+     */
+    public readonly string $scope;
+
+    public readonly int|string|null $tenantId;
+
+    /**
      * The moment the mutation completed.
      *
      * @var DateTimeImmutable
