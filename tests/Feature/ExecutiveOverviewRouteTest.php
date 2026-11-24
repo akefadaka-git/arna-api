@@ -101,10 +101,29 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'is_active' => true,
         ]);
 
+        $entryPermission = Permission::factory()->create([
+            'slug' => 'dashboard.executive.view',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $executiveRole = Role::create([
+            'name_am' => 'Executive Dashboard',
+            'name_en' => 'Executive Dashboard',
+            'slug' => 'executive_dashboard_tenant_' . $tenant->id,
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $executiveRole->permissions()->attach($entryPermission->id);
+
         $role = Role::create([
             'name_am' => 'Finance Manager',
             'name_en' => 'Finance Manager',
-            'slug' => 'finance_manager',
+            'slug' => 'finance_manager_tenant_' . $tenant->id,
             'scope' => 'application',
             'tenant_id' => $tenant->id,
             'application_id' => $financeApp->id,
@@ -113,7 +132,6 @@ final class ExecutiveOverviewRouteTest extends TestCase
 
         $permissions = [];
         foreach ([
-            'dashboard.executive.view',
             'finance.report.view',
             'finance.entity.view',
         ] as $slug) {
@@ -127,7 +145,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             ]);
         }
         $role->permissions()->attach(array_map(static fn (Permission $permission): int => (int) $permission->id, $permissions));
-        $user->roles()->attach($role->id);
+        $user->roles()->attach([$executiveRole->id, $role->id]);
 
         $configuredEntity = LegalEntity::create([
             'tenant_id' => $tenant->id,
@@ -198,7 +216,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
         ]);
         $ceo = Role::create([
             'name_am' => 'fixture', 'name_en' => 'fixture', 'slug' => 'ceo',
-            'scope' => 'tenant', 'tenant_id' => $tenant->id, 'is_active' => true,
+            'scope' => 'tenant', 'tenant_id' => $tenant->id, 'application_id' => null, 'is_active' => true,
         ]);
         $ceo->permissions()->attach([$entryPermission->id, $workforcePermission->id]);
         $user->roles()->attach($ceo->id);
