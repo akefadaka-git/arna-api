@@ -18,6 +18,92 @@ final class TenantMembershipLifecycleTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_attaching_a_membership_and_its_security_event_commit_together(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $member = User::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create(['is_active' => true]);
+
+        app(TenantMembershipService::class)->attach(
+            (int) $tenant->id,
+            (int) $member->id,
+            $actor,
+            'Approved tenant onboarding',
+        );
+
+        $this->assertDatabaseHas('tenant_memberships', [
+            'tenant_id' => $tenant->id,
+            'user_id' => $member->id,
+            'status' => TenantMembership::STATUS_ACTIVE,
+        ]);
+
+        $event = SecurityEvent::query()
+            ->where('event_type', 'tenant.membership.created')
+            ->where('tenant_id', $tenant->id)
+            ->where('user_id', $actor->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($event);
+        $this->assertSame($member->id, $event->event_data['member_user_id']);
+        $this->assertSame($actor->id, $event->event_data['actor_user_id']);
+        $this->assertSame(TenantMembership::STATUS_ACTIVE, $event->event_data['new_status']);
+    }
+
+    public function test_attaching_a_membership_rolls_back_when_security_event_cannot_be_persisted(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $member = User::factory()->create(['is_active' => true]);
+
+        try {
+            app(TenantMembershipService::class)->attach(
+                (int) $tenant->id,
+                (int) $member->id,
+                999999999,
+                'Invalid actor must not create an unaudited membership',
+            );
+
+            $this->fail('A membership without durable security evidence must fail.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('security event could not be persisted', $exception->getMessage());
+        }
+
+        $this->assertDatabaseMissing('tenant_memberships', [
+            'tenant_id' => $tenant->id,
+            'user_id' => $member->id,
+        ]);
+        $this->assertDatabaseMissing('security_events', [
+            'event_type' => 'tenant.membership.created',
+            'tenant_id' => $tenant->id,
+        ]);
+    }
+
+    public function test_duplicate_membership_attachment_is_rejected_without_a_second_event(): void
+    {
+        [$tenant, $member, $actor] = $this->createMembership();
+
+        try {
+            app(TenantMembershipService::class)->attach(
+                (int) $tenant->id,
+                (int) $member->id,
+                $actor,
+                'Duplicate must not create another membership',
+            );
+
+            $this->fail('A duplicate membership must be rejected.');
+        } catch (DomainException $exception) {
+            $this->assertStringContainsString('already exists', $exception->getMessage());
+        }
+
+        $this->assertSame(
+            0,
+            SecurityEvent::query()
+                ->where('event_type', 'tenant.membership.created')
+                ->where('tenant_id', $tenant->id)
+                ->count(),
+        );
+    }
+
     public function test_suspending_a_membership_removes_tenant_access_and_records_security_event(): void
     {
         [$tenant, $member, $actor] = $this->createMembership();
