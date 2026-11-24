@@ -15,6 +15,108 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_runtime_enforces_scope_matrix_for_roles_even_when_legacy_pivots_bypass_sync_validation(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->id]);
+        $application = PlatformApplication::factory()->create();
+
+        $global = Permission::query()->create([
+            'name_en' => 'Global test permission',
+            'slug' => 'scope.runtime.global.' . $tenant->id,
+            'category' => 'test',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $tenantPermission = Permission::query()->create([
+            'name_en' => 'Tenant test permission',
+            'slug' => 'scope.runtime.tenant.' . $tenant->id,
+            'category' => 'test',
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $applicationPermission = Permission::query()->create([
+            'name_en' => 'Application test permission',
+            'slug' => 'scope.runtime.application.' . $tenant->id,
+            'category' => 'test',
+            'scope' => 'application',
+            'tenant_id' => $tenant->id,
+            'application_id' => $application->id,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+
+        $tenantRole = Role::query()->create([
+            'name_en' => 'Tenant runtime role',
+            'slug' => 'tenant-runtime-' . $tenant->id,
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $tenantRole->permissions()->attach([$global->id, $applicationPermission->id]);
+        $user->roles()->attach($tenantRole->id);
+
+        $context = app(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class);
+        $context->setTenantById((int) $tenant->id);
+        $authorization = app(AuthorizationService::class);
+
+        $this->assertTrue($authorization->hasPermission($global->slug, $user, $tenant->id));
+        $this->assertFalse($authorization->hasPermission(
+            $applicationPermission->slug,
+            $user,
+            $tenant->id,
+            $application->slug,
+        ));
+
+        $user->roles()->detach($tenantRole->id);
+        $platformRole = Role::query()->create([
+            'name_en' => 'Platform runtime role',
+            'slug' => 'platform-runtime-' . $tenant->id,
+            'scope' => 'platform',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $platformRole->permissions()->attach($tenantPermission->id);
+        $user->roles()->attach($platformRole->id);
+
+        $this->assertFalse($authorization->hasPermission($tenantPermission->slug, $user, $tenant->id));
+
+        $user->roles()->detach($platformRole->id);
+        $applicationRole = Role::query()->create([
+            'name_en' => 'Application runtime role',
+            'slug' => 'application-runtime-' . $tenant->id,
+            'scope' => 'application',
+            'tenant_id' => $tenant->id,
+            'application_id' => $application->id,
+            'is_active' => true,
+        ]);
+        $applicationRole->permissions()->attach($tenantPermission->id);
+        $user->roles()->attach($applicationRole->id);
+
+        $this->assertFalse($authorization->hasPermission(
+            $tenantPermission->slug,
+            $user,
+            $tenant->id,
+            $application->slug,
+        ));
+
+        $applicationRole->permissions()->sync([$applicationPermission->id]);
+        $this->assertTrue($authorization->hasPermission(
+            $applicationPermission->slug,
+            $user,
+            $tenant->id,
+            $application->slug,
+        ));
+    }
+
     public function test_tenant_role_accepts_permission_bound_to_the_same_tenant(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
