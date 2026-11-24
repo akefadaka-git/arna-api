@@ -2,11 +2,11 @@ name: ARNA clean-install MySQL verification
 
 on:
   push:
-    branches: [main, integration/**]
+    branches: [main, integration/**, feat/communication-people-admin-a3-reconciled]
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
-    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/admin-a3-route-separation]
+    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/admin-a3-route-separation, feat/communication-people-admin-a3-reconciled]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - ".github/workflows/arna-a4-synthetic-backup-restore.yml"
@@ -42,6 +42,11 @@ on:
       - "tests/Feature/OrganizationDomainTest.php"
       - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
       - "mases_core/src/Domains/Organization/**"
+      - "app/Http/Controllers/CommunicationConversationController.php"
+      - "app/Http/Controllers/PeopleSupplementController.php"
+      - "app/Services/CommunicationConversationService.php"
+      - "app/Services/PeopleSupplementService.php"
+      - "tests/Feature/CommunicationPeopleSupplementTest.php"
       - "app/Http/Controllers/PersonController.php"
       - "app/Http/Controllers/PublicContentController.php"
       - "mases_core/src/Domains/PublicContent/**"
@@ -525,7 +530,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates finance_outbox_messages finance_ai_proposals finance_inbox_events calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates finance_outbox_messages finance_ai_proposals finance_inbox_events calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries people_contact_points people_relationships people_participations communication_conversations communication_conversation_participants communication_messages communication_message_reads; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
@@ -607,7 +612,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates finance_outbox_messages finance_ai_proposals finance_inbox_events calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries; do
+          for table in governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates finance_outbox_messages finance_ai_proposals finance_inbox_events calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries people_contact_points people_relationships people_participations communication_conversations communication_conversation_participants communication_messages communication_message_reads; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table} after migrate:fresh --seed: ${found}"
             test "${found}" -eq 1

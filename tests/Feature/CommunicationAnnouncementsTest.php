@@ -38,8 +38,8 @@ final class CommunicationAnnouncementsTest extends TestCase
     {
         $catalogue = collect(PermissionCatalogue::ROWS)->keyBy('slug');
 
-        // Current catalogue includes the four Admin/tenant membership capabilities and two scope-specific Finance permissions added after the original 88-row baseline.
-        $this->assertCount(94, PermissionCatalogue::ROWS);
+        // Current merged catalogue count includes the four Admin/tenant membership capabilities added after the original 88-row baseline.
+        $this->assertCount(104, PermissionCatalogue::ROWS);
 
         foreach (['announcement.view', 'announcement.manage', 'announcement.approve', 'announcement.publish'] as $slug) {
             $this->assertTrue($catalogue->has($slug), "Missing canonical permission: {$slug}");
@@ -65,9 +65,10 @@ final class CommunicationAnnouncementsTest extends TestCase
         $this->assertContains('announcement.approve', $grants['president']);
         $this->assertContains('announcement.publish', $grants['president']);
 
-        // Platform roles are global-only; tenant_admin receives tenant-scope grants.
-        // super_admin is no longer a wildcard role.
+        // Platform roles receive global permissions only; tenant_admin receives
+        // tenant-scoped grants. super_admin is also constrained to global scope.
         $this->assertContains('scope:global', $grants['platform_admin']);
+        $this->assertNotContains('scope:tenant', $grants['platform_admin']);
         $this->assertContains('scope:tenant', $grants['tenant_admin']);
         $this->assertSame(['scope:global'], $grants['super_admin']);
     }
