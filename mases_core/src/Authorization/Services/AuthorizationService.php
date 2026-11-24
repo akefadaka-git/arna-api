@@ -415,8 +415,8 @@ final class AuthorizationService
                     }
                 })
                 ->whereHas('permissions', function ($query) use ($permissionSlug, $tenantId, $applicationId): void {
-                    $query->where('slug', $permissionSlug)
-                        ->where('is_active', true)
+                    $query->where('permissions.slug', $permissionSlug)
+                        ->where('permissions.is_active', true)
                         ->where(function ($scopeQuery) use ($tenantId, $applicationId): void {
                             $scopeQuery->where(function ($global): void {
                                 $global->where('permissions.scope', 'global')
