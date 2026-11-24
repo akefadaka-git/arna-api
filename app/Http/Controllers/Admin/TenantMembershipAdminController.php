@@ -70,17 +70,17 @@ final class TenantMembershipAdminController extends Controller
         $tenantId = $this->tenantId();
         $actor = $this->actor($request);
 
-        match ($status) {
-            TenantMembership::STATUS_SUSPENDED => $this->memberships->suspend(
-                $tenantId, $user, $actor, $validated['reason'] ?? null,
-            ),
-            TenantMembership::STATUS_ACTIVE => $this->memberships->reactivate(
-                $tenantId, $user, $actor, $validated['reason'] ?? null,
-            ),
-            TenantMembership::STATUS_REVOKED => $this->memberships->revoke(
-                $tenantId, $user, $actor, $validated['reason'] ?? null,
-            ),
-        };
+        switch ($status) {
+            case TenantMembership::STATUS_SUSPENDED:
+                $this->memberships->suspend($tenantId, $user, $actor, $validated['reason'] ?? null);
+                break;
+            case TenantMembership::STATUS_ACTIVE:
+                $this->memberships->reactivate($tenantId, $user, $actor, $validated['reason'] ?? null);
+                break;
+            case TenantMembership::STATUS_REVOKED:
+                $this->memberships->revoke($tenantId, $user, $actor, $validated['reason'] ?? null);
+                break;
+        }
 
         return response()->json([
             'success' => true,
