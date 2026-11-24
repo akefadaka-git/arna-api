@@ -114,6 +114,14 @@ This work package is intentionally implementation-ready but does not itself auth
 - Audit failure rolls back pivot mutation.
 - Cache tests prove role change/revocation takes effect immediately or fail closed.
 
+### A3.4 implementation note — Owner approval gate and cache safety
+
+The first A3.4 implementation slice adds tenant-bound role/permission scope validation and tenant-targeted cache invalidation. Role-permission synchronization now executes the pivot mutation and synchronous invalidation in one database transaction; invalidation exceptions propagate so the pivot change rolls back. Tenant-role changes invalidate only the affected tenant's tracked permission keys; platform/application role changes retain user-wide invalidation.
+
+**Consequential-grant limitation:** repository inspection did not identify a verified, runtime Owner-approval evidence service or canonical approval record that can bind an approval to the exact tenant, actor, target user, role, permission set, reason, and validity interval. A role slug or ordinary admin permission is not Owner approval. Therefore A3.4 must not expose role assignment, role-permission grant, or direct-permission mutation routes until that approval-verification dependency is implemented and tested. This is a fail-closed implementation gate, not permission to substitute a caller-supplied boolean or free-form reference.
+
+The user_has_permissions pivot remains unchanged and no direct-user grant route is added. The next A3.4 slice is to establish a verifiable Owner approval contract (or integrate an already-authoritative one after evidence is found), then implement audited tenant role assignment/revocation and permission-set changes behind that verifier.
+
 ### A3.5 — Platform-wide read-only Admin APIs
 
 **Scope**
