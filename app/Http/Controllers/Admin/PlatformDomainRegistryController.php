@@ -92,6 +92,7 @@ final class PlatformDomainRegistryController extends Controller
         if ($source === null || $source === 'tenant') {
             $items = $items->concat(Tenant::query()
                 ->whereNotNull('domain')->where('domain', '<>', '')
+                ->when($registeredFqdns !== [], fn ($query) => $query->whereNotIn('domain', $registeredFqdns))
                 ->when($search !== '', fn ($query) => $query->where(function ($inner) use ($search): void {
                     $inner->where('domain', 'like', '%' . $search . '%')
                         ->orWhere('slug', 'like', '%' . $search . '%')
