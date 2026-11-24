@@ -76,10 +76,13 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         $this->assertSame('application', $applicationRole->scope);
         $this->assertSame($application->id, $applicationRole->application_id);
 
-        $applicationRole->syncPermissions(array_map(
-            static fn (Permission $permission): int => (int) $permission->id,
-            array_values($permissions)
-        ));
+        $applicationRole->syncPermissions([
+            $entryPermission->id,
+            ...array_map(
+                static fn (Permission $permission): int => (int) $permission->id,
+                array_values($permissions)
+            ),
+        ]);
         $user->roles()->attach($applicationRole->id);
 
         return [$user, $applicationRole, $permissions, $applicationRole];
