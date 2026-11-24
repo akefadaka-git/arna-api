@@ -207,7 +207,7 @@ final class RolePermissionGrants
      * @var array<int, string>
      */
     public const WILDCARD_EXCLUSIONS = [
-        'people.workforce.view',
+        'people.workforce.view', 'dashboard.finance.executive.view',
     ];
 
     public const MAP = [
@@ -228,7 +228,7 @@ final class RolePermissionGrants
             'file.list', 'file.view', 'file.download', 'announcement.view',
             ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
         ],
-        'finance_manager' => [...FinanceRolePermissionGrants::MAP['finance_manager'], 'dashboard.executive.view'],
+        'finance_manager' => [...FinanceRolePermissionGrants::MAP['finance_manager'], 'dashboard.finance.executive.view'],
         'hr_manager'      => [
             'app.hr.access',
             'file.upload', 'file.download', 'file.view', 'file.list',
