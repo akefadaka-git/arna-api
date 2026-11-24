@@ -920,6 +920,36 @@ Route::get('/admin/platform/overview', \App\Http\Controllers\Admin\PlatformOverv
     ->middleware(['auth:sanctum', 'auth.permission:platform.overview.read'])
     ->name('api.admin.platform.overview');
 
+// Platform identity directory — global read-only visibility, separate from tenant membership grants.
+Route::middleware(['auth:sanctum', 'auth.permission:platform.identity.read'])
+    ->prefix('admin/platform/identity')
+    ->name('api.admin.platform.identity.')
+    ->group(static function (): void {
+        Route::get('/users', [\App\Http\Controllers\Admin\AdminControlPlaneController::class, 'users'])
+            ->name('users.index');
+    });
+
+Route::middleware(['auth:sanctum', 'auth.permission:platform.rbac.read'])
+    ->prefix('admin/platform/rbac')
+    ->name('api.admin.platform.rbac.')
+    ->group(static function (): void {
+        Route::get('/roles', [\App\Http\Controllers\Admin\AdminControlPlaneController::class, 'roles'])
+            ->name('roles.index');
+        Route::get('/permissions', [\App\Http\Controllers\Admin\AdminControlPlaneController::class, 'permissions'])
+            ->name('permissions.index');
+    });
+
+Route::middleware(['auth:sanctum', 'auth.permission:platform.tenancy.read'])
+    ->prefix('admin/platform/tenants')
+    ->name('api.admin.platform.tenants.')
+    ->group(static function (): void {
+        Route::get('/', [\App\Http\Controllers\Admin\AdminControlPlaneController::class, 'tenants'])
+            ->name('index');
+        Route::get('/{tenant}/memberships', [\App\Http\Controllers\Admin\AdminControlPlaneController::class, 'memberships'])
+            ->whereNumber('tenant')
+            ->name('memberships.index');
+    });
+
 // Platform application registry — read-only catalogue and frontend readiness.
 Route::get('/admin/platform/applications', [\App\Http\Controllers\Admin\PlatformApplicationsController::class, 'index'])
     ->middleware(['auth:sanctum', 'auth.permission:platform.applications.read'])
