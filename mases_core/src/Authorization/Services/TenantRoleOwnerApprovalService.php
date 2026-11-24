@@ -56,6 +56,9 @@ final class TenantRoleOwnerApprovalService
         if ($reason === '' || mb_strlen($reason) > 500) {
             throw ValidationException::withMessages(['reason' => ['A reason of 1–500 characters is required.']]);
         }
+        if ($ownerId === (int) $actor->getKey()) {
+            throw new AuthorizationException('The requester cannot approve their own consequential tenant RBAC request.');
+        }
         if (($action === self::ACTION_SYNC_PERMISSIONS && $targetId !== null)
             || ($action !== self::ACTION_SYNC_PERMISSIONS && $targetId === null)
             || ($action !== self::ACTION_SYNC_PERMISSIONS && $slugs !== [])) {
@@ -220,6 +223,10 @@ final class TenantRoleOwnerApprovalService
             $expiresAt = new DateTimeImmutable((string) $challenge->expires_at, new DateTimeZone('UTC'));
             if ($now > $expiresAt || $signedAt < $issuedAt || $signedAt > $expiresAt || $signedAt > $now) {
                 throw new AuthorizationException('The Owner approval signature is outside the challenge validity interval.');
+            }
+
+            if (!User::query()->whereKey($challenge->owner_user_id)->where('is_active', true)->exists()) {
+                throw new AuthorizationException('The Owner approver account is no longer active.');
             }
 
             $anchor = $this->activeOwnerAnchor(
