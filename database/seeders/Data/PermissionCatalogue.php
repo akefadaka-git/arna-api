@@ -197,6 +197,7 @@ final class PermissionCatalogue
         ['slug' => 'audit.view', 'name_am' => 'የኦዲት መዝገቦችን ማየት', 'name_en' => 'View Audit Logs', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'security-event.view', 'name_am' => 'የደህንነት ክስተቶችን ማየት', 'name_en' => 'View Security Events', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
         ['slug' => 'security-event.resolve', 'name_am' => 'የደህንነት ክስተቶችን መፍታት', 'name_en' => 'Resolve Security Events', 'category' => 'security', 'scope' => 'tenant', 'is_system' => false],
+        // Settlement execution has tenant and Finance-app variants; both are excluded from scope wildcards.
         ...FinancePermissionCatalogue::ROWS,
         ...DocumentsPermissionCatalogue::ROWS,
         ['slug' => 'calendar.view', 'name_am' => 'ቀን መቁጠሪያ ማየት', 'name_en' => 'View Calendar', 'category' => 'calendar', 'scope' => 'tenant', 'is_system' => false],
