@@ -215,7 +215,7 @@ final class TenantRoleOwnerApprovalService
                 throw new ConflictHttpException('The Owner approval challenge has already been consumed.');
             }
 
-            $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+            $now = now()->utc()->toDateTimeImmutable();
             $issuedAt = new DateTimeImmutable((string) $challenge->issued_at, new DateTimeZone('UTC'));
             $expiresAt = new DateTimeImmutable((string) $challenge->expires_at, new DateTimeZone('UTC'));
             if ($now < $issuedAt || $now > $expiresAt) {
