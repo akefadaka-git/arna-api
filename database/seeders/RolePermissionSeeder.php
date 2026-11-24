@@ -283,7 +283,7 @@ final class RolePermissionSeeder extends Seeder
                 ));
             }
 
-            $roles[$roleSlug]->permissions()->sync($permissionIds);
+            $roles[$roleSlug]->syncPermissions($permissionIds);
         }
     }
 
