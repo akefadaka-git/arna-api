@@ -11,7 +11,10 @@ final class AdminPlatformPermissionCatalogueTest extends TestCase
 {
     public function test_platform_console_read_permissions_are_global_and_additive(): void
     {
-        $rows = collect(PermissionCatalogue::ROWS)->keyBy('slug');
+        $rows = [];
+        foreach (PermissionCatalogue::ROWS as $row) {
+            $rows[$row['slug']] = $row;
+        }
 
         foreach ([
             'platform.overview.read',
