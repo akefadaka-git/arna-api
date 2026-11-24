@@ -102,7 +102,7 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
             $role->syncPermissions([$permission->id]);
             $this->fail('Cross-tenant role-permission assignment must be rejected.');
         } catch (DomainException $exception) {
-            $this->assertStringContainsString('same tenant', $exception->getMessage());
+            $this->assertStringContainsString('another tenant', $exception->getMessage());
         }
 
         $this->assertDatabaseMissing('role_has_permissions', [
