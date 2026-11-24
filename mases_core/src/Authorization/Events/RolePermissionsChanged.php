@@ -155,6 +155,8 @@ final class RolePermissionsChanged
 
     public readonly int|string|null $tenantId;
 
+    public readonly int|string|null $applicationId;
+
     /**
      * The moment the mutation completed.
      *
@@ -191,6 +193,7 @@ final class RolePermissionsChanged
         array $permissionIds,
         string $scope = 'platform',
         int|string|null $tenantId = null,
+        int|string|null $applicationId = null,
         ?DateTimeImmutable $occurredAt = null
     ) {
         $this->roleId = $roleId;
@@ -200,6 +203,7 @@ final class RolePermissionsChanged
         );
         $this->scope = $scope;
         $this->tenantId = $tenantId;
+        $this->applicationId = $applicationId;
         $this->occurredAt = $occurredAt ?? new DateTimeImmutable('now');
     }
 
