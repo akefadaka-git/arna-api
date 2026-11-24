@@ -46,8 +46,8 @@ final class AdminPlatformSettingsApprovalTest extends TestCase
 
         $this->assertIsString($controller);
         $this->assertStringContainsString('Crypt::encryptString($data[\'value\'])', $controller);
-        $this->assertStringContainsString("'value' => $row->is_secret ? null", $controller);
-        $this->assertStringContainsString("'proposed_value' => $row->is_secret ? null", $controller);
+        $this->assertStringContainsString('\'value\' => $row->is_secret ? null', $controller);
+        $this->assertStringContainsString('\'proposed_value\' => $row->is_secret ? null', $controller);
         $this->assertStringContainsString("'secret_value_provided' =>", $controller);
     }
 
