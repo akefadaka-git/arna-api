@@ -687,7 +687,7 @@ final class AuthorizationService
             throw new RuntimeException('Authorization permission cache entries could not be deleted.');
         }
 
-        if ($this->cache->forget($registryKey) !== true) {
+        if ($this->cache->has($registryKey) && $this->cache->forget($registryKey) !== true) {
             throw new RuntimeException('Authorization permission cache registry could not be removed.');
         }
     }
@@ -728,7 +728,7 @@ final class AuthorizationService
         }
 
         if ($remaining === []) {
-            if ($this->cache->forget($registryKey) !== true) {
+            if ($this->cache->has($registryKey) && $this->cache->forget($registryKey) !== true) {
                 throw new RuntimeException('Tenant-scoped authorization cache registry could not be removed.');
             }
         } elseif ($this->cache->put($registryKey, array_values($remaining), self::REGISTRY_DURATION) !== true) {
@@ -774,7 +774,7 @@ final class AuthorizationService
         }
 
         if ($remaining === []) {
-            if ($this->cache->forget($registryKey) !== true) {
+            if ($this->cache->has($registryKey) && $this->cache->forget($registryKey) !== true) {
                 throw new RuntimeException('Application-scoped authorization cache registry could not be removed.');
             }
         } elseif ($this->cache->put($registryKey, array_values($remaining), self::REGISTRY_DURATION) !== true) {
