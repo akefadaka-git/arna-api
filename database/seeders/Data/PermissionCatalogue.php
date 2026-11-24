@@ -208,8 +208,5 @@ final class PermissionCatalogue
         ['slug' => 'platform.domains.read', 'name_am' => 'የመድረክ ዶሜይኖችን ማየት', 'name_en' => 'View Platform Domains', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.overview.read', 'name_am' => 'የመድረክ አጠቃላይ እይታን ማየት', 'name_en' => 'View Platform Overview', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.applications.read', 'name_am' => 'የመድረክ መተግበሪያዎችን ማየት', 'name_en' => 'View Platform Applications', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
-        ['slug' => 'platform.identity.read', 'name_am' => 'የመድረክ ተጠቃሚ መለያዎችን ማየት', 'name_en' => 'View Platform Identities', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
-        ['slug' => 'platform.rbac.read', 'name_am' => 'የመድረክ ሚናና ፈቃዶችን ማየት', 'name_en' => 'View Platform Roles and Permissions', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
-        ['slug' => 'platform.tenancy.read', 'name_am' => 'የመድረክ ቴናንቶችን ማየት', 'name_en' => 'View Platform Tenants', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
 ];
 }
