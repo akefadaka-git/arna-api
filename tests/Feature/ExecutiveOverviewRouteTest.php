@@ -102,25 +102,6 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'is_active' => true,
         ]);
 
-        $entryPermission = Permission::factory()->create([
-            'slug' => 'dashboard.executive.view',
-            'scope' => 'tenant',
-            'tenant_id' => null,
-            'application_id' => null,
-            'is_active' => true,
-            'is_system' => false,
-        ]);
-        $executiveRole = Role::create([
-            'name_am' => 'Executive Dashboard',
-            'name_en' => 'Executive Dashboard',
-            'slug' => 'executive_dashboard_tenant_' . $tenant->id,
-            'scope' => 'tenant',
-            'tenant_id' => $tenant->id,
-            'application_id' => null,
-            'is_active' => true,
-        ]);
-        $executiveRole->permissions()->attach($entryPermission->id);
-
         $role = Role::create([
             'name_am' => 'Finance Manager',
             'name_en' => 'Finance Manager',
@@ -130,6 +111,15 @@ final class ExecutiveOverviewRouteTest extends TestCase
             'application_id' => $financeApp->id,
             'is_active' => true,
         ]);
+        $entryPermission = Permission::factory()->create([
+            'slug' => 'dashboard.finance.executive.view',
+            'scope' => 'application',
+            'tenant_id' => null,
+            'application_id' => $financeApp->id,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $role->permissions()->attach($entryPermission->id);
 
         $permissions = [];
         foreach ([
@@ -146,7 +136,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
             ]);
         }
         $role->permissions()->attach(array_map(static fn (Permission $permission): int => (int) $permission->id, $permissions));
-        $user->roles()->attach([$executiveRole->id, $role->id]);
+        $user->roles()->attach($role->id);
 
         $configuredEntity = LegalEntity::create([
             'tenant_id' => $tenant->id,
