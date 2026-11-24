@@ -287,7 +287,7 @@ final class PermissionSeeder extends Seeder
                 if ($appSlug !== null && isset($applications[$appSlug])) {
                     $applicationId = $applications[$appSlug]->id;
                 } else {
-                    throw new \\RuntimeException(
+                    throw new \RuntimeException(
                         "Application-scoped permission [{$slug}] has no registered application binding."
                     );
                 }
