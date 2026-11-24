@@ -340,12 +340,19 @@ final class Role extends Model
             if (
                 $this->scope === 'application'
                 && (
-                    $permission->scope !== 'application'
-                    || (string) $permission->application_id !== (string) $this->application_id
-                    || ($permission->tenant_id !== null && (string) $permission->tenant_id !== (string) $this->tenant_id)
+                    ($permission->scope === 'application'
+                        && (
+                            (string) $permission->application_id !== (string) $this->application_id
+                            || ($permission->tenant_id !== null
+                                && ($this->tenant_id === null || (string) $permission->tenant_id !== (string) $this->tenant_id))
+                        ))
+                    || ($permission->scope === 'tenant'
+                        && $permission->tenant_id !== null
+                        && ($this->tenant_id === null || (string) $permission->tenant_id !== (string) $this->tenant_id))
+                    || !in_array($permission->scope, ['global', 'tenant', 'application'], true)
                 )
             ) {
-                throw new \DomainException('Application roles may only receive permissions scoped to the same application and tenant boundary.');
+                throw new \DomainException('Application roles may only receive global permissions, unbound or same-tenant permissions, and permissions scoped to the same application and tenant boundary.');
             }
 
             if (
