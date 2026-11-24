@@ -915,6 +915,11 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
     });
 });
 
+// Platform-wide aggregate counts. The endpoint returns database-backed totals only.
+Route::get('/admin/platform/overview', \App\Http\Controllers\Admin\PlatformOverviewController::class)
+    ->middleware(['auth:sanctum', 'auth.permission:platform.overview.read'])
+    ->name('api.admin.platform.overview');
+
 // Platform domain inventory — read-only projection of registered application and tenant domains.
 // Provider ownership, DNS, TLS, and hosting states remain explicitly unverified until adapters are connected.
 Route::get('/admin/platform/domains', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'index'])
