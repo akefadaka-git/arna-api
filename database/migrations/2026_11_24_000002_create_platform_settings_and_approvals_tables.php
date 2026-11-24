@@ -22,7 +22,7 @@ return new class extends Migration
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
             $table->index(['category', 'environment']);
-            $table->unique(['setting_key', 'environment']);
+            $table->unique(['category', 'setting_key', 'environment']);
         });
 
         Schema::create('platform_setting_change_requests', function (Blueprint $table): void {
