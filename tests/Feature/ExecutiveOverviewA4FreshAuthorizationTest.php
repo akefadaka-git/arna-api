@@ -40,33 +40,52 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             'domain' => 'finance.example.test',
             'is_active' => true,
         ]);
-        $role = Role::create([
+        $applicationRole = Role::create([
             'name_am' => 'Finance Manager',
             'name_en' => 'Finance Manager',
-            'slug' => 'finance_manager',
+            'slug' => 'finance_manager_' . $tenant->id,
             'scope' => 'application',
             'tenant_id' => $tenant->id,
             'application_id' => $application->id,
             'is_active' => true,
         ]);
+        $entryPermission = Permission::factory()->create([
+            'slug' => 'dashboard.executive.view',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $entryRole = Role::create([
+            'name_am' => 'Executive Dashboard',
+            'name_en' => 'Executive Dashboard',
+            'slug' => 'executive_dashboard_' . $tenant->id,
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $entryRole->permissions()->attach($entryPermission->id);
 
         $permissions = [];
-        foreach (['dashboard.executive.view', 'finance.report.view', 'finance.entity.view'] as $slug) {
+        foreach (['finance.report.view', 'finance.entity.view'] as $slug) {
             $permissions[$slug] = Permission::factory()->create([
                 'slug' => $slug,
-                'scope' => 'tenant',
+                'scope' => 'application',
                 'tenant_id' => $tenant->id,
+                'application_id' => $application->id,
                 'is_active' => true,
                 'is_system' => false,
             ]);
         }
-        $role->permissions()->attach(array_map(
+        $applicationRole->permissions()->attach(array_map(
             static fn (Permission $permission): int => (int) $permission->id,
             array_values($permissions)
         ));
-        $user->roles()->attach($role->id);
+        $user->roles()->attach([$entryRole->id, $applicationRole->id]);
 
-        return [$user, $role, $permissions];
+        return [$user, $applicationRole, $permissions, $entryRole];
     }
 
     private function configuredEntity(Tenant $tenant, string $code = 'A4-ENTITY'): LegalEntity
@@ -142,7 +161,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
     public function revoked_entry_permission_fails_closed_even_when_middleware_cache_is_stale(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
-        [$user, $role, $permissions] = $this->financeFixture($tenant);
+        [$user, , , $entryRole] = $this->financeFixture($tenant);
         $authorization = new AuthorizationService();
 
         $this->assertTrue($authorization->hasPermission(
@@ -151,7 +170,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             (int) $tenant->id
         ));
 
-        $role->revokePermissionTo($permissions['dashboard.executive.view']);
+        $entryRole->revokePermissionTo(Permission::query()->where('slug', 'dashboard.executive.view')->firstOrFail());
         $staleKey = sprintf(
             'auth:permission:%d:dashboard.executive.view:%s:null',
             $user->id,
