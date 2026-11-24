@@ -9,6 +9,7 @@ use Tests\TestCase;
 
 final class AdminPlatformSettingsApprovalTest extends TestCase
 {
+    use RefreshDatabase;
     public function test_settings_and_configuration_routes_use_distinct_read_manage_and_approve_permissions(): void
     {
         $expected = [
@@ -57,4 +58,39 @@ final class AdminPlatformSettingsApprovalTest extends TestCase
         $this->assertStringContainsString("'base_version' =>", $controller);
         $this->assertStringContainsString('A newer setting version exists', $controller);
     }
+    public function test_secret_setting_reads_return_only_redaction_metadata(): void
+    {
+        $secret = 'ARNA_SECRET_SHOULD_NEVER_LEAK';
+        $ciphertext = Crypt::encryptString($secret);
+        DB::table('platform_settings')->insert([
+            'setting_key' => 'mail.smtp.password',
+            'category' => 'setting',
+            'value_ciphertext' => $ciphertext,
+            'is_secret' => true,
+            'description' => 'SMTP password',
+            'environment' => 'testing',
+            'version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $user = User::factory()->create();
+        $permission = Permission::factory()->create([
+            'slug' => 'platform.settings.read',
+            'scope' => 'global',
+            'is_active' => true,
+        ]);
+        $user->permissions()->attach($permission->id);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/admin/platform/settings?environment=testing');
+        $response->assertOk()
+            ->assertJsonPath('data.items.0.key', 'mail.smtp.password')
+            ->assertJsonPath('data.items.0.value', null)
+            ->assertJsonPath('data.items.0.is_secret', true)
+            ->assertJsonPath('data.items.0.is_configured', true);
+
+        $this->assertStringNotContainsString($secret, $response->getContent());
+        $this->assertStringNotContainsString($ciphertext, $response->getContent());
+    }
+
 }
