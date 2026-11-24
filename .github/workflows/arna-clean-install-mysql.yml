@@ -462,6 +462,7 @@ jobs:
         run: php artisan test --compact tests/Feature/CommunicationAnnouncementsTest.php
 
       - name: Run Communication conversations and People supplement tenant-isolation tests on MySQL
+        if: ${{ hashFiles('tests/Feature/CommunicationPeopleSupplementTest.php') != '' }}
         env:
           DB_CONNECTION: mysql
           DB_DATABASE: arna_migration_test
