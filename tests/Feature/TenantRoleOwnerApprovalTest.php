@@ -136,6 +136,7 @@ final class TenantRoleOwnerApprovalTest extends TestCase
         $tenant = Tenant::factory()->create(['is_active' => true]);
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->id]);
         $owner = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->id]);
+        $reviewer = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->id]);
         $target = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->id]);
 
         foreach ([$actor, $target] as $member) {
@@ -190,7 +191,7 @@ final class TenantRoleOwnerApprovalTest extends TestCase
             'signer_user_id' => $owner->id,
             'algorithm' => 'Ed25519',
             'public_key_base64' => base64_encode($publicKey),
-            'trusted_by_user_id' => $owner->id,
+            'trusted_by_user_id' => $reviewer->id,
             'trust_reference' => 'Owner-approved test trust dossier',
             'trusted_at' => $trustedAt,
             'valid_until' => null,
@@ -202,7 +203,7 @@ final class TenantRoleOwnerApprovalTest extends TestCase
             'signing_key_id' => $signingKeyId,
             'authority_reference' => 'TEST-OWNER-AUTHORITY',
             'evidence_sha256' => hash('sha256', 'test Owner authority evidence'),
-            'trusted_by_user_id' => $owner->id,
+            'trusted_by_user_id' => $reviewer->id,
             'trusted_at' => $trustedAt,
             'valid_until' => null,
         ]);
