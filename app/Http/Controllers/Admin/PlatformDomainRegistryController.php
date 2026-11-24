@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Admin;
+namespace App\Http\Controllers\Admin;
 
-use App\\Http\\Controllers\\Controller;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Str;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\PlatformApplication;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 
 final class PlatformDomainRegistryController extends Controller
 {
@@ -135,7 +135,7 @@ final class PlatformDomainRegistryController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'fqdn' => ['required', 'string', 'max:253', 'regex:/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$/i'],
+            'fqdn' => ['required', 'string', 'max:253', 'regex:/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i'],
             'owner_type' => ['sometimes', 'in:platform,application,tenant'],
             'owner_id' => ['nullable', 'integer', 'min:1'],
             'display_name' => ['nullable', 'string', 'max:160'],
