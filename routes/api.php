@@ -972,6 +972,17 @@ Route::middleware('auth:sanctum')->prefix('admin/platform')->name('api.admin.pla
         ->whereNumber('changeRequest')->middleware('auth.permission:platform.configuration.approve')->name('configuration.requests.reject');
 });
 
+// Integration/provider registry and operational health are read-only until provider adapters are approved.
+Route::get('/admin/platform/integrations', [\App\Http\Controllers\Admin\PlatformOperationsController::class, 'integrations'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.integrations.read'])
+    ->name('api.admin.platform.integrations.index');
+Route::get('/admin/platform/operations/health', [\App\Http\Controllers\Admin\PlatformOperationsController::class, 'health'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.operations.read'])
+    ->name('api.admin.platform.operations.health');
+Route::get('/admin/platform/operations/observations', [\App\Http\Controllers\Admin\PlatformOperationsController::class, 'observations'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.operations.read'])
+    ->name('api.admin.platform.operations.observations');
+
 Route::fallback(static function (): never {
     throw new NotFoundHttpException('The requested endpoint does not exist.');
 })->name('api.fallback');
