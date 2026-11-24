@@ -12,7 +12,7 @@ return new class extends Migration
     {
         Schema::create('platform_settings', function (Blueprint $table): void {
             $table->id();
-            $table->string('setting_key', 160)->unique();
+            $table->string('setting_key', 160);
             $table->string('category', 24);
             $table->longText('value_ciphertext');
             $table->boolean('is_secret')->default(false);
@@ -22,6 +22,7 @@ return new class extends Migration
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
             $table->index(['category', 'environment']);
+            $table->unique(['setting_key', 'environment']);
         });
 
         Schema::create('platform_setting_change_requests', function (Blueprint $table): void {
@@ -34,6 +35,7 @@ return new class extends Migration
             $table->string('environment', 24)->default('production');
             $table->unsignedBigInteger('requested_by');
             $table->unsignedBigInteger('approved_by')->nullable();
+            $table->unsignedBigInteger('decided_by')->nullable();
             $table->string('status', 24)->default('pending');
             $table->string('reason', 500);
             $table->string('approval_note', 500)->nullable();
