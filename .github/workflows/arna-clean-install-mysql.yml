@@ -56,6 +56,7 @@ on:
       - "tests/Feature/AdminPlatformApplicationsRouteTest.php"
       - "app/Http/Controllers/Admin/AdminControlPlaneController.php"
       - "tests/Feature/AdminPlatformDirectoryRouteTest.php"
+      - "tests/Unit/AdminPlatformPermissionCatalogueTest.php"
       - "database/seeders/Data/PermissionCatalogue.php"
       - "app/Http/Controllers/ExecutiveOverviewController.php"
       - "mases_core/src/Authorization/ExecutiveOverviewAccessPolicy.php"
@@ -305,6 +306,9 @@ jobs:
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/AdminPlatformDirectoryRouteTest.php
+
+      - name: Run platform Admin permission catalogue scope test
+        run: php artisan test --compact tests/Unit/AdminPlatformPermissionCatalogueTest.php
 
       - name: Confirm test database is empty
         shell: bash
