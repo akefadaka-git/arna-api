@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
@@ -218,6 +219,39 @@ final class TenantMembershipLifecycleTest extends TestCase
             (int) $tenant->id,
             (int) $member->id,
         );
+    }
+
+    public function test_membership_suspension_invalidates_only_the_members_tenant_permission_cache(): void
+    {
+        [$tenant, $member, $actor] = $this->createMembership();
+
+        $cache = Cache::store();
+        $tenantKey = sprintf(
+            'auth:permission:%d:tenant.membership.manage:%d:null',
+            $member->id,
+            $tenant->id,
+        );
+        $otherTenantKey = sprintf(
+            'auth:permission:%d:tenant.membership.manage:%d:null',
+            $member->id,
+            $tenant->id + 1000,
+        );
+        $registryKey = 'auth:user_keys:' . $member->id;
+
+        $cache->put($tenantKey, true, 300);
+        $cache->put($otherTenantKey, true, 300);
+        $cache->put($registryKey, [$tenantKey, $otherTenantKey], 600);
+
+        app(TenantMembershipService::class)->suspend(
+            (int) $tenant->id,
+            (int) $member->id,
+            $actor,
+            'Cache invalidation regression',
+        );
+
+        $this->assertNull($cache->get($tenantKey));
+        $this->assertTrue($cache->get($otherTenantKey));
+        $this->assertSame([$otherTenantKey], $cache->get($registryKey));
     }
 
     /** @return array{Tenant, User, User} */
