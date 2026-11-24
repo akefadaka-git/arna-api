@@ -274,12 +274,22 @@ final class PermissionSeeder extends Seeder
              * docblock §"The application-id resolution".
              */
             $applicationId = null;
-            if ($definition['scope'] === 'application'
-                && str_starts_with($slug, 'app.')
-            ) {
-                $appSlug = explode('.', $slug)[1] ?? null;
+            if ($definition['scope'] === 'application') {
+                $appSlug = null;
+                if (str_starts_with($slug, 'app.')) {
+                    $appSlug = explode('.', $slug)[1] ?? null;
+                } elseif (str_starts_with($slug, 'finance.')) {
+                    $appSlug = 'finance';
+                } elseif ($slug === 'dashboard.finance.executive.view') {
+                    $appSlug = 'finance';
+                }
+
                 if ($appSlug !== null && isset($applications[$appSlug])) {
                     $applicationId = $applications[$appSlug]->id;
+                } else {
+                    throw new RuntimeException(
+                        "Application-scoped permission [{$slug}] has no registered application binding."
+                    );
                 }
             }
 
