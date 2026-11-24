@@ -50,30 +50,21 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             'is_active' => true,
         ]);
         $entryPermission = Permission::factory()->create([
-            'slug' => 'dashboard.executive.view',
-            'scope' => 'tenant',
+            'slug' => 'dashboard.finance.executive.view',
+            'scope' => 'application',
             'tenant_id' => null,
-            'application_id' => null,
+            'application_id' => $application->id,
             'is_active' => true,
             'is_system' => false,
         ]);
-        $entryRole = Role::create([
-            'name_am' => 'Executive Dashboard',
-            'name_en' => 'Executive Dashboard',
-            'slug' => 'executive_dashboard_' . $tenant->id,
-            'scope' => 'tenant',
-            'tenant_id' => $tenant->id,
-            'application_id' => null,
-            'is_active' => true,
-        ]);
-        $entryRole->permissions()->attach($entryPermission->id);
+        $applicationRole->permissions()->attach($entryPermission->id);
 
         $permissions = [];
         foreach (['finance.report.view', 'finance.entity.view'] as $slug) {
             $permissions[$slug] = Permission::factory()->create([
                 'slug' => $slug,
                 'scope' => 'application',
-                'tenant_id' => $tenant->id,
+                'tenant_id' => null,
                 'application_id' => $application->id,
                 'is_active' => true,
                 'is_system' => false,
@@ -83,9 +74,9 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
             static fn (Permission $permission): int => (int) $permission->id,
             array_values($permissions)
         ));
-        $user->roles()->attach([$entryRole->id, $applicationRole->id]);
+        $user->roles()->attach($applicationRole->id);
 
-        return [$user, $applicationRole, $permissions, $entryRole];
+        return [$user, $applicationRole, $permissions, $applicationRole];
     }
 
     private function configuredEntity(Tenant $tenant, string $code = 'A4-ENTITY'): LegalEntity
@@ -123,7 +114,8 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         $this->assertTrue($authorization->hasPermission(
             'finance.report.view',
             $user,
-            (int) $tenant->id
+            (int) $tenant->id,
+            'finance'
         ));
 
         $first = $this->actingAs($user, 'sanctum')
@@ -164,15 +156,16 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
         [$user, , , $entryRole] = $this->financeFixture($tenant);
         $authorization = new AuthorizationService();
 
-        $this->assertTrue($authorization->hasPermission(
-            'dashboard.executive.view',
+        $this->assertFalse($authorization->hasPermission(
+            'dashboard.finance.executive.view',
             $user,
-            (int) $tenant->id
+            (int) $tenant->id,
+            'finance'
         ));
 
-        $entryRole->revokePermissionTo(Permission::query()->where('slug', 'dashboard.executive.view')->firstOrFail());
+        $entryRole->revokePermissionTo(Permission::query()->where('slug', 'dashboard.finance.executive.view')->firstOrFail());
         $staleKey = sprintf(
-            'auth:permission:%d:dashboard.executive.view:%s:null',
+            'auth:permission:%d:dashboard.finance.executive.view:%s:null',
             $user->id,
             $tenant->id
         );
