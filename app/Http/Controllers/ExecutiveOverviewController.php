@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
+use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinancialReportContract;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -58,7 +59,7 @@ final class ExecutiveOverviewController
         // Finance report access is evaluated against the current database
         // pivots, not AuthorizationService's TTL cache. This ensures that a
         // failed cache invalidation cannot retain access to financial data.
-        if ($this->hasFreshTenantPermission($user, 'finance.report.view', (int) $tenantId)) {
+        if ($this->hasFreshFinanceApplicationPermission($user, 'finance.report.view', (int) $tenantId)) {
             $entities = LegalEntity::query()
                 ->where('tenant_id', (int) $tenantId)
                 ->orderBy('code')
@@ -68,7 +69,7 @@ final class ExecutiveOverviewController
                 // Recheck the entity permission from current pivots before
                 // invoking the domain policy. This prevents a stale positive
                 // AuthorizationService cache entry from retaining revoked access.
-                if (!$this->hasFreshTenantPermission($user, 'finance.entity.view', (int) $tenantId)) {
+                if (!$this->hasFreshFinanceApplicationPermission($user, 'finance.entity.view', (int) $tenantId)) {
                     continue;
                 }
 
@@ -190,20 +191,28 @@ final class ExecutiveOverviewController
     }
 
     /**
-     * Check a tenant-scoped permission directly from authoritative pivots.
-     * Both direct grants and role grants are supported; role grants must be
-     * active, tenant-compatible and either global or bound to Finance.
+     * Check a Finance application-scoped permission from current pivots.
+     * The application role must be bound to this tenant and Finance app;
+     * the permission must be bound to that same app. This bypasses cache
+     * only for the read-only dashboard data path.
      */
-    private function hasFreshTenantPermission(User $user, string $permission, int $tenantId): bool
+    private function hasFreshFinanceApplicationPermission(User $user, string $permission, int $tenantId): bool
     {
+        $applicationId = PlatformApplication::query()
+            ->where('slug', 'finance')
+            ->where('is_active', true)
+            ->value('id');
+
+        if ($applicationId === null) {
+            return false;
+        }
+
         $direct = $user->permissions()
             ->where('permissions.slug', $permission)
-            ->where('permissions.scope', 'tenant')
+            ->where('permissions.scope', 'application')
+            ->where('permissions.application_id', $applicationId)
+            ->whereNull('permissions.tenant_id')
             ->where('permissions.is_active', true)
-            ->where(function ($scope) use ($tenantId): void {
-                $scope->whereNull('permissions.tenant_id')
-                    ->orWhere('permissions.tenant_id', $tenantId);
-            })
             ->exists();
 
         if ($direct) {
@@ -212,25 +221,15 @@ final class ExecutiveOverviewController
 
         return $user->roles()
             ->where('roles.is_active', true)
-            ->where(function ($scope) use ($tenantId): void {
-                $scope->whereNull('roles.tenant_id')
-                    ->orWhere('roles.tenant_id', $tenantId);
-            })
-            ->where(function ($application): void {
-                $application->whereNull('roles.application_id')
-                    ->orWhereHas('application', static fn ($app) => $app
-                        ->where('slug', 'finance')
-                        ->where('is_active', true));
-            })
-            ->whereHas('permissions', static function ($query) use ($permission, $tenantId): void {
+            ->where('roles.scope', 'application')
+            ->where('roles.application_id', $applicationId)
+            ->where('roles.tenant_id', $tenantId)
+            ->whereHas('permissions', static function ($query) use ($permission, $applicationId): void {
                 $query->where('permissions.slug', $permission)
-                    ->where('permissions.scope', 'tenant')
-                    ->where('permissions.is_active', true)
-                    ->where(function ($scope) use ($tenantId): void {
-                        $scope->whereNull('permissions.tenant_id')
-                            ->orWhere('permissions.tenant_id', $tenantId);
-                    });
+                    ->where('permissions.scope', 'application')
+                    ->where('permissions.application_id', $applicationId)
+                    ->whereNull('permissions.tenant_id')
+                    ->where('permissions.is_active', true);
             })
             ->exists();
-    }
-}
+    }}
