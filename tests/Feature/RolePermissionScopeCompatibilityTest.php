@@ -117,6 +117,35 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
         ));
     }
 
+    public function test_numeric_string_permission_ids_are_resolved_as_ids_not_slugs(): void
+    {
+        $permission = Permission::query()->create([
+            'name_en' => 'Global numeric ID permission',
+            'slug' => 'global.numeric.id.test',
+            'category' => 'test',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+        $role = Role::query()->create([
+            'name_en' => 'Platform numeric ID role',
+            'slug' => 'platform-numeric-id-test',
+            'scope' => 'platform',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+
+        $role->syncPermissions([(string) $permission->id]);
+
+        $this->assertDatabaseHas('role_has_permissions', [
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+        ]);
+    }
+
     public function test_tenant_role_accepts_permission_bound_to_the_same_tenant(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
