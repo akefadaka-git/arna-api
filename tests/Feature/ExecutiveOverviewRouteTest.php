@@ -105,7 +105,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
         $role = Role::create([
             'name_am' => 'Finance Manager',
             'name_en' => 'Finance Manager',
-            'slug' => 'finance_manager_tenant_' . $tenant->id,
+            'slug' => 'finance_manager',
             'scope' => 'application',
             'tenant_id' => $tenant->id,
             'application_id' => $financeApp->id,
@@ -196,7 +196,7 @@ final class ExecutiveOverviewRouteTest extends TestCase
         $user->tenants()->attach($tenant->id);
 
         $entryPermission = Permission::factory()->create([
-            'slug' => 'dashboard.executive.view', 'scope' => 'global',
+            'slug' => 'dashboard.executive.view', 'scope' => 'tenant',
             'tenant_id' => null, 'application_id' => null, 'is_active' => true,
         ]);
         // Test fixture only: attach the registered permission explicitly
