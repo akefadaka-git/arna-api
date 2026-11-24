@@ -105,7 +105,7 @@ PR #214 remains open, draft, and unmerged. Merge and deployment require separate
 
 ## 8. Closure criteria
 
-<badge color="success">IMPLEMENTATION VERIFIED</badge> A3, A4, and clean-install MySQL passed at the exact SHA recorded in Section 6. This closes the implementation-verification criteria for this addendum. Independent third-party security review, production Owner trust-anchor provisioning, populated production-ledger restore rehearsal, merge, and deployment remain separate gates.
+**IMPLEMENTATION VERIFIED** A3, A4, and clean-install MySQL passed at the exact SHA recorded in Section 6. This closes the implementation-verification criteria for this addendum. Independent third-party security review, production Owner trust-anchor provisioning, populated production-ledger restore rehearsal, merge, and deployment remain separate gates.
 
 ### Revision history
 
