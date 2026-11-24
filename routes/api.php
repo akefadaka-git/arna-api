@@ -862,7 +862,6 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->whereUuid('publicId')
             ->middleware('auth.permission:people.manage')
             ->name('update');
-    });
 
         $supplement = PeopleSupplementController::class;
         Route::get('/{publicId}/contacts', [$supplement, 'contacts'])->whereUuid('publicId')
