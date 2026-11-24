@@ -915,6 +915,12 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
     });
 });
 
+// Platform domain inventory — read-only projection of registered application and tenant domains.
+// Provider ownership, DNS, TLS, and hosting states remain explicitly unverified until adapters are connected.
+Route::get('/admin/platform/domains', [\\App\\Http\\Controllers\\Admin\\PlatformDomainRegistryController::class, 'index'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.domains.read'])
+    ->name('api.admin.platform.domains.index');
+
 Route::fallback(static function (): never {
     throw new NotFoundHttpException('The requested endpoint does not exist.');
 })->name('api.fallback');
