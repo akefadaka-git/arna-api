@@ -34,6 +34,7 @@ return new class extends Migration
             $table->string('description', 500)->nullable();
             $table->string('environment', 24)->default('production');
             $table->unsignedBigInteger('requested_by');
+            $table->unsignedInteger('base_version')->default(0);
             $table->unsignedBigInteger('approved_by')->nullable();
             $table->unsignedBigInteger('decided_by')->nullable();
             $table->string('status', 24)->default('pending');
