@@ -22,6 +22,16 @@ abstract class FinancePolicy
         $trusted = $this->tenantId();
         $target = $tenantId ?? $trusted;
         if ($trusted === null || $target === null || $trusted !== $target) return false;
+        if ($permission === 'finance.governance_settlement.execute'
+            && $this->authorization->hasPermission(
+                permissionSlug: 'finance.governance_settlement.execute.app',
+                user: $user,
+                tenantId: $target,
+                applicationSlug: 'finance',
+            )) {
+            return true;
+        }
+
         return $this->authorization->hasPermission(permissionSlug: $permission, user: $user, tenantId: $target, applicationSlug: 'finance');
     }
 
