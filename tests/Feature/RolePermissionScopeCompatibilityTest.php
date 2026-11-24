@@ -45,6 +45,36 @@ final class RolePermissionScopeCompatibilityTest extends TestCase
         ]);
     }
 
+    public function test_tenant_role_can_include_a_global_permission_without_tenant_binding(): void
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $role = Role::query()->create([
+            'name_en' => 'Tenant Manager',
+            'slug' => 'tenant-manager-' . $tenant->id,
+            'scope' => 'tenant',
+            'tenant_id' => $tenant->id,
+            'application_id' => null,
+            'is_active' => true,
+        ]);
+        $permission = Permission::query()->create([
+            'name_en' => 'View Own Profile',
+            'slug' => 'user.profile.view.test.' . $tenant->id,
+            'category' => 'user',
+            'scope' => 'global',
+            'tenant_id' => null,
+            'application_id' => null,
+            'is_active' => true,
+            'is_system' => true,
+        ]);
+
+        $role->syncPermissions([$permission->id]);
+
+        $this->assertDatabaseHas('role_has_permissions', [
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+        ]);
+    }
+
     public function test_tenant_role_rejects_permission_bound_to_another_tenant(): void
     {
         $tenantA = Tenant::factory()->create(['is_active' => true]);
