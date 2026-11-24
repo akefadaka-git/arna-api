@@ -208,6 +208,7 @@ final class PermissionCatalogue
             ['slug' => 'announcement.manage', 'name_am' => 'ማስታወቂያ ማዘጋጀትና ለማጽደቅ ማስገባት', 'name_en' => 'Create and Submit Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.approve', 'name_am' => 'ማስታወቂያ ማጽደቅ', 'name_en' => 'Approve Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.publish', 'name_am' => 'ማስታወቂያ ማተም', 'name_en' => 'Publish Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
+            // CEO/President use tenant scope; Finance Manager uses the Finance-application-scoped entry below.
             ['slug' => 'dashboard.executive.view', 'name_am' => 'የአስፈጻሚ አጠቃላይ እይታ ማየት', 'name_en' => 'View Executive Overview', 'category' => 'dashboard', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'dashboard.finance.executive.view', 'name_am' => 'የፋይናንስ አፕሊኬሽን አስፈጻሚ አጠቃላይ እይታ ማየት', 'name_en' => 'View Finance Executive Overview', 'category' => 'dashboard', 'scope' => 'application', 'is_system' => false],
 ];
