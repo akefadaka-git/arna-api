@@ -205,5 +205,6 @@ final class PermissionCatalogue
             ['slug' => 'announcement.approve', 'name_am' => 'ማስታወቂያ ማጽደቅ', 'name_en' => 'Approve Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.publish', 'name_am' => 'ማስታወቂያ ማተም', 'name_en' => 'Publish Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'dashboard.executive.view', 'name_am' => 'የአስፈጻሚ አጠቃላይ እይታ ማየት', 'name_en' => 'View Executive Overview', 'category' => 'dashboard', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'platform.domains.read', 'name_am' => 'የመድረክ ዶሜይኖችን ማየት', 'name_en' => 'View Platform Domains', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
 ];
 }
