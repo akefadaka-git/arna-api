@@ -16,6 +16,8 @@ on:
       - "tests/Feature/AuthorizationTenantCacheInvalidationTest.php"
       - "tests/Feature/RolePermissionScopeCompatibilityTest.php"
       - "tests/Feature/TenantRoleOwnerApprovalTest.php"
+      - "tests/Feature/AdminOwnerTrustAnchorSeederTest.php"
+      - "database/seeders/AdminOwnerApprovalTrustAnchorSeeder.php"
       - "database/migrations/2026_11_24_090000_create_admin_owner_approval_evidence_tables.php"
       - "docs/security/ARNA-ADMIN-OWNER-APPROVAL-EVIDENCE-V1.md"
   pull_request:
@@ -157,4 +159,5 @@ jobs:
           php artisan test --compact tests/Feature/AuthorizationTenantCacheInvalidationTest.php
           php artisan test --compact tests/Feature/RolePermissionScopeCompatibilityTest.php
           php artisan test --compact tests/Feature/TenantRoleOwnerApprovalTest.php
+          php artisan test --compact tests/Feature/AdminOwnerTrustAnchorSeederTest.php
 
