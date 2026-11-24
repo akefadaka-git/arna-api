@@ -103,17 +103,29 @@ These are distinct from the proposed `admin.*` permission namespace below. They 
 
 These are proposed additions, not proof that the slugs already exist. Before seeding or attaching route middleware, reconcile naming against the current permission catalogue and the Owner-approved RBAC implementation.
 
-## 7. Audit requirements
+## 7. Settings and configuration change control
+
+The API stores both ordinary values and secret values encrypted with Laravel's application encryption key. Read APIs return ordinary values but never return secret values or ciphertext; secret records expose only a configured flag. A secret is supplied once when a change request is created and is not echoed in request, approval, audit, or read responses.
+
+- `GET /api/admin/platform/settings` and `GET /api/admin/platform/configuration` — separate global read permissions.
+- `POST /api/admin/platform/settings/change-requests` and `POST /api/admin/platform/configuration/change-requests` — create encrypted pending changes; they do not immediately alter active values.
+- `GET .../change-requests` — list requests for review; secret proposals remain redacted.
+- `POST .../{changeRequest}/approve` — applies a pending value transactionally only when a different authenticated actor with the corresponding approve permission approves it.
+- `POST .../{changeRequest}/reject` — rejects a pending request and records the decision.
+
+The current implementation provides a two-person separation-of-duties gate. It is not represented as an Owner-signed Ed25519 approval. Owner-only cryptographic approval remains a separate hardening requirement for designated high-impact settings before production use.
+
+## 8. Audit requirements
 
 Every privileged operation records actor, acting scope, target, action, reason, request/correlation ID, timestamp, approval reference, before/after state (redacted), result, and provider receipt where applicable. Audit evidence must be written in the same transaction as local authorization/configuration mutations whenever possible. Provider operations require a durable intent record before dispatch and a result record after completion.
 
-## 8. Delivery and stage gates
+## 9. Delivery and stage gates
 
 - A3: implement in isolated branches; no merge or deployment.
 - A4: exact-head API tests, clean-install MySQL, tenant isolation, permission-negative tests, frontend type-check/build, route and accessibility contracts, and provider-adapter safety tests.
 - A5: separate Owner authorization. Production trust-anchor provisioning, provider credentials, DNS, hosting and certificate changes are excluded until explicitly authorized.
 
-## 9. Current known constraints
+## 10. Current known constraints
 
 - Existing API main and frontend main are the source of truth.
 - The API and frontend candidate PRs require contract reconciliation; older frontend paths must not be revived merely to satisfy stale UI.
