@@ -344,6 +344,7 @@ final class PermissionSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->seed([]);
+        $applications = PlatformApplication::query()->get()->keyBy('slug')->all();
+        $this->seed($applications);
     }
 }
