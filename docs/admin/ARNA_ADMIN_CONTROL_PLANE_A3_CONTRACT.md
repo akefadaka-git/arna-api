@@ -58,9 +58,10 @@ No provider adapter may perform live mutation in this A3 phase without its own c
 
 ## 5. API contract — current implementation status
 
-The Domain Registry inventory endpoint is implemented in this branch and is permission-gated. It projects only domains already recorded against platform applications and tenants; it does not claim provider verification. Remaining endpoints below are target contracts and must be established by route registration, controller implementation, authorization tests, and exact-head workflow evidence before the frontend depends on them.
+The first read-only platform endpoints are implemented in this branch and are permission-gated: the overview returns database-backed aggregate counts, the application registry reads `platform_applications`, and the Domain Registry projects domains already recorded against platform applications and tenants. None of these endpoints claims provider verification or live operational health. Remaining endpoints below are target contracts and must be established by route registration, controller implementation, authorization tests, and exact-head workflow evidence before the frontend depends on them.
 
-- `GET /api/admin/platform/overview`
+- `GET /api/admin/platform/overview` — IMPLEMENTED; requires `platform.overview.read`; returns database-backed counts and generation timestamp.
+- `GET /api/admin/platform/applications` — IMPLEMENTED; requires `platform.applications.read`; returns the platform application catalogue and frontend readiness.
 - `GET /api/admin/platform/applications`
 - `GET /api/admin/platform/identity/users`
 - `GET /api/admin/platform/rbac/roles`
