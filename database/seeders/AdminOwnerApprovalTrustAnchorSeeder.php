@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
 use RuntimeException;
 
 /**
@@ -119,6 +120,26 @@ final class AdminOwnerApprovalTrustAnchorSeeder extends Seeder
                 'trusted_at' => now(),
                 'valid_until' => $key->valid_until,
             ]);
+
+            $event = app(SecurityEventService::class)->log(
+                'admin.owner_approval.trust_anchor.created',
+                [
+                    'tenant_id' => $tenantId,
+                    'user_id' => $trustedByUserId,
+                    'actor_user_id' => $trustedByUserId,
+                    'owner_user_id' => $ownerUserId,
+                    'signing_key_id' => $key->id,
+                    'key_id' => $keyId,
+                    'authority_reference' => $authorityReference,
+                    'evidence_sha256' => $evidenceSha256,
+                ],
+                'warning',
+                'An independently reviewed Owner approval trust anchor was provisioned.',
+            );
+
+            if ($event === null) {
+                throw new RuntimeException('Owner trust-anchor provisioning was rolled back because mandatory security evidence could not be persisted.');
+            }
         }, 3);
     }
 
