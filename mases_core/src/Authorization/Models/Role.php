@@ -309,6 +309,38 @@ final class Role extends Model
             return $permission;
         })->filter()->unique()->values()->all();
 
+        // Enforce the selected current-main scope model before any pivot write.
+        // A tenant role may only carry permissions bound to that same tenant;
+        // an application role may only carry permissions bound to that app.
+        $permissionsById = Permission::query()->whereIn('id', $permissionIds)->get();
+        if ($permissionsById->count() !== count($permissionIds)) {
+            throw new \\InvalidArgumentException('One or more role permissions do not exist.');
+        }
+
+        foreach ($permissionsById as $permission) {
+            if (
+                $this->scope === 'tenant'
+                && ($permission->scope !== 'tenant' || (string) $permission->tenant_id !== (string) $this->tenant_id)
+            ) {
+                throw new \\DomainException('Tenant roles may only receive permissions scoped to the same tenant.');
+            }
+
+            if (
+                $this->scope === 'application'
+                && (
+                    $permission->scope !== 'application'
+                    || (string) $permission->application_id !== (string) $this->application_id
+                    || ($permission->tenant_id !== null && (string) $permission->tenant_id !== (string) $this->tenant_id)
+                )
+            ) {
+                throw new \\DomainException('Application roles may only receive permissions scoped to the same application and tenant boundary.');
+            }
+
+            if ($this->scope === 'platform' && $permission->scope === 'application') {
+                throw new \\DomainException('Platform roles cannot receive application-scoped permissions.');
+            }
+        }
+
         DB::transaction(function () use ($permissionIds): void {
             $this->permissions()->sync($permissionIds);
 
