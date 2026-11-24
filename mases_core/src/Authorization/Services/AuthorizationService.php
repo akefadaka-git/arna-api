@@ -385,7 +385,7 @@ final class AuthorizationService
             // permissions matches the requested slug, subject to the same
             // tenant and application scoping rules as Path A.
             // ------------------------------------------------------------
-            return $user->roles()
+            $roles = $user->roles()
                 ->where('roles.is_active', true)
                 ->where(function ($roleScope) use ($tenantId, $applicationId): void {
                     $roleScope->where(function ($query): void {
@@ -415,48 +415,27 @@ final class AuthorizationService
                         });
                     }
                 })
-                ->whereExists(function ($permissionQuery) use ($permissionSlug, $tenantId, $applicationId): void {
-                    $permissionQuery->selectRaw('1')
-                        ->from('role_has_permissions as role_permission')
-                        ->join('permissions as permission', 'permission.id', '=', 'role_permission.permission_id')
-                        ->whereColumn('role_permission.role_id', 'roles.id')
-                        ->where('permission.slug', $permissionSlug)
-                        ->where('permission.is_active', true)
-                        ->where(function ($scopeQuery) use ($tenantId, $applicationId): void {
-                            $scopeQuery->where(function ($global): void {
-                                $global->where('permission.scope', 'global')
-                                    ->whereNull('permission.tenant_id')
-                                    ->whereNull('permission.application_id');
-                            });
+                ->with(['permissions' => function ($query) use ($permissionSlug): void {
+                    $query->where('permissions.slug', $permissionSlug)
+                        ->where('permissions.is_active', true);
+                }])
+                ->get();
 
-                            if ($tenantId !== null) {
-                                $scopeQuery->orWhere(function ($tenant) use ($tenantId): void {
-                                    $tenant->where('roles.scope', 'tenant')
-                                        ->where('permission.scope', 'tenant')
-                                        ->where('permission.tenant_id', $tenantId)
-                                        ->whereNull('permission.application_id');
-                                });
-                            }
+            foreach ($roles as $role) {
+                foreach ($role->permissions as $permission) {
+                    try {
+                        $role->assertPermissionScopeCompatible($permission);
 
-                            if ($applicationId !== null) {
-                                $scopeQuery->orWhere(function ($application) use ($applicationId): void {
-                                    $application->where('roles.scope', 'application')
-                                        ->where('permission.scope', 'application')
-                                        ->where('permission.application_id', $applicationId)
-                                        ->where(function ($tenantBinding) use ($tenantId): void {
-                                            $tenantBinding->whereNull('permission.tenant_id');
-                                            if ($tenantId !== null) {
-                                                $tenantBinding->orWhere(function ($sameTenant) use ($tenantId): void {
-                                                    $sameTenant->where('permission.tenant_id', $tenantId)
-                                                        ->where('roles.tenant_id', $tenantId);
-                                                });
-                                            }
-                                        });
-                                });
-                            }
-                        });
-                })
-                ->exists();
+                        return true;
+                    } catch (\DomainException) {
+                        // A legacy or externally written pivot must never
+                        // turn an incompatible scope binding into a grant.
+                        continue;
+                    }
+                }
+            }
+
+            return false;
         });
     }
 
