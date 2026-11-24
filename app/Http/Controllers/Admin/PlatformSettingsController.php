@@ -186,12 +186,13 @@ final class PlatformSettingsController extends Controller
             abort_unless($pending->status === 'pending', 409, 'Only pending change requests can be approved.');
             abort_unless((int) $pending->requested_by !== $approverId, 403, 'The requester cannot approve their own change.');
 
-            $current = DB::table('platform_settings')->where('setting_key', $pending->setting_key)
+            $current = DB::table('platform_settings')->where('category', $category)
+                ->where('setting_key', $pending->setting_key)
                 ->where('environment', $pending->environment)->first();
             $version = $current === null ? 1 : ((int) $current->version + 1);
             $now = now();
             DB::table('platform_settings')->updateOrInsert(
-                ['setting_key' => $pending->setting_key, 'environment' => $pending->environment],
+                ['category' => $category, 'setting_key' => $pending->setting_key, 'environment' => $pending->environment],
                 [
                     'category' => $category,
                     'value_ciphertext' => $pending->proposed_value_ciphertext,
