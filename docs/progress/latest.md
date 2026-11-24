@@ -1,6 +1,6 @@
-# ARNA OS — Daily Repository Progress Report (2026-11-23)
+# ARNA OS — Daily Repository Progress Report (2026-11-24)
 
-**Generated:** 2026-11-23T04:22:08.450778+03:00  
+**Generated:** 2026-11-24T08:07:17.293728+03:00  
 **Repositories:** akefadaka-git/arna-api, akefadaka-git/arna-app  
 **Assessment mode:** read-only repository metadata and workflow evidence; no source-code mutation.
 
@@ -48,28 +48,32 @@
 ### akefadaka-git/arna-api
 
 - Default branch: `main`
-- Open PRs: 59
-- PRs merged in last 30 days: 27
-- Failed/action-required workflow runs in last 14 days: 15
-- Cancelled workflow runs in last 14 days: 5
-- Currently queued/in-progress workflow runs in sampled page: 1
-- Most recent commit in sampled 30 commits: 2026-11-22T18:12:38+00:00
+- Open PRs: 63
+- PRs merged in last 30 days: 28
+- Failed/action-required workflow runs in last 14 days: 5
+- Cancelled workflow runs in last 14 days: 26
+- Currently queued/in-progress workflow runs in sampled page: 32
+- Most recent commit in sampled 30 commits: 2026-11-23T10:39:13+00:00
 
 **Open pull requests (sample, up to 12):**
+- ARNA Admin A3 — tenant route boundaries and audit-atomic membership lifecycle
+- docs(esppm): archive A2 Treasury and PSC evidence addendum
+- docs(esppm): archive Owner-approved A2 decision record
+- docs(esppm): archive frozen A1 v1.2.0 30-domain catalogue
+- F-01: preserve operational bootstrap account and shareholder data
+- Production-safe core bootstrap for 102 identities
+- test(auth): verify first-party stateless SSO cookie
+- feat(auth): reconcile adaptive authentication, device sessions and PIN
 - A3: Unify ARNA database migrations and safe seed lifecycle
 - A3.1: align Executive Overview completeness contract
 - A3.2: add tenant-scoped workforce aggregate
 - [Draft] A3 — introduce ARNA adaptive authentication policy engine
-- A5: harden production environment configuration and preflight
-- feat(dashboard): implement tenant-scoped Executive Overview API and frozen RBAC policy
-- integration: current-main API security and tenant-isolation hardening
-- A3 Finance — integrated current-main implementation candidate
-- A3.4 — Add governed currency precision and deterministic FX conversion
-- A3.3 — Integrate Finance dates with canonical Ethiopian calendar
-- A3.2 — Enforce non-negative journal line amounts at database posting
-- A3.1 — ARNA Finance current-main implementation baseline
 
 **PRs merged in last 30 days (sample, up to 12):**
+- A5: enable mainline and manual production preflight
+- Public corporate CMS: versioned lifecycle and bilingual baseline content
+- feat(auth): current-main adaptive authentication, device sessions and PIN
+- feat(dashboard): reconcile Executive Overview and workforce aggregate
 - integration: current-main Calendar API, Ethiopian dates and reminder outbox
 - integration: current-main Finance A3, Calendar and security hardening
 - feat(auth): enable revocable cross-subdomain SSO
@@ -78,84 +82,73 @@
 - feat(locale): persist authenticated account language preference
 - fix(ops): provide token to branch deletion resolver
 - feat(ops): add no-cost exact-SHA cleanup dispatches
-- fix(ops): harden owner-approved branch deletion
-- docs(governance): prepare Article 274 register extract request
-- docs(governance): correct Module 3 ARNA database provenance
-- A2: AGE Module 3 evidence disposition register
 
 **Failed workflows (sample, up to 12):**
-- ARNA clean-install MySQL verification #2286
-- ARNA clean-install MySQL verification #2285
-- ARNA clean-install MySQL verification #2284
-- ARNA clean-install MySQL verification #2283
-- ARNA clean-install MySQL verification #2281
-- ARNA clean-install MySQL verification #2280
-- ARNA clean-install MySQL verification #2279
-- ARNA clean-install MySQL verification #2278
-- ARNA G-01 tenant isolation regression gate #1879
-- ARNA Executive Overview A4 API security verification #281
-- ARNA clean-install MySQL verification #2274
-- ARNA Phase 0 effective authorization audit #1784
+- ARNA Executive Overview A4 API security verification #417
+- ARNA Executive Overview A4 API security verification #416
+- ARNA wallet account-number database compatibility #918
+- ARNA wallet account-number database compatibility #917
+- ARNA Executive Overview A4 API security verification #415
 
 ### akefadaka-git/arna-app
 
 - Default branch: `main`
-- Open PRs: 57
-- PRs merged in last 30 days: 30
-- Failed/action-required workflow runs in last 14 days: 72
+- Open PRs: 59
+- PRs merged in last 30 days: 25
+- Failed/action-required workflow runs in last 14 days: 36
 - Cancelled workflow runs in last 14 days: 0
 - Currently queued/in-progress workflow runs in sampled page: 0
-- Most recent commit in sampled 30 commits: 2026-11-22T14:31:37+00:00
+- Most recent commit in sampled 30 commits: 2026-11-23T11:34:32+00:00
 
 **Open pull requests (sample, up to 12):**
-- A3.2: render authorized workforce aggregate
-- [Draft] A3 — align login UI with six ARNA identifiers
-- A3.1: align Executive Overview completeness contract
-- integration: current-main ARNA brand, shell security and locale baseline
-- feat(dashboard): add permission-gated Executive Overview workspace
-- integration: current-main App security and localization hardening
-- [WIP] Add ARNA Board Election frontend contracts
-- Governance meetings: add meeting workspace view
-- integration: ARNA brand unification A3 current-head verification v3
-- feat(calendar): integrate native Ethiopian Calendar API
-- A3: Calendar workspace integration contract
-- integration: ARNA brand unification A3 current-head verification v2
+- Accessibility: fix navigation shortcut contrast
+- A4: Combobox hit-area investigation and correction
+- A3: ARNA UI v2 design-system and Ethiopic font foundations
+- Web authentication: six identifiers and MFA recovery
+- feat(admin): final current-main tenant identity and RBAC UI
+- feat(people): final current-main contacts, relationships and participation UI
+- feat(communications): final current-main conversation workspace
+- feat(finance): final current-main Finance workspace
+- feat(auth,android): current-main login, device sessions and recognized PIN
+- feat(governance): current-main meetings and election workspaces
+- feat(admin): current-main tenant identity and RBAC directory UI
+- feat(people): current-main contacts, relationships and participation UI
 
 **PRs merged in last 30 days (sample, up to 12):**
+- Public website v1: replace placeholder entry with verified corporate content
+- feat(dashboard): current-main Executive Overview completeness and workforce card
+- feat(calendar): reconcile Ethiopian Calendar workspace with current main
+- A3 — Reconcile ARNA brand unification on verified AppShell foundation
+- integration: ARNA brand unification A3 current-head verification v2
+- integration: ARNA brand unification A3 current-head verification
+- integration: current-main ARNA brand, shell security and locale baseline
 - chore(deps): upgrade Vue type checker and clear moderate advisories
 - feat(dashboard): add role-gated Executive Overview workspace
 - chore: synchronize App integration branch with current main
 - A1/A2: reconcile ARNA GUI specification and read-only baseline
 - feat(people): display linked relationship lifecycle history
-- feat(people): add Amharic-first People directory and profile views
-- Reconcile public emblem and semantic layout tokens
-- ARNA UI — extract PR #69 changes onto current main
-- Reconcile visual library specification with delivered 2D/3D panels
-- Extract PR #67 A4 component verification and visual panels onto current main
-- Extract ARNA visual, media and motion library onto current main
-- Extract PR #65 original responsive header change only
 
 **Failed workflows (sample, up to 12):**
-- ARNA Executive Overview A4 frontend verification #113
-- Frontend verification #2690
-- ARNA Executive Overview A4 frontend verification #112
-- Frontend verification #2689
-- Frontend verification #2686
-- ARNA Executive Overview A4 frontend verification #110
-- ARNA login identifier UI contract #44
-- ARNA login identifier UI contract #43
-- Frontend verification #2685
-- ARNA login identifier UI contract #42
-- ARNA Executive Overview A4 frontend verification #109
-- Frontend verification #2684
+- Frontend verification #2903
+- Frontend verification #2902
+- Frontend verification #2897
+- Frontend verification #2896
+- Frontend verification #2895
+- Frontend verification #2892
+- Frontend verification #2891
+- Frontend verification #2890
+- Frontend verification #2889
+- Frontend verification #2888
+- Frontend verification #2887
+- Frontend verification #2886
 
 ## Recommendations and enhancement priorities
 
-- **akefadaka-git/arna-api:** triage 15 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-api:** inspect 5 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
-- **akefadaka-git/arna-api:** review 59 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
-- **akefadaka-git/arna-app:** triage 72 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-app:** review 57 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-api:** triage 5 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-api:** inspect 26 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
+- **akefadaka-git/arna-api:** review 63 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-app:** triage 36 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-app:** review 59 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - Continue closing domain acceptance gaps before expanding scope: security, tenant isolation, lifecycle, concurrency, clean-install and cross-domain integration.
 - Prioritize Finance accounting integrity, Governance authority lifecycle, Calendar reservations/concurrency and Communication approval/publishing controls.
 - Improve frontend/API contract tests and production observability; require reproducible evidence for every readiness claim.
