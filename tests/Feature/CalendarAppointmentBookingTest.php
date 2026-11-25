@@ -216,6 +216,54 @@ final class CalendarAppointmentBookingTest extends TestCase
     }
 
     #[Test]
+    public function resource_overlap_is_checked_across_personal_and_corporate_bookings(): void
+    {
+        $tenant = $this->tenant();
+        $requesterA = $this->member($tenant);
+        $hostA = $this->member($tenant);
+        $requesterB = $this->member($tenant);
+        $hostB = $this->member($tenant);
+        $calendarId = $this->calendar($tenant, $requesterA);
+        $this->grant($requesterB, $tenant, 'calendar.view', 'calendar.create', 'calendar.update');
+
+        Sanctum::actingAs($requesterA);
+        $resourceId = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/resources', [
+                'name' => 'Consultation room',
+                'resource_type' => 'room',
+                'capacity' => 1,
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $firstPayload = $this->bookingPayload($calendarId, $hostA, [
+            'resource_ids' => [$resourceId],
+        ]);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments', $firstPayload)
+            ->assertCreated();
+
+        Sanctum::actingAs($requesterB);
+        $secondPayload = $this->bookingPayload($calendarId, $hostB, [
+            'resource_ids' => [$resourceId],
+            'appointment_scope' => 'corporate',
+            'starts_at' => '2026-11-26T10:15:00+03:00',
+            'ends_at' => '2026-11-26T11:15:00+03:00',
+        ]);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/availability', $secondPayload)
+            ->assertOk()
+            ->assertJsonPath('data.available', false)
+            ->assertJsonPath('data.participant_conflict_count', 0)
+            ->assertJsonPath('data.resource_conflict_count', 1);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments', $secondPayload)
+            ->assertStatus(409);
+        $this->assertSame(1, DB::table('calendar_appointments')->where('tenant_id', $tenant->id)->count());
+    }
+
+    #[Test]
     public function corporate_appointments_require_a_tenant_visible_calendar(): void
     {
         $tenant = $this->tenant();
