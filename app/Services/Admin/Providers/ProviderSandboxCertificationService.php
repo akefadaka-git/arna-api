@@ -37,7 +37,7 @@ final class ProviderSandboxCertificationService
 
         try {
             $result = $adapter->certifySandbox();
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             DB::table('platform_integrations')->where('id', $registration->id)->update([
                 'connection_state' => 'degraded',
                 'updated_at' => now(),
