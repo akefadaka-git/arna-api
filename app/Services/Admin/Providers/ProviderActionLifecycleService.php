@@ -177,7 +177,7 @@ final class ProviderActionLifecycleService
             return;
         }
 
-        $idempotencyKey = 'arna-provider:' . $request->public_id . ':' . $request->payload_sha256;
+        $idempotencyKey = 'arna-provider:' . hash('sha256', $request->public_id . ':' . $request->payload_sha256);
         DB::table('platform_provider_action_outbox')->insertOrIgnore([
             'request_id' => $request->id,
             'idempotency_key' => $idempotencyKey,
