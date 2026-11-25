@@ -122,6 +122,9 @@ final class TaskService
             if (!$canManage && !$isAssignee) {
                 throw new NotFoundHttpException('Task not found.');
             }
+            if ($task->status === 'cancelled' || ($task->status === 'completed' && !$canManage)) {
+                throw new NotFoundHttpException('Task not found.');
+            }
             if (!$canManage && array_diff(array_keys($data), ['version', 'status', 'progress_percent']) !== []) {
                 throw new NotFoundHttpException('Task not found.');
             }
@@ -138,10 +141,16 @@ final class TaskService
                 && ($changes['status'] ?? $task->status) !== 'completed') {
                 throw new BadRequestHttpException('Progress can reach 100 percent only when a task is completed.');
             }
-            if (($changes['status'] ?? null) === 'completed') {
+            $effectiveStatus = $changes['status'] ?? $task->status;
+            if ($effectiveStatus === 'completed') {
+                if (isset($changes['progress_percent']) && (int) $changes['progress_percent'] !== 100) {
+                    throw new BadRequestHttpException('A completed task must remain at 100 percent progress.');
+                }
                 $changes['progress_percent'] = 100;
-                $changes['completed_at'] = now();
-            } elseif (isset($changes['status']) && $changes['status'] !== 'completed') {
+                if (($changes['status'] ?? null) === 'completed') {
+                    $changes['completed_at'] = now();
+                }
+            } elseif (isset($changes['status'])) {
                 $changes['completed_at'] = null;
                 if ((int) $task->progress_percent === 100) {
                     $changes['progress_percent'] = 99;
@@ -173,6 +182,7 @@ final class TaskService
                 throw new ConflictHttpException('Task version conflict; reload before retrying.');
             }
             if (!$this->authorization->hasPermission('task.assign', $actor, $tenantId)
+                || $task->task_scope === 'personal'
                 || in_array($task->status, ['completed', 'cancelled'], true)) {
                 throw new NotFoundHttpException('Task not found.');
             }
