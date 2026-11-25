@@ -5,6 +5,7 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
+      - ".github/workflows/arna-admin-audit-security.yml"
       - "app/Http/Controllers/Admin/AdminAuditSecurityController.php"
       - "app/Http/Controllers/Admin/PlatformAuditSecurityController.php"
       - "routes/api.php"
