@@ -38,7 +38,7 @@ final class CommunicationAnnouncementsTest extends TestCase
     {
         $catalogue = collect(PermissionCatalogue::ROWS)->keyBy('slug');
 
-        // Merged catalogue: 66 platform capabilities, 13 Documents, and 13 Finance/Admin capabilities.
+        // Merged catalogue: 58 core capabilities, 13 Documents capabilities, and 22 Finance capabilities.
         $this->assertCount(93, PermissionCatalogue::ROWS);
 
         foreach (['announcement.view', 'announcement.manage', 'announcement.approve', 'announcement.publish'] as $slug) {
