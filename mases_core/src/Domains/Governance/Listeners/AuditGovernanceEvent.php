@@ -2,6 +2,29 @@
 
 declare(strict_types=1);
 
+namespace MaaleArna\MASES\Core\Domains\Governance\Listeners;
+
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use MaaleArna\MASES\Core\Audit\Services\AuditService;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceAppointmentRegistered;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceAppointmentUpdated;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceBodyRegistered;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceBodyUpdated;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceMembershipRegistered;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceMembershipUpdated;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionRegistered;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernancePositionUpdated;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermRegistered;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceTermUpdated;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceTerm;
+use Throwable;
+
+
 /**
  * Writes audit snapshots for Governance body, position, term, appointment
  * and membership events, including registration and update lifecycle changes.

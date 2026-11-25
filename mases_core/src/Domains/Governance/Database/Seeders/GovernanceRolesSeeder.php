@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+namespace MaaleArna\MASES\Core\Domains\Governance\Database\Seeders;
+
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Seeder;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Authorization\Models\Role;
+use RuntimeException;
+
+
 /**
  * Synchronizes Governance grants for the managed roles.
  * Preserve all non-Governance permissions when syncing; only the Governance

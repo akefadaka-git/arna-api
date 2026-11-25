@@ -2,6 +2,22 @@
 
 declare(strict_types=1);
 
+namespace Database\Seeders;
+
+use Database\Seeders\Data\BoardRoleAssignments;
+use Database\Seeders\Data\ShareholderRegister;
+use Database\Seeders\Support\UserAttacher;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Role;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use RuntimeException;
+
+
 /* D9/D11: preserve ShareholderType values; link entities through representative_user_id. */
 final class ShareholderSeeder extends Seeder
 {
