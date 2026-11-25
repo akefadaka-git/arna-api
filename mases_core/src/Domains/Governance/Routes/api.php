@@ -380,6 +380,8 @@ Route::name('api.governance.')->group(static function (): void {
         ->name('meeting-lifecycle-attestations.review');
 
     // GA substantive lifecycle — notices, agenda, electorate, quorum, voting, resolutions and minutes.
+    Route::get('/meetings/{meeting}/business-lifecycle', [GovernanceMeetingBusinessLifecycleController::class, 'showBusinessLifecycle'])
+        ->whereNumber('meeting')->middleware('auth.permission:governance.meeting.view')->name('meetings.business-lifecycle.show');
     Route::post('/meetings/{meeting}/notices', [GovernanceMeetingBusinessLifecycleController::class, 'createNotice'])
         ->whereNumber('meeting')->middleware('auth.permission:governance.meeting.manage')->name('meetings.notices.store');
     Route::patch('/notices/{notice}/review', [GovernanceMeetingBusinessLifecycleController::class, 'reviewNotice'])
