@@ -621,23 +621,36 @@ final class GovernanceMeetingBusinessLifecycleController extends Controller
         if ($num === false || $den === false || $num < 1 || $den < 1 || $num > $den || !in_array($basis, ['votes_cast', 'eligible_voting_power'], true)) {
             throw new ConflictHttpException('Verified resolution evidence must define valid threshold_numerator, threshold_denominator and basis.');
         }
-        $ballots = DB::table('governance_meeting_ballots')->where('tenant_id', $tenantId)->where('motion_id', $motion)->get();
-        $for = (float) $ballots->where('choice', 'for')->sum('voting_power');
-        $against = (float) $ballots->where('choice', 'against')->sum('voting_power');
-        $abstain = (float) $ballots->where('choice', 'abstain')->sum('voting_power');
-        $denominator = $basis === 'votes_cast'
-            ? $for + $against + $abstain
-            : (float) DB::table('governance_meeting_electorate_snapshots')->where('tenant_id', $tenantId)
-                ->where('meeting_id', $row->meeting_id)->where('status', 'verified')->orderByDesc('revision')->value('total_voting_power');
-        if ($denominator <= 0) {
-            throw new ConflictHttpException('Resolution denominator is zero.');
-        }
-        $passed = ($for * $den) >= ($denominator * $num);
-        $resolutionId = DB::transaction(function () use ($tenantId, $row, $motion, $data, $num, $den, $for, $against, $abstain, $passed): int {
+        $resolutionId = DB::transaction(function () use ($tenantId, $row, $motion, $data, $num, $den, $basis): int {
+            // Serialize ballot casting and vote closure on the motion row.
+            $lockedMotion = DB::table('governance_meeting_motions')->where('tenant_id', $tenantId)
+                ->where('id', $motion)->lockForUpdate()->first();
+            if (!$lockedMotion || $lockedMotion->status !== 'voting_open') {
+                throw new ConflictHttpException('Voting has already been closed or changed.');
+            }
+            if (DB::table('governance_meeting_resolutions')->where('tenant_id', $tenantId)->where('motion_id', $motion)->exists()) {
+                throw new ConflictHttpException('A resolution has already been recorded for this motion.');
+            }
+
+            $ballots = DB::table('governance_meeting_ballots')->where('tenant_id', $tenantId)
+                ->where('motion_id', $motion)->get();
+            $for = (float) $ballots->where('choice', 'for')->sum('voting_power');
+            $against = (float) $ballots->where('choice', 'against')->sum('voting_power');
+            $abstain = (float) $ballots->where('choice', 'abstain')->sum('voting_power');
+            $denominator = $basis === 'votes_cast'
+                ? $for + $against + $abstain
+                : (float) DB::table('governance_meeting_electorate_snapshots')->where('tenant_id', $tenantId)
+                    ->where('meeting_id', $lockedMotion->meeting_id)->where('status', 'verified')
+                    ->orderByDesc('revision')->value('total_voting_power');
+            if ($denominator <= 0) {
+                throw new ConflictHttpException('Resolution denominator is zero.');
+            }
+            $passed = ($for * $den) >= ($denominator * $num);
+
             $id = DB::table('governance_meeting_resolutions')->insertGetId([
-                'tenant_id' => $tenantId, 'meeting_id' => $row->meeting_id, 'motion_id' => $motion,
+                'tenant_id' => $tenantId, 'meeting_id' => $lockedMotion->meeting_id, 'motion_id' => $motion,
                 'resolution_number' => $data['resolution_number'],
-                'text_am' => $data['text_am'] ?? $row->text_am, 'text_en' => $data['text_en'] ?? $row->text_en,
+                'text_am' => $data['text_am'] ?? $lockedMotion->text_am, 'text_en' => $data['text_en'] ?? $lockedMotion->text_en,
                 'votes_for' => number_format($for, 4, '.', ''),
                 'votes_against' => number_format($against, 4, '.', ''),
                 'votes_abstain' => number_format($abstain, 4, '.', ''),
@@ -648,7 +661,7 @@ final class GovernanceMeetingBusinessLifecycleController extends Controller
             DB::table('governance_meeting_motions')->where('tenant_id', $tenantId)->where('id', $motion)->update([
                 'status' => 'voting_closed', 'voting_closed_at' => now(), 'updated_at' => now(),
             ]);
-            $this->activity($tenantId, (int) $row->meeting_id, 'meeting.resolution.recorded', ['resolution_id' => $id, 'result' => $passed ? 'passed' : 'rejected']);
+            $this->activity($tenantId, (int) $lockedMotion->meeting_id, 'meeting.resolution.recorded', ['resolution_id' => $id, 'result' => $passed ? 'passed' : 'rejected']);
             return $id;
         });
         return response()->json(['success' => true, 'data' => DB::table('governance_meeting_resolutions')->where('tenant_id', $tenantId)->find($resolutionId)], 201);
