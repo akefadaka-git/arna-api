@@ -1,0 +1,147 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\\Feature;
+
+use App\\Contracts\\Admin\\Providers\\ProviderAdapter;
+use App\\Data\\Admin\\Providers\\ProviderExecutionResult;
+use App\\Data\\Admin\\Providers\\ProviderOperationPlan;
+use App\\Services\\Admin\\Providers\\ProviderActionLifecycleService;
+use App\\Services\\Admin\\Providers\\ProviderAdapterRegistry;
+use App\\Services\\Admin\\Providers\\ProviderOwnerSignatureVerifier;
+use App\\Services\\Admin\\Providers\\ProviderOutboxWorker;
+use Illuminate\\Foundation\\Testing\\RefreshDatabase;
+use Illuminate\\Support\\Facades\\DB;
+use RuntimeException;
+use Tests\\TestCase;
+
+final class PlatformProviderActionLifecycleTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_critical_action_requires_two_distinct_approvals_and_dedicated_owner_signature_before_held_outbox_creation(): void
+    {
+        [$service, $registry, $secretKey] = $this->fixture();
+        $request = $service->request(10, [
+            'provider_key' => 'sandbox_dns',
+            'environment' => 'sandbox',
+            'operation' => 'replace_zone',
+            'resource_type' => 'dns_zone',
+            'resource_identifier' => 'synthetic-zone-01',
+            'payload' => ['records' => [['name' => 'example.test', 'type' => 'TXT', 'value' => 'synthetic']]],
+            'reason' => 'Sandbox lifecycle verification only.',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $service->decide($request['public_id'], 10, 'approved', 'Requester cannot approve.');
+    }
+
+    public function test_critical_request_is_held_until_two_approvals_and_owner_signature_are_verified_then_worker_executes_once(): void
+    {
+        [$service, $registry, $secretKey, $adapter] = $this->fixture();
+        $request = $service->request(10, [
+            'provider_key' => 'sandbox_dns',
+            'environment' => 'sandbox',
+            'operation' => 'replace_zone',
+            'resource_type' => 'dns_zone',
+            'resource_identifier' => 'synthetic-zone-01',
+            'payload' => ['records' => [['name' => 'example.test', 'type' => 'TXT', 'value' => 'synthetic']]],
+            'reason' => 'Sandbox lifecycle verification only.',
+        ]);
+
+        $service->decide($request['public_id'], 11, 'approved', 'First independent approval.');
+        $this->assertDatabaseCount('platform_provider_action_outbox', 0);
+        $service->decide($request['public_id'], 12, 'approved', 'Second independent approval.');
+        $this->assertDatabaseCount('platform_provider_action_outbox', 0);
+
+        $row = DB::table('platform_provider_action_requests')->where('public_id', $request['public_id'])->first();
+        $signature = sodium_crypto_sign_detached(
+            ProviderOwnerSignatureVerifier::canonicalMessage((array) $row),
+            $secretKey,
+        );
+        $service->authorizeOwner($request['public_id'], 1, 'provider-owner-test-key-v1', base64_encode($signature));
+
+        $this->assertDatabaseHas('platform_provider_action_requests', [
+            'public_id' => $request['public_id'],
+            'status' => 'approved',
+        ]);
+        $this->assertDatabaseHas('platform_provider_action_outbox', [
+            'payload_sha256' => $request['payload_sha256'],
+            'status' => 'held',
+        ]);
+
+        config([
+            'services.arna_provider_mutations.enabled' => true,
+            'services.arna_provider_mutations.sandbox_enabled' => true,
+        ]);
+        $worker = app(ProviderOutboxWorker::class);
+        $result = $worker->dispatch(10);
+
+        $this->assertSame(1, $result['succeeded']);
+        $this->assertSame(1, $adapter->executionCount);
+        $this->assertDatabaseHas('platform_provider_action_outbox', [
+            'status' => 'succeeded',
+            'idempotency_key' => 'arna-provider:' . $request['public_id'] . ':' . $request['payload_sha256'],
+        ]);
+    }
+
+    public function test_provider_worker_refuses_to_run_when_sandbox_gate_is_off(): void
+    {
+        [, $registry] = $this->fixture();
+        config([
+            'services.arna_provider_mutations.enabled' => true,
+            'services.arna_provider_mutations.sandbox_enabled' => false,
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        app(ProviderOutboxWorker::class)->dispatch(1);
+    }
+
+    /** @return array{ProviderActionLifecycleService,ProviderAdapterRegistry,string,TestSandboxProviderAdapter} */
+    private function fixture(): array
+    {
+        $keyPair = sodium_crypto_sign_keypair();
+        $publicKey = sodium_crypto_sign_publickey($keyPair);
+        $secretKey = sodium_crypto_sign_secretkey($keyPair);
+        config([
+            'services.arna_provider_owner.key_id' => 'provider-owner-test-key-v1',
+            'services.arna_provider_owner.public_key' => base64_encode($publicKey),
+            'services.arna_provider_mutations.enabled' => false,
+            'services.arna_provider_mutations.sandbox_enabled' => false,
+        ]);
+
+        $registry = new ProviderAdapterRegistry();
+        $adapter = new TestSandboxProviderAdapter();
+        $registry->register($adapter);
+        app()->instance(ProviderAdapterRegistry::class, $registry);
+
+        return [app(ProviderActionLifecycleService::class), $registry, $secretKey, $adapter];
+    }
+}
+
+final class TestSandboxProviderAdapter implements ProviderAdapter
+{
+    public int $executionCount = 0;
+
+    public function providerKey(): string { return 'sandbox_dns'; }
+    public function adapterVersion(): string { return 'test-1.0.0'; }
+    public function supportedOperations(): array
+    {
+        return ['replace_zone' => ['risk_tier' => 'critical', 'resource_types' => ['dns_zone'], 'idempotent' => true]];
+    }
+    public function plan(string $operation, string $resourceType, string $resourceIdentifier, array $payload): ProviderOperationPlan
+    {
+        return new ProviderOperationPlan($this->providerKey(), $this->adapterVersion(), $operation, $resourceType, $resourceIdentifier, $payload, 'critical');
+    }
+    public function observe(string $resourceType, string $resourceIdentifier): array { return ['status' => 'synthetic']; }
+    public function execute(ProviderOperationPlan $approvedPlan, string $idempotencyKey): ProviderExecutionResult
+    {
+        $this->executionCount++;
+        return new ProviderExecutionResult('succeeded', 'synthetic-reference', 'Fake sandbox provider applied the operation.', ['sandbox' => true]);
+    }
+    public function reconcile(ProviderOperationPlan $approvedPlan, string $idempotencyKey): ProviderExecutionResult
+    {
+        return new ProviderExecutionResult('not_applied', null, 'Synthetic provider confirms no state change.', ['sandbox' => true]);
+    }
+}
