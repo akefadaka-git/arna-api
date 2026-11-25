@@ -45,75 +45,7 @@ use Tests\TestCase;
  * the namespace `MaaleArna\MASES\Core\Domains\Loan\Tests\Unit`.
  *
  * =============================================================================
- * Revision history
- * =============================================================================
- * 1.0.0 — initial delivery.
- *
- * 1.0.1 — R-23 fixture FK fix. Every `writeOff()` call in this suite
- *         passed a hardcoded actor id (`7` or `42`). The service
- *         writes that id to `loan_write_offs.written_off_by`, which
- *         carries an FK to `users.id`. Under `DatabaseMigrations`, no
- *         such user rows exist, so the write-off-row insert failed the
- *         FK constraint and every `writeOff()` call that reached the
- *         insert failed.
- *
- *         The fix creates a `User` fixture in `setUp()` and passes
- *         `$this->actor->id`. The two assertions that compared against
- *         the literal actor ids become comparisons against
- *         `$this->actor->id`.
- *
- *         No behavior changes; no production code touched; no assertion
- *         meaning changed.
- *
- * =============================================================================
- * DatabaseMigrations, not RefreshDatabase
- * =============================================================================
- * `writeOff()` dispatches `LoanWrittenOff` via the state machine's
- * `DB::afterCommit()` path. Under `RefreshDatabase`, the framework's
- * per-test transaction never commits, so the after-commit callback
- * never fires and `Event::fake()` cannot observe the dispatch.
- * `DatabaseMigrations` avoids the wrapping transaction; the service's
- * own `DB::transaction(...)` becomes the outermost one, and its commit
- * triggers the after-commit callback.
- *
- * =============================================================================
- * The frozen write-off flow (A.35)
- * =============================================================================
- * Per A.35's class docblock, `writeOff()` performs the following
- * sequence inside ONE transaction:
- *
- *   1. Validates the reason (non-empty).
- *   2. Reads the loan WITHOUT a lock.
- *   3. Asserts the loan is in `active`, `in_arrears`, or
- *      `restructured` state.
- *   4. Loads the borrower, resolves the Wallet.
- *   5. Captures the loan's current outstanding projections and
- *      computes `writeOffAmount` as their sum.
- *   6. Inserts the `loan_write_offs` row → obtains `$writeOffId`.
- *   7. Discharges every outstanding obligation linked to the loan,
- *      using `reference_type = 'LoanWriteOff'` and
- *      `reference_id = (string) $writeOffId`.
- *   8. Zeroes the loan's three outstanding projections.
- *   9. Transitions to `written_off`, dispatching `LoanWrittenOff` after
- *      commit.
- *  10. Returns the refreshed loan.
- *
- * Every assertion below is anchored to one of these steps.
- *
- * =============================================================================
- * The `ObligationWrittenOff` vs. `ObligationCancelled` distinction
- * =============================================================================
- * The write-off discharges use `WalletEntryType::ObligationWrittenOff`
- * — NOT `ObligationCancelled` (which the restructure flow uses). The
- * two entry types are recorded distinctly on the Wallet's ledger, so
- * the audit trail preserves the semantic difference between "this debt
- * is forgiven" (write-off) and "these terms are replaced" (restructure).
- *
- * =============================================================================
- * Memory hygiene
- * =============================================================================
- * `gc_collect_cycles()` runs at both ends of the test lifecycle.
- *
+ * Covers loan write-off transitions.
  * @package MaaleArna\MASES\Core\Domains\Loan\Tests\Unit
  * @version 1.0.1
  */
