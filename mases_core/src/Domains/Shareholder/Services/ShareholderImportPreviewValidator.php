@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Services;
+namespace MaaleArna\MASES\Core\Domains\Shareholder\Services;
 
-use MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Enums\\ShareholderType;
+use MaaleArna\MASES\Core\Domains\Shareholder\Enums\ShareholderType;
 
 /**
  * Validates shareholder identity rows for a non-destructive import preview.
