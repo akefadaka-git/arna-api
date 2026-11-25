@@ -18,6 +18,7 @@ final class GovernanceMeetingLegalGate
         'notice' => ['notice_rule'],
         'quorum' => ['quorum_rule', 'meeting_category_rule'],
         'voting' => ['voting_rights_rule', 'share_register_basis'],
+        'resolution' => ['resolution_approval_rule'],
         'proxy' => ['proxy_formality_rule', 'proxy_authority'],
         'penalty' => ['penalty_authority', 'penalty_due_process'],
         'minutes' => ['minutes_approval_rule', 'minutes_signatory_authority'],
