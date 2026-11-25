@@ -30,7 +30,7 @@ final class TestSandboxProviderAdapter implements ProviderAdapter
     {
         $this->executionCount++;
         if ($this->throwOnExecute) {
-            throw new \\RuntimeException('Synthetic network timeout after request dispatch.');
+            throw new \RuntimeException('Synthetic network timeout after request dispatch.');
         }
         return new ProviderExecutionResult('succeeded', 'synthetic-reference', 'Fake sandbox provider applied the operation.', ['sandbox' => true]);
     }
