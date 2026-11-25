@@ -217,8 +217,8 @@ final class ProviderOutboxWorker
                     'available_at' => $makeAvailable ? now()->addSeconds(5) : ($status === 'reconciliation_required' ? now()->addSeconds(60) : null),
                     'lease_token' => null,
                     'lease_expires_at' => null,
-                    'reconciled_at' => in_array($status, ['succeeded', 'reconciliation_required'], true) ? now() : null,
-                    'reconciliation_status' => $status === 'succeeded' ? 'applied' : ($status === 'reconciliation_required' ? 'indeterminate' : null),
+                    'reconciled_at' => $result !== null || $status === 'reconciliation_required' ? now() : null,
+                    'reconciliation_status' => $result !== null ? $result->status : ($status === 'reconciliation_required' ? 'indeterminate' : null),
                     'completed_at' => $status === 'succeeded' ? now() : null,
                     'updated_at' => now(),
                 ]);
