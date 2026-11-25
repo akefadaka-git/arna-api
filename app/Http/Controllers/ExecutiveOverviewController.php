@@ -36,9 +36,7 @@ final class ExecutiveOverviewController
             ], 400);
         }
 
-        // The route permission is the first gate. This uncached role-pivot
-        // check is authoritative and prevents direct grants and platform
-        // wildcard roles from widening the frozen audience.
+        // Enforce the frozen audience using current role pivots.
         if (!$this->audience->allows($user, (int) $tenantId)) {
             return response()->json([
                 'success' => false,
@@ -55,9 +53,7 @@ final class ExecutiveOverviewController
         $asOf = $validated['as_of'] ?? now()->toDateString();
         $widgets = [];
 
-        // Finance report access is evaluated against the current database
-        // pivots, not AuthorizationService's TTL cache. This ensures that a
-        // failed cache invalidation cannot retain access to financial data.
+        // Use current pivots so stale authorization cache cannot retain Finance access.
         if ($this->hasFreshTenantPermission($user, 'finance.report.view', (int) $tenantId)) {
             $entities = LegalEntity::query()
                 ->where('tenant_id', (int) $tenantId)
@@ -65,9 +61,7 @@ final class ExecutiveOverviewController
                 ->get();
 
             foreach ($entities as $entity) {
-                // Recheck the entity permission from current pivots before
-                // invoking the domain policy. This prevents a stale positive
-                // AuthorizationService cache entry from retaining revoked access.
+                // Recheck current entity permission before applying the domain policy.
                 if (!$this->hasFreshTenantPermission($user, 'finance.entity.view', (int) $tenantId)) {
                     continue;
                 }
@@ -106,10 +100,7 @@ final class ExecutiveOverviewController
             }
         }
 
-        // People workforce is independently authorized. The aggregate is
-        // queried only after the current tenant-scoped permission pivot check;
-        // neither the Executive Overview entry permission nor people.manage
-        // can substitute for this grant.
+        // Workforce data requires its own tenant-scoped permission.
         if ($this->hasFreshPeopleWorkforcePermission($user, (int) $tenantId)) {
             $widgets[] = [
                 'key' => 'people.workforce.active',
@@ -126,10 +117,7 @@ final class ExecutiveOverviewController
             ];
         }
 
-        // Status describes completeness of the providers in this contract,
-        // not the completeness of every ARNA domain or every planned KPI.
-        // Finance trial balance and the independently authorized People
-        // workforce aggregate are the only providers in this contract.
+        // Completeness applies only to the Finance and People providers below.
         return response()->json([
             'success' => true,
             'data' => [
@@ -142,10 +130,7 @@ final class ExecutiveOverviewController
     }
 
 
-    /**
-     * Workforce permission proposal: people.workforce.view (tenant scope).
-     * Read current pivots so revocation cannot leave a stale positive grant.
-     */
+    /** Checks the tenant-scoped workforce grant against current pivots. */
     private function hasFreshPeopleWorkforcePermission(User $user, int $tenantId): bool
     {
         $direct = $user->permissions()
@@ -189,11 +174,7 @@ final class ExecutiveOverviewController
             ->exists();
     }
 
-    /**
-     * Check a tenant-scoped permission directly from authoritative pivots.
-     * Both direct grants and role grants are supported; role grants must be
-     * active, tenant-compatible and either global or bound to Finance.
-     */
+    /** Checks active direct or Finance-role grants for this tenant. */
     private function hasFreshTenantPermission(User $user, string $permission, int $tenantId): bool
     {
         $direct = $user->permissions()
