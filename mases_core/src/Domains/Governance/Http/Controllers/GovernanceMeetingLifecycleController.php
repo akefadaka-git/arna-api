@@ -54,6 +54,13 @@ final class GovernanceMeetingLifecycleController extends Controller
                 'legal_form' => $basis->legal_form, 'category' => $basis->meeting_category,
                 'legal_basis_status' => $basis->status, 'legal_basis_reference' => $basis->source_reference,
                 'legal_basis_verified_at' => $basis->verified_at, 'legal_basis_verified_by' => $basis->verified_by,
+                'external_review_status' => $basis->external_review_status,
+                'external_counsel_name' => $basis->external_counsel_name,
+                'external_counsel_firm' => $basis->external_counsel_firm,
+                'external_counsel_license_reference' => $basis->external_counsel_license_reference,
+                'external_opinion_reference' => $basis->external_opinion_reference,
+                'external_opinion_sha256' => $basis->external_opinion_sha256,
+                'external_reviewed_at' => $basis->external_reviewed_at,
                 'created_by' => $basis->created_by,
             ], $evidence);
         } catch (DomainException $exception) {
