@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Shareholder\\Services;
+namespace MaaleArna\MASES\Core\Domains\Shareholder\Services;
 
 /**
  * Parses a UTF-8 CSV file and delegates identity validation.
@@ -52,7 +52,7 @@ final class ShareholderCsvPreviewService
                 return $this->fileError('A CSV header row is required.');
             }
 
-            $headers[0] = preg_replace('/^\\xEF\\xBB\\xBF/', '', (string) $headers[0]) ?? (string) $headers[0];
+            $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $headers[0]) ?? (string) $headers[0];
             $headers = array_map(
                 static fn (mixed $header): string => strtolower(trim((string) $header)),
                 $headers,
