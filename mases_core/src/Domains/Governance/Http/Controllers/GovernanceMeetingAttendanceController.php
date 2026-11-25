@@ -162,6 +162,14 @@ final class GovernanceMeetingAttendanceController extends Controller
             ->get();
         $record->corrections = DB::table('governance_attendance_corrections')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
         $record->disputes = DB::table('governance_penalty_disputes')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
+        $record->legal_basis = DB::table('governance_meeting_legal_bases')
+            ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->first();
+        $record->legal_evidence = $record->legal_basis
+            ? DB::table('governance_meeting_legal_evidence')->where('tenant_id', $tenantId)
+                ->where('legal_basis_id', $record->legal_basis->id)->orderBy('id')->get()
+            : collect();
+        $record->lifecycle_attestations = DB::table('governance_meeting_lifecycle_attestations')
+            ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
 
         return response()->json(['success' => true, 'data' => $record]);
     }
