@@ -35,7 +35,16 @@ final class ProviderSandboxCertificationService
             'updated_at' => now(),
         ]);
 
-        $result = $adapter->certifySandbox();
+        try {
+            $result = $adapter->certifySandbox();
+        } catch (\\Throwable) {
+            DB::table('platform_integrations')->where('id', $registration->id)->update([
+                'connection_state' => 'degraded',
+                'updated_at' => now(),
+            ]);
+            $this->audit($providerKey, $adapter->adapterVersion(), false, '', []);
+            throw new RuntimeException('Provider sandbox certification could not complete; sandbox mutations remain disabled.');
+        }
         $checksPassed = $result->checks !== [];
         foreach ($result->checks as $check) {
             if (! is_array($check) || ! is_string($check['name'] ?? null)
@@ -79,7 +88,7 @@ final class ProviderSandboxCertificationService
             'sandbox_certified' => true,
             'sandbox_certification_reference' => $result->reference,
             'sandbox_mutations_enabled' => false,
-            'checks' => $result->checks,
+            'checks' => array_map(static fn (array $check): array => ['name' => $check['name'], 'status' => $check['status']], $result->checks),
         ];
     }
 
@@ -95,10 +104,12 @@ final class ProviderSandboxCertificationService
                 'provider_key' => $providerKey,
                 'adapter_version' => $adapterVersion,
                 'reference' => $reference,
-                'checks' => array_map(static fn (array $check): array => [
-                    'name' => $check['name'] ?? 'unknown',
-                    'status' => $check['status'] ?? 'invalid',
-                ], $checks),
+                'checks' => array_map(static function ($check): array {
+                    return is_array($check) ? [
+                        'name' => is_string($check['name'] ?? null) ? $check['name'] : 'unknown',
+                        'status' => is_string($check['status'] ?? null) ? $check['status'] : 'invalid',
+                    ] : ['name' => 'invalid', 'status' => 'invalid'];
+                }, $checks),
             ], JSON_THROW_ON_ERROR),
             'created_at' => now(),
         ]);
