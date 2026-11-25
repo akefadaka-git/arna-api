@@ -925,6 +925,7 @@ Route::get('/admin/platform/applications', [\App\Http\Controllers\Admin\Platform
     ->middleware(['auth:sanctum', 'auth.permission:platform.applications.read'])
     ->name('api.admin.platform.applications.index');
 
+// These endpoints intentionally omit tenant-context middleware; the controller enforces tenant_id IS NULL.
 // Platform-level audit and security oversight is read-only and excludes tenant-bound records.
 Route::get('/admin/platform/audit-logs', [\App\Http\Controllers\Admin\PlatformAuditSecurityController::class, 'auditLogs'])
     ->middleware(['auth:sanctum', 'auth.permission:platform.audit.read'])
