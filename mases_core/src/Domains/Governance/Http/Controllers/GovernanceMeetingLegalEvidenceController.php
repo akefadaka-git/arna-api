@@ -102,7 +102,9 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
             'tenant_id' => $tenantId, 'legal_basis_id' => $legalBasis,
             'action' => $data['action'], 'evidence_key' => $data['evidence_key'],
             'source_reference' => trim($data['source_reference']),
-            'source_sha256' => strtolower($data['source_sha256']), 'status' => 'pending_review',
+            'source_sha256' => strtolower($data['source_sha256']),
+            'rule_parameters' => isset($data['rule_parameters']) ? json_encode($data['rule_parameters'], JSON_THROW_ON_ERROR) : null,
+            'status' => 'pending_review',
             'created_by' => (int) auth()->id(), 'created_at' => now(), 'updated_at' => now(),
         ]);
         $this->activity($tenantId, (int) $basis->meeting_id, 'meeting.legal_evidence.submitted', ['legal_basis_id' => $legalBasis, 'evidence_id' => $id, 'action' => $data['action']]);
