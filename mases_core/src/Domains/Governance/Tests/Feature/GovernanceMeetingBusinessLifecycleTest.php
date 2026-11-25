@@ -238,6 +238,13 @@ final class GovernanceMeetingBusinessLifecycleTest extends TestCase
             'source_sha256' => str_repeat('a', 64), 'status' => 'verified',
             'created_by' => $this->admin->id, 'verified_by' => $this->reviewer->id,
             'verified_at' => now(), 'review_reason' => 'Synthetic test evidence only.',
+            'external_review_status' => 'verified',
+            'external_counsel_name' => 'Test Independent Ethiopian Counsel',
+            'external_counsel_firm' => 'Test Legal Chambers',
+            'external_counsel_license_reference' => 'TEST-LICENSE-001',
+            'external_opinion_reference' => 'test:external-opinion',
+            'external_opinion_sha256' => str_repeat('d', 64),
+            'external_reviewed_at' => now(),
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $items = [
