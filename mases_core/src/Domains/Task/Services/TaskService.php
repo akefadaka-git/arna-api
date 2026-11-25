@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MaaleArna\MASES\Core\Domains\Task\Services;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Auth\Models\User;
@@ -42,6 +43,26 @@ final class TaskService
             ->orderBy('due_on')
             ->orderByDesc('updated_at')
             ->paginate(50);
+    }
+
+    /**
+     * Read-only Calendar projection of D08-owned task deadlines.
+     * Task lifecycle remains exclusively in this domain.
+     */
+    public function deadlines(User $actor, string $from, string $to): Collection
+    {
+        $tenantId = $this->tenantId();
+        $query = Task::query()->where('tenant_id', $tenantId)
+            ->whereNotNull('due_on')
+            ->whereBetween('due_on', [$from, $to]);
+
+        if (!$this->authorization->hasPermission('task.view_all', $actor, $tenantId)) {
+            $query->where(fn (Builder $visible): Builder => $visible
+                ->where('created_by', $actor->getKey())
+                ->orWhere('assigned_to_user_id', $actor->getKey()));
+        }
+
+        return $query->orderBy('due_on')->orderBy('title')->limit(200)->get();
     }
 
     public function find(User $actor, string $id): Task
