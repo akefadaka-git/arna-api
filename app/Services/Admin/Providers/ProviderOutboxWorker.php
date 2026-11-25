@@ -68,6 +68,7 @@ final class ProviderOutboxWorker
                 ->update([
                     'status' => 'processing',
                     'lease_token' => $lease,
+                    'claimed_at' => now(),
                     'lease_expires_at' => now()->addMinutes(2),
                     'attempt_count' => DB::raw('attempt_count + 1'),
                     'updated_at' => now(),
