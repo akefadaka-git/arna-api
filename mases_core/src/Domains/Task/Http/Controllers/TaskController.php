@@ -31,6 +31,46 @@ final class TaskController
         ]);
     }
 
+    public function deadlines(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'from' => ['required_without:from_ec', 'date_format:Y-m-d'],
+            'to' => ['required_without:to_ec', 'date_format:Y-m-d'],
+            'from_ec' => ['required_without:from', 'array:year,month,day'],
+            'from_ec.year' => ['required_with:from_ec', 'integer', 'min:1', 'max:9999'],
+            'from_ec.month' => ['required_with:from_ec', 'integer', 'min:1', 'max:13'],
+            'from_ec.day' => ['required_with:from_ec', 'integer', 'min:1', 'max:30'],
+            'to_ec' => ['required_without:to', 'array:year,month,day'],
+            'to_ec.year' => ['required_with:to_ec', 'integer', 'min:1', 'max:9999'],
+            'to_ec.month' => ['required_with:to_ec', 'integer', 'min:1', 'max:13'],
+            'to_ec.day' => ['required_with:to_ec', 'integer', 'min:1', 'max:30'],
+        ]);
+
+        if ((isset($data['from'], $data['from_ec'])) || (isset($data['to'], $data['to_ec']))) {
+            throw ValidationException::withMessages(['date_range' => ['Supply Gregorian or Ethiopian dates for each range boundary, not both.']]);
+        }
+
+        try {
+            $from = isset($data['from_ec'])
+                ? LocalDate::fromEthiopianDate((int) $data['from_ec']['year'], (int) $data['from_ec']['month'], (int) $data['from_ec']['day'])->value()
+                : LocalDate::fromString($data['from'])->value();
+            $to = isset($data['to_ec'])
+                ? LocalDate::fromEthiopianDate((int) $data['to_ec']['year'], (int) $data['to_ec']['month'], (int) $data['to_ec']['day'])->value()
+                : LocalDate::fromString($data['to'])->value();
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['date_range' => [$exception->getMessage()]]);
+        }
+
+        if ($to < $from) {
+            throw ValidationException::withMessages(['to' => ['The end date must not precede the start date.']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->tasks->deadlines($request->user(), $from, $to),
+        ]);
+    }
+
     public function show(Request $request, string $id): JsonResponse
     {
         return response()->json([
