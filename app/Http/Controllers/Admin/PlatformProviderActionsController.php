@@ -102,7 +102,7 @@ final class PlatformProviderActionsController extends Controller
         try {
             $result = $service->request((int) $request->user()->getAuthIdentifier(), $data);
             return response()->json(['success' => true, 'data' => $result], 202);
-        } catch (\\InvalidArgumentException|RuntimeException $exception) {
+        } catch (\InvalidArgumentException|RuntimeException $exception) {
             return response()->json(['success' => false, 'error' => ['code' => 'PROVIDER_ACTION_REJECTED', 'message' => $exception->getMessage()]], 422);
         }
     }
