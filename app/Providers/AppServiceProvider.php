@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Policies\PersonPolicy;
+use MaaleArna\MASES\Core\Domains\Task\Models\Task;
+use MaaleArna\MASES\Core\Domains\Task\Policies\TaskPolicy;
 use Illuminate\Support\ServiceProvider;
 
 /** Registers application policies and API rate limiting. */
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Person::class, PersonPolicy::class);
+        Gate::policy(Task::class, TaskPolicy::class);
 
         // Limit by authenticated user, or source IP for guests.
         RateLimiter::for('api', function (Request $request) {
