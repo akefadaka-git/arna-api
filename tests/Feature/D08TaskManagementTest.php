@@ -140,6 +140,79 @@ final class D08TaskManagementTest extends TestCase
     }
 
     #[Test]
+    public function dependencies_block_premature_completion_and_reject_cycles(): void
+    {
+        $tenant = $this->tenant();
+        $actor = $this->member($tenant);
+        $this->grant($actor, $tenant, 'task.create', 'task.view', 'task.update');
+        Sanctum::actingAs($actor);
+
+        $dependent = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks', ['title' => 'Submit signed report'])
+            ->assertCreated()
+            ->json('data.id');
+        $prerequisite = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks', ['title' => 'Prepare report'])
+            ->assertCreated()
+            ->json('data.id');
+
+        $linked = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks/'.$dependent.'/dependencies', [
+                'version' => 1,
+                'depends_on_task_id' => $prerequisite,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.version', 2)
+            ->assertJsonPath('data.dependencies.0.id', $prerequisite);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->patchJson('/api/tasks/'.$dependent, [
+                'version' => $linked->json('data.version'),
+                'status' => 'completed',
+            ])
+            ->assertStatus(400);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->patchJson('/api/tasks/'.$prerequisite, [
+                'version' => 1,
+                'status' => 'completed',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'completed');
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->patchJson('/api/tasks/'.$dependent, [
+                'version' => 2,
+                'status' => 'completed',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'completed');
+
+        $cycleA = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks', ['title' => 'Cycle A'])
+            ->assertCreated()
+            ->json('data.id');
+        $cycleB = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks', ['title' => 'Cycle B'])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks/'.$cycleA.'/dependencies', [
+                'version' => 1,
+                'depends_on_task_id' => $cycleB,
+            ])
+            ->assertOk();
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks/'.$cycleB.'/dependencies', [
+                'version' => 1,
+                'depends_on_task_id' => $cycleA,
+            ])
+            ->assertStatus(400);
+    }
+
+    #[Test]
     public function personal_tasks_cannot_be_reassigned_as_corporate_work(): void
     {
         $tenant = $this->tenant();
