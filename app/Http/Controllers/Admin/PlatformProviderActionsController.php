@@ -113,10 +113,10 @@ final class PlatformProviderActionsController extends Controller
                 $data['note'],
             );
             return response()->json(['success' => true, 'data' => $result]);
-        } catch (RuntimeException $exception) {
-            return response()->json(['success' => false, 'error' => ['code' => 'PROVIDER_ACTION_DECISION_REJECTED', 'message' => $exception->getMessage()]], 422);
         } catch (\\Illuminate\\Database\\QueryException) {
             return response()->json(['success' => false, 'error' => ['code' => 'PROVIDER_ACTION_DUPLICATE_APPROVER', 'message' => 'This approver has already recorded a decision for this request.']], 409);
+        } catch (RuntimeException $exception) {
+            return response()->json(['success' => false, 'error' => ['code' => 'PROVIDER_ACTION_DECISION_REJECTED', 'message' => $exception->getMessage()]], 422);
         }
     }
 }
