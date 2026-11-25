@@ -16,7 +16,7 @@ declare(strict_types=1);
  *   The factory emitted a single `name` column plus `email`,
  *   `email_verified_at`, `password`, and `remember_token`.
  *
- *   The MASES `users` table has no `name` column. It was deliberately
+ *   The ARNA `users` table has no `name` column. It was deliberately
  *   replaced by six bilingual name columns in
  *   `2026_09_07_000002_create_users_table.php`:
  *
@@ -44,7 +44,7 @@ declare(strict_types=1);
  *   values when Amharic is absent, so `$user->name` continues to
  *   render.
  *
- *   The factory is also explicitly bound to the MASES User model:
+ *   The factory is also explicitly bound to the ARNA User model:
  *
  *       protected $model = \MaaleArna\MASES\Core\Auth\Models\User::class;
  *
@@ -123,7 +123,7 @@ class UserFactory extends Factory
      *
      * Bound explicitly so that both `App\Models\User::factory()` and
      * `MaaleArna\MASES\Core\Auth\Models\User::factory()` resolve to
-     * the same instance type — the MASES Core User.
+     * the same instance type — the ARNA Core User.
      *
      * @var class-string<User>
      */

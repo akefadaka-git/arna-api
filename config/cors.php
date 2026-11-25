@@ -7,7 +7,7 @@ declare(strict_types=1);
 | Cross-Origin Resource Sharing (CORS) Configuration
 |--------------------------------------------------------------------------
 |
-| Enables the MASES frontend applications (running on sibling subdomains
+| Enables the ARNA frontend applications (running on sibling subdomains
 | of maalearna.com.et) to call the API with credentials (cookies).
 |
 | -----------------------------------------------------------------------------
@@ -22,7 +22,7 @@ declare(strict_types=1);
 |   - The browser rejects any response that combines
 |     `Access-Control-Allow-Origin: *` with a credentialed request.
 |
-| Because MASES uses Sanctum stateful cookies for first-party SPA
+| Because ARNA uses Sanctum stateful cookies for first-party SPA
 | authentication, this file is mandatory and `supports_credentials` MUST
 | be true.
 |
@@ -50,7 +50,7 @@ declare(strict_types=1);
 |      origin not listed here is not permitted to make credentialed
 |      requests to the API.
 |
-| @package MASES
+| @package ARNA
 | @version 1.0.0
 */
 
@@ -101,7 +101,7 @@ return [
     | Allowed Origins
     |--------------------------------------------------------------------------
     |
-    | Explicit allow-list of MASES frontend origins. Every value must be
+    | Explicit allow-list of ARNA frontend origins. Every value must be
     | a full origin (scheme + host, no trailing slash). Subdomains must
     | be listed individually — a bare `maalearna.com.et` entry does not
     | cover its subdomains.
@@ -134,7 +134,7 @@ return [
     | Request headers the browser is permitted to send. `*` allows all,
     | which is appropriate for first-party SPAs that need to send
     | Authorization, X-XSRF-TOKEN, X-Requested-With, Content-Type, and
-    | any MASES-specific headers.
+    | any ARNA-specific headers.
     |
     */
     'allowed_headers' => ['*'],
@@ -145,7 +145,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Response headers the browser is allowed to read from a cross-origin
-    | response. Left empty: the MASES canonical envelope carries error
+    | response. Left empty: the ARNA canonical envelope carries error
     | metadata in the body, not in custom response headers.
     |
     | If the frontend ever needs to read X-Request-ID or similar for

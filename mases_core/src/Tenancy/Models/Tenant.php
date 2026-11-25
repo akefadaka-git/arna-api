@@ -15,7 +15,7 @@ use Database\Factories\TenantFactory;
 /**
  * Tenant Model
  *
- * Represents a tenant in the MASES multi‑tenant platform.
+ * Represents a tenant in the ARNA multi‑tenant platform.
  * Each tenant is an isolated organisational unit with its own users,
  * roles, and data.
  *

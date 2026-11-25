@@ -9,13 +9,13 @@ use Illuminate\Foundation\Events\Dispatchable;
 /**
  * FailedLogin
  *
- * Domain event dispatched when a login attempt fails in the MASES platform.
+ * Domain event dispatched when a login attempt fails in the ARNA platform.
  *
  * =============================================================================
  * Why this event exists
  * =============================================================================
  * Laravel ships with `Illuminate\Auth\Events\Failed`, but that event is only
- * dispatched by `Auth::attempt()`. MASES deliberately does not use
+ * dispatched by `Auth::attempt()`. ARNA deliberately does not use
  * `Auth::attempt()` — see the `AuthenticationService` class docblock, section
  * "Stateless API login" — because it would create a session that survives
  * token revocation.
@@ -109,7 +109,7 @@ final class FailedLogin
     /**
      * The guard that handled the attempt.
      *
-     * Always 'api' in MASES — the platform is stateless and uses Sanctum
+     * Always 'api' in ARNA — the platform is stateless and uses Sanctum
      * bearer tokens exclusively. Included for forward-compatibility with
      * any future secondary guard (e.g. an administrative web guard).
      *
