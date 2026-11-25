@@ -34,7 +34,20 @@ jobs:
   d08-task-management:
     name: D08 tenant and lifecycle tests (SQLite)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: arna_d08_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -48,7 +61,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: bcmath, pcntl, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, openssl, pcre, pdo_sqlite, session, tokenizer, xml, zip
+          extensions: bcmath, pcntl, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
           tools: composer:v2
           coverage: none
 
@@ -67,5 +80,12 @@ jobs:
           php -l tests/Feature/D08TaskManagementTest.php
           php -l routes/api.php
 
-      - name: Run D08 Task Management feature tests
+      - name: Run D08 Task Management and Calendar integration tests on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_d08_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
         run: php artisan test --compact tests/Feature/D08TaskManagementTest.php tests/Feature/CalendarTaskLinkTest.php
