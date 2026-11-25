@@ -165,6 +165,53 @@ final class ShareholderImportReviewPersistenceTest extends TestCase
         $decision->save();
     }
 
+    #[Test]
+    public function failed_mandatory_audit_insert_rolls_back_submission_and_decision(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $submitter = $this->tenantActor($tenant, 'shareholder.import.submit');
+        $failAudit = true;
+
+        DB::listen(static function (\\Illuminate\\Database\\Events\\QueryExecuted $query) use (&$failAudit): void {
+            if ($failAudit && str_starts_with(strtolower(ltrim($query->sql)), 'insert into "audit_logs"')) {
+                throw new \\RuntimeException('Synthetic mandatory audit persistence failure.');
+            }
+        });
+
+        try {
+            app(ShareholderImportReviewService::class)->submit(
+                $this->validPreview(),
+                $submitter,
+                (int) $tenant->id,
+            );
+            self::fail('Submission must fail when its mandatory audit write fails.');
+        } catch (\\RuntimeException $exception) {
+            self::assertStringContainsString('mandatory audit persistence failure', $exception->getMessage());
+        } finally {
+            $failAudit = false;
+        }
+
+        self::assertDatabaseCount('shareholder_import_submissions', 0);
+        self::assertDatabaseCount('shareholder_import_decisions', 0);
+        self::assertDatabaseCount('audit_logs', 0);
+    }
+
+    #[Test]
+    public function submitted_payload_and_tenant_provenance_cannot_be_changed(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $submitter = $this->tenantActor($tenant, 'shareholder.import.submit');
+        $submission = app(ShareholderImportReviewService::class)->submit(
+            $this->validPreview(),
+            $submitter,
+            (int) $tenant->id,
+        );
+
+        $this->expectException(\\LogicException::class);
+        $submission->payload = ['rows' => []];
+        $submission->save();
+    }
+
     private function tenantActor(Tenant $tenant, string $permissionSlug): User
     {
         $actor = User::factory()->create(['is_active' => true]);
