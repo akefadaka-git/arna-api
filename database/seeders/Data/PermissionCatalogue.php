@@ -222,5 +222,7 @@ final class PermissionCatalogue
         ['slug' => 'platform.providers.actions.owner-authorize', 'name_am' => 'የባለቤት ፊርማ ፈቃድ ማረጋገጥ', 'name_en' => 'Verify Provider Owner Authorization', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.overview.read', 'name_am' => 'የመድረክ አጠቃላይ እይታን ማየት', 'name_en' => 'View Platform Overview', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
         ['slug' => 'platform.applications.read', 'name_am' => 'የመድረክ መተግበሪያዎችን ማየት', 'name_en' => 'View Platform Applications', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.audit.read', 'name_am' => 'የመድረክ ኦዲት መዝገቦችን ማየት', 'name_en' => 'View Platform Audit Logs', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.security.read', 'name_am' => 'የመድረክ ደህንነት ክስተቶችን ማየት', 'name_en' => 'View Platform Security Events', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
 ];
 }
