@@ -17,29 +17,10 @@ use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
  */
 final class TenantContextController extends Controller
 {
-    /**
-     * The platform's registrable domain suffix.
-     *
-     * MUST be kept in sync with `RequestTenantResolver::DOMAIN_SUFFIX`.
-     * The duplication is a diagnostic convenience: the resolver exposes
-     * neither its domain suffix nor its reserved list as public API, and
-     * this controller needs them only to label the resolution source.
-     *
-     * Drift risk is low: a change to the platform's registrable domain
-     * affects many other places besides this controller.
-     *
-     * @var string
-     */
+    /** Must match RequestTenantResolver::DOMAIN_SUFFIX. */
     private const DOMAIN_SUFFIX = 'maalearna.com.et';
 
-    /**
-     * Reserved subdomains that are NOT treated as tenant identifiers.
-     *
-     * MUST be kept in sync with `RequestTenantResolver::DEFAULT_RESERVED_DOMAINS`.
-     * See the note on DOMAIN_SUFFIX.
-     *
-     * @var list<string>
-     */
+    /** Must match RequestTenantResolver::DEFAULT_RESERVED_DOMAINS. */
     private const RESERVED_SUBDOMAINS = [
         'www',
         'api',
@@ -55,28 +36,20 @@ final class TenantContextController extends Controller
         'launcher',
     ];
 
-    /**
-     * Return the current tenant context.
-     *
-     * @param  Request  $request
-     * @return JsonResponse
-     */
+    /** Returns the resolved tenant context for diagnostics. */
     public function show(Request $request): JsonResponse
     {
-        // Resolve the current authenticated user (may be null for public endpoints).
+ 
         /** @var User|null $user */
         $user = $request->user();
 
-        // Determine the resolution source under the C-09 model (diagnostic).
+ 
         $resolutionSource = $this->detectResolutionSource($request);
 
-        // Report whether the request carried a body/query `tenant_id` that
-        // was ignored. This is the C-09 behavior made visible.
+        // Report body/query tenant_id values that were ignored for resolution.
         $bodyTenantIdIgnored = $this->requestCarriedBodyTenantId($request);
 
-        // Resolve the tenant ID using the platform helper.
-        // Under C-09, this reads from `TenantContextService` in HTTP context.
-        // It NEVER throws — it returns null when no context is available.
+        // Resolve tenant context established by middleware.
         $tenantId = null;
         try {
             $tenantId = mases_tenant_id();
@@ -87,7 +60,7 @@ final class TenantContextController extends Controller
             ]);
         }
 
-        // No tenant context — return a clean null response.
+ 
         if ($tenantId === null) {
             return $this->respond(
                 tenant: null,
@@ -98,7 +71,7 @@ final class TenantContextController extends Controller
             );
         }
 
-        // Attempt to load the tenant model.
+ 
         $tenant = null;
         try {
             $tenant = Tenant::query()->find($tenantId);
@@ -109,7 +82,7 @@ final class TenantContextController extends Controller
             ]);
         }
 
-        // If the tenant row does not exist, report it as no context.
+ 
         if ($tenant === null) {
             return $this->respond(
                 tenant: null,
@@ -120,7 +93,7 @@ final class TenantContextController extends Controller
             );
         }
 
-        // Determine membership for the authenticated user (diagnostic only).
+        // Membership is reported for diagnostics; this endpoint does not enforce it.
         $isMember = false;
         if ($user instanceof User) {
             try {
@@ -136,7 +109,7 @@ final class TenantContextController extends Controller
             }
         }
 
-        // Return the full context.
+ 
         return $this->respond(
             tenant: $tenant,
             user: $user,
@@ -146,21 +119,7 @@ final class TenantContextController extends Controller
         );
     }
 
-    /**
-     * Build the JSON response envelope.
-     *
-     * The envelope shape is preserved from v1.0.0 with one addition:
-     * `body_tenant_id_ignored` — see the class docblock §"Revision history".
-     *
-     * @param  Tenant|null  $tenant
-     * @param  User|null    $user
-     * @param  bool         $isMember
-     * @param  string       $resolutionSource      One of: 'header', 'subdomain', 'none'.
-     * @param  bool         $bodyTenantIdIgnored   True when the request carried
-     *                                              a body/query `tenant_id` that
-     *                                              was not used for resolution.
-     * @return JsonResponse
-     */
+    /** Builds the no-cache tenant diagnostic response. */
     private function respond(
         ?Tenant $tenant,
         ?User $user,
@@ -186,36 +145,15 @@ final class TenantContextController extends Controller
         ]);
     }
 
-    /**
-     * Determine the resolution source under the C-09 model.
-     *
-     * In HTTP context, the platform's tenant context is established by
-     * `TenantContextMiddleware` calling `RequestTenantResolver`. The
-     * resolver's priority is:
-     *
-     *   1. Non-empty `X-Tenant-ID` header
-     *   2. Non-reserved subdomain of the request host
-     *   3. null
-     *
-     * A body/query `tenant_id` is NOT a source. Its presence is reported
-     * separately via `requestCarriedBodyTenantId()`.
-     *
-     * The two constants DOMAIN_SUFFIX and RESERVED_SUBDOMAINS mirror the
-     * private constants on `RequestTenantResolver`. See their docblocks.
-     *
-     * This method performs no I/O and never throws.
-     *
-     * @param  Request  $request
-     * @return string  One of: 'header', 'subdomain', 'none'.
-     */
+    /** Labels the header or subdomain source used by the resolver. */
     private function detectResolutionSource(Request $request): string
     {
-        // Priority 1 — the X-Tenant-ID header.
+ 
         if ($request->hasHeader('X-Tenant-ID') && $request->header('X-Tenant-ID') !== '') {
             return 'header';
         }
 
-        // Priority 2 — non-reserved subdomain of the request host.
+ 
         $host = strtolower($request->getHost());
         $suffix = '.' . self::DOMAIN_SUFFIX;
 
@@ -230,23 +168,11 @@ final class TenantContextController extends Controller
             }
         }
 
-        // No resolution source applied. Under C-09 the middleware may still
-        // have set a tenant (via config default, for example), but for the
-        // purpose of this diagnostic label, the source is "none".
+        // Other tenant defaults do not change this diagnostic source label.
         return 'none';
     }
 
-    /**
-     * Whether the request carried a non-empty body/query `tenant_id`.
-     *
-     * Under C-09, this value is NOT used for tenant resolution — it is
-     * ordinary application input. The controller reports its presence so
-     * a developer can see, at a glance, that the field they sent was
-     * not the field the platform used.
-     *
-     * @param  Request  $request
-     * @return bool
-     */
+    /** Detects a body/query tenant_id that was not used for resolution. */
     private function requestCarriedBodyTenantId(Request $request): bool
     {
         return $request->has('tenant_id') && $request->input('tenant_id') !== '';
