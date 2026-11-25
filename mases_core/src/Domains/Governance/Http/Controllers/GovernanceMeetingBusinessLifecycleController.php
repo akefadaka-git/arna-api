@@ -281,34 +281,45 @@ final class GovernanceMeetingBusinessLifecycleController extends Controller
             ->join('shareholders as s', 's.id', '=', 'h.shareholder_id')
             ->join('share_classes as c', 'c.id', '=', 'h.share_class_id')
             ->where('s.tenant_id', $tenantId)->where('s.is_active', true)
-            ->whereNull('s.deleted_at')->where('h.current_quantity', '>', 0)
+            ->whereNull('s.deleted_at')
             ->get(['h.id as holding_id', 'h.shareholder_id', 'h.share_class_id', 'h.current_quantity', 'c.code']);
         if ($holdings->isEmpty()) {
-            throw new ConflictHttpException('No active positive share holdings exist; an electorate snapshot cannot be created.');
+            throw new ConflictHttpException('No active shareholding records exist; an electorate snapshot cannot be created.');
         }
+        $cutoff = CarbonImmutable::parse($data['record_date'])->endOfDay()->toDateTimeString();
         $members = [];
         $totalShares = 0.0;
         $totalPower = 0.0;
         foreach ($holdings as $holding) {
-            $latest = DB::table('share_holding_entries')->where('share_holding_id', $holding->holding_id)->orderByDesc('id')->first();
-            if (!$latest || abs((float) $latest->balance_after - (float) $holding->current_quantity) > 0.00001) {
+            $latest = DB::table('share_holding_entries')->where('share_holding_id', $holding->holding_id)
+                ->orderByDesc('occurred_at')->orderByDesc('id')->first();
+            $projected = $latest ? (float) $latest->balance_after : 0.0;
+            if (abs($projected - (float) $holding->current_quantity) > 0.00001) {
                 throw new ConflictHttpException('ShareHolding projection does not reconcile to its append-only ledger; snapshot blocked.');
+            }
+            $asOf = DB::table('share_holding_entries')->where('share_holding_id', $holding->holding_id)
+                ->where('occurred_at', '<=', $cutoff)->orderByDesc('occurred_at')->orderByDesc('id')->first();
+            $shares = $asOf ? (float) $asOf->balance_after : 0.0;
+            if ($shares <= 0) {
+                continue;
             }
             $weight = $weights[$holding->code] ?? null;
             if (!is_numeric($weight) || (float) $weight <= 0) {
                 throw new ConflictHttpException('Verified voting-rights evidence has no positive votes-per-share weight for class '.$holding->code.'.');
             }
-            $shares = (float) $holding->current_quantity;
             $power = $shares * (float) $weight;
             $members[] = [
                 'shareholder_id' => (int) $holding->shareholder_id,
                 'share_class_id' => (int) $holding->share_class_id,
-                'shares' => $holding->current_quantity,
+                'shares' => number_format($shares, 4, '.', ''),
                 'votes_per_share' => (string) $weight,
                 'voting_power' => number_format($power, 4, '.', ''),
             ];
             $totalShares += $shares;
             $totalPower += $power;
+        }
+        if ($members === []) {
+            throw new ConflictHttpException('No positive share balances existed on the requested register record date.');
         }
         $revision = (int) DB::table('governance_meeting_electorate_snapshots')
             ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->max('revision') + 1;
@@ -466,9 +477,11 @@ final class GovernanceMeetingBusinessLifecycleController extends Controller
             throw new NotFoundHttpException('Motion was not found.');
         }
         $this->verifiedEvidence($tenantId, (int) $row->meeting_id, 'voting', 'voting_rights_rule');
+        $latestSnapshot = DB::table('governance_meeting_electorate_snapshots')->where('tenant_id', $tenantId)
+            ->where('meeting_id', $row->meeting_id)->where('status', 'verified')->orderByDesc('revision')->first();
         $quorum = DB::table('governance_meeting_quorum_assessments')->where('tenant_id', $tenantId)
             ->where('meeting_id', $row->meeting_id)->where('status', 'verified')->orderByDesc('id')->first();
-        if (!$quorum || !$quorum->quorum_met) {
+        if (!$quorum || !$quorum->quorum_met || !$latestSnapshot || (int) $quorum->snapshot_id !== (int) $latestSnapshot->id) {
             throw new ConflictHttpException('Voting cannot open without a verified quorum assessment that meets quorum.');
         }
         if ($row->status !== 'seconded') {
@@ -589,6 +602,8 @@ final class GovernanceMeetingBusinessLifecycleController extends Controller
             'quorum' => DB::table('governance_meeting_quorum_assessments')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->where('status', 'verified')->orderByDesc('id')->first(),
             'motions' => DB::table('governance_meeting_motions')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('motion_number')->get(),
             'resolutions' => DB::table('governance_meeting_resolutions')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get(),
+            'ballots' => DB::table('governance_meeting_ballots')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get(),
+            'electorate_snapshots' => DB::table('governance_meeting_electorate_snapshots')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('revision')->get(),
             'notices' => DB::table('governance_meeting_notices')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('revision')->get(),
         ];
         $snapshotJson = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
@@ -630,6 +645,11 @@ final class GovernanceMeetingBusinessLifecycleController extends Controller
         }
         $this->reviewDecision((int) $row->created_by, $row->status, $data['decision'] === 'approved' ? 'verified' : 'rejected');
         $this->verifiedEvidence($tenantId, (int) $row->meeting_id, 'minutes', 'minutes_approval_rule');
+        $signatory = $this->verifiedEvidence($tenantId, (int) $row->meeting_id, 'minutes', 'minutes_signatory_authority')['parameters'];
+        $authorizedIds = $signatory['authorized_user_ids'] ?? [];
+        if (!is_array($authorizedIds) || !in_array($this->actorId(), array_map('intval', $authorizedIds), true)) {
+            throw new ConflictHttpException('Reviewer is not listed in the independently verified minutes signatory authority evidence.');
+        }
         DB::table('governance_meeting_minutes')->where('tenant_id', $tenantId)->where('id', $minutes)->update([
             'status' => $data['decision'], 'reviewed_by' => $this->actorId(), 'reviewed_at' => now(),
             'review_reason' => $data['reason'], 'updated_at' => now(),
