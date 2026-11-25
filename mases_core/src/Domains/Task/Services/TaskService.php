@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
 use MaaleArna\MASES\Core\Domains\Task\Models\Task;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -16,7 +17,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class TaskService
 {
-    public function __construct(private readonly TenantContextService $tenantContext)
+    public function __construct(
+        private readonly TenantContextService $tenantContext,
+        private readonly AuthorizationService $authorization,
+    )
     {
     }
 
@@ -26,7 +30,7 @@ final class TaskService
 
         return Task::query()
             ->where('tenant_id', $tenantId)
-            ->when(!$actor->hasPermission('task.view_all', $tenantId), function (Builder $query) use ($actor): void {
+            ->when(!$this->authorization->hasPermission('task.view_all', $actor, $tenantId), function (Builder $query) use ($actor): void {
                 $query->where(fn (Builder $visible): Builder => $visible
                     ->where('created_by', $actor->getKey())
                     ->orWhere('assigned_to_user_id', $actor->getKey()));
@@ -45,7 +49,7 @@ final class TaskService
         $tenantId = $this->tenantId();
         $query = Task::query()->where('tenant_id', $tenantId)->whereKey($id);
 
-        if (!$actor->hasPermission('task.view_all', $tenantId)) {
+        if (!$this->authorization->hasPermission('task.view_all', $actor, $tenantId)) {
             $query->where(fn (Builder $visible): Builder => $visible
                 ->where('created_by', $actor->getKey())
                 ->orWhere('assigned_to_user_id', $actor->getKey()));
@@ -65,7 +69,7 @@ final class TaskService
                 throw new BadRequestHttpException('Personal tasks must remain assigned to their creator.');
             }
             if ((string) $assigneeId !== (string) $actor->getKey()
-                && !$actor->hasPermission('task.assign', $tenantId)) {
+                && !$this->authorization->hasPermission('task.assign', $actor, $tenantId)) {
                 throw new BadRequestHttpException('Task assignment permission is required to assign another member.');
             }
             $this->assertActiveMember($tenantId, $assigneeId);
@@ -113,7 +117,7 @@ final class TaskService
 
             $isCreator = (string) $task->created_by === (string) $actor->getKey();
             $isAssignee = (string) $task->assigned_to_user_id === (string) $actor->getKey();
-            $canManage = $isCreator || $actor->hasPermission('task.assign', $tenantId);
+            $canManage = $isCreator || $this->authorization->hasPermission('task.assign', $actor, $tenantId);
 
             if (!$canManage && !$isAssignee) {
                 throw new NotFoundHttpException('Task not found.');
@@ -165,7 +169,7 @@ final class TaskService
             if ((int) ($data['version'] ?? 0) !== (int) $task->version) {
                 throw new ConflictHttpException('Task version conflict; reload before retrying.');
             }
-            if (!$actor->hasPermission('task.assign', $tenantId)) {
+            if (!$this->authorization->hasPermission('task.assign', $actor, $tenantId)) {
                 throw new NotFoundHttpException('Task not found.');
             }
             $this->assertActiveMember($tenantId, $data['assigned_to_user_id']);
