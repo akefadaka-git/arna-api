@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('meeting_category', 24);
             $table->string('source_reference', 2000);
             $table->char('source_sha256', 64);
-            $table->json('rule_parameters')->nullable();
             $table->string('status', 24)->default('pending_review');
             $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $table->foreignId('verified_by')->nullable()->constrained('users')->restrictOnDelete();
@@ -37,6 +36,7 @@ return new class extends Migration
             $table->string('evidence_key', 64);
             $table->string('source_reference', 2000);
             $table->char('source_sha256', 64);
+            $table->json('rule_parameters')->nullable();
             $table->string('status', 24)->default('pending_review');
             $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $table->foreignId('approved_by')->nullable()->constrained('users')->restrictOnDelete();
