@@ -2,78 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — P3 · Unit 2 · File 6 of 13
- * =============================================================================
- *
- * File:            ShareClassResource.php
- * Unit:            P3 · Unit 2 — Ethiopian calendar date rendering
- * Delivery type:   Amendment
- * Net lines:       +1 import; +1 trait `use`; +2 fields; +~30 docblock lines
- *
- * Before:
- *   The resource emitted its two timestamps as raw ISO 8601 strings:
- *
- *     'created_at' => $shareClass->created_at?->toIso8601String(),
- *     'updated_at' => $shareClass->updated_at?->toIso8601String(),
- *
- *   A page that wanted to render either date had to slice the ISO string
- *   client-side.
- *
- * After:
- *   Two sibling fields are added, immediately after their ISO
- *   counterparts:
- *
- *     'created_at_display' => $this->localizedDate($shareClass->created_at),
- *     'updated_at_display' => $this->localizedDate($shareClass->updated_at),
- *
- *   The trait `RendersLocalizedDates` (file 2 of this unit) provides
- *   `localizedDate()`, which delegates to
- *   LocalizationService::formatEthiopianDateMedium() (file 1) and
- *   produces the locale-appropriate medium form:
- *
- *     am:  ሐምሌ 9, 2018 ዓ.ም. (July 16, 2026)
- *     en:  Hamle 9, 2018 E.C. (July 16, 2026)
- *
- *   Every existing field is preserved byte-for-byte. The change is
- *   strictly additive.
- *
- * =============================================================================
- * Group B completion
- * =============================================================================
- * This file is the fourth and final resource in Group B of P3 · Unit 2.
- * After it deploys, the four Shareholder-domain resources that carry
- * date fields all emit `_display` siblings:
- *
- *     ShareholderResource         (file 3) — created_at, updated_at
- *     ShareHoldingResource        (file 4) — holding: created_at, updated_at
- *                                            entry: occurred_at, created_at
- *     ShareCertificateResource    (file 5) — issued_at, cancelled_at,
- *                                            created_at, updated_at
- *                                            replaced_by: issued_at
- *     ShareClassResource          (this file) — created_at, updated_at
- *
- * Any Shareholder-domain resource added in a future CR that carries a
- * date field should mix in the same trait and follow the same pattern.
- *
- * =============================================================================
- * Deployment note — autoloader refresh required (unchanged from file 3)
- * =============================================================================
- * This file imports the trait `RendersLocalizedDates`. If the composer
- * class map has not been regenerated since file 2 was uploaded, this
- * resource will fail to load. See file 3's change-verification block
- * for the deployment sequence; the same sequence applies here.
- *
- * Files modified:            this file only
- * Files added:               none
- * Files deleted:             none
- * Public surface added:      two resource fields
- *                            (created_at_display, updated_at_display)
- * Public surface removed:    none
- * Public surface modified:   none
- * =============================================================================
- */
+
 
 namespace MaaleArna\MASES\Core\Domains\Shareholder\Http\Resources;
 
