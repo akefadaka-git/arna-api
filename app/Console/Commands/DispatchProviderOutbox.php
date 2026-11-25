@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\\Console\\Commands;
+namespace App\Console\Commands;
 
-use App\\Services\\Admin\\Providers\\ProviderOutboxWorker;
-use Illuminate\\Console\\Command;
+use App\Services\Admin\Providers\ProviderOutboxWorker;
+use Illuminate\Console\Command;
 use RuntimeException;
 
 final class DispatchProviderOutbox extends Command
