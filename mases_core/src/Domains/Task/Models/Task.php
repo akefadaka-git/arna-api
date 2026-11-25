@@ -14,6 +14,10 @@ final class Task extends Model
 {
     protected $table = 'tasks';
 
+    public $incrementing = false;
+
+    protected $keyType = 'string';
+
     protected $guarded = ['*'];
 
     protected $appends = ['due_on_ec'];
