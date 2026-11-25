@@ -80,10 +80,93 @@ final class PlatformProviderActionLifecycleTest extends TestCase
 
         $this->assertSame(1, $result['succeeded']);
         $this->assertSame(1, $adapter->executionCount);
+        $this->assertDatabaseHas('platform_provider_action_requests', [
+            'public_id' => $request['public_id'],
+            'status' => 'succeeded',
+        ]);
         $this->assertDatabaseHas('platform_provider_action_outbox', [
             'status' => 'succeeded',
             'idempotency_key' => 'arna-provider:' . $request['public_id'] . ':' . $request['payload_sha256'],
         ]);
+    }
+
+    public function test_invalid_owner_signature_does_not_release_critical_action(): void
+    {
+        [$service] = $this->fixture();
+        $request = $service->request(10, [
+            'provider_key' => 'sandbox_dns',
+            'environment' => 'sandbox',
+            'operation' => 'replace_zone',
+            'resource_type' => 'dns_zone',
+            'resource_identifier' => 'synthetic-zone-02',
+            'payload' => ['records' => [['name' => 'invalid.example.test', 'type' => 'TXT', 'value' => 'synthetic']]],
+            'reason' => 'Negative signature verification test.',
+        ]);
+        $service->decide($request['public_id'], 11, 'approved', 'First approval.');
+        $service->decide($request['public_id'], 12, 'approved', 'Second approval.');
+
+        try {
+            $service->authorizeOwner($request['public_id'], 1, 'provider-owner-test-key-v1', base64_encode(random_bytes(SODIUM_CRYPTO_SIGN_BYTES)));
+            $this->fail('Invalid Owner signature must be rejected.');
+        } catch (RuntimeException) {
+            $this->assertDatabaseCount('platform_provider_action_outbox', 0);
+        }
+    }
+
+    public function test_production_request_is_never_sent_to_provider_adapter_by_sandbox_worker(): void
+    {
+        [$service, $registry, $secretKey, $adapter] = $this->fixture();
+        $request = $service->request(10, [
+            'provider_key' => 'sandbox_dns',
+            'environment' => 'production',
+            'operation' => 'replace_zone',
+            'resource_type' => 'dns_zone',
+            'resource_identifier' => 'production-zone-must-not-run',
+            'payload' => ['records' => [['name' => 'production.example.test', 'type' => 'TXT', 'value' => 'synthetic']]],
+            'reason' => 'Verify production environment remains blocked.',
+        ]);
+        $service->decide($request['public_id'], 11, 'approved', 'First approval.');
+        $service->decide($request['public_id'], 12, 'approved', 'Second approval.');
+        $row = DB::table('platform_provider_action_requests')->where('public_id', $request['public_id'])->first();
+        $signature = sodium_crypto_sign_detached(
+            ProviderOwnerSignatureVerifier::canonicalMessage((array) $row),
+            $secretKey,
+        );
+        $service->authorizeOwner($request['public_id'], 1, 'provider-owner-test-key-v1', base64_encode($signature));
+
+        config([
+            'services.arna_provider_mutations.enabled' => true,
+            'services.arna_provider_mutations.sandbox_enabled' => true,
+        ]);
+        $result = app(ProviderOutboxWorker::class)->dispatch(10);
+
+        $this->assertSame(0, $adapter->executionCount);
+        $this->assertSame(1, $result['failed']);
+        $this->assertDatabaseHas('platform_provider_action_outbox', [
+            'payload_sha256' => $request['payload_sha256'],
+            'status' => 'failed',
+            'last_error_code' => 'request_not_executable',
+        ]);
+    }
+
+    public function test_provider_action_routes_are_platform_permission_gated_without_tenant_membership(): void
+    {
+        $expected = [
+            'api.admin.platform.provider-actions.index' => 'auth.permission:platform.providers.actions.read',
+            'api.admin.platform.provider-actions.history' => 'auth.permission:platform.providers.actions.read',
+            'api.admin.platform.provider-actions.store' => 'auth.permission:platform.providers.actions.request',
+            'api.admin.platform.provider-actions.approve' => 'auth.permission:platform.providers.actions.approve',
+            'api.admin.platform.provider-actions.reject' => 'auth.permission:platform.providers.actions.approve',
+            'api.admin.platform.provider-actions.owner-authorize' => 'auth.permission:platform.providers.actions.owner-authorize',
+        ];
+
+        foreach ($expected as $name => $permission) {
+            $route = \\Illuminate\\Support\\Facades\\Route::getRoutes()->getByName($name);
+            $this->assertNotNull($route, "Missing route {$name}");
+            $this->assertContains('auth:sanctum', $route->gatherMiddleware());
+            $this->assertContains($permission, $route->gatherMiddleware());
+            $this->assertNotContains('tenant.membership', $route->gatherMiddleware());
+        }
     }
 
     public function test_provider_worker_refuses_to_run_when_sandbox_gate_is_off(): void
