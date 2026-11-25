@@ -64,6 +64,9 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Create runner-local environment file for Laravel tests
+        run: touch .env
+
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
