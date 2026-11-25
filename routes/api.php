@@ -816,7 +816,7 @@ Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access', 'tenant.m
 
 // D08 Task & Work Management — the authoritative task lifecycle owner.
 Route::middleware(['auth:sanctum', 'tenant.membership'])->prefix('/tasks')->name('api.tasks.')->group(static function (): void {
-    $controller = \\MaaleArna\\MASES\\Core\\Domains\\Task\\Http\\Controllers\\TaskController::class;
+    $controller = \MaaleArna\MASES\Core\Domains\Task\Http\Controllers\TaskController::class;
 
     Route::get('/', [$controller, 'index'])->middleware('auth.permission:task.view')->name('index');
     Route::post('/', [$controller, 'store'])->middleware('auth.permission:task.create')->name('store');
