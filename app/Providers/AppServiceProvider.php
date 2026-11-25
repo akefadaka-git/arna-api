@@ -114,7 +114,7 @@ use Illuminate\Support\ServiceProvider;
  *              asset delivery.
  *            · No 429 response shim. Laravel's default
  *              `ThrottleRequests` middleware returns a standard
- *              429 with `Retry-After`. The canonical MASES error
+ *              429 with `Retry-After`. The canonical ARNA error
  *              envelope in `bootstrap/app.php` does not currently
  *              handle `ThrottleRequestsException`, so the 429 will
  *              surface as a generic 500 through the fallback
