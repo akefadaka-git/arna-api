@@ -176,7 +176,7 @@ final class GovernanceMeetingAttendanceTest extends TestCase
         $this->assertSame('ETB', $penalty->json('data.currency'));
     }
 
-    public function test_absence_penalty_is_three_hundred_birr_and_requires_absent_status(): void
+    public function test_ga_absence_penalty_is_blocked_until_legal_authority_is_verified(): void
     {
         Sanctum::actingAs($this->admin, ['*']);
         $assembly = GovernanceBody::create([
@@ -206,13 +206,16 @@ final class GovernanceMeetingAttendanceTest extends TestCase
                 'attendance_status' => 'absent',
             ])->assertCreated();
 
-        $penalty = $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+        $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
             ->postJson(route('api.governance.meetings.penalties.store', ['meeting' => $meetingId]), [
                 'attendance_id' => (int) $attendance->json('data.id'),
                 'penalty_type' => 'absence',
-            ])->assertCreated();
+            ])->assertConflict();
 
-        $this->assertSame(30000, (int) $penalty->json('data.amount_cents'));
+        $this->assertDatabaseMissing('governance_meeting_penalties', [
+            'tenant_id' => $this->tenant->id, 'meeting_id' => $meetingId,
+            'attendance_id' => (int) $attendance->json('data.id'),
+        ]);
     }
 
     public function test_general_assembly_proxy_can_be_a_non_shareholder_without_an_arna_user_account(): void
@@ -254,7 +257,7 @@ final class GovernanceMeetingAttendanceTest extends TestCase
             ->assertJsonPath('data.status', 'submitted');
     }
 
-    public function test_proxy_submitter_cannot_review_own_submission_but_independent_reviewer_can(): void
+    public function test_ga_proxy_approval_is_blocked_until_legal_authority_is_verified(): void
     {
         Sanctum::actingAs($this->admin, ['*']);
         $assembly = GovernanceBody::create([
@@ -301,8 +304,44 @@ final class GovernanceMeetingAttendanceTest extends TestCase
         $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
             ->patchJson(route('api.governance.proxies.review', ['proxy' => $proxyId]), [
                 'decision' => 'approved',
-                'reason' => 'Reviewed by an independent governance officer.',
-            ])->assertOk()->assertJsonPath('data.status', 'approved');
+                'reason' => 'Independent reviewer cannot bypass the missing legal-basis gate.',
+            ])->assertConflict();
+    }
+
+    public function test_ga_notice_quorum_voting_and_minutes_attestations_fail_closed_without_verified_legal_basis(): void
+    {
+        Sanctum::actingAs($this->admin, ['*']);
+        $assembly = GovernanceBody::create([
+            'tenant_id' => $this->tenant->id,
+            'code' => 'MEETING-GA-LIFECYCLE-GATE',
+            'body_type' => 'assembly',
+            'name_am' => 'ጠቅላላ ጉባኤ',
+            'name_en' => 'General Assembly',
+            'is_active' => true,
+        ]);
+        $meetingId = (int) DB::table('governance_meetings')->insertGetId([
+            'tenant_id' => $this->tenant->id,
+            'governance_body_id' => $assembly->id,
+            'meeting_code' => 'GA-LIFECYCLE-GATE',
+            'meeting_kind' => 'general_assembly',
+            'starts_at' => now()->addDays(10)->toDateTimeString(),
+            'status' => 'scheduled',
+            'created_by' => $this->admin->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach (['notice', 'quorum', 'voting', 'minutes'] as $action) {
+            $this->withHeaders(['X-Tenant-ID' => (string) $this->tenant->id])
+                ->postJson(route('api.governance.meetings.lifecycle.store', [
+                    'meeting' => $meetingId, 'action' => $action,
+                ]), [
+                    'source_reference' => 'unverified-source',
+                    'source_sha256' => str_repeat('a', 64),
+                ])->assertConflict();
+        }
+
+        $this->assertDatabaseCount('governance_meeting_lifecycle_attestations', 0);
     }
 
     public function test_caller_without_manage_permission_cannot_record_attendance(): void
