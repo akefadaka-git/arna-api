@@ -95,7 +95,7 @@ final class ArnaBaselineSeederTest extends TestCase
         $this->runSeeder(FinanceChartOfAccountsSeeder::class);
         $coaSnapshot = $this->tableSnapshot('ledger_accounts');
         $this->assertNotSame('', $coaSnapshot);
-        app(FinanceChartOfAccountsSeeder::class)->run();
+        $this->runSeeder(FinanceChartOfAccountsSeeder::class);
         $this->assertSame($coaSnapshot, $this->tableSnapshot('ledger_accounts'));
 
         $this->runSeeder(LoanProductsSeeder::class);
