@@ -30,16 +30,12 @@ final class AuthController extends Controller
 {
     private const SSO_COOKIE_NAME = 'arna_sso_token';
 
-    /**
-     * The authentication service.
-     */
+    /** Authentication and identifier-resolution services. */
     private AuthenticationService $authService;
     private LoginIdentifierResolver $identifierResolver;
     private TotpMfaService $totpMfaService;
 
-    /**
-     * Create a new AuthController instance.
-     */
+ 
     public function __construct(
         AuthenticationService $authService,
         LoginIdentifierResolver $identifierResolver,
@@ -50,35 +46,13 @@ final class AuthController extends Controller
         $this->totpMfaService = $totpMfaService;
     }
 
-    // =========================================================================
-    // Login / Register
-    // =========================================================================
+    // Login and registration
 
-    /**
-     * Log in with an opaque identifier and password.
-     *
-     * The legacy `email` field accepts email, username, mobile number,
-     * employee number, shareholder number, or wallet number. The
-     * canonical resolver applies tenant membership and fail-closed
-     * checks before the existing email-based credential verifier runs.
-     * Unknown identifiers and wrong passwords remain indistinguishable
-     * to prevent account enumeration.
-     *
-     * Every attempt is logged (see the class docblock §"Audit
-     * logging"). The raw identifier is never logged; a masked form
-     * and a SHA-256 hash are used instead.
-     *
-     * @param  Request $request
-     * @return JsonResponse
-     *
-     * @throws ValidationException       when input is missing or malformed
-     * @throws AuthenticationException   when credentials are invalid
-     */
+    /** Authenticates a tenant-resolved identifier and password. */
     public function login(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            // Note: the `email` rule intentionally omits the `email`
-            // format check. See the class docblock §"Login identifier".
+            // The legacy field accepts all supported login identifier types.
             'email'     => ['required', 'string', 'max:255'],
             'password'  => ['required', 'string'],
             'remember'  => ['sometimes', 'boolean'],
@@ -91,19 +65,13 @@ final class AuthController extends Controller
             'app_version' => ['sometimes', 'string', 'max:40'],
         ]);
 
-        /*
-         * The body tenant selects the requested login target when supplied;
-         * otherwise use the middleware-verified tenant context. Membership
-         * is checked independently before a token can be issued.
-         */
+        // Resolve the requested tenant; membership is verified before token issuance.
         $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
         $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0
             ? (int) $trustedTenantId
             : null;
         $bodyTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : null;
-        // The body tenant selects the login target when supplied. The
-        // independently verified header remains authoritative for security-event
-        // attribution inside AuthenticationService (C-09).
+        // The verified request context remains authoritative for security-event attribution.
         $requestedTenantId = $bodyTenantId ?? $trustedTenantId;
 
         $resolution = $this->identifierResolver->resolve($validated['email'], $requestedTenantId);
@@ -128,12 +96,7 @@ final class AuthController extends Controller
             }
         }
 
-        /*
-         * Never pass an unresolved non-email identifier to a service that
-         * authenticates by email. A valid email retains the existing
-         * explicit-tenant denial contract; other unresolved identifiers use
-         * a non-matching sentinel and cannot bypass the canonical resolver.
-         */
+        // Unresolved identifiers use a sentinel; only the canonical resolver can authorize login.
         $normalizedIdentifier = strtolower(trim($validated['email']));
         $uniqueEmailFallback = false;
 
@@ -159,19 +122,7 @@ final class AuthController extends Controller
             ?? ($uniqueEmailFallback ? $normalizedIdentifier : '__invalid_login_identifier__');
         $effectiveTenantId = $resolution['tenant_id'] ?? $requestedTenantId;
 
-        /*
-         * Correlation hash for the audit log. Computed from the
-         * normalized identifier (lowercased, trimmed) so that the
-         * same account produces the same hash across every event —
-         * regardless of how the user typed the identifier.
-         *
-         * The hash is SHA-256, not bcrypt: it is a correlation key,
-         * not a credential. It is never used for lookup. Two users
-         * cannot collide on it in practice (2^256 space), and the
-         * raw identifier is not recoverable from it without an
-         * exhaustive preimage attack, which is infeasible for the
-         * identifier's entropy.
-         */
+        // Stable, non-reversible identifier hash for audit correlation.
         $identifierHash = hash(
             'sha256',
             strtolower(trim($validated['email'])),
@@ -187,19 +138,7 @@ final class AuthController extends Controller
                 mfaCode: $validated['mfa_code'] ?? null,
             );
         } catch (\Throwable $e) {
-            /*
-             * Log the failure before re-throwing. The exception
-             * propagates to the renderer in bootstrap/app.php, which
-             * turns it into the canonical envelope. The log entry
-             * here is what makes credential-stuffing attacks
-             * visible to the security team.
-             *
-             * The exception's message is deliberately NOT included:
-             * some authentication services include the identifier in
-             * the exception message for developer convenience, and
-             * capturing it here would defeat the masking. The type
-             * of the exception is enough for correlation.
-             */
+            // Log masked identifiers only; exception messages may contain secrets.
             Log::info('Login attempt failed', [
                 'identifier_masked' => $this->maskIdentifier($validated['email']),
                 'identifier_hash'   => $identifierHash,
@@ -264,8 +203,6 @@ final class AuthController extends Controller
 
         return $mobileSession !== null ? $response : $this->withSsoTokenCookie($response, $request, $result['token']);
     }
-
-
 
     /**
      * Request an OTP for returning-user login. The response is deliberately
@@ -503,7 +440,6 @@ final class AuthController extends Controller
 
         return response()->json(['success' => true, 'data' => ['revoked' => true]]);
     }
-
 
     /**
      * Issue a short-lived OTP challenge for a registered sensitive action.
@@ -1138,7 +1074,6 @@ final class AuthController extends Controller
         ]);
     }
 
-
     /**
      * Start a self-service login-identity change after checking the proposed
      * value and binding the step-up challenge to its normalized hash.
@@ -1181,7 +1116,6 @@ final class AuthController extends Controller
 
         return response()->json(['success' => true, 'data' => $challenge]);
     }
-
 
     /**
      * Verify identity-change proof using the server-normalized proposed value.
