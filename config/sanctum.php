@@ -5,49 +5,14 @@ declare(strict_types=1);
 use Laravel\Sanctum\Sanctum;
 
 /*
-|--------------------------------------------------------------------------
-| Sanctum Configuration
-|--------------------------------------------------------------------------
-|
-| Configuration for Laravel Sanctum, which provides API token
-| authentication and first-party SPA cookie authentication for the
-| MASES platform.
-|
-| -----------------------------------------------------------------------------
-| Production deployment notes
-| -----------------------------------------------------------------------------
-|
-| 1. Stateful domains
-|    The `stateful` array below resolves from SANCTUM_STATEFUL_DOMAINS. In
-|    production it MUST contain only the two cookie-authenticated SPA hosts:
-|    app.maalearna.com.et and portal.maalearna.com.et. This list is not the
-|    CORS allow-list; CORS_ALLOWED_ORIGINS is intentionally broader.
-|
-| 2. Custom User model
-|    Sanctum has NO `user_model` config key. The MASES Core User model
-|    (MaaleArna\MASES\Core\Auth\Models\User) is resolved exclusively via
-|    config/auth.php → providers.users.model. Adding a `user_model` key
-|    here would be dead code and misleading to future maintainers.
-|
-| 3. Rate limiting
-|    Sanctum has NO `rate_limiting` config key. Rate limiting is defined
-|    via the RateLimiter facade (typically in AppServiceProvider or
-|    bootstrap/app.php) and applied to routes with the `throttle:`
-|    middleware. Do not attempt to configure it here.
-|
-| 4. Stateful SPA middleware
-|    For the stateful-domain list below to take effect, the application
-|    MUST enable `$middleware->statefulApi()` in bootstrap/app.php.
-|    Without it, cookie-based SPA authentication silently fails and
-|    only bearer tokens are accepted.
-|
-| 5. Token lifecycle
-|    The `expiration` key only controls personal access tokens. Session
-|    lifetime, refresh, logout revocation, password-change revocation,
-|    inactive-user revocation, and device/session management are the
-|    responsibility of application code (listeners, middleware, and the
-|    MASES Authenticate middleware).
-|
+| Sanctum authentication configuration.
+| Stateful SPA hosts: app.maalearna.com.et and portal.maalearna.com.et only;
+| CORS origins are configured separately.
+| The User model is configured in auth.php; Sanctum has no user_model key.
+| Rate limits use Laravel RateLimiter and route throttle middleware.
+| Cookie SPA auth requires statefulApi() in bootstrap/app.php.
+| Token expiration covers personal access tokens; session/device lifecycle
+| is enforced by application services and middleware.
 | @package MASES
 | @version 1.0.0
 */
