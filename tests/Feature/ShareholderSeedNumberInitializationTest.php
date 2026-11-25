@@ -126,6 +126,52 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
     }
 
     #[Test]
+    public function direct_shareholder_seed_is_idempotent_for_legal_entity_rows(): void
+    {
+        $exitCode = Artisan::call('db:seed', [
+            '--class' => MasesCoreSeeder::class,
+            '--no-interaction' => true,
+        ]);
+
+        $this->assertSame(0, $exitCode, Artisan::output());
+
+        $tenant = \\MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant::query()
+            ->where('slug', 'main')
+            ->firstOrFail();
+        $roles = \\MaaleArna\\MASES\\Core\\Authorization\\Models\\Role::query()
+            ->get()
+            ->keyBy('slug')
+            ->all();
+        $superAdmin = \\MaaleArna\\MASES\\Core\\Auth\\Models\\User::query()
+            ->where('email', 'superadmin@maalearna.com.et')
+            ->firstOrFail();
+
+        $entityIdsBefore = DB::table('shareholders')
+            ->where('tenant_id', $tenant->id)
+            ->whereNull('user_id')
+            ->whereNotNull('representative_user_id')
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+
+        $this->assertNotEmpty($entityIdsBefore);
+
+        app(\\Database\\Seeders\\ShareholderSeeder::class)
+            ->seed($tenant, $roles, $superAdmin);
+
+        $entityIdsAfter = DB::table('shareholders')
+            ->where('tenant_id', $tenant->id)
+            ->whereNull('user_id')
+            ->whereNotNull('representative_user_id')
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame($entityIdsBefore, $entityIdsAfter);
+        $this->assertDatabaseCount('shareholders', 100);
+    }
+
+    #[Test]
     public function sequence_is_repaired_from_reservations_when_current_shareholder_rows_are_absent(): void
     {
         $exitCode = Artisan::call('db:seed', [
