@@ -50,6 +50,7 @@ return [
         // Both gates default off. Sandbox execution never implies production authorization.
         'enabled' => env('ARNA_PROVIDER_MUTATIONS_ENABLED', false),
         'sandbox_enabled' => env('ARNA_PROVIDER_SANDBOX_MUTATIONS_ENABLED', false),
+        'certification_enabled' => env('ARNA_PROVIDER_SANDBOX_CERTIFICATION_ENABLED', false),
     ],
 
     // Dedicated provider-action Owner trust anchor; never reuse tenant RBAC or settings keys.
