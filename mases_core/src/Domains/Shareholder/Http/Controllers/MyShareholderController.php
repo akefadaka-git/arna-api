@@ -2,47 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — P1-1a
- * =============================================================================
- *
- * File:            MyShareholderController.php  (NEW)
- * Unit:            P1-1a — Portal identity contract
- * Delivery type:   New file
- * Net lines:       +…
- *
- * Before:
- *   The file did not exist. The portal's identity-resolution path
- *   (frontend: mase_app/src/features/shareholders/api.ts ::
- *   getMyShareholder) called GET /api/shareholders/me. No backend route
- *   or controller produced that response. Every call from the portal
- *   fell through to the domain's route fallback and returned
- *   HTTP 404 ROUTE_NOT_FOUND. useMyShareholder in the portal therefore
- *   entered its 'error' state on every mount, and MyShareholdingsPage /
- *   MyCertificatesPage rendered their ErrorState on every load.
- *
- * After:
- *   A single-action controller that resolves the authenticated user's
- *   own shareholder record within the resolved tenant context and
- *   returns the two-outcome identity contract the frontend already
- *   expects.
- *
- * Public surface introduced:
- *   · Class:  MaaleArna\MASES\Core\Domains\Shareholder\Http\Controllers\MyShareholderController
- *   · Method: show(Request): JsonResponse
- *
- * Files modified:            none
- * Files deleted:             none
- * Routes registered:         none (declared by P1-1b)
- * Policies modified:         none
- * Resources modified:        none
- * Repository modified:       none
- * Migrations:                none
- * Seeders:                   none
- *
- * =============================================================================
- */
+
 
 namespace MaaleArna\MASES\Core\Domains\Shareholder\Http\Controllers;
 
