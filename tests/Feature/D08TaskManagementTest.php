@@ -88,6 +88,30 @@ final class D08TaskManagementTest extends TestCase
     }
 
     #[Test]
+    public function personal_tasks_cannot_be_reassigned_as_corporate_work(): void
+    {
+        $tenant = $this->tenant();
+        $actor = $this->member($tenant);
+        $other = $this->member($tenant);
+        $this->grant($actor, $tenant, 'task.create', 'task.assign');
+        Sanctum::actingAs($actor);
+
+        $created = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks', [
+                'task_scope' => 'personal',
+                'title' => 'Personal reminder',
+            ])
+            ->assertCreated();
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks/'.$created->json('data.id').'/assign', [
+                'version' => 1,
+                'assigned_to_user_id' => $other->id,
+            ])
+            ->assertNotFound();
+    }
+
+    #[Test]
     public function corporate_task_assignment_requires_active_membership_in_the_same_tenant(): void
     {
         $tenant = $this->tenant();
