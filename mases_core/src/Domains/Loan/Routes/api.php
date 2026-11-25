@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 
 
-/* Loan routes; the provider applies URL prefixes and middleware. */
+/* Provider applies URL prefix and api/auth/tenant middleware; this file declares routes. */
 
 use Illuminate\Support\Facades\Route;
 use MaaleArna\MASES\Core\Domains\Loan\Http\Controllers\LoanCollateralController;
