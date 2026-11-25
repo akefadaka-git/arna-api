@@ -1,4 +1,4 @@
-name: ARNA shareholder import preview and review tests
+name: ARNA shareholder import preview and review persistence tests
 
 on:
   push:
@@ -7,8 +7,15 @@ on:
       - "mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php"
       - "mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php"
       - "mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php"
+      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewService.php"
+      - "mases_core/src/Domains/Shareholder/Models/ShareholderImportSubmission.php"
+      - "mases_core/src/Domains/Shareholder/Models/ShareholderImportDecision.php"
       - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php"
       - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php"
+      - "tests/Feature/ShareholderImportReviewPersistenceTest.php"
+      - "database/migrations/2026_11_25_000004_create_shareholder_import_review_tables.php"
+      - "database/seeders/Data/PermissionCatalogue.php"
+      - "docs/architecture/shareholder-import-review-approval-boundary.md"
       - ".github/workflows/arna-shareholder-import-preview.yml"
       - "composer.json"
       - "composer.lock"
@@ -18,8 +25,15 @@ on:
       - "mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php"
       - "mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php"
       - "mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php"
+      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewService.php"
+      - "mases_core/src/Domains/Shareholder/Models/ShareholderImportSubmission.php"
+      - "mases_core/src/Domains/Shareholder/Models/ShareholderImportDecision.php"
       - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php"
       - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php"
+      - "tests/Feature/ShareholderImportReviewPersistenceTest.php"
+      - "database/migrations/2026_11_25_000004_create_shareholder_import_review_tables.php"
+      - "database/seeders/Data/PermissionCatalogue.php"
+      - "docs/architecture/shareholder-import-review-approval-boundary.md"
       - ".github/workflows/arna-shareholder-import-preview.yml"
       - "composer.json"
       - "composer.lock"
@@ -30,7 +44,7 @@ permissions:
 
 jobs:
   preview-tests:
-    name: Shareholder import preview and review policy (no database)
+    name: Shareholder import preview and review persistence (SQLite)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -56,10 +70,15 @@ jobs:
           php -l mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php
           php -l mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php
           php -l mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php
+          php -l mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewService.php
+          php -l mases_core/src/Domains/Shareholder/Models/ShareholderImportSubmission.php
+          php -l mases_core/src/Domains/Shareholder/Models/ShareholderImportDecision.php
+          php -l database/migrations/2026_11_25_000004_create_shareholder_import_review_tables.php
+          php -l tests/Feature/ShareholderImportReviewPersistenceTest.php
           php -l mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
           php -l mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php
 
-      - name: Run shareholder import preview and review tests
+      - name: Run shareholder import preview, policy and persistence tests
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -67,3 +86,4 @@ jobs:
         run: |
           php artisan test --compact mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
           php artisan test --compact mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php
+          php artisan test --compact tests/Feature/ShareholderImportReviewPersistenceTest.php
