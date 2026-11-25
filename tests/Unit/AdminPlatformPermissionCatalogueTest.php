@@ -20,6 +20,8 @@ final class AdminPlatformPermissionCatalogueTest extends TestCase
             'platform.overview.read',
             'platform.applications.read',
             'platform.domains.read',
+            'platform.audit.read',
+            'platform.security.read',
         ] as $slug) {
             $this->assertArrayHasKey($slug, $rows, sprintf('Missing permission %s', $slug));
             $this->assertSame('global', $rows[$slug]['scope'], sprintf('Permission %s must be global', $slug));
