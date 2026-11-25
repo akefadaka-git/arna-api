@@ -856,6 +856,19 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->whereUuid('eventId')->middleware('auth.permission:calendar.update')->name('events.occurrences.cancel');
         Route::post('/events/{eventId}/occurrences/move', [$controller, 'moveOccurrence'])
             ->whereUuid('eventId')->middleware('auth.permission:calendar.update')->name('events.occurrences.move');
+        Route::get('/appointments', [$controller, 'appointments'])
+            ->middleware('auth.permission:calendar.view')->name('appointments.index');
+        Route::post('/appointments/availability', [$controller, 'appointmentAvailability'])
+            ->middleware('auth.permission:calendar.view')->name('appointments.availability');
+        Route::post('/appointments', [$controller, 'bookAppointment'])
+            ->middleware('auth.permission:calendar.create')->name('appointments.store');
+        Route::post('/appointments/{id}/confirm', [$controller, 'confirmAppointment'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('appointments.confirm');
+        Route::post('/appointments/{id}/decline', [$controller, 'declineAppointment'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('appointments.decline');
+        Route::post('/appointments/{id}/cancel', [$controller, 'cancelAppointment'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('appointments.cancel');
+
         Route::get('/resources', [$controller, 'resources'])
             ->middleware('auth.permission:calendar.view')->name('resources.index');
         Route::post('/resources', [$controller, 'storeResource'])
