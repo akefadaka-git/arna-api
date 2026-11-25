@@ -27,76 +27,7 @@ use Illuminate\Http\Response;
  * with appropriate HTTP status codes and contextual data.
  *
  * =============================================================================
- * Revision history
- * =============================================================================
- * 1.0.0  — Initial delivery.
- *
- * 1.0.1  — C-10 remediation. The permission check inside `authorizeAction()`
- *          previously queried the direct-grant pivot relation directly:
- *
- *              $hasPermission = $user->permissions()
- *                  ->where('slug', $permissionSlug)
- *                  ->exists();
- *
- *          `$user->permissions()` resolves the `user_has_permissions`
- *          pivot table, which in the MASES deployment is deliberately
- *          empty. Every permission in the platform is granted via roles
- *          (`user_has_roles` → `role_has_permissions`); the direct-grant
- *          table exists only to support future emergency overrides. The
- *          direct-pivot query therefore returned false for every user —
- *          including `super_admin` and `platform_admin` — and every
- *          file operation raised
- *
- *              FileException('Permission "file.*" is required.', 403)
- *
- *          before reaching the storage layer. The subsystem was
- *          entirely unusable in production. The `FileSecurityTest`
- *          suite did not detect this because its fixtures attach
- *          permissions via the same direct-pivot path the defect
- *          relies on; the defect is a production-fixture divergence,
- *          not a code-path divergence, and it is exactly the case
- *          D-08 was raised to correct.
- *
- *          THE FIX
- *          -------
- *          The direct-pivot query is replaced with a call to the
- *          platform's single permission authority:
- *
- *              AuthorizationService::hasPermission(
- *                  permissionSlug:  $permissionSlug,
- *                  user:            $user,
- *                  tenantId:        $tenantId,
- *                  applicationSlug: null,
- *              );
- *
- *          That service already merges direct grants with role-derived
- *          grants (via `Role::permissions`) and applies the correct
- *          tenant-scope fallback — a grant qualifies when its
- *          `tenant_id` equals the requested tenant OR is null
- *          (platform-wide). Using it here makes the file subsystem
- *          consistent with every other authorization check on the
- *          platform, including `AuthorizationMiddleware`, the domain
- *          controllers, and the `/user` endpoint.
- *
- *          DESIGN NOTE — DEPENDENCY RESOLUTION
- *          -----------------------------------
- *          `AuthorizationService` is a hard requirement of this service;
- *          authorization cannot be skipped. The constructor accepts the
- *          service as an optional parameter (added AFTER the existing
- *          `$auditService` parameter, so existing positional callers
- *          such as `new FileService($auditService)` are unchanged) and
- *          falls back to `app(AuthorizationService::class)` when null.
- *          The container-resolve fallback exists so that a construction
- *          path that does not inject the service explicitly still runs
- *          the check against the platform's real implementation,
- *          never against a silent allow-all or deny-all shim.
- *
- *          SCOPE
- *          -----
- *          Only `authorizeAction()` is affected. Every other method,
- *          contract, signature, exception class, audit call, storage
- *          path, and helper in this file is unchanged from v1.0.0.
- *
+ * File actions require central authorization and tenant-scoped access.
  * @package MaaleArna\MASES\Core\Files\Services
  * @version 1.0.1
  */
