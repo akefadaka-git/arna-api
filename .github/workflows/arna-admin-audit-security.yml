@@ -13,6 +13,11 @@ on:
       - "mases_core/src/Audit/**"
       - "mases_core/src/Security/**"
       - "database/migrations/**"
+      - "app/Contracts/Admin/Providers/**"
+      - "app/Data/Admin/Providers/**"
+      - "app/Services/Admin/Providers/**"
+      - "tests/Unit/PlatformProviderArchitectureTest.php"
+      - "config/services.php"
       - "composer.json"
       - "composer.lock"
       - "phpunit.xml"
@@ -55,8 +60,17 @@ jobs:
           php -l app/Http/Controllers/Admin/AdminAuditSecurityController.php
           php -l tests/Feature/AdminAuditSecurityTest.php
           php -l routes/api.php
+          php -l app/Contracts/Admin/Providers/ProviderAdapter.php
+          php -l app/Data/Admin/Providers/ProviderOperationPlan.php
+          php -l app/Data/Admin/Providers/ProviderExecutionResult.php
+          php -l app/Services/Admin/Providers/ProviderAdapterRegistry.php
+          php -l app/Services/Admin/Providers/ProviderMutationGate.php
+          php -l app/Services/Admin/Providers/ProviderApprovalPolicy.php
+          php -l tests/Unit/PlatformProviderArchitectureTest.php
       - name: Run Admin audit/security feature tests
         run: vendor/bin/phpunit tests/Feature/AdminAuditSecurityTest.php
+      - name: Run provider adapter architecture and fail-closed gate tests
+        run: vendor/bin/phpunit tests/Unit/PlatformProviderArchitectureTest.php
       - name: Run existing audit/security regressions
         run: |
           vendor/bin/phpunit tests/Feature/AuditSecurityTest.php
