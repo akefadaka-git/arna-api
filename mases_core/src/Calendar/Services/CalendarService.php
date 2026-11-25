@@ -645,25 +645,55 @@ final class CalendarService
 
     private function appointmentParticipantConflicts(int|string $tenantId, array $participantIds, string $startUtc, string $endUtc): array
     {
-        return DB::table('calendar_events as event')
-            ->leftJoin('calendar_attendees as attendee', function ($join) use ($tenantId): void {
-                $join->on('attendee.event_id', '=', 'event.id')
-                    ->where('attendee.tenant_id', '=', $tenantId);
-            })
+        $participantFilter = function ($query) use ($participantIds): void {
+            $query->whereIn('event.created_by', $participantIds)
+                ->orWhere(function ($attendeeQuery) use ($participantIds): void {
+                    $attendeeQuery->whereIn('attendee.user_id', $participantIds)
+                        ->whereIn('attendee.response', ['pending', 'accepted', 'tentative']);
+                });
+        };
+
+        $joinAttendees = function ($join) use ($tenantId): void {
+            $join->on('attendee.event_id', '=', 'event.id')
+                ->where('attendee.tenant_id', '=', $tenantId);
+        };
+
+        $timedConflicts = DB::table('calendar_events as event')
+            ->leftJoin('calendar_attendees as attendee', $joinAttendees)
             ->where('event.tenant_id', $tenantId)
             ->where('event.status', 'scheduled')
             ->where('event.all_day', false)
             ->whereNotNull('event.starts_at')
             ->where('event.starts_at', '<', $endUtc)
             ->where('event.ends_at', '>', $startUtc)
-            ->where(function ($query) use ($participantIds): void {
-                $query->whereIn('event.created_by', $participantIds)
-                    ->orWhere(function ($attendeeQuery) use ($participantIds): void {
-                        $attendeeQuery->whereIn('attendee.user_id', $participantIds)
-                            ->whereIn('attendee.response', ['pending', 'accepted', 'tentative']);
-                    });
-            })
+            ->where($participantFilter)
             ->distinct()->pluck('event.id')->map(fn ($id): string => (string) $id)->all();
+
+        // All-day holds are civil dates in each event's own timezone.
+        // Evaluate those boundaries in PHP so SQLite/MySQL behave identically.
+        $allDayEvents = DB::table('calendar_events as event')
+            ->leftJoin('calendar_attendees as attendee', $joinAttendees)
+            ->where('event.tenant_id', $tenantId)
+            ->where('event.status', 'scheduled')
+            ->where('event.all_day', true)
+            ->where($participantFilter)
+            ->select(['event.id', 'event.starts_on', 'event.ends_on', 'event.timezone'])
+            ->distinct()->get();
+
+        $utcZone = new \\DateTimeZone('UTC');
+        $startInstant = new \\DateTimeImmutable($startUtc, $utcZone);
+        $endInstant = new \\DateTimeImmutable($endUtc, $utcZone);
+        $allDayConflicts = [];
+        foreach ($allDayEvents as $event) {
+            $eventZone = new \\DateTimeZone($event->timezone ?: 'Africa/Addis_Ababa');
+            $startDate = $startInstant->setTimezone($eventZone)->format('Y-m-d');
+            $endDate = $endInstant->setTimezone($eventZone)->format('Y-m-d');
+            if ((string) $event->starts_on <= $endDate && (string) $event->ends_on >= $startDate) {
+                $allDayConflicts[] = (string) $event->id;
+            }
+        }
+
+        return array_values(array_unique([...$timedConflicts, ...$allDayConflicts]));
     }
 
     private function appointmentResourceConflicts(int|string $tenantId, array $resourceIds, string $startUtc, string $endUtc): array
