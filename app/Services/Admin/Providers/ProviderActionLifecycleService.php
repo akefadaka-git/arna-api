@@ -49,6 +49,7 @@ final class ProviderActionLifecycleService
             throw new RuntimeException('The adapter plan does not match its registered capability declaration.');
         }
 
+        $this->assertNoCredentialMaterial($plan->payload);
         $approval = $this->policy->forRiskTier($riskTier);
         $environment = (string) $input['environment'];
         $publicId = (string) Str::uuid();
@@ -222,6 +223,22 @@ final class ProviderActionLifecycleService
         if (! hash_equals((string) $request->payload_sha256, $plan->payloadSha256)) {
             throw new RuntimeException('Provider action plan digest no longer matches its immutable request.');
         }
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function assertNoCredentialMaterial(array $payload): void
+    {
+        $scan = function (array $items) use (&$scan): void {
+            foreach ($items as $key => $value) {
+                if (is_string($key) && preg_match('/(?:secret|password|token|credential|private[_-]?key|api[_-]?key)/i', $key)) {
+                    throw new RuntimeException('Provider action payloads must reference vault credentials and cannot contain credential material.');
+                }
+                if (is_array($value)) {
+                    $scan($value);
+                }
+            }
+        };
+        $scan($payload);
     }
 
     /** @param array<string, mixed> $metadata */
