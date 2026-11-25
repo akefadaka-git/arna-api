@@ -34,4 +34,3 @@ Thumbs.db
 _evidence-backups/
 .env.bak*
 *.backup-*
-/storage/*
