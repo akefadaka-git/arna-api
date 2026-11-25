@@ -95,8 +95,17 @@ final class ProviderOutboxWorker
             return 'failed';
         }
 
-        $approvalCount = DB::table('platform_provider_action_approvals')
-            ->where('request_id', $request->id)->where('decision', 'approved')->distinct()->count('approver_id');
+        $approvals = DB::table('platform_provider_action_approvals')
+            ->where('request_id', $request->id)->where('decision', 'approved')->get();
+        foreach ($approvals as $approval) {
+            if ((int) $approval->approver_id === (int) $request->requester_id
+                || ! hash_equals((string) $request->payload_sha256, (string) $approval->payload_sha256)
+                || $approval->policy_version !== $request->policy_version) {
+                $this->finish($claim, 'failed', 'approval_binding_mismatch', null);
+                return 'failed';
+            }
+        }
+        $approvalCount = $approvals->pluck('approver_id')->unique()->count();
         if ($approvalCount < (int) $request->required_approvals
             || ((bool) $request->owner_signature_required && $request->owner_signature_verified_at === null)) {
             $this->finish($claim, 'failed', 'approval_invariant_failed', null);
