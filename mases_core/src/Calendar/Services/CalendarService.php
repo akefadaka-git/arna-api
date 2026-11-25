@@ -680,12 +680,12 @@ final class CalendarService
             ->select(['event.id', 'event.starts_on', 'event.ends_on', 'event.timezone'])
             ->distinct()->get();
 
-        $utcZone = new \\DateTimeZone('UTC');
-        $startInstant = new \\DateTimeImmutable($startUtc, $utcZone);
-        $endInstant = new \\DateTimeImmutable($endUtc, $utcZone);
+        $utcZone = new \DateTimeZone('UTC');
+        $startInstant = new \DateTimeImmutable($startUtc, $utcZone);
+        $endInstant = new \DateTimeImmutable($endUtc, $utcZone);
         $allDayConflicts = [];
         foreach ($allDayEvents as $event) {
-            $eventZone = new \\DateTimeZone($event->timezone ?: 'Africa/Addis_Ababa');
+            $eventZone = new \DateTimeZone($event->timezone ?: 'Africa/Addis_Ababa');
             $startDate = $startInstant->setTimezone($eventZone)->format('Y-m-d');
             $endDate = $endInstant->setTimezone($eventZone)->format('Y-m-d');
             if ((string) $event->starts_on <= $endDate && (string) $event->ends_on >= $startDate) {
