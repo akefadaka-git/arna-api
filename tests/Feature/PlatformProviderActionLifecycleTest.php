@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Services\Admin\Providers\ProviderActionLifecycleService;
 use App\Services\Admin\Providers\ProviderAdapterRegistry;
 use App\Services\Admin\Providers\ProviderOwnerSignatureVerifier;
+use App\Services\Admin\Providers\ProviderSandboxCertificationService;
 use App\Services\Admin\Providers\ProviderOutboxWorker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -316,6 +317,35 @@ final class PlatformProviderActionLifecycleTest extends TestCase
         $this->assertSame(1, $result['requeued']);
         $this->assertSame(0, $adapter->executionCount);
         $this->assertSame(1, $adapter->reconciliationCount);
+    }
+
+    public function test_sandbox_certification_records_evidence_without_enabling_mutations(): void
+    {
+        [, $registry] = $this->fixture();
+        config(['services.arna_provider_mutations.certification_enabled' => true]);
+
+        $result = app(ProviderSandboxCertificationService::class)->certify('sandbox_dns');
+
+        $this->assertTrue($result['sandbox_certified']);
+        $this->assertFalse($result['sandbox_mutations_enabled']);
+        $this->assertDatabaseHas('platform_integrations', [
+            'provider_key' => 'sandbox_dns',
+            'connection_state' => 'connected',
+            'sandbox_mutations_enabled' => false,
+            'sandbox_certification_reference' => 'synthetic-test-fixture',
+        ]);
+        $this->assertDatabaseHas('platform_provider_action_audit_events', [
+            'event_type' => 'adapter.sandbox_certification_passed',
+        ]);
+    }
+
+    public function test_sandbox_certification_gate_is_disabled_by_default(): void
+    {
+        [, $registry] = $this->fixture();
+        config(['services.arna_provider_mutations.certification_enabled' => false]);
+
+        $this->expectException(RuntimeException::class);
+        app(ProviderSandboxCertificationService::class)->certify('sandbox_dns');
     }
 
     public function test_provider_worker_refuses_to_run_when_sandbox_gate_is_off(): void
