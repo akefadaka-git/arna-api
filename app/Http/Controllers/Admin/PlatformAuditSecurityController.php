@@ -94,8 +94,8 @@ final class PlatformAuditSecurityController extends Controller
             ->when(($filters['status'] ?? null) === 'resolved', fn (Builder $q) => $q->whereNotNull('resolved_at'))
             ->when($filters['actor_id'] ?? null, fn (Builder $q, int $value) => $q->where('user_id', $value))
             ->when($filters['ip_address'] ?? null, fn (Builder $q, string $value) => $q->where('ip_address', $value))
-            ->when($filters['from'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '>=', $value))
-            ->when($filters['to'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '<=', $value));
+            ->when($filters['from'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '>=', Carbon::parse($value)->startOfDay()))
+            ->when($filters['to'] ?? null, fn (Builder $q, string $value) => $q->where('created_at', '<=', Carbon::parse($value)->endOfDay()));
 
         $page = $query->latest('id')->paginate($filters['per_page'] ?? 25);
         $page->getCollection()->transform(static function (SecurityEvent $event): array {
