@@ -2,78 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — G2b · File 20 of 27 (revised)
- * =============================================================================
- *
- * File:            Http/Requests/UpdateGovernanceTermRequest.php  (AMEND)
- * Unit:            G2b — GovernanceTerm vertical slice (update request)
- * Delivery type:   Amendment — adds one shape rule for
- *                  `governance_body_id`.
- *
- * Before:
- *   The request declared six `sometimes` rules. `governance_body_id`
- *   was NOT among them. The docblock argued the immutability check
- *   belonged in the service, and concluded the field should not be
- *   declared here.
- *
- *   The conclusion was wrong. A field not declared in `rules()` is
- *   filtered out of `$request->validated()`. The service's
- *   `normaliseForUpdate()` — which does contain the immutability
- *   check — never received the field, so the check never ran.
- *
- *   Consequence: `test_body_id_is_immutable_after_registration` failed
- *   with "Expected response status code [422] but received 200". A
- *   caller could PATCH `governance_body_id` to any value and the row
- *   was silently updated — or, worse, silently left alone with a
- *   misleading 200.
- *
- * After:
- *   One rule is added:
- *
- *     'governance_body_id' => [
- *         'sometimes',
- *         'integer',
- *         'min:1',
- *     ],
- *
- *   The rule is a SHAPE rule only. The service's
- *   `normaliseForUpdate()` continues to hold the immutability rule.
- *
- *   The division of labour matches the sibling position request (G2b
- *   file 8, revised in this delivery) and the G2a body request (which
- *   declares `body_type` as a shape rule and lets the service enforce
- *   immutability).
- *
- * =============================================================================
- * What does NOT change
- * =============================================================================
- *   · Every other rule in `rules()`.
- *   · `authorize()`, `prepareForValidation()`, `messages()`,
- *     `attributes()`, `resolveTerm()`, and the `withValidator()`
- *     conditional checks.
- *   · Every existing docblock section except the one that argued
- *     against declaring the field.
- *
- * =============================================================================
- * Deployment
- * =============================================================================
- * Upload this file to the same path it currently occupies:
- *
- *     mases_core/src/Domains/Governance/Http/Requests/UpdateGovernanceTermRequest.php
- *
- * The upload REPLACES the G2b file 20 version.
- *
- * Run `composer dump-autoload` after uploading.
- *
- * =============================================================================
- * Files modified:            this file only
- * Files added:               none
- * Files deleted:             none
- * Rules added:               1 (governance_body_id)
- * =============================================================================
- */
+
 
 namespace MaaleArna\MASES\Core\Domains\Governance\Http\Requests;
 
