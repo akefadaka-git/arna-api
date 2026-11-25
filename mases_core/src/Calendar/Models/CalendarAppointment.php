@@ -20,6 +20,7 @@ final class CalendarAppointment extends Model
     protected $casts = [
         'confirmed_at' => 'immutable_datetime',
         'cancelled_at' => 'immutable_datetime',
+        'declined_at' => 'immutable_datetime',
         'version' => 'integer',
     ];
 
