@@ -211,7 +211,7 @@ final class PlatformProviderActionLifecycleTest extends TestCase
 
     public function test_sandbox_gate_requires_both_global_and_sandbox_flags_and_rejects_production(): void
     {
-        $gate = app(\\App\\Services\\Admin\\Providers\\ProviderMutationGate::class);
+        $gate = app(\App\Services\Admin\Providers\ProviderMutationGate::class);
         config([
             'services.arna_provider_mutations.enabled' => false,
             'services.arna_provider_mutations.sandbox_enabled' => true,
@@ -306,7 +306,7 @@ final class PlatformProviderActionLifecycleTest extends TestCase
         ]);
         DB::table('platform_provider_action_outbox')->where('payload_sha256', $request['payload_sha256'])->update([
             'status' => 'processing',
-            'lease_token' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'lease_token' => (string) \Illuminate\Support\Str::uuid(),
             'lease_expires_at' => now()->subMinute(),
             'claimed_at' => now()->subMinutes(3),
         ]);
