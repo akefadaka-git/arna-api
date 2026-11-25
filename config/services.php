@@ -46,4 +46,9 @@ return [
         ],
     ],
 
+    'arna_provider_mutations' => [
+        // External provider actions remain disabled unless separately authorized.
+        'enabled' => env('ARNA_PROVIDER_MUTATIONS_ENABLED', false),
+    ],
+
 ];
