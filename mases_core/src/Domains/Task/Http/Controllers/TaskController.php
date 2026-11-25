@@ -159,6 +159,36 @@ final class TaskController
         ]);
     }
 
+    public function addDependency(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'version' => ['required', 'integer', 'min:1'],
+            'depends_on_task_id' => ['required', 'uuid'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->tasks->addDependency($request->user(), $id, $data),
+        ]);
+    }
+
+    public function removeDependency(Request $request, string $id, string $dependsOnId): JsonResponse
+    {
+        $data = $request->validate([
+            'version' => ['required', 'integer', 'min:1'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->tasks->removeDependency(
+                $request->user(),
+                $id,
+                $dependsOnId,
+                (int) $data['version'],
+            ),
+        ]);
+    }
+
     public function assign(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
