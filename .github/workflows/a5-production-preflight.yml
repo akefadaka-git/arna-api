@@ -59,6 +59,9 @@ jobs:
             test -d "$dir"
             test -f "$dir/.gitignore"
           done
+          for file in storage/.gitignore storage/app/.gitignore storage/framework/.gitignore storage/framework/cache/.gitignore; do
+            test -f "$file"
+          done
           echo "Laravel front controller, Apache rewrite file, BOM-free entry point, and runtime directory placeholders: PASS"
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
