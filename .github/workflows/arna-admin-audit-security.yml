@@ -16,6 +16,9 @@ on:
       - "app/Contracts/Admin/Providers/**"
       - "app/Data/Admin/Providers/**"
       - "app/Services/Admin/Providers/**"
+      - "app/Http/Controllers/Admin/PlatformProviderActionsController.php"
+      - "app/Console/Commands/DispatchProviderOutbox.php"
+      - "tests/Feature/PlatformProviderActionLifecycleTest.php"
       - "tests/Unit/PlatformProviderArchitectureTest.php"
       - "config/services.php"
       - "composer.json"
@@ -66,11 +69,19 @@ jobs:
           php -l app/Services/Admin/Providers/ProviderAdapterRegistry.php
           php -l app/Services/Admin/Providers/ProviderMutationGate.php
           php -l app/Services/Admin/Providers/ProviderApprovalPolicy.php
+          php -l app/Services/Admin/Providers/ProviderOwnerSignatureVerifier.php
+          php -l app/Services/Admin/Providers/ProviderActionLifecycleService.php
+          php -l app/Services/Admin/Providers/ProviderOutboxWorker.php
+          php -l app/Http/Controllers/Admin/PlatformProviderActionsController.php
+          php -l app/Console/Commands/DispatchProviderOutbox.php
           php -l tests/Unit/PlatformProviderArchitectureTest.php
+          php -l tests/Feature/PlatformProviderActionLifecycleTest.php
       - name: Run Admin audit/security feature tests
         run: vendor/bin/phpunit tests/Feature/AdminAuditSecurityTest.php
       - name: Run provider adapter architecture and fail-closed gate tests
         run: vendor/bin/phpunit tests/Unit/PlatformProviderArchitectureTest.php
+      - name: Run provider action approvals, Owner signature and sandbox outbox tests
+        run: vendor/bin/phpunit tests/Feature/PlatformProviderActionLifecycleTest.php
       - name: Run existing audit/security regressions
         run: |
           vendor/bin/phpunit tests/Feature/AuditSecurityTest.php
