@@ -1,4 +1,4 @@
-name: ARNA shareholder import preview tests
+name: ARNA shareholder import preview and review tests
 
 on:
   push:
@@ -6,7 +6,9 @@ on:
     paths:
       - "mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php"
       - "mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php"
+      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php"
       - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php"
+      - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php"
       - ".github/workflows/arna-shareholder-import-preview.yml"
       - "composer.json"
       - "composer.lock"
@@ -15,7 +17,9 @@ on:
     paths:
       - "mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php"
       - "mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php"
+      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php"
       - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php"
+      - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php"
       - ".github/workflows/arna-shareholder-import-preview.yml"
       - "composer.json"
       - "composer.lock"
@@ -26,7 +30,7 @@ permissions:
 
 jobs:
   preview-tests:
-    name: Shareholder import preview (no database)
+    name: Shareholder import preview and review policy (no database)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -47,15 +51,19 @@ jobs:
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Lint import preview source and tests
+      - name: Lint import preview and review source/tests
         run: |
           php -l mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php
           php -l mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php
+          php -l mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php
           php -l mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
+          php -l mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php
 
-      - name: Run shareholder import preview tests
+      - name: Run shareholder import preview and review tests
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
+        run: |
+          php artisan test --compact mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
+          php artisan test --compact mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php
