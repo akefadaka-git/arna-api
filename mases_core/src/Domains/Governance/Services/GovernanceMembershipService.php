@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace MaaleArna\MASES\Core\Domains\Governance\Services;
+
 /**
  * Canonical write service for Governance memberships.
  * Enforces tenant/body/position alignment, immutable ownership references,
