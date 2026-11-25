@@ -15,15 +15,8 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Auth\Services\AuthenticationService;
 
 /**
- * Rotate credentials for accounts created by the legacy demo/bootstrap seeders.
- *
- * This explicit operational command is not part of normal deployment or
- * migration execution. It replaces each targeted password with an independent
- * random secret, invalidates remember tokens and Sanctum tokens, and clears
- * outstanding password-reset tokens so account holders must request a fresh
- * reset link through their verified email address.
- *
- * No password or reset token is displayed, logged, or returned.
+ * Rotates legacy seeded-account credentials and revokes active tokens.
+ * Never displays or logs generated credentials or reset tokens.
  */
 final class RotateDemoSeederCredentials extends Command
 {
