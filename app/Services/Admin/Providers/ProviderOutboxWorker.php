@@ -122,6 +122,20 @@ final class ProviderOutboxWorker
             $this->finish($claim, 'failed', 'adapter_version_changed', null);
             return 'failed';
         }
+
+        $sandboxRegistration = DB::table('platform_integrations')
+            ->where('provider_key', $request->provider_key)
+            ->where('environment', 'sandbox')
+            ->where('adapter_version', $request->adapter_version)
+            ->where('connection_state', 'connected')
+            ->where('sandbox_mutations_enabled', true)
+            ->whereNotNull('sandbox_certified_at')
+            ->whereNotNull('sandbox_certification_reference')
+            ->first();
+        if ($sandboxRegistration === null) {
+            $this->finish($claim, 'failed', 'provider_sandbox_not_certified', null);
+            return 'failed';
+        }
         $capability = $adapter->supportedOperations()[$request->operation_key] ?? null;
         if (! is_array($capability) || ! in_array($request->resource_type, $capability['resource_types'] ?? [], true)
             || ($capability['risk_tier'] ?? null) !== $request->risk_tier) {
