@@ -27,6 +27,23 @@ final class ArnaBaselineSeederTest extends TestCase
             $this->markTestSkipped('The disposable CI database must explicitly enable demo seeding to create preservation fixtures.');
         }
 
+        // migrate:fresh --seed has already invoked the default DatabaseSeeder.
+        // Prove that it provisions reference data only, not identities or financial assumptions.
+        $this->assertSame(0, DB::table('users')->count(), 'Default baseline must not create user identities.');
+        $this->assertSame(0, DB::table('shareholders')->count(), 'Default baseline must not create shareholder identities.');
+        $this->assertGreaterThan(0, DB::table('tenants')->count());
+        $this->assertGreaterThan(0, DB::table('platform_applications')->count());
+        $this->assertGreaterThan(0, DB::table('permissions')->count());
+        $this->assertGreaterThan(0, DB::table('roles')->count());
+        $this->assertSame(2, DB::table('share_classes')->count());
+        $this->assertSame(0, DB::table('ledger_accounts')->count(), 'Default baseline must not provision the chart of accounts.');
+        $this->assertSame(0, DB::table('loan_products')->count(), 'Default baseline must not provision loan products.');
+        $this->assertSame(
+            0,
+            DB::table('versioned_policies')->where('policy_type', 'loan_product_rules')->count(),
+            'Default baseline must not provision loan financial policies.',
+        );
+
         // Populate realistic existing user/shareholder data only in this
         // disposable CI database. This destructive legacy seeder is never
         // called by the production/default baseline.
