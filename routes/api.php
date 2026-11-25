@@ -991,6 +991,8 @@ Route::middleware('auth:sanctum')->prefix('admin/platform/provider-actions')->na
         ->middleware('auth.permission:platform.providers.actions.read')->name('index');
     Route::post('/', [$controller, 'store'])
         ->middleware('auth.permission:platform.providers.actions.request')->name('store');
+    Route::get('/{publicId}/history', [$controller, 'history'])
+        ->whereUuid('publicId')->middleware('auth.permission:platform.providers.actions.read')->name('history');
     Route::post('/{publicId}/approve', [$controller, 'approve'])
         ->whereUuid('publicId')->middleware('auth.permission:platform.providers.actions.approve')->name('approve');
     Route::post('/{publicId}/reject', [$controller, 'reject'])
