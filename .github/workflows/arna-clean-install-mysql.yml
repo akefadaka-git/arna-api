@@ -131,7 +131,7 @@ permissions:
 
 concurrency:
   group: arna-clean-install-${{ github.event.pull_request.number || inputs.target_sha || github.sha }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   clean-install:
