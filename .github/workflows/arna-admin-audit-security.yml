@@ -88,6 +88,8 @@ jobs:
           php -l tests/Feature/PlatformProviderActionLifecycleTest.php
       - name: Run Admin audit/security feature tests
         run: vendor/bin/phpunit tests/Feature/AdminAuditSecurityTest.php
+      - name: Run platform-scoped audit/security read isolation tests
+        run: vendor/bin/phpunit tests/Feature/PlatformAuditSecurityReadTest.php
       - name: Run provider adapter architecture and fail-closed gate tests
         run: vendor/bin/phpunit tests/Unit/PlatformProviderArchitectureTest.php
       - name: Run provider action approvals, Owner signature and sandbox outbox tests
