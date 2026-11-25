@@ -2,6 +2,25 @@
 
 declare(strict_types=1);
 
+namespace MaaleArna\MASES\Core\Domains\Governance\Services;
+
+use DateTimeInterface;
+use Throwable;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Domains\Governance\Enums\GovernanceMembershipStatus;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceMembershipRegistered;
+use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceMembershipUpdated;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceMembership;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernancePosition;
+use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceTerm;
+use MaaleArna\MASES\Core\Domains\Governance\Repositories\GovernanceMembershipRepository;
+
 /**
  * Canonical write service for Governance memberships.
  * Enforces tenant/body/position alignment, immutable ownership references,
