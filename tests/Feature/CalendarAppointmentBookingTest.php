@@ -216,6 +216,33 @@ final class CalendarAppointmentBookingTest extends TestCase
     }
 
     #[Test]
+    public function all_day_calendar_holds_block_overlapping_appointment_requests(): void
+    {
+        $tenant = $this->tenant();
+        $requester = $this->member($tenant);
+        $host = $this->member($tenant);
+        $calendarId = $this->calendar($tenant, $requester);
+
+        Sanctum::actingAs($requester);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/events', [
+                'calendar_id' => $calendarId,
+                'title' => 'Host all-day commitment',
+                'all_day' => true,
+                'starts_on' => '2026-11-26',
+                'ends_on' => '2026-11-26',
+                'attendee_user_ids' => [$host->id],
+            ])
+            ->assertCreated();
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/availability', $this->bookingPayload($calendarId, $host))
+            ->assertOk()
+            ->assertJsonPath('data.available', false)
+            ->assertJsonPath('data.participant_conflict_count', 1);
+    }
+
+    #[Test]
     public function resource_overlap_is_checked_across_personal_and_corporate_bookings(): void
     {
         $tenant = $this->tenant();
