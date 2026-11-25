@@ -114,6 +114,58 @@ final class D08TaskManagementTest extends TestCase
     }
 
     #[Test]
+    public function assignees_can_progress_tasks_and_reopening_a_completed_task_resets_progress(): void
+    {
+        $tenant = $this->tenant();
+        $creator = $this->member($tenant);
+        $assignee = $this->member($tenant);
+        $this->grant($creator, $tenant, 'task.create', 'task.update', 'task.assign');
+        $this->grant($assignee, $tenant, 'task.update');
+        Sanctum::actingAs($creator);
+
+        $created = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks', [
+                'task_scope' => 'corporate',
+                'title' => 'Quarterly close',
+                'assigned_to_user_id' => $assignee->id,
+            ])
+            ->assertCreated();
+
+        $taskId = $created->json('data.id');
+        Sanctum::actingAs($assignee);
+
+        $progress = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->patchJson('/api/tasks/'.$taskId, [
+                'version' => 1,
+                'status' => 'in_progress',
+                'progress_percent' => 40,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'in_progress')
+            ->assertJsonPath('data.progress_percent', 40);
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->patchJson('/api/tasks/'.$taskId, [
+                'version' => $progress->json('data.version'),
+                'status' => 'completed',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.progress_percent', 100);
+
+        Sanctum::actingAs($creator);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->patchJson('/api/tasks/'.$taskId, [
+                'version' => 3,
+                'status' => 'in_progress',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'in_progress')
+            ->assertJsonPath('data.progress_percent', 99)
+            ->assertJsonPath('data.completed_at', null);
+    }
+
+    #[Test]
     public function task_updates_use_optimistic_versioning_and_assignees_cannot_edit_task_metadata(): void
     {
         $tenant = $this->tenant();
