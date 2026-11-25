@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Governance\\Http\\Controllers;
+namespace MaaleArna\MASES\Core\Domains\Governance\Http\Controllers;
 
-use App\\Http\\Controllers\\Controller;
-use Carbon\\CarbonImmutable;
+use App\Http\Controllers\Controller;
+use Carbon\CarbonImmutable;
 use DomainException;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use MaaleArna\\MASES\\Core\\Domains\\Governance\\Services\\GovernanceMeetingLegalGate;
-use Symfony\\Component\\HttpKernel\\Exception\\ConflictHttpException;
-use Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException;
-use Illuminate\\Validation\\ValidationException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceMeetingLegalGate;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Substantive, tenant-scoped General Assembly workflow.
