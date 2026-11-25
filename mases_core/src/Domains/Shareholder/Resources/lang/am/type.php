@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
 
-    // Keys must match ShareholderType enum values.
+    // Keys must match ShareholderType enum values; review trust and religious-body terms locally.
     'individual'     => 'ግለሰብ',
     'company'        => 'ኩባንያ',
     'trust'          => 'አደራ',
