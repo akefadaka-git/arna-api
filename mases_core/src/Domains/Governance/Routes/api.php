@@ -14,6 +14,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionC
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingLegalEvidenceController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingLifecycleController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePositionController;
@@ -364,6 +365,18 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('legalBasis')->middleware('auth.permission:governance.body.manage')->name('legal-bases.verify');
     Route::patch('/legal-evidence/{evidence}/verify', [GovernanceMeetingLegalEvidenceController::class, 'verifyEvidence'])
         ->whereNumber('evidence')->middleware('auth.permission:governance.body.manage')->name('legal-evidence.verify');
+
+    // GA lifecycle evidence gates: notice, quorum, voting and minutes.
+    // These endpoints register evidence-backed attestations; they do not calculate
+    // statutory thresholds, send notices, count votes or generate minutes.
+    Route::post('/meetings/{meeting}/lifecycle/{action}', [GovernanceMeetingLifecycleController::class, 'store'])
+        ->whereNumber('meeting')->whereIn('action', ['notice', 'quorum', 'voting', 'minutes'])
+        ->middleware('auth.permission:governance.meeting.manage')
+        ->name('meetings.lifecycle.store');
+    Route::patch('/meeting-lifecycle-attestations/{attestation}/review', [GovernanceMeetingLifecycleController::class, 'review'])
+        ->whereNumber('attestation')
+        ->middleware('auth.permission:governance.meeting.approve')
+        ->name('meeting-lifecycle-attestations.review');
 
     // G5 A3 — meeting attendance, proxies, penalties and Finance settlement requests.
     Route::get('/meetings', [GovernanceMeetingAttendanceController::class, 'index'])
