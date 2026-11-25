@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Calendar\Models\Calendar;
+use MaaleArna\MASES\Core\Calendar\Models\CalendarAppointment;
 use MaaleArna\MASES\Core\Calendar\Models\CalendarAttendee;
 use MaaleArna\MASES\Core\Calendar\Models\CalendarEvent;
 use MaaleArna\MASES\Core\Calendar\Models\CalendarEventLink;
@@ -333,6 +334,348 @@ final class CalendarService
             $this->audit($actor, 'attendee', (string) $attendee->getKey(), 'responded', ['event_id' => $eventId, 'response' => $response]);
             return $attendee->fresh()->toArray();
         });
+    }
+
+    /**
+     * Check a shared personal or corporate appointment slot without
+     * disclosing other members' event details.
+     */
+    public function appointmentAvailability(User $actor, array $data): array
+    {
+        $tenantId = $this->tenantId();
+        $calendar = $this->appointmentCalendar($actor, $tenantId, $data);
+        [$start, $end] = $this->appointmentInstants($data, $calendar->timezone);
+        $participantIds = $this->appointmentParticipantIds($actor, $data);
+        $this->assertActiveAppointmentParticipants($tenantId, $participantIds);
+
+        $resourceIds = array_values(array_unique(array_map('strval', $data['resource_ids'] ?? [])));
+        $this->assertActiveAppointmentResources($tenantId, $resourceIds, false);
+
+        $participantConflicts = $this->appointmentParticipantConflicts(
+            $tenantId,
+            $participantIds,
+            $start->format('Y-m-d H:i:s'),
+            $end->format('Y-m-d H:i:s'),
+        );
+        $resourceConflicts = $this->appointmentResourceConflicts(
+            $tenantId,
+            $resourceIds,
+            $start->format('Y-m-d H:i:s'),
+            $end->format('Y-m-d H:i:s'),
+        );
+
+        return [
+            'available' => $participantConflicts === [] && $resourceConflicts === [],
+            'participant_conflict_count' => count($participantConflicts),
+            'resource_conflict_count' => count($resourceConflicts),
+            'timezone' => $calendar->timezone,
+        ];
+    }
+
+    /**
+     * Create a booking request using the Calendar event, invitation,
+     * reminder and resource-reservation infrastructure as its schedule
+     * source. The appointment aggregate owns request/confirmation/
+     * decline/cancellation state; Governance appointments remain separate.
+     */
+    public function bookAppointment(User $actor, array $data): CalendarAppointment
+    {
+        return DB::transaction(function () use ($actor, $data): CalendarAppointment {
+            $tenantId = $this->tenantId();
+            $calendar = $this->appointmentCalendar($actor, $tenantId, $data);
+            [$start, $end] = $this->appointmentInstants($data, $calendar->timezone);
+            $participantIds = $this->appointmentParticipantIds($actor, $data);
+            $this->lockAppointmentParticipants($participantIds);
+            $this->assertActiveAppointmentParticipants($tenantId, $participantIds);
+
+            $resourceIds = array_values(array_unique(array_map('strval', $data['resource_ids'] ?? [])));
+            $this->assertActiveAppointmentResources($tenantId, $resourceIds, true);
+
+            $availability = $this->appointmentAvailability($actor, $data);
+            if (!$availability['available']) {
+                throw new ConflictHttpException('The selected appointment slot is no longer available.');
+            }
+
+            $invitees = array_values(array_unique(array_map('intval', [
+                $data['host_user_id'],
+                ...($data['attendee_user_ids'] ?? []),
+            ])));
+            $event = $this->createEvent($actor, [
+                'calendar_id' => $calendar->id,
+                'title' => $data['title'],
+                'description' => $data['description'] ?? null,
+                'event_type' => 'appointment',
+                'starts_at' => $data['starts_at'],
+                'ends_at' => $data['ends_at'],
+                'timezone' => $data['timezone'] ?? $calendar->timezone,
+                'attendee_user_ids' => $invitees,
+                'reminders' => $data['reminders'] ?? [15],
+            ]);
+
+            $appointment = new CalendarAppointment();
+            $appointment->forceFill([
+                'id' => (string) Str::uuid(),
+                'tenant_id' => $tenantId,
+                'event_id' => $event->id,
+                'requested_by_user_id' => $actor->getKey(),
+                'host_user_id' => $data['host_user_id'],
+                'appointment_scope' => $data['appointment_scope'] ?? 'personal',
+                'status' => 'requested',
+                'version' => 1,
+            ]);
+            $appointment->save();
+
+            foreach ($resourceIds as $resourceId) {
+                $this->reserveResource($actor, [
+                    'resource_id' => $resourceId,
+                    'event_id' => $event->id,
+                    'starts_at' => $data['starts_at'],
+                    'ends_at' => $data['ends_at'],
+                ]);
+            }
+
+            $this->audit($actor, 'appointment', (string) $appointment->id, 'requested', [
+                'event_id' => $event->id,
+                'appointment_scope' => $appointment->appointment_scope,
+                'host_user_id' => $appointment->host_user_id,
+                'starts_at' => $start->format('Y-m-d H:i:s'),
+                'ends_at' => $end->format('Y-m-d H:i:s'),
+            ]);
+
+            return $appointment->fresh()->load(['event.attendees', 'event.links']);
+        }, 3);
+    }
+
+    public function appointments(User $actor): mixed
+    {
+        $tenantId = $this->tenantId();
+
+        return CalendarAppointment::query()
+            ->where('tenant_id', $tenantId)
+            ->where(function ($query) use ($actor): void {
+                $query->where('requested_by_user_id', $actor->getKey())
+                    ->orWhere('host_user_id', $actor->getKey())
+                    ->orWhereHas('event.attendees', fn ($attendees) => $attendees->where('user_id', $actor->getKey()));
+            })
+            ->with(['event.attendees', 'event.links'])
+            ->orderByDesc('created_at')
+            ->paginate(50);
+    }
+
+    public function confirmAppointment(User $actor, string $id): CalendarAppointment
+    {
+        return DB::transaction(function () use ($actor, $id): CalendarAppointment {
+            $appointment = CalendarAppointment::query()->where('tenant_id', $this->tenantId())
+                ->whereKey($id)->lockForUpdate()->first();
+            if (!$appointment || (string) $appointment->host_user_id !== (string) $actor->getKey()) {
+                throw new NotFoundHttpException('Appointment not found.');
+            }
+            if ($appointment->status !== 'requested') {
+                throw new BadRequestHttpException('Only requested appointments can be confirmed.');
+            }
+
+            $event = CalendarEvent::query()->where('tenant_id', $this->tenantId())
+                ->whereKey($appointment->event_id)->lockForUpdate()->first();
+            if (!$event || $event->status !== 'scheduled') {
+                throw new NotFoundHttpException('Appointment not found.');
+            }
+
+            $appointment->status = 'confirmed';
+            $appointment->confirmed_at = now();
+            $appointment->version++;
+            $appointment->save();
+
+            CalendarAttendee::query()->where('tenant_id', $this->tenantId())
+                ->where('event_id', $event->id)->where('user_id', $actor->getKey())
+                ->update(['response' => 'accepted', 'responded_at' => now(), 'updated_at' => now()]);
+
+            $this->audit($actor, 'appointment', (string) $appointment->id, 'confirmed', [
+                'event_id' => $event->id,
+                'version' => $appointment->version,
+            ]);
+
+            return $appointment->fresh()->load(['event.attendees', 'event.links']);
+        }, 3);
+    }
+
+    public function declineAppointment(User $actor, string $id): CalendarAppointment
+    {
+        return $this->closeAppointment($actor, $id, 'declined');
+    }
+
+    public function cancelAppointment(User $actor, string $id): CalendarAppointment
+    {
+        return $this->closeAppointment($actor, $id, 'cancelled');
+    }
+
+    private function closeAppointment(User $actor, string $id, string $status): CalendarAppointment
+    {
+        return DB::transaction(function () use ($actor, $id, $status): CalendarAppointment {
+            $appointment = CalendarAppointment::query()->where('tenant_id', $this->tenantId())
+                ->whereKey($id)->lockForUpdate()->first();
+            if (!$appointment) {
+                throw new NotFoundHttpException('Appointment not found.');
+            }
+            $isHost = (string) $appointment->host_user_id === (string) $actor->getKey();
+            $isRequester = (string) $appointment->requested_by_user_id === (string) $actor->getKey();
+            if (($status === 'declined' && !$isHost) || ($status === 'cancelled' && !$isHost && !$isRequester)) {
+                throw new NotFoundHttpException('Appointment not found.');
+            }
+            if (!in_array($appointment->status, ['requested', 'confirmed'], true)) {
+                throw new BadRequestHttpException('This appointment is already closed.');
+            }
+
+            $event = CalendarEvent::query()->where('tenant_id', $this->tenantId())
+                ->whereKey($appointment->event_id)->lockForUpdate()->first();
+            if (!$event) {
+                throw new NotFoundHttpException('Appointment not found.');
+            }
+
+            $appointment->status = $status;
+            $appointment->version++;
+            if ($status === 'declined') {
+                $appointment->declined_at = now();
+            } else {
+                $appointment->cancelled_at = now();
+            }
+            $appointment->save();
+
+            if ($event->status === 'scheduled') {
+                $event->status = 'cancelled';
+                $event->version++;
+                $event->save();
+            }
+            DB::table('calendar_reminder_outbox')
+                ->where('tenant_id', $this->tenantId())
+                ->where('event_id', $event->id)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'skipped',
+                    'last_error' => 'Appointment is no longer active.',
+                    'updated_at' => now(),
+                ]);
+            DB::table('calendar_reservations')->where('tenant_id', $this->tenantId())
+                ->where('event_id', $event->id)->where('status', 'confirmed')
+                ->update(['status' => 'cancelled', 'version' => DB::raw('version + 1'), 'updated_at' => now()]);
+
+            $this->audit($actor, 'appointment', (string) $appointment->id, $status, [
+                'event_id' => $event->id,
+                'version' => $appointment->version,
+            ]);
+
+            return $appointment->fresh()->load(['event.attendees', 'event.links']);
+        }, 3);
+    }
+
+    private function appointmentCalendar(User $actor, int|string $tenantId, array $data): Calendar
+    {
+        $calendar = Calendar::query()->where('tenant_id', $tenantId)
+            ->whereKey($data['calendar_id'])->where('is_active', true)->first();
+        if (!$calendar || ($calendar->visibility === 'private' && (string) $calendar->owner_user_id !== (string) $actor->getKey())) {
+            throw new NotFoundHttpException('Calendar not found in the active tenant.');
+        }
+        if (($data['appointment_scope'] ?? 'personal') === 'corporate' && $calendar->visibility !== 'tenant') {
+            throw new BadRequestHttpException('Corporate appointments require a tenant-visible calendar.');
+        }
+
+        return $calendar;
+    }
+
+    private function appointmentInstants(array $data, string $timezone): array
+    {
+        if (!preg_match('/(?:Z|[+-]\\d{2}:?\\d{2})$/i', (string) $data['starts_at'])
+            || !preg_match('/(?:Z|[+-]\\d{2}:?\\d{2})$/i', (string) $data['ends_at'])) {
+            throw new BadRequestHttpException('Appointment instants must include Z or an explicit UTC offset.');
+        }
+        $start = CalendarInstant::fromString($data['starts_at'], $data['timezone'] ?? $timezone)->utc();
+        $end = CalendarInstant::fromString($data['ends_at'], $data['timezone'] ?? $timezone)->utc();
+        if ($end <= $start) {
+            throw new BadRequestHttpException('Appointment end must be after its start.');
+        }
+
+        return [$start, $end];
+    }
+
+    private function appointmentParticipantIds(User $actor, array $data): array
+    {
+        $hostId = (int) $data['host_user_id'];
+        if ($hostId === (int) $actor->getKey()) {
+            throw new BadRequestHttpException('The appointment host must be a different tenant member from the requester.');
+        }
+
+        return array_values(array_unique(array_map('intval', [
+            $actor->getKey(),
+            $hostId,
+            ...($data['attendee_user_ids'] ?? []),
+        ])));
+    }
+
+    private function lockAppointmentParticipants(array $participantIds): void
+    {
+        DB::table('users')->whereIn('id', $participantIds)
+            ->orderBy('id')->lockForUpdate()->get(['id']);
+    }
+
+    private function assertActiveAppointmentParticipants(int|string $tenantId, array $participantIds): void
+    {
+        $activeIds = DB::table('tenant_memberships')->where('tenant_id', $tenantId)
+            ->where('status', 'active')->whereIn('user_id', $participantIds)
+            ->pluck('user_id')->map(fn ($id): int => (int) $id)->all();
+        $missing = array_diff($participantIds, $activeIds);
+        if ($missing !== []) {
+            throw new BadRequestHttpException('Every appointment participant must be an active member of the current tenant.');
+        }
+    }
+
+    private function assertActiveAppointmentResources(int|string $tenantId, array $resourceIds, bool $lock): void
+    {
+        if ($resourceIds === []) {
+            return;
+        }
+        $query = DB::table('calendar_resources')->where('tenant_id', $tenantId)
+            ->where('is_active', true)->whereIn('id', $resourceIds)->orderBy('id');
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+        $activeIds = $query->pluck('id')->map(fn ($id): string => (string) $id)->all();
+        if (count($activeIds) !== count($resourceIds)) {
+            throw new NotFoundHttpException('One or more appointment resources are unavailable in the active tenant.');
+        }
+    }
+
+    private function appointmentParticipantConflicts(int|string $tenantId, array $participantIds, string $startUtc, string $endUtc): array
+    {
+        return DB::table('calendar_events as event')
+            ->leftJoin('calendar_attendees as attendee', function ($join) use ($tenantId): void {
+                $join->on('attendee.event_id', '=', 'event.id')
+                    ->where('attendee.tenant_id', '=', $tenantId);
+            })
+            ->where('event.tenant_id', $tenantId)
+            ->where('event.status', 'scheduled')
+            ->where('event.all_day', false)
+            ->whereNotNull('event.starts_at')
+            ->where('event.starts_at', '<', $endUtc)
+            ->where('event.ends_at', '>', $startUtc)
+            ->where(function ($query) use ($participantIds): void {
+                $query->whereIn('event.created_by', $participantIds)
+                    ->orWhere(function ($attendeeQuery) use ($participantIds): void {
+                        $attendeeQuery->whereIn('attendee.user_id', $participantIds)
+                            ->whereIn('attendee.response', ['pending', 'accepted', 'tentative']);
+                    });
+            })
+            ->distinct()->pluck('event.id')->map(fn ($id): string => (string) $id)->all();
+    }
+
+    private function appointmentResourceConflicts(int|string $tenantId, array $resourceIds, string $startUtc, string $endUtc): array
+    {
+        if ($resourceIds === []) {
+            return [];
+        }
+
+        return DB::table('calendar_reservations')->where('tenant_id', $tenantId)
+            ->whereIn('resource_id', $resourceIds)->where('status', 'confirmed')
+            ->where('starts_at', '<', $endUtc)->where('ends_at', '>', $startUtc)
+            ->distinct()->pluck('resource_id')->map(fn ($id): string => (string) $id)->all();
     }
 
     public function resources(): mixed
