@@ -21,41 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * to support the Amharic-first design with locale switching.
  *
  * =============================================================================
- * Revision history
- * =============================================================================
- * 1.0.0  — initial delivery. Seven fillable columns, four casts.
- *
- * 1.1.0  — the launcher readiness and presentation columns (Unit L-10c):
- *          · $fillable gains the four columns added to
- *            `platform_applications` by the L-9 migration:
- *
- *              is_frontend_ready  — boolean; a deployable frontend
- *                                   exists at the domain
- *              icon_key           — nullable string; the Lucide icon
- *                                   name for the launcher tile
- *              category           — nullable string; the grid's
- *                                   grouping key
- *              display_order      — unsigned integer; the tile's sort
- *                                   weight within its category
- *
- *          · $casts gains `'is_frontend_ready' => 'boolean'`. The
- *            column is a TINYINT(1) on MySQL; without the cast, the
- *            model returns it as `0`/`1` (int) and the launcher
- *            endpoint's JSON response carries integers where the
- *            frontend's LauncherApplication type declares booleans.
- *
- *          · WHY THIS IS A CORRECTION, NOT A FEATURE. The seeder
- *            (Unit L-10b) already includes the four columns in its
- *            update array. Eloquent's fill() silently discards
- *            unknown keys, so between L-10b and this unit the four
- *            columns remained at the migration's defaults after
- *            every seed. This unit closes that gap.
- *
- *          · No other change. The relationships (roles, permissions),
- *            the accessors (display_name, display_description), the
- *            scopes (active, bySlug, byDomain), and the isActive()
- *            helper are unchanged.
- *
+ * Historical changes are recorded in Git.
  * @property int           $id
  * @property string        $slug                 Unique application slug
  * @property string|null   $name_am              Application name in Amharic
