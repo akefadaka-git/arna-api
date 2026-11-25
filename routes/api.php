@@ -985,7 +985,7 @@ Route::get('/admin/platform/operations/observations', [\App\Http\Controllers\Adm
 
 // Provider action requests, independent approvals and dedicated Owner authorization.
 Route::middleware('auth:sanctum')->prefix('admin/platform/provider-actions')->name('api.admin.platform.provider-actions.')->group(static function (): void {
-    $controller = \\App\\Http\\Controllers\\Admin\\PlatformProviderActionsController::class;
+    $controller = \App\Http\Controllers\Admin\PlatformProviderActionsController::class;
 
     Route::get('/', [$controller, 'index'])
         ->middleware('auth.permission:platform.providers.actions.read')->name('index');
