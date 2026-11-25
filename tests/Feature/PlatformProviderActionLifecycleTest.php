@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Admin\Providers\ProviderAdapter;
-use App\Data\Admin\Providers\ProviderExecutionResult;
-use App\Data\Admin\Providers\ProviderOperationPlan;
 use App\Services\Admin\Providers\ProviderActionLifecycleService;
 use App\Services\Admin\Providers\ProviderAdapterRegistry;
 use App\Services\Admin\Providers\ProviderOwnerSignatureVerifier;
@@ -14,6 +11,7 @@ use App\Services\Admin\Providers\ProviderOutboxWorker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Tests\Support\Fakes\TestSandboxProviderAdapter;
 use Tests\TestCase;
 
 final class PlatformProviderActionLifecycleTest extends TestCase
