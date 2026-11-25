@@ -100,10 +100,13 @@ final class ArnaBaselineSeederTest extends TestCase
         // operational records must remain byte-for-byte stable.
         $protectedBefore = $this->snapshotPersistentTables(excludeBaselineReferenceTables: true);
         $this->runDefaultSeeder();
-        $this->assertDatabaseHas('role_has_permissions', [
-            'role_id' => $shareholderRole->id,
-            'permission_id' => $customPermissionId,
-        ], 'Default baseline must preserve Owner-managed role-permission grants.');
+        $this->assertTrue(
+            DB::table('role_has_permissions')
+                ->where('role_id', $shareholderRole->id)
+                ->where('permission_id', $customPermissionId)
+                ->exists(),
+            'Default baseline must preserve Owner-managed role-permission grants.',
+        );
         $protectedAfter = $this->snapshotPersistentTables(excludeBaselineReferenceTables: true);
         $this->assertSame($protectedBefore, $protectedAfter, 'The first safe baseline run must preserve existing business records.');
 
@@ -113,10 +116,13 @@ final class ArnaBaselineSeederTest extends TestCase
         $this->runDefaultSeeder();
         $second = $this->snapshotPersistentTables();
         $this->assertSame($first, $second, 'A second safe baseline run must not delete, duplicate or mutate persistent data or grants.');
-        $this->assertDatabaseHas('role_has_permissions', [
-            'role_id' => $shareholderRole->id,
-            'permission_id' => $customPermissionId,
-        ], 'Repeated baseline runs must preserve Owner-managed role-permission grants.');
+        $this->assertTrue(
+            DB::table('role_has_permissions')
+                ->where('role_id', $shareholderRole->id)
+                ->where('permission_id', $customPermissionId)
+                ->exists(),
+            'Repeated baseline runs must preserve Owner-managed role-permission grants.',
+        );
         $this->assertGreaterThan(0, DB::table('users')->count());
         $this->assertGreaterThan(0, DB::table('shareholders')->count());
     }
