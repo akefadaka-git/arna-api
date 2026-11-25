@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 /*
  * -----------------------------------------------------------------------------
- * MASES CORE POLICY — CONFIGURATION
+ * ARNA CORE POLICY — CONFIGURATION
  * -----------------------------------------------------------------------------
  *
  * The versioned-policy registry is a domain-agnostic Core capability that
  * stores immutable, versioned policy definitions for consumption by any
- * MASES domain. It is introduced in Phase 2B to satisfy three architectural
+ * ARNA domain. It is introduced in Phase 2B to satisfy three architectural
  * mandates that converged on the same primitive:
  *
  *   - A7   — KYC/AML capability must be architected centrally and versioned.
