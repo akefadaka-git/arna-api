@@ -51,6 +51,7 @@ final class RolePermissionGrants
         'manager'         => [
             ...DocumentsRolePermissionGrants::MAP['manager'],
             'calendar.view', 'calendar.create', 'calendar.update',
+            'task.view', 'task.view_all', 'task.create', 'task.update', 'task.assign',
             'user.profile.view', 'user.list',
             'file.list', 'file.view', 'file.download', 'announcement.view',
             ...FinanceRolePermissionGrants::MAP['manager'], 'app.hr.access', 'app.portal.access',
@@ -81,6 +82,7 @@ final class RolePermissionGrants
         'secretary'       => [
             ...DocumentsRolePermissionGrants::MAP['secretary'],
             'calendar.view', 'calendar.create', 'calendar.update',
+            'task.view', 'task.create', 'task.update',
             'app.portal.access', 'user.profile.view', 'announcement.view', 'announcement.manage',
             'file.view', 'file.list', 'file.download', 'file.upload', 'file.update',
         ],
@@ -88,6 +90,7 @@ final class RolePermissionGrants
         'ceo'             => [
             ...DocumentsRolePermissionGrants::MAP['ceo'],
             'calendar.view', 'calendar.create', 'calendar.update', 'calendar.reserve',
+            'task.view', 'task.view_all', 'task.create', 'task.update', 'task.assign',
             'app.portal.access', ...FinanceRolePermissionGrants::MAP['ceo'], 'app.hr.access', 'app.admin.access',
             'user.profile.view', 'user.list', 'user.create', 'user.update',
             'role.list', 'permission.list', 'dashboard.executive.view',
