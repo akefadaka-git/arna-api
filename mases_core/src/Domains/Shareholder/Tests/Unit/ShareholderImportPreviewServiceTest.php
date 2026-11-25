@@ -6,7 +6,7 @@ namespace MaaleArna\MASES\Core\Domains\Shareholder\Tests\Unit;
 
 use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareholderCsvPreviewService;
 use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareholderImportPreviewValidator;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 final class ShareholderImportPreviewServiceTest extends TestCase
 {
