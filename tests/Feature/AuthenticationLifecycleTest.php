@@ -68,59 +68,7 @@ use Tests\TestCase;
  * for a registered email).
  *
  * -----------------------------------------------------------------------------
- * Revision history
- * -----------------------------------------------------------------------------
- * 1.2.0 — baseline. Envelope contract alignment (CR-021a).
- *
- * 1.2.1 — password-reset neutrality alignment:
- *
- *           · `a_user_can_request_a_password_reset_link()` now asserts
- *             the v1.1.0 neutral message string, matching the endpoint's
- *             actual response.
- *
- *           · `a_user_cannot_request_a_password_reset_link_for_nonexistent_email()`
- *             no longer asserts 422 + `assertJsonValidationErrors`.
- *             The endpoint deliberately returns 200 with the neutral
- *             message for an unregistered email; the test now asserts
- *             that behaviour, and documents it with an inline rationale
- *             that points at the controller's class docblock.
- *
- *         No change to any other test method, fixture, setup step, or
- *         import. The `$this->user` fixture (`test@example.com`) and
- *         `$this->tenant` fixture remain unchanged.
- *
- * 1.2.2 — D-15 / H-13 alignment. The unauthenticated-request test now
- *         asserts the canonical MASES 401 code `AUTH_UNAUTHENTICATED`
- *         rather than the historical `UNAUTHENTICATED`.
- *
- *         Background: prior to D-15, `App\Http\Middleware\Authenticate`
- *         threw `Illuminate\Auth\AuthenticationException`, which the
- *         canonical renderer in `bootstrap/app.php` mapped to the code
- *         `UNAUTHENTICATED`. That string had no `AUTH_` prefix and was
- *         the only 401 code in the platform not drawn from the
- *         `MaaleArna\MASES\Core\Exceptions\AuthenticationException`
- *         taxonomy. Client code that branched on `error.code` could not
- *         treat it as the same condition as the codes produced by
- *         application-layer authentication code.
- *
- *         D-15 changed `Authenticate` to throw MASES
- *         `AuthenticationException::unauthenticated()` (and, on the
- *         revoked-token path, `::invalidToken()`). The renderer's
- *         `CoreException` branch maps both to canonical `AUTH_*` codes.
- *
- *         This file's only affected assertion is in
- *         `unauthenticated_user_cannot_access_protected_routes()`; it is
- *         updated from `UNAUTHENTICATED` to `AUTH_UNAUTHENTICATED`. No
- *         other assertion in this file changes.
- *
- *         The revoked-token path is exercised by
- *         `a_user_can_logout_and_tokens_are_revoked()` and
- *         `a_user_can_refresh_their_token()`, both of which continue to
- *         assert 401 status but do NOT assert a specific `error.code`.
- *         They are therefore unaffected by the code change. Adding an
- *         assertion for `AUTH_TOKEN_INVALID` on those tests is a
- *         separate scope decision (T-2), not part of this change.
- *
+ * Covers authentication lifecycle and API response contracts.
  * @package Tests\Feature
  * @author  MASES Development Team
  * @version 1.2.2
