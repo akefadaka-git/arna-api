@@ -126,7 +126,7 @@ final class PlatformAuditSecurityController extends Controller
 
         $clean = [];
         foreach ($value as $key => $item) {
-            if (in_array(strtolower((string) $key), $sensitive, true)) {
+            if (in_array(strtolower((string) $key), $sensitive, true)\n                || preg_match('/(?:password|token|secret|api[_-]?key|credential|authorization|cookie|private[_-]?key|otp|mfa|totp)/i', (string) $key) === 1) {
                 $clean[$key] = '[REDACTED]';
             } elseif (is_array($item)) {
                 $clean[$key] = self::redact($item);
