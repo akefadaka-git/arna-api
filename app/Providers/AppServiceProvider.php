@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\Admin\Providers\ProviderAdapterRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
