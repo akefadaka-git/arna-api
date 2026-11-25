@@ -20,6 +20,7 @@ on:
       - "tests/Support/Fakes/**"
       - "app/Http/Controllers/Admin/PlatformProviderActionsController.php"
       - "app/Console/Commands/DispatchProviderOutbox.php"
+      - "app/Console/Commands/CertifyProviderSandbox.php"
       - "tests/Feature/PlatformProviderActionLifecycleTest.php"
       - "tests/Unit/PlatformProviderArchitectureTest.php"
       - "config/services.php"
@@ -74,6 +75,9 @@ jobs:
           php -l app/Services/Admin/Providers/ProviderOwnerSignatureVerifier.php
           php -l app/Services/Admin/Providers/ProviderActionLifecycleService.php
           php -l app/Services/Admin/Providers/ProviderOutboxWorker.php
+          php -l app/Services/Admin/Providers/ProviderSandboxCertificationService.php
+          php -l app/Data/Admin/Providers/ProviderSandboxCertificationResult.php
+          php -l app/Console/Commands/CertifyProviderSandbox.php
           php -l app/Http/Controllers/Admin/PlatformProviderActionsController.php
           php -l app/Console/Commands/DispatchProviderOutbox.php
           php -l tests/Unit/PlatformProviderArchitectureTest.php
