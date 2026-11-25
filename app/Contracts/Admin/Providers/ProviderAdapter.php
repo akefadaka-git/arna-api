@@ -14,7 +14,7 @@ interface ProviderAdapter
     public function adapterVersion(): string;
 
     /**
-     * @return array<string, array{risk_tier: string, resource_types: list<string>}>
+     * @return array<string, array{risk_tier: string, resource_types: list<string>, idempotent?: bool}>
      */
     public function supportedOperations(): array;
 
