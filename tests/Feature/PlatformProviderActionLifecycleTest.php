@@ -117,6 +117,42 @@ final class PlatformProviderActionLifecycleTest extends TestCase
         }
     }
 
+    public function test_worker_requires_provider_specific_sandbox_certification_record(): void
+    {
+        [$service, $registry, $secretKey, $adapter] = $this->fixture();
+        $request = $service->request(10, [
+            'provider_key' => 'sandbox_dns',
+            'environment' => 'sandbox',
+            'operation' => 'replace_zone',
+            'resource_type' => 'dns_zone',
+            'resource_identifier' => 'uncertified-zone',
+            'payload' => ['records' => [['name' => 'uncertified.example.test', 'type' => 'TXT', 'value' => 'synthetic']]],
+            'reason' => 'Verify provider-specific sandbox gate.',
+        ]);
+        $service->decide($request['public_id'], 11, 'approved', 'First approval.');
+        $service->decide($request['public_id'], 12, 'approved', 'Second approval.');
+        $row = DB::table('platform_provider_action_requests')->where('public_id', $request['public_id'])->first();
+        $signature = sodium_crypto_sign_detached(
+            ProviderOwnerSignatureVerifier::canonicalMessage((array) $row),
+            $secretKey,
+        );
+        $service->authorizeOwner($request['public_id'], 1, 'provider-owner-test-key-v1', base64_encode($signature));
+        config([
+            'services.arna_provider_mutations.enabled' => true,
+            'services.arna_provider_mutations.sandbox_enabled' => true,
+        ]);
+
+        $result = app(ProviderOutboxWorker::class)->dispatch(10);
+
+        $this->assertSame(0, $adapter->executionCount);
+        $this->assertSame(1, $result['failed']);
+        $this->assertDatabaseHas('platform_provider_action_outbox', [
+            'payload_sha256' => $request['payload_sha256'],
+            'status' => 'failed',
+            'last_error_code' => 'provider_sandbox_not_certified',
+        ]);
+    }
+
     public function test_production_request_is_never_sent_to_provider_adapter_by_sandbox_worker(): void
     {
         [$service, $registry, $secretKey, $adapter] = $this->fixture();
