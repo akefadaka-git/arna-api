@@ -926,10 +926,10 @@ Route::get('/admin/platform/applications', [\App\Http\Controllers\Admin\Platform
     ->name('api.admin.platform.applications.index');
 
 // Platform-level audit and security oversight is read-only and excludes tenant-bound records.
-Route::get('/admin/platform/audit-logs', [\\App\\Http\\Controllers\\Admin\\PlatformAuditSecurityController::class, 'auditLogs'])
+Route::get('/admin/platform/audit-logs', [\App\Http\Controllers\Admin\PlatformAuditSecurityController::class, 'auditLogs'])
     ->middleware(['auth:sanctum', 'auth.permission:platform.audit.read'])
     ->name('api.admin.platform.audit-logs.index');
-Route::get('/admin/platform/security-events', [\\App\\Http\\Controllers\\Admin\\PlatformAuditSecurityController::class, 'securityEvents'])
+Route::get('/admin/platform/security-events', [\App\Http\Controllers\Admin\PlatformAuditSecurityController::class, 'securityEvents'])
     ->middleware(['auth:sanctum', 'auth.permission:platform.security.read'])
     ->name('api.admin.platform.security-events.index');
 
