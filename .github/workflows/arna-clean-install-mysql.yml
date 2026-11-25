@@ -570,6 +570,17 @@ jobs:
           MASES_ENABLE_DEMO_SEEDING: "true"
         run: php artisan migrate:fresh --seed --force -vvv
 
+      - name: Verify non-destructive baseline repeatability and grant preservation
+        env:
+          MASES_ENABLE_DEMO_SEEDING: "true"
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/ArnaBaselineSeederTest.php
+
       - name: Verify Organization tables after fresh migration and seed
         shell: bash
         run: |
