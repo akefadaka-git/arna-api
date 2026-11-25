@@ -2,7 +2,7 @@ name: ARNA clean-install MySQL verification
 
 on:
   push:
-    branches: [main, integration/**]
+    branches: [main, integration/**, feat/admin-a3-master-control-plane]
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # The Admin control-plane branch runs this exact-head MySQL gate for provider foundation migrations.
