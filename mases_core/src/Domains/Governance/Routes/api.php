@@ -408,7 +408,7 @@ Route::name('api.governance.')->group(static function (): void {
     Route::post('/motions/{motion}/open-voting', [GovernanceMeetingBusinessLifecycleController::class, 'openVoting'])
         ->whereNumber('motion')->middleware('auth.permission:governance.meeting.manage')->name('motions.voting.open');
     Route::post('/motions/{motion}/ballots', [GovernanceMeetingBusinessLifecycleController::class, 'castBallot'])
-        ->whereNumber('motion')->name('motions.ballots.store');
+        ->whereNumber('motion')->middleware('auth.permission:governance.meeting.view')->name('motions.ballots.store');
     Route::post('/motions/{motion}/close-voting', [GovernanceMeetingBusinessLifecycleController::class, 'closeVoting'])
         ->whereNumber('motion')->middleware('auth.permission:governance.meeting.manage')->name('motions.voting.close');
 
