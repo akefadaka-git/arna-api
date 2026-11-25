@@ -14,81 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * ShareClass
- *
- * Eloquent model for a share class issued by Maale Arna Share Company.
- *
- * =============================================================================
- * What this model represents
- * =============================================================================
- * A share class is a category of share capital with defined characteristics
- * (par value, currency, and — in future phases — rights and restrictions).
- * Phase 2A recognises exactly two classes:
- *
- *   FOUNDERS  (name_am = መስራች)  — held by the 29 founding shareholders.
- *   STANDARD  (name_am = መደበኛ)  — the default class for new shareholders.
- *
- * The set of valid codes is declared in
- * `Config/shareholder.php` under `share_classes.codes`. This model does not
- * hard-code the codes; it reads them from configuration so that a future
- * business decision to add or rename a class does not require editing the
- * model. Adding a code is still a Change Request, because it changes the
- * vocabulary of historical data.
- *
- * =============================================================================
- * What this model deliberately does NOT do
- * =============================================================================
- *   - It does not change ShareHolding balances. Balances are modified only
- *     by ShareHoldingService (2A.14), inside a database transaction, via
- *     append-only ShareHoldingEntry rows (D16-CORE).
- *
- *   - It does not enforce any lifecycle beyond `is_active`. Share classes
- *     are reference data; they are activated, deactivated, or soft-deleted.
- *
- *   - It does not provide display strings. Localized labels are resolved by
- *     the resource layer (2A.26) through translation keys of the form
- *     `shareholder.share_class.{code}`.
- *
- * =============================================================================
- * Amharic-first policy
- * =============================================================================
- * The `$fillable` array lists `name_am` before `name_en`, mirroring the
- * column order declared by the migration. The `display_name` accessor
- * resolves the value based on the active application locale, with Amharic
- * as the default and English as the fallback, and further falls back to
- * the canonical `code` when both name columns are null. This guarantees
- * that the accessor never returns an empty string in any locale.
- *
- * =============================================================================
- * Casts
- * =============================================================================
- * `par_value` is cast as `decimal:4`, which yields a STRING with four
- * decimal places (e.g. "10000.0000"). This is deliberate: monetary values
- * must not be handled as floats, because floats cannot represent all
- * decimal fractions exactly, and financial arithmetic requires decimal
- * semantics. Callers that need arithmetic MUST use bcmath or a decimal
- * value object on the string value, not PHP arithmetic operators.
- *
- * `is_active` and `is_treasury_eligible` are cast as booleans so that
- * consumers can branch on truthiness directly.
- *
- * =============================================================================
- * Soft deletes
- * =============================================================================
- * The model uses SoftDeletes. Share classes that are no longer active
- * remain in the database for historical reporting — a ShareHolding or
- * ShareCertificate may still reference a class that has been retired,
- * and that reference must remain resolvable.
- *
- * =============================================================================
- * Relations
- * =============================================================================
- *   shareHoldings()      — every holding that references this class.
- *   shareCertificates()  — every certificate issued under this class.
- *
- * Relations are declared with fully-qualified class references so that the
- * related model classes (2A.8, 2A.10) do not need to exist at file load
- * time. Eloquent resolves them lazily on first access.
+ * Share-class vocabulary is configuration-driven; this model does not change holding balances.
  *
  * @property int              $id
  * @property string           $code
@@ -101,9 +27,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property Carbon|null $deleted_at
- *
  * @property-read string      $display_name  Locale-aware display name.
- *
  * @package MaaleArna\MASES\Core\Domains\Shareholder\Models
  */
 final class ShareClass extends Model
