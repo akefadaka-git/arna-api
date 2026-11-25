@@ -35,6 +35,7 @@ final class GovernanceMeetingBusinessLifecycleTest extends TestCase
         ]);
 
         $manage = $this->createPermission('governance.meeting.manage');
+        $meetingView = $this->createPermission('governance.meeting.view');
         $approve = $this->createPermission('governance.meeting.approve');
         $bodyManage = $this->createPermission('governance.body.manage');
 
@@ -42,7 +43,7 @@ final class GovernanceMeetingBusinessLifecycleTest extends TestCase
         $this->reviewer = $this->createUser('ga-reviewer');
         foreach ([$this->admin, $this->reviewer] as $user) {
             $user->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
-            $user->permissions()->attach([$manage->id, $approve->id, $bodyManage->id]);
+            $user->permissions()->attach([$manage->id, $meetingView->id, $approve->id, $bodyManage->id]);
             $user->load('permissions');
         }
 
