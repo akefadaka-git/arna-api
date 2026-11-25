@@ -27,6 +27,10 @@ on:
       - "mases_core/src/Domains/Task/**"
       - "routes/api.php"
       - "tests/Feature/D08TaskManagementTest.php"
+      - "mases_core/src/Domains/Governance/**"
+      - "tests/Feature/GovernanceMeetingAttendanceTest.php"
+      - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingBusinessLifecycleTest.php"
+      - "tests/Unit/Governance/GovernanceMeetingLegalGateTest.php"
 
 permissions:
   contents: read
