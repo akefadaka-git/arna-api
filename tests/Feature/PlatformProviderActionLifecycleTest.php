@@ -167,6 +167,24 @@ final class PlatformProviderActionLifecycleTest extends TestCase
         }
     }
 
+    public function test_sandbox_gate_requires_both_global_and_sandbox_flags_and_rejects_production(): void
+    {
+        $gate = app(\\App\\Services\\Admin\\Providers\\ProviderMutationGate::class);
+        config([
+            'services.arna_provider_mutations.enabled' => false,
+            'services.arna_provider_mutations.sandbox_enabled' => true,
+        ]);
+        $this->assertFalse($gate->sandboxEnabled());
+
+        config([
+            'services.arna_provider_mutations.enabled' => true,
+            'services.arna_provider_mutations.sandbox_enabled' => true,
+        ]);
+        $this->assertTrue($gate->sandboxEnabled());
+        $this->expectException(RuntimeException::class);
+        $gate->assertSandboxEnabled('production');
+    }
+
     public function test_provider_worker_refuses_to_run_when_sandbox_gate_is_off(): void
     {
         [, $registry] = $this->fixture();
