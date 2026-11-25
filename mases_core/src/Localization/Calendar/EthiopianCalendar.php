@@ -10,65 +10,14 @@ use DateTimeZone;
 use InvalidArgumentException;
 
 /**
- * EthiopianCalendar
- *
- * Central, immutable service for Ethiopian calendar operations in the MASES
- * platform. Provides:
- *
- *   1. Ethiopian ↔ Gregorian date conversion (via Julian Day Number).
- *   2. Ethiopian leap-year rules, Pagume handling, and validation.
- *   3. Localized month/day names in Amharic and English.
- *   4. Token-based date formatting analogous to PHP's date().
- *   5. Ethiopian local time conversion (6-hour offset).
- *   6. Time-of-day phrases (ከጠዋቱ, ከሰዓት, ምሽቱ …).
- *   7. Date arithmetic (add/diff/isWeekend/getWeekday).
- *   8. Ethiopian fiscal-year and quarter ranges.
- *   9. Business-day calculations with holiday awareness.
- *  10. Full catalog of Ethiopian public and religious holidays.
- *  11. Countdown utilities for holidays and key events.
- *  12. Maale New Year anniversary metadata.
- *
- * -----------------------------------------------------------------------------
- * Ethiopian Calendar Structure
- * -----------------------------------------------------------------------------
- *   - Months 1–12: 30 days each
- *   - Month 13 (Pagume): 5 days common year / 6 days leap year
- *   - Ethiopian leap-year rule (for Pagume): (year % 4) === 3
- *   - Ethiopian Christmas rule (for Tahsas 28/29): (year % 4) === 0
- *     — because Leddet is fixed on Gregorian 7 January and the Ethiopian
- *       New Year shifts by one day in the Ethiopian year that follows a
- *       leap year.
- *
- * -----------------------------------------------------------------------------
- * Conversion Strategy
- * -----------------------------------------------------------------------------
- * All conversions use the Julian Day Number (JDN) as an intermediate
- * representation:
- *
- *     Ethiopian  →  JDN  →  Gregorian
- *     Gregorian  →  JDN  →  Ethiopian
- *
- * The Ethiopian epoch (1 Meskerem 1 EC) is JDN 1724221, corresponding to
- * 29 August 8 CE (Julian) / 27 August 8 CE (proleptic Gregorian).
- *
- * -----------------------------------------------------------------------------
- * Timezone & Gregorian Input
- * -----------------------------------------------------------------------------
- * Gregorian `DateTimeInterface` inputs are first localized to the configured
- * display timezone (default `Africa/Addis_Ababa`) before the calendar day is
- * computed. This ensures the Ethiopian day reflects the user's local day,
- * not the UTC day.
- *
- * All Ethiopian dates returned as `DateTimeImmutable` are also in the
- * configured display timezone.
- *
- * @package MaaleArna\MASES\Core\Localization\Calendar
+ * Immutable Ethiopian calendar service.
+ * Uses Julian Day Number conversion, Ethiopian leap-year/Pagume rules and
+ * configured Addis Ababa-local date handling. Includes localization,
+ * date arithmetic, fiscal periods, business days and holiday utilities.
  */
 final class EthiopianCalendar
 {
-    // =========================================================================
     // Constants – Epoch and Calendar Names
-    // =========================================================================
 
     /**
      * Julian Day Number of the Ethiopian epoch (1 Meskerem 1 EC).
@@ -212,10 +161,7 @@ final class EthiopianCalendar
      * @var array<int, int>
      */
     private const WEEKEND_DAYS = [5, 6];
-
-    // =========================================================================
     // Instance State
-    // =========================================================================
 
     /**
      * Display timezone used for all conversions.
@@ -244,10 +190,7 @@ final class EthiopianCalendar
     {
         return $this->timezone;
     }
-
-    // =========================================================================
     // Section 1 — Leap Year, Days-in-Month/Year, Validation
-    // =========================================================================
 
     /**
      * Determine whether the given Ethiopian year is a leap year
@@ -361,10 +304,7 @@ final class EthiopianCalendar
             );
         }
     }
-
-    // =========================================================================
     // Section 2 — JDN Conversions
-    // =========================================================================
 
     /**
      * Convert an Ethiopian date to a Julian Day Number.
@@ -485,10 +425,7 @@ final class EthiopianCalendar
 
         return ['year' => $year, 'month' => $month, 'day' => $day];
     }
-
-    // =========================================================================
     // Section 3 — Cross-Calendar Conversion
-    // =========================================================================
 
     /**
      * Convert a Gregorian DateTime to an Ethiopian date.
@@ -557,10 +494,7 @@ final class EthiopianCalendar
     {
         return $this->toEthiopian(new DateTimeImmutable('now', $this->timezone));
     }
-
-    // =========================================================================
     // Section 4 — Name Lookups
-    // =========================================================================
 
     /**
      * Get the localized name of the Ethiopian month.
@@ -607,10 +541,7 @@ final class EthiopianCalendar
             ? self::DAY_NAMES_EN[$dayOfWeek]
             : self::DAY_NAMES_AM[$dayOfWeek];
     }
-
-    // =========================================================================
     // Section 5 — Formatting
-    // =========================================================================
 
     /**
      * Format a Gregorian DateTime using Ethiopian calendar components.
@@ -743,10 +674,7 @@ final class EthiopianCalendar
             $this->formatFull($end[0], $end[1], $end[2], $this->getWeekday($end[0], $end[1], $end[2]), $locale)
         );
     }
-
-    // =========================================================================
     // Section 6 — Ethiopian Local Time (6-hour offset)
-    // =========================================================================
 
     /**
      * Convert a Gregorian DateTime to Ethiopian local time.
@@ -808,10 +736,7 @@ final class EthiopianCalendar
 
         return 'ሰዓት';
     }
-
-    // =========================================================================
     // Section 7 — Date Arithmetic
-    // =========================================================================
 
     /**
      * Add a number of days to an Ethiopian date.
@@ -877,10 +802,7 @@ final class EthiopianCalendar
     {
         return in_array($this->getWeekday($year, $month, $day), self::WEEKEND_DAYS, true);
     }
-
-    // =========================================================================
     // Section 8 — Fiscal Year & Quarters
-    // =========================================================================
 
     /**
      * Get the Ethiopian fiscal year for a given Ethiopian date.
@@ -971,10 +893,7 @@ final class EthiopianCalendar
             'end'   => $this->toGregorian($ethiopianYear, 13, $lastPagumeDay),
         ];
     }
-
-    // =========================================================================
     // Section 9 — Business Days
-    // =========================================================================
 
     /**
      * Count business days between two Ethiopian dates (inclusive of both ends).
@@ -1064,10 +983,7 @@ final class EthiopianCalendar
 
         return ['year' => $year, 'month' => $month, 'day' => $day];
     }
-
-    // =========================================================================
     // Section 10 — Holidays
-    // =========================================================================
 
     /**
      * Get the full list of Ethiopian holidays for a given Ethiopian year.
@@ -1387,10 +1303,7 @@ final class EthiopianCalendar
 
         return $upcoming[0] ?? null;
     }
-
-    // =========================================================================
     // Section 11 — Countdowns
-    // =========================================================================
 
     /**
      * Compute a countdown from now to a target Ethiopian date.
@@ -1471,10 +1384,7 @@ final class EthiopianCalendar
             ['anniversary' => $holiday['anniversary']]
         );
     }
-
-    // =========================================================================
     // Section 12 — Maale New Year Anniversary
-    // =========================================================================
 
     /**
      * Get Maale New Year anniversary metadata for a given Ethiopian year.
@@ -1527,10 +1437,7 @@ final class EthiopianCalendar
             'name_en'             => 'Maale New Year',
         ];
     }
-
-    // =========================================================================
     // Private Helpers
-    // =========================================================================
 
     /**
      * Build a holiday array entry from raw components.
