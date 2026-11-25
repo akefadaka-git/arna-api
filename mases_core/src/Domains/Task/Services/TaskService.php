@@ -76,7 +76,19 @@ final class TaskService
                 ->orWhere('assigned_to_user_id', $actor->getKey()));
         }
 
-        return $query->firstOrFail();
+        $task = $query->firstOrFail();
+        $dependencies = $task->dependencies()->wherePivot('tenant_id', $tenantId)
+            ->where('tasks.tenant_id', $tenantId);
+
+        if (!$this->authorization->hasPermission('task.view_all', $actor, $tenantId)) {
+            $dependencies->where(fn (Builder $visible): Builder => $visible
+                ->where('tasks.created_by', $actor->getKey())
+                ->orWhere('tasks.assigned_to_user_id', $actor->getKey()));
+        }
+
+        $task->setRelation('dependencies', $dependencies->orderBy('tasks.due_on')->get());
+
+        return $task;
     }
 
     public function create(User $actor, array $data): Task
@@ -163,6 +175,30 @@ final class TaskService
                 throw new BadRequestHttpException('Progress can reach 100 percent only when a task is completed.');
             }
             $effectiveStatus = $changes['status'] ?? $task->status;
+            if ($effectiveStatus === 'completed' && $task->status !== 'completed') {
+                $hasIncompleteDependencies = DB::table('task_dependencies as td')
+                    ->join('tasks as dependency', 'dependency.id', '=', 'td.depends_on_task_id')
+                    ->where('td.tenant_id', $tenantId)
+                    ->where('td.task_id', $task->id)
+                    ->where('dependency.status', '!=', 'completed')
+                    ->exists();
+
+                if ($hasIncompleteDependencies) {
+                    throw new BadRequestHttpException('Complete all prerequisite tasks before completing this task.');
+                }
+            }
+            if ($task->status === 'completed' && $effectiveStatus === 'in_progress') {
+                $hasCompletedDependents = DB::table('task_dependencies as td')
+                    ->join('tasks as dependent', 'dependent.id', '=', 'td.task_id')
+                    ->where('td.tenant_id', $tenantId)
+                    ->where('td.depends_on_task_id', $task->id)
+                    ->where('dependent.status', 'completed')
+                    ->exists();
+
+                if ($hasCompletedDependents) {
+                    throw new BadRequestHttpException('A prerequisite cannot be reopened while a dependent task is completed.');
+                }
+            }
             if ($effectiveStatus === 'completed') {
                 if (isset($changes['progress_percent']) && (int) $changes['progress_percent'] !== 100) {
                     throw new BadRequestHttpException('A completed task must remain at 100 percent progress.');
@@ -188,6 +224,137 @@ final class TaskService
 
             return $task->refresh();
         });
+    }
+
+    public function addDependency(User $actor, string $id, array $data): Task
+    {
+        return DB::transaction(function () use ($actor, $id, $data): Task {
+            $tenantId = $this->tenantId();
+            $task = Task::query()->where('tenant_id', $tenantId)->whereKey($id)->lockForUpdate()->first();
+
+            if (!$task) {
+                throw new NotFoundHttpException('Task not found.');
+            }
+            if ((int) ($data['version'] ?? 0) !== (int) $task->version) {
+                throw new ConflictHttpException('Task version conflict; reload before retrying.');
+            }
+            $this->assertCanManage($actor, $task, $tenantId);
+            if (in_array($task->status, ['completed', 'cancelled'], true)) {
+                throw new BadRequestHttpException('Dependencies cannot be changed on a completed or cancelled task.');
+            }
+
+            $dependsOnId = (string) $data['depends_on_task_id'];
+            if ($dependsOnId === (string) $task->id) {
+                throw new BadRequestHttpException('A task cannot depend on itself.');
+            }
+
+            $dependency = Task::query()->where('tenant_id', $tenantId)->whereKey($dependsOnId)->first();
+            if (!$dependency || !$this->canViewTask($actor, $dependency, $tenantId)) {
+                throw new NotFoundHttpException('Task dependency not found.');
+            }
+            if ($dependency->status === 'cancelled') {
+                throw new BadRequestHttpException('A cancelled task cannot be used as a prerequisite.');
+            }
+            if (DB::table('task_dependencies')->where('tenant_id', $tenantId)
+                ->where('task_id', $task->id)->where('depends_on_task_id', $dependency->id)->exists()) {
+                throw new ConflictHttpException('This task dependency already exists.');
+            }
+            if ($this->wouldCreateDependencyCycle($tenantId, (string) $task->id, (string) $dependency->id)) {
+                throw new BadRequestHttpException('This dependency would create a task cycle.');
+            }
+
+            DB::table('task_dependencies')->insert([
+                'tenant_id' => $tenantId,
+                'task_id' => $task->id,
+                'depends_on_task_id' => $dependency->id,
+                'created_by' => $actor->getKey(),
+                'created_at' => now(),
+            ]);
+            $task->updated_by = $actor->getKey();
+            $task->version++;
+            $task->save();
+            $this->audit($task, $actor, 'dependency_added', [
+                'depends_on_task_id' => $dependency->id,
+            ]);
+
+            return $this->find($actor, $id);
+        });
+    }
+
+    public function removeDependency(User $actor, string $id, string $dependsOnId, int $version): Task
+    {
+        return DB::transaction(function () use ($actor, $id, $dependsOnId, $version): Task {
+            $tenantId = $this->tenantId();
+            $task = Task::query()->where('tenant_id', $tenantId)->whereKey($id)->lockForUpdate()->first();
+
+            if (!$task) {
+                throw new NotFoundHttpException('Task not found.');
+            }
+            if ($version !== (int) $task->version) {
+                throw new ConflictHttpException('Task version conflict; reload before retrying.');
+            }
+            $this->assertCanManage($actor, $task, $tenantId);
+            if (in_array($task->status, ['completed', 'cancelled'], true)) {
+                throw new BadRequestHttpException('Dependencies cannot be changed on a completed or cancelled task.');
+            }
+
+            $deleted = DB::table('task_dependencies')->where('tenant_id', $tenantId)
+                ->where('task_id', $task->id)->where('depends_on_task_id', $dependsOnId)->delete();
+
+            if ($deleted === 0) {
+                throw new NotFoundHttpException('Task dependency not found.');
+            }
+
+            $task->updated_by = $actor->getKey();
+            $task->version++;
+            $task->save();
+            $this->audit($task, $actor, 'dependency_removed', [
+                'depends_on_task_id' => $dependsOnId,
+            ]);
+
+            return $this->find($actor, $id);
+        });
+    }
+
+    private function assertCanManage(User $actor, Task $task, int|string $tenantId): void
+    {
+        if ((string) $task->created_by !== (string) $actor->getKey()
+            && !$this->authorization->hasPermission('task.assign', $actor, $tenantId)) {
+            throw new NotFoundHttpException('Task not found.');
+        }
+    }
+
+    private function canViewTask(User $actor, Task $task, int|string $tenantId): bool
+    {
+        return (string) $task->created_by === (string) $actor->getKey()
+            || (string) $task->assigned_to_user_id === (string) $actor->getKey()
+            || $this->authorization->hasPermission('task.view_all', $actor, $tenantId);
+    }
+
+    private function wouldCreateDependencyCycle(int|string $tenantId, string $taskId, string $dependsOnId): bool
+    {
+        $pending = [$dependsOnId];
+        $visited = [];
+
+        while ($pending !== []) {
+            $current = array_pop($pending);
+            if ($current === $taskId) {
+                return true;
+            }
+            if (isset($visited[$current])) {
+                continue;
+            }
+            $visited[$current] = true;
+            if (count($visited) > 1000) {
+                throw new BadRequestHttpException('The task dependency graph exceeds the supported validation depth.');
+            }
+
+            $next = DB::table('task_dependencies')->where('tenant_id', $tenantId)
+                ->where('task_id', $current)->pluck('depends_on_task_id')->map(fn ($value): string => (string) $value)->all();
+            array_push($pending, ...$next);
+        }
+
+        return false;
     }
 
     public function assign(User $actor, string $id, array $data): Task
