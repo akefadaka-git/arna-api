@@ -5,9 +5,9 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - "app/Http/Controllers/Admin/AdminAuditSecurityController.php"
+      - "app/Http/Controllers/Admin/AdminAuditSecurityController.php"\n      - "app/Http/Controllers/Admin/PlatformAuditSecurityController.php"
       - "routes/api.php"
-      - "tests/Feature/AdminAuditSecurityTest.php"
+      - "tests/Feature/AdminAuditSecurityTest.php"\n      - "tests/Feature/PlatformAuditSecurityReadTest.php"
       - "tests/Feature/CommunicationAnnouncementsTest.php"
       - "database/seeders/Data/PermissionCatalogue.php"
       - "mases_core/src/Audit/**"
@@ -63,7 +63,7 @@ jobs:
           composer install --prefer-dist --no-interaction --no-progress
       - name: PHP syntax lint
         run: |
-          php -l app/Http/Controllers/Admin/AdminAuditSecurityController.php
+          php -l app/Http/Controllers/Admin/AdminAuditSecurityController.php\n          php -l app/Http/Controllers/Admin/PlatformAuditSecurityController.php\n          php -l tests/Feature/PlatformAuditSecurityReadTest.php
           php -l tests/Feature/AdminAuditSecurityTest.php
           php -l routes/api.php
           php -l app/Contracts/Admin/Providers/ProviderAdapter.php
