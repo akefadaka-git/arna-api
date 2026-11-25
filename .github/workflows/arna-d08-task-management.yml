@@ -10,8 +10,11 @@ on:
       - "database/seeders/Data/RolePermissionGrants.php"
       - "database/seeders/PermissionSeeder.php"
       - "mases_core/src/Domains/Task/**"
+      - "mases_core/src/Calendar/**"
+      - "app/Providers/AppServiceProvider.php"
       - "routes/api.php"
       - "tests/Feature/D08TaskManagementTest.php"
+      - "tests/Feature/CalendarTaskLinkTest.php"
   pull_request:
     branches: [main]
     paths:
@@ -65,4 +68,4 @@ jobs:
           php -l routes/api.php
 
       - name: Run D08 Task Management feature tests
-        run: php artisan test --compact tests/Feature/D08TaskManagementTest.php
+        run: php artisan test --compact tests/Feature/D08TaskManagementTest.php tests/Feature/CalendarTaskLinkTest.php
