@@ -58,7 +58,6 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
             'legal_form' => $data['legal_form'], 'meeting_category' => $data['meeting_category'],
             'source_reference' => trim($data['source_reference']),
             'source_sha256' => strtolower($data['source_sha256']),
-            'rule_parameters' => isset($data['rule_parameters']) ? json_encode($data['rule_parameters'], JSON_THROW_ON_ERROR) : null,
             'status' => 'pending_review',
             'created_by' => (int) auth()->id(), 'created_at' => now(), 'updated_at' => now(),
         ]);
