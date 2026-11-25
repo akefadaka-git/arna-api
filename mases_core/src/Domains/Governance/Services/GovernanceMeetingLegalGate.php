@@ -44,6 +44,15 @@ final class GovernanceMeetingLegalGate
         if (($meeting['legal_basis_status'] ?? null) !== 'verified') {
             $missing[] = 'verified_operative_legal_basis';
         }
+        if (($meeting['external_review_status'] ?? null) !== 'verified') {
+            $missing[] = 'independent_ethiopian_counsel_review';
+        }
+        foreach (['external_counsel_name', 'external_counsel_firm', 'external_counsel_license_reference',
+            'external_opinion_reference', 'external_opinion_sha256', 'external_reviewed_at'] as $field) {
+            if (empty($meeting[$field])) {
+                $missing[] = $field;
+            }
+        }
         foreach (['legal_basis_reference', 'legal_basis_verified_at', 'legal_basis_verified_by'] as $field) {
             if (empty($meeting[$field])) {
                 $missing[] = $field;
