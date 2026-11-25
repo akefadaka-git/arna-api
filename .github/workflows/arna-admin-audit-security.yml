@@ -46,7 +46,7 @@ permissions:
 
 concurrency:
   group: arna-admin-audit-security-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   admin-audit-security:
