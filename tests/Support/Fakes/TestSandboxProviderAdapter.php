@@ -11,12 +11,15 @@ use App\Data\Admin\Providers\ProviderOperationPlan;
 final class TestSandboxProviderAdapter implements ProviderAdapter
 {
     public int $executionCount = 0;
+    public int $reconciliationCount = 0;
+    public bool $throwOnExecute = false;
+    public bool $idempotent = true;
 
     public function providerKey(): string { return 'sandbox_dns'; }
     public function adapterVersion(): string { return 'test-1.0.0'; }
     public function supportedOperations(): array
     {
-        return ['replace_zone' => ['risk_tier' => 'critical', 'resource_types' => ['dns_zone'], 'idempotent' => true]];
+        return ['replace_zone' => ['risk_tier' => 'critical', 'resource_types' => ['dns_zone'], 'idempotent' => $this->idempotent]];
     }
     public function plan(string $operation, string $resourceType, string $resourceIdentifier, array $payload): ProviderOperationPlan
     {
@@ -26,10 +29,14 @@ final class TestSandboxProviderAdapter implements ProviderAdapter
     public function execute(ProviderOperationPlan $approvedPlan, string $idempotencyKey): ProviderExecutionResult
     {
         $this->executionCount++;
+        if ($this->throwOnExecute) {
+            throw new \\RuntimeException('Synthetic network timeout after request dispatch.');
+        }
         return new ProviderExecutionResult('succeeded', 'synthetic-reference', 'Fake sandbox provider applied the operation.', ['sandbox' => true]);
     }
     public function reconcile(ProviderOperationPlan $approvedPlan, string $idempotencyKey): ProviderExecutionResult
     {
+        $this->reconciliationCount++;
         return new ProviderExecutionResult('not_applied', null, 'Synthetic provider confirms no state change.', ['sandbox' => true]);
     }
 }
