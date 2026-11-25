@@ -45,6 +45,22 @@ final class ShareholderImportSubmission extends Model
         'updated_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::updating(static function (self $submission): void {
+            if ($submission->isDirty([
+                'tenant_id',
+                'payload',
+                'source_references',
+                'row_count',
+                'payload_sha256',
+                'submitted_by',
+            ])) {
+                throw new \\LogicException('Submitted shareholder import payload and tenant provenance are immutable.');
+            }
+        });
+    }
+
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class, 'tenant_id');
