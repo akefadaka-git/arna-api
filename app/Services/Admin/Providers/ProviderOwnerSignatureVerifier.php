@@ -25,21 +25,16 @@ final class ProviderOwnerSignatureVerifier
             throw new RuntimeException('The dedicated ARNA provider Owner trust anchor is not configured or does not match.');
         }
 
-        $publicKeyPem = base64_decode($encodedPublicKey, true);
+        $publicKey = base64_decode($encodedPublicKey, true);
         $signature = base64_decode($signatureBase64, true);
 
-        if ($publicKeyPem === false || $signature === false || $signature === '') {
-            throw new RuntimeException('Owner signature encoding is invalid.');
-        }
-
-        $publicKey = openssl_pkey_get_public($publicKeyPem);
-        if ($publicKey === false) {
-            throw new RuntimeException('The dedicated ARNA provider Owner public key is invalid.');
+        if ($publicKey === false || strlen($publicKey) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES
+            || $signature === false || strlen($signature) !== SODIUM_CRYPTO_SIGN_BYTES) {
+            throw new RuntimeException('Owner Ed25519 signature or public-key encoding is invalid.');
         }
 
         $message = self::canonicalMessage($request);
-        $verified = openssl_verify($message, $signature, $publicKey, OPENSSL_ALGO_ED25519);
-        if ($verified !== 1) {
+        if (! sodium_crypto_sign_verify_detached($signature, $message, $publicKey)) {
             throw new RuntimeException('Owner signature verification failed for this provider action digest.');
         }
 
