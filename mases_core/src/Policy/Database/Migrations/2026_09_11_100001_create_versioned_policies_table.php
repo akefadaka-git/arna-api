@@ -2,58 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — Amendment 2 of 8
- * =============================================================================
- *
- * File:           2026_09_11_100001_create_versioned_policies_table.php
- * Unit:           P2.2 — immutable timestamp corrections (source amendment)
- * Delivery type:  Full replacement of an existing file
- * Net lines:      +1 line in up(); +~25 lines in docblock
- *
- * Before (original source):
- *   $table->timestamp('effective_from')
- *         ->comment('Instant from which this version is applicable (inclusive)');
- *
- *   Under the deployed server's `explicit_defaults_for_timestamp = OFF`,
- *   MySQL added `DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`
- *   implicitly. Verified in the DB dump. This was the highest-severity
- *   defect of the eight: `effective_from` is both the ordering key and
- *   the lower bound of the temporal-resolution query in
- *   VersionedPolicyRegistry::findApplicable(). Any UPDATE to a policy
- *   row — even one unrelated to the policy's semantics — would
- *   retroactively move the column and change which version resolves at
- *   every past moment.
- *
- * After (amended source):
- *   $table->dateTime('effective_from')
- *         ->comment('Instant from which this version is applicable (inclusive)');
- *
- *   DATETIME is immune to MySQL's implicit DEFAULT / ON UPDATE behavior
- *   in every server mode. A `migrate:fresh` on any server produces the
- *   corrected column directly, in the original migration's run, with no
- *   intermediate TIMESTAMP state and no ALTER anywhere in the sequence.
- *
- * Every other line — every column, comment, index name, and the
- * composite UNIQUE — is byte-for-byte identical to the source.
- *
- * Other TIMESTAMP columns on this table, NOT amended:
- *   · effective_until — declared ->nullable()->timestamp(...), already
- *     applied as `timestamp NULL DEFAULT NULL`. Nullable TIMESTAMP
- *     columns are never given the ON UPDATE clause; no defect exists.
- *   · created_at      — declared ->nullable()->timestamp(...), already
- *     applied as `timestamp NULL DEFAULT NULL`. Same reasoning. The
- *     existing docblock §"created_at is nullable" documents why the
- *     column was made nullable in the first place.
- *
- * Files modified:            this file only
- * Files added:               none
- * Files deleted:             none
- * Migration filename:        unchanged
- * Migration timestamp:       unchanged
- * =============================================================================
- */
+
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
