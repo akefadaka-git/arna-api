@@ -6,6 +6,7 @@ namespace Tests\Support\Fakes;
 
 use App\Contracts\Admin\Providers\ProviderAdapter;
 use App\Data\Admin\Providers\ProviderExecutionResult;
+use App\Data\Admin\Providers\ProviderSandboxCertificationResult;
 use App\Data\Admin\Providers\ProviderOperationPlan;
 
 final class TestSandboxProviderAdapter implements ProviderAdapter
@@ -26,6 +27,15 @@ final class TestSandboxProviderAdapter implements ProviderAdapter
         return new ProviderOperationPlan($this->providerKey(), $this->adapterVersion(), $operation, $resourceType, $resourceIdentifier, $payload, 'critical');
     }
     public function observe(string $resourceType, string $resourceIdentifier): array { return ['status' => 'synthetic']; }
+    public function certifySandbox(): ProviderSandboxCertificationResult
+    {
+        return new ProviderSandboxCertificationResult(true, $this->adapterVersion(), 'synthetic-test-fixture', [
+            ['name' => 'sandbox_endpoint_isolated', 'status' => 'passed', 'summary' => 'Adapter targets the synthetic sandbox endpoint.'],
+            ['name' => 'idempotency_supported', 'status' => 'passed', 'summary' => 'Repeated request key is stable.'],
+            ['name' => 'reconciliation_available', 'status' => 'passed', 'summary' => 'Read-only reconciliation returns provider state.'],
+            ['name' => 'synthetic_cleanup', 'status' => 'passed', 'summary' => 'Synthetic resources are cleaned up.'],
+        ]);
+    }
     public function execute(ProviderOperationPlan $approvedPlan, string $idempotencyKey): ProviderExecutionResult
     {
         $this->executionCount++;
