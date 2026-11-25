@@ -62,6 +62,15 @@ final class GovernanceMeetingLifecycleController extends Controller
         return (int) $basis->id;
     }
 
+    private function activity(int $tenantId, int $meetingId, string $action, array $payload): void
+    {
+        DB::table('governance_meeting_activity')->insert([
+            'tenant_id' => $tenantId, 'meeting_id' => $meetingId,
+            'actor_id' => (int) auth()->id(), 'action' => $action,
+            'payload' => json_encode($payload, JSON_THROW_ON_ERROR), 'occurred_at' => now(),
+        ]);
+    }
+
     public function store(Request $request, int $meeting, string $action): JsonResponse
     {
         if (!in_array($action, self::ACTIONS, true)) {
@@ -87,6 +96,7 @@ final class GovernanceMeetingLifecycleController extends Controller
             'status' => 'pending_review', 'submitted_by' => (int) auth()->id(),
             'created_at' => now(), 'updated_at' => now(),
         ]);
+        $this->activity($tenantId, $meeting, 'meeting.lifecycle_attestation.submitted', ['attestation_id' => $id, 'action' => $action]);
         return response()->json([
             'success' => true,
             'data' => DB::table('governance_meeting_lifecycle_attestations')
@@ -121,6 +131,7 @@ final class GovernanceMeetingLifecycleController extends Controller
         if ($updated !== 1) {
             throw new ConflictHttpException('Lifecycle attestation was concurrently reviewed.');
         }
+        $this->activity($tenantId, (int) $record->meeting_id, 'meeting.lifecycle_attestation.reviewed', ['attestation_id' => $attestation, 'action' => $record->action, 'decision' => $data['decision']]);
         return response()->json([
             'success' => true,
             'data' => DB::table('governance_meeting_lifecycle_attestations')
