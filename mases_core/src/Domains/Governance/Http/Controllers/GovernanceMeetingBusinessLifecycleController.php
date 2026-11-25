@@ -584,13 +584,25 @@ final class GovernanceMeetingBusinessLifecycleController extends Controller
         } elseif (!$shareholder || $actor !== (int) ($shareholder->user_id ?? $shareholder->representative_user_id ?? 0)) {
             throw new ConflictHttpException('Authenticated actor is not the shareholder or its registered representative.');
         }
-        $id = DB::table('governance_meeting_ballots')->insertGetId([
-            'tenant_id' => $tenantId, 'meeting_id' => $row->meeting_id, 'motion_id' => $motion,
-            'shareholder_id' => $data['shareholder_id'], 'cast_by' => $actor,
-            'choice' => $data['choice'], 'voting_power' => number_format((float) $power, 4, '.', ''),
-            'cast_at' => now(), 'created_at' => now(), 'updated_at' => now(),
-        ]);
-        $this->activity($tenantId, (int) $row->meeting_id, 'meeting.ballot.cast', ['motion_id' => $motion, 'ballot_id' => $id]);
+        $id = DB::transaction(function () use ($tenantId, $row, $motion, $data, $actor, $power): int {
+            $lockedMotion = DB::table('governance_meeting_motions')->where('tenant_id', $tenantId)
+                ->where('id', $motion)->lockForUpdate()->first();
+            if (!$lockedMotion || $lockedMotion->status !== 'voting_open') {
+                throw new ConflictHttpException('Voting closed before the ballot could be recorded.');
+            }
+            if (DB::table('governance_meeting_ballots')->where('tenant_id', $tenantId)
+                ->where('motion_id', $motion)->where('shareholder_id', $data['shareholder_id'])->exists()) {
+                throw new ConflictHttpException('This shareholder has already cast a ballot for this motion.');
+            }
+            $ballotId = DB::table('governance_meeting_ballots')->insertGetId([
+                'tenant_id' => $tenantId, 'meeting_id' => $row->meeting_id, 'motion_id' => $motion,
+                'shareholder_id' => $data['shareholder_id'], 'cast_by' => $actor,
+                'choice' => $data['choice'], 'voting_power' => number_format((float) $power, 4, '.', ''),
+                'cast_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->activity($tenantId, (int) $row->meeting_id, 'meeting.ballot.cast', ['motion_id' => $motion, 'ballot_id' => $ballotId]);
+            return $ballotId;
+        });
         return response()->json(['success' => true, 'data' => ['id' => $id, 'choice' => $data['choice'], 'voting_power' => number_format((float) $power, 4, '.', '')]], 201);
     }
 
