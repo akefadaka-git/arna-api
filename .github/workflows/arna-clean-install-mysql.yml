@@ -24,6 +24,8 @@ on:
       - "mases_core/src/Migrations/**"
       - "tests/Feature/Calendar*.php"
       - "tests/Feature/D08TaskManagementTest.php"
+      - "tests/Feature/CalendarTaskLinkTest.php"
+      - "app/Providers/AppServiceProvider.php"
       - "tests/Unit/CalendarPermissionCatalogueTest.php"
       - "tests/Unit/EthiopianCalendarTest.php"
       - "bootstrap/providers.php"
