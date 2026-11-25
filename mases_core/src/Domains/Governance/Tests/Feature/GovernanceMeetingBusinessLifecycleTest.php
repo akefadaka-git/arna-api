@@ -240,7 +240,7 @@ final class GovernanceMeetingBusinessLifecycleTest extends TestCase
             ['notice', 'notice_rule', ['notice_period_days' => 30]],
             ['quorum', 'quorum_rule', ['threshold_numerator' => 1, 'threshold_denominator' => 2, 'basis' => 'shares']],
             ['quorum', 'meeting_category_rule', []],
-            ['voting', 'voting_rights_rule', ['votes_per_share_by_class' => ['STANDARD' => 1]]],
+            ['voting', 'voting_rights_rule', ['votes_per_share_by_class' => ['STANDARD' => 1], 'ballot_mode' => 'open']],
             ['voting', 'share_register_basis', []],
             ['resolution', 'resolution_approval_rule', ['threshold_numerator' => 1, 'threshold_denominator' => 2, 'basis' => 'votes_cast']],
             ['minutes', 'minutes_approval_rule', []],
