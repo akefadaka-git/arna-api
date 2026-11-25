@@ -28,6 +28,15 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
         return $tenantId;
     }
 
+    private function activity(int $tenantId, int $meetingId, string $action, array $payload): void
+    {
+        DB::table('governance_meeting_activity')->insert([
+            'tenant_id' => $tenantId, 'meeting_id' => $meetingId,
+            'actor_id' => (int) auth()->id(), 'action' => $action,
+            'payload' => json_encode($payload, JSON_THROW_ON_ERROR), 'occurred_at' => now(),
+        ]);
+    }
+
     public function storeBasis(Request $request, int $meeting): JsonResponse
     {
         $data = $request->validate([
@@ -51,6 +60,7 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
             'source_sha256' => strtolower($data['source_sha256']), 'status' => 'pending_review',
             'created_by' => (int) auth()->id(), 'created_at' => now(), 'updated_at' => now(),
         ]);
+        $this->activity($tenantId, $meeting, 'meeting.legal_basis.submitted', ['legal_basis_id' => $id]);
         return response()->json(['success' => true, 'data' => DB::table('governance_meeting_legal_bases')->where('tenant_id', $tenantId)->find($id)], 201);
     }
 
@@ -91,6 +101,7 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
             'source_sha256' => strtolower($data['source_sha256']), 'status' => 'pending_review',
             'created_by' => (int) auth()->id(), 'created_at' => now(), 'updated_at' => now(),
         ]);
+        $this->activity($tenantId, (int) $basis->meeting_id, 'meeting.legal_evidence.submitted', ['legal_basis_id' => $legalBasis, 'evidence_id' => $id, 'action' => $data['action']]);
         return response()->json(['success' => true, 'data' => DB::table('governance_meeting_legal_evidence')->where('tenant_id', $tenantId)->find($id)], 201);
     }
 
@@ -112,6 +123,7 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
             'status' => $data['decision'], 'verified_by' => (int) auth()->id(),
             'verified_at' => now(), 'review_reason' => $data['reason'], 'updated_at' => now(),
         ]);
+        $this->activity($tenantId, (int) $basis->meeting_id, 'meeting.legal_basis.reviewed', ['legal_basis_id' => $legalBasis, 'decision' => $data['decision']]);
         return response()->json(['success' => true, 'data' => DB::table('governance_meeting_legal_bases')->where('tenant_id', $tenantId)->find($legalBasis)]);
     }
 
@@ -133,6 +145,8 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
             'status' => $data['decision'], 'approved_by' => (int) auth()->id(),
             'approved_at' => now(), 'review_reason' => $data['reason'], 'updated_at' => now(),
         ]);
+        $basis = DB::table('governance_meeting_legal_bases')->where('tenant_id', $tenantId)->where('id', $record->legal_basis_id)->first();
+        $this->activity($tenantId, (int) $basis->meeting_id, 'meeting.legal_evidence.reviewed', ['evidence_id' => $evidence, 'decision' => $data['decision']]);
         return response()->json(['success' => true, 'data' => DB::table('governance_meeting_legal_evidence')->where('tenant_id', $tenantId)->find($evidence)]);
     }
 }
