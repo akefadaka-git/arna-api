@@ -17,71 +17,7 @@ use Tests\TestCase;
  * Comprehensive unit test suite for the EthiopianCalendar service.
  *
  * =============================================================================
- * Revision history
- * =============================================================================
- * 1.0.0  — initial delivery.
- *
- * 1.1.0  — CR-3 corrections. Two assertions fixed. No production code touched.
- *
- *          (a) format_handles_escaped_characters — assertion corrected.
- *
- *              The test's inline comment states the intent:
- *
- *                  // "Y" is a token, but "\Y" should output literal "Y".
- *
- *              The production contract (EthiopianCalendar::format() docblock:
- *              "Backslash (\) escapes the next character") matches this. The
- *              method, on encountering a backslash, sets an escape flag and
- *              then emits the next character verbatim, dropping the backslash
- *              itself. That is also the standard PHP date() semantic.
- *
- *              The prior assertion expected `'2016 \Y'` — a seven-character
- *              PHP single-quoted string containing a literal backslash
- *              between the space and the 'Y'. That expectation contradicts
- *              both the comment above it and the production contract.
- *
- *              The corrected assertion expects `'2016 Y'` — six characters,
- *              no backslash — which is the value the contract requires and
- *              which the production code already produces.
- *
- *          (b) get_upcoming_holidays_returns_sorted_list — assertion order
- *              corrected.
- *
- *              Test name says "sorted list". Lines 898–900 assert that
- *              $upcoming[0] is `enkutatash` with `days_until = 0` — the
- *              smallest possible value, which establishes that the list is
- *              ascending.
- *
- *              PHPUnit's assertLessThanOrEqual($expected, $actual) asserts
- *              `$actual <= $expected`. The prior line therefore asserted
- *              `$upcoming[2]['days_until'] <= $upcoming[1]['days_until']`,
- *              i.e. `88 <= 16`, which is false. The arguments were reversed.
- *
- *              The corrected line asserts `$upcoming[1]['days_until']
- *              <= $upcoming[2]['days_until']`, i.e. `16 <= 88`, which
- *              matches the test's name and the two prior assertions.
- *
- *              Production code (EthiopianCalendar::getUpcomingHolidays())
- *              ends with usort() in ascending order and is correct. Only the
- *              assertion was wrong.
- *
- * Verified against known reference data:
- *   - Wikipedia Ethiopian calendar article (epoch and modern conversion).
- *   - Ethiopian Orthodox Church calendar for Fasika (Easter) 2023–2025.
- *   - Ethiopian Christmas (Leddet) always on Gregorian 7 January.
- *
- * Coverage:
- *   1. Leap-year rule (Pagume) and Leddet leap-year rule.
- *   2. Days in month/year, validation.
- *   3. JDN round-trips and known conversion vectors.
- *   4. Localized names, formatting (tokens, ISO, full, ranges).
- *   5. Ethiopian local time and time-of-day phrases.
- *   6. Date arithmetic (addDays, diffInDays, weekday, weekend).
- *   7. Fiscal year and quarters.
- *   8. Business days (with holidays).
- *   9. Every holiday: date, type, and known real-world verification.
- *  10. Countdowns and Maale New Year anniversary.
- *
+ * Tests Ethiopian calendar conversion, formatting and boundary behavior.
  * @package Tests\Unit
  * @version 1.1.0
  */
