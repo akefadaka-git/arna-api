@@ -86,9 +86,9 @@ final class ProviderOutboxWorker
     {
         $outbox = (object) $claim['outbox'];
         $request = DB::table('platform_provider_action_requests')->where('id', $outbox->request_id)->first();
-        if ($request === null || $request->status !== 'approved'
+        if ($request === null || ! in_array($request->status, ['approved', 'reconciliation_required'], true)
             || $request->environment !== 'sandbox'
-            || now()->greaterThanOrEqualTo($request->expires_at)
+            || (!(($claim['lease_recovery'] ?? false) || $outbox->status === 'reconciliation_required') && now()->greaterThanOrEqualTo($request->expires_at))
             || ! hash_equals((string) $outbox->payload_sha256, (string) $request->payload_sha256)) {
             $this->finish($claim, 'failed', 'request_not_executable', null);
             return 'failed';
@@ -199,7 +199,7 @@ final class ProviderOutboxWorker
                     'status' => $status,
                     'last_error_code' => $errorCode,
                     'sanitized_result' => $sanitized,
-                    'available_at' => $makeAvailable ? now()->addSeconds(5) : null,
+                    'available_at' => $makeAvailable ? now()->addSeconds(5) : ($status === 'reconciliation_required' ? now()->addSeconds(60) : null),
                     'lease_token' => null,
                     'lease_expires_at' => null,
                     'reconciled_at' => in_array($status, ['succeeded', 'reconciliation_required'], true) ? now() : null,
