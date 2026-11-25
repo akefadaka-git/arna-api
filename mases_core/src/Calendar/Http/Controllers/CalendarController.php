@@ -183,6 +183,84 @@ final class CalendarController
         return response()->json(['success' => true, 'data' => $this->calendar->updateEvent($request->user(), $id, $data)]);
     }
 
+    public function appointments(Request $request): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->appointments($request->user()),
+        ]);
+    }
+
+    public function appointmentAvailability(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'calendar_id' => ['required', 'uuid'],
+            'appointment_scope' => ['sometimes', 'in:personal,corporate'],
+            'host_user_id' => ['required', 'integer', 'min:1'],
+            'attendee_user_ids' => ['sometimes', 'array', 'max:50'],
+            'attendee_user_ids.*' => ['integer', 'distinct'],
+            'resource_ids' => ['sometimes', 'array', 'max:20'],
+            'resource_ids.*' => ['uuid', 'distinct'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'timezone' => ['sometimes', 'timezone'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->appointmentAvailability($request->user(), $data),
+        ]);
+    }
+
+    public function bookAppointment(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'calendar_id' => ['required', 'uuid'],
+            'appointment_scope' => ['sometimes', 'in:personal,corporate'],
+            'host_user_id' => ['required', 'integer', 'min:1'],
+            'title' => ['required', 'string', 'max:240'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:20000'],
+            'attendee_user_ids' => ['sometimes', 'array', 'max:50'],
+            'attendee_user_ids.*' => ['integer', 'distinct'],
+            'resource_ids' => ['sometimes', 'array', 'max:20'],
+            'resource_ids.*' => ['uuid', 'distinct'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'timezone' => ['sometimes', 'timezone'],
+            'reminders' => ['sometimes', 'array', 'max:10'],
+            'reminders.*' => ['integer', 'min:1', 'max:10080', 'distinct'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->bookAppointment($request->user(), $data),
+        ], 201);
+    }
+
+    public function confirmAppointment(Request $request, string $id): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->confirmAppointment($request->user(), $id),
+        ]);
+    }
+
+    public function declineAppointment(Request $request, string $id): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->declineAppointment($request->user(), $id),
+        ]);
+    }
+
+    public function cancelAppointment(Request $request, string $id): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->cancelAppointment($request->user(), $id),
+        ]);
+    }
+
     public function resources(): JsonResponse { return response()->json(['success' => true, 'data' => $this->calendar->resources()]); }
 
     public function storeResource(Request $request): JsonResponse
