@@ -67,6 +67,7 @@ on:
       - "app/Http/Controllers/Admin/PlatformProviderActionsController.php"
       - "app/Console/Commands/DispatchProviderOutbox.php"
       - "tests/Feature/PlatformProviderActionLifecycleTest.php"
+      - "tests/Support/Fakes/**"
       - "tests/Unit/PlatformProviderArchitectureTest.php"
       - "config/services.php"
       - "tests/Unit/AdminPlatformPermissionCatalogueTest.php"
