@@ -16,7 +16,7 @@ use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
 final class PermissionSeeder extends Seeder
 {
     /**
-     * Upsert the 60 permissions and return the map of persisted
+     * Upsert the platform permission catalogue and return the map of persisted
      * models, keyed by slug.
      *
      * Idempotent: running repeatedly against a database that already
