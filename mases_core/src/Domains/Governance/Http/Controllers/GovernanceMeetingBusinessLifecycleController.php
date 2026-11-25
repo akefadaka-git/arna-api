@@ -124,6 +124,49 @@ final class GovernanceMeetingBusinessLifecycleController extends Controller
         }
     }
 
+    public function showBusinessLifecycle(int $meeting): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $this->meeting($tenantId, $meeting);
+
+        $notices = DB::table('governance_meeting_notices')->where('tenant_id', $tenantId)
+            ->where('meeting_id', $meeting)->orderBy('revision')->get();
+        $delivery = DB::table('governance_meeting_notice_recipients')
+            ->where('tenant_id', $tenantId)->whereIn('notice_id', $notices->pluck('id'))
+            ->selectRaw('notice_id, status, COUNT(*) as total')->groupBy('notice_id', 'status')->get()
+            ->groupBy('notice_id');
+        foreach ($notices as $notice) {
+            $notice->delivery_summary = $delivery->get($notice->id, collect())->values();
+        }
+
+        $snapshots = DB::table('governance_meeting_electorate_snapshots')->where('tenant_id', $tenantId)
+            ->where('meeting_id', $meeting)->orderBy('revision')->get();
+        foreach ($snapshots as $snapshot) {
+            $snapshot->member_count = DB::table('governance_meeting_electorate_members')
+                ->where('tenant_id', $tenantId)->where('snapshot_id', $snapshot->id)->distinct('shareholder_id')->count('shareholder_id');
+        }
+
+        $motions = DB::table('governance_meeting_motions')->where('tenant_id', $tenantId)
+            ->where('meeting_id', $meeting)->orderBy('motion_number')->get();
+        foreach ($motions as $motion) {
+            // Return only aggregate tallies; never expose an individual shareholder's ballot choice here.
+            $motion->ballot_tally = DB::table('governance_meeting_ballots')
+                ->where('tenant_id', $tenantId)->where('motion_id', $motion->id)
+                ->selectRaw('choice, COUNT(*) as ballot_count, SUM(voting_power) as voting_power')
+                ->groupBy('choice')->get();
+        }
+
+        return response()->json(['success' => true, 'data' => [
+            'notices' => $notices,
+            'agenda_items' => DB::table('governance_meeting_agenda_items')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('sort_order')->get(),
+            'electorate_snapshots' => $snapshots,
+            'quorum_assessments' => DB::table('governance_meeting_quorum_assessments')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get(),
+            'motions' => $motions,
+            'resolutions' => DB::table('governance_meeting_resolutions')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get(),
+            'minutes' => DB::table('governance_meeting_minutes')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('version')->get(),
+        ]]);
+    }
+
     public function createNotice(Request $request, int $meeting): JsonResponse
     {
         $data = $request->validate([
@@ -476,7 +519,10 @@ final class GovernanceMeetingBusinessLifecycleController extends Controller
         if (!$row) {
             throw new NotFoundHttpException('Motion was not found.');
         }
-        $this->verifiedEvidence($tenantId, (int) $row->meeting_id, 'voting', 'voting_rights_rule');
+        $votingRule = $this->verifiedEvidence($tenantId, (int) $row->meeting_id, 'voting', 'voting_rights_rule')['parameters'];
+        if (($votingRule['ballot_mode'] ?? null) !== 'open') {
+            throw new ConflictHttpException('Only explicitly verified open-ballot voting is supported; secret ballots require a separate protected ballot design.');
+        }
         $latestSnapshot = DB::table('governance_meeting_electorate_snapshots')->where('tenant_id', $tenantId)
             ->where('meeting_id', $row->meeting_id)->where('status', 'verified')->orderByDesc('revision')->first();
         $quorum = DB::table('governance_meeting_quorum_assessments')->where('tenant_id', $tenantId)
