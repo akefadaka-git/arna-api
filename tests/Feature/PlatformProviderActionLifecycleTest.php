@@ -90,7 +90,7 @@ final class PlatformProviderActionLifecycleTest extends TestCase
         ]);
         $this->assertDatabaseHas('platform_provider_action_outbox', [
             'status' => 'succeeded',
-            'idempotency_key' => 'arna-provider:' . $request['public_id'] . ':' . $request['payload_sha256'],
+            'idempotency_key' => 'arna-provider:' . hash('sha256', $request['public_id'] . ':' . $request['payload_sha256']),
         ]);
     }
 
