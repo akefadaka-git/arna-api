@@ -17,6 +17,13 @@ final class GovernanceMeetingLegalGateTest extends TestCase
             'legal_basis_status' => 'verified', 'legal_basis_reference' => 'authenticated:company-instrument',
             'legal_basis_verified_at' => '2026-11-25T08:00:00Z',
             'legal_basis_verified_by' => 22, 'created_by' => 11,
+            'external_review_status' => 'verified',
+            'external_counsel_name' => 'Independent Ethiopian Counsel',
+            'external_counsel_firm' => 'Test Legal Chambers',
+            'external_counsel_license_reference' => 'TEST-LICENSE-001',
+            'external_opinion_reference' => 'test:external-opinion',
+            'external_opinion_sha256' => str_repeat('d', 64),
+            'external_reviewed_at' => '2026-11-25T08:00:00Z',
         ];
     }
 
@@ -63,6 +70,15 @@ final class GovernanceMeetingLegalGateTest extends TestCase
     {
         $result = (new GovernanceMeetingLegalGate())->evaluate('minutes', $this->meeting(), $this->evidence());
         self::assertSame(['allowed' => true, 'code' => 'LEGAL_BASIS_VERIFIED', 'missing' => []], $result);
+    }
+
+    public function test_blocks_missing_independent_ethiopian_counsel_review(): void
+    {
+        $meeting = $this->meeting();
+        $meeting['external_review_status'] = 'pending';
+        $result = (new GovernanceMeetingLegalGate())->evaluate('notice', $meeting, $this->evidence());
+        self::assertFalse($result['allowed']);
+        self::assertContains('independent_ethiopian_counsel_review', $result['missing']);
     }
 
     public function test_blocks_unknown_action(): void
