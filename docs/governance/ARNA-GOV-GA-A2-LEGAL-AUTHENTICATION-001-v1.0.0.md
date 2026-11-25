@@ -89,3 +89,29 @@ An independent Ethiopian corporate-law practitioner must issue a signed written 
 - A5: NOT AUTHORIZED. No production migration or deployment occurred.
 
 **Decision:** Do not mark the company’s legal form or operative instruments VERIFIED until the official registration evidence, certified constitutional instrument chain, and independent Ethiopian corporate-law opinion have been received and independently checked.
+
+## 7. Official authentication route checked
+
+The following official public sources were checked while preparing this register:
+
+- Ministry of Trade and Regional Integration, Commercial Registration service: https://motri.gov.et/en/service_category/commercial-registration/view
+- Ethiopian Business Portal, Share Company registration journey: https://new.business.gov.et/Starting%20a%20Business
+- Ministry of Justice, Commercial Registration, Licensing and Post-Licensing Inspection Directive No. 935/2022: https://justice.gov.et/en/directives/commercial-registration-licensing-and-post-licensing-inspection-directive-no-935-2022/
+- Commercial Code Proclamation No. 1243/2021, including the public commercial-register provisions: https://ethiodata.et/wp-content/uploads/2023/01/Commercial-Code-of-Ethiopia-English-Proclamation-No.-1243_2021.pdf
+
+The Ethiopian Business Portal describes the Share Company route as involving authentication of the Memorandum and Articles, followed by commercial registration and issuance of a registration certificate. The Ministry's commercial-registration service also identifies supporting evidence for amendments to the Memorandum and Articles, including shareholder resolution minutes. The Commercial Code provides for public access to the commercial register and issuance of extracts on request, subject to the prescribed fee.
+
+**Execution approach:** first use the company's existing registration certificate and certified corporate records. Reconcile their registration number, exact legal name and legal form against an official current commercial-register extract. If the certificate or extract is missing or stale, the company representative should request a current extract from the competent federal or regional registering authority. No paid registry request, filing, amendment, or legal engagement is authorized by this repository record.
+
+These public sources explain the route; they do not authenticate this particular company. No registry query has been made for the company, and no legal-form conclusion is drawn from the public guidance alone.
+
+## 8. Immediate evidence handoff
+
+The next authentication event is an evidence comparison, not a new legal interpretation:
+1. Compare the original registration certificate with the current official registry extract.
+2. Compare the certified Memorandum and Articles with the register's filed-document record.
+3. Build a dated amendment chain and verify each amendment's competent approval and registration.
+4. Identify the 17-page and 22-page documents within that chain, without merging or reclassifying them by assumption.
+5. Only after this reconciliation, submit the complete evidence packet for independent Ethiopian corporate-law review.
+
+Until these checks are evidenced, the legal-basis record must remain pending and the statutory GA gates must remain blocked.
