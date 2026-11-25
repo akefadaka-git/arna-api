@@ -52,6 +52,7 @@ final class ShareholderImportReviewPolicy
         $valid = (int) ($summary['valid'] ?? -1);
         $invalid = (int) ($summary['invalid'] ?? -1);
         $rows = is_array($preview['rows'] ?? null) ? $preview['rows'] : [];
+        $sourceReferences = [];
 
         if ($total < 1 || count($rows) !== $total) {
             $reasons[] = 'preview_row_count_mismatch';
@@ -68,6 +69,12 @@ final class ShareholderImportReviewPolicy
                 $reasons[] = 'row_identity_or_validation_incomplete';
                 break;
             }
+
+            $sourceReferences[] = trim($row['source_reference']);
+        }
+
+        if (count($sourceReferences) !== count(array_unique($sourceReferences))) {
+            $reasons[] = 'duplicate_source_references';
         }
 
         $allowed = $reasons === [];
@@ -77,6 +84,7 @@ final class ShareholderImportReviewPolicy
             'status' => $allowed ? self::STATUS_SUBMITTED : self::STATUS_PREVIEW_ONLY,
             'submitted_by' => $allowed ? $submitterId : null,
             'row_count' => $allowed ? $total : 0,
+            'source_references' => $allowed ? $sourceReferences : [],
             'reason_codes' => array_values(array_unique($reasons)),
             'writes_performed' => false,
             'import_execution_permitted' => false,
@@ -105,6 +113,7 @@ final class ShareholderImportReviewPolicy
         $reasons = [];
         $submitterId = (int) ($submission['submitted_by'] ?? 0);
         $rowCount = (int) ($submission['row_count'] ?? 0);
+        $sourceReferences = $submission['source_references'] ?? [];
 
         if (($submission['status'] ?? null) !== self::STATUS_SUBMITTED) {
             $reasons[] = 'submission_not_pending_review';
@@ -124,14 +133,11 @@ final class ShareholderImportReviewPolicy
             $reasons[] = 'review_note_required';
         }
 
-        if ($decision === 'accept') {
-            $covered = $this->hasCompleteEvidenceCoverage(
-                $submission['source_references'] ?? [],
-                $evidenceBySourceReference,
-            );
-            if (! $covered) {
-                $reasons[] = 'row_level_evidence_required';
-            }
+        if ($decision === 'accept' && ! $this->hasCompleteEvidenceCoverage(
+            $sourceReferences,
+            $evidenceBySourceReference,
+        )) {
+            $reasons[] = 'row_level_evidence_required';
         }
 
         $allowed = $reasons === [];
@@ -146,6 +152,7 @@ final class ShareholderImportReviewPolicy
             'reviewed_by' => $allowed ? $reviewerId : null,
             'row_count' => $rowCount,
             'reviewed_row_count' => $allowed ? $reviewedRowCount : 0,
+            'source_references' => is_array($sourceReferences) ? $sourceReferences : [],
             'review_note' => $allowed ? trim($reviewNote) : null,
             'evidence_by_source_reference' => $allowed ? $evidenceBySourceReference : [],
             'reason_codes' => array_values(array_unique($reasons)),
@@ -207,6 +214,7 @@ final class ShareholderImportReviewPolicy
             'approval_authority_reference' => $allowed ? trim($approvalAuthorityReference) : null,
             'row_count' => $rowCount,
             'reviewed_row_count' => $reviewedRowCount,
+            'source_references' => $review['source_references'] ?? [],
             'evidence_by_source_reference' => $review['evidence_by_source_reference'] ?? [],
             'reason_codes' => array_values(array_unique($reasons)),
             'writes_performed' => false,
