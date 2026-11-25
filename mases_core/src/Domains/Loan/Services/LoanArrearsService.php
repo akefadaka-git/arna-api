@@ -26,8 +26,8 @@ use MaaleArna\MASES\Core\Policy\Models\VersionedPolicy;
 
 /**
  * Creates one penalty obligation per eligible overdue installment.
- * Uses an idempotency key to prevent duplicate penalties and applies the
- * loan's arrears transition only when the first penalty is recorded.
+ * Uses idempotency protection and half-up monetary rounding; the first
+ * recorded penalty moves the loan into arrears.
  */
 final class LoanArrearsService
 {
