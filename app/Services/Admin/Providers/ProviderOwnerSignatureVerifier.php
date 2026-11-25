@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\\Services\\Admin\\Providers;
+namespace App\Services\Admin\Providers;
 
 use RuntimeException;
 
