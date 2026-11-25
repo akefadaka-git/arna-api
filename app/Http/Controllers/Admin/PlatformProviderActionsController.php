@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Admin;
+namespace App\Http\Controllers\Admin;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Services\\Admin\\Providers\\ProviderActionLifecycleService;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
+use App\Http\Controllers\Controller;
+use App\Services\Admin\Providers\ProviderActionLifecycleService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 final class PlatformProviderActionsController extends Controller
@@ -149,7 +149,7 @@ final class PlatformProviderActionsController extends Controller
                 $data['note'],
             );
             return response()->json(['success' => true, 'data' => $result]);
-        } catch (\\Illuminate\\Database\\QueryException) {
+        } catch (\Illuminate\Database\QueryException) {
             return response()->json(['success' => false, 'error' => ['code' => 'PROVIDER_ACTION_DUPLICATE_APPROVER', 'message' => 'This approver has already recorded a decision for this request.']], 409);
         } catch (RuntimeException $exception) {
             return response()->json(['success' => false, 'error' => ['code' => 'PROVIDER_ACTION_DECISION_REJECTED', 'message' => $exception->getMessage()]], 422);
