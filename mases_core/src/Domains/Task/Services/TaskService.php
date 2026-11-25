@@ -143,6 +143,9 @@ final class TaskService
                 $changes['completed_at'] = now();
             } elseif (isset($changes['status']) && $changes['status'] !== 'completed') {
                 $changes['completed_at'] = null;
+                if ((int) $task->progress_percent === 100) {
+                    $changes['progress_percent'] = 99;
+                }
             }
 
             foreach ($changes as $field => $value) {
@@ -169,7 +172,8 @@ final class TaskService
             if ((int) ($data['version'] ?? 0) !== (int) $task->version) {
                 throw new ConflictHttpException('Task version conflict; reload before retrying.');
             }
-            if (!$this->authorization->hasPermission('task.assign', $actor, $tenantId)) {
+            if (!$this->authorization->hasPermission('task.assign', $actor, $tenantId)
+                || in_array($task->status, ['completed', 'cancelled'], true)) {
                 throw new NotFoundHttpException('Task not found.');
             }
             $this->assertActiveMember($tenantId, $data['assigned_to_user_id']);
