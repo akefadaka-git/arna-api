@@ -15,126 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use MaaleArna\MASES\Core\Domains\Shareholder\Enums\CertificateStatus;
 
 /**
- * ShareCertificate
- *
- * Eloquent model for a share certificate issued to a shareholder.
- *
- * =============================================================================
- * What this model represents
- * =============================================================================
- * A share certificate is an official document attesting that a specific
- * shareholder holds a specific quantity of a specific share class. It is a
- * DERIVED ARTEFACT — it reflects the state of the holding at the moment of
- * issuance but does not itself define the holding.
- *
- * The authoritative source of quantity is always:
- *
- *     ShareHolding.current_quantity
- *
- * which is itself a projection of the append-only ledger:
- *
- *     ShareHoldingEntry rows
- *
- * The certificate is downstream of both. It can be cancelled, replaced, or
- * re-issued without touching either. It can be issued for a holding whose
- * quantity later changes — the certificate records what was certified at
- * issue time, not the current quantity. If the current state matters, read
- * the holding.
- *
- * =============================================================================
- * Certificate lifecycle (D-preflight)
- * =============================================================================
- * Four states, declared in CertificateStatus (2A.5):
- *
- *     draft      — prepared but not yet issued. Non-terminal.
- *     issued     — the certificate is in force. Non-terminal.
- *     cancelled  — withdrawn. Terminal.
- *     replaced   — superseded by another certificate. Terminal.
- *
- * The transition matrix is enforced by CertificateStatus::canTransitionTo()
- * and applied by CertificateService (2A.15). This model does not enforce
- * transitions — it just stores the current state.
- *
- * In Phase 2A, newly created certificates default to `issued`
- * (config: `shareholder.certificate.default_status`). The `draft` state is
- * reserved for a future workflow that separates preparation from issuance.
- *
- * =============================================================================
- * The `replaced_by_id` link
- * =============================================================================
- * When a certificate is replaced:
- *
- *   1. The ORIGINAL certificate's `status` is set to `replaced`.
- *   2. The ORIGINAL certificate's `cancelled_at` remains null (it was not
- *      cancelled; it was replaced).
- *   3. The ORIGINAL certificate's `replaced_by_id` is set to the id of the
- *      NEW certificate.
- *   4. The NEW certificate is created with `status = issued`.
- *
- * The link is one-directional: only the replaced (older) certificate points
- * to the replacing (newer) one. If a reader needs "what did this certificate
- * replace", the reverse query is a simple lookup, but the schema does not
- * store it redundantly. This avoids the two-way consistency problem of
- * having both `replaced_by_id` and `replaces_id`.
- *
- * =============================================================================
- * Numbering (pre-flight answer)
- * =============================================================================
- * `certificate_number` is a NULLABLE string. In Phase 2A, no automatic
- * allocation is performed by the domain. The operator or a future
- * numbering CR populates the value. Two certificates may not share the
- * same non-null number (UNIQUE index).
- *
- * If the corporate evidence later requires a specific numbering scheme
- * (sequential per class, year-prefixed, register-based, etc.), a Change
- * Request will add the allocation logic and, if needed, a dedicated
- * sequence table. Until then, the column exists, is nullable, and is
- * populated by the caller.
- *
- * =============================================================================
- * Soft deletes
- * =============================================================================
- * Certificates are long-lived business artefacts. When a certificate is
- * cancelled, the row is not deleted — `status` becomes `cancelled`. When a
- * certificate is replaced, the row is not deleted — `status` becomes
- * `replaced` and `replaced_by_id` points to the replacement.
- *
- * SoftDeletes is provided as a final escape hatch for administrative
- * corrections, NOT as a normal workflow path. A soft-deleted certificate
- * that was previously `issued` should be treated as an integrity anomaly.
- * The normal lifecycle is state transitions, not deletion.
- *
- * =============================================================================
- * What this model deliberately does NOT do
- * =============================================================================
- *   - It does not change the ShareHolding balance. Certificates are
- *     downstream of the ledger (D16-CORE).
- *
- *   - It does not validate lifecycle transitions. That is the
- *     CertificateService's responsibility, using
- *     CertificateStatus::canTransitionTo().
- *
- *   - It does not allocate certificate numbers. Number allocation is not
- *     defined in Phase 2A.
- *
- *   - It does not provide PDF rendering, signing, or email delivery.
- *     Those are presentation concerns for a future phase.
- *
- *   - It does not enforce the "at most one active certificate per holding"
- *     rule at the schema level. That rule (if the business requires it)
- *     is enforced by the CertificateService inside the issuance
- *     transaction, because it is a domain invariant, not a schema
- *     constraint. See F-2A10-5 for the full reasoning.
- *
- * =============================================================================
- * Relations
- * =============================================================================
- *   shareholder()    — the shareholder to whom this certificate is issued.
- *   shareClass()     — the share class the certificate is denominated in.
- *   shareHolding()   — the holding the certificate attests to (nullable).
- *   replacedBy()     — the certificate that replaced this one (nullable).
- *   replaces()       — the certificates that this one replaced (reverse
- *                      lookup; normally at most one).
+ * Certificate is an issuance-time snapshot, not the source of current ownership. Cancellation or reissue must not change the holding ledger.
  *
  * @property int                   $id
  * @property int                   $shareholder_id
@@ -149,13 +30,11 @@ use MaaleArna\MASES\Core\Domains\Shareholder\Enums\CertificateStatus;
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property Carbon|null $deleted_at
- *
  * @property-read Shareholder|null     $shareholder
  * @property-read ShareClass|null      $shareClass
  * @property-read ShareHolding|null    $shareHolding
  * @property-read ShareCertificate|null $replacedBy
  * @property-read Collection<int, ShareCertificate> $replaces
- *
  * @package MaaleArna\MASES\Core\Domains\Shareholder\Models
  */
 final class ShareCertificate extends Model
