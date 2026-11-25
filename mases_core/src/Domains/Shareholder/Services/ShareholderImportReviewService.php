@@ -188,8 +188,11 @@ final class ShareholderImportReviewService
             $approvalNote,
         ): ShareholderImportSubmission {
             $submission = $this->lockedSubmission($submissionId, $tenantId, $expectedVersion);
+            $reviewState = $submission->toArray();
+            $reviewState['evidence_by_source_reference'] = $submission->review_evidence ?? [];
+
             $packet = $this->policy->evaluateApproval(
-                $submission->toArray(),
+                $reviewState,
                 (int) $actor->id,
                 $approvalAuthorityReference,
             );
