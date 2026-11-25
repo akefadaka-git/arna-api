@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Contracts\Admin\Providers\ProviderAdapter;
 use App\Data\Admin\Providers\ProviderExecutionResult;
+use App\Data\Admin\Providers\ProviderSandboxCertificationResult;
 use App\Data\Admin\Providers\ProviderOperationPlan;
 use App\Services\Admin\Providers\ProviderAdapterRegistry;
 use App\Services\Admin\Providers\ProviderApprovalPolicy;
@@ -95,6 +96,10 @@ final class PlatformProviderArchitectureTest extends TestCase
                 return new ProviderOperationPlan($this->key, '1.0.0', $operation, $resourceType, $resourceIdentifier, $payload, 'low_reversible');
             }
             public function observe(string $resourceType, string $resourceIdentifier): array { return []; }
+            public function certifySandbox(): ProviderSandboxCertificationResult
+            {
+                return new ProviderSandboxCertificationResult(false, '1.0.0', 'unit-test', []);
+            }
             public function execute(ProviderOperationPlan $approvedPlan, string $idempotencyKey): ProviderExecutionResult
             {
                 throw new RuntimeException('Test adapter execution is intentionally unavailable.');
