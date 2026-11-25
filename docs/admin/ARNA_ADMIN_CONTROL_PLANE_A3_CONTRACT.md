@@ -137,3 +137,13 @@ Every privileged operation records actor, acting scope, target, action, reason, 
 - The API and frontend candidate PRs require contract reconciliation; older frontend paths must not be revived merely to satisfy stale UI.
 - The Admin dashboard scaffold is currently a static landing surface. It must be upgraded with real API data only after endpoints and permission slugs are verified.
 - Plesk/provider API write access is not verified. Domain operations therefore remain inventory/metadata and integration-readiness work until a provider connection is confirmed.
+## 12. Platform Audit and Security — provider-independent read-only slice
+
+The platform console exposes two separate read-only endpoints:
+
+- `GET /api/admin/platform/audit-logs` — requires the global `platform.audit.read` permission.
+- `GET /api/admin/platform/security-events` — requires the global `platform.security.read` permission.
+
+Both endpoints query only records where `tenant_id IS NULL`. Tenant-context audit logs and security events remain available only through the existing tenant-bound audit/security routes and are not widened by this slice. The platform endpoints support bounded pagination and filters, recursively redact credential-shaped values, and expose no resolution or mutation operation. No new audit/security tables or parallel RBAC schema are introduced. The existing `platform_admin` global-scope grant strategy includes these additive permissions through the existing catalogue seeding path.
+
+Privileged session administration, audit export, approval-history aggregation, and tenant-wide audit oversight remain separate follow-on slices; they are not claimed implemented here.
