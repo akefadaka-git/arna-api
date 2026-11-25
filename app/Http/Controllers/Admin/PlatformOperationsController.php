@@ -33,6 +33,10 @@ final class PlatformOperationsController extends Controller
                 'auth_mode' => $record?->auth_mode ?? 'none',
                 'credentials_configured' => $record !== null && $record->credential_ciphertext !== null,
                 'connection_state' => $record?->connection_state ?? 'not_connected',
+                'environment' => $record?->environment ?? 'sandbox',
+                'adapter_version' => $record?->adapter_version,
+                'sandbox_mutations_enabled' => (bool) ($record?->sandbox_mutations_enabled ?? false),
+                'sandbox_certified_at' => $record?->sandbox_certified_at,
                 'last_observed_at' => null,
                 'live_mutations_enabled' => false,
             ];
