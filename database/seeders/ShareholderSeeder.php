@@ -502,14 +502,22 @@ final class ShareholderSeeder extends Seeder
         ];
 
         /*
-         * Lookup by user_id. For individual rows, the register entry
-         * and the user row are one-to-one via the user_id column.
-         * For entity rows, the user_id column is null; the lookup
-         * will not find an existing entity row by user_id. See the
-         * class docblock §"Consequence for the upsert key" for the
-         * reasoning and the reliance on UserPivotCleaner.
+         * Resolve the row using the identity column appropriate to
+         * the shareholder type. Individuals are linked by user_id;
+         * legal entities are linked by representative_user_id.
+         * Always include tenant_id so a matching identity in another
+         * tenant cannot be updated accidentally.
          */
-        $existing = DB::table('shareholders')->where('user_id', $user->id)->first();
+        $lookup = DB::table('shareholders')
+            ->where('tenant_id', $tenant->id);
+
+        if ($isEntity) {
+            $lookup->where('representative_user_id', $user->id);
+        } else {
+            $lookup->where('user_id', $user->id);
+        }
+
+        $existing = $lookup->first();
 
         if ($existing !== null) {
             /*
