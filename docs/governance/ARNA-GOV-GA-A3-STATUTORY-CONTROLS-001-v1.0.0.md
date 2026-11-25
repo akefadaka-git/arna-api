@@ -1,8 +1,8 @@
 # ARNA GA A3 — Statutory Controls and Fail-Closed Gate
 
-**Status:** A3 implementation increment; API integration and verification pending  
-**Branch:** `feat/ga-statutory-controls-a3-current`  
-**Base:** current `main` at `ec81c97bb9b06665236e3577ab669a46e7073a5d`
+**Status:** A3 implementation increment; API integration implemented; exact-head verification pending  
+**Branch:** `feat/ga-statutory-controls-a3-current-main`  
+**Base:** `main` at `28afcbd0b0a45a6062714ebc51993abe4d38387b`
 
 ## Legal baseline
 
@@ -22,11 +22,24 @@ The API now provides evidence-backed lifecycle attestation records for notice, q
 
 GA proxy approvals and penalty assessments are blocked until the relevant action evidence passes the legal gate. Legal-basis/evidence verification and lifecycle attestation review require `governance.meeting.approve`; source registration requires `governance.body.manage` or the meeting-management permission.
 
-## A3 work remaining
+## A3 implementation boundary and remaining work
 
-- Persist legal-basis and per-action evidence with tenant isolation, immutable source references/hashes, pending/verified/rejected/revoked states, and independent reviewer controls.
-- Wire the gate into proxy approval and penalty assessment; ensure unverified penalty policy cannot be assessed or posted.
-- Add endpoint and regression tests, run exact-head CI/tests, and inspect current `main` divergence before any merge proposal.
-- Obtain independent Ethiopian corporate-law review before enabling any legal rule.
+Implemented in this increment:
+- Tenant-scoped legal-basis and per-action evidence tables with source references and SHA-256 fingerprints.
+- Independent verification controls for legal basis and action-specific evidence.
+- Fail-closed gates on GA proxy approval and penalty assessment.
+- Evidence-backed lifecycle attestations for notice, quorum, voting and minutes, with independent review and audit events.
+- Meeting-detail visibility for legal-basis, evidence and lifecycle attestation records.
+- Unit and feature tests for gate behavior.
 
-This branch does not merge, deploy, or modify production records. The existing A3 service tests have not yet been run.
+Lifecycle attestations are controlled evidence records only. They do not send notices, calculate statutory quorum, count share-weighted votes, generate minutes or authenticate source documents. The next functional increment must build those substantive workflows on these gates. Controlled revocation/supersession is also still required before live legal rules are enabled.
+
+## Verification and legal blockers
+
+- Exact-head PHP lint, unit/feature suites, tenant-isolation regression and disposable MySQL migration/seed verification are pending GitHub Actions results.
+- No test, migration or production database result is claimed as PASS.
+- Authenticate ARNA's registered legal form, operative Articles/bylaws and amendments, current shareholder register and share classes.
+- Obtain independent Ethiopian corporate-law review before enabling any statutory rule or penalty.
+- Preserve the distinct 17-page public-use and 22-page internal-use bylaws; no hierarchy is inferred.
+
+This branch is not merged or deployed. No production migration or production-record change has occurred.
