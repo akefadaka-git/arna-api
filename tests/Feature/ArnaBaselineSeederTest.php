@@ -92,23 +92,23 @@ final class ArnaBaselineSeederTest extends TestCase
         ]);
 
         // Verify each controlled financial seeder independently and twice.
-        app(FinanceChartOfAccountsSeeder::class)->run();
+        $this->runSeeder(FinanceChartOfAccountsSeeder::class);
         $coaSnapshot = $this->tableSnapshot('ledger_accounts');
         $this->assertNotSame('', $coaSnapshot);
         app(FinanceChartOfAccountsSeeder::class)->run();
         $this->assertSame($coaSnapshot, $this->tableSnapshot('ledger_accounts'));
 
-        app(LoanProductsSeeder::class)->run();
+        $this->runSeeder(LoanProductsSeeder::class);
         $productSnapshot = $this->tableSnapshot('loan_products');
         $this->assertSame(3, DB::table('loan_products')->count());
 
-        app(LoanProductRulesPolicySeeder::class)->run();
+        $this->runSeeder(LoanProductRulesPolicySeeder::class);
         $policySnapshot = $this->tableSnapshot('versioned_policies');
         $this->assertSame(1, DB::table('versioned_policies')
             ->where('policy_type', 'loan_product_rules')->count());
 
-        app(LoanProductsSeeder::class)->run();
-        app(LoanProductRulesPolicySeeder::class)->run();
+        $this->runSeeder(LoanProductsSeeder::class);
+        $this->runSeeder(LoanProductRulesPolicySeeder::class);
         $this->assertSame($productSnapshot, $this->tableSnapshot('loan_products'));
         $this->assertSame($policySnapshot, $this->tableSnapshot('versioned_policies'));
         $this->assertSame(0, DB::table('loan_products')->whereNull('product_rules_policy_version_id')->count());
@@ -150,7 +150,12 @@ final class ArnaBaselineSeederTest extends TestCase
 
     private function runDefaultSeeder(): void
     {
-        $exitCode = Artisan::call('db:seed', ['--force' => true]);
+        $this->runSeeder(\Database\Seeders\DatabaseSeeder::class);
+    }
+
+    private function runSeeder(string $seederClass): void
+    {
+        $exitCode = Artisan::call('db:seed', ['--class' => $seederClass, '--force' => true]);
         $this->assertSame(0, $exitCode, Artisan::output());
     }
 
