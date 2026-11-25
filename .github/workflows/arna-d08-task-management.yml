@@ -1,4 +1,4 @@
-name: ARNA D08 Task Management verification
+name: ARNA D08 and Calendar scheduling verification
 
 on:
   push:
@@ -15,6 +15,7 @@ on:
       - "routes/api.php"
       - "tests/Feature/D08TaskManagementTest.php"
       - "tests/Feature/CalendarTaskLinkTest.php"
+      - "tests/Feature/CalendarAppointmentBookingTest.php"
   pull_request:
     branches: [main]
     paths:
@@ -32,7 +33,7 @@ permissions:
 
 jobs:
   d08-task-management:
-    name: D08 tenant and lifecycle tests (SQLite)
+    name: D08 and Calendar tenant/lifecycle tests (MySQL)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -71,7 +72,7 @@ jobs:
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Lint D08 PHP source and migration
+      - name: Lint D08 and Calendar appointment PHP source and migrations
         run: |
           php -l database/migrations/2026_11_25_000001_create_d08_task_management_tables.php
           php -l database/migrations/2026_11_25_000002_create_task_dependencies_table.php
@@ -81,7 +82,7 @@ jobs:
           php -l tests/Feature/D08TaskManagementTest.php
           php -l routes/api.php
 
-      - name: Run D08 Task Management and Calendar integration tests on MySQL
+      - name: Run D08, Calendar task and appointment integration tests on MySQL
         env:
           DB_CONNECTION: mysql
           DB_DATABASE: arna_d08_test
@@ -89,4 +90,4 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact tests/Feature/D08TaskManagementTest.php tests/Feature/CalendarTaskLinkTest.php
+        run: php artisan test --compact tests/Feature/D08TaskManagementTest.php tests/Feature/CalendarTaskLinkTest.php tests/Feature/CalendarAppointmentBookingTest.php
