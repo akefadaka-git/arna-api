@@ -824,6 +824,10 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->prefix('/tasks')->name
     Route::get('/{id}', [$controller, 'show'])->whereUuid('id')->middleware('auth.permission:task.view')->name('show');
     Route::patch('/{id}', [$controller, 'update'])->whereUuid('id')->middleware('auth.permission:task.update')->name('update');
     Route::post('/{id}/assign', [$controller, 'assign'])->whereUuid('id')->middleware('auth.permission:task.assign')->name('assign');
+    Route::post('/{id}/dependencies', [$controller, 'addDependency'])->whereUuid('id')->middleware('auth.permission:task.update')->name('dependencies.add');
+    Route::delete('/{id}/dependencies/{dependsOnId}', [$controller, 'removeDependency'])
+        ->whereUuid('id')->whereUuid('dependsOnId')
+        ->middleware('auth.permission:task.update')->name('dependencies.remove');
 });
 
 // Calendar — authenticated tenant members with explicit Calendar capabilities.
