@@ -13,6 +13,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionA
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeAppointmentController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingBusinessLifecycleController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingLegalEvidenceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingLifecycleController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
