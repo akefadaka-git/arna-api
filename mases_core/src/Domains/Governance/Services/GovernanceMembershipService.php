@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Governance\Enums\GovernanceMembershipStatus;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceMembershipRegistered;
 use MaaleArna\MASES\Core\Domains\Governance\Events\GovernanceMembershipUpdated;
