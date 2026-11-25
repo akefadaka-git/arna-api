@@ -5,6 +5,7 @@ on:
     branches: [feat/admin-a3-master-control-plane]
     paths:
       - ".github/workflows/arna-admin-audit-security.yml"
+      - ".github/workflows/arna-clean-install-mysql.yml"
       - "app/Http/Controllers/Admin/PlatformAuditSecurityController.php"
       - "routes/api.php"
       - "tests/Feature/PlatformAuditSecurityReadTest.php"
