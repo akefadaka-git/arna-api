@@ -441,18 +441,7 @@ final class SecurityEventServiceTest extends TestCase
     // 6. Preservation of the nested authorization payload
     // =========================================================================
 
-    /**
-     * The nested `authorization` payload from `LogAuthorizationFailureListener`
-     * is preserved intact.
-     *
-     * This is the load-bearing case introduced by v1.0.2 (removal of
-     * `'authorization'` from the sensitive list) and preserved by v1.0.3
-     * (recursion descends into it, finds no matching keys, returns it
-     * unchanged). See the class docblock §"Revision history" of the
-     * service for the full rationale, and
-     * `AuthorizationFailureEventTest::denied_event_data_contains_structured_authorization_context`
-     * for the end-to-end contract this test supports at the unit level.
-     */
+    /** Keep structured authorization context intact during sanitization. */
     #[Test]
     public function nested_authorization_payload_is_preserved_intact(): void
     {
