@@ -2,67 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — CR-L2
- * =============================================================================
- *
- * File:            mases_core/src/Domains/Loan/Http/Resources/LoanProductResource.php
- * Unit:            CR-L2 — Ethiopian calendar date rendering (Loan resources)
- * Delivery type:   Amendment — one import, one trait use, two
- *                  `_display` fields, docblock amendments.
- * Net lines:       +2 imports/use; +2 field lines; docblock revision.
- *
- * Before:
- *   Every date field the resource emitted was ISO 8601 only:
- *
- *     created_at, updated_at   (2 date fields)
- *
- *   A consumer that wanted the Amharic-first medium form had to slice
- *   the ISO string client-side, breaking the convention established by
- *   P3 · Unit 2 across the Shareholder resources, extended to
- *   WalletResource by CR-W1, and being extended to the six Loan
- *   resources by CR-L2.
- *
- * After:
- *   The resource mixes in RendersLocalizedDates (Reading 1:
- *   cross-domain import from the Shareholder domain, matching
- *   WalletResource's and the sibling Loan resources' precedent) and
- *   emits a `_display` sibling for each of its two date fields. The
- *   ISO fields are preserved byte-for-byte; the `_display` fields are
- *   additive.
- *
- *   Each `_display` field appears immediately after its ISO parent:
- *
- *     created_at_display, updated_at_display
- *
- *   Both ISO dates are non-null in practice (Laravel manages them on
- *   every save); the null-safe operator is applied uniformly for
- *   defensive consistency, matching the pattern used by every other
- *   resource in this CR.
- *
- * Public surface delta:
- *   · No new methods. The trait contributes one `protected localizedDate()`
- *     method, which is not part of the resource's external contract.
- *   · The serialised payload gains two keys. No key is removed,
- *     renamed, or re-valued. In particular, the bilingual name and
- *     description pairs, the structural envelope, and the
- *     `has_policy_version` computed boolean are unchanged.
- *
- * Dependency note:
- *   · The trait is imported from the Shareholder domain's Concerns
- *     namespace, matching the cross-domain import on LoanResource.php
- *     (CR-L2 file 1). Reading 1 was confirmed: the trait stays where
- *     it is for CR-L2.
- *
- *   · The trait and LocalizationService::formatEthiopianDateMedium()
- *     are both deployed (Track A closed).
- *
- *   · No new class, no config change, no route change. No Composer
- *     refresh is required for this file alone.
- *
- * =============================================================================
- */
+
 
 /*
  * =============================================================================
