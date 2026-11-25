@@ -594,20 +594,7 @@ final class LoanStatementTest extends TestCase
     // Pre-disbursement loan
     // =========================================================================
 
-    /**
-     * A loan that has been approved but not yet disbursed carries no
-     * monetary activity, but it does carry a status history. Under the
-     * statement contract restored by the B4 revert (see
-     * `LoanStatementController` §"Revision history" v1.2.0), the
-     * statement emits one `status_change` line per history row with
-     * zero monetary deltas; the running balance is therefore unchanged
-     * from opening to closing.
-     *
-     * Historical note: the method name retains "empty_period" from the
-     * v1.1.0 controller contract, which the B4 revert removed. The
-     * filter reference is preserved; the assertions reflect the current
-     * contract.
-     */
+    /** Approved, undisbursed loans have status history but no monetary activity. */
     public function test_statement_of_approved_loan_returns_empty_period(): void
     {
         $loan = $this->makeApprovedLoan();
