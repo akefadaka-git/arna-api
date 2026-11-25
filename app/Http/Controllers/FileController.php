@@ -15,16 +15,7 @@ use MaaleArna\MASES\Core\Domains\FileManagement\Models\File;
 use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-/**
- * FileController
- *
- * Handles file management API endpoints with full audit logging.
- * All successful upload and delete operations are recorded in the
- * `audit_logs` table via the `LogsAudit` trait.
- *
- * The audit trail includes request metadata (IP, user agent, request ID)
- * and automatically filters out sensitive data.
- */
+/** Handles tenant-scoped file operations and their audit events. */
 final class FileController extends Controller
 {
     use LogsAudit;
@@ -38,14 +29,7 @@ final class FileController extends Controller
         $this->authorizationService = $authorizationService;
     }
 
-    /**
-     * Upload a new file.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     * @throws ValidationException
-     * @throws FileException
-     */
+    /** Uploads a file after authorization and validation. */
     public function upload(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -82,14 +66,7 @@ final class FileController extends Controller
             parentFileId: $validated['parent_file_id'] ?? null
         );
 
-        // --------------------------------------------------------------------
-        // AUDIT LOG: File Upload
-        // --------------------------------------------------------------------
-        // The `logAudit()` method automatically:
-        //   - Checks the `mases.features.audit_enabled` flag.
-        //   - Captures IP, user agent, request ID.
-        //   - Sanitises sensitive keys from `newValues`.
-        // --------------------------------------------------------------------
+        // Record the upload with sanitized request metadata.
         $this->logAudit(
             action: 'file.uploaded',
             resourceType: 'file',
@@ -110,14 +87,7 @@ final class FileController extends Controller
         ], 201);
     }
 
-    /**
-     * Delete (soft delete) a file.
-     *
-     * @param Request $request
-     * @param int|string $id
-     * @return JsonResponse
-     * @throws FileException
-     */
+    /** Soft-deletes a file after authorization. */
     public function destroy(Request $request, int|string $id): JsonResponse
     {
         $user = $request->user();
@@ -139,11 +109,7 @@ final class FileController extends Controller
 
         $this->fileService->delete($file, $user);
 
-        // --------------------------------------------------------------------
-        // AUDIT LOG: File Deletion
-        // --------------------------------------------------------------------
-        // Record the deletion with old values for traceability.
-        // --------------------------------------------------------------------
+        // Record the deleted file's previous metadata.
         $this->logAudit(
             action: 'file.deleted',
             resourceType: 'file',
@@ -161,10 +127,7 @@ final class FileController extends Controller
         ]);
     }
 
-    // =========================================================================
-    // Other endpoints (download, show, update, forceDestroy, restore, index…)
-    // =========================================================================
-
+ 
     /**
      * Download a file (streamed response).
      */
@@ -421,12 +384,7 @@ final class FileController extends Controller
         ]);
     }
 
-    /**
-     * Format a file instance for API response.
-     *
-     * @param File $file
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function formatFileResponse(File $file): array
     {
         return [
