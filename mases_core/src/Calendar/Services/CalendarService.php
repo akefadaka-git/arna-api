@@ -219,7 +219,7 @@ final class CalendarService
                 $resourceType = (string) ($link['resource_type'] ?? '');
                 $resourceId = (string) ($link['resource_id'] ?? '');
                 $relationship = (string) ($link['relationship'] ?? 'related');
-                if (!in_array($domain, ['people', 'organization', 'governance', 'finance', 'shareholder', 'wallet', 'loan'], true)
+                if (!in_array($domain, ['people', 'organization', 'governance', 'finance', 'shareholder', 'wallet', 'loan', 'task'], true)
                     || !preg_match('/^[a-z][a-z0-9_-]{0,99}$/', $resourceType)
                     || $resourceId === '' || strlen($resourceId) > 100
                     || !in_array($relationship, ['related', 'agenda', 'attachment', 'context'], true)) {
