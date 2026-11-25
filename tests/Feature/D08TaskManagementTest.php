@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Database\Seeders\Data\RolePermissionGrants;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
@@ -85,6 +86,22 @@ final class D08TaskManagementTest extends TestCase
             ->getJson('/api/tasks')
             ->assertOk()
             ->assertJsonPath('data.data.0.id', $taskId);
+    }
+
+    #[Test]
+    public function tenant_roles_receive_personal_task_permissions_without_implicit_tenant_wide_visibility(): void
+    {
+        foreach (['manager', 'finance_manager', 'hr_manager', 'shareholder', 'board', 'president', 'secretary', 'cashier', 'ceo'] as $role) {
+            $grants = RolePermissionGrants::MAP[$role] ?? [];
+            $this->assertContains('task.view', $grants, $role.' must be able to view personal or assigned tasks.');
+            $this->assertContains('task.create', $grants, $role.' must be able to create personal tasks.');
+            $this->assertContains('task.update', $grants, $role.' must be able to update personal tasks.');
+        }
+
+        foreach (['finance_manager', 'hr_manager', 'shareholder', 'board', 'president', 'secretary', 'cashier'] as $role) {
+            $this->assertNotContains('task.view_all', RolePermissionGrants::MAP[$role], $role.' must not receive tenant-wide task visibility by default.');
+            $this->assertNotContains('task.assign', RolePermissionGrants::MAP[$role], $role.' must not receive corporate reassignment authority by default.');
+        }
     }
 
     #[Test]
