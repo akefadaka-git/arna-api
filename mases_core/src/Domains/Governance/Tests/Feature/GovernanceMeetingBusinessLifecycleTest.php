@@ -223,6 +223,10 @@ final class GovernanceMeetingBusinessLifecycleTest extends TestCase
             'motion_id' => $motionId, 'resolution_number' => 'GA-RES-TEST-001', 'result' => 'passed',
         ]);
         $this->assertDatabaseHas('governance_meeting_minutes', ['id' => $minutesId, 'status' => 'approved']);
+
+        $readModel = $this->withTenant()->getJson(route('api.governance.meetings.business-lifecycle.show', ['meeting' => $this->meetingId]))->assertOk();
+        $this->assertCount(1, $readModel->json('data.motions.0.ballot_tally'));
+        $this->assertArrayNotHasKey('shareholder_id', $readModel->json('data.motions.0.ballot_tally.0'));
     }
 
     private function registerVerifiedLegalEvidence(): void
