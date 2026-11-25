@@ -159,6 +159,8 @@ The following executable lifecycle components are now present in PR #224; this s
 
 **Verification state:** feature/unit tests and exact-head CI have been wired; their current-head outcomes must be checked before A4 closure. No vendor adapter is registered by default. The current feature test uses an in-process synthetic adapter and does not constitute vendor certification or external sandbox evidence.
 
+- A separate `ProviderSandboxCertificationService` and manual command, `php artisan arna:providers:certify-sandbox {provider_key}`, invoke the adapter's `certifySandbox()` contract only when `ARNA_PROVIDER_SANDBOX_CERTIFICATION_ENABLED=true`. A passing report records a sanitized certification reference and checks, but explicitly leaves `sandbox_mutations_enabled=false`; certification is not activation.
+
 **Vendor certification remains NOT RUN:** no concrete DNS, registrar, certificate, hosting/Plesk, routing, monitoring or email vendor adapter has been registered or supplied with isolated vendor sandbox credentials. Each selected vendor requires a dedicated sandbox tenant/account, synthetic resource namespace, scoped credentials, endpoint allowlist and vendor-specific certification evidence. No real customer/domain resource may be used.
 
 **Production safety:** production mutation remains disabled; no production credentials, trust anchor or activation flag is configured by this change. This increment does not authorize merge, deployment, production provider connectivity or live external mutations.
