@@ -15,146 +15,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\Shareholder\Enums\HoldingDirection;
 
 /**
- * ShareHoldingEntry
- *
- * Eloquent model for a single row in the share-holding ledger.
- *
- * =============================================================================
- * What this model represents
- * =============================================================================
- * Every change to a ShareHolding's `current_quantity` produces exactly one
- * row on this table. The row records:
- *
- *   quantity        — the SIGNED change applied to the holding. Positive
- *                     for increases, negative for decreases. The sign is
- *                     derived from the direction supplied by the caller,
- *                     applied to a non-negative magnitude (see
- *                     HoldingDirection::applyTo, 2A.4).
- *
- *   balance_before  — the value of ShareHolding.current_quantity immediately
- *                     before this entry.
- *
- *   balance_after   — the value of ShareHolding.current_quantity immediately
- *                     after this entry.
- *
- *   entry_type      — a controlled vocabulary value describing WHAT kind of
- *                     business event produced the change. Six values are
- *                     permitted in Phase 2A (D16-R8):
- *
- *                         subscription
- *                         transfer_in
- *                         transfer_out
- *                         allocation
- *                         adjustment
- *                         reversal
- *
- *   reference_type  — an optional free-form string identifying the source
- *   reference_id      object of the change (e.g. "ShareTransfer" / "42").
- *                     This is the primary audit link from the ledger back to
- *                     the business operation. The `description` field is
- *                     informational and MUST NOT be the only explanation of
- *                     what happened.
- *
- *   occurred_at     — when the business event actually happened. This is NOT
- *                     the same as `created_at`: an administrative backfill
- *                     may create an entry now for an event that occurred
- *                     earlier. The ledger orders by `occurred_at`.
- *
- *   created_by      — the user who recorded the entry. Nullable for system-
- *                     generated entries.
- *
- *   reversed_entry_id — set on a reversal entry. Points back to the original
- *                       entry that is being reversed. The original is never
- *                       modified, deleted, or flagged — the linkage is
- *                       one-directional from the reversal to the original,
- *                       so any single row can be inspected without a
- *                       follow-up query to discover whether it is a
- *                       reversal.
- *
- * =============================================================================
- * Immutability (D16-R1)
- * =============================================================================
- * A posted entry is immutable. It cannot be edited and cannot be deleted:
- *
- *   - The model does NOT define `$fillable` for update; every column is
- *     assigned via the service's `create()` call, and no subsequent save is
- *     permitted by the domain code.
- *
- *   - The model sets `public $timestamps = false`. Laravel will therefore
- *     not attempt to touch `updated_at` (which does not exist on the table)
- *     during any operation.
- *
- *   - The model provides NO `update()`, `save()` override, or mutator that
- *     would let a caller change a posted row.
- *
- *   - Corrective action is performed by creating a NEW entry whose
- *     `reversed_entry_id` points to the original. The original row remains
- *     exactly as it was.
- *
- * If a future business requirement genuinely needs to modify a posted entry
- * — which would be unusual — the correct answer is a Change Request that
- * adds a new entry type or a new reversal pattern, not a new mutator.
- *
- * =============================================================================
- * Directional semantics
- * =============================================================================
- * The ledger does not store a `direction` column. Direction is encoded by
- * the SIGN of `quantity`. The `direction()` accessor infers the direction
- * from that sign:
- *
- *     quantity > 0   →  HoldingDirection::In
- *     quantity < 0   →  HoldingDirection::Out
- *     quantity = 0   →  HoldingDirection::Neutral
- *
- * For entry types where the direction is implied by the type itself
- * (`subscription`, `transfer_in`, `allocation` → In; `transfer_out` → Out),
- * `HoldingDirection::tryFromEntryType()` gives the same answer. For
- * `adjustment` and `reversal`, direction must come from the sign.
- *
- * The two methods — `directionFromSign()` and `directionFromType()` — are
- * provided separately so callers can be explicit about which they mean.
- * The plain `direction()` accessor prefers the sign, because the sign is
- * what the invariant `balance_before + quantity = balance_after` rests on.
- *
- * =============================================================================
- * The reversal linkage (D16-R2, D16-X5)
- * =============================================================================
- * When an entry is reversed:
- *
- *   1. The original entry remains unchanged.
- *   2. A NEW entry is created with `entry_type = 'reversal'`.
- *   3. The new entry has `reversed_entry_id = original.id`.
- *   4. The new entry's `quantity` is the numeric negation of the original.
- *   5. Its `balance_before` matches the original's `balance_after`.
- *   6. Its `balance_after` matches the original's `balance_before`.
- *
- * The model exposes two read helpers for this:
- *
- *   reversedEntry()  — the row this entry reverses (belongsTo self).
- *   reversals()      — the row(s) that reverse this entry (hasMany self).
- *                      By construction there should be at most one, but the
- *                      relation is HasMany so a double-reversal cannot be
- *                      masked by a relation that silently returns one.
- *                      The service is responsible for preventing double
- *                      reversals at write time.
- *
- * =============================================================================
- * No fractional shares (D6)
- * =============================================================================
- * The `quantity`, `balance_before`, and `balance_after` columns are all
- * DECIMAL(20,4). The ShareHoldingService enforces at write time that every
- * magnitude for a ShareHoldingEntry is a whole number. A row whose
- * fractional part is non-zero should never exist; if one is discovered, it
- * is a data-integrity incident, and the `hasWholeNumberQuantities()` helper
- * on this model will detect it for reporting.
- *
- * =============================================================================
- * Relations
- * =============================================================================
- *   shareHolding()   — the holding this entry belongs to.
- *   createdBy()      — the user who recorded the entry.
- *   reversedEntry()  — the row this entry reverses (if any).
- *   reversals()      — the row(s) that reverse this entry (if any).
+ * Append-only signed ledger of share-quantity changes with before/after balances; written atomically with the holding projection.
  *
  * @property int                 $id
  * @property int                 $share_holding_id
@@ -169,12 +30,10 @@ use MaaleArna\MASES\Core\Domains\Shareholder\Enums\HoldingDirection;
  * @property int|null            $created_by
  * @property int|null            $reversed_entry_id
  * @property Carbon|null $created_at
- *
  * @property-read ShareHolding|null $shareHolding
  * @property-read User|null         $createdBy
  * @property-read ShareHoldingEntry|null $reversedEntry
  * @property-read Collection<int, ShareHoldingEntry> $reversals
- *
  * @package MaaleArna\MASES\Core\Domains\Shareholder\Models
  */
 final class ShareHoldingEntry extends Model
