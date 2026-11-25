@@ -73,6 +73,12 @@ final class PlatformProviderActionLifecycleTest extends TestCase
             'services.arna_provider_mutations.enabled' => true,
             'services.arna_provider_mutations.sandbox_enabled' => true,
         ]);
+        DB::table('platform_integrations')->where('provider_key', 'sandbox_dns')->update([
+            'sandbox_mutations_enabled' => true,
+            'sandbox_certified_at' => now(),
+            'sandbox_certification_reference' => 'synthetic-test-fixture',
+            'connection_state' => 'connected',
+        ]);
         $worker = app(ProviderOutboxWorker::class);
         $result = $worker->dispatch(10);
 
@@ -213,6 +219,18 @@ final class PlatformProviderActionLifecycleTest extends TestCase
         $registry = new ProviderAdapterRegistry();
         $adapter = new TestSandboxProviderAdapter();
         $registry->register($adapter);
+        DB::table('platform_integrations')->insert([
+            'provider_key' => 'sandbox_dns',
+            'provider_type' => 'dns',
+            'display_name' => 'Synthetic DNS Adapter',
+            'category' => 'domain',
+            'connection_state' => 'not_connected',
+            'environment' => 'sandbox',
+            'adapter_version' => 'test-1.0.0',
+            'sandbox_mutations_enabled' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         app()->instance(ProviderAdapterRegistry::class, $registry);
 
         return [app(ProviderActionLifecycleService::class), $registry, $secretKey, $adapter];
