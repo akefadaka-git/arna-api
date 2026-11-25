@@ -288,8 +288,10 @@ jobs:
           php -l mases_core/src/Migrations/2026_11_11_000003_extend_calendar_reminder_occurrences.php
           php -l mases_core/src/Migrations/2026_11_12_000004_rekey_calendar_recurring_reminders.php
 
-      - name: Lint D08 task persistence migration
-        run: php -l database/migrations/2026_11_25_000001_create_d08_task_management_tables.php
+      - name: Lint D08 task persistence migrations
+        run: |
+          php -l database/migrations/2026_11_25_000001_create_d08_task_management_tables.php
+          php -l database/migrations/2026_11_25_000002_create_task_dependencies_table.php
 
       - name: Run all registered migrations on empty MySQL
         run: php artisan migrate --force -vvv
