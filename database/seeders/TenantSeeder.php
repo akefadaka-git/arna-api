@@ -11,7 +11,7 @@ use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 /**
  * TenantSeeder
  *
- * Seeds the default MASES tenant — the single row that anchors every
+ * Seeds the default ARNA tenant — the single row that anchors every
  * other reference-data seeder. Every user, role, application, and
  * shareholder the platform seeds is scoped to the tenant this seeder
  * writes, so this is the first domain seeder the orchestrator calls.

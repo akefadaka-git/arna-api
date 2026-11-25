@@ -17,7 +17,7 @@ use MaaleArna\MASES\Core\Calendar\Services\CalendarReminderDispatcher;
 
 /*
 |--------------------------------------------------------------------------
-| MASES Console Routes
+| ARNA Console Routes
 |--------------------------------------------------------------------------
 |
 | Loaded by the console kernel AFTER every service provider registered in

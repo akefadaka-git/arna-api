@@ -26,7 +26,7 @@ use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsPermissionC
  * contents can be reviewed and corrected independently of the
  * seeding algorithm.
  *
- * The class was extracted from MasesCoreSeeder during the seeder
+ * The class was extracted from the ARNA core seeder during the seeder
  * refactoring (Unit S-4). Its contents are byte-for-byte identical to
  * the PERMISSIONS constant it replaces; no field value was altered.
  *
@@ -205,5 +205,22 @@ final class PermissionCatalogue
             ['slug' => 'announcement.approve', 'name_am' => 'ማስታወቂያ ማጽደቅ', 'name_en' => 'Approve Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'announcement.publish', 'name_am' => 'ማስታወቂያ ማተም', 'name_en' => 'Publish Announcements', 'category' => 'announcement', 'scope' => 'tenant', 'is_system' => false],
             ['slug' => 'dashboard.executive.view', 'name_am' => 'የአስፈጻሚ አጠቃላይ እይታ ማየት', 'name_en' => 'View Executive Overview', 'category' => 'dashboard', 'scope' => 'tenant', 'is_system' => false],
+        ['slug' => 'platform.domains.read', 'name_am' => 'የመድረክ ዶሜይኖችን ማየት', 'name_en' => 'View Platform Domains', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.domains.manage', 'name_am' => 'የመድረክ ዶሜይኖችን ማስተዳደር', 'name_en' => 'Manage Platform Domain Registry', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.domains.verify', 'name_am' => 'የዶሜይን ባለቤትነትን ማረጋገጥ', 'name_en' => 'Verify Domain Ownership', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.settings.read', 'name_am' => 'የመድረክ ቅንብሮችን ማየት', 'name_en' => 'View Platform Settings', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.settings.manage', 'name_am' => 'የመድረክ ቅንብር ለውጥ መጠየቅ', 'name_en' => 'Request Platform Settings Changes', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.settings.approve', 'name_am' => 'የመድረክ ቅንብር ለውጦችን ማጽደቅ', 'name_en' => 'Approve Platform Settings Changes', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.configuration.read', 'name_am' => 'የመድረክ ውቅርን ማየት', 'name_en' => 'View Platform Configuration', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.configuration.manage', 'name_am' => 'የመድረክ ውቅር ለውጥ መጠየቅ', 'name_en' => 'Request Platform Configuration Changes', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.configuration.approve', 'name_am' => 'የመድረክ ውቅር ለውጦችን ማጽደቅ', 'name_en' => 'Approve Platform Configuration Changes', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.integrations.read', 'name_am' => 'የአቅራቢ ግንኙነቶችን ማየት', 'name_en' => 'View Platform Integrations', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.operations.read', 'name_am' => 'የመድረክ ኦፕሬሽኖችን ማየት', 'name_en' => 'View Platform Operations Health', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.providers.actions.read', 'name_am' => 'የአቅራቢ እርምጃ ጥያቄዎችን ማየት', 'name_en' => 'View Provider Action Requests', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.providers.actions.request', 'name_am' => 'የአቅራቢ እርምጃ መጠየቅ', 'name_en' => 'Request Provider Actions', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.providers.actions.approve', 'name_am' => 'የአቅራቢ እርምጃዎችን ማጽደቅ', 'name_en' => 'Approve Provider Actions', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.providers.actions.owner-authorize', 'name_am' => 'የባለቤት ፊርማ ፈቃድ ማረጋገጥ', 'name_en' => 'Verify Provider Owner Authorization', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.overview.read', 'name_am' => 'የመድረክ አጠቃላይ እይታን ማየት', 'name_en' => 'View Platform Overview', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
+        ['slug' => 'platform.applications.read', 'name_am' => 'የመድረክ መተግበሪያዎችን ማየት', 'name_en' => 'View Platform Applications', 'category' => 'platform', 'scope' => 'global', 'is_system' => false],
 ];
 }

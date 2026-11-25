@@ -19,7 +19,7 @@ use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsRolePermiss
  * =============================================================================
  * Revision history
  * =============================================================================
- * 1.0.0  — initial delivery (Unit S-6). Extracted from MasesCoreSeeder
+ * 1.0.0  — initial delivery (Unit S-6). Extracted from ARNACoreSeeder
  *          during the seeder refactoring. Twelve roles, three grant-
  *          spec forms ('*', 'scope:{scope}', literal slugs).
  *
@@ -168,7 +168,7 @@ use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsRolePermiss
  * the "platform-operation" subset of the register:
  *
  *   app.admin.access    — Administration.
- *   app.app.access      — MASES Workspace.
+ *   app.app.access      — ARNA Workspace.
  *   app.launcher.access — Application Launcher.
  *
  * The four end-user applications — portal, finance, hr, arna — are

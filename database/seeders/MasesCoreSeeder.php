@@ -17,7 +17,7 @@ use RuntimeException;
 /**
  * MasesCoreSeeder
  *
- * The orchestrator for the MASES core seeding flow. Its single
+ * The orchestrator for the ARNA core seeding flow. Its single
  * responsibility is to compose the sixteen classes that perform the
  * actual work into the correct order, and to print the operator
  * summary when the flow completes.
@@ -233,7 +233,7 @@ use RuntimeException;
 final class MasesCoreSeeder extends Seeder
 {
     /**
-     * Run the MASES core seeding flow.
+     * Run the ARNA core seeding flow.
      *
      * See the class docblock §"The composition" for the nine steps.
      *

@@ -10,7 +10,7 @@ use Throwable;
 /**
  * CoreException
  *
- * This is the base exception class for all MASES Core platform errors.
+ * This is the base exception class for all ARNA Core platform errors.
  * All domain-specific and infrastructure exceptions should extend this class
  * to ensure consistent error handling, logging, and response formatting.
  *

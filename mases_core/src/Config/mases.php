@@ -31,7 +31,7 @@ return [
     | Tenancy Configuration
     |--------------------------------------------------------------------------
     |
-    | MASES is a multi-tenant platform. These settings control how tenant
+    | ARNA is a multi-tenant platform. These settings control how tenant
     | context is resolved and enforced across all tenant-aware services.
     |
     | - default_tenant_id: The tenant to use when no context can be resolved
@@ -58,7 +58,7 @@ return [
     | Application Registry
     |--------------------------------------------------------------------------
     |
-    | This registry defines all MASES applications that are part of the
+    | This registry defines all ARNA applications that are part of the
     | ecosystem. Each entry includes the application's unique slug, display
     | name, domain, and optional description. This registry is used by the
     | launcher and for authorization checks (application access).
@@ -146,7 +146,7 @@ return [
     | Localization Defaults
     |--------------------------------------------------------------------------
     |
-    | MASES is Amharic-first but supports multiple locales. These settings
+    | ARNA is Amharic-first but supports multiple locales. These settings
     | define the default and fallback locales, as well as the system timezone.
     |
     | - default_locale: The primary locale (Amharic).

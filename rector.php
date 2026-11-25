@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * ============================================================================
- * Rector Configuration — MASES Core Platform Foundation API
+ * Rector Configuration — ARNA Core Platform Foundation API
  * ============================================================================
  *
  * Target   : Rector 2.x / PHPUnit 11.5 / Laravel 12 / PHP 8.3

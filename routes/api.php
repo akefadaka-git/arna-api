@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 /*
 |--------------------------------------------------------------------------
-| MASES API Routes
+| ARNA API Routes
 |--------------------------------------------------------------------------
 |
-| This file defines every HTTP route served by the MASES central API.
+| This file defines every HTTP route served by the ARNA central API.
 | Routes are grouped into four tiers, each with a distinct trust model:
 |
 |   1. Public routes        – no authentication required.
@@ -16,7 +16,7 @@ declare(strict_types=1);
 |                             (reports the tenant context for debugging).
 |   4. Tenant-scoped routes – require authentication AND tenant membership.
 |
-| Every response follows the MASES standard JSON envelope:
+| Every response follows the ARNA standard JSON envelope:
 |
 |     Success:  { "success": true,  "data": ... }
 |     Failure:  { "success": false, "error": { "code": ..., "message": ... } }
@@ -46,7 +46,7 @@ declare(strict_types=1);
 |     APP_DEBUG=true    — full stack traces in responses and logs
 |     APP_DEBUG=false   — sanitized errors, no stack traces
 |
-| The MASES error renderer (bootstrap/app.php) reads APP_DEBUG and shapes
+| The ARNA error renderer (bootstrap/app.php) reads APP_DEBUG and shapes
 | the error envelope accordingly. The `request_id` and `timestamp` fields
 | are present in both modes; only the stack trace and internal detail
 | differ. In development, keep APP_DEBUG=true so failed requests produce
@@ -106,7 +106,7 @@ declare(strict_types=1);
 |
 |          The `permissions` field previously read `$user->permissions` —
 |          the relation that queries `user_has_permissions`, i.e. ONLY
-|          direct per-user grants. In the MASES deployment the
+|          direct per-user grants. In the ARNA deployment the
 |          `user_has_permissions` table is deliberately empty; every
 |          permission is granted via roles (`user_has_roles` →
 |          `role_has_permissions`). The response therefore returned
@@ -129,7 +129,7 @@ declare(strict_types=1);
 |
 | 1.3.0  — prior version (CR-003a envelope fix).
 |
-| @package MASES
+| @package ARNA
 | @version 1.3.2
 */
 
@@ -162,7 +162,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
  * Used by monitoring tools, load balancers, and readiness probes.
  * Deliberately unauthenticated and tenant-independent.
  *
- * Response follows the MASES envelope:
+ * Response follows the ARNA envelope:
  *   { "success": true, "data": { status, timestamp, version, environment } }
  */
 Route::get('/health', static function (): JsonResponse {
@@ -427,7 +427,7 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
      * Lightweight endpoint returning basic identity plus tenant / role /
      * permission slugs. Useful for frontend authorisation heuristics.
      *
-     * Response follows the MASES envelope:
+     * Response follows the ARNA envelope:
      *   {
      *     "success": true,
      *     "data": {
@@ -453,7 +453,7 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
      *      (`user_has_roles` → `role_has_permissions`, exposed via
      *      `$user->roles[*]->permissions`).
      *
-     * Both paths are needed. In the current MASES deployment, path (1) is
+     * Both paths are needed. In the current ARNA deployment, path (1) is
      * always empty — the platform grants permissions exclusively through
      * roles — but path (1) remains in the merge so that a future direct
      * grant (an executive override, an emergency elevation) is reflected
@@ -913,6 +913,92 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
         Route::post('/reservations', [$controller, 'reserve'])
             ->middleware('auth.permission:calendar.reserve')->name('reservations.store');
     });
+});
+
+// Platform-wide aggregate counts. The endpoint returns database-backed totals only.
+Route::get('/admin/platform/overview', \App\Http\Controllers\Admin\PlatformOverviewController::class)
+    ->middleware(['auth:sanctum', 'auth.permission:platform.overview.read'])
+    ->name('api.admin.platform.overview');
+
+// Platform application registry — read-only catalogue and frontend readiness.
+Route::get('/admin/platform/applications', [\App\Http\Controllers\Admin\PlatformApplicationsController::class, 'index'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.applications.read'])
+    ->name('api.admin.platform.applications.index');
+
+// Platform domain registry — read and manage inventory, proof challenges and audit history.
+Route::get('/admin/platform/domains', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'index'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.domains.read'])
+    ->name('api.admin.platform.domains.index');
+Route::post('/admin/platform/domains', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'store'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.domains.manage'])
+    ->name('api.admin.platform.domains.store');
+Route::patch('/admin/platform/domains/{domain}', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'update'])
+    ->whereNumber('domain')
+    ->middleware(['auth:sanctum', 'auth.permission:platform.domains.manage'])
+    ->name('api.admin.platform.domains.update');
+Route::post('/admin/platform/domains/{domain}/verify', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'verify'])
+    ->whereNumber('domain')
+    ->middleware(['auth:sanctum', 'auth.permission:platform.domains.verify'])
+    ->name('api.admin.platform.domains.verify');
+Route::get('/admin/platform/domains/{domain}/history', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'history'])
+    ->whereNumber('domain')
+    ->middleware(['auth:sanctum', 'auth.permission:platform.domains.read'])
+    ->name('api.admin.platform.domains.history');
+
+// Platform settings and configuration use encrypted values and a two-person approval lifecycle.
+Route::middleware('auth:sanctum')->prefix('admin/platform')->name('api.admin.platform.')->group(static function (): void {
+    $controller = \App\Http\Controllers\Admin\PlatformSettingsController::class;
+
+    Route::get('/settings', [$controller, 'settings'])
+        ->middleware('auth.permission:platform.settings.read')->name('settings.index');
+    Route::get('/settings/change-requests', [$controller, 'settingRequests'])
+        ->middleware('auth.permission:platform.settings.approve')->name('settings.requests.index');
+    Route::post('/settings/change-requests', [$controller, 'requestSettingChange'])
+        ->middleware('auth.permission:platform.settings.manage')->name('settings.requests.store');
+    Route::post('/settings/change-requests/{changeRequest}/approve', [$controller, 'approveSettingChange'])
+        ->whereNumber('changeRequest')->middleware('auth.permission:platform.settings.approve')->name('settings.requests.approve');
+    Route::post('/settings/change-requests/{changeRequest}/reject', [$controller, 'rejectSettingChange'])
+        ->whereNumber('changeRequest')->middleware('auth.permission:platform.settings.approve')->name('settings.requests.reject');
+
+    Route::get('/configuration', [$controller, 'configuration'])
+        ->middleware('auth.permission:platform.configuration.read')->name('configuration.index');
+    Route::get('/configuration/change-requests', [$controller, 'configurationRequests'])
+        ->middleware('auth.permission:platform.configuration.approve')->name('configuration.requests.index');
+    Route::post('/configuration/change-requests', [$controller, 'requestConfigurationChange'])
+        ->middleware('auth.permission:platform.configuration.manage')->name('configuration.requests.store');
+    Route::post('/configuration/change-requests/{changeRequest}/approve', [$controller, 'approveConfigurationChange'])
+        ->whereNumber('changeRequest')->middleware('auth.permission:platform.configuration.approve')->name('configuration.requests.approve');
+    Route::post('/configuration/change-requests/{changeRequest}/reject', [$controller, 'rejectConfigurationChange'])
+        ->whereNumber('changeRequest')->middleware('auth.permission:platform.configuration.approve')->name('configuration.requests.reject');
+});
+
+// Integration/provider registry and operational health are read-only until provider adapters are approved.
+Route::get('/admin/platform/integrations', [\App\Http\Controllers\Admin\PlatformOperationsController::class, 'integrations'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.integrations.read'])
+    ->name('api.admin.platform.integrations.index');
+Route::get('/admin/platform/operations/health', [\App\Http\Controllers\Admin\PlatformOperationsController::class, 'health'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.operations.read'])
+    ->name('api.admin.platform.operations.health');
+Route::get('/admin/platform/operations/observations', [\App\Http\Controllers\Admin\PlatformOperationsController::class, 'observations'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.operations.read'])
+    ->name('api.admin.platform.operations.observations');
+
+// ARNA provider action requests, independent approvals, Owner authorization and held-outbox dispatch.
+Route::middleware('auth:sanctum')->prefix('admin/platform/provider-actions')->name('api.admin.platform.provider-actions.')->group(static function (): void {
+    $controller = \App\Http\Controllers\Admin\PlatformProviderActionsController::class;
+
+    Route::get('/', [$controller, 'index'])
+        ->middleware('auth.permission:platform.providers.actions.read')->name('index');
+    Route::post('/', [$controller, 'store'])
+        ->middleware('auth.permission:platform.providers.actions.request')->name('store');
+    Route::get('/{publicId}/history', [$controller, 'history'])
+        ->whereUuid('publicId')->middleware('auth.permission:platform.providers.actions.read')->name('history');
+    Route::post('/{publicId}/approve', [$controller, 'approve'])
+        ->whereUuid('publicId')->middleware('auth.permission:platform.providers.actions.approve')->name('approve');
+    Route::post('/{publicId}/reject', [$controller, 'reject'])
+        ->whereUuid('publicId')->middleware('auth.permission:platform.providers.actions.approve')->name('reject');
+    Route::post('/{publicId}/owner-authorization', [$controller, 'ownerAuthorize'])
+        ->whereUuid('publicId')->middleware('auth.permission:platform.providers.actions.owner-authorize')->name('owner-authorize');
 });
 
 Route::fallback(static function (): never {

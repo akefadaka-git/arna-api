@@ -5,8 +5,9 @@ on:
     branches: [main, integration/**]
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
+    # The Admin control-plane branch runs this exact-head MySQL gate for provider foundation migrations.
     # This lets the same clean-install gate run automatically for PR #23.
-    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api]
+    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/admin-a3-master-control-plane]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - ".github/workflows/arna-a4-synthetic-backup-restore.yml"
@@ -48,6 +49,32 @@ on:
       - "tests/Feature/PublicContentModerationTest.php"
       - "routes/console.php"
       - "routes/api.php"
+      - "app/Http/Controllers/Admin/PlatformDomainRegistryController.php"
+      - "tests/Feature/AdminDomainRegistryRouteTest.php"
+      - "app/Http/Controllers/Admin/PlatformOverviewController.php"
+      - "tests/Feature/AdminPlatformOverviewRouteTest.php"
+      - "app/Http/Controllers/Admin/PlatformApplicationsController.php"
+      - "tests/Feature/AdminPlatformApplicationsRouteTest.php"
+      - "tests/Feature/AdminPersistentDomainRegistryTest.php"
+      - "tests/Feature/AdminPlatformSettingsApprovalTest.php"
+      - "tests/Feature/AdminPlatformOperationsTest.php"
+      - "tests/Feature/AdminControlPlaneAuthorizationNegativeTest.php"
+      - "app/Http/Controllers/Admin/PlatformSettingsController.php"
+      - "app/Http/Controllers/Admin/PlatformOperationsController.php"
+      - "app/Contracts/Admin/Providers/**"
+      - "app/Data/Admin/Providers/**"
+      - "app/Services/Admin/Providers/**"
+      - "app/Data/Admin/Providers/**"
+      - "app/Http/Controllers/Admin/PlatformProviderActionsController.php"
+      - "app/Console/Commands/DispatchProviderOutbox.php"
+      - "app/Console/Commands/CertifyProviderSandbox.php"
+      - "app/Console/Commands/CertifyProviderSandbox.php"
+      - "tests/Feature/PlatformProviderActionLifecycleTest.php"
+      - "tests/Support/Fakes/**"
+      - "tests/Unit/PlatformProviderArchitectureTest.php"
+      - "config/services.php"
+      - "tests/Unit/AdminPlatformPermissionCatalogueTest.php"
+      - "database/seeders/Data/PermissionCatalogue.php"
       - "app/Http/Controllers/ExecutiveOverviewController.php"
       - "mases_core/src/Authorization/ExecutiveOverviewAccessPolicy.php"
       - "mases_core/src/Domains/Finance/Providers/FinanceServiceProvider.php"
@@ -269,6 +296,51 @@ jobs:
           DB_FOREIGN_KEYS: "true"
         run: php artisan test --compact tests/Feature/PublicContentModerationTest.php
 
+      - name: Run platform domain registry route and safety contract tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/AdminDomainRegistryRouteTest.php
+
+      - name: Run platform overview route ownership tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/AdminPlatformOverviewRouteTest.php
+
+      - name: Run platform applications route ownership tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/AdminPlatformApplicationsRouteTest.php
+
+      - name: Run platform Admin permission catalogue scope test
+        run: php artisan test --compact tests/Unit/AdminPlatformPermissionCatalogueTest.php
+
+      - name: Run persistent domain registry and runtime permission-negative tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/AdminPersistentDomainRegistryTest.php tests/Feature/AdminControlPlaneAuthorizationNegativeTest.php
+
+      - name: Run settings approval and provider operations contract tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Feature/AdminPlatformSettingsApprovalTest.php tests/Feature/AdminPlatformOperationsTest.php
+
+      - name: Run provider adapter architecture and fail-closed gate tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Unit/PlatformProviderArchitectureTest.php
+
       - name: Confirm test database is empty
         shell: bash
         run: |
@@ -473,7 +545,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates finance_outbox_messages finance_ai_proposals finance_inbox_events calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries; do
+          for table in tenants users versioned_policies shareholders governance_bodies people employees governance_memberships person_tenant_accesses governance_authority_grants governance_seats governance_seat_occupancies governance_acting_assignments governance_meetings governance_meeting_attendance governance_meeting_proxies governance_meeting_penalties governance_penalty_settlements governance_meeting_activity governance_attendance_corrections governance_penalty_disputes person_document_links organization_units organization_assignments organization_audit_events public_contents public_content_email_verifications platform_notifications communication_announcements communication_announcement_recipients legal_entities ledger_accounts accounting_periods journal_entries journal_lines finance_audit_entries journal_source_entity_mappings finance_consolidation_account_mappings finance_exchange_rates finance_outbox_messages finance_ai_proposals finance_inbox_events calendar_calendars calendar_resources calendar_events calendar_attendees calendar_event_links calendar_reservations calendar_audit_entries calendar_recurrence_exceptions calendar_reminder_outbox corporate_site_pages corporate_site_entries corporate_site_inquiries platform_domains platform_domain_verifications platform_domain_audit_events platform_settings platform_setting_change_requests platform_setting_audit_events platform_integrations platform_health_observations platform_provider_action_requests platform_provider_action_approvals platform_provider_action_audit_events platform_provider_action_outbox; do
             found="$(mysql -h 127.0.0.1 -uroot -proot arna_migration_test -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='arna_migration_test' AND table_name='${table}'")"
             echo "${table}: ${found}"
             test "${found}" -eq 1
@@ -550,6 +622,16 @@ jobs:
         env:
           MASES_ENABLE_DEMO_SEEDING: "true"
         run: php artisan migrate:fresh --seed --force -vvv
+
+      - name: Run provider action lifecycle integration tests on migrated MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact tests/Feature/PlatformProviderActionLifecycleTest.php
 
       - name: Verify Organization tables after fresh migration and seed
         shell: bash

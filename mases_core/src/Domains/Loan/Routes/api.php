@@ -69,7 +69,7 @@ declare(strict_types=1);
 
 /*
  * -----------------------------------------------------------------------------
- * MASES LOAN DOMAIN — HTTP ROUTES
+ * ARNA LOAN DOMAIN — HTTP ROUTES
  * -----------------------------------------------------------------------------
  *
  * The frozen seventeen-endpoint HTTP surface for the Loan domain. This

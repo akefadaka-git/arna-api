@@ -46,4 +46,17 @@ return [
         ],
     ],
 
+    'arna_provider_mutations' => [
+        // Both gates default off. Sandbox execution never implies production authorization.
+        'enabled' => env('ARNA_PROVIDER_MUTATIONS_ENABLED', false),
+        'sandbox_enabled' => env('ARNA_PROVIDER_SANDBOX_MUTATIONS_ENABLED', false),
+        'certification_enabled' => env('ARNA_PROVIDER_SANDBOX_CERTIFICATION_ENABLED', false),
+    ],
+
+    // Dedicated provider-action Owner trust anchor; never reuse tenant RBAC or settings keys.
+    'arna_provider_owner' => [
+        'key_id' => env('ARNA_PROVIDER_OWNER_KEY_ID'),
+        'public_key' => env('ARNA_PROVIDER_OWNER_PUBLIC_KEY'), // Base64 raw Ed25519 public key (32 bytes).
+    ],
+
 ];
