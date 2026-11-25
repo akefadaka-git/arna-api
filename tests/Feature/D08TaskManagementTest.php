@@ -88,6 +88,41 @@ final class D08TaskManagementTest extends TestCase
     }
 
     #[Test]
+    public function deadline_projection_accepts_ethiopian_ranges_and_preserves_task_visibility(): void
+    {
+        $tenant = $this->tenant();
+        $actor = $this->member($tenant);
+        $other = $this->member($tenant);
+        $this->grant($actor, $tenant, 'task.create', 'task.view');
+        $this->grant($other, $tenant, 'task.create', 'task.view');
+
+        Sanctum::actingAs($actor);
+        $own = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks', [
+                'title' => 'My E.C. deadline',
+                'due_on_ec' => ['year' => 2019, 'month' => 3, 'day' => 10],
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        Sanctum::actingAs($other);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/tasks', [
+                'title' => 'Another member deadline',
+                'due_on_ec' => ['year' => 2019, 'month' => 3, 'day' => 10],
+            ])
+            ->assertCreated();
+
+        Sanctum::actingAs($actor);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->getJson('/api/tasks/deadlines?from_ec[year]=2019&from_ec[month]=3&from_ec[day]=10&to_ec[year]=2019&to_ec[month]=3&to_ec[day]=10')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $own)
+            ->assertJsonPath('data.0.due_on_ec.iso', '2019-03-10');
+    }
+
+    #[Test]
     public function personal_tasks_cannot_be_reassigned_as_corporate_work(): void
     {
         $tenant = $this->tenant();
