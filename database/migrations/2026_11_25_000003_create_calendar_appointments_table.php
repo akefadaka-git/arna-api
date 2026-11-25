@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('status', 20)->default('requested');
             $table->timestamp('confirmed_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();
+            $table->timestamp('declined_at')->nullable();
             $table->unsignedInteger('version')->default(1);
             $table->timestamps();
 
