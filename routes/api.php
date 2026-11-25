@@ -925,6 +925,14 @@ Route::get('/admin/platform/applications', [\App\Http\Controllers\Admin\Platform
     ->middleware(['auth:sanctum', 'auth.permission:platform.applications.read'])
     ->name('api.admin.platform.applications.index');
 
+// Platform-level audit and security oversight is read-only and excludes tenant-bound records.
+Route::get('/admin/platform/audit-logs', [\\App\\Http\\Controllers\\Admin\\PlatformAuditSecurityController::class, 'auditLogs'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.audit.read'])
+    ->name('api.admin.platform.audit-logs.index');
+Route::get('/admin/platform/security-events', [\\App\\Http\\Controllers\\Admin\\PlatformAuditSecurityController::class, 'securityEvents'])
+    ->middleware(['auth:sanctum', 'auth.permission:platform.security.read'])
+    ->name('api.admin.platform.security-events.index');
+
 // Platform domain registry — read and manage inventory, proof challenges and audit history.
 Route::get('/admin/platform/domains', [\App\Http\Controllers\Admin\PlatformDomainRegistryController::class, 'index'])
     ->middleware(['auth:sanctum', 'auth.permission:platform.domains.read'])
