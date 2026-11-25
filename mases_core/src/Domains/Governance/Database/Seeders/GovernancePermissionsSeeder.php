@@ -331,69 +331,7 @@ use RuntimeException;
  * platform `permissions` table.
  *
  * =============================================================================
- * Revision history
- * =============================================================================
- * 1.0.0  — initial delivery (G1 file 7 of 10). 41 tenant-scoped
- *          `governance.*` slugs and 1 application-scoped
- *          `app.governance.access` slug, all with Amharic labels
- *          from the first delivery. Idempotent via `updateOrCreate`.
- *          The application-scoped row's `application_id` is
- *          resolved at run time by querying `platform_applications`
- *          for `slug = 'governance'`; a missing row throws a
- *          RuntimeException naming GovernanceApplicationSeeder as
- *          the prerequisite.
- *
- * =============================================================================
- * What this seeder writes
- * =============================================================================
- * 42 rows across 2 scopes:
- *
- *   governance.*        41 rows (scope = 'tenant', category = 'governance')
- *   app.governance.*     1 row  (scope = 'application', category = 'app_access')
- *
- * The set is frozen by the master prompt §28 as refined during the
- * G0 assessment. Adding, removing, or renaming a slug is a Change
- * Request, because historical rows and audit trails reference
- * slugs.
- *
- * =============================================================================
- * Idempotency
- * =============================================================================
- * Every insert is performed via `updateOrCreate(['slug' => $slug], [...])`.
- * Running this seeder repeatedly is safe:
- *
- *   - A row whose slug is present is updated to the values declared here.
- *   - A row whose slug is absent is inserted.
- *   - A row whose slug is neither referenced here nor pre-existing is
- *     never touched. The seeder does not delete permissions.
- *
- * =============================================================================
- * Amharic labels
- * =============================================================================
- * Every permission's `name_am` and `description_am` are seeded with
- * Amharic values. The platform's Amharic-first policy governs:
- * Amharic is the primary display language, English is the fallback.
- * The resource layer reads `name_am` first and falls back to
- * `name_en` only when the Amharic value is empty.
- *
- * The `_am` values follow the same vocabulary as the domain's
- * Amharic catalogue (G1 file 2) and the same verb forms as the
- * Shareholder domain's permission labels. The three flagged items
- * in the file-level change-verification block §"Native-speaker
- * review needed" are refinements, not blockers.
- *
- * =============================================================================
- * How to run
- * =============================================================================
- * Invoke explicitly, after the application row exists:
- *
- *     php artisan db:seed \
- *         --class="MaaleArna\\MASES\\Core\\Domains\\Governance\\Database\\Seeders\\GovernancePermissionsSeeder"
- *
- * Expected output:
- *
- *     Governance permissions seeded: 42 entries (41 tenant + 1 application).
- *
+ * Permission slugs remain stable and tenant-scoped; seed before role grants.
  * @package MaaleArna\MASES\Core\Domains\Governance\Database\Seeders
  * @version 1.0.0
  */
