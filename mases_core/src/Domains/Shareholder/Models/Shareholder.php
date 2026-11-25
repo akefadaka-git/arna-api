@@ -17,122 +17,7 @@ use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 
 /**
- * Shareholder
- *
- * Eloquent model for a shareholder register entry.
- *
- * =============================================================================
- * What this model represents
- * =============================================================================
- * A shareholder, as defined by decision D8, is:
- *
- *     A natural person or legally recognized legal entity that lawfully
- *     owns one or more shares of Maale Arna Share Company and is recorded
- *     as the holder of those shares in the company's official shareholder
- *     register.
- *
- * The model therefore stores the IDENTITY of the holder. It does NOT store:
- *
- *   - The shares they hold. Those live on ShareHolding (current balance) and
- *     ShareHoldingEntry (ledger). A shareholder may hold zero shares if all
- *     holdings have been transferred out; the register entry remains.
- *
- *   - The certificates issued to them. Those live on ShareCertificate.
- *
- *   - Their KYC data. KYC is a separate profile to be defined by a future
- *     manifest, following the D12 field matrix decision.
- *
- * =============================================================================
- * Shareholder types and the representative rule (D9 + D11)
- * =============================================================================
- * Six types are permitted by D9:
- *
- *     individual, company, trust, cooperative, government, religious_body
- *
- * The type is stored in `shareholder_type` as a plain string value that
- * matches `ShareholderType` (2A.3). The enum is the only authoritative
- * vocabulary; the `type()` helper returns the enum case for a given row.
- *
- * The representative rule (D11) states:
- *
- *     Every type except `individual` requires a designated authorized
- *     human representative User. The representative is not the owner;
- *     the entity is the shareholder.
- *
- * This model therefore carries TWO nullable user references:
- *
- *   user_id                 — the direct self-service link. Populated for
- *                             individuals whose access is granted directly,
- *                             and never populated for legal entities.
- *
- *   representative_user_id  — the authorized representative. Required for
- *                             every non-individual shareholder. Also
- *                             populated for individuals who are represented
- *                             by an administrator, when the operator
- *                             chooses to record one.
- *
- * The conditional invariant — individual requires `user_id`, non-individual
- * requires `representative_user_id` — is enforced by ShareholderService
- * (2A.12), not by the database. See the column contract in the manifest
- * for the reasoning.
- *
- * =============================================================================
- * Amharic-first naming
- * =============================================================================
- * Identity fields are stored in the same six-column bilingual pattern as
- * the `users` table (declared by 2A.38):
- *
- *     first_name_am / first_name_en
- *     father_name_am / father_name_en
- *     grandfather_name_am / grandfather_name_en
- *
- * For legal entities, the analogous two columns are:
- *
- *     entity_name_am / entity_name_en
- *
- * The `_am` column precedes `_en` in `$fillable` and in the accessor
- * composition order, mirroring the users-table convention and the Amharic-
- * first policy. The `full_name` accessor composes Amharic-first with
- * English fallback per component.
- *
- * =============================================================================
- * What this model deliberately does NOT do
- * =============================================================================
- *   - It does not change ShareHolding balances. Balances move only through
- *     ShareHoldingService (2A.14) via append-only ShareHoldingEntry rows.
- *
- *   - It does not validate the conditional representative invariant.
- *     That belongs to the service layer.
- *
- *   - It does not provide KYC fields. When the D12 field matrix is frozen,
- *     a separate `shareholder_kyc_profiles` table and a `KycProfile` model
- *     will be added under their own manifest. This model will gain a
- *     `kycProfile()` HasOne relation at that time, via a Change Request.
- *
- *   - It does not perform authorization. Policies (2A.29) handle access.
- *
- * =============================================================================
- * Soft deletes
- * =============================================================================
- * A shareholder is never hard-deleted. Historical ledger entries reference
- * the shareholder_id; removing the row would orphan the audit trail. Soft
- * deletion preserves the reference while removing the shareholder from
- * active queries. A soft-deleted shareholder's holdings and certificates
- * remain intact and continue to resolve.
- *
- * =============================================================================
- * Relations
- * =============================================================================
- *   tenant()          — the tenant this shareholder is scoped to.
- *   user()            — direct self-service User (nullable).
- *   representative()  — designated representative User (nullable here;
- *                       mandatory for non-individuals at service level).
- *   shareHoldings()   — the holdings owned by this shareholder.
- *   shareCertificates() — certificates issued to this shareholder.
- *
- * The relation targets `ShareHolding` (2A.8) and `ShareCertificate` (2A.10)
- * are referenced by fully-qualified string, so this file loads before those
- * classes exist.
+ * Stores holder identity only: individual or legal entity. Holdings, certificates and KYC are separate; legal-entity rows must not link directly to a user.
  *
  * @property int                  $id
  * @property int                  $tenant_id
@@ -152,11 +37,9 @@ use MaaleArna\MASES\Core\Domains\People\Models\Person;
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property Carbon|null $deleted_at
- *
  * @property-read string          $full_name      Composed name (Amharic-first).
  * @property-read string          $name           Alias of full_name (compat).
  * @property-read string          $display_name   Locale-aware display name.
- *
  * @package MaaleArna\MASES\Core\Domains\Shareholder\Models
  */
 final class Shareholder extends Model
