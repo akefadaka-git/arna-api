@@ -27,6 +27,10 @@ $missingExtensions = array_values(array_filter(
 ));
 
 fwrite(STDOUT, 'PHP runtime: '.PHP_VERSION.'; SAPI: '.PHP_SAPI."\n");
+$phpRuntimeSupported = PHP_VERSION_ID >= 80300 && PHP_VERSION_ID < 90000;
+if (! $phpRuntimeSupported) {
+    fwrite(STDERR, 'FAIL: PHP >=8.3 and <9.0 is required by composer.json; detected '.PHP_VERSION.".\n");
+}
 if ($missingExtensions !== []) {
     fwrite(STDERR, 'FAIL: required PHP extensions are not loaded: '.implode(', ', $missingExtensions)."\n");
 }
@@ -53,7 +57,13 @@ foreach (file($envPath, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
     $values[$matches[1]] = $value;
 }
 
-$failures = $missingExtensions === [] ? [] : ['Required PHP extensions are missing from the PHP runtime executing this script'];
+$failures = [];
+if (! $phpRuntimeSupported) {
+    $failures[] = 'PHP >=8.3 and <9.0 is required by composer.json';
+}
+if ($missingExtensions !== []) {
+    $failures[] = 'Required PHP extensions are missing from the PHP runtime executing this script';
+}
 $require = static function (string $key) use (&$values, &$failures): string {
     $value = trim((string) ($values[$key] ?? ''));
     if ($value === '' || str_contains(strtoupper($value), 'CHANGE-ME')) {
@@ -136,5 +146,5 @@ if ($failures !== []) {
 }
 
 fwrite(STDOUT, "Production environment preflight: PASS\n");
-fwrite(STDOUT, "Validated the executing PHP runtime's required extensions, production mode, HTTPS API URL, non-debug mode, MySQL configuration, Laravel key format, secure session cookie controls, and the two approved Sanctum SPA stateful hosts plus nine independent browser CORS origins. Secret values were not displayed.\n");
+fwrite(STDOUT, "Validated PHP compatibility with composer.json (>=8.3 and <9.0), the executing runtime's required extensions, production mode, HTTPS API URL, non-debug mode, MySQL configuration, Laravel key format, secure session cookie controls, and the two approved Sanctum SPA stateful hosts plus nine independent browser CORS origins. Secret values were not displayed.\n");
 fwrite(STDOUT, "NOTE: This reports the PHP runtime executing the script (normally CLI); confirm it matches the domain's PHP-FPM runtime in Plesk.\n");
