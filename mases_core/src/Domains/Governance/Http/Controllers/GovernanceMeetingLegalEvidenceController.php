@@ -112,7 +112,16 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
 
     public function verifyBasis(Request $request, int $legalBasis): JsonResponse
     {
-        $data = $request->validate(['decision' => ['required', 'in:verified,rejected'], 'reason' => ['required', 'string', 'min:5', 'max:2000']]);
+        $data = $request->validate([
+            'decision' => ['required', 'in:verified,rejected'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+            'external_counsel_name' => ['required_if:decision,verified', 'nullable', 'string', 'max:255'],
+            'external_counsel_firm' => ['required_if:decision,verified', 'nullable', 'string', 'max:255'],
+            'external_counsel_license_reference' => ['required_if:decision,verified', 'nullable', 'string', 'max:255'],
+            'external_opinion_reference' => ['required_if:decision,verified', 'nullable', 'string', 'max:2000'],
+            'external_opinion_sha256' => ['required_if:decision,verified', 'nullable', 'regex:/^[a-fA-F0-9]{64}$/'],
+            'external_reviewed_at' => ['required_if:decision,verified', 'nullable', 'date', 'before_or_equal:now'],
+        ]);
         $tenantId = $this->tenantId();
         $basis = DB::table('governance_meeting_legal_bases')->where('tenant_id', $tenantId)->where('id', $legalBasis)->first();
         if (!$basis) {
@@ -126,7 +135,15 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
         }
         DB::table('governance_meeting_legal_bases')->where('tenant_id', $tenantId)->where('id', $legalBasis)->update([
             'status' => $data['decision'], 'verified_by' => (int) auth()->id(),
-            'verified_at' => now(), 'review_reason' => $data['reason'], 'updated_at' => now(),
+            'verified_at' => now(), 'review_reason' => $data['reason'],
+            'external_review_status' => $data['decision'],
+            'external_counsel_name' => $data['external_counsel_name'] ?? null,
+            'external_counsel_firm' => $data['external_counsel_firm'] ?? null,
+            'external_counsel_license_reference' => $data['external_counsel_license_reference'] ?? null,
+            'external_opinion_reference' => $data['external_opinion_reference'] ?? null,
+            'external_opinion_sha256' => isset($data['external_opinion_sha256']) ? strtolower($data['external_opinion_sha256']) : null,
+            'external_reviewed_at' => $data['external_reviewed_at'] ?? null,
+            'updated_at' => now(),
         ]);
         $this->activity($tenantId, (int) $basis->meeting_id, 'meeting.legal_basis.reviewed', ['legal_basis_id' => $legalBasis, 'decision' => $data['decision']]);
         return response()->json(['success' => true, 'data' => DB::table('governance_meeting_legal_bases')->where('tenant_id', $tenantId)->find($legalBasis)]);
