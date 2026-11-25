@@ -1,4 +1,5 @@
 name: ARNA Admin audit and security regression
+# The MySQL clean-install workflow also runs the platform audit/security isolation feature suite on the same branch head.
 
 on:
   push:
