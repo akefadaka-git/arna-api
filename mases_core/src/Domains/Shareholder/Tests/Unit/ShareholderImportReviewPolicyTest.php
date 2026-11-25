@@ -24,6 +24,7 @@ final class ShareholderImportReviewPolicyTest extends TestCase
         self::assertTrue($decision['allowed']);
         self::assertSame('submitted_for_review', $decision['status']);
         self::assertSame(10, $decision['submitted_by']);
+        self::assertSame(['SRC-001', 'SRC-002'], $decision['source_references']);
         self::assertFalse($decision['import_execution_permitted']);
         self::assertFalse($decision['writes_performed']);
     }
@@ -113,8 +114,7 @@ final class ShareholderImportReviewPolicyTest extends TestCase
 
     public function test_approval_requires_distinct_submitter_reviewer_and_approver(): void
     {
-        $review = $this->validAcceptedReview();
-        $decision = $this->policy->evaluateApproval($review, 20, 'AUTH-RES-001');
+        $decision = $this->policy->evaluateApproval($this->validAcceptedReview(), 20, 'AUTH-RES-001');
 
         self::assertFalse($decision['allowed']);
         self::assertContains('submitter_reviewer_approver_must_be_distinct', $decision['reason_codes']);
@@ -161,6 +161,31 @@ final class ShareholderImportReviewPolicyTest extends TestCase
         self::assertContains('submission_not_pending_review', $attempt['reason_codes']);
     }
 
+    public function test_end_to_end_review_packet_preserves_source_provenance_and_separation_of_duties(): void
+    {
+        $submission = $this->policy->evaluateSubmission($this->validPreview(), 10);
+        $review = $this->policy->evaluateReview(
+            $submission,
+            20,
+            2,
+            'accept',
+            'All rows matched to their source references.',
+            $this->completeEvidence(),
+        );
+        $approval = $this->policy->evaluateApproval($review, 30, 'AUTH-RES-001');
+
+        self::assertTrue($submission['allowed']);
+        self::assertTrue($review['allowed']);
+        self::assertTrue($approval['allowed']);
+        self::assertSame(['SRC-001', 'SRC-002'], $approval['source_references']);
+        self::assertSame([10, 20, 30], [
+            $approval['submitted_by'],
+            $approval['reviewed_by'],
+            $approval['approved_by'],
+        ]);
+        self::assertFalse($approval['import_execution_permitted']);
+    }
+
     private function validPreview(): array
     {
         return [
@@ -195,14 +220,13 @@ final class ShareholderImportReviewPolicyTest extends TestCase
 
     private function validAcceptedReview(): array
     {
-        return [
-            'status' => 'review_accepted',
-            'submitted_by' => 10,
-            'reviewed_by' => 20,
-            'row_count' => 2,
-            'reviewed_row_count' => 2,
-            'source_references' => ['SRC-001', 'SRC-002'],
-            'evidence_by_source_reference' => $this->completeEvidence(),
-        ];
+        return $this->policy->evaluateReview(
+            $this->validSubmission(),
+            20,
+            2,
+            'accept',
+            'Both rows reviewed.',
+            $this->completeEvidence(),
+        );
     }
 }
