@@ -814,6 +814,17 @@ Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access', 'tenant.m
 
 
 
+// D08 Task & Work Management — the authoritative task lifecycle owner.
+Route::middleware(['auth:sanctum', 'tenant.membership'])->prefix('/tasks')->name('api.tasks.')->group(static function (): void {
+    $controller = \\MaaleArna\\MASES\\Core\\Domains\\Task\\Http\\Controllers\\TaskController::class;
+
+    Route::get('/', [$controller, 'index'])->middleware('auth.permission:task.view')->name('index');
+    Route::post('/', [$controller, 'store'])->middleware('auth.permission:task.create')->name('store');
+    Route::get('/{id}', [$controller, 'show'])->whereUuid('id')->middleware('auth.permission:task.view')->name('show');
+    Route::patch('/{id}', [$controller, 'update'])->whereUuid('id')->middleware('auth.permission:task.update')->name('update');
+    Route::post('/{id}/assign', [$controller, 'assign'])->whereUuid('id')->middleware('auth.permission:task.assign')->name('assign');
+});
+
 // Calendar — authenticated tenant members with explicit Calendar capabilities.
 Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function (): void {
     // Calendar — tenant membership plus explicit Calendar capability checks.
