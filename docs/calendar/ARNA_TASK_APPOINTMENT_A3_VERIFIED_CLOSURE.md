@@ -84,3 +84,16 @@ No branches were created. Work was committed directly to the existing `main` bra
 **A5 deployment: NOT AUTHORIZED.**
 
 The next scoped work item is APT-02 rescheduling, beginning with its own assessment and contract reconciliation. Corporate scheduling and broader notification/AI integration remain outside this closure record.
+
+
+## 7. Post-record verification update
+
+After the initial record was written, the API `main` received the closure-workflow path update and then one unrelated Communication announcements test update. The focused D08/Calendar MySQL workflow was rerun on API commit `828340a6993c4acec57905a9c4e2a7cdbf427edd`:
+
+- [D08 and Calendar scheduling verification #33](https://github.com/akefadaka-git/arna-api/actions/runs/45571351982) — PASS on exact commit `828340a6993c4acec57905a9c4e2a7cdbf427edd`, 16 tests / 138 assertions.
+- The subsequent API `main` commit `cf33a7f14b1b28d340d62e09ebd2644f7418c463` changed only `tests/Feature/CommunicationAnnouncementsTest.php`; no D08, Calendar, appointment, route or migration files changed.
+- A fresh-install MySQL workflow was running on that later API `main` commit when this update was prepared. Its outcome is tracked separately and is not represented as a pass here.
+
+The App `main` remains `f694eb13ba822440c6842cb135a66f89218bc454`; [Frontend verification #3081](https://github.com/akefadaka-git/arna-app/actions/runs/45570771696) completed successfully on that exact commit, including the Task and appointment browser suites.
+
+This addendum preserves the original closure decision and does not expand its scope.
