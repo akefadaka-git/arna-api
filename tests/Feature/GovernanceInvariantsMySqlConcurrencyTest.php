@@ -292,7 +292,18 @@ final class GovernanceInvariantsMySqlConcurrencyTest extends TestCase
                         file_put_contents($resultPaths[$index], 'conflict');
                         exit(0);
                     } catch (Throwable $exception) {
-                        file_put_contents($resultPaths[$index], 'error:'.get_class($exception));
+                        // Preserve actionable worker diagnostics for the parent process.
+                        // Bound the message and strip control characters so CI output stays safe.
+                        $message = preg_replace('/[\\x00-\\x1F\\x7F]+/u', ' ', $exception->getMessage()) ?? '';
+                        $message = preg_replace('/(password|passwd|pwd)\\s*[=:]\\s*[^\\s;]+/i', '$1=[REDACTED]', $message) ?? $message;
+                        $diagnostic = sprintf(
+                            'error:%s:%s at %s:%d',
+                            get_class($exception),
+                            substr($message, 0, 500),
+                            $exception->getFile(),
+                            $exception->getLine(),
+                        );
+                        file_put_contents($resultPaths[$index], $diagnostic, LOCK_EX);
                         exit(3);
                     }
                 }
@@ -313,7 +324,11 @@ final class GovernanceInvariantsMySqlConcurrencyTest extends TestCase
                     : 'missing-result',
                 $resultPaths,
             );
-            $this->assertSame([0, 0], $exitCodes, 'Both concurrency workers must finish without infrastructure errors.');
+            $this->assertSame(
+                [0, 0],
+                $exitCodes,
+                'Both concurrency workers must finish without infrastructure errors. Worker outcomes: '.json_encode($outcomes, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            );
 
             return $outcomes;
         } finally {
