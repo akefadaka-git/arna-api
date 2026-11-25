@@ -16,6 +16,8 @@ on:
       - "app/Contracts/Admin/Providers/**"
       - "app/Data/Admin/Providers/**"
       - "app/Services/Admin/Providers/**"
+      - "app/Providers/AppServiceProvider.php"
+      - "tests/Support/Fakes/**"
       - "app/Http/Controllers/Admin/PlatformProviderActionsController.php"
       - "app/Console/Commands/DispatchProviderOutbox.php"
       - "tests/Feature/PlatformProviderActionLifecycleTest.php"
