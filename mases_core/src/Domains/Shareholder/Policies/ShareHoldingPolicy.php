@@ -2,68 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — P2.3 · File 1 of 7
- * =============================================================================
- *
- * File:            ShareHoldingPolicy.php
- * Unit:            P2.3 — wire share_holding.view / share_holding.view_own
- * Delivery type:   Amendment
- * Net lines:       +1 constructor dependency; +1 ability method;
- *                  +1 private helper; view() body rewritten
- *
- * Before:
- *   The policy exposed one ability — view(User, ShareHolding) — which
- *   loaded the holding's shareholder and delegated directly to
- *   ShareholderPolicy::view. The two share_holding-domain slugs
- *   (`share_holding.view`, `share_holding.view_own`) were declared in
- *   the RBAC vocabulary and assigned to roles, but no code path read
- *   them. The class docblock described the delegation as the single
- *   rule.
- *
- * After:
- *   Two abilities:
- *
- *     view(User, ShareHolding)              — preserved contract; loads
- *                                             the holding's shareholder
- *                                             and delegates to
- *                                             viewForShareholder.
- *
- *     viewForShareholder(User, Shareholder) — new. Grants through an OR
- *                                             of three paths:
- *
- *       1. caller holds `share_holding.view`                (administrative)
- *       2. caller holds `share_holding.view_own` AND is
- *          the shareholder's direct user_id link            (self-service)
- *       3. `ShareholderPolicy::view` returns true           (delegation:
- *                                                             shareholder.view,
- *                                                             shareholder.view_own
- *                                                             + self-link,
- *                                                             or representative)
- *
- *   The three paths are alternatives; any one grants.
- *
- * Constructor change:
- *   The policy now takes an `AuthorizationService` in addition to the
- *   existing `ShareholderPolicy`. The container resolves both via
- *   reflection; no provider change is required.
- *
- * Preserved:
- *   · The class remains `final`.
- *   · The delegation to `ShareholderPolicy` as path 3.
- *   · Fail-closed on an orphaned holding (shareholder relation null).
- *   · Cross-tenant short-circuit (returns false before any permission
- *     check).
- *   · No direct database queries beyond the existing `loadMissing`.
- *
- * Files modified:            this file only
- * Files added:               none
- * Files deleted:             none
- * Route middleware touched:  none
- * Seeder changes:            none
- * =============================================================================
- */
+
 
 namespace MaaleArna\MASES\Core\Domains\Shareholder\Policies;
 
