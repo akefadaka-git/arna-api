@@ -29,6 +29,7 @@ final class FirstPartySsoCookieTest extends TestCase
             'cors.allowed_origins' => [
                 'https://app.maalearna.com.et',
                 'https://portal.maalearna.com.et',
+                'https://www.maalearna.com.et',
             ],
         ]);
     }
@@ -57,7 +58,9 @@ final class FirstPartySsoCookieTest extends TestCase
         $this->assertSame('maalearna.com.et', ltrim((string) $cookie->getDomain(), '.'));
         $this->assertTrue($cookie->isSecure());
         $this->assertTrue($cookie->isHttpOnly());
+        $this->assertSame('/', $cookie->getPath());
         $this->assertSame('lax', $cookie->getSameSite());
+        $this->assertGreaterThan(time(), $cookie->getExpiresTime());
     }
 
     #[Test]
@@ -155,6 +158,39 @@ final class FirstPartySsoCookieTest extends TestCase
             ->getJson('/api/user')
             ->assertOk()
             ->assertJsonPath('data.email', $secondUser->email);
+    }
+
+
+    #[Test]
+    public function cors_allowed_but_non_stateful_public_site_does_not_receive_or_use_the_sso_cookie(): void
+    {
+        [$user, $tenant] = $this->createLoginIdentity();
+
+        $login = $this->withServerVariables([
+            'HTTP_HOST' => 'api.maalearna.com.et',
+            'HTTPS' => 'on',
+            'HTTP_ORIGIN' => 'https://www.maalearna.com.et',
+        ])->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'Password123!',
+            'tenant_id' => $tenant->id,
+        ])->assertOk();
+
+        $this->assertFalse(
+            collect($login->headers->getCookies())->contains(
+                static fn ($cookie) => $cookie->getName() === 'arna_sso_token'
+            ),
+            'CORS permission alone must not enable the SSO cookie.'
+        );
+
+        // Even if a valid shared cookie is presented, the non-stateful
+        // public-site Origin must not be promoted to a bearer credential.
+        $token = $login->json('data.token');
+        $this->withServerVariables(['HTTP_HOST' => 'api.maalearna.com.et', 'HTTPS' => 'on'])
+            ->withCookie('arna_sso_token', $token)
+            ->withHeader('Origin', 'https://www.maalearna.com.et')
+            ->getJson('/api/user')
+            ->assertUnauthorized();
     }
 
     private function createLoginIdentity(string $email = 'sso-test@example.com'): array
