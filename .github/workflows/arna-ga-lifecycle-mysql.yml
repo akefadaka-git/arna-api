@@ -1,6 +1,8 @@
 name: ARNA GA lifecycle and legal-gate exact-head MySQL verification
 
 on:
+  push:
+    branches: [feat/ga-statutory-controls-a3-current-main]
   pull_request:
     branches: [main]
     paths:
