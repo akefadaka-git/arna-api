@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use MaaleArna\MASES\Core\Auth\Models\User;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
+use MaaleArna\MASES\Core\Domains\Task\Models\Task;
 use MaaleArna\MASES\Core\Domains\Organization\Models\OrganizationAssignment;
 use MaaleArna\MASES\Core\Domains\Organization\Policies\OrganizationAssignmentPolicy;
 use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceAppointment;
@@ -54,6 +55,7 @@ final class CalendarDomainResourceAuthorizer
         'governance:position' => GovernancePosition::class,
         'governance:term' => GovernanceTerm::class,
         'people:person' => Person::class,
+        'task:task' => Task::class,
         'organization:unit' => OrganizationUnit::class,
         'organization:assignment' => OrganizationAssignment::class,
         'finance:accounting_period' => AccountingPeriod::class,
