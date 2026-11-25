@@ -51,6 +51,42 @@ final class PlatformProviderActionsController extends Controller
         return response()->json(['success' => true, 'data' => $items]);
     }
 
+    public function history(string $publicId): JsonResponse
+    {
+        $request = DB::table('platform_provider_action_requests')->where('public_id', $publicId)->first();
+        abort_if($request === null, 404, 'Provider action request was not found.');
+
+        $approvals = DB::table('platform_provider_action_approvals')
+            ->where('request_id', $request->id)->orderBy('id')->get()
+            ->map(static fn ($row): array => [
+                'approver_id' => (int) $row->approver_id,
+                'decision' => $row->decision,
+                'payload_sha256' => $row->payload_sha256,
+                'policy_version' => $row->policy_version,
+                'note' => $row->note,
+                'created_at' => $row->created_at,
+            ])->values();
+
+        $events = DB::table('platform_provider_action_audit_events')
+            ->where('request_id', $request->id)->orderBy('id')->get()
+            ->map(static fn ($row): array => [
+                'actor_id' => $row->actor_id === null ? null : (int) $row->actor_id,
+                'event_type' => $row->event_type,
+                'payload_sha256' => $row->payload_sha256,
+                'metadata' => $row->metadata === null ? null : json_decode($row->metadata, true),
+                'created_at' => $row->created_at,
+            ])->values();
+
+        return response()->json(['success' => true, 'data' => [
+            'public_id' => $request->public_id,
+            'status' => $request->status,
+            'payload_sha256' => $request->payload_sha256,
+            'policy_version' => $request->policy_version,
+            'approvals' => $approvals,
+            'audit_events' => $events,
+        ]]);
+    }
+
     public function store(Request $request, ProviderActionLifecycleService $service): JsonResponse
     {
         $data = $request->validate([
