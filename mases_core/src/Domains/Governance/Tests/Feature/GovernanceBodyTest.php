@@ -180,50 +180,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Models\GovernanceBody;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
 
-/**
- * GovernanceBodyTest
- *
- * Feature tests for the GovernanceBody vertical slice — the four
- * endpoints delivered by G2a.
- *
- * See the file-level change-verification block for the test's scope,
- * its revision history, its assumptions about the platform's testing
- * infrastructure, and its note on running without SSH.
- *
- * =============================================================================
- * Fixture topology
- * =============================================================================
- *   tenantA         — the caller's tenant. The admin is a member.
- *   tenantB         — the foreign tenant. The admin is NOT a member.
- *   admin           — holds governance.body.view and
- *                     governance.body.manage in tenantA.
- *   plainUser       — holds no governance permissions.
- *   bodyA           — a body in tenantA (used for happy-path reads
- *                     and updates).
- *   bodyB           — a body in tenantB (used to verify the tenant
- *                     boundary rejects cross-tenant access).
- *
- * =============================================================================
- * Raw-body scan policy
- * =============================================================================
- * Where a test scans the raw response body for evidence of
- * cross-tenant leakage, the scan target is a semantic, unambiguously
- * scoped marker — the body's Amharic code or name — not a numeric
- * id. Numeric ids collide with timestamps, UUIDs, and exception line
- * numbers, producing false positives. This mirrors the Shareholder
- * domain's `TenantIsolationTest` v1.2.0, which uses the same policy.
- *
- * =============================================================================
- * Memory hygiene
- * =============================================================================
- * `gc_collect_cycles()` runs at both ends of every test, following
- * the Shareholder suite's pattern. This keeps the Plesk CLI PHP
- * memory limit from being exhausted by accumulated fixture
- * references across the 13 test methods.
- *
- * @package MaaleArna\MASES\Core\Domains\Governance\Tests\Feature
- * @version 1.0.0
- */
+/** Tests GovernanceBody authorization, tenant isolation and endpoint behavior. */
 final class GovernanceBodyTest extends TestCase
 {
     use RefreshDatabase;
