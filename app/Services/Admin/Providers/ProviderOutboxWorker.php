@@ -48,7 +48,7 @@ final class ProviderOutboxWorker
     {
         return DB::transaction(function (): ?array {
             $row = DB::table('platform_provider_action_outbox')
-                ->whereIn('status', ['held', 'reconciliation_required'])
+                ->whereIn('status', ['held', 'reconciliation_required', 'processing'])
                 ->where(function ($query): void {
                     $query->whereNull('available_at')->orWhere('available_at', '<=', now());
                 })
@@ -64,7 +64,7 @@ final class ProviderOutboxWorker
             $lease = (string) Str::uuid();
             $updated = DB::table('platform_provider_action_outbox')
                 ->where('id', $row->id)
-                ->whereIn('status', ['held', 'reconciliation_required'])
+                ->whereIn('status', ['held', 'reconciliation_required', 'processing'])
                 ->update([
                     'status' => 'processing',
                     'lease_token' => $lease,
@@ -77,7 +77,7 @@ final class ProviderOutboxWorker
                 return null;
             }
 
-            return ['outbox' => (array) $row, 'lease_token' => $lease];
+            return ['outbox' => (array) $row, 'lease_token' => $lease, 'lease_recovery' => $row->status === 'processing'];
         });
     }
 
@@ -130,7 +130,7 @@ final class ProviderOutboxWorker
         }
 
         try {
-            $result = $outbox->status === 'reconciliation_required'
+            $result = ($claim['lease_recovery'] ?? false) || $outbox->status === 'reconciliation_required'
                 ? $adapter->reconcile($plan, (string) $outbox->idempotency_key)
                 : $adapter->execute($plan, (string) $outbox->idempotency_key);
         } catch (Throwable) {
@@ -209,6 +209,12 @@ final class ProviderOutboxWorker
                 ]);
 
             if ($updated === 1) {
+                if ($status !== 'held') {
+                    DB::table('platform_provider_action_requests')->where('id', $outbox->request_id)->update([
+                        'status' => $status,
+                        'updated_at' => now(),
+                    ]);
+                }
                 DB::table('platform_provider_action_audit_events')->insert([
                     'request_id' => $outbox->request_id,
                     'actor_id' => null,
