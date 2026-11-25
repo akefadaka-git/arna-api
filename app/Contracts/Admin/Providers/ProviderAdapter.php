@@ -37,6 +37,9 @@ interface ProviderAdapter
         string $idempotencyKey
     ): ProviderExecutionResult;
 
+    /** Run only synthetic, isolated-sandbox certification checks; never target production. */
+    public function certifySandbox(): ProviderSandboxCertificationResult;
+
     /** Read-only reconciliation after an uncertain provider response. */
     public function reconcile(
         ProviderOperationPlan $approvedPlan,
