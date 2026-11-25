@@ -24,42 +24,7 @@ use Tests\TestCase;
  * with a real resolver (header-based) to test the full flow.
  *
  * -----------------------------------------------------------------------------
- * Revision history
- * -----------------------------------------------------------------------------
- * 1.0.0 — initial delivery.
- *
- * 1.0.1 — R-18 alignment. The unauthenticated-request assertion in
- *         `test_unauthenticated_user_rejected` is updated from the
- *         historical ad-hoc code `AUTH_REQUIRED` to the canonical
- *         `AUTH_UNAUTHENTICATED`.
- *
- *         Background: prior to R-18,
- *         `TenantMembershipMiddleware` threw a `TenantException` with
- *         the bespoke error code `AUTH_REQUIRED` when the request was
- *         unauthenticated. `AUTH_REQUIRED` was a literal, not a
- *         constant on any MASES exception class, and duplicated the
- *         semantic that `AuthenticationException::ERROR_UNAUTHENTICATED`
- *         already represents. D-15 (H-13) closed the same class of
- *         inconsistency in `App\Http\Middleware\Authenticate`;
- *         R-18 closes it here.
- *
- *         R-18 File 1 changed `TenantMembershipMiddleware` to throw
- *         `AuthenticationException::unauthenticated()` instead. That
- *         exception carries `AUTH_UNAUTHENTICATED` and HTTP status 401
- *         via the `CoreException` branch of the canonical renderer in
- *         `bootstrap/app.php`. This file's assertion is updated to
- *         match.
- *
- *         No other test in this file changes. The tenant-required,
- *         membership-denied, and success-path tests continue to
- *         assert their original codes (`TENANT_REQUIRED`,
- *         `TENANT_ACCESS_DENIED`) — those branches were not touched
- *         by R-18.
- *
- *         The related test in `TenantRequiredRouteTest::unauthenticated_request_is_rejected_with_401`
- *         asserts only `assertStatus(401)` with no code assertion, so
- *         it is unaffected and requires no change.
- *
+ * Covers tenant membership enforcement and unauthenticated access.
  * @package Tests\Feature
  * @version 1.0.1
  */
