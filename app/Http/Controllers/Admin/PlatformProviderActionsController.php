@@ -16,7 +16,7 @@ final class PlatformProviderActionsController extends Controller
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'status' => ['sometimes', 'string', 'in:pending_approval,approved,rejected,expired,cancelled'],
+            'status' => ['sometimes', 'string', 'in:pending_approval,approved,rejected,expired,cancelled,succeeded,failed,reconciliation_required'],
             'environment' => ['sometimes', 'in:sandbox,staging,production'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
