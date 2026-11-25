@@ -216,7 +216,7 @@ final class ProviderOutboxWorker
             'metadata' => $result->sanitizedMetadata,
         ], JSON_THROW_ON_ERROR);
 
-        DB::transaction(function () use ($outbox, $lease, $status, $errorCode, $sanitized, $makeAvailable): void {
+        DB::transaction(function () use ($outbox, $lease, $status, $errorCode, $sanitized, $makeAvailable, $result): void {
             $updated = DB::table('platform_provider_action_outbox')->where('id', $outbox->id)
                 ->where('status', 'processing')->where('lease_token', $lease)
                 ->update([
