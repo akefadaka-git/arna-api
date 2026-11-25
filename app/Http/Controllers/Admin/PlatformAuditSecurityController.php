@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\\Http\\Controllers\\Admin;
+namespace App\Http\Controllers\Admin;
 
-use App\\Http\\Controllers\\Controller;
-use Carbon\\Carbon;
-use Illuminate\\Database\\Eloquent\\Builder;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use MaaleArna\\MASES\\Core\\Audit\\Models\\AuditLog;
-use MaaleArna\\MASES\\Core\\Security\\Models\\SecurityEvent;
+use App\Http\Controllers\Controller;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use MaaleArna\MASES\Core\Audit\Models\AuditLog;
+use MaaleArna\MASES\Core\Security\Models\SecurityEvent;
 
 /**
  * Platform-level, read-only audit and security oversight.
@@ -37,7 +37,7 @@ final class PlatformAuditSecurityController extends Controller
             ->with('user:id,email')
             ->whereNull('tenant_id')
             ->when($filters['q'] ?? null, function (Builder $builder, string $term): void {
-                $like = '%' . addcslashes($term, '%_\\\\') . '%';
+                $like = '%' . addcslashes($term, '%_\\') . '%';
                 $builder->where(function (Builder $nested) use ($like): void {
                     $nested->where('action', 'like', $like)
                         ->orWhere('resource_type', 'like', $like)
@@ -81,7 +81,7 @@ final class PlatformAuditSecurityController extends Controller
             ->with(['user:id,email', 'resolver:id,email'])
             ->whereNull('tenant_id')
             ->when($filters['q'] ?? null, function (Builder $builder, string $term): void {
-                $like = '%' . addcslashes($term, '%_\\\\') . '%';
+                $like = '%' . addcslashes($term, '%_\\') . '%';
                 $builder->where(function (Builder $nested) use ($like): void {
                     $nested->where('event_type', 'like', $like)
                         ->orWhere('description', 'like', $like)
