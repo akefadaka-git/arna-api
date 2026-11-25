@@ -36,4 +36,10 @@ interface ProviderAdapter
         ProviderOperationPlan $approvedPlan,
         string $idempotencyKey
     ): ProviderExecutionResult;
+
+    /** Read-only reconciliation after an uncertain provider response. */
+    public function reconcile(
+        ProviderOperationPlan $approvedPlan,
+        string $idempotencyKey
+    ): ProviderExecutionResult;
 }
