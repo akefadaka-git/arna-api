@@ -2,13 +2,10 @@
 
 declare(strict_types=1);
 
-
-
 return [
 
     // Keys must match ShareholderType enum values.
-
-'individual'     => 'Individual',
+    'individual'     => 'Individual',
     'company'        => 'Company',
     'trust'          => 'Trust',
     'cooperative'    => 'Cooperative',
