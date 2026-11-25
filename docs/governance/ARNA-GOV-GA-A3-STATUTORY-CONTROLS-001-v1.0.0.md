@@ -16,6 +16,12 @@ No numerical quorum, notice period, voting cap, proxy deadline, penalty, or minu
 
 `GovernanceMeetingLegalGate` fails closed for unknown actions and requires verified share-company legal form, meeting category, operative legal-basis reference, verification attestation, reviewer separation, and action-specific approved evidence. It does not infer or calculate statutory rules.
 
+## Lifecycle attestation controls
+
+The API now provides evidence-backed lifecycle attestation records for notice, quorum, voting and minutes. Each record stores a source reference, SHA-256 fingerprint and optional structured details, begins in `pending_review`, and requires a different authorized reviewer to verify or reject it. Meeting detail responses expose the legal-basis record, action evidence and lifecycle attestations. These records attest to independently reviewed source artifacts; they do not themselves send notices, calculate statutory quorum, count share-weighted votes, generate minutes or authenticate source documents. No statutory threshold or numerical rule is inferred.
+
+GA proxy approvals and penalty assessments are blocked until the relevant action evidence passes the legal gate. Legal-basis/evidence verification and lifecycle attestation review require `governance.meeting.approve`; source registration requires `governance.body.manage` or the meeting-management permission.
+
 ## A3 work remaining
 
 - Persist legal-basis and per-action evidence with tenant isolation, immutable source references/hashes, pending/verified/rejected/revoked states, and independent reviewer controls.
