@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 /*
 |--------------------------------------------------------------------------
-| MASES API Routes
+| ARNA API Routes
 |--------------------------------------------------------------------------
 |
-| This file defines every HTTP route served by the MASES central API.
+| This file defines every HTTP route served by the ARNA central API.
 | Routes are grouped into four tiers, each with a distinct trust model:
 |
 |   1. Public routes        – no authentication required.
@@ -16,7 +16,7 @@ declare(strict_types=1);
 |                             (reports the tenant context for debugging).
 |   4. Tenant-scoped routes – require authentication AND tenant membership.
 |
-| Every response follows the MASES standard JSON envelope:
+| Every response follows the ARNA standard JSON envelope:
 |
 |     Success:  { "success": true,  "data": ... }
 |     Failure:  { "success": false, "error": { "code": ..., "message": ... } }
@@ -46,7 +46,7 @@ declare(strict_types=1);
 |     APP_DEBUG=true    — full stack traces in responses and logs
 |     APP_DEBUG=false   — sanitized errors, no stack traces
 |
-| The MASES error renderer (bootstrap/app.php) reads APP_DEBUG and shapes
+| The ARNA error renderer (bootstrap/app.php) reads APP_DEBUG and shapes
 | the error envelope accordingly. The `request_id` and `timestamp` fields
 | are present in both modes; only the stack trace and internal detail
 | differ. In development, keep APP_DEBUG=true so failed requests produce
@@ -106,7 +106,7 @@ declare(strict_types=1);
 |
 |          The `permissions` field previously read `$user->permissions` —
 |          the relation that queries `user_has_permissions`, i.e. ONLY
-|          direct per-user grants. In the MASES deployment the
+|          direct per-user grants. In the ARNA deployment the
 |          `user_has_permissions` table is deliberately empty; every
 |          permission is granted via roles (`user_has_roles` →
 |          `role_has_permissions`). The response therefore returned
@@ -129,7 +129,7 @@ declare(strict_types=1);
 |
 | 1.3.0  — prior version (CR-003a envelope fix).
 |
-| @package MASES
+| @package ARNA
 | @version 1.3.2
 */
 
