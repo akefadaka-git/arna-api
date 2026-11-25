@@ -11,7 +11,7 @@ use Laravel\Sanctum\Sanctum;
 |
 | Configuration for Laravel Sanctum, which provides API token
 | authentication and first-party SPA cookie authentication for the
-| MASES platform.
+| ARNA platform.
 |
 | -----------------------------------------------------------------------------
 | Production deployment notes
@@ -24,7 +24,7 @@ use Laravel\Sanctum\Sanctum;
 |    CORS allow-list; CORS_ALLOWED_ORIGINS is intentionally broader.
 |
 | 2. Custom User model
-|    Sanctum has NO `user_model` config key. The MASES Core User model
+|    Sanctum has NO `user_model` config key. The ARNA Core User model
 |    (MaaleArna\MASES\Core\Auth\Models\User) is resolved exclusively via
 |    config/auth.php → providers.users.model. Adding a `user_model` key
 |    here would be dead code and misleading to future maintainers.
@@ -46,9 +46,9 @@ use Laravel\Sanctum\Sanctum;
 |    lifetime, refresh, logout revocation, password-change revocation,
 |    inactive-user revocation, and device/session management are the
 |    responsibility of application code (listeners, middleware, and the
-|    MASES Authenticate middleware).
+|    ARNA Authenticate middleware).
 |
-| @package MASES
+| @package ARNA
 | @version 1.0.0
 */
 
@@ -119,7 +119,7 @@ return [
     | Prefix applied to newly issued tokens. A deliberate prefix enables
     | secret-scanning tools to detect accidentally committed tokens.
     |
-    | Recommended for MASES production: `mases_` (set via
+    | Recommended for ARNA production: `mases_` (set via
     | SANCTUM_TOKEN_PREFIX in .env). This is not a substitute for secure
     | token handling — it is a detection aid only.
     |
