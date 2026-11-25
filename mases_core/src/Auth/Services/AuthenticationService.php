@@ -23,170 +23,10 @@ use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
 
 /**
- * AuthenticationService
- *
- * Central service for handling all authentication operations in the MASES
- * platform, with full tenant awareness and security event logging.
- *
- * =============================================================================
- * Revision history
- * =============================================================================
- * 1.8.0  — prior version. Login and logout security events were attributed
- *          to `mases_tenant_id()`.
- *
- * 1.9.0  — C-09 follow-up. Login and logout security events were no longer
- *          attributed via `mases_tenant_id()`; they used the explicit
- *          `$tenantId` parameter (login) or `$user->default_tenant_id`
- *          (logout). See the note below for the full rationale.
- *
- * 1.9.1  — Correction to v1.9.0. The login security event's `tenant_id`
- *          now resolves as:
- *
- *              mases_tenant_id() ?? $tenantId ?? $user->default_tenant_id
- *
- *          instead of v1.9.0's:
- *
- *              $tenantId ?? $user->default_tenant_id
- *
- *          WHY v1.9.0 WAS INSUFFICIENT
- *          ---------------------------
- *          v1.9.0 correctly fixed the case where `mases_tenant_id()`
- *          returned null on `/api/login` (which carries no
- *          `tenant.membership` middleware), causing the security event to
- *          record `tenant_id = null` even when the user had authenticated
- *          against a specific tenant supplied via the body.
- *
- *          But it over-corrected: it made the BODY tenant the sole source,
- *          so a request that carried BOTH an `X-Tenant-ID` header (the
- *          middleware-verified tenant, call it A) AND a body `tenant_id`
- *          (call it B) recorded B — even though the header value is the
- *          more authoritative of the two under the C-09 model.
- *
- *          The T4 regression test
- *          (`C09/TenantResolutionTest::security_event_carries_verified_tenant`)
- *          exercises exactly this case and failed under v1.9.0.
- *
- *          WHY v1.9.1 IS CORRECT
- *          ---------------------
- *          The new resolution order matches the C-09 rule that the
- *          header-derived tenant is authoritative when present, while
- *          still allowing the body parameter to serve as the tenant
- *          attribution when no header context exists:
- *
- *            1. `mases_tenant_id()` — post-C-09, returns the
- *               middleware-verified tenant (header or subdomain) in HTTP
- *               context, or null if none was resolved. This is the correct
- *               first choice.
- *
- *            2. `$tenantId` — the explicit login parameter. Used when no
- *               header-context tenant exists. `/api/login` deliberately
- *               has no `tenant.membership` middleware, so this fallback is
- *               the common case.
- *
- *            3. `$user->default_tenant_id` — last resort.
- *
- *          `logout()` is unchanged from v1.9.0. Logout sends neither a
- *          header nor a body tenant in normal use; the user's default
- *          tenant remains the correct attribution.
- *
- * =============================================================================
- * Responsibility
- * =============================================================================
- * Every authentication concern on the platform passes through this service:
- *
- *   - Credential verification and bearer-token issuance (login).
- *   - Token revocation, blacklisting, and refresh (logout / refreshToken).
- *   - User creation with bilingual Ethiopian name handling (register).
- *   - Password reset request and completion.
- *   - Email verification.
- *   - Current-user resolution.
- *
- * Controllers must not perform these operations directly. They call this
- * service; this service is the single point where authentication events,
- * security logging, and tenant-membership checks are consistently applied.
- *
- * -----------------------------------------------------------------------------
- * Token revocation — dual mechanism
- * -----------------------------------------------------------------------------
- * Revoking a Sanctum token requires two complementary mechanisms, because
- * the framework can resolve a token from two different caches:
- *
- *   1. DATABASE DELETION — removes the `personal_access_tokens` row so
- *      `PersonalAccessToken::findToken()` returns null on a fresh lookup.
- *
- *   2. CACHE BLACKLIST — adds `revoked_token:{sha256(full_bearer)}` to the
- *      cache. Any code path that caches the token model (or a guard that
- *      caches the resolved user) will consult this blacklist on the next
- *      request and reject the token outright.
- *
- * Both mechanisms run on every logout and refresh. They are redundant by
- * design: either one alone is sufficient to reject a token, and together
- * they cover every code path (PHP-FPM, Octane, and the test harness).
- *
- * -----------------------------------------------------------------------------
- * Stateless API login
- * -----------------------------------------------------------------------------
- * `login()` uses a manual credential check (`Hash::check`) rather than
- * `Auth::attempt()`. Sanctum's guard falls back to the session-based `web`
- * guard before trying bearer tokens, so a session created by `Auth::attempt`
- * would keep the user authenticated after their token was revoked. Avoiding
- * `Auth::attempt` keeps the API purely token-based.
- *
- * -----------------------------------------------------------------------------
- * Name handling — Amharic first, English second (Phase 1 Amendment A13)
- * -----------------------------------------------------------------------------
- * The MASES `users` table stores Ethiopian names in six separate bilingual
- * columns:
- *
- *     first_name_am        first_name_en
- *     father_name_am       father_name_en
- *     grandfather_name_am  grandfather_name_en
- *
- * There is no `name` column. Any code path that attempts to write a single
- * `name` string into the `User` model will be silently ignored by Laravel's
- * mass-assignment protection (because `name` is not in `$fillable`), and all
- * six columns will remain NULL. That defect was the reason A13 exists.
- *
- * The register() method now handles names in two ways:
- *
- *   1. STRUCTURED (preferred) — the caller supplies any subset of the six
- *      bilingual fields inside `$additionalData`. These are used as given.
- *
- *   2. LEGACY (compatibility) — the caller supplies only the single `$name`
- *      string. The string is split on the FIRST whitespace boundary.
- *
- * The model accessor `User::getNameAttribute()` (Phase 1 Amendment A4)
- * composes a read-only `name` attribute from the six columns using the same
- * Amharic-first policy, so existing code that reads `$user->name` continues
- * to work without change.
- *
- * -----------------------------------------------------------------------------
- * Failed-login events (Phase 1 Change Request CR-006)
- * -----------------------------------------------------------------------------
- * `login()` dispatches a `FailedLogin` domain event immediately before it
- * raises its `AuthenticationException`. This gives registered listeners
- * (e.g. `LogFailedLogin`, A7b) a hook to write to the audit trail without
- * inspecting the exception or reconstructing the request context.
- *
- * Laravel's own `Illuminate\Auth\Events\Failed` is NOT suitable here,
- * because it only fires from `Auth::attempt()`, which this service
- * deliberately does not use.
- *
- * The event carries the attempted email, a machine-readable failure
- * reason, the guard name, and (when the email resolves to a real account)
- * the user ID. It does not carry the password or the request object.
- *
- * -----------------------------------------------------------------------------
- * Phase 2 compatibility
- * -----------------------------------------------------------------------------
- * Phase 2 will attach Shareholder, Employee, and other domain records to
- * users. This service does not create those records — that responsibility
- * belongs to the respective domain services (e.g. ShareholderService). The
- * register() method remains focused on user identity, tenant membership,
- * and email-verification state.
- *
- * @package MaaleArna\MASES\Core\Auth\Services
- * @version 1.9.1
+ * Central authentication service for credentials, tokens, account lifecycle
+ * and security events. Tenant attribution prefers verified request context,
+ * then explicit tenant input, then the user's default tenant. Token revocation
+ * uses both database deletion and a SHA-256 cache blacklist.
  */
 final class AuthenticationService
 {
@@ -217,10 +57,7 @@ final class AuthenticationService
     {
         $this->securityEventService = $securityEventService;
     }
-
-    // =========================================================================
     // Authentication (Login, Logout, Token Refresh)
-    // =========================================================================
 
     /**
      * Attempt to log a user in with email and password.
@@ -617,10 +454,7 @@ final class AuthenticationService
 
         return $deleted;
     }
-
-    // =========================================================================
     // Registration
-    // =========================================================================
 
     /**
      * Register a new user.
@@ -732,10 +566,7 @@ final class AuthenticationService
 
         return $user;
     }
-
-    // =========================================================================
     // Password Reset
-    // =========================================================================
 
     /**
      * Send a password reset link to the given email address.
@@ -782,10 +613,7 @@ final class AuthenticationService
 
         return $status;
     }
-
-    // =========================================================================
     // Email Verification
-    // =========================================================================
 
     /**
      * Verify a user's email address using the provided hash.
@@ -851,10 +679,7 @@ final class AuthenticationService
 
         return true;
     }
-
-    // =========================================================================
     // Current User & Authentication State
-    // =========================================================================
 
     /**
      * Get the currently authenticated user.
@@ -878,10 +703,7 @@ final class AuthenticationService
     {
         return Auth::check();
     }
-
-    // =========================================================================
     // Private helpers
-    // =========================================================================
 
     /**
      * Resolve the six bilingual name components from the supplied inputs.
