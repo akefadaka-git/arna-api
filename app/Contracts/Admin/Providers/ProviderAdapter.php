@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Contracts\Admin\Providers;
 
 use App\Data\Admin\Providers\ProviderExecutionResult;
+use App\Data\Admin\Providers\ProviderSandboxCertificationResult;
 use App\Data\Admin\Providers\ProviderOperationPlan;
 
 interface ProviderAdapter
