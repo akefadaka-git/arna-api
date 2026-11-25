@@ -378,6 +378,46 @@ Route::name('api.governance.')->group(static function (): void {
         ->middleware('auth.permission:governance.meeting.approve')
         ->name('meeting-lifecycle-attestations.review');
 
+    // GA substantive lifecycle — notices, agenda, electorate, quorum, voting, resolutions and minutes.
+    Route::post('/meetings/{meeting}/notices', [GovernanceMeetingBusinessLifecycleController::class, 'createNotice'])
+        ->whereNumber('meeting')->middleware('auth.permission:governance.meeting.manage')->name('meetings.notices.store');
+    Route::patch('/notices/{notice}/review', [GovernanceMeetingBusinessLifecycleController::class, 'reviewNotice'])
+        ->whereNumber('notice')->middleware('auth.permission:governance.meeting.approve')->name('notices.review');
+    Route::post('/meetings/{meeting}/notices/{notice}/issue', [GovernanceMeetingBusinessLifecycleController::class, 'issueNotice'])
+        ->whereNumber('meeting')->whereNumber('notice')->middleware('auth.permission:governance.meeting.manage')->name('meetings.notices.issue');
+    Route::patch('/notice-recipients/{recipient}/delivery', [GovernanceMeetingBusinessLifecycleController::class, 'recordNoticeDelivery'])
+        ->whereNumber('recipient')->middleware('auth.permission:governance.meeting.manage')->name('notice-recipients.delivery');
+
+    Route::post('/meetings/{meeting}/agenda-items', [GovernanceMeetingBusinessLifecycleController::class, 'createAgendaItem'])
+        ->whereNumber('meeting')->middleware('auth.permission:governance.meeting.manage')->name('meetings.agenda-items.store');
+
+    Route::post('/meetings/{meeting}/electorate-snapshots', [GovernanceMeetingBusinessLifecycleController::class, 'snapshotElectorate'])
+        ->whereNumber('meeting')->middleware('auth.permission:governance.meeting.manage')->name('meetings.electorate-snapshots.store');
+    Route::patch('/electorate-snapshots/{snapshot}/review', [GovernanceMeetingBusinessLifecycleController::class, 'reviewElectorate'])
+        ->whereNumber('snapshot')->middleware('auth.permission:governance.meeting.approve')->name('electorate-snapshots.review');
+    Route::post('/meetings/{meeting}/electorate-snapshots/{snapshot}/quorum-assessments', [GovernanceMeetingBusinessLifecycleController::class, 'assessQuorum'])
+        ->whereNumber('meeting')->whereNumber('snapshot')->middleware('auth.permission:governance.meeting.manage')->name('meetings.quorum-assessments.store');
+    Route::patch('/quorum-assessments/{assessment}/review', [GovernanceMeetingBusinessLifecycleController::class, 'reviewQuorum'])
+        ->whereNumber('assessment')->middleware('auth.permission:governance.meeting.approve')->name('quorum-assessments.review');
+
+    Route::post('/meetings/{meeting}/motions', [GovernanceMeetingBusinessLifecycleController::class, 'createMotion'])
+        ->whereNumber('meeting')->middleware('auth.permission:governance.meeting.manage')->name('meetings.motions.store');
+    Route::patch('/motions/{motion}/second', [GovernanceMeetingBusinessLifecycleController::class, 'secondMotion'])
+        ->whereNumber('motion')->middleware('auth.permission:governance.meeting.manage')->name('motions.second');
+    Route::post('/motions/{motion}/open-voting', [GovernanceMeetingBusinessLifecycleController::class, 'openVoting'])
+        ->whereNumber('motion')->middleware('auth.permission:governance.meeting.manage')->name('motions.voting.open');
+    Route::post('/motions/{motion}/ballots', [GovernanceMeetingBusinessLifecycleController::class, 'castBallot'])
+        ->whereNumber('motion')->middleware('auth.permission:governance.meeting.manage')->name('motions.ballots.store');
+    Route::post('/motions/{motion}/close-voting', [GovernanceMeetingBusinessLifecycleController::class, 'closeVoting'])
+        ->whereNumber('motion')->middleware('auth.permission:governance.meeting.manage')->name('motions.voting.close');
+
+    Route::post('/meetings/{meeting}/minutes', [GovernanceMeetingBusinessLifecycleController::class, 'createMinutes'])
+        ->whereNumber('meeting')->middleware('auth.permission:governance.meeting.manage')->name('meetings.minutes.store');
+    Route::post('/minutes/{minutes}/submit', [GovernanceMeetingBusinessLifecycleController::class, 'submitMinutes'])
+        ->whereNumber('minutes')->middleware('auth.permission:governance.meeting.manage')->name('minutes.submit');
+    Route::patch('/minutes/{minutes}/review', [GovernanceMeetingBusinessLifecycleController::class, 'reviewMinutes'])
+        ->whereNumber('minutes')->middleware('auth.permission:governance.meeting.approve')->name('minutes.review');
+
     // G5 A3 — meeting attendance, proxies, penalties and Finance settlement requests.
     Route::get('/meetings', [GovernanceMeetingAttendanceController::class, 'index'])
         ->middleware('auth.permission:governance.body.view')
