@@ -362,9 +362,9 @@ Route::name('api.governance.')->group(static function (): void {
     Route::post('/legal-bases/{legalBasis}/evidence', [GovernanceMeetingLegalEvidenceController::class, 'storeEvidence'])
         ->whereNumber('legalBasis')->middleware('auth.permission:governance.body.manage')->name('legal-bases.evidence.store');
     Route::patch('/legal-bases/{legalBasis}/verify', [GovernanceMeetingLegalEvidenceController::class, 'verifyBasis'])
-        ->whereNumber('legalBasis')->middleware('auth.permission:governance.body.manage')->name('legal-bases.verify');
+        ->whereNumber('legalBasis')->middleware('auth.permission:governance.meeting.approve')->name('legal-bases.verify');
     Route::patch('/legal-evidence/{evidence}/verify', [GovernanceMeetingLegalEvidenceController::class, 'verifyEvidence'])
-        ->whereNumber('evidence')->middleware('auth.permission:governance.body.manage')->name('legal-evidence.verify');
+        ->whereNumber('evidence')->middleware('auth.permission:governance.meeting.approve')->name('legal-evidence.verify');
 
     // GA lifecycle evidence gates: notice, quorum, voting and minutes.
     // These endpoints register evidence-backed attestations; they do not calculate
