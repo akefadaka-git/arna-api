@@ -187,6 +187,10 @@ final class ProviderOutboxWorker
             $this->finish($claim, 'reconciliation_required', 'non_idempotent_not_applied', $result);
             return 'reconciliation_required';
         }
+        if (((int) ($claim['outbox']['attempt_count'] ?? 0)) + 1 >= 5) {
+            $this->finish($claim, 'failed', 'safe_retry_limit_reached', $result);
+            return 'failed';
+        }
         $this->finish($claim, 'held', 'safe_retry_not_applied', $result, true);
         return 'requeued';
     }
