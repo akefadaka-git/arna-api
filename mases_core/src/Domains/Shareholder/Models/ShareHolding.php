@@ -13,115 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * ShareHolding
- *
- * Eloquent model for a shareholder's current holding of a specific share class.
- *
- * =============================================================================
- * What this model represents
- * =============================================================================
- * A share holding is the CURRENT-STATE PROJECTION of the (shareholder,
- * share class) pair. It answers exactly one question:
- *
- *     How many shares of class X does shareholder Y currently hold?
- *
- * The answer is stored in the single column `current_quantity`. Nothing else
- * on this table changes the meaning of that number: no currency, no amount,
- * no aggregate, no alternate representation.
- *
- * =============================================================================
- * Why the balance is not the source of truth
- * =============================================================================
- * Decision D16-CORE is unambiguous:
- *
- *     ShareHolding       = current-state projection
- *     ShareHoldingEntry  = append-only ledger
- *
- * Every change to `current_quantity` MUST be accompanied by a
- * `ShareHoldingEntry` row recording:
- *
- *     quantity        — the signed change that produced the new balance
- *     balance_before  — the previous value of `current_quantity`
- *     balance_after   — the new value of `current_quantity`
- *
- * Both writes occur inside one database transaction, with the `ShareHolding`
- * row locked FOR UPDATE, per D16-R6. The invariant
- *
- *     balance_before + quantity = balance_after
- *
- * holds for every entry ever written. If the holding row and the ledger
- * entries ever disagree, the ledger is authoritative; the projection is
- * rebuilt from it.
- *
- * =============================================================================
- * Why this model exposes no mutation methods
- * =============================================================================
- * The model deliberately provides NO method that changes `current_quantity`:
- *
- *   - No `increment()` / `decrement()` overrides.
- *   - No `addQuantity()`, `subtractQuantity()`, or `adjustQuantity()`.
- *   - No `setCurrentQuantityAttribute()` mutator beyond Eloquent's default.
- *
- * This is not an oversight. Any such method would be reachable from a
- * controller and would let the caller change the projection without writing
- * the ledger. Removing that path at the model level is the simplest
- * structural guarantee that D16-CORE is honoured.
- *
- * The ONLY permitted writer is `ShareHoldingService` (2A.14), which:
- *   1. Opens a database transaction.
- *   2. Locks the ShareHolding row FOR UPDATE.
- *   3. Reads `current_quantity` into `balance_before`.
- *   4. Computes `balance_after` from the caller's direction and magnitude.
- *   5. Rejects the operation if `balance_after` would be negative (D16-R5).
- *   6. Creates a ShareHoldingEntry row with the computed values.
- *   7. Updates `current_quantity` to `balance_after`.
- *   8. Commits.
- *
- * Controllers, policies, and this model do not participate in that flow.
- * They read; the service writes.
- *
- * =============================================================================
- * Fractional shares (D6)
- * =============================================================================
- * The `current_quantity` column is DECIMAL(20,4) — four decimal places are
- * reserved for future business needs (D16-X2). However, decision D6 states
- * that FRACTIONAL SHARES ARE NOT PERMITTED at the business level:
- * a share is an indivisible unit.
- *
- * The model therefore provides a `quantityIsWholeNumber()` helper that
- * reports whether the current value happens to be a whole number. The
- * authoritative enforcement of D6 lives in `ShareHoldingService`, which
- * rejects any incoming magnitude whose fractional part is non-zero. This
- * helper is a read-only check for diagnostics and tests, not an enforcer.
- *
- * =============================================================================
- * No currency (D16-R7)
- * =============================================================================
- * This table stores a quantity of shares. It does NOT store a monetary value.
- * Currency and per-share price, when they matter, belong to the future
- * transaction objects (subscriptions, transfers, issuances) that will be
- * defined by their own manifests. Adding a `currency` column here would
- * conflate quantity with value and would violate D16-R7.
- *
- * =============================================================================
- * Deletion semantics
- * =============================================================================
- * This model does NOT use SoftDeletes. A holding row is a lightweight
- * projection; it has no intrinsic history that must be preserved beyond the
- * ledger. When a shareholder is soft-deleted, its holding rows persist
- * unchanged so that historical reporting and audit queries continue to
- * resolve. Holding rows are never hard-deleted by the domain.
- *
- * =============================================================================
- * Relations
- * =============================================================================
- *   shareholder()  — the owner of this holding.
- *   shareClass()   — the class of shares being held.
- *   entries()      — the ordered ledger of every change that produced the
- *                    current quantity. Ordered by occurred_at ascending.
- *
- * The `entries()` relation target `ShareHoldingEntry` (2A.9) is referenced
- * by fully-qualified string, so this file loads before that class exists.
+ * Current-quantity projection for a shareholder/share-class pair. ShareHoldingEntry is the append-only source of truth; balance and ledger updates must be atomic.
  *
  * @property int                 $id
  * @property int                 $shareholder_id
@@ -129,11 +21,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string              $current_quantity   Decimal string, e.g. "145.0000"
  * @property Carbon $created_at
  * @property Carbon $updated_at
- *
  * @property-read Shareholder|null           $shareholder
  * @property-read ShareClass|null            $shareClass
  * @property-read Collection<int, ShareHoldingEntry> $entries
- *
  * @package MaaleArna\MASES\Core\Domains\Shareholder\Models
  */
 final class ShareHolding extends Model
