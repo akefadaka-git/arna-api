@@ -2,63 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — P1-2
- * =============================================================================
- *
- * File:            ShareholderRolesSeeder.php
- * Unit:            P1-2 — shareholder role RBAC fix
- * Delivery type:   Amendment
- * Net lines:       +5 (one matrix entry), -5 (one stale warning block),
- *                  +… (docblock revisions)
- *
- * Before:
- *   The seeder's ROLE_PERMISSIONS matrix declared four roles
- *   (super_admin, platform_admin, tenant_admin, manager). The
- *   `shareholder` role (roles.id = 7) was not managed here — it received
- *   its permissions from the Phase 1 seed only, which does not include
- *   the three Shareholder-domain "own" permissions. As a result the 98
- *   users carrying the `shareholder` role could not view their own
- *   shareholder record via ShareholderPolicy::view path 2, because that
- *   path requires the `shareholder.view_own` permission.
- *
- * After:
- *   One entry is added to ROLE_PERMISSIONS:
- *
- *       'shareholder' => [
- *           'shareholder.view_own',
- *           'share_holding.view_own',
- *           'certificate.view_own',
- *       ],
- *
- *   The composite-sync algorithm (unchanged) ensures:
- *     · the three Shareholder-domain slugs are added,
- *     · every non-Shareholder-domain permission the role currently holds
- *       is preserved (the nine Phase 1 grants),
- *     · no other role's assignment changes (their target sets are
- *       unchanged; the composite equals the current state for each).
- *
- *   The stale runtime warning about CR-015 is removed: CR-015 was
- *   closed by ShareholderPermissionsSeeder v1.1.0, which backfilled
- *   every permission's Amharic labels. The warning contradicted the
- *   current state.
- *
- * Matrix entry introduced:
- *   · 'shareholder' → 3 slugs
- *
- * Files modified:            this file only
- * Files added:               none
- * Files deleted:             none
- * Permissions added:         none (all three slugs already exist)
- * Permissions removed:       none
- * Roles added:               none
- * Roles removed:             none
- * Algorithm changed:         no
- * Prefix list changed:       no
- *
- * =============================================================================
- */
+
 
 namespace MaaleArna\MASES\Core\Domains\Shareholder\Database\Seeders;
 
