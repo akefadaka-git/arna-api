@@ -47,38 +47,7 @@ use Tests\TestCase;
  *   - Stack traces appear only in non-production environments.
  *
  * =============================================================================
- * Revision history
- * =============================================================================
- * 1.0.0 — initial delivery.
- *
- * 1.0.1 — `invalid_payload_returns_422_with_validation_errors_map()`
- *         assertion corrected.
- *
- *         The test previously asserted that the `validation_errors` map
- *         contained both `email` and `password` for the payload
- *         `['email' => 'not-an-email']` (password omitted). That
- *         expectation was based on the assumption that the login
- *         endpoint validates the `email` field's *format*.
- *
- *         It does not. `AuthController::login()` (v1.1.0) intentionally
- *         validates `email` as `['required', 'string', 'max:255']` —
- *         with no `email` format rule — because the field accepts an
- *         email address **or** a phone number. See the controller's
- *         class docblock §"Login identifier" for the full rationale.
- *
- *         Consequence: for the payload above, `'not-an-email'` satisfies
- *         every rule the controller applies to `email` (it is a
- *         non-empty string of ≤ 255 characters), and only `password`
- *         fails (because it is absent). The correct assertion is
- *         therefore `validation_errors => ['password']`.
- *
- *         No change to any other test, route registration, fixture, or
- *         assertion in this file. The contract the suite verifies —
- *         "every error path emits the canonical envelope" — is
- *         unchanged; only the field-by-field expectation of this one
- *         test is corrected to match the endpoint's real validation
- *         surface.
- *
+ * Locks the API error response contract.
  * @package Tests\Feature
  * @version 1.0.1
  */
