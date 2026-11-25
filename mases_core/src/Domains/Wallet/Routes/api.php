@@ -2,69 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — CR-W1
- * =============================================================================
- *
- * File:            Routes/api.php  (AMEND)
- * Unit:            CR-W1 — Portal self-service wallet endpoint
- * Delivery type:   Amendment — one import added, one route declared, class
- *                  header docblock revised to reflect the ten-route surface.
- * Net lines:       +1 import, +1 route declaration (8 source lines), docblock
- *                  revision.
- *
- * Before:
- *   The file declared exactly nine routes, all addressing a wallet by id
- *   or listing the tenant's wallets. There was no self-service endpoint
- *   answering "what is my wallet?" — the caller would have had to know
- *   a wallet id they have no way to obtain. The docblock stated the
- *   nine-route surface was frozen in Step 7 v1.1.0 §C.1 and that adding,
- *   removing, or renaming a route is a Change Request. CR-W1 is that
- *   Change Request.
- *
- * After:
- *   The file declares ten routes. The tenth is:
- *
- *       GET  /wallets/me   →  MyWalletController::show()   name: api.wallets.me
- *
- *   The route carries no middleware — the reasoning mirrors route #4
- *   (WalletController::show()) in the source: the `view` ability is
- *   granted via `wallet.view` OR (`wallet.view_own` + ownership), and a
- *   route-level `wallet.view` middleware would lock out a self-service
- *   caller holding only the own-only variant. The controller resolves
- *   the caller's wallet server-side; the route is the strongest case of
- *   the OR pattern because the caller typically holds only
- *   `wallet.view_own` and is looking at their own record by definition.
- *
- *   In the source, the new route is declared BEFORE the dynamic
- *   `/{wallet}` route so that the router's first-match resolution treats
- *   `/me` as a static segment. The numeric constraint on `{wallet}`
- *   would already make the ordering technically safe, but the file's
- *   own convention (docblock §"Route ordering") prefers static sub-paths
- *   to precede their dynamic parent for readability.
- *
- *   The route's numbered label in the docblock is #10, reflecting its
- *   addition order relative to the frozen Step 7 v1.1.0 §C.1 surface.
- *   Its declaration position in the source is between #2 (`store`) and
- *   #4 (`show`) — the position, not the label, is what matters to the
- *   router.
- *
- * Dependency note:
- *   · The route references MyWalletController, delivered as CR-W1 file 1.
- *     Until that class is uploaded and the Composer autoloader is
- *     refreshed, the route will resolve to a class-not-found error at
- *     the first request — but `php artisan route:list` will still show
- *     the route name and path, because the route definition itself does
- *     not require the controller class to be loaded.
- *   · No config change. The domain's provider (2B.2) mounts this file
- *     under `wallet.routes.prefix` (default `'wallets'`) inside the
- *     `wallet.routes.middleware` stack. The new route inherits the same
- *     middleware as its siblings: `['api', 'auth:sanctum',
- *     'tenant.membership']` plus the application-level `api/` prefix.
- *
- * =============================================================================
- */
+/* GET /wallets/me uses controller-level ownership authorization; do not add wallet.view middleware. */
 
 use Illuminate\Support\Facades\Route;
 use MaaleArna\MASES\Core\Domains\Wallet\Http\Controllers\AllocationController;
