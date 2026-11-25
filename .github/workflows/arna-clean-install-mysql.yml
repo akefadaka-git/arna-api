@@ -6,7 +6,7 @@ on:
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
-    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api]
+    branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/admin-a3-master-control-plane]
     paths:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - ".github/workflows/arna-a4-synthetic-backup-restore.yml"
@@ -60,6 +60,11 @@ on:
       - "tests/Feature/AdminControlPlaneAuthorizationNegativeTest.php"
       - "app/Http/Controllers/Admin/PlatformSettingsController.php"
       - "app/Http/Controllers/Admin/PlatformOperationsController.php"
+      - "app/Contracts/Admin/Providers/**"
+      - "app/Data/Admin/Providers/**"
+      - "app/Services/Admin/Providers/**"
+      - "tests/Unit/PlatformProviderArchitectureTest.php"
+      - "config/services.php"
       - "tests/Unit/AdminPlatformPermissionCatalogueTest.php"
       - "database/seeders/Data/PermissionCatalogue.php"
       - "app/Http/Controllers/ExecutiveOverviewController.php"
