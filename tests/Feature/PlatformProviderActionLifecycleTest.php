@@ -227,6 +227,97 @@ final class PlatformProviderActionLifecycleTest extends TestCase
         $gate->assertSandboxEnabled('production');
     }
 
+    public function test_uncertain_idempotent_provider_response_is_reconciled_before_safe_retry(): void
+    {
+        [$service, $registry, $secretKey, $adapter] = $this->fixture();
+        $request = $this->approvedCriticalRequest($service, $secretKey, 'sandbox', 'retry-zone');
+        config([
+            'services.arna_provider_mutations.enabled' => true,
+            'services.arna_provider_mutations.sandbox_enabled' => true,
+        ]);
+        DB::table('platform_integrations')->where('provider_key', 'sandbox_dns')->update([
+            'sandbox_mutations_enabled' => true,
+            'sandbox_certified_at' => now(),
+            'sandbox_certification_reference' => 'synthetic-test-fixture',
+            'connection_state' => 'connected',
+        ]);
+        $adapter->throwOnExecute = true;
+
+        $result = app(ProviderOutboxWorker::class)->dispatch(1);
+
+        $this->assertSame(1, $result['requeued']);
+        $this->assertSame(1, $adapter->executionCount);
+        $this->assertSame(1, $adapter->reconciliationCount);
+        $this->assertDatabaseHas('platform_provider_action_outbox', [
+            'status' => 'held',
+            'attempt_count' => 1,
+        ]);
+        $this->assertDatabaseHas('platform_provider_action_requests', [
+            'public_id' => $request['public_id'],
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_uncertain_non_idempotent_provider_action_is_not_retried(): void
+    {
+        [$service, $registry, $secretKey, $adapter] = $this->fixture();
+        $adapter->idempotent = false;
+        $request = $this->approvedCriticalRequest($service, $secretKey, 'sandbox', 'non-idempotent-zone');
+        config([
+            'services.arna_provider_mutations.enabled' => true,
+            'services.arna_provider_mutations.sandbox_enabled' => true,
+        ]);
+        DB::table('platform_integrations')->where('provider_key', 'sandbox_dns')->update([
+            'sandbox_mutations_enabled' => true,
+            'sandbox_certified_at' => now(),
+            'sandbox_certification_reference' => 'synthetic-test-fixture',
+            'connection_state' => 'connected',
+        ]);
+        $adapter->throwOnExecute = true;
+
+        $result = app(ProviderOutboxWorker::class)->dispatch(1);
+
+        $this->assertSame(1, $result['reconciliation_required']);
+        $this->assertSame(1, $adapter->executionCount);
+        $this->assertSame(1, $adapter->reconciliationCount);
+        $this->assertDatabaseHas('platform_provider_action_outbox', [
+            'status' => 'reconciliation_required',
+            'last_error_code' => 'non_idempotent_not_applied',
+        ]);
+        $this->assertDatabaseHas('platform_provider_action_requests', [
+            'public_id' => $request['public_id'],
+            'status' => 'reconciliation_required',
+        ]);
+    }
+
+    public function test_expired_processing_lease_reconciles_before_any_reexecution(): void
+    {
+        [$service, $registry, $secretKey, $adapter] = $this->fixture();
+        $request = $this->approvedCriticalRequest($service, $secretKey, 'sandbox', 'lease-recovery-zone');
+        config([
+            'services.arna_provider_mutations.enabled' => true,
+            'services.arna_provider_mutations.sandbox_enabled' => true,
+        ]);
+        DB::table('platform_integrations')->where('provider_key', 'sandbox_dns')->update([
+            'sandbox_mutations_enabled' => true,
+            'sandbox_certified_at' => now(),
+            'sandbox_certification_reference' => 'synthetic-test-fixture',
+            'connection_state' => 'connected',
+        ]);
+        DB::table('platform_provider_action_outbox')->where('payload_sha256', $request['payload_sha256'])->update([
+            'status' => 'processing',
+            'lease_token' => (string) \\Illuminate\\Support\\Str::uuid(),
+            'lease_expires_at' => now()->subMinute(),
+            'claimed_at' => now()->subMinutes(3),
+        ]);
+
+        $result = app(ProviderOutboxWorker::class)->dispatch(1);
+
+        $this->assertSame(1, $result['requeued']);
+        $this->assertSame(0, $adapter->executionCount);
+        $this->assertSame(1, $adapter->reconciliationCount);
+    }
+
     public function test_provider_worker_refuses_to_run_when_sandbox_gate_is_off(): void
     {
         [, $registry] = $this->fixture();
@@ -237,6 +328,30 @@ final class PlatformProviderActionLifecycleTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         app(ProviderOutboxWorker::class)->dispatch(1);
+    }
+
+    /** @return array<string, mixed> */
+    private function approvedCriticalRequest(ProviderActionLifecycleService $service, string $secretKey, string $environment, string $resourceIdentifier): array
+    {
+        $request = $service->request(10, [
+            'provider_key' => 'sandbox_dns',
+            'environment' => $environment,
+            'operation' => 'replace_zone',
+            'resource_type' => 'dns_zone',
+            'resource_identifier' => $resourceIdentifier,
+            'payload' => ['records' => [['name' => $resourceIdentifier . '.example.test', 'type' => 'TXT', 'value' => 'synthetic']]],
+            'reason' => 'Provider outbox reliability verification.',
+        ]);
+        $service->decide($request['public_id'], 11, 'approved', 'First approval.');
+        $service->decide($request['public_id'], 12, 'approved', 'Second approval.');
+        $row = DB::table('platform_provider_action_requests')->where('public_id', $request['public_id'])->first();
+        $signature = sodium_crypto_sign_detached(
+            ProviderOwnerSignatureVerifier::canonicalMessage((array) $row),
+            $secretKey,
+        );
+        $service->authorizeOwner($request['public_id'], 1, 'provider-owner-test-key-v1', base64_encode($signature));
+
+        return $request;
     }
 
     /** @return array{ProviderActionLifecycleService,ProviderAdapterRegistry,string,TestSandboxProviderAdapter} */
