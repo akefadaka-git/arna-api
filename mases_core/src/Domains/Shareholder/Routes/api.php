@@ -2,70 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — P2.3 · File 7 of 7
- * =============================================================================
- *
- * File:            Routes/api.php
- * Unit:            P2.3 — correct the certificates-block cancel prose
- * Delivery type:   Amendment
- * Net lines:       +~10 docblock lines rewritten; no route changes
- *
- * Before (as File 5 left it):
- *   The certificates block's docblock stated:
- *
- *       "cancel cancels a certificate; requires certificate.cancel at
- *        the route level. The controller additionally authorizes on the
- *        certificate via Gate::authorize('view', $certificate) before
- *        the service is invoked."
- *
- *   That statement described a decision that was considered during the
- *   P2.3 design phase and rejected. File 6c retains the pre-P2.3
- *   authorization for cancel() — Gate::authorize('update', $shareholder)
- *   — on the reasoning that a write action's per-object check must not
- *   be weakened by a read-focused wiring unit. The docblock was written
- *   against the rejected option and no longer matches the code.
- *
- * After:
- *   The certificates block's cancel paragraph is rewritten to describe
- *   the actual authorization: cancel() dispatches
- *   Gate::authorize('update', $shareholder), which resolves through
- *   ShareholderPolicy::update. The paragraph notes that cancellation is
- *   an administrative act and cross-references the CertificateController
- *   class docblock's §"Why cancel() retains the `update` check".
- *
- *   The certificates block's index/show/store paragraphs are already
- *   accurate as of File 5 and are unchanged. The holdings block, the
- *   classes block, the shareholders block, the /me route, and the
- *   file-level §"Authorization layering" section are unchanged.
- *
- * =============================================================================
- * Docblock audit
- * =============================================================================
- * Every prose claim in this file was re-read against the code delivered
- * by Files 5, 6a, 6b, and 6c. Findings:
- *
- *   File-level §"Authorization layering"       — accurate, unchanged.
- *   File-level §"Route ordering"               — accurate, unchanged.
- *   File-level §"Route parameter names"        — accurate, unchanged.
- *   File-level §"Response envelope"            — accurate, unchanged.
- *   File-level §"Route name namespace"         — accurate, unchanged.
- *   /me route's inline comment                 — accurate, unchanged.
- *   classes block's inline comment             — accurate, unchanged.
- *   holdings block's inline comment            — accurate, unchanged.
- *   certificates block's inline comment        — ONE STALE PARAGRAPH,
- *                                                 corrected by this file.
- *   shareholders block's inline comment        — accurate, unchanged.
- *
- * Files modified:            this file only
- * Files added:               none
- * Files deleted:             none
- * Route added/removed/renamed: none
- * Middleware changes:        none
- * Version:                   1.2.0 → 1.2.1 (PATCH — prose only)
- * =============================================================================
- */
+/* Certificate cancellation retains object-level shareholder update authorization. */
 
 use Illuminate\Support\Facades\Route;
 use MaaleArna\MASES\Core\Domains\Shareholder\Http\Controllers\CertificateController;
