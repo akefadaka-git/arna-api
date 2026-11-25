@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/arna-d08-task-management.yml"
+      - "docs/calendar/**"
       - "database/migrations/**"
       - "database/seeders/Data/PermissionCatalogue.php"
       - "database/seeders/Data/RolePermissionGrants.php"
@@ -20,6 +21,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/arna-d08-task-management.yml"
+      - "docs/calendar/**"
       - "database/migrations/**"
       - "database/seeders/Data/PermissionCatalogue.php"
       - "database/seeders/Data/RolePermissionGrants.php"
