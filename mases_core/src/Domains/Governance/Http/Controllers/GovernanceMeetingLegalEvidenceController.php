@@ -57,7 +57,9 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
             'tenant_id' => $tenantId, 'meeting_id' => $meeting,
             'legal_form' => $data['legal_form'], 'meeting_category' => $data['meeting_category'],
             'source_reference' => trim($data['source_reference']),
-            'source_sha256' => strtolower($data['source_sha256']), 'status' => 'pending_review',
+            'source_sha256' => strtolower($data['source_sha256']),
+            'rule_parameters' => isset($data['rule_parameters']) ? json_encode($data['rule_parameters'], JSON_THROW_ON_ERROR) : null,
+            'status' => 'pending_review',
             'created_by' => (int) auth()->id(), 'created_at' => now(), 'updated_at' => now(),
         ]);
         $this->activity($tenantId, $meeting, 'meeting.legal_basis.submitted', ['legal_basis_id' => $id]);
@@ -67,7 +69,8 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
     public function storeEvidence(Request $request, int $legalBasis): JsonResponse
     {
         $data = $request->validate([
-            'action' => ['required', 'in:notice,quorum,voting,proxy,penalty,minutes'],
+            'action' => ['required', 'in:notice,quorum,voting,resolution,proxy,penalty,minutes'],
+            'rule_parameters' => ['nullable', 'array'],
             'evidence_key' => ['required', 'string', 'max:64'],
             'source_reference' => ['required', 'string', 'max:2000'],
             'source_sha256' => ['required', 'regex:/^[a-fA-F0-9]{64}$/'],
@@ -78,6 +81,7 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
             'voting' => ['voting_rights_rule', 'share_register_basis'],
             'proxy' => ['proxy_formality_rule', 'proxy_authority'],
             'penalty' => ['penalty_authority', 'penalty_due_process'],
+            'resolution' => ['resolution_approval_rule'],
             'minutes' => ['minutes_approval_rule', 'minutes_signatory_authority'],
         ];
         if (!in_array($data['evidence_key'], $required[$data['action']], true)) {
