@@ -23,6 +23,13 @@ return new class extends Migration
             $table->foreignId('verified_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->dateTime('verified_at')->nullable();
             $table->text('review_reason')->nullable();
+            $table->string('external_review_status', 24)->default('pending');
+            $table->string('external_counsel_name', 255)->nullable();
+            $table->string('external_counsel_firm', 255)->nullable();
+            $table->string('external_counsel_license_reference', 255)->nullable();
+            $table->string('external_opinion_reference', 2000)->nullable();
+            $table->char('external_opinion_sha256', 64)->nullable();
+            $table->dateTime('external_reviewed_at')->nullable();
             $table->timestamps();
             $table->unique(['tenant_id', 'meeting_id'], 'gmlb_tenant_meeting_uq');
             $table->index(['tenant_id', 'status'], 'gmlb_tenant_status_ix');
