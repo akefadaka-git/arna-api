@@ -56,7 +56,7 @@ final class ShareholderImportSubmission extends Model
                 'payload_sha256',
                 'submitted_by',
             ])) {
-                throw new \\LogicException('Submitted shareholder import payload and tenant provenance are immutable.');
+                throw new \LogicException('Submitted shareholder import payload and tenant provenance are immutable.');
             }
         });
     }
