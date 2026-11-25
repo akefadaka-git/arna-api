@@ -1,6 +1,14 @@
 name: ARNA Admin audit and security regression
 
 on:
+  push:
+    branches: [feat/admin-a3-master-control-plane]
+    paths:
+      - ".github/workflows/arna-admin-audit-security.yml"
+      - "app/Http/Controllers/Admin/PlatformAuditSecurityController.php"
+      - "routes/api.php"
+      - "tests/Feature/PlatformAuditSecurityReadTest.php"
+      - "database/seeders/Data/PermissionCatalogue.php"
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
