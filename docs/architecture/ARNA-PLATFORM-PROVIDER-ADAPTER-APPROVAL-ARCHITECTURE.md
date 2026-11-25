@@ -144,3 +144,21 @@ Therefore:
 - production provider connectivity: **UNKNOWN / NOT VERIFIED**.
 
 No PR description, UI state or health response may imply otherwise.
+
+## 11. Provider action lifecycle implementation increment (2026-11-25)
+
+The following executable lifecycle components are now present in PR #224; this section records implementation scope, not A4 certification:
+
+- `ProviderActionLifecycleService` creates immutable requests only through an explicitly registered adapter, validates the declared operation/resource/risk tuple, freezes the canonical digest and rejects credential-like payload fields.
+- Distinct approval decisions are persisted against the exact digest and policy version. Requesters cannot approve or reject their own request; the database unique key prevents duplicate decisions by one approver.
+- Critical actions use a dedicated Ed25519 trust anchor configured by `ARNA_PROVIDER_OWNER_KEY_ID` and `ARNA_PROVIDER_OWNER_PUBLIC_KEY` (Base64 raw public key). The signed message is domain-separated with `ARNA_PROVIDER_ACTION_OWNER_APPROVAL_V1` and binds request UUID, provider, adapter version, environment, operation, resource, digest, risk, policy version and expiry. No tenant RBAC or settings key is reused.
+- The final approval gate creates one unique held outbox record with a stable request/digest idempotency key. The outbox worker uses short leases, recovers expired processing leases by reconciling first, and never blindly retries a non-idempotent action after an uncertain response.
+- The worker requires both `ARNA_PROVIDER_MUTATIONS_ENABLED=true` and `ARNA_PROVIDER_SANDBOX_MUTATIONS_ENABLED=true`, and only executes requests whose environment is exactly `sandbox`. Production and staging actions are not executable by this worker. Both flags default to false.
+- A manually invoked command, `php artisan arna:providers:dispatch-held-outbox`, dispatches the sandbox worker. No scheduler is registered and no production mutation path is enabled.
+- Request, approval, Owner-signature verification, held outbox, execution and reconciliation transitions are recorded in the append-only provider action audit table. A read-only history endpoint exposes sanitized decision and audit metadata.
+
+**Verification state:** feature/unit tests and exact-head CI have been wired; their current-head outcomes must be checked before A4 closure. No vendor adapter is registered by default. The current feature test uses an in-process synthetic adapter and does not constitute vendor certification or external sandbox evidence.
+
+**Vendor certification remains NOT RUN:** no concrete DNS, registrar, certificate, hosting/Plesk, routing, monitoring or email vendor adapter has been registered or supplied with isolated vendor sandbox credentials. Each selected vendor requires a dedicated sandbox tenant/account, synthetic resource namespace, scoped credentials, endpoint allowlist and vendor-specific certification evidence. No real customer/domain resource may be used.
+
+**Production safety:** production mutation remains disabled; no production credentials, trust anchor or activation flag is configured by this change. This increment does not authorize merge, deployment, production provider connectivity or live external mutations.
