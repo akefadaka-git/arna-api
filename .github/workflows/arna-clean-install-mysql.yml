@@ -5,6 +5,7 @@ on:
     branches: [main, integration/**]
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
+    # The Admin control-plane branch runs this exact-head MySQL gate for provider foundation migrations.
     # This lets the same clean-install gate run automatically for PR #23.
     branches: [main, feat/p1-4-people-domain-production, feat/people-domain-phase-2-api, feat/admin-a3-master-control-plane]
     paths:
