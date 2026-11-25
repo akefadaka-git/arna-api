@@ -35,7 +35,11 @@ final class ArnaBaselineSeederTest extends TestCase
         $this->assertGreaterThan(0, DB::table('platform_applications')->count());
         $this->assertGreaterThan(0, DB::table('permissions')->count());
         $this->assertGreaterThan(0, DB::table('roles')->count());
-        $this->assertSame(2, DB::table('share_classes')->count());
+        $this->assertSame(
+            0,
+            DB::table('share_classes')->count(),
+            'Default baseline must not provision legal share classes before Articles and official-register reconciliation.',
+        );
         $this->assertSame(0, DB::table('ledger_accounts')->count(), 'Default baseline must not provision the chart of accounts.');
         $this->assertSame(0, DB::table('loan_products')->count(), 'Default baseline must not provision loan products.');
         $this->assertSame(
