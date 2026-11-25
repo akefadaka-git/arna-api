@@ -13,6 +13,7 @@ use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionA
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionCommitteeAppointmentController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceElectionController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingAttendanceController;
+use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMeetingLegalEvidenceController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernanceMembershipController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePingController;
 use MaaleArna\MASES\Core\Domains\Governance\Http\Controllers\GovernancePositionController;
@@ -353,6 +354,24 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('governanceMembership')
         ->name('memberships.update');
 
+
+    // GA legal-basis evidence — references are pending until independently verified.
+    Route::post('/meetings/{meeting}/legal-basis', [GovernanceMeetingLegalEvidenceController::class, 'storeBasis'])
+        ->whereNumber('meeting')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('meetings.legal-basis.store');
+    Route::post('/legal-bases/{legalBasis}/evidence', [GovernanceMeetingLegalEvidenceController::class, 'storeEvidence'])
+        ->whereNumber('legalBasis')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('legal-bases.evidence.store');
+    Route::patch('/legal-bases/{legalBasis}/verify', [GovernanceMeetingLegalEvidenceController::class, 'verifyBasis'])
+        ->whereNumber('legalBasis')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('legal-bases.verify');
+    Route::patch('/legal-evidence/{evidence}/verify', [GovernanceMeetingLegalEvidenceController::class, 'verifyEvidence'])
+        ->whereNumber('evidence')
+        ->middleware('auth.permission:governance.body.manage')
+        ->name('legal-evidence.verify');
 
     // G5 A3 — meeting attendance, proxies, penalties and Finance settlement requests.
     Route::get('/meetings', [GovernanceMeetingAttendanceController::class, 'index'])
