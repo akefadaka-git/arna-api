@@ -42,72 +42,7 @@ use Tests\TestCase;
  * the namespace `MaaleArna\MASES\Core\Domains\Loan\Tests\Unit`.
  *
  * =============================================================================
- * Revision history
- * =============================================================================
- * 1.0.0 — initial delivery.
- *
- * 1.0.1 — R-23 fixture FK fix. Every `disburse()` call in this suite
- *         passed the hardcoded actor id `7`. The service writes the
- *         actor id to `wallet_obligations.created_by`, which carries an
- *         FK to `users.id`. Under `DatabaseMigrations`, no such user
- *         rows exist, so the obligation write failed the FK constraint
- *         and every `disburse()` call that reached the Wallet write
- *         failed. The fix creates a `User` fixture in `setUp()` and
- *         passes `$this->actor->id`.
- *
- *         No behavior changes; no production code touched; no assertion
- *         meaning changed.
- *
- * =============================================================================
- * DatabaseMigrations, not RefreshDatabase
- * =============================================================================
- * `disburse()` dispatches `LoanDisbursed` via the state machine's
- * `DB::afterCommit()` path. Under `RefreshDatabase`, the framework's
- * per-test transaction never commits, so the after-commit callback
- * never fires and `Event::fake()` cannot observe the dispatch.
- * `DatabaseMigrations` avoids the wrapping transaction; the service's
- * own `DB::transaction(...)` becomes the outermost one, and its commit
- * triggers the after-commit callback.
- *
- * =============================================================================
- * The frozen disbursement flow (A.30)
- * =============================================================================
- * Per A.30's class docblock, `disburse()` performs the following
- * sequence inside ONE transaction:
- *
- *   1. Reads the loan without a lock.
- *   2. Asserts the loan is in `approved` state.
- *   3. Loads borrower and product via relations.
- *   4. Resolves the borrower's Wallet.
- *   5. Asserts product.currency === wallet.currency (Q8).
- *   6. Records the Wallet principal obligation.
- *   7. Generates the loan's schedule.
- *   8. Writes currency, disbursement_date, outstanding_principal.
- *   9. Transitions approved→disbursed, dispatching `LoanDisbursed`.
- *  10. Transitions disbursed→active, no event.
- *  11. Returns the refreshed loan.
- *
- * Every assertion below is anchored to one of these steps.
- *
- * =============================================================================
- * Fixtures used
- * =============================================================================
- *   - Tenant, LoanProduct (with policy version reference), VersionedPolicy
- *     with the canonical `loan_product_rules` payload.
- *   - Shareholder (borrower) with a Wallet in ETB.
- *   - User (actor) for the created_by FK on the Wallet obligation.
- *   - A loan in `approved` state with the frozen policy version written.
- *
- * The policy payload is the same minimal shape used by A.92/A.94:
- * `interest.annual_rate` and `term.principal_grace_months`/
- * `term.interest_grace_months`. See the `makePolicy()` helper.
- *
- * =============================================================================
- * Memory hygiene
- * =============================================================================
- * `gc_collect_cycles()` runs at both ends of the test lifecycle. Same
- * discipline as every other suite in the platform.
- *
+ * Covers transactional disbursement, wallet effects and loan state changes.
  * @package MaaleArna\MASES\Core\Domains\Loan\Tests\Unit
  * @version 1.0.1
  */
