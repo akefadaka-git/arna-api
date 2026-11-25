@@ -8,7 +8,6 @@ use Illuminate\Database\Seeder;
 use MaaleArna\MASES\Core\Domains\Governance\Database\Seeders\GovernanceSeeder;
 use MaaleArna\MASES\Core\Domains\Loan\Database\Seeders\LoanPermissionsSeeder;
 use MaaleArna\MASES\Core\Domains\Loan\Database\Seeders\LoanRolesSeeder;
-use MaaleArna\MASES\Core\Domains\Shareholder\Database\Seeders\ShareClassSeeder;
 use MaaleArna\MASES\Core\Domains\Shareholder\Database\Seeders\ShareholderPermissionsSeeder;
 use MaaleArna\MASES\Core\Domains\Shareholder\Database\Seeders\ShareholderRolesSeeder;
 use MaaleArna\MASES\Core\Domains\Wallet\Database\Seeders\WalletPermissionsSeeder;
@@ -36,7 +35,6 @@ final class ArnaBaselineSeeder extends Seeder
             LoanPermissionsSeeder::class,
             LoanRolesSeeder::class,
             GovernanceSeeder::class,
-            ShareClassSeeder::class,
         ]);
     }
 }
