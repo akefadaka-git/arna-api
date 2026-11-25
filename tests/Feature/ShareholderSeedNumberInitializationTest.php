@@ -135,14 +135,14 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
 
         $this->assertSame(0, $exitCode, Artisan::output());
 
-        $tenant = \MaaleArna\MASES\\Core\\Tenancy\\Models\\Tenant::query()
+        $tenant = \MaaleArna\MASES\Core\Tenancy\Models\Tenant::query()
             ->where('slug', 'main')
             ->firstOrFail();
-        $roles = \MaaleArna\MASES\\Core\\Authorization\\Models\\Role::query()
+        $roles = \MaaleArna\MASES\Core\Authorization\Models\Role::query()
             ->get()
             ->keyBy('slug')
             ->all();
-        $superAdmin = \MaaleArna\MASES\\Core\\Auth\\Models\\User::query()
+        $superAdmin = \MaaleArna\MASES\Core\Auth\Models\User::query()
             ->where('email', 'superadmin@maalearna.com.et')
             ->firstOrFail();
 
@@ -156,7 +156,7 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
 
         $this->assertNotEmpty($entityIdsBefore);
 
-        app(\Database\Seeders\\ShareholderSeeder::class)
+        app(\Database\Seeders\ShareholderSeeder::class)
             ->seed($tenant, $roles, $superAdmin);
 
         $entityIdsAfter = DB::table('shareholders')
