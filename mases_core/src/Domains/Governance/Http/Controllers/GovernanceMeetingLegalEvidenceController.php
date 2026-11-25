@@ -46,9 +46,9 @@ final class GovernanceMeetingLegalEvidenceController extends Controller
             'source_sha256' => ['required', 'regex:/^[a-fA-F0-9]{64}$/'],
         ]);
         $tenantId = $this->tenantId();
-        $exists = DB::table('governance_meetings')->where('tenant_id', $tenantId)->where('id', $meeting)->exists();
-        if (!$exists) {
-            throw new NotFoundHttpException('Meeting was not found in this tenant.');
+        $meetingRecord = DB::table('governance_meetings')->where('tenant_id', $tenantId)->where('id', $meeting)->first();
+        if (!$meetingRecord || $meetingRecord->meeting_kind !== 'general_assembly') {
+            throw new NotFoundHttpException('General Assembly meeting was not found in this tenant.');
         }
         if (DB::table('governance_meeting_legal_bases')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->exists()) {
             throw new ConflictHttpException('A legal-basis record already exists. Supersession must be a separately controlled change.');
