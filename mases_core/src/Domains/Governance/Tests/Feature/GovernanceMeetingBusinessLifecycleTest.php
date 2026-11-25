@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\Domains\\Governance\\Tests\\Feature;
+namespace MaaleArna\MASES\Core\Domains\Governance\Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\DB;
-use Laravel\\Sanctum\\Sanctum;
-use MaaleArna\\MASES\\Core\\Auth\\Models\\User;
-use MaaleArna\\MASES\\Core\\Authorization\\Models\\Permission;
-use MaaleArna\\MASES\\Core\\Tenancy\\Models\\Tenant;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
+use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use Tests\TestCase;
 
 final class GovernanceMeetingBusinessLifecycleTest extends TestCase
 {
