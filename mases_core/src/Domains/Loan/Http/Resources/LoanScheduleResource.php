@@ -2,74 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — CR-L2
- * =============================================================================
- *
- * File:            mases_core/src/Domains/Loan/Http/Resources/LoanScheduleResource.php
- * Unit:            CR-L2 — Ethiopian calendar date rendering (Loan resources)
- * Delivery type:   Amendment — one import, one trait use, one
- *                  `_display` field, docblock amendments.
- * Net lines:       +2 imports/use; +1 field line; docblock revision.
- *
- * Before:
- *   The resource emitted one date field of its own — `maturity_date` —
- *   as ISO 8601 only, with no `_display` sibling. Consumers that
- *   wanted the Amharic-first medium form had to slice the ISO string
- *   client-side.
- *
- *   The embedded `installments` collection was already covered: it
- *   serializes through `LoanInstallmentResource`, whose `_display`
- *   fields are delivered by CR-L2 file 2. The `totals` block carries
- *   no dates. The resource therefore contributes one date field to
- *   CR-L2's scope.
- *
- * After:
- *   The resource mixes in RendersLocalizedDates (Reading 1:
- *   cross-domain import from the Shareholder domain, matching
- *   WalletResource's and the sibling Loan resources' precedent) and
- *   emits a `_display` sibling for its one date field. The ISO field
- *   is preserved byte-for-byte; the `_display` field is additive.
- *
- *   The `_display` field appears immediately after its ISO parent:
- *
- *     maturity_date_display
- *
- *   `maturity_date` is nullable — a pre-disbursement loan has no
- *   maturity date set (it is written by LoanScheduleService at
- *   disbursement). The `_display` sibling is therefore nullable too —
- *   the trait returns null for null input, so the two forms agree on
- *   which rows carry a value.
- *
- * Public surface delta:
- *   · No new methods. The trait contributes one `protected localizedDate()`
- *     method, which is not part of the resource's external contract.
- *   · The serialised payload gains one key. No key is removed,
- *     renamed, or re-valued. In particular, the `totals` block and
- *     the embedded `installments` collection are unchanged (the
- *     latter's payload grows internally per file 2, but the field
- *     composition here is identical).
- *
- * Dependency note:
- *   · The trait is imported from the Shareholder domain's Concerns
- *     namespace, matching the cross-domain import on LoanResource.php
- *     (CR-L2 file 1). Reading 1 was confirmed: the trait stays where
- *     it is for CR-L2.
- *
- *   · File 2 of CR-L2 (`LoanInstallmentResource.php`) delivers the
- *     `_display` fields that appear on the embedded `installments`
- *     collection. Both files should be deployed in the same batch;
- *     the schedule endpoint's payload depends on both.
- *
- *   · The trait and LocalizationService::formatEthiopianDateMedium()
- *     are both deployed (Track A closed).
- *
- *   · No new class, no config change, no route change. No Composer
- *     refresh is required for this file alone.
- *
- * =============================================================================
- */
+
 
 /*
  * =============================================================================
