@@ -41,15 +41,17 @@ final class D08TaskManagementTest extends TestCase
     private function grant(User $user, Tenant $tenant, string ...$slugs): void
     {
         foreach ($slugs as $slug) {
-            $permission = Permission::query()->create([
-                'name_en' => $slug,
-                'slug' => $slug,
-                'category' => 'task',
-                'scope' => 'tenant',
-                'tenant_id' => $tenant->id,
-                'is_active' => true,
-                'is_system' => false,
-            ]);
+            $permission = Permission::query()->firstOrCreate(
+                ['slug' => $slug],
+                [
+                    'name_en' => $slug,
+                    'category' => 'task',
+                    'scope' => 'tenant',
+                    'tenant_id' => $tenant->id,
+                    'is_active' => true,
+                    'is_system' => false,
+                ],
+            );
             $user->permissions()->attach($permission->id, [
                 'assigned_at' => now(),
                 'assigned_by' => $user->id,
