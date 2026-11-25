@@ -118,6 +118,9 @@ final class TaskService
             if (!$canManage && !$isAssignee) {
                 throw new NotFoundHttpException('Task not found.');
             }
+            if (!$canManage && array_diff(array_keys($data), ['version', 'status', 'progress_percent']) !== []) {
+                throw new NotFoundHttpException('Task not found.');
+            }
 
             $allowed = $canManage
                 ? ['title', 'description', 'priority', 'due_on', 'status', 'progress_percent']
@@ -161,6 +164,9 @@ final class TaskService
             }
             if ((int) ($data['version'] ?? 0) !== (int) $task->version) {
                 throw new ConflictHttpException('Task version conflict; reload before retrying.');
+            }
+            if (!$actor->hasPermission('task.assign', $tenantId)) {
+                throw new NotFoundHttpException('Task not found.');
             }
             $this->assertActiveMember($tenantId, $data['assigned_to_user_id']);
 
