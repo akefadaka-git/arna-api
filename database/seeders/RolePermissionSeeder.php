@@ -78,7 +78,10 @@ final class RolePermissionSeeder extends Seeder
                 ));
             }
 
-            $roles[$roleSlug]->permissions()->sync($permissionIds);
+            // Baseline provisioning is additive: Owner-managed grants are not
+            // removed by a routine seed. Revocations require an explicit,
+            // separately governed authorization change.
+            $roles[$roleSlug]->permissions()->syncWithoutDetaching($permissionIds);
         }
     }
 
