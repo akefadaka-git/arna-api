@@ -66,71 +66,7 @@ declare(strict_types=1);
 | consumers can rely on a single, consistent shape across every endpoint.
 |
 | -----------------------------------------------------------------------------
-| Revision history
-| -----------------------------------------------------------------------------
-| 1.3.2  — /api/launcher route registered.
-|
-|          Symptom: the launcher page rendered its Amharic empty state
-|          ("ምንም ተደራሽ አፕሊኬሽኖች የሉም") for every user, including platform
-|          administrators who hold app.* access permissions. Browser
-|          Network tab showed:
-|
-|              GET https://api.maalearna.com.et/api/launcher
-|              → HTTP/2 404
-|              { "code": "ROUTE_NOT_FOUND", ... }
-|
-|          Cause: the ApplicationController
-|          (app/Http/Controllers/ApplicationController.php) existed and
-|          the frontend service (src/features/launcher/service.ts)
-|          fetched GET /api/launcher — but no route was ever registered
-|          in this file for the endpoint. Every launcher request hit the
-|          fallback and returned 404 ROUTE_NOT_FOUND. The controller was
-|          delivered in isolation and never wired into the route table.
-|
-|          Fix: register the route inside the tenant-scoped group,
-|          immediately before the file-management block. The
-|          placement is deliberate — the controller assumes both an
-|          authenticated user (auth:sanctum) and a resolved,
-|          member-verified tenant (tenant.membership). It carries no
-|          additional middleware because the per-application
-|          authorization varies by row and is enforced inside the
-|          controller: the caller's `app.{slug}.access` permission is
-|          checked per registered application, and the response
-|          contains only the rows whose access permission the caller
-|          holds.
-|
-|          No other change to this file. Every route above and below
-|          the new entry is byte-for-byte identical to 1.3.1.
-|
-| 1.3.1  — /api/user permissions list fix.
-|
-|          The `permissions` field previously read `$user->permissions` —
-|          the relation that queries `user_has_permissions`, i.e. ONLY
-|          direct per-user grants. In the MASES deployment the
-|          `user_has_permissions` table is deliberately empty; every
-|          permission is granted via roles (`user_has_roles` →
-|          `role_has_permissions`). The response therefore returned
-|          `"permissions": []` for every user, even those with full
-|          platform-admin grants. The frontend's permission gate then
-|          denied every permission-gated route, producing a spurious
-|          Amharic 403 on /wallets and every other domain workspace.
-|
-|          The fix merges direct grants and role-derived grants into one
-|          deduplicated, slug-only list. The User model's `permissions`
-|          relation is left untouched — its documented contract ("directly
-|          assigned") is correct; only this endpoint's consumption of it
-|          was wrong. `roles.permissions` is eager-loaded via loadMissing
-|          to avoid an N+1 on the roles collection.
-|
-|          Response shape is unchanged: `permissions` remains a flat
-|          array of slug strings. Clients that already tolerate an empty
-|          array continue to work; clients that filter by slug now see
-|          the correct set.
-|
-| 1.3.0  — prior version (CR-003a envelope fix).
-|
-| @package MASES
-| @version 1.3.2
+ * Historical changes are recorded in Git.
 */
 
 use Illuminate\Support\Facades\Route;
