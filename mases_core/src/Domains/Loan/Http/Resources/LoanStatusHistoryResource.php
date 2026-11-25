@@ -2,69 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — CR-L2
- * =============================================================================
- *
- * File:            mases_core/src/Domains/Loan/Http/Resources/LoanStatusHistoryResource.php
- * Unit:            CR-L2 — Ethiopian calendar date rendering (Loan resources)
- * Delivery type:   Amendment — one import, one trait use, two
- *                  `_display` fields, docblock amendments.
- * Net lines:       +2 imports/use; +2 field lines; docblock revision.
- *
- * Before:
- *   Every date field the resource emitted was ISO 8601 only:
- *
- *     occurred_at, created_at   (2 date fields)
- *
- *   A consumer that wanted the Amharic-first medium form had to slice
- *   the ISO string client-side, breaking the convention established by
- *   P3 · Unit 2 across the Shareholder resources, extended to
- *   WalletResource by CR-W1, and being extended to the six Loan
- *   resources by CR-L2.
- *
- * After:
- *   The resource mixes in RendersLocalizedDates (Reading 1:
- *   cross-domain import from the Shareholder domain, matching
- *   WalletResource's and the sibling Loan resources' precedent) and
- *   emits a `_display` sibling for each of its two date fields. The
- *   ISO fields are preserved byte-for-byte; the `_display` fields are
- *   additive.
- *
- *   Each `_display` field appears immediately after its ISO parent:
- *
- *     occurred_at_display, created_at_display
- *
- *   Both ISO dates are written by the state machine from the same
- *   `Carbon::now()` value per Phase 2C; both `_display` siblings
- *   therefore render the same localized calendar day. The two are kept
- *   as separate fields in the payload so that a future CR which
- *   introduces back-dated transitions (imports of historical records)
- *   will not require a schema or resource change.
- *
- * Public surface delta:
- *   · No new methods. The trait contributes one `protected localizedDate()`
- *     method, which is not part of the resource's external contract.
- *   · The serialised payload gains two keys. No key is removed,
- *     renamed, or re-valued. In particular, the three computed
- *     predicates (`was_automatic`, `is_initial_creation`,
- *     `is_transition`) are unchanged.
- *
- * Dependency note:
- *   · The trait is imported from the Shareholder domain's Concerns
- *     namespace, matching the cross-domain import on LoanResource.php
- *     (CR-L2 file 1). Reading 1 was confirmed: the trait stays where
- *     it is for CR-L2.
- *
- *   · The trait and LocalizationService::formatEthiopianDateMedium()
- *     are both deployed (Track A closed).
- *
- *   · No new class, no config change, no route change. No Composer
- *     refresh is required for this file alone.
- *
- * =============================================================================
- */
+
 
 /*
  * =============================================================================
