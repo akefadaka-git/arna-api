@@ -99,6 +99,10 @@ final class PlatformProviderArchitectureTest extends TestCase
             {
                 throw new RuntimeException('Test adapter execution is intentionally unavailable.');
             }
+            public function reconcile(ProviderOperationPlan $approvedPlan, string $idempotencyKey): ProviderExecutionResult
+            {
+                return new ProviderExecutionResult('indeterminate');
+            }
         };
     }
 }
