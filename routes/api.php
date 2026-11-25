@@ -162,7 +162,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
  * Used by monitoring tools, load balancers, and readiness probes.
  * Deliberately unauthenticated and tenant-independent.
  *
- * Response follows the MASES envelope:
+ * Response follows the ARNA envelope:
  *   { "success": true, "data": { status, timestamp, version, environment } }
  */
 Route::get('/health', static function (): JsonResponse {
@@ -427,7 +427,7 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
      * Lightweight endpoint returning basic identity plus tenant / role /
      * permission slugs. Useful for frontend authorisation heuristics.
      *
-     * Response follows the MASES envelope:
+     * Response follows the ARNA envelope:
      *   {
      *     "success": true,
      *     "data": {
@@ -453,7 +453,7 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
      *      (`user_has_roles` → `role_has_permissions`, exposed via
      *      `$user->roles[*]->permissions`).
      *
-     * Both paths are needed. In the current MASES deployment, path (1) is
+     * Both paths are needed. In the current ARNA deployment, path (1) is
      * always empty — the platform grants permissions exclusively through
      * roles — but path (1) remains in the merge so that a future direct
      * grant (an executive override, an emergency elevation) is reflected
@@ -982,6 +982,22 @@ Route::get('/admin/platform/operations/health', [\App\Http\Controllers\Admin\Pla
 Route::get('/admin/platform/operations/observations', [\App\Http\Controllers\Admin\PlatformOperationsController::class, 'observations'])
     ->middleware(['auth:sanctum', 'auth.permission:platform.operations.read'])
     ->name('api.admin.platform.operations.observations');
+
+// Provider action requests, independent approvals and dedicated Owner authorization.
+Route::middleware('auth:sanctum')->prefix('admin/platform/provider-actions')->name('api.admin.platform.provider-actions.')->group(static function (): void {
+    $controller = \\App\\Http\\Controllers\\Admin\\PlatformProviderActionsController::class;
+
+    Route::get('/', [$controller, 'index'])
+        ->middleware('auth.permission:platform.providers.actions.read')->name('index');
+    Route::post('/', [$controller, 'store'])
+        ->middleware('auth.permission:platform.providers.actions.request')->name('store');
+    Route::post('/{publicId}/approve', [$controller, 'approve'])
+        ->whereUuid('publicId')->middleware('auth.permission:platform.providers.actions.approve')->name('approve');
+    Route::post('/{publicId}/reject', [$controller, 'reject'])
+        ->whereUuid('publicId')->middleware('auth.permission:platform.providers.actions.approve')->name('reject');
+    Route::post('/{publicId}/owner-authorization', [$controller, 'ownerAuthorize'])
+        ->whereUuid('publicId')->middleware('auth.permission:platform.providers.actions.owner-authorize')->name('owner-authorize');
+});
 
 Route::fallback(static function (): never {
     throw new NotFoundHttpException('The requested endpoint does not exist.');
