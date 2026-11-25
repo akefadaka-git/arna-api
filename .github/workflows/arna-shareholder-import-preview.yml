@@ -1,0 +1,61 @@
+name: ARNA shareholder import preview tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php"
+      - "mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php"
+      - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php"
+      - ".github/workflows/arna-shareholder-import-preview.yml"
+      - "composer.json"
+      - "composer.lock"
+  pull_request:
+    branches: [main]
+    paths:
+      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php"
+      - "mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php"
+      - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php"
+      - ".github/workflows/arna-shareholder-import-preview.yml"
+      - "composer.json"
+      - "composer.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview-tests:
+    name: Shareholder import preview (no database)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, mbstring, pdo_sqlite, sqlite3, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Lint import preview source and tests
+        run: |
+          php -l mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php
+          php -l mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php
+          php -l mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
+
+      - name: Run shareholder import preview tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
