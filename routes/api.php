@@ -819,6 +819,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->prefix('/tasks')->name
     $controller = \MaaleArna\MASES\Core\Domains\Task\Http\Controllers\TaskController::class;
 
     Route::get('/', [$controller, 'index'])->middleware('auth.permission:task.view')->name('index');
+    Route::get('/deadlines', [$controller, 'deadlines'])->middleware('auth.permission:task.view')->name('deadlines');
     Route::post('/', [$controller, 'store'])->middleware('auth.permission:task.create')->name('store');
     Route::get('/{id}', [$controller, 'show'])->whereUuid('id')->middleware('auth.permission:task.view')->name('show');
     Route::patch('/{id}', [$controller, 'update'])->whereUuid('id')->middleware('auth.permission:task.update')->name('update');
