@@ -9,51 +9,12 @@ use Symfony\Component\Finder\Finder;
 use Throwable;
 
 /**
- * MasesRectorVerifyCommand
- *
- * B5 audit helper. Read-only. Classifies every `.php` file under the two
- * Rector-targeted scopes — `tests/` and `mases_core/src/Domains/` — by
- * whether it carries PHP 8 attribute syntax (the output of Rector's
- * `PHPUnitSetList::ANNOTATIONS_TO_ATTRIBUTES`) or legacy PHPUnit
- * docblock annotations.
- *
- * It does NOT modify any file. It does NOT expose a public endpoint.
- * It does NOT run Rector.
- *
- * Purpose: produce the file list needed for the B5 verification pass,
- * distinguishing:
- *
- *   MIGRATED     — file has at least one PHPUnit attribute; no legacy
- *                  annotation remains. This is the expected state for a
- *                  file Rector touched.
- *
- *   MIXED        — file has BOTH an attribute and a legacy annotation.
- *                  This is suspicious: Rector should have converted the
- *                  whole file. A MIXED file needs per-file review.
- *
- *   LEGACY-ONLY  — file has legacy annotations but no attribute. If the
- *                  Rector run was scoped to this directory and this file
- *                  ends in `Test.php`, this is a file Rector should have
- *                  converted but did not.
- *
- *   NEITHER      — file has no attribute and no legacy annotation. This
- *                  is the normal state for a file that was never a
- *                  candidate for the transformation (a model, a service,
- *                  a resource, a helper).
- *
- * The scan is textual. It reads each file once; it does not parse PHP.
- * It is safe to run on the live tree.
+ * Read-only B5 audit of PHPUnit annotation-to-attribute migration.
+ * Scans tests/ and domain PHP files; does not modify files or run Rector.
  */
 final class MasesRectorVerifyCommand extends Command
 {
-    /**
-     * PHPUnit attribute names that Rector's ANNOTATIONS_TO_ATTRIBUTES
-     * rule produces, or that a human author may write after the rule
-     * has run. The list is a superset of what the rule currently emits;
-     * a superset is the correct posture for a verification scan.
-     *
-     * @var list<string>
-     */
+    /** @var list<string> PHPUnit attributes recognized by the scan. */
     private const PHPUNIT_ATTRIBUTES = [
         'Test',
         'DataProvider',
@@ -90,14 +51,7 @@ final class MasesRectorVerifyCommand extends Command
         'WithoutErrorHandler',
     ];
 
-    /**
-     * Legacy PHPUnit docblock annotation names that
-     * ANNOTATIONS_TO_ATTRIBUTES converts. Matching is case-sensitive on
-     * the tag names that are conventionally lowerCamelCase; a leading
-     * `@` and optional whitespace precede them.
-     *
-     * @var list<string>
-     */
+    /** @var list<string> Legacy PHPUnit annotations recognized by the scan. */
     private const LEGACY_ANNOTATIONS = [
         'test',
         'dataProvider',
@@ -199,9 +153,7 @@ final class MasesRectorVerifyCommand extends Command
         return self::SUCCESS;
     }
 
-    // =========================================================================
     // Directory resolution
-    // =========================================================================
 
     /**
      * @return array<string, string>  map of human label => absolute path
@@ -229,9 +181,7 @@ final class MasesRectorVerifyCommand extends Command
         };
     }
 
-    // =========================================================================
     // Classification
-    // =========================================================================
 
     private function classify(string $relativePath, string $contents): string
     {
@@ -253,21 +203,7 @@ final class MasesRectorVerifyCommand extends Command
         return 'NEITHER';
     }
 
-    /**
-     * Whether the file contains a PHPUnit attribute in `#[...]` syntax.
-     *
-     * Matches:
-     *   #[Test]
-     *   #[\PHPUnit\Framework\Attributes\Test]
-     *   #[DataProvider('foo')]
-     *   #[PHPUnit\Framework\Attributes\DataProvider('foo')]
-     *   #[Attributes\DataProvider('foo')]      (with a use import)
-     *
-     * The class-name alternation is bounded by a word boundary so that
-     * a longer attribute whose name merely starts with one of the
-     * configured tokens (e.g. a hypothetical `#[\Foo\Testament]`) does
-     * not falsely match.
-     */
+    /** Checks for recognized PHPUnit attributes in PHP 8 attribute syntax. */
     private function hasPhpUnitAttribute(string $contents): bool
     {
         $names = implode('|', array_map(
@@ -284,18 +220,7 @@ final class MasesRectorVerifyCommand extends Command
         return preg_match($pattern, $contents) === 1;
     }
 
-    /**
-     * Whether the file contains a legacy PHPUnit docblock annotation.
-     *
-     * Matches tags inside a docblock line:
-     *   * @test
-     *   * @dataProvider foo
-     *   * @depends testFoo
-     *
-     * The pattern is anchored to the start of a line and requires an
-     * asterisk-and-whitespace prefix, so a literal `@test` in a string
-     * or a regex does not match.
-     */
+    /** Checks for recognized legacy PHPUnit annotations in docblocks. */
     private function hasLegacyAnnotation(string $contents): bool
     {
         $names = implode('|', array_map(
@@ -308,9 +233,7 @@ final class MasesRectorVerifyCommand extends Command
         return preg_match($pattern, $contents) === 1;
     }
 
-    // =========================================================================
     // Rendering
-    // =========================================================================
 
     /**
      * @param array<string, list<string>> $classified
@@ -388,9 +311,7 @@ final class MasesRectorVerifyCommand extends Command
         return implode(PHP_EOL, $lines) . PHP_EOL;
     }
 
-    // =========================================================================
     // Path helpers
-    // =========================================================================
 
     private function relativePath(string $absolute): string
     {
