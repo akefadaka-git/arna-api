@@ -38,10 +38,11 @@ final class GovernanceMeetingAttendanceTest extends TestCase
 
         $view = $this->createPermission('governance.body.view');
         $manage = $this->createPermission('governance.body.manage');
+        $meetingManage = $this->createPermission('governance.meeting.manage');
 
         $this->admin = $this->createUser('meeting-admin');
         $this->admin->tenants()->attach($this->tenant->id, ['joined_at' => now()]);
-        $this->admin->permissions()->attach([$view->id, $manage->id]);
+        $this->admin->permissions()->attach([$view->id, $manage->id, $meetingManage->id]);
         $this->admin->load('permissions');
 
         $this->plainUser = $this->createUser('meeting-plain');
