@@ -36,6 +36,11 @@ final class GovernanceInvariantsMySqlConcurrencyTest extends TestCase
         }
 
         config(['governance.audit.emit_events' => false]);
+
+        // Fail before forking if the canonical service is not PSR-4 autoloadable.
+        self::assertTrue(class_exists(GovernanceMembershipService::class));
+        self::assertInstanceOf(GovernanceMembershipService::class, app(GovernanceMembershipService::class));
+
         $suffix = bin2hex(random_bytes(5));
         $tenant = Tenant::query()->create([
             'name_am' => 'የተመሳሰለ ሙከራ',
