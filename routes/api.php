@@ -983,7 +983,7 @@ Route::get('/admin/platform/operations/observations', [\App\Http\Controllers\Adm
     ->middleware(['auth:sanctum', 'auth.permission:platform.operations.read'])
     ->name('api.admin.platform.operations.observations');
 
-// Provider action requests, independent approvals and dedicated Owner authorization.
+// ARNA provider action requests, independent approvals and dedicated Owner authorization.
 Route::middleware('auth:sanctum')->prefix('admin/platform/provider-actions')->name('api.admin.platform.provider-actions.')->group(static function (): void {
     $controller = \App\Http\Controllers\Admin\PlatformProviderActionsController::class;
 
