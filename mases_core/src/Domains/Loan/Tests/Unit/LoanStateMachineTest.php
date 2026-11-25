@@ -41,71 +41,7 @@ use Tests\TestCase;
  * with their domain.
  *
  * =============================================================================
- * Revision history
- * =============================================================================
- * 1.0.0 — initial delivery.
- *
- * 1.0.1 — docblock correction (no code change).
- *
- * 1.0.2 — R-22 fixture FK fix. `makePersistedLoan()` previously wrote
- *         `borrower_shareholder_id = 1` and `loan_product_id = 1`
- *         directly, assuming a fixture-row with those ids existed.
- *         Under `DatabaseMigrations`, the schema is wiped between test
- *         files, so no `shareholders.id = 1` and no `loan_products.id = 1`
- *         existed and the insert failed the FK constraint. The fix
- *         creates a `Shareholder` and a `LoanProduct` in `setUp()` and
- *         references their ids.
- *
- * 1.0.3 — R-23 fixture FK fix. Two tests passed hardcoded actor ids
- *         (`42` and `99`) to `initialize()` / `transition()`. Both
- *         services write the actor id to `loan_status_histories.actor_user_id`,
- *         which carries an FK to `users.id`. Under `DatabaseMigrations`,
- *         no such user rows exist, so the insert failed the FK
- *         constraint. The fix creates a `User` fixture in `setUp()` and
- *         passes `$this->actor->id`; the assertions that compared
- *         against the literal ids become comparisons against
- *         `$this->actor->id`.
- *
- *         No behavior changes; no production code touched; no assertion
- *         meaning changed.
- *
- * =============================================================================
- * DatabaseMigrations, not RefreshDatabase
- * =============================================================================
- * The state machine registers its event dispatch via `DB::afterCommit()`.
- * Under `RefreshDatabase`, the framework's per-test transaction never
- * commits, so the after-commit callbacks never fire and `Event::fake()`
- * cannot observe the dispatch. `DatabaseMigrations` avoids the wrapping
- * transaction, allowing the state machine's caller-supplied transaction
- * to be the outermost one.
- *
- * =============================================================================
- * Event-assertion closures are non-static
- * =============================================================================
- * The closure in `test_transition_dispatches_after_commit_event` accesses
- * `$loan` (captured by `use`). That is sufficient to require a
- * non-static closure; the platform-wide convention (documented at 2A.49
- * and 2B.57) is that any event-assertion closure that reaches beyond its
- * own arguments MUST NOT be declared `static fn`. The convention exists
- * because a future revision of the closure may need `$this`.
- *
- * =============================================================================
- * Fixture helper naming
- * =============================================================================
- * The tenant helper is `makeTenant()` — not `createTenant()` — to avoid
- * the signature collision with the protected method declared on
- * `Tests\TestCase`. The same convention is used by 2A.48, 2A.49, 2B.57,
- * 2B.58, 2B.59, 2B.60, and 2B.61.
- *
- * =============================================================================
- * Memory hygiene
- * =============================================================================
- * `gc_collect_cycles()` runs at both ends of the test lifecycle. The
- * Plesk shared-host CLI environment has a low memory ceiling, and PHPUnit
- * keeps every test's fixture graph alive until the next test's `setUp()`.
- * The explicit collection keeps the peak memory below the ceiling for a
- * suite with dozens of tests.
- *
+ * Covers valid loan transitions and rejection of invalid state changes.
  * @package MaaleArna\MASES\Core\Domains\Loan\Tests\Unit
  * @version 1.0.3
  */
