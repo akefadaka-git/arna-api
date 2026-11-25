@@ -130,7 +130,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Adapter registration remains explicit; no class auto-discovery is allowed.
+        // ARNA provider adapter registration remains explicit; no class auto-discovery is allowed.
         $this->app->singleton(ProviderAdapterRegistry::class, static fn (): ProviderAdapterRegistry => new ProviderAdapterRegistry());
     }
 
