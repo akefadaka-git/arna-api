@@ -22,8 +22,8 @@ use MaaleArna\MASES\Core\Domains\Wallet\Repositories\WalletRepository;
 
 /**
  * Sole wallet-ledger write path. Requires a caller-owned transaction and
- * locks the wallet before updating balances. Each entry preserves
- * balance_before + signed_quantity = balance_after; events are caller-managed.
+ * locks the wallet before updates. Entries preserve the balance equation;
+ * currency format is validated, while minor-unit precision is policy-controlled.
  */
 final class WalletService
 {
