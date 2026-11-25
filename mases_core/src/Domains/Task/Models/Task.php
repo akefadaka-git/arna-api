@@ -7,6 +7,7 @@ namespace MaaleArna\MASES\Core\Domains\Task\Models;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
 use MaaleArna\MASES\Core\Localization\Calendar\EthiopianDate;
 
@@ -28,6 +29,26 @@ final class Task extends Model
         'version' => 'integer',
         'completed_at' => 'immutable_datetime',
     ];
+
+    public function dependencies(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            self::class,
+            'task_dependencies',
+            'task_id',
+            'depends_on_task_id',
+        )->withPivot(['tenant_id', 'created_by', 'created_at']);
+    }
+
+    public function dependents(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            self::class,
+            'task_dependencies',
+            'depends_on_task_id',
+            'task_id',
+        )->withPivot(['tenant_id', 'created_by', 'created_at']);
+    }
 
     public function getDueOnEcAttribute(): ?array
     {
