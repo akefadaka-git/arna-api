@@ -170,6 +170,7 @@ final class ProviderActionLifecycleService
 
     private function queueIfReady(object $request): void
     {
+        $this->assertApprovalRecordsMatch($request);
         if ($request->status !== 'pending_approval' || $this->approvalCount((int) $request->id) < (int) $request->required_approvals) {
             return;
         }
@@ -194,6 +195,20 @@ final class ProviderActionLifecycleService
         $this->audit((int) $request->id, null, 'outbox.held', $request->payload_sha256, [
             'idempotency_key' => $idempotencyKey, 'status' => 'held',
         ]);
+    }
+
+    private function assertApprovalRecordsMatch(object $request): void
+    {
+        $approvals = DB::table('platform_provider_action_approvals')
+            ->where('request_id', $request->id)->where('decision', 'approved')->get();
+
+        foreach ($approvals as $approval) {
+            if ((int) $approval->approver_id === (int) $request->requester_id
+                || ! hash_equals((string) $request->payload_sha256, (string) $approval->payload_sha256)
+                || $approval->policy_version !== $request->policy_version) {
+                throw new RuntimeException('An approval is not bound to the current provider action request and policy.');
+            }
+        }
     }
 
     private function approvalCount(int $requestId): int
