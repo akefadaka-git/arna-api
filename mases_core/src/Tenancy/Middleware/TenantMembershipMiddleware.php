@@ -59,58 +59,7 @@ use Throwable;
  * path in the platform, including `request_id` and `timestamp`.
  *
  * -----------------------------------------------------------------------------
- * Revision history
- * -----------------------------------------------------------------------------
- * 1.0.0 — initial delivery. Three-way distinction between unauthenticated,
- *         tenant-required, and tenant-not-a-member conditions. The
- *         unauthenticated branch threw `TenantException` with a bespoke
- *         code `AUTH_REQUIRED`.
- *
- * 1.0.1 — R-18 / authentication-code consistency. The unauthenticated
- *         branch now throws the MASES
- *         `AuthenticationException::unauthenticated()` instead of
- *         constructing a `TenantException` with the ad-hoc code
- *         `AUTH_REQUIRED`.
- *
- *         WHY
- *         ---
- *         `AUTH_REQUIRED` was a bespoke literal, not a class constant
- *         on any MASES exception. Every other authentication error in
- *         the platform uses a code from the
- *         `MaaleArna\MASES\Core\Exceptions\AuthenticationException`
- *         taxonomy — D-15 (H-13) specifically aligned
- *         `App\Http\Middleware\Authenticate` to
- *         `AUTH_UNAUTHENTICATED` for exactly this semantic. Leaving
- *         `AUTH_REQUIRED` in place here means the platform still has
- *         two codes for the same condition, so clients branching on
- *         `error.code` must check both.
- *
- *         The condition this branch handles — `$request->user()` is
- *         null — is exactly what `AUTH_UNAUTHENTICATED` represents.
- *         It is not a tenant condition (no tenant is examined), not a
- *         membership condition (no membership is examined), and not
- *         an authorization condition (no permission is examined).
- *
- *         WHAT DOES NOT CHANGE
- *         ---------------------
- *         · The tenant-required branch (`TENANT_REQUIRED`, 400) is
- *           untouched.
- *         · The tenant-not-a-member branch
- *           (`TenantException::accessDenied()` → `TENANT_ACCESS_DENIED`,
- *           403) is untouched.
- *         · The `MEMBERSHIP_CHECK_FAILED` and `TENANT_RESOLUTION_FAILED`
- *           defensive branches are untouched.
- *         · The `requireTenant` parameter semantics are untouched.
- *         · The authenticated success path is untouched.
- *
- *         ONLY the message on the unauthenticated branch changes as a
- *         side effect: it becomes the canonical
- *         "Authentication is required to access this resource."
- *         instead of the previous
- *         "Authentication required to verify tenant membership."
- *         This is a minor diagnostic difference; clients branch on
- *         `error.code`, not `error.message`.
- *
+ * Historical changes are recorded in Git.
  * @package MaaleArna\MASES\Core\Tenancy\Middleware
  * @version 1.0.1
  */
