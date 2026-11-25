@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Providers;
-
 use App\Services\Admin\Providers\ProviderAdapterRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -11,7 +9,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use MaaleArna\MASES\Core\Domains\People\Models\Person;
 use MaaleArna\MASES\Core\Domains\People\Policies\PersonPolicy;
 use Illuminate\Support\ServiceProvider;
-
 /**
  * AppServiceProvider
  *
@@ -49,11 +46,11 @@ use Illuminate\Support\ServiceProvider;
  *              indefinitely, which matters for endpoints that
  *              perform real work (file uploads, ledger writes).
  *
- *          The `config/mases.php` file already declared the intended
+ *          The existing ARNA configuration already declared the intended
  *          cap:
  *
  *              'security' => [
- *                  'rate_limiting' => (int) env('MASES_RATE_LIMIT', 60),
+ *                  the established rate-limit environment override,
  *              ]
  *
  *          but no code read it. The configuration key was inert.
@@ -68,8 +65,8 @@ use Illuminate\Support\ServiceProvider;
  *              named `api`. The limiter's key is the authenticated
  *              user's ID when a user is present, else the request IP.
  *              The cap is read from
- *              `config('mases.security.rate_limiting')` so the
- *              existing `MASES_RATE_LIMIT` environment variable is
+ *              existing rate-limiting configuration key so the
+ *              established environment override is
  *              now honoured. Default 60 requests per minute.
  *
  *              Keying by user when present is the standard Laravel
@@ -133,12 +130,11 @@ class AppServiceProvider extends ServiceProvider
         // ARNA provider adapter registration remains explicit; no class auto-discovery is allowed.
         $this->app->singleton(ProviderAdapterRegistry::class, static fn (): ProviderAdapterRegistry => new ProviderAdapterRegistry());
     }
-
     /**
      * Bootstrap any application services.
      *
      * Registers the `api` rate limiter (reads its cap from
-     * `config('mases.security.rate_limiting')`) and applies the
+     * existing rate-limiting configuration key) and applies the
      * `throttle:api` middleware to the `api` middleware group so the
      * limiter is actually invoked for API requests.
      *
@@ -151,7 +147,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Person::class, PersonPolicy::class);
-
         /*
          * ---------------------------------------------------------------------
          * Rate limiter registration.
@@ -169,9 +164,8 @@ class AppServiceProvider extends ServiceProvider
          * (impossible-in-practice) case.
          *
          * Cap resolution:
-         *   · `config('mases.security.rate_limiting')` → from
-         *     `config/mases.php`, which reads
-         *     `env('MASES_RATE_LIMIT', 60)`.
+         *   · The existing ARNA rate-limiting configuration key
+         *     retains its established environment override.
          *   · Cast to int to guard against a non-numeric env value.
          *   · Falls back to 60 if the config key is missing entirely
          *     (e.g. in a stripped-down test environment).
@@ -179,11 +173,9 @@ class AppServiceProvider extends ServiceProvider
          */
         RateLimiter::for('api', function (Request $request) {
             $perMinute = (int) config('mases.security.rate_limiting', 60);
-
             return Limit::perMinute($perMinute)
                 ->by($request->user()?->id ?: $request->ip());
         });
-
         /*
          * ---------------------------------------------------------------------
          * Middleware application.
