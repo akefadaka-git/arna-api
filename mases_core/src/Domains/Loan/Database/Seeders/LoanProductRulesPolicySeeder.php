@@ -328,7 +328,7 @@ final class LoanProductRulesPolicySeeder extends Seeder
     {
         $policyId = $this->ensureActivePolicyVersion();
 
-        $this->command->info(sprintf(
+        $this->command?->info(sprintf(
             'LoanProductRulesPolicySeeder: active policy version id=%d (%s, v%d).',
             $policyId,
             self::POLICY_TYPE,
@@ -340,20 +340,20 @@ final class LoanProductRulesPolicySeeder extends Seeder
         $attached = $this->attachPolicyToProducts($policyId);
 
         if ($attached === 0) {
-            $this->command->info(
+            $this->command?->info(
                 'LoanProductRulesPolicySeeder: no products needed '
                 . 'attachment (all products already carry a policy '
                 . 'version, or no products exist yet).'
             );
         } else {
-            $this->command->info(sprintf(
+            $this->command?->info(sprintf(
                 'LoanProductRulesPolicySeeder: attached the policy '
                 . 'version to %d product(s).',
                 $attached,
             ));
         }
 
-        $this->command->info(
+        $this->command?->info(
             'LoanProductRulesPolicySeeder: complete. Loans under these '
             . 'products can now be approved.'
         );

@@ -1,19 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
-class DatabaseSeeder extends Seeder
+/**
+ * Default database seed entry point.
+ *
+ * Uses the non-destructive ARNA baseline. The legacy MasesCoreSeeder remains
+ * available for explicitly controlled demo/cohort rebuild workflows only.
+ */
+final class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        $this->call(MasesCoreSeeder::class);
+        $this->call(ArnaBaselineSeeder::class);
     }
 }

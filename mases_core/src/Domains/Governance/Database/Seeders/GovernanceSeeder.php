@@ -33,6 +33,7 @@ final class GovernanceSeeder extends Seeder
         $this->call([
             GovernanceApplicationSeeder::class,
             GovernancePermissionsSeeder::class,
+            GovernanceElectionCommitteePermissionsSeeder::class,
             GovernanceRolesSeeder::class,
         ]);
     }
