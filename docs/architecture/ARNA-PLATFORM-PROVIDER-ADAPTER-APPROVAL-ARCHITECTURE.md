@@ -123,12 +123,23 @@ The default for every switch is **false**. No frontend action can enable these s
 
 ## 10. Current implementation boundary and closure criteria
 
-The current PR #224 baseline provides a read-only provider catalogue, encrypted credential storage, sanitized credential-presence metadata and read-only/explicitly unobserved health reporting. It does **not** yet provide the typed adapter runtime, provider action/approval ledger, outbox worker, provider-specific sandbox adapters or Owner-signed provider-action contract.
+The current PR #224 baseline provides a read-only provider catalogue, encrypted credential storage, sanitized credential-presence metadata and read-only/explicitly unobserved health reporting.
+
+The first A3 provider-foundation increment now adds:
+- typed `ProviderAdapter` contract with explicit operation capability declaration, planning, read-only observation and execution boundary;
+- immutable `ProviderOperationPlan` DTO with recursive canonicalization and SHA-256 digest binding;
+- explicit in-memory `ProviderAdapterRegistry` with duplicate/invalid key rejection and fail-closed resolution; no class auto-discovery;
+- default-off `ProviderMutationGate` reading `services.arna_provider_mutations.enabled`, configured from `ARNA_PROVIDER_MUTATIONS_ENABLED=false` by default;
+- versioned risk policy requiring two distinct approvals and additionally an Owner signature for critical actions;
+- persistence migration for provider action requests, approval decisions, append-only audit events and a held execution outbox;
+- unit tests for default-off mutation gate, unregistered/duplicate/invalid adapter handling, stable plan digest and critical approval policy.
+
+This increment is **foundation only**. It does not yet implement a provider adapter for any vendor, provider action request/approval HTTP lifecycle, Owner-signature verifier for provider actions, outbox dispatcher/worker, sandbox certification, or provider-specific reconciliation. The outbox has no dispatcher and cannot cause external side effects. No provider adapter is registered by default.
 
 Therefore:
 - provider registry/health UI: implemented read-only;
-- architecture specification: defined by this document;
-- executable adapter and approval framework: pending implementation and A4 tests;
+- provider adapter contract/registry, operation digest, default-off gate, risk-policy foundation and persistence schema: implemented, awaiting exact-head clean-install/A4 verification;
+- provider action lifecycle, cryptographic Owner approval, execution worker, vendor adapters and sandbox certification: pending implementation;
 - live provider probes and external provider mutations: **DISABLED**;
 - production provider connectivity: **UNKNOWN / NOT VERIFIED**.
 
