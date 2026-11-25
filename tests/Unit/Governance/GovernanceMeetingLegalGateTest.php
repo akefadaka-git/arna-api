@@ -33,7 +33,7 @@ final class GovernanceMeetingLegalGateTest extends TestCase
             'approved_at' => '2026-11-25T08:00:00Z', 'approved_by' => 33];
         return array_fill_keys([
             'notice_rule', 'quorum_rule', 'meeting_category_rule', 'voting_rights_rule',
-            'share_register_basis', 'proxy_formality_rule', 'proxy_authority',
+            'share_register_basis', 'resolution_approval_rule', 'proxy_formality_rule', 'proxy_authority',
             'penalty_authority', 'penalty_due_process', 'minutes_approval_rule',
             'minutes_signatory_authority',
         ], $verified);
