@@ -2,74 +2,7 @@
 
 declare(strict_types=1);
 
-/*
- * =============================================================================
- * CHANGE VERIFICATION — CR-L2
- * =============================================================================
- *
- * File:            mases_core/src/Domains/Loan/Http/Resources/LoanCollateralResource.php
- * Unit:            CR-L2 — Ethiopian calendar date rendering (Loan resources)
- * Delivery type:   Amendment — one import, one trait use, five
- *                  `_display` fields, docblock amendments.
- * Net lines:       +2 imports/use; +5 field lines; docblock revision.
- *
- * Before:
- *   Every date field the resource emitted was ISO 8601 only:
- *
- *     valuation_date, registered_at, released_at,
- *     created_at, updated_at   (5 date fields)
- *
- *   A consumer that wanted the Amharic-first medium form had to slice
- *   the ISO string client-side, breaking the convention established by
- *   P3 · Unit 2 across the Shareholder resources, extended to
- *   WalletResource by CR-W1, and being extended to the six Loan
- *   resources by CR-L2.
- *
- * After:
- *   The resource mixes in RendersLocalizedDates (Reading 1:
- *   cross-domain import from the Shareholder domain, matching
- *   WalletResource's and LoanResource's precedent) and emits a
- *   `_display` sibling for each of its five date fields. The ISO
- *   fields are preserved byte-for-byte; the `_display` fields are
- *   additive.
- *
- *   Each `_display` field appears immediately after its ISO parent:
- *
- *     valuation_date_display, registered_at_display,
- *     released_at_display, created_at_display, updated_at_display
- *
- *   The nullable ISO dates (`valuation_date` when the product policy
- *   does not require valuation; `released_at` for an unreleased
- *   collateral) have nullable `_display` siblings — the trait returns
- *   null for null input, so the two forms agree on which rows carry a
- *   value.
- *
- *   `valuation_date` is a DATE column per the migration A.11; its ISO
- *   form carries a `T00:00:00` component, while its `_display` sibling
- *   renders the calendar day only (the trait's method, following the
- *   P3 · Unit 2 convention, emits the date portion without a time
- *   component).
- *
- * Public surface delta:
- *   · No new methods. The trait contributes one `protected localizedDate()`
- *     method, which is not part of the resource's external contract.
- *   · The serialised payload gains five keys. No key is removed,
- *     renamed, or re-valued.
- *
- * Dependency note:
- *   · The trait is imported from the Shareholder domain's Concerns
- *     namespace, matching the cross-domain import on LoanResource.php
- *     (CR-L2 file 1). Reading 1 was confirmed: the trait stays where
- *     it is for CR-L2.
- *
- *   · The trait and LocalizationService::formatEthiopianDateMedium()
- *     are both deployed (Track A closed).
- *
- *   · No new class, no config change, no route change. No Composer
- *     refresh is required for this file alone.
- *
- * =============================================================================
- */
+
 
 /*
  * =============================================================================
