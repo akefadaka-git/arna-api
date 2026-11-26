@@ -4,7 +4,7 @@
 **Record ID:** ARNA-APT02-A2-001  
 **Date:** 2026-11-26  
 **A1 input:** `ARNA_APT02_A1_ASSESSMENT_SPECIFICATION.md` v0.1  
-**API source snapshot:** `akefadaka-git/arna-api` `main` at `cd2227114fb186077d6aa04a9f99afd8b5806126`; subsequent commits through `defb303a45cd6543973c0e3f12a80d5455f0e1c6` added/updated only this APT-02 documentation.  
+**API source snapshot:** `akefadaka-git/arna-api` `main` at `cd2227114fb186077d6aa04a9f99afd8b5806126`. APT-02 documentation commits are `e2133fe6558f3258cbc3b57bcadd43f415e40522`, `defb303a45cd6543973c0e3f12a80d5455f0e1c6` and `cc666e75538bae7c8057003a78fc9957a077db6b`. An independent Governance commit `a949194674d6fa693e16b535701a4684d9f88949` is also present on current `main` and is explicitly preserved.  
 **App source snapshot:** `akefadaka-git/arna-app` `main` at `f694eb13ba822440c6842cb135a66f89218bc454`.  
 **Status:** READ-ONLY RECONCILIATION COMPLETE · IMPLEMENTATION BLOCKED PENDING A1 OWNER FREEZE  
 **Stage boundary:** A2 only. No production code, migration, route, UI, test or workflow was changed for APT-02.
@@ -134,6 +134,6 @@ Subject to A1 Owner decisions, the evidence supports this target:
 
 ## 8. Read-only integrity statement
 
-The APT-02 A1/A2 work changed documentation only. No API or App runtime source, route, migration, database, test, workflow, branch, PR, deployment or production data was modified. The API commits after source snapshot `cd2227114fb186077d6aa04a9f99afd8b5806126` and through the A2 record commit contain only APT-02 documentation changes.
+The APT-02 A1/A2 work changed documentation only. No API or App runtime source, route, migration, database, test, workflow, branch, PR, deployment or production data was modified by this work. The separate commit `a949194674d6fa693e16b535701a4684d9f88949` (`fix(governance): restore membership service namespace and imports`) modifies `mases_core/src/Domains/Governance/Services/GovernanceMembershipService.php`; it is unrelated to APT-02 and was preserved without modification. Comparing the API source snapshot `cd2227114fb186077d6aa04a9f99afd8b5806126` to the APT-02 documentation head shows only the two APT-02 documentation files plus that independent Governance service file.
 
 **A2 conclusion:** VERIFIED-COMPLETE as a read-only technical reconciliation. APT-02 is implementation-ready only after the Owner resolves APT02-D01–D09 and the A1 specification is explicitly frozen. Until then, A3 remains blocked.
