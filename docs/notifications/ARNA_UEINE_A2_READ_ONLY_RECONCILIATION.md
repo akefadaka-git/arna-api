@@ -407,3 +407,17 @@ This expands the known App surface beyond the feature list in README. It does no
 ### 11.4 Completeness qualification
 
 This supplementary pass improves the route/provider inventory but does not close UEINE-G02, UEINE-G09 or UEINE-G14. GitHub code search and a small set of route/provider files do not expose a reliable complete tree of all domain subfolders, all frontend routes across all four entrypoints, or every event/outbox call site. The 39+ domain catalogue referenced by the wider ARNA programme has not yet been fully retrieved and mapped in this assessment. A2 remains open until that canonical catalogue is reconciled row-by-row with repository source.
+
+
+## 12. Controlled continuation — complete 30-domain mapping addendum
+
+The canonical frozen A1 catalogue and Owner-approved A2 disposition record have now been retrieved from their preserved PR branches. The 30-domain API/provider/route/event/outbox/App feature mapping and recipient authorization/workflow boundary matrix are recorded separately:
+
+- `docs/notifications/ARNA_UEINE_A2_DOMAIN_EVENT_AUTHORIZATION_MATRIX.md`
+- Version 1.0.0, evidence addendum
+- Commit: `d0eb8e7fc42e62273ae01a0405ffed639928303d`
+- Blob: `569abc9bf99c1781ee1f0a6e14e9e01f5a234872`
+
+This addendum reconciles D01–D30 against current API main `058dc27c27173006bafba7658d80e5cbacc7c440` and App main `f694eb13ba822440c6842cb135a66f89218bc454`. It records the 2 SUPPORTED / 11 PARTIAL / 6 UNVERIFIED / 11 MISSING dispositions, current provider/route and feature surfaces, known audit listeners/outboxes, the two confirmed direct central-notification publishers, and domain-specific authorization/workflow boundaries.
+
+**A2 remains PARTIAL / OPEN.** The complete source inventory is now mapped at the provider/route/event/outbox/feature level, but recursive source-tree/call-graph review, exact-head automated tests, notification runtime/worker verification and several domain authority contracts remain outstanding. This continuation does not request A2 closure and does not authorize A3, merge, A4 or A5.
