@@ -1,0 +1,163 @@
+name: ARNA Symfony security advisory remediation
+
+on:
+  push:
+    branches:
+      - fix/arna-symfony-security-advisories
+
+permissions:
+  contents: write
+
+concurrency:
+  group: arna-symfony-security-remediation
+  cancel-in-progress: false
+
+jobs:
+  remediate-and-verify:
+    name: Update vulnerable Symfony patch releases and verify on MySQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: arna_security_remediation_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: arna_security_remediation_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - name: Check out remediation candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Verify starting candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          echo "Starting candidate SHA: $(git rev-parse HEAD)"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, pcntl, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate existing Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Update only affected Symfony packages and their dependencies
+        run: >-
+          composer update symfony/http-kernel symfony/mailer symfony/routing
+          --with-dependencies --no-interaction --no-progress
+
+      - name: Enforce Composer security advisory gate
+        run: composer audit --locked --format=plain
+
+      - name: Verify patched Symfony package versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -r '
+          $lock = json_decode(file_get_contents("composer.lock"), true, 512, JSON_THROW_ON_ERROR);
+          $required = ["symfony/http-kernel", "symfony/mailer", "symfony/routing"];
+          foreach ($required as $name) {
+              $matches = array_values(array_filter($lock["packages"], fn ($p) => $p["name"] === $name));
+              if (count($matches) !== 1) { fwrite(STDERR, "Missing or duplicate package: $name
+"); exit(1); }
+              $version = ltrim($matches[0]["version"], "v");
+              echo "$name=$version
+";
+              if (version_compare($version, "7.4.24", "<")) { fwrite(STDERR, "$name is below fixed 7.4.24 boundary
+"); exit(1); }
+          }'
+
+      - name: Validate updated Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Confirm fresh disposable MySQL database
+        run: |
+          set -euo pipefail
+          tables="$(mysql -h 127.0.0.1 -uroot -proot arna_security_remediation_test -Nse "SHOW TABLES" | wc -l)"
+          test "$tables" -eq 0
+
+      - name: Run every registered migration on fresh MySQL
+        run: php artisan migrate --force -vvv
+
+      - name: Run AGE Module 2 candidate intake tests on MySQL
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCandidateIntakeTest.php
+
+      - name: Run true parallel nomination race regression on MySQL
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionNominationConcurrencyTest.php
+
+      - name: Run committee conflict and tenant-security regressions on MySQL
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
+
+      - name: Run Module 1 election lifecycle regressions on MySQL
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
+
+      - name: Run GA legal-gate unit suite
+        run: php artisan test --compact tests/Unit/Governance/GovernanceMeetingLegalGateTest.php
+
+      - name: Run GA business-lifecycle feature suite on MySQL
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingBusinessLifecycleTest.php
+
+      - name: Confirm migration idempotence and no pending migrations
+        run: |
+          set -euo pipefail
+          php artisan migrate --force -vvv
+          php artisan migrate:status
+          pending="$(php artisan migrate:status --pending --no-ansi | grep -c 'Pending' || true)"
+          test "$pending" -eq 0
+
+      - name: Ensure remediation changes only composer.lock
+        run: |
+          set -euo pipefail
+          git status --short
+          test -z "$(git status --short --untracked-files=all | grep -v '^ M composer.lock$' || true)"
+          git diff --exit-code -- composer.json
+
+      - name: Commit verified dependency lockfile
+        shell: bash
+        env:
+          TARGET_BRANCH: fix/arna-symfony-security-advisories
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.lock
+          git commit -m "fix(security): update Symfony packages past advisory fixes"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          echo "Verified remediation commit: $(git rev-parse HEAD)" | tee security-remediation-evidence.txt
+
+      - name: Upload security remediation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arna-symfony-security-remediation-${{ github.run_id }}
+          path: |
+            composer.lock
+            security-remediation-evidence.txt
+          if-no-files-found: warn
+          retention-days: 14
