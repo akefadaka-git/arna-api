@@ -3,7 +3,7 @@
 
 **Record ID:** ARNA-APT02-A1-001  
 **Version:** 0.1 — proposed specification  
-**Assessment snapshot:** API `main` `cd2227114fb186077d6aa04a9f99afd8b5806126`; App `main` `f694eb13ba822440c6842cb1353b5b3b3fdc84bb`  
+**Assessment snapshot:** API `main` `cd2227114fb186077d6aa04a9f99afd8b5806126`; App `main` `f694eb13ba822440c6842cb135a66f89218bc454`  
 **Status:** ASSESSMENT COMPLETE · SPECIFICATION DRAFTED · OWNER FREEZE PENDING  
 **Stage boundary:** A1 only. No implementation, migration, route, UI, test, merge or deployment work is authorized by this record.
 
