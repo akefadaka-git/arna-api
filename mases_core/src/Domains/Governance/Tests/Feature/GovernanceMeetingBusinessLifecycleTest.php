@@ -134,9 +134,11 @@ final class GovernanceMeetingBusinessLifecycleTest extends TestCase
         ])->assertCreated();
         $noticeId = (int) $notice->json('data.id');
 
-        $agenda = $this->withTenant()->postJson(route('api.governance.meetings.agenda-items.store', ['meeting' => $this->meetingId]), [
+        $agendaResponse = $this->withTenant()->postJson(route('api.governance.meetings.agenda-items.store', ['meeting' => $this->meetingId]), [
             'sort_order' => 1, 'title_am' => 'የዓመታዊ ሪፖርት ማጽደቅ', 'title_en' => 'Approve annual report',
-        ])->assertCreated();
+        ]);
+        $this->assertSame(201, $agendaResponse->getStatusCode(), $agendaResponse->getContent());
+        $agenda = $agendaResponse;
         $agendaId = (int) $agenda->json('data.id');
 
         Sanctum::actingAs($this->reviewer, ['*']);
