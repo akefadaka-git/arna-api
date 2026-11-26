@@ -11,6 +11,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceMeetingLegalGate;
+use DomainException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -24,6 +26,51 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 final class GovernanceMeetingAttendanceController extends Controller
 {
+
+    /**
+     * Enforce the GA legal evidence gate for legally consequential actions.
+     * Board workflows are intentionally outside this GA-specific control.
+     */
+    private function assertGaLegalAction(int $tenantId, int $meetingId, string $action): void
+    {
+        $meeting = $this->meeting($tenantId, $meetingId);
+        if ($meeting->meeting_kind !== 'general_assembly') {
+            return;
+        }
+        $basis = DB::table('governance_meeting_legal_bases')
+            ->where('tenant_id', $tenantId)->where('meeting_id', $meetingId)->first();
+        if (!$basis) {
+            throw new ConflictHttpException('GA action blocked: verified legal-basis evidence has not been registered.');
+        }
+        $rows = DB::table('governance_meeting_legal_evidence')
+            ->where('tenant_id', $tenantId)->where('legal_basis_id', $basis->id)
+            ->where('action', $action)->get();
+        $evidence = [];
+        foreach ($rows as $row) {
+            $evidence[$row->evidence_key] = [
+                'status' => $row->status, 'source_reference' => $row->source_reference,
+                'approved_at' => $row->approved_at, 'approved_by' => $row->approved_by,
+            ];
+        }
+        try {
+            (new GovernanceMeetingLegalGate())->assertAllowed($action, [
+                'legal_form' => $basis->legal_form, 'category' => $basis->meeting_category,
+                'legal_basis_status' => $basis->status, 'legal_basis_reference' => $basis->source_reference,
+                'legal_basis_verified_at' => $basis->verified_at, 'legal_basis_verified_by' => $basis->verified_by,
+                'external_review_status' => $basis->external_review_status,
+                'external_counsel_name' => $basis->external_counsel_name,
+                'external_counsel_firm' => $basis->external_counsel_firm,
+                'external_counsel_license_reference' => $basis->external_counsel_license_reference,
+                'external_opinion_reference' => $basis->external_opinion_reference,
+                'external_opinion_sha256' => $basis->external_opinion_sha256,
+                'external_reviewed_at' => $basis->external_reviewed_at,
+                'created_by' => $basis->created_by,
+            ], $evidence);
+        } catch (DomainException $exception) {
+            throw new ConflictHttpException($exception->getMessage());
+        }
+    }
+
     private function tenantId(): int
     {
         $tenantId = (int) (function_exists('mases_tenant_id') ? mases_tenant_id() : 0);
@@ -122,6 +169,14 @@ final class GovernanceMeetingAttendanceController extends Controller
             ->get();
         $record->corrections = DB::table('governance_attendance_corrections')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
         $record->disputes = DB::table('governance_penalty_disputes')->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
+        $record->legal_basis = DB::table('governance_meeting_legal_bases')
+            ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->first();
+        $record->legal_evidence = $record->legal_basis
+            ? DB::table('governance_meeting_legal_evidence')->where('tenant_id', $tenantId)
+                ->where('legal_basis_id', $record->legal_basis->id)->orderBy('id')->get()
+            : collect();
+        $record->lifecycle_attestations = DB::table('governance_meeting_lifecycle_attestations')
+            ->where('tenant_id', $tenantId)->where('meeting_id', $meeting)->orderBy('id')->get();
 
         return response()->json(['success' => true, 'data' => $record]);
     }
@@ -361,6 +416,9 @@ final class GovernanceMeetingAttendanceController extends Controller
         if ((int) $record->submitted_by === $this->actorId()) {
             throw new ConflictHttpException('The proxy submitter cannot review their own submission.');
         }
+        if ($data['decision'] === 'approved') {
+            $this->assertGaLegalAction($tenantId, (int) $record->meeting_id, 'proxy');
+        }
         $updated = DB::table('governance_meeting_proxies')
             ->where('tenant_id', $tenantId)->where('id', $proxy)->where('status', 'submitted')
             ->update(['status' => $data['decision'], 'updated_at' => now()]);
@@ -405,6 +463,7 @@ final class GovernanceMeetingAttendanceController extends Controller
                 throw ValidationException::withMessages(['attendance_id' => 'An approved proxy prevents an absence penalty.']);
             }
         }
+        $this->assertGaLegalAction($tenantId, $meeting, 'penalty');
         $amount = $data['penalty_type'] === 'late' ? 5000 : 30000;
 
         try {

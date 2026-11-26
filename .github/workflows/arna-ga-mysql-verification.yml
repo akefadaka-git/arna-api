@@ -1,0 +1,103 @@
+name: ARNA GA legal-gate and business-lifecycle MySQL verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/arna-ga-mysql-verification.yml"
+      - "mases_core/src/Domains/Governance/**"
+      - "tests/Unit/Governance/GovernanceMeetingLegalGateTest.php"
+      - "database/migrations/**"
+      - "routes/api.php"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/arna-ga-mysql-verification.yml"
+      - "mases_core/src/Domains/Governance/**"
+      - "tests/Unit/Governance/GovernanceMeetingLegalGateTest.php"
+      - "database/migrations/**"
+      - "routes/api.php"
+      - "composer.json"
+      - "composer.lock"
+      - "phpunit.xml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-ga-mysql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ga-legal-and-lifecycle-mysql:
+    name: GA legal gate and end-to-end lifecycle (MySQL 8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: arna_ga_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - name: Check out exact candidate commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, ctype, curl, dom, fileinfo, filter, hash, iconv, json, libxml, mbstring, mysqli, openssl, pcre, pdo_mysql, session, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate Composer manifest and lock
+        run: composer validate --no-check-publish
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Confirm MySQL connection and empty test database
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_ga_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: |
+          php -r '$pdo = new PDO("mysql:host=".getenv("DB_HOST").";port=".getenv("DB_PORT").";dbname=".getenv("DB_DATABASE"), getenv("DB_USERNAME"), getenv("DB_PASSWORD")); $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN); if ($tables !== []) { fwrite(STDERR, "Expected a fresh disposable MySQL database.\n"); exit(1); } echo "Connected to empty disposable MySQL database.\n";'
+
+      - name: Lint GA legal gate and lifecycle tests
+        run: |
+          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingBusinessLifecycleTest.php
+          php -l tests/Unit/Governance/GovernanceMeetingLegalGateTest.php
+
+      - name: Run GA legal-gate and end-to-end lifecycle tests on MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_ga_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: |
+          php artisan test --compact \
+            tests/Unit/Governance/GovernanceMeetingLegalGateTest.php \
+            mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingBusinessLifecycleTest.php

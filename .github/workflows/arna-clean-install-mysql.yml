@@ -2,7 +2,7 @@ name: ARNA clean-install MySQL verification
 
 on:
   push:
-    branches: [main, integration/**]
+    branches: [main, integration/**, feat/ga-statutory-controls-a3-current-main]
   pull_request:
     # Include the active stacked People implementation PR base as well as main.
     # This lets the same clean-install gate run automatically for PR #23.
@@ -79,6 +79,8 @@ on:
       - "mases_core/src/Domains/Governance/Listeners/AuditGovernanceElectionLifecycleEvent.php"
       - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php"
       - "mases_core/src/Domains/Governance/Routes/api.php"
+      - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingBusinessLifecycleTest.php"
+      - "tests/Unit/Governance/GovernanceMeetingLegalGateTest.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
       - "mases_core/src/Domains/Documents/**"
@@ -412,6 +414,23 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
+
+      - name: Run GA legal-gate unit suite
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: php artisan test --compact tests/Unit/Governance/GovernanceMeetingLegalGateTest.php
+
+      - name: Run GA business-lifecycle feature suite against migrated MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingBusinessLifecycleTest.php
 
       - name: Run centralized notification tenant-isolation feature tests on MySQL
         if: ${{ hashFiles('tests/Feature/CentralNotificationsTest.php') != '' }}

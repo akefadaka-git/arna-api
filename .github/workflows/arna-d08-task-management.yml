@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/arna-d08-task-management.yml"
-      - "docs/calendar/**"
       - "database/migrations/**"
       - "database/seeders/Data/PermissionCatalogue.php"
       - "database/seeders/Data/RolePermissionGrants.php"
@@ -21,7 +20,6 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/arna-d08-task-management.yml"
-      - "docs/calendar/**"
       - "database/migrations/**"
       - "database/seeders/Data/PermissionCatalogue.php"
       - "database/seeders/Data/RolePermissionGrants.php"
@@ -29,6 +27,10 @@ on:
       - "mases_core/src/Domains/Task/**"
       - "routes/api.php"
       - "tests/Feature/D08TaskManagementTest.php"
+      - "mases_core/src/Domains/Governance/**"
+      - "tests/Feature/GovernanceMeetingAttendanceTest.php"
+      - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingBusinessLifecycleTest.php"
+      - "tests/Unit/Governance/GovernanceMeetingLegalGateTest.php"
 
 permissions:
   contents: read

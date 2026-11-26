@@ -406,6 +406,15 @@ final class GovernanceRolesSeeder extends Seeder
             'governance.delegation.view',
             'app.governance.access',
         ],
+
+        /*
+         * shareholder — read-only meeting visibility for shareholder self-service.
+         * Ballot writes remain bound to the authenticated shareholder/proxy
+         * identity by GovernanceMeetingBusinessLifecycleController.
+         */
+        'shareholder' => [
+            'governance.meeting.view',
+        ],
     ];
 
     /**
