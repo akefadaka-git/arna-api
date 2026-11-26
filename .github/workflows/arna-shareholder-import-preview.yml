@@ -1,5 +1,8 @@
 name: ARNA shareholder import preview and review persistence tests
 
+# A4 verification: this workflow file is a push-path trigger so the dedicated
+# MySQL gate can be re-run on an exact main commit without touching application data.
+
 on:
   push:
     branches: [main]
