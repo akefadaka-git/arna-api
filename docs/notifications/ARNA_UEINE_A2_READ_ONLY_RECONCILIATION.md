@@ -421,3 +421,37 @@ The canonical frozen A1 catalogue and Owner-approved A2 disposition record have 
 This addendum reconciles D01–D30 against current API main `058dc27c27173006bafba7658d80e5cbacc7c440` and App main `f694eb13ba822440c6842cb135a66f89218bc454`. It records the 2 SUPPORTED / 11 PARTIAL / 6 UNVERIFIED / 11 MISSING dispositions, current provider/route and feature surfaces, known audit listeners/outboxes, the two confirmed direct central-notification publishers, and domain-specific authorization/workflow boundaries.
 
 **A2 remains PARTIAL / OPEN.** The complete source inventory is now mapped at the provider/route/event/outbox/feature level, but recursive source-tree/call-graph review, exact-head automated tests, notification runtime/worker verification and several domain authority contracts remain outstanding. This continuation does not request A2 closure and does not authorize A3, merge, A4 or A5.
+
+
+## 13. Full A2 diagnostic and closure-readiness package
+
+The full diagnostic pass and Announcement workflow deep dive have been recorded in the following companion reports:
+
+1. `docs/notifications/ARNA_UEINE_A2_FULL_DIAGNOSTIC_REPORT.md`
+   - Full architecture coverage, API notification service, route and migration review, Announcement lifecycle and notification diagnosis, Calendar reminder outbox, Finance outbox, other domain event listeners, App experience, authorization boundaries, queue/scheduler/runtime readiness, test/CI evidence and 21-item gap register.
+   - Commit: `09b30724a7f885296d486f2df413dc147da3064e`.
+
+2. `docs/notifications/ARNA_UEINE_A2_CLOSURE_READINESS_ASSESSMENT.md`
+   - Formal gate-by-gate A2 acceptance assessment and blockers.
+   - Commit: `d372c83115876e308e5a7521e296b92870901c11`.
+
+3. `docs/notifications/ARNA_UEINE_A2_DOMAIN_EVENT_AUTHORIZATION_MATRIX.md`
+   - Frozen D01–D30 domain mapping and expanded D21 Announcement workflow reconciliation, including the API acknowledgement endpoint and missing App acknowledgement control/report.
+   - Latest matrix update commit: `bc05135a10f265989fa301129ae665937c50d70a`.
+
+### New Announcement findings
+
+The D21 controller has a bounded `draft → pending_approval → approved → published` workflow. It prevents self-approval and publishes only to explicit active tenant recipients. Publication and notification insertion are transactionally coupled. However:
+- Submit and approve transitions do not notify approvers or submitters.
+- The App has no acknowledgement API action or acknowledgement report, although the API endpoint exists.
+- Announcement acknowledgement and platform notification read state are separate.
+- Notification body localization duplicates the same content into both language keys without using `content_locale`.
+- Announcement priority is compressed into the smaller notification priority scale.
+- The notification deep link resolves to the announcements list rather than the exact record.
+- Announcement persistence relies on application-level checks for several references without database foreign keys.
+
+### Current closure decision
+
+**A2 remains PARTIAL / OPEN — NOT VERIFIED-CLOSED.** Exact-head GitHub combined status queries returned no status entries; no workflow was dispatched and no tests were run in this diagnostic pass. Runtime queue/scheduler/migration state is not verified. The formal closure-readiness assessment concludes **DO NOT CLOSE A2 AT THIS TIME**.
+
+A1 remains APPROVED / FROZEN. A3 remains NOT AUTHORIZED / NOT STARTED. No application code, migrations, seeders, runtime configuration, production data or main branch refs were modified. No merge or deployment was performed.
