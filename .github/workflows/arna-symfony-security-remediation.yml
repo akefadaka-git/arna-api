@@ -43,7 +43,9 @@ jobs:
         run: |
           composer validate --no-check-publish
           composer audit --format=plain
-          composer show symfony/http-kernel symfony/http-foundation symfony/mailer symfony/routing > symfony-security-patched-versions.txt
+          for package in symfony/http-kernel symfony/http-foundation symfony/mailer symfony/routing; do
+            composer show "$package"
+          done > symfony-security-patched-versions.txt
 
       - name: Upload resolved Composer lockfile
         uses: actions/upload-artifact@v4
