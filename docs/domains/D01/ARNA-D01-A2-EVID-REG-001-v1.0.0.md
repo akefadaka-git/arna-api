@@ -94,25 +94,22 @@ No strategic pillars with approved owners, measurable strategic objectives, annu
 
 ## 4. Material source reconciliation and contradictions
 
-### 4.1 The two bylaw-related records are not interchangeable
+### 4.1 Owner-confirmed purpose distinction between the two bylaws versions
 
-**17-page scan (SRC-01 / SRC-02):**
-- Owner confirms it is the latest complete approved bylaws/internal-regulations version, including amendments/resolutions, signed by the Southern Ethiopia Trade and Market Bureau.
-- Owner-supplied SHA-256 is recorded as `8df31ad217b2221f42b3e0e1154007bdd5d2ab003df0e1ad3dc7f17c03b61183`.
-- Its title is `የመተዳደሪያ ደንብ` (bylaws/internal regulations).
-- The repository evidence record expressly says it is not proven to be the separate statutory Memorandum/Articles.
-- The recovered schedule reports 29 listed holders, 145 shares, ETB 10,000 nominal value, ETB 1,450,000 stated capital, ETB 1,023,000 paid and ETB 427,000 unpaid. These are historical source-table figures, not a current register or payment verification.
+The Owner has confirmed that the two documents have different, intentional purposes. This distinction is reconciled and is not an unresolved version conflict:
 
-**22-page DOCX (SRC-04):**
-- The title includes both bylaws and founding instrument terminology.
-- Pages 1–4 begin with bylaws clauses and include GA/Board provisions.
-- Page 17 states the accounting year starts 1 Hamle and ends 30 Sene.
-- Pages 18–20 include clauses identifying the GA as the highest authority, Board responsibilities, an initial Board list, and an initial Managing Director / General Manager appointment.
-- Page 21 says the founding instrument was signed on 16/12/2016 E.C. in Arba Minch; pages 21–22 list 54 founder-name entries.
-- The shareholder/capital schedule in this DOCX has an aggregate different from the 17-page recovery (the visible table total reports 560 shares and ETB 2,800,000; the row count and arithmetic require a separate source-level audit).
-- Its provenance, approval/registration, relationship to the 17-page scan, and status as an original versus transcription/derivative are not established.
+- **17-page signed/stamped bylaws scan (SRC-01):** intended for public and government reporting.
+- **22-page bylaws DOCX (SRC-04):** intended for internal company use.
 
-**Reconciliation outcome:** UNRESOLVED. Do not select the 22-page DOCX as the controlling legal instrument, do not overwrite the 17-page scan record, and do not merge the two shareholder/capital schedules. Obtain the registered Articles/Memorandum and confirm the relationship of both bylaw-related records with the issuing Bureau/company records. This issue is material to the D01 approval-authority determination.
+The two documents are purpose-specific parts of the company's documentary set. Neither is to be treated as automatically superseding or replacing the other. Public disclosures and government reporting that require the bylaws shall use the 17-page version; internal governance, administration and operational work shall use the 22-page internal-use version where applicable.
+
+Recorded source identities:
+- 17-page PDF SHA-256: `8df31ad217b2221f42b3e0e1154007bdd5d2ab003df0e1ad3dc7f17c03b61183`.
+- 22-page DOCX Library ID: `file_00000000a2248246b741e6cf3a0a8364`; SHA-256: `3683b521f97b136de5849ef2cfd4ccd9eaf870836605688c1e71058498da9d67`.
+
+**Reconciliation outcome: RECONCILED — OWNER-CONFIRMED.** The prior generic “17-page versus 22-page source conflict” classification is superseded. Preserve both source records and their provenance. Future clause-level analysis must state which purpose-specific version it relies on.
+
+This determination closes only the question of intended documentary purpose. It does not independently authenticate registration, determine the legal effect of every clause, replace the separate registered Articles/Memorandum, establish the current shareholder register, or provide an independent legal opinion. The historical founder/share schedule differences remain a separate source-data issue (see D01-DEC-11) and must not be treated as evidence that the two documents have conflicting intended purposes.
 
 ### 4.2 Governance authority inferred only within the limits of the retrieved text
 
@@ -146,7 +143,7 @@ D01-A2-06 therefore remains PARTIAL.
 
 | Evidence ID | Required evidence | Status | Exact source evidence / result | Remaining closure evidence |
 |---|---|---|---|---|
-| D01-A2-01 | Operative bylaws, constitutive instruments and certified amendments | **UNRESOLVED** | SRC-01/SRC-02: Owner-confirmed 17-page scan and checksum; SRC-03: working transcription; SRC-04: conflicting 22-page DOCX; SRC-05/SRC-06: separate Articles source not preserved/verified in repository | Directly inspect registered Articles/Memorandum and amendments; reconcile SRC-01 and SRC-04 against issuer/company records; confirm registration, signatures, stamps, dates, completeness and current status |
+| D01-A2-01 | Operative bylaws, constitutive instruments and certified amendments | **PARTIAL** | SRC-01/SRC-02 and SRC-04: two purpose-specific bylaws versions, with their distinct purposes reconciled and Owner-confirmed; SRC-05/SRC-06: separate Articles source not preserved/verified in repository | Authenticate the separate registered Articles/Memorandum and amendments, and verify registration, signatures, stamps, dates, completeness and current status. Do not reopen the already-reconciled purpose distinction between the 17-page public/government-reporting version and 22-page internal-use version |
 | D01-A2-02 | Current GA/Board resolutions approving strategy, strategic direction or planning mandates | **MISSING** | No adopted strategy-approval resolution located in inspected API/App or accessible Library results. SRC-10 is Owner-provided statements, not a resolution | Retrieve signed/adopted resolution and minutes with decision number, date, competent body, quorum/vote, exact approved strategy/version, effective date and supersession |
 | D01-A2-03 | Board/GA authority, delegation and approval matrix | **PARTIAL** | SRC-04 clauses 11.1, 12.2, 12.7–12.9 are candidate text; SRC-07 is Owner-approved provisional controls only; SRC-08 has default-deny rule and blocked business approver assignments; SRC-09 requires operative sources | Verify registered clauses and current adopted Board/GA rules, delegation, reserved matters, approval thresholds, quorum, amendment/publication authority and current appointments |
 | D01-A2-04 | Current org chart and formal accountable-executive/planning appointments | **PARTIAL** | SRC-04 lists an initial Board and initial MD/GM (clauses 12.2 and 13.3); SRC-07/08 reject inferred appointments; KPI register SRC-15 shows no verified D01 accountable officer or steward | Obtain current org chart, current appointment/election resolutions, effective dates, terms, acceptance/cessation records, strategy-process-owner appointment and objective-owner assignments |
@@ -218,7 +215,7 @@ No PR above is a D01 A3 implementation. No D01 workflow/test result is represent
 
 | Decision ID | Required decision / evidence | Decision authority to be verified | Status / consequence |
 |---|---|---|---|
-| D01-DEC-01 | Determine the controlling relationship among the 17-page bylaws scan, 22-page DOCX and separate registered Articles/Memorandum | Owner to obtain source custody evidence; legal/company secretary or competent authority to confirm legal identity | UNRESOLVED; blocks legal authority closure |
+| D01-DEC-01 | Authenticate the separate registered Articles/Memorandum, its amendments and legal effect alongside the two purpose-specific bylaws records | Owner to obtain source custody evidence; legal/company secretary or competent authority to confirm legal identity | PARTIAL; the 17-page public/government-reporting and 22-page internal-use purposes are already RECONCILED / OWNER-CONFIRMED. Separate Articles authentication and legal-effect questions remain open |
 | D01-DEC-02 | Confirm the competent body and procedure for approving the enterprise strategy, strategic themes, material amendments and publication | GA/Board authority under the registered instruments and applicable law | MISSING; strategy approval workflow must remain fail-closed |
 | D01-DEC-03 | Determine whether the 2026-11-14 Owner-provided vision/mission/strategy statements are adopted corporate strategy or remain proposed corporate statements | Competent corporate authority | PARTIAL; do not label as adopted strategy without resolution |
 | D01-DEC-04 | Confirm current Board composition, current MD/CEO appointment, effective terms and delegated powers | Competent GA/Board authority under certified instruments | UNRESOLVED; historical initial appointment is not proof of current office |
@@ -233,7 +230,7 @@ No PR above is a D01 A3 implementation. No D01 workflow/test result is represent
 ### 8.1 Known non-equivalences
 
 The following must remain distinct:
-1. Bylaws/internal regulations are not automatically the registered Memorandum/Articles.
+1. The 17-page public/government-reporting bylaws and 22-page internal-use bylaws have distinct, Owner-confirmed purposes; neither is automatically a substitute for the separate registered Memorandum/Articles.
 2. An Owner-provided vision statement is not automatically a GA/Board-adopted strategy.
 3. A public-site draft or seeder is not proof of approved corporate policy.
 4. The initial Board/MD text in a founding-era document is not proof of current appointment or term.
@@ -245,7 +242,7 @@ The following must remain distinct:
 
 D01 A2 cannot be accepted until the following evidence is retrieved, verified and reconciled, or the Owner explicitly accepts a scoped residual exception with rationale, risk, owner and due date:
 
-1. Directly inspect the separate registered Articles/Memorandum and all amendments; reconcile the two bylaw-related records without overwriting either source.
+1. Directly inspect the separate registered Articles/Memorandum and all amendments; preserve the already-reconciled purpose distinction between the 17-page public/government-reporting bylaws and 22-page internal-use bylaws.
 2. Obtain signed/adopted GA and Board minutes/resolutions that establish strategy approval authority and, if available, approve the current strategy baseline.
 3. Verify current Board and executive appointments, effective dates and delegated authority.
 4. Obtain the approved multi-year strategy, annual planning instructions/calendar, strategic hierarchy, objective cascade, scenario and baseline records.
