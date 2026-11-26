@@ -292,7 +292,7 @@ final class GovernanceInvariantsMySqlConcurrencyTest extends TestCase
                         file_put_contents($resultPaths[$index], 'conflict');
                         exit(0);
                     } catch (Throwable $exception) {
-                        file_put_contents($resultPaths[$index], 'error:'.get_class($exception));
+                        file_put_contents($resultPaths[$index], 'error:'.get_class($exception).':'.$exception->getMessage());
                         exit(3);
                     }
                 }
@@ -313,7 +313,7 @@ final class GovernanceInvariantsMySqlConcurrencyTest extends TestCase
                     : 'missing-result',
                 $resultPaths,
             );
-            $this->assertSame([0, 0], $exitCodes, 'Both concurrency workers must finish without infrastructure errors.');
+            $this->assertSame([0, 0], $exitCodes, 'Both concurrency workers must finish without infrastructure errors. Outcomes: '.json_encode($outcomes, JSON_UNESCAPED_SLASHES));
 
             return $outcomes;
         } finally {
