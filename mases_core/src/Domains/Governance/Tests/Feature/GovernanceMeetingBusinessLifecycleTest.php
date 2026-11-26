@@ -134,6 +134,11 @@ final class GovernanceMeetingBusinessLifecycleTest extends TestCase
         ])->assertCreated();
         $noticeId = (int) $notice->json('data.id');
 
+        $agenda = $this->withTenant()->postJson(route('api.governance.meetings.agenda-items.store', ['meeting' => $this->meetingId]), [
+            'sort_order' => 1, 'title_am' => 'የዓመታዊ ሪፖርት ማጽደቅ', 'title_en' => 'Approve annual report',
+        ])->assertCreated();
+        $agendaId = (int) $agenda->json('data.id');
+
         Sanctum::actingAs($this->reviewer, ['*']);
         $this->withTenant()->patchJson(route('api.governance.notices.review', ['notice' => $noticeId]), [
             'decision' => 'approved', 'reason' => 'Content and authority checked independently.',
@@ -144,15 +149,14 @@ final class GovernanceMeetingBusinessLifecycleTest extends TestCase
             'meeting' => $this->meetingId, 'notice' => $noticeId,
         ]))->assertOk()->assertJsonPath('delivery.dispatch_status', 'not_sent_by_this_endpoint');
 
+        $this->withTenant()->postJson(route('api.governance.meetings.agenda-items.store', ['meeting' => $this->meetingId]), [
+            'sort_order' => 2, 'title_am' => 'ከጥሪ በኋላ የተጨመረ ነጥብ', 'title_en' => 'Late agenda item',
+        ])->assertStatus(409);
+
         $recipient = (int) DB::table('governance_meeting_notice_recipients')->where('notice_id', $noticeId)->value('id');
         $this->withTenant()->patchJson(route('api.governance.notice-recipients.delivery', ['recipient' => $recipient]), [
             'status' => 'delivered', 'delivery_reference' => 'portal-receipt:GA-LIFECYCLE-001:1',
         ])->assertOk();
-
-        $agenda = $this->withTenant()->postJson(route('api.governance.meetings.agenda-items.store', ['meeting' => $this->meetingId]), [
-            'sort_order' => 1, 'title_am' => 'የዓመታዊ ሪፖርት ማጽደቅ', 'title_en' => 'Approve annual report',
-        ])->assertCreated();
-        $agendaId = (int) $agenda->json('data.id');
 
         $snapshot = $this->withTenant()->postJson(route('api.governance.meetings.electorate-snapshots.store', ['meeting' => $this->meetingId]), [
             'record_date' => now()->toDateString(),
