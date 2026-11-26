@@ -1,6 +1,6 @@
-# ARNA OS — Daily Repository Progress Report (2026-11-25)
+# ARNA OS — Daily Repository Progress Report (2026-11-26)
 
-**Generated:** 2026-11-25T06:55:59.088406+03:00  
+**Generated:** 2026-11-26T06:21:15.394074+03:00  
 **Repositories:** akefadaka-git/arna-api, akefadaka-git/arna-app  
 **Assessment mode:** read-only repository metadata and workflow evidence; no source-code mutation.
 
@@ -48,26 +48,26 @@
 ### akefadaka-git/arna-api
 
 - Default branch: `main`
-- Open PRs: 63
+- Open PRs: 60
 - PRs merged in last 30 days: 28
-- Failed/action-required workflow runs in last 14 days: 1
-- Cancelled workflow runs in last 14 days: 2
-- Currently queued/in-progress workflow runs in sampled page: 79
-- Most recent commit in sampled 30 commits: 2026-11-25T03:30:23+00:00
+- Failed/action-required workflow runs in last 14 days: 8
+- Cancelled workflow runs in last 14 days: 13
+- Currently queued/in-progress workflow runs in sampled page: 1
+- Most recent commit in sampled 30 commits: 2026-11-25T07:53:01+00:00
 
 **Open pull requests (sample, up to 12):**
-- ARNA Admin A3 — master control-plane API and domain management
+- A3: complete fail-closed GA legal evidence and lifecycle gates
+- A3: current-main API release preparation and safe baseline (rebased)
+- R17: Diagnose Governance MySQL concurrency worker failures
+- Fix Governance membership service autoload and concurrency regression
+- R17: Diagnose Governance MySQL concurrency worker failures
+- A3: restore Owner-approved non-destructive default seed baseline
+- A3 release preparation: PHP runtime guard and Governance MySQL diagnostics
+- A3: current-main API release preparation and safe baseline
+- F-01: preserve operational bootstrap account and shareholder data
+- Production-safe core bootstrap for 102 identities
+- integration: current-main API security and tenant-isolation hardening
 - docs(d01): add A2 source reconciliation evidence register
-- ARNA Admin A3 — Owner-approved tenant RBAC and audit-atomic lifecycle
-- docs(esppm): maintain A2 evidence and R09 reconciliation package
-- docs(d01): define strategy domain A1 spec and A2 evidence plan
-- docs(esppm): archive A2 Treasury and PSC evidence addendum
-- A3: reconcile Communication and People contracts onto current Admin baseline
-- docs(ecc): add 30-domain KPI readiness and ownership register
-- docs(ecc): record A3.0 live repository baseline and evidence register
-- A3: tenant-scoped Communication conversations and People contracts
-- docs(ecc): record owner-approved A3 implementation plan
-- docs(esppm): archive Owner-approved A2 decision record
 
 **PRs merged in last 30 days (sample, up to 12):**
 - A5: enable mainline and manual production preflight
@@ -84,17 +84,24 @@
 - feat(ops): add no-cost exact-SHA cleanup dispatches
 
 **Failed workflows (sample, up to 12):**
-- ARNA Governance authorization regression #1032
+- ARNA clean-install MySQL verification #3247
+- ARNA GA lifecycle and legal-gate exact-head MySQL verification #5
+- ARNA GA lifecycle and legal-gate exact-head MySQL verification #4
+- ARNA clean-install MySQL verification #3246
+- ARNA GA lifecycle and legal-gate exact-head MySQL verification #3
+- ARNA clean-install MySQL verification #3244
+- ARNA GA lifecycle and legal-gate exact-head MySQL verification #2
+- ARNA GA lifecycle and legal-gate exact-head MySQL verification #1
 
 ### akefadaka-git/arna-app
 
 - Default branch: `main`
 - Open PRs: 58
 - PRs merged in last 30 days: 24
-- Failed/action-required workflow runs in last 14 days: 8
+- Failed/action-required workflow runs in last 14 days: 54
 - Cancelled workflow runs in last 14 days: 0
 - Currently queued/in-progress workflow runs in sampled page: 0
-- Most recent commit in sampled 30 commits: 2026-11-23T11:34:32+00:00
+- Most recent commit in sampled 30 commits: 2026-11-25T07:46:29+00:00
 
 **Open pull requests (sample, up to 12):**
 - ARNA Admin A3 — master console frontend and Domain Management
@@ -125,21 +132,25 @@
 - feat(people): display linked relationship lifecycle history
 
 **Failed workflows (sample, up to 12):**
-- Native Android verification #26
-- Frontend verification #3000
-- Frontend verification #2999
-- Public corporate website A4 verification #99
-- Frontend verification #2998
-- ARNA Executive Overview A4 frontend verification #305
-- Frontend verification #2997
-- ARNA Executive Overview A4 frontend verification #304
+- Frontend verification #3080
+- Frontend verification #3079
+- Frontend verification #3078
+- Frontend verification #3077
+- Frontend verification #3076
+- Frontend verification #3075
+- Frontend verification #3074
+- Frontend verification #3073
+- Frontend verification #3072
+- Frontend verification #3071
+- Frontend verification #3070
+- Frontend verification #3069
 
 ## Recommendations and enhancement priorities
 
-- **akefadaka-git/arna-api:** triage 1 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
-- **akefadaka-git/arna-api:** inspect 2 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
-- **akefadaka-git/arna-api:** review 63 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
-- **akefadaka-git/arna-app:** triage 8 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-api:** triage 8 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
+- **akefadaka-git/arna-api:** inspect 13 cancelled workflow run(s); determine whether they represent superseded work or missing verification.
+- **akefadaka-git/arna-api:** review 60 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
+- **akefadaka-git/arna-app:** triage 54 failed/action-required workflow run(s) from the last 14 days; inspect exact run logs and repair only with authorization.
 - **akefadaka-git/arna-app:** review 58 open pull request(s) against acceptance criteria; do not equate open PR count with completion.
 - Continue closing domain acceptance gaps before expanding scope: security, tenant isolation, lifecycle, concurrency, clean-install and cross-domain integration.
 - Prioritize Finance accounting integrity, Governance authority lifecycle, Calendar reservations/concurrency and Communication approval/publishing controls.
