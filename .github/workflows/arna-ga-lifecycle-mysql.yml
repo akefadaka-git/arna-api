@@ -131,11 +131,12 @@ jobs:
           done
           php artisan migrate:status
 
-      - name: Run GA legal-gate unit suite
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ":memory:"
-          DB_FOREIGN_KEYS: "true"
+      - name: Confirm disposable MySQL is reachable before GA suites
+        run: mysql -h 127.0.0.1 -uroot -proot arna_ga_lifecycle_test -Nse "SELECT 1"
+
+      - name: Run GA legal-gate unit suite in the MySQL verification job
+        # This suite is intentionally database-independent; it runs under the
+        # same exact-head disposable-MySQL job without overriding DB_CONNECTION.
         run: php artisan test --compact tests/Unit/Governance/GovernanceMeetingLegalGateTest.php
 
       - name: Run GA business-lifecycle feature suite against MySQL
