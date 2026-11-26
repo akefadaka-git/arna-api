@@ -1,0 +1,55 @@
+name: ARNA Symfony security dependency remediation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/arna-symfony-security-remediation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-security-patches:
+    name: Resolve patched Symfony component versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Verify exact source SHA
+        run: |
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          echo "Source SHA: $(git rev-parse HEAD)"
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, mbstring, pdo_mysql, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Install current locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Update vulnerable Symfony components to patched compatible releases
+        run: |
+          composer update symfony/http-kernel symfony/http-foundation symfony/mailer symfony/routing --with-all-dependencies --no-interaction --no-progress
+
+      - name: Validate updated dependency graph
+        run: |
+          composer validate --no-check-publish
+          composer audit --format=plain
+          composer show symfony/http-kernel symfony/http-foundation symfony/mailer symfony/routing > symfony-security-patched-versions.txt
+
+      - name: Upload resolved Composer lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: arna-symfony-security-lockfile-${{ github.run_id }}
+          path: |
+            composer.lock
+            symfony-security-patched-versions.txt
+          retention-days: 7
