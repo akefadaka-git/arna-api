@@ -265,3 +265,71 @@ The current RBAC model exposes permissions granted directly to a user and permis
 - Tests/CI: **NOT RUN** in this addendum.
 
 **Conclusion:** The 30-domain source map is now available at the provider/route/event/outbox/feature inventory level. It confirms that only two bounded domain publishers currently reach the central notification service. The wider recipient resolver, workflow authority matrix, full event catalogue, and end-to-end verification remain incomplete. Preserve the frozen A1 baseline and the existing Owner instruction to keep A2 open. This addendum is evidence for continued A2 work, not a closure request.
+
+
+## 10. Detailed D21 Communication Announcement workflow reconciliation
+
+### 10.1 Current API lifecycle and route contract
+
+Current API source:
+- Controller: `app/Http/Controllers/CommunicationAnnouncementController.php`, blob `02c2eba99d093fff3c535fd2322a32fb7eb013cf`.
+- Route registry: `routes/api.php`, blob `f84dba507f88922088c9681ec718d4537275ebc8`, announcement routes at lines 612–621.
+- Persistence migration: `database/migrations/2026_11_01_000001_create_communication_announcements_tables.php`, blob `d00ad41b3b17ba2e8df38f850ab29ade22ceaa93`.
+- API tests: `tests/Feature/CommunicationAnnouncementsTest.php`, blob `b2067c76c3a99f9873734ea7228c813777c18403`.
+- Contract: `docs/communication/ANNOUNCEMENTS-001.md`, blob `dfba76a9634f90295c411e2443d4eef037efcdce`.
+
+All announcement endpoints are inside the enclosing `auth:sanctum` + `tenant.membership` group. Routes:
+- `GET /api/announcements`
+- `POST /api/announcements`
+- `POST /api/announcements/{id}/submit`
+- `POST /api/announcements/{id}/approve`
+- `POST /api/announcements/{id}/publish`
+- `POST /api/announcements/{id}/acknowledge`
+
+Lifecycle is `draft → pending_approval → approved → published`. The controller checks `announcement.manage` for draft creation/submission, `announcement.approve` for approval, and `announcement.publish` for publication. A submitter cannot approve their own announcement. Only an approved, non-expired announcement can be published.
+
+### 10.2 Recipient and authorization behavior
+
+- Draft creation requires an explicit `recipient_ids` array (1–1000 unique user IDs). No implicit tenant-wide broadcast exists.
+- Every selected recipient must have active membership in the current tenant at draft creation.
+- Publication rechecks that every recipient still has active tenant membership and an active User account.
+- NotificationService independently revalidates persisted tenant, persisted active User and active TenantMembership before inserting notifications.
+- A user without `announcement.manage` sees only published announcements whose recipient row names that user. A user with `announcement.manage` sees the tenant announcement register.
+- `announcement.view` is described by the contract as a frontend navigation capability; the current API route itself has no `auth.permission:announcement.view` middleware. Recipient row ownership constrains ordinary reads. Do not represent this as a dedicated API view permission.
+- Canonical role grants currently place `announcement.manage` with `secretary`; `announcement.approve` and `announcement.publish` with `president`; `announcement.view` with `manager`, `secretary` and `president`. Existing broad `scope:tenant` grants also apply to `platform_admin` and `tenant_admin`; `super_admin` has wildcard. These are seeded role grants, not evidence of any specific person's current assignment or corporate appointment.
+
+### 10.3 Atomicity and evidence
+
+Publication runs the announcement status update, recipient `delivered_at` update and central notification inserts inside a database transaction. The feature tests include a forced notification insert failure and assert rollback of publication and delivery markers. The test suite also contains cases for tenant isolation, invalid recipients, atomic draft/recipient creation, self-approval denial, explicit-recipient publication, membership revalidation and recipient acknowledgement.
+
+These are **test definitions**, not test execution results. The current-head GitHub combined status query returned no status entries for the inspected API SHA; no A2 test run was initiated in this pass.
+
+### 10.4 Material implementation gaps and risks
+
+1. **No approval-submission or approval-decision notifications verified.** The controller's submit and approve methods change state but do not call NotificationService or create a dedicated outbox. Only publication emits `communication.announcement.published`. There is no verified resolver for the approver, submitter or next workflow actor.
+2. **Acknowledgement is API-only in the inspected App feature.** API route and controller exist; acknowledgement writes `acknowledged_at` and recipient `read_at`. The App announcement API adapter and `AnnouncementsView.vue` contain no acknowledgement API function or acknowledgement action. The shared notification inbox's read state is a separate `platform_notifications.read_at` field; acknowledgement does not update that field. A recipient can therefore have business acknowledgement and notification-read state that are not synchronized.
+3. **No acknowledgement monitoring/report view was found.** The contract itself lists acknowledgement reporting and deep-link verification as pending evidence.
+4. **Notification body localization is not correct for bilingual content.** Publication constructs the notification body by placing the same stripped `content` string into both `am` and `en` keys. It does not select the body according to `content_locale`. If the announcement body is authored in one language, it is presented as though it were available in both languages.
+5. **Priority semantics are compressed.** Announcement `important` becomes notification `normal`; `urgent` and `critical` both become notification `high`. The notification priority schema has only `low|normal|high`. The source announcement priority remains richer than the inbox priority.
+6. **Action reference is not a detail deep link.** The notification action route is `announcements` and the resource reference key is `announcement_id`. The current App resolver supports the announcements list route and expects `id` for detail-route parameters. It therefore safely falls back to the list, but does not open the exact announcement.
+7. **No announcement-specific event/outbox record for each workflow transition.** The central notification insert is synchronous and transactionally coupled to publication. There is no separate durable workflow event/outbox covering draft, submit, approve, publish, withdraw/archive, acknowledgement and subsequent retries across all stages.
+8. **Persistence referential integrity is application-enforced.** The announcement migration uses indexed unsigned tenant/user IDs and indexed announcement UUIDs, but does not declare foreign-key constraints for announcement/recipient tenant, user or announcement references. This should be assessed against the owning domain's deletion and retention rules; it is not by itself proof of exploitable cross-tenant access.
+9. **Frontend action affordances are not permission-filtered in the component.** The view renders submit/approve/publish controls based on status, not the current user's permission set. Server-side authorization remains the security boundary, but unauthorized controls can be shown and fail at the API. This is a usability and contract completeness gap, not evidence of an API bypass.
+10. **Recipient entry is manual numeric IDs.** There is no directory picker, role, committee, department, stakeholder or workflow-step recipient resolver in the inspected composer.
+
+### 10.5 Announcement-specific A2 status
+
+- Draft and explicit recipient persistence: **PRESENT / TESTS DEFINED**.
+- Submit and approval state transitions: **PRESENT / TESTS DEFINED**.
+- Self-approval prevention: **PRESENT / TEST DEFINED**.
+- Publication with recipient revalidation: **PRESENT / TESTS DEFINED**.
+- Atomic publication + notification insertion: **PRESENT / TEST DEFINED**.
+- Publication notification: **PRESENT / VERIFIED SOURCE PATH**.
+- Approver/submitter notification: **NOT FOUND IN INSPECTED CONTROLLER**.
+- Acknowledgement endpoint: **PRESENT**.
+- App acknowledgement action/report: **NOT FOUND IN INSPECTED APP FEATURE**.
+- Correct body localization and full priority preservation: **GAP**.
+- Announcement detail deep link: **GAP**.
+- Runtime delivery, migration-applied state and test execution: **NOT VERIFIED**.
+
+D21 remains **PARTIAL** under the Owner-approved A2 disposition. These findings do not amend A1 or authorize implementation.
