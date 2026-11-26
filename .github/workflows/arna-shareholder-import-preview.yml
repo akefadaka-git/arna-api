@@ -64,6 +64,11 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Verify exact checked-out source SHA
+        run: |
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          echo "Verified source SHA: $(git rev-parse HEAD)"
+
       - name: Create runner-local environment file for Laravel tests
         run: touch .env
 
