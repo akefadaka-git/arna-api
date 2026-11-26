@@ -171,11 +171,6 @@ jobs:
 
       - name: Check out exact target commit
         uses: actions/checkout@v4
-
-      - name: Verify exact checked-out source SHA
-        run: |
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          echo "Verified source SHA: $(git rev-parse HEAD)"
         with:
           ref: ${{ steps.target.outputs.expected_sha }}
           persist-credentials: false
