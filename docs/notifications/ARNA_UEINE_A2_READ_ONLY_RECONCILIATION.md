@@ -334,3 +334,76 @@ No material contradiction requires changing the A1 target itself. The principal 
 
 ---
 **End of A2 evidence snapshot v0.1.**
+
+
+## 11. Supplementary repository-structure inventory
+
+A further read-only pass used the API provider registry and the App repository README and route composition files to improve the domain map. This is a registered-provider and route-surface inventory, not a complete file-tree or domain acceptance audit.
+
+### 11.1 API registered provider evidence
+
+File: `bootstrap/providers.php` (blob SHA `6482927ae5c5373cfcb0d6f16ee5a75a9a24b2b0`).
+
+The active provider registry explicitly lists the following domain providers:
+- Shareholder — `ShareholderServiceProvider`
+- Wallet — `WalletServiceProvider`
+- Loan — `LoanServiceProvider`
+- Governance — `GovernanceServiceProvider`
+- Finance — `FinanceServiceProvider`
+
+The same registry includes application, Core, Auth and Policy providers. Its comments describe Employee and later providers as planned/future in the older integration reconciliation plan; that plan must not be treated as current registration evidence. Calendar's reminder dispatcher is invoked from the central console command registry rather than being one of the five domain providers listed above. Communication announcements are implemented in the app-level HTTP controller/routes.
+
+**Implication:** provider registration alone does not inventory every API domain. Several domain areas are integrated through Core or application-level registration, and some domain directories may exist without a dedicated provider. A complete A2 pass must map both provider-backed and non-provider-backed domains.
+
+### 11.2 App README and route surface
+
+App README (blob SHA `e0a341263168f177e455f313d0ece04ff55eb839`) identifies four independent application entry points:
+- workspace;
+- shareholder portal;
+- admin;
+- public website.
+
+The README names these domain-oriented feature groups: Authentication/dashboard, People/shareholder experiences, Governance, Documents/File Management, Loans/Wallet, Public content/portal experiences and launcher. It explicitly warns that feature folders/routes/mockups/open PRs do not prove workflow completeness.
+
+Workspace route composition file: `src/router/routes-workspace.ts` (blob SHA `580b1c39004623778dadf7f88c25b51f62e33132`). The inspected route imports/components include:
+- Dashboard and Executive Overview;
+- Communications Hub and Announcements;
+- Files;
+- Shareholders and Share Classes;
+- Wallet;
+- Loans and loan products;
+- People;
+- Governance overview, attendance, bodies and people views;
+- Appointments;
+- Tasks;
+- Calendar.
+
+Portal route composition: `src/router/routes-portal.ts` (blob SHA `8068cce3c6c6ebc4bba523d93afc48fe5c6a73b6`), with portal home, shareholdings, certificates, wallet and loan pages.
+
+Admin route composition: `src/router/routes-admin.ts` (blob SHA `5b3b648a31dad0ba19967387fa8d503bb4996572`). The full admin feature route catalogue and public-site entrypoint route catalogue were not fully inspected in this pass.
+
+This expands the known App surface beyond the feature list in README. It does not prove API parity, notification support or end-to-end completeness for each route.
+
+### 11.3 Revised App/API domain mapping
+
+| API / business area | App route or feature evidence | UEINE notification evidence |
+|---|---|---|
+| Authentication / identity | Auth feature and shared session foundations | No business notification publisher established; security-event pipeline is separate |
+| Dashboard / Executive Overview | Workspace dashboard and executive overview routes | No notification adapter established |
+| Communication / announcements | Communication Hub and Announcements workspace | **VERIFIED** central publisher on announcement publication |
+| Documents / Files | Files list/detail routes and file feature | No central publisher established |
+| Shareholder / share classes | Workspace shareholder routes; portal shareholdings/certificates | Shareholder audit events; no central publisher established |
+| Wallet | Workspace wallet and portal wallet | Wallet audit events; no central publisher established |
+| Loan | Workspace loan/product routes; portal loan pages | Loan audit events; no central publisher established |
+| People | People directory/profile routes | No central publisher established |
+| Governance | Governance overview, attendance, bodies, people routes | Governance audit events; no central publisher established |
+| Appointments | Appointment workspace route | No central publisher established |
+| Tasks | Task workspace route | No central publisher established |
+| Calendar | Calendar workspace route | **VERIFIED** reminder publisher |
+| Public content / corporate site | Public/admin application surfaces and API review routes | No central publisher established |
+| Reports / surveys / performance / plans | Not identified as dedicated notification-backed App routes in inspected workspace/portal route files | **UNRESOLVED** |
+| Admin | Separate admin entrypoint and route composition | Admin event/notification inventory incomplete |
+
+### 11.4 Completeness qualification
+
+This supplementary pass improves the route/provider inventory but does not close UEINE-G02, UEINE-G09 or UEINE-G14. GitHub code search and a small set of route/provider files do not expose a reliable complete tree of all domain subfolders, all frontend routes across all four entrypoints, or every event/outbox call site. The 39+ domain catalogue referenced by the wider ARNA programme has not yet been fully retrieved and mapped in this assessment. A2 remains open until that canonical catalogue is reconciled row-by-row with repository source.
