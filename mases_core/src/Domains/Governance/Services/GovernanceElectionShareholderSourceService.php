@@ -127,6 +127,7 @@ final class GovernanceElectionShareholderSourceService
 
                 $line = [
                     'holding_id' => (int) $holding->holding_id,
+                    'holding_created_at' => (string) $holding->holding_created_at,
                     'share_class_id' => (int) $holding->share_class_id,
                     'share_class_code' => (string) $holding->share_class_code,
                     'quantity_at_cutoff' => $reconstruction['balance'],
@@ -140,6 +141,7 @@ final class GovernanceElectionShareholderSourceService
                 $holdingsByShareholder[(int) $holding->shareholder_id][] = $line;
                 $sourceManifest[] = [
                     'holding_id' => (int) $holding->holding_id,
+                    'holding_created_at' => (string) $holding->holding_created_at,
                     'shareholder_id' => (int) $holding->shareholder_id,
                     'share_class_id' => (int) $holding->share_class_id,
                     'ledger_digest' => $reconstruction['ledger_digest'],
