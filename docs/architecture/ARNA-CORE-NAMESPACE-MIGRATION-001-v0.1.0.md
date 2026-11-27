@@ -1,8 +1,8 @@
 # ARNA Core Namespace and Source-Directory Migration
 **Document ID:** ARNA-CORE-NSM-001  
-**Version:** 0.2.0-draft  
+**Version:** 0.3.0-owner-approved-a1  
 **Date:** 2026-11-27  
-**Status:** A1 DRAFT — OWNER REVIEW REQUIRED; A2 EXPANDED INVENTORY RECORDED / CLOSURE GATES OPEN; A3 NOT STARTED
+**Status:** A1 OWNER-APPROVED / FROZEN; A2 EXPANDED INVENTORY RECORDED / CLOSURE GATES OPEN; A3 NOT STARTED
 
 ## 1. Purpose and decision requested
 
@@ -107,7 +107,7 @@ A3 should be a single isolated refactor branch, sequenced to keep the tree boota
 
 This document is a draft proposal and read-only assessment. It does not freeze A1, close A2, authorize A3 code changes, authorize PR merge, or authorize A5 deployment. The user's requested outcome is captured as the target direction; the exact migration plan and any archival exceptions remain subject to Owner review.
 
-**Current status:** A1 DRAFT / A2 PARTIAL — expanded API/App inventory recorded, closure gates remain open / A3 NOT STARTED / A4 NOT RUN / A5 NOT AUTHORIZED.
+**Current status:** A1 OWNER-APPROVED / FROZEN / A2 PARTIAL — expanded API/App inventory recorded, closure gates remain open / A3 NOT STARTED / A4 NOT RUN / A5 NOT AUTHORIZED.
 
 
 ## 9. Expanded A2 evidence and path inventory — 2026-11-27
@@ -136,3 +136,12 @@ The expanded inspection also found:
 A2 is **not marked VERIFIED-CLOSED**. The recursive tree and targeted reference inventories are recorded, but broad namespace code search is capped at 100 results, the live Plesk environment is not accessible, and external consumers outside connected repositories/local installations cannot be verified. The App's CSS-token and browser-state compatibility scope also requires explicit A1 treatment before implementation.
 
 **A1 DRAFT / A2 PARTIAL-OPEN / A3 NOT STARTED / A4 NOT RUN / A5 NOT AUTHORIZED.**
+
+
+## 10. Owner approval — 2026-11-27
+
+The Owner approved the complete ARNA naming scope: remove MASES from active API Core and App product identifiers, including every applicable directory/file path, namespace, function, provider, configuration key, environment variable, alias, seeder, command, script, CI reference, CSS custom property and browser-storage/session/cookie key. The App's old CSS-token and browser-storage compatibility fallbacks are included in the removal scope.
+
+**A1 is OWNER-APPROVED / FROZEN.** Canonical names are `arna_core/src/`, `MaaleArna\\Arna\\Core\\`, Composer package `maale-arna/arna-api`, and `arna.*` configuration. Historical records and commit history remain historically accurate; active application identifiers and operational documentation are renamed. Neutral domain names are not gratuitously renamed. Database schema/data changes are outside this authorization.
+
+A1 approval does not close A2. The full content scan, live deployment/runtime consumer assessment and unconnected external consumer review remain A2 closure gates. **A3 NOT STARTED** until A2 is completed and closed. A4 NOT RUN; A5 NOT AUTHORIZED.
