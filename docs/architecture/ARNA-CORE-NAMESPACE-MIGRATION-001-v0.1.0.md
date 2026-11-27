@@ -2,7 +2,7 @@
 **Document ID:** ARNA-CORE-NSM-001  
 **Version:** 0.3.0-owner-approved-a1  
 **Date:** 2026-11-27  
-**Status:** A1 OWNER-APPROVED / FROZEN; A2 EXPANDED INVENTORY RECORDED / CLOSURE GATES OPEN; A3 NOT STARTED
+**Status:** A1 OWNER-APPROVED / FROZEN; A2 VERIFIED-CLOSED for frozen API/App repository scope; A3 ELIGIBLE / NOT STARTED
 
 ## 1. Purpose and decision requested
 
@@ -158,3 +158,21 @@ The known in-scope repository consumer is `akefadaka-git/arna-app`. Other privat
 A3 remains NOT STARTED and must not begin until the deterministic content scan is completed and A2 is formally closed. No source, test, CI, database, migration, production or deployment changes were made. A4 remains NOT RUN. A5 remains outside this authorization and is the Owner's deployment responsibility.
 
 The previous sections and approvals are retained as historical records; this addendum supersedes earlier statements that live Plesk/runtime inspection remains a required A2 gate.
+
+
+## 12. Formal A2 closure — complete frozen-SHA scan (2026-11-27)
+
+The complete deterministic scan and occurrence reconciliation are recorded in:
+- [A2 deterministic scan and reconciliation](ARNA-CORE-NSM-001-A2-DETERMINISTIC-SCAN-RECONCILIATION-2026-11-27.md)
+- [A2 path and reference inventory](ARNA-CORE-NSM-001-A2-REFERENCE-INVENTORY-2026-11-27.md)
+
+The API and App recursive tree baselines were verified at their exact frozen SHAs. All **1,539 / 1,539** tracked blobs were read; **9,896** path/content occurrence rows were emitted and assigned a primary reconciliation class. The API has 642 Core files under `mases_core/src/`, three additional legacy-named paths, 645 unique file paths and 214 directory paths containing the old identity. The App has no tracked path-name matches but has active content references in 336 files.
+
+**A2 DECISION: VERIFIED-CLOSED for the defined frozen API/App repository scope.** The scan is exhaustive for the two in-scope repository snapshots. Historical records, current documentation, runtime identifiers, test/CI/tooling, App CSS tokens, browser-storage fallbacks and dormant provider/localization code are separately reconciled.
+
+Residual limitation: private, local or unconnected consumers are not proven absent. Supplemental public-owner code search surfaced no third public repository for the searched legacy namespace/path/storage markers. The Owner's decision to perform a fresh Plesk deployment with no useful deployed content to preserve bounds this residual. This is not a verified zero-external-consumer claim.
+
+**A3 is eligible to begin on isolated branches from the frozen API/App SHAs.** No merge, default-branch modification, database schema/data change, migration execution, production change or deployment is authorized by this A2 closure. A4 verification and A5 deployment remain separate gates; deployment remains the Owner's responsibility.
+
+Reproducible run: https://github.com/akefadaka-git/arna-api/actions/runs/45975141734
+Artifact: `arna-a2-frozen-content-scan-20261127`, ID `15187345405`, SHA-256 `46c7d28c52d9fec755ddb178f8a580e75af14379e6b3cf3d077574f785a693c4`.
