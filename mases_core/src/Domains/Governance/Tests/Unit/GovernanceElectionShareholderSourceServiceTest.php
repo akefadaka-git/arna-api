@@ -7,7 +7,6 @@ namespace MaaleArna\MASES\Core\Domains\Governance\Tests\Unit;
 use DateTimeImmutable;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceElectionShareholderSourceService;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 final class GovernanceElectionShareholderSourceServiceTest extends TestCase
@@ -96,6 +95,23 @@ final class GovernanceElectionShareholderSourceServiceTest extends TestCase
                 $this->entry(2, 'transfer_out', '-5.0000', '8.0000', '3.0000', '2026-01-02 09:00:00'),
             ],
             '3.0000',
+            new DateTimeImmutable('2026-01-31T23:59:59+03:00'),
+            'Africa/Addis_Ababa',
+        );
+    }
+
+    public function test_rejects_mixed_holding_ids_in_one_ledger_manifest(): void
+    {
+        $second = $this->entry(2, 'subscription', '5.0000', '10.0000', '15.0000', '2026-01-02 09:00:00');
+        $second->share_holding_id = 101;
+
+        $this->expectException(ValidationException::class);
+        GovernanceElectionShareholderSourceService::reconstructLedger(
+            [
+                $this->entry(1, 'subscription', '10.0000', '0.0000', '10.0000', '2026-01-01 09:00:00'),
+                $second,
+            ],
+            '15.0000',
             new DateTimeImmutable('2026-01-31T23:59:59+03:00'),
             'Africa/Addis_Ababa',
         );
