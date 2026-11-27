@@ -2,7 +2,7 @@
 
 **Document ID:** ARNA-AI-A1-002  
 **Version:** 1.0.0  
-**Status:** REVIEW — evidence reconciliation; not a new approval instrument
+**Status:** A1 OWNER-APPROVED — v1.0.0 frozen; inherited decisions remain intact
 
 This register distinguishes inherited Owner-approved ARNA decisions from proposed ARNA AI decisions, implementation observations and unresolved authority. Existing source documents remain authoritative.
 
@@ -59,16 +59,16 @@ The following Finance ADRs must remain intact:
 
 | ID | Proposed decision | Why needed | Status |
 |---|---|---|---|
-| PROP-01 | Approve AI Control Plane as logical architecture boundary | Prevents provider and agent logic from leaking into domains | OWNER REVIEW |
-| PROP-02 | Approve provider-neutral Model Gateway | Supports provider substitution and controlled egress | OWNER REVIEW |
-| PROP-03 | Approve permission-aware Knowledge/RAG architecture | Prevents cross-tenant, cross-entity and confidentiality leakage | OWNER REVIEW |
-| PROP-04 | Approve nine-agent catalogue as initial target portfolio | Establishes accountable capabilities and scope | OWNER REVIEW |
-| PROP-05 | Approve L0-L3 autonomy model; L4 disabled/reserved | Makes permitted autonomy explicit | OWNER REVIEW |
-| PROP-06 | Approve initial read-only and proposal-only operating posture | Reduces risk while evidence and controls mature | OWNER REVIEW |
-| PROP-07 | Approve Amharic-first/English-supported AI product contract | Makes language a foundational capability | OWNER REVIEW |
-| PROP-08 | Approve AI provider egress disabled until explicit provider/data review | Protects confidential information and avoids spend commitments | OWNER REVIEW |
-| PROP-09 | Approve AI audit/evaluation metadata requirements | Enables traceability and quality control | OWNER REVIEW |
-| PROP-10 | Confirm phase mapping: Owner-directed P7 Intelligence versus historical repository P4 intelligence label | Prevents roadmap reporting ambiguity | OWNER REVIEW |
+| PROP-01 | Approve AI Control Plane as logical architecture boundary | Prevents provider and agent logic from leaking into domains | APPROVED — Owner decision 2026-11-27 |
+| PROP-02 | Approve provider-neutral Model Gateway | Supports provider substitution and controlled egress | APPROVED — Owner decision 2026-11-27 |
+| PROP-03 | Approve permission-aware Knowledge/RAG architecture | Prevents cross-tenant, cross-entity and confidentiality leakage | APPROVED — Owner decision 2026-11-27 |
+| PROP-04 | Approve nine-agent catalogue as initial target portfolio | Establishes accountable capabilities and scope | APPROVED — Owner decision 2026-11-27 |
+| PROP-05 | Approve L0-L3 autonomy model; L4 disabled/reserved | Makes permitted autonomy explicit | APPROVED — Owner decision 2026-11-27 |
+| PROP-06 | Approve initial read-only and proposal-only operating posture | Reduces risk while evidence and controls mature | APPROVED — Owner decision 2026-11-27 |
+| PROP-07 | Approve Amharic-first/English-supported AI product contract | Makes language a foundational capability | APPROVED — Owner decision 2026-11-27 |
+| PROP-08 | Approve AI provider egress disabled until explicit provider/data review | Protects confidential information and avoids spend commitments | APPROVED — Owner decision 2026-11-27 |
+| PROP-09 | Approve AI audit/evaluation metadata requirements | Enables traceability and quality control | APPROVED — Owner decision 2026-11-27 |
+| PROP-10 | Confirm phase mapping: Owner-directed P7 Intelligence versus historical repository P4 intelligence label | Prevents roadmap reporting ambiguity | DEFERRED — preserve P7/P4 discrepancy; no mapping decision supplied |
 
 ## 5. Conflicts and unresolved matters
 
@@ -96,4 +96,6 @@ No model provider, model, region, embedding service, vector store, retention per
 
 ## 7. Review outcome
 
-Owner approval must identify which proposals are approved, amended, deferred or rejected. Existing inherited approvals are not reopened by this document. A1 freeze applies only to the new AI package after explicit approval of the exact version.
+On 2026-11-27 (G.C.), the Owner approved ARNA AI A1 v1.0.0 with no additional comments. PROP-01 through PROP-09 are approved. PROP-10 (mapping Owner-directed P7 Intelligence nomenclature to the historical repository P4 label) is deferred and remains unresolved. Existing inherited approvals are not reopened by this document.
+
+The approved A1 baseline is package commit `7bfb2a95fe357091aecab6d7338c381c3ffc28c4`. The formal approval and freeze record is `ARNA-AI-A1-REVIEW-RECORD-v1.0.md`. A1 approval does not authorize A2, A3, A4 or A5; each remains subject to separate explicit Owner authorization.
