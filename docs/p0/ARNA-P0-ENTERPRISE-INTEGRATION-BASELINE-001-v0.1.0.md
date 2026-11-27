@@ -16,7 +16,7 @@ This is documentation and reconciliation only. It does not authorize A3 implemen
 
 | Repository | Branch | Commit SHA | Evidence date |
 |---|---|---|---|
-| akefadaka-git/arna-api | main | cd13c555976ed74050920bb69dd5c0d013ec9509 | 2026-11-27 |
+| akefadaka-git/arna-api | main | 9c0ce83afcc084101fb14e6e55d54e1d953c2ffe | 2026-11-27 |
 | akefadaka-git/arna-app | main | 648815b69b6419554b656ff91bf5b53df211aebb | 2026-11-27 |
 
 The API README describes the backend as owner of business rules, persistence and authorization. The App README describes frontend experiences consuming backend services. The four App experience boundaries are Workspace, Shareholder Portal, Admin Console and Public Website; entry-point directories previously identified are workspace-entry/, portal-entry/, admin-entry/ and public-entry/.
