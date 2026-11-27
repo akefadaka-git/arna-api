@@ -6,8 +6,8 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Auth\Models\User;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Http\Request;
@@ -17,9 +17,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use App\Services\CorporateSite\CorporateMediaScanner;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
+use MaaleArna\Arna\Core\Domains\PublicContent\Models\CorporateSitePage;
+use MaaleArna\Arna\Core\Domains\PublicContent\Models\CorporateSiteEntry;
+use MaaleArna\Arna\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
 use Tests\TestCase;
 use Database\Seeders\CorporateSiteBaselineSeeder;
 

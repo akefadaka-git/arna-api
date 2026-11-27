@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\Test;
 use DateTimeImmutable;
 use DateTimeZone;
 use InvalidArgumentException;
-use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
+use MaaleArna\Arna\Core\Localization\Calendar\EthiopianCalendar;
 use Tests\TestCase;
 
 /**

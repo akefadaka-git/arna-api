@@ -9,8 +9,8 @@ A user who authenticates on any approved ARNA first-party SPA can open another a
 1. The SPA obtains the Sanctum CSRF cookie from GET /sanctum/csrf-cookie.
 2. The SPA posts credentials to POST /api/login (or completes MFA on the same endpoint).
 3. On a successful response from a trusted first-party origin, the API sets arna_sso_token with Domain=.maalearna.com.et, Path=/, Secure, HttpOnly, and SameSite=Lax. Its lifetime matches SANCTUM_TOKEN_EXPIRATION.
-4. A sibling SPA starts normally and calls GET /api/user with credentials. The custom MASES auth middleware accepts the cookie only when the request Origin is present in both cors.allowed_origins and sanctum.stateful, then presents it to Sanctum as a bearer token.
-5. Sanctum token lookup and the MASES revoked-token blacklist remain authoritative. Logout revokes tokens through the existing service and expires the shared cookie. Refresh rotates the token and replaces the cookie.
+4. A sibling SPA starts normally and calls GET /api/user with credentials. The custom ARNA auth middleware accepts the cookie only when the request Origin is present in both cors.allowed_origins and sanctum.stateful, then presents it to Sanctum as a bearer token.
+5. Sanctum token lookup and the ARNA revoked-token blacklist remain authoritative. Logout revokes tokens through the existing service and expires the shared cookie. Refresh rotates the token and replaces the cookie.
 
 The bearer token remains available in the login response for existing clients. The cookie is HttpOnly and is never read by frontend JavaScript.
 

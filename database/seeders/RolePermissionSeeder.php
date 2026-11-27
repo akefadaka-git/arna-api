@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Database\Seeders\Data\RolePermissionGrants;
-use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
+use MaaleArna\Arna\Core\Authorization\ExecutiveOverviewAccessPolicy;
 use Illuminate\Database\Seeder;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
 use RuntimeException;
 
 /**
@@ -206,7 +206,7 @@ final class RolePermissionSeeder extends Seeder
                 'RolePermissionSeeder requires at least one role to '
                 . 'exist before it can attach permissions. '
                 . 'Run RoleSeeder first, or invoke the seeder through '
-                . 'the MasesCoreSeeder orchestrator, which passes the '
+                . 'the ArnaCoreSeeder orchestrator, which passes the '
                 . 'roles map explicitly.'
             );
         }
@@ -226,7 +226,7 @@ final class RolePermissionSeeder extends Seeder
                 . 'permission set: sync() would detach every '
                 . 'permission from every role. '
                 . 'Run PermissionSeeder first, or invoke the seeder '
-                . 'through the MasesCoreSeeder orchestrator, which '
+                . 'through the ArnaCoreSeeder orchestrator, which '
                 . 'passes the permissions map explicitly.'
             );
         }

@@ -9,15 +9,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Audit\Models\AuditLog;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
-use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler;
-use MaaleArna\MASES\Core\Calendar\Services\CalendarReminderDispatcher;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Audit\Models\AuditLog;
+use MaaleArna\Arna\Core\Domains\PublicContent\Models\CorporateSitePage;
+use MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler;
+use MaaleArna\Arna\Core\Calendar\Services\CalendarReminderDispatcher;
 
 /*
 |--------------------------------------------------------------------------
-| MASES Console Routes
+| ARNA Console Routes
 |--------------------------------------------------------------------------
 |
 | Loaded by the console kernel AFTER every service provider registered in

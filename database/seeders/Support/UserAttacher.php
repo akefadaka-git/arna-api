@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Support;
 
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 
 /**
  * Idempotent pivot helper for tenant membership and role assignment; records joined_at, assigned_at and assigned_by.

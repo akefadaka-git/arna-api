@@ -6,10 +6,10 @@ namespace Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Calendar\Services\CalendarService;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Calendar\Services\CalendarService;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Tenancy\Services\TenantContextService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

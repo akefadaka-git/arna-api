@@ -6,10 +6,10 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpContext;
-use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpService;
-use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Auth\Services\AdaptiveStepUpContext;
+use MaaleArna\Arna\Core\Auth\Services\AdaptiveStepUpService;
+use MaaleArna\Arna\Core\Exceptions\AuthenticationException;
 use Symfony\Component\HttpFoundation\Response;
 
 final class RequireAdaptiveStepUp
@@ -27,7 +27,7 @@ final class RequireAdaptiveStepUp
             throw AuthenticationException::unauthenticated();
         }
 
-        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
             ? (int) $tenantId
             : (int) ($user->default_tenant_id ?? 0);

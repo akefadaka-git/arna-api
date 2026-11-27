@@ -16,9 +16,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Session;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
-use MaaleArna\MASES\Core\Localization\Services\LocalizationService;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Localization\Calendar\EthiopianCalendar;
+use MaaleArna\Arna\Core\Localization\Services\LocalizationService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -58,7 +58,7 @@ final class LocalizationServiceTest extends TestCase
         Config::set('app.locale', 'am');
         Config::set('app.fallback_locale', 'en');
         Config::set('app.timezone', 'Africa/Addis_Ababa');
-        Config::set('mases.localization.timezone', 'Africa/Addis_Ababa');
+        Config::set('arna.localization.timezone', 'Africa/Addis_Ababa');
 
         Auth::logout();
         Session::flush();
@@ -95,7 +95,7 @@ final class LocalizationServiceTest extends TestCase
     #[Test]
     public function it_returns_session_locale_when_set(): void
     {
-        Session::put('mases_locale', 'en');
+        Session::put('arna_locale', 'en');
 
         $this->assertSame('en', $this->service->getCurrentLocale());
     }
@@ -104,7 +104,7 @@ final class LocalizationServiceTest extends TestCase
     public function it_returns_cookie_locale_when_set(): void
     {
         $request = Request::create('/test', 'GET');
-        $request->cookies->set('mases_locale', 'en');
+        $request->cookies->set('arna_locale', 'en');
         $this->app->instance('request', $request);
 
         $this->assertSame('en', $this->service->getCurrentLocale());
@@ -148,10 +148,10 @@ final class LocalizationServiceTest extends TestCase
     #[Test]
     public function it_prefers_session_over_cookie_and_header(): void
     {
-        Session::put('mases_locale', 'am');
+        Session::put('arna_locale', 'am');
 
         $request = Request::create('/test', 'GET');
-        $request->cookies->set('mases_locale', 'en');
+        $request->cookies->set('arna_locale', 'en');
         $request->headers->set('Accept-Language', 'en-US,en;q=0.9');
         $this->app->instance('request', $request);
 
@@ -180,7 +180,7 @@ final class LocalizationServiceTest extends TestCase
         $this->service->setLocale('en', false);
 
         $this->assertSame('en', App::getLocale());
-        $this->assertSame('en', Session::get('mases_locale'));
+        $this->assertSame('en', Session::get('arna_locale'));
     }
 
     #[Test]
@@ -188,13 +188,13 @@ final class LocalizationServiceTest extends TestCase
     {
         Cookie::shouldReceive('queue')
             ->once()
-            ->with('mases_locale', 'en', 60 * 24 * 365)
+            ->with('arna_locale', 'en', 60 * 24 * 365)
             ->andReturnNull();
 
         $this->service->setLocale('en', true);
 
         $this->assertSame('en', App::getLocale());
-        $this->assertSame('en', Session::get('mases_locale'));
+        $this->assertSame('en', Session::get('arna_locale'));
     }
 
     #[Test]
@@ -228,7 +228,7 @@ final class LocalizationServiceTest extends TestCase
 
         // Application locale unchanged; nothing persisted.
         $this->assertSame('am', App::getLocale());
-        $this->assertNull(Session::get('mases_locale'));
+        $this->assertNull(Session::get('arna_locale'));
     }
 
     // =========================================================================
@@ -302,7 +302,7 @@ final class LocalizationServiceTest extends TestCase
         $this->assertTrue($this->service->isAmharic());
         $this->assertFalse($this->service->isEnglish());
 
-        Session::put('mases_locale', 'en');
+        Session::put('arna_locale', 'en');
 
         $this->assertFalse($this->service->isAmharic());
         $this->assertTrue($this->service->isEnglish());

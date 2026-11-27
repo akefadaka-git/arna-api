@@ -8,12 +8,12 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Calendar\Services\CalendarDomainResourceAuthorizer;
-use MaaleArna\MASES\Core\Domains\People\Models\Person;
-use MaaleArna\MASES\Core\Domains\People\Models\PersonTenantAccess;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Calendar\Services\CalendarDomainResourceAuthorizer;
+use MaaleArna\Arna\Core\Domains\People\Models\Person;
+use MaaleArna\Arna\Core\Domains\People\Models\PersonTenantAccess;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 

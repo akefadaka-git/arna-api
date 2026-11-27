@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-/** Rector configuration for the MASES PHP test suite. */
+/** Rector configuration for the ARNA PHP test suite. */
 
 use Rector\Config\RectorConfig;
 use Rector\PHPUnit\Set\PHPUnitSetList;
@@ -15,16 +15,16 @@ return RectorConfig::configure()
      * ------------------------------------------------------------------------
      *
      * Application test directories and every domain-scoped test tree
-     * under mases_core. The domain walk is recursive, so per-domain
+     * under arna_core. The domain walk is recursive, so per-domain
      * Tests/Unit and Tests/Feature directories are both covered without
      * enumerating them.
      *
      * Production code is intentionally excluded. Do not add app/ or
-     * mases_core/src/ here.
+     * arna_core/src/ here.
      */
     ->withPaths([
         __DIR__ . '/tests',
-        __DIR__ . '/mases_core/src/Domains',
+        __DIR__ . '/arna_core/src/Domains',
     ])
 
     /*

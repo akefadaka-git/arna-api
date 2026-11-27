@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Data;
 
-use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
-use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsRolePermissionGrants;
+use MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
+use MaaleArna\Arna\Core\Domains\Documents\Database\Seeders\DocumentsRolePermissionGrants;
 
 /**
  * RolePermissionGrants

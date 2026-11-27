@@ -44,7 +44,7 @@ Keep domain logic and accounting invariants provider-independent. AI, OCR, bank,
 
 ## 3. A2 current-main facts
 
-The A2 inspection found the Finance domain under `mases_core/src/Domains/Finance/`, with legal entities, accounts, periods, journals/lines, posting/reversal, trial balance, source-reference validation, and audit lifecycle components. CoA v1.0.0 documentation and a 79-account opt-in seed catalogue exist. Existing API prefix is `/api/finance`. Source-reference mapping is limited and is not a complete operational posting-adapter framework. Foreign-currency journal posting and cross-currency consolidation are incomplete. Consolidation output is explicitly unadjusted. A dedicated Finance App workspace and Finance AI agent/orchestration layer were not found on inspected `main` heads. App `main` at A2: `76fb67a421b1a54e0529a3479e551a1d1e0c0d0f`.
+The A2 inspection found the Finance domain under `arna_core/src/Domains/Finance/`, with legal entities, accounts, periods, journals/lines, posting/reversal, trial balance, source-reference validation, and audit lifecycle components. CoA v1.0.0 documentation and a 79-account opt-in seed catalogue exist. Existing API prefix is `/api/finance`. Source-reference mapping is limited and is not a complete operational posting-adapter framework. Foreign-currency journal posting and cross-currency consolidation are incomplete. Consolidation output is explicitly unadjusted. A dedicated Finance App workspace and Finance AI agent/orchestration layer were not found on inspected `main` heads. App `main` at A2: `76fb67a421b1a54e0529a3479e551a1d1e0c0d0f`.
 
 These are source-inspection findings, not production runtime verification.
 

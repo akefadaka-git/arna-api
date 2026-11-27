@@ -6,7 +6,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\Arna\Core\Authorization\Models\PlatformApplication;
 
 /**
  * Returns active, frontend-ready applications accessible to the current user.

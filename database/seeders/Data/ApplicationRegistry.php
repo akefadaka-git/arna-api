@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Data;
 
-use MaaleArna\MASES\Core\Domains\Finance\Config\FinanceApplicationCatalogue;
+use MaaleArna\Arna\Core\Domains\Finance\Config\FinanceApplicationCatalogue;
 
 /**
  * ApplicationRegistry
  *
  * The platform's seven registered applications — Shareholder Portal,
  * Finance, Human Resources, Administration, ARNA AI Assistant, the
- * MASES Workspace, and the Application Launcher itself. This is the
+ * ARNA Workspace, and the Application Launcher itself. This is the
  * data the seeder writes into `platform_applications`.
  *
  * =============================================================================
@@ -23,7 +23,7 @@ use MaaleArna\MASES\Core\Domains\Finance\Config\FinanceApplicationCatalogue;
  * contents can be reviewed and corrected independently of the seeding
  * algorithm.
  *
- * The class was extracted from MasesCoreSeeder during the seeder
+ * The class was extracted from ArnaCoreSeeder during the seeder
  * refactoring (Unit S-3). Unit L-10a extended it with four fields
  * that were added to the `platform_applications` table by the L-9
  * migration. Unit D-1 corrects the `launcher` row's `domain` field
@@ -72,7 +72,7 @@ final class ApplicationRegistry
             'is_frontend_ready' => false, 'icon_key' => null, 'category' => 'intelligence', 'display_order' => 50,
         ],
         'app' => [
-            'slug' => 'app', 'name_am' => 'ማሴስ ወርክስፔስ', 'name_en' => 'MASES Workspace',
+            'slug' => 'app', 'name_am' => 'ማሴስ ወርክስፔስ', 'name_en' => 'ARNA Workspace',
             'description_am' => 'ማዕከላዊ የሥራ ቦታና የጋራ ዳሽቦርድ', 'description_en' => 'Central workspace and unified dashboard.',
             'domain' => 'app.maalearna.com.et', 'is_active' => true,
             'is_frontend_ready' => true, 'icon_key' => 'home', 'category' => 'platform', 'display_order' => 60,

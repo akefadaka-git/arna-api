@@ -8,10 +8,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Database\Seeders\Data\RolePermissionGrants;
 use Laravel\Sanctum\Sanctum;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Tenancy\Services\RequestTenantResolver;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -22,8 +22,8 @@ final class D08TaskManagementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Config::set('mases.tenant.isolation_enabled', true);
-        Config::set('mases.tenant.context_resolver', RequestTenantResolver::class);
+        Config::set('arna.tenant.isolation_enabled', true);
+        Config::set('arna.tenant.context_resolver', RequestTenantResolver::class);
     }
 
     private function tenant(): Tenant

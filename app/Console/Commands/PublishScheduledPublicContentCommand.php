@@ -6,8 +6,8 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use MaaleArna\MASES\Core\Audit\Models\AuditLog;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\PublicContent;
+use MaaleArna\Arna\Core\Audit\Models\AuditLog;
+use MaaleArna\Arna\Core\Domains\PublicContent\Models\PublicContent;
 
 final class PublishScheduledPublicContentCommand extends Command
 {

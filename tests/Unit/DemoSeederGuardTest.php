@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use Database\Seeders\Support\DemoSeederGuard;
-use Database\Seeders\MasesCoreSeeder;
+use Database\Seeders\ArnaCoreSeeder;
 use Database\Seeders\Support\UserPivotCleaner;
 use RuntimeException;
 use Tests\TestCase;
@@ -53,7 +53,7 @@ final class DemoSeederGuardTest extends TestCase
         ]);
 
         $this->expectException(RuntimeException::class);
-        app(MasesCoreSeeder::class)->run();
+        app(ArnaCoreSeeder::class)->run();
     }
 
     public function test_user_pivot_cleanup_is_blocked_before_database_access_when_opt_in_is_missing(): void

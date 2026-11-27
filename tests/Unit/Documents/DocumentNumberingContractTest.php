@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Documents;
 
 use InvalidArgumentException;
-use MaaleArna\MASES\Core\Domains\Documents\Registries\DocumentTypeRegistry;
-use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentNumberFormatter;
+use MaaleArna\Arna\Core\Domains\Documents\Registries\DocumentTypeRegistry;
+use MaaleArna\Arna\Core\Domains\Documents\Services\DocumentNumberFormatter;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

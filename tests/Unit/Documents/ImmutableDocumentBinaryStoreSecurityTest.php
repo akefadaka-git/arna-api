@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Documents;
 
-use MaaleArna\MASES\Core\Domains\Documents\Services\ImmutableDocumentBinaryStore;
+use MaaleArna\Arna\Core\Domains\Documents\Services\ImmutableDocumentBinaryStore;
 use RuntimeException;
 use Tests\TestCase;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +15,7 @@ final class ImmutableDocumentBinaryStoreSecurityTest extends TestCase
     {
         parent::setUp();
         Storage::fake('local');
-        config(['mases.documents.evidence_disk' => 'local']);
+        config(['arna.documents.evidence_disk' => 'local']);
     }
 
     public function test_capture_seals_file_and_version_directory_and_rejects_same_version_mutation(): void

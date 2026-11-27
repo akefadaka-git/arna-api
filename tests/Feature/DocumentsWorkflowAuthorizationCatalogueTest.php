@@ -6,10 +6,10 @@ namespace Tests\Feature;
 
 use Database\Seeders\Data\PermissionCatalogue;
 use Database\Seeders\Data\RolePermissionGrants;
-use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsPermissionCatalogue;
-use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsRolePermissionGrants;
-use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
-use MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceActingAssignmentService;
+use MaaleArna\Arna\Core\Domains\Documents\Database\Seeders\DocumentsPermissionCatalogue;
+use MaaleArna\Arna\Core\Domains\Documents\Database\Seeders\DocumentsRolePermissionGrants;
+use MaaleArna\Arna\Core\Domains\Governance\Services\GovernanceAuthorityGrantService;
+use MaaleArna\Arna\Core\Domains\Governance\Services\GovernanceActingAssignmentService;
 use Tests\TestCase;
 
 final class DocumentsWorkflowAuthorizationCatalogueTest extends TestCase

@@ -46,7 +46,7 @@ This is not a live database inspection, a production-data reconciliation, a lega
 
 Canonical domain root:
 
-`mases_core/src/Domains/Shareholder/`
+`arna_core/src/Domains/Shareholder/`
 
 The current API main tree contains:
 - **Models:** `Shareholder`, `ShareClass`, `ShareHolding`, `ShareHoldingEntry`, `ShareCertificate`, `ShareholderImportSubmission`, `ShareholderImportDecision`.
@@ -59,13 +59,13 @@ The current API main tree contains:
 - **Configuration/locales:** shareholder configuration plus Amharic and English type/status catalogues.
 - **Seeders:** share classes, shareholder permissions, shareholder roles, and root shareholder register/bootstrap seeders.
 
-The Shareholder provider is registered in `bootstrap/providers.php` (provider registry line 447 in the inspected main snapshot). It merges config, loads translations, binds services, registers four policies, connects audit listeners, and loads the domain migrations and routes when enabled. The config defaults `MASES_SHAREHOLDER_ENABLED` to true.
+The Shareholder provider is registered in `bootstrap/providers.php` (provider registry line 447 in the inspected main snapshot). It merges config, loads translations, binds services, registers four policies, connects audit listeners, and loads the domain migrations and routes when enabled. The config defaults `ARNA_SHAREHOLDER_ENABLED` to true.
 
 **Documentation inconsistency:** the provider's historical deployment-sequencing comment says the provider is not registered, while the current provider registry does register it. Refresh this stale comment during a documentation-maintenance change; do not change provider behavior as part of A2.
 
 ## 4. Complete Shareholder API route inventory on API main
 
-The domain route file is `mases_core/src/Domains/Shareholder/Routes/api.php`, loaded under the configured `/api/shareholders` prefix and authenticated tenant-membership middleware.
+The domain route file is `arna_core/src/Domains/Shareholder/Routes/api.php`, loaded under the configured `/api/shareholders` prefix and authenticated tenant-membership middleware.
 
 There are **14 route declarations / 15 HTTP method-path combinations**:
 
@@ -307,16 +307,16 @@ Current portal surfaces are own holdings and certificates, with wallet and loan 
 Current API main contains these Shareholder-focused tests:
 
 **Domain feature tests**
-- `mases_core/src/Domains/Shareholder/Tests/Feature/ShareholderRegistryTest.php`
-- `mases_core/src/Domains/Shareholder/Tests/Feature/ShareHoldingTest.php`
-- `mases_core/src/Domains/Shareholder/Tests/Feature/CertificateTest.php`
-- `mases_core/src/Domains/Shareholder/Tests/Feature/TenantIsolationTest.php`
+- `arna_core/src/Domains/Shareholder/Tests/Feature/ShareholderRegistryTest.php`
+- `arna_core/src/Domains/Shareholder/Tests/Feature/ShareHoldingTest.php`
+- `arna_core/src/Domains/Shareholder/Tests/Feature/CertificateTest.php`
+- `arna_core/src/Domains/Shareholder/Tests/Feature/TenantIsolationTest.php`
 
 **Domain unit tests**
-- `mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php`
-- `mases_core/src/Domains/Shareholder/Tests/Unit/ShareHoldingServiceTest.php`
-- `mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php`
-- `mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php`
+- `arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php`
+- `arna_core/src/Domains/Shareholder/Tests/Unit/ShareHoldingServiceTest.php`
+- `arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php`
+- `arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php`
 
 **Application-level feature tests**
 - `tests/Feature/ShareholderImportReviewPersistenceTest.php`

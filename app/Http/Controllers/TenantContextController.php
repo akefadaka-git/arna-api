@@ -7,8 +7,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 
 /**
  * Reports resolved tenant context for diagnostics.
@@ -52,7 +52,7 @@ final class TenantContextController extends Controller
         // Resolve tenant context established by middleware.
         $tenantId = null;
         try {
-            $tenantId = mases_tenant_id();
+            $tenantId = arna_tenant_id();
         } catch (\Throwable $e) {
             Log::warning('TenantContextController: tenant resolution failed', [
                 'error' => $e->getMessage(),

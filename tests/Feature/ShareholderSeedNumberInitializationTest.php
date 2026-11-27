@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use Database\Seeders\MasesCoreSeeder;
+use Database\Seeders\ArnaCoreSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use MaaleArna\MASES\Core\Domains\Shareholder\Services\ShareholderNumberReconciler;
+use MaaleArna\Arna\Core\Domains\Shareholder\Services\ShareholderNumberReconciler;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -34,7 +34,7 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
         $this->assertDatabaseCount('shareholder_number_sequences', 0);
 
         $exitCode = Artisan::call('db:seed', [
-            '--class' => MasesCoreSeeder::class,
+            '--class' => ArnaCoreSeeder::class,
             '--no-interaction' => true,
         ]);
 
@@ -83,7 +83,7 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
     public function a_second_seed_fails_before_clearing_permanent_numbering_history(): void
     {
         $firstExitCode = Artisan::call('db:seed', [
-            '--class' => MasesCoreSeeder::class,
+            '--class' => ArnaCoreSeeder::class,
             '--no-interaction' => true,
         ]);
 
@@ -101,7 +101,7 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
 
         try {
             Artisan::call('db:seed', [
-                '--class' => MasesCoreSeeder::class,
+                '--class' => ArnaCoreSeeder::class,
                 '--no-interaction' => true,
             ]);
         } catch (\RuntimeException $exception) {
@@ -129,20 +129,20 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
     public function direct_shareholder_seed_is_idempotent_for_legal_entity_rows(): void
     {
         $exitCode = Artisan::call('db:seed', [
-            '--class' => MasesCoreSeeder::class,
+            '--class' => ArnaCoreSeeder::class,
             '--no-interaction' => true,
         ]);
 
         $this->assertSame(0, $exitCode, Artisan::output());
 
-        $tenant = \MaaleArna\MASES\Core\Tenancy\Models\Tenant::query()
+        $tenant = \MaaleArna\Arna\Core\Tenancy\Models\Tenant::query()
             ->where('slug', 'main')
             ->firstOrFail();
-        $roles = \MaaleArna\MASES\Core\Authorization\Models\Role::query()
+        $roles = \MaaleArna\Arna\Core\Authorization\Models\Role::query()
             ->get()
             ->keyBy('slug')
             ->all();
-        $superAdmin = \MaaleArna\MASES\Core\Auth\Models\User::query()
+        $superAdmin = \MaaleArna\Arna\Core\Auth\Models\User::query()
             ->where('email', 'superadmin@maalearna.com.et')
             ->firstOrFail();
 
@@ -175,7 +175,7 @@ final class ShareholderSeedNumberInitializationTest extends TestCase
     public function sequence_is_repaired_from_reservations_when_current_shareholder_rows_are_absent(): void
     {
         $exitCode = Artisan::call('db:seed', [
-            '--class' => MasesCoreSeeder::class,
+            '--class' => ArnaCoreSeeder::class,
             '--no-interaction' => true,
         ]);
         $this->assertSame(0, $exitCode, Artisan::output());

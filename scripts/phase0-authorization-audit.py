@@ -153,10 +153,10 @@ def controller_path(action):
     if class_name.startswith(prefix):
         rel = class_name[len(prefix):].replace("\\", "/")
         return ROOT / "app/Http/Controllers" / (rel + ".php"), method
-    prefix = "MaaleArna\\MASES\\Core\\"
+    prefix = "MaaleArna\\Arna\\Core\\"
     if class_name.startswith(prefix):
         rel = class_name[len(prefix):].replace("\\", "/")
-        return ROOT / "mases_core/src" / (rel + ".php"), method
+        return ROOT / "arna_core/src" / (rel + ".php"), method
     return None, method
 
 for domain in ("api/loans", "api/governance"):
@@ -206,7 +206,7 @@ for domain in ("api/loans", "api/governance"):
         # rather than treating a service-layer ownership check as an unguarded route.
         module2_service_guard = False
         if domain == "api/governance" and path is not None and path.name == "GovernanceElectionCandidateController.php":
-            service_source = read_text(ROOT / "mases_core/src/Domains/Governance/Services/GovernanceElectionCandidateService.php")
+            service_source = read_text(ROOT / "arna_core/src/Domains/Governance/Services/GovernanceElectionCandidateService.php")
             service_method = {
                 "submitNomination": "submitNomination",
                 "withdrawNomination": "withdrawNomination",

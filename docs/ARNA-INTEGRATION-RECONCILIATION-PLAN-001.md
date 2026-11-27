@@ -29,16 +29,16 @@ Files:
 - database/migrations/2026_10_19_000002_create_user_authentication_factors_and_recovery_codes_tables.php
 - docs/ARNA-IDENTITY-AUTHENTICATION-SECURITY-SPEC.md
 - docs/ARNA-MFA-LIFECYCLE-CONTRACT-001.md
-- mases_core/src/Audit/Listeners/LogFailedLogin.php
-- mases_core/src/Auth/Events/FailedLogin.php
-- mases_core/src/Auth/Models/AuthenticationRecoveryCode.php
-- mases_core/src/Auth/Models/User.php
-- mases_core/src/Auth/Models/UserAuthenticationFactor.php
-- mases_core/src/Auth/Services/AuthenticationService.php
-- mases_core/src/Auth/Services/MfaChallengeService.php
-- mases_core/src/Auth/Services/MfaEnrollmentService.php
-- mases_core/src/Auth/Services/TotpService.php
-- mases_core/src/Domains/Shareholder/Repositories/ShareholderRepository.php
+- arna_core/src/Audit/Listeners/LogFailedLogin.php
+- arna_core/src/Auth/Events/FailedLogin.php
+- arna_core/src/Auth/Models/AuthenticationRecoveryCode.php
+- arna_core/src/Auth/Models/User.php
+- arna_core/src/Auth/Models/UserAuthenticationFactor.php
+- arna_core/src/Auth/Services/AuthenticationService.php
+- arna_core/src/Auth/Services/MfaChallengeService.php
+- arna_core/src/Auth/Services/MfaEnrollmentService.php
+- arna_core/src/Auth/Services/TotpService.php
+- arna_core/src/Domains/Shareholder/Repositories/ShareholderRepository.php
 - tests/Feature/AuthenticationFactorSchemaTest.php
 - tests/Feature/AuthenticationLifecycleTest.php
 - tests/Feature/MfaChallengeTest.php
@@ -57,9 +57,9 @@ Files:
 Files:
 - app/Http/Controllers/TenantContextController.php
 - database/migrations/2026_10_19_000001_add_status_to_tenant_memberships_table.php
-- mases_core/src/Tenancy/Middleware/TenantMembershipMiddleware.php
-- mases_core/src/Tenancy/Models/TenantMembership.php
-- mases_core/src/Tenancy/Services/TenantMembershipService.php
+- arna_core/src/Tenancy/Middleware/TenantMembershipMiddleware.php
+- arna_core/src/Tenancy/Models/TenantMembership.php
+- arna_core/src/Tenancy/Services/TenantMembershipService.php
 - tests/Feature/TenantMembershipLifecycleTest.php
 - tests/Feature/TenantMembershipTest.php
 - tests/Feature/C09/TenantResolutionTest.php
@@ -75,9 +75,9 @@ Files:
 Files:
 - database/seeders/Data/PermissionCatalogue.php
 - database/seeders/PermissionSeeder.php
-- mases_core/src/Authorization/Services/AuthorizationService.php
-- mases_core/src/Exceptions/AuthorizationFailureEvent.php (deleted by source PR; do not accept deletion until separately justified)
-- mases_core/src/Files/Services/FileService.php
+- arna_core/src/Authorization/Services/AuthorizationService.php
+- arna_core/src/Exceptions/AuthorizationFailureEvent.php (deleted by source PR; do not accept deletion until separately justified)
+- arna_core/src/Files/Services/FileService.php
 - tests/Unit/AuthorizationServiceTest.php
 - tests/Unit/UserPermissionScopeTest.php
 
@@ -90,20 +90,20 @@ Files:
 **Goal:** review the employee domain as a self-contained domain unit, including API, policy, repository, lifecycle, migration, and tests.
 
 Files:
-- mases_core/src/Domains/Employee/Config/employee.php
-- mases_core/src/Domains/Employee/Database/Migrations/2026_10_19_120000_create_employees_table.php
-- mases_core/src/Domains/Employee/Http/Controllers/EmployeeController.php
-- mases_core/src/Domains/Employee/Http/Requests/StoreEmployeeRequest.php
-- mases_core/src/Domains/Employee/Http/Requests/UpdateEmployeeRequest.php
-- mases_core/src/Domains/Employee/Http/Resources/EmployeeResource.php
-- mases_core/src/Domains/Employee/Models/Employee.php
-- mases_core/src/Domains/Employee/Policies/EmployeePolicy.php
-- mases_core/src/Domains/Employee/Providers/EmployeeServiceProvider.php
-- mases_core/src/Domains/Employee/Repositories/EmployeeRepository.php
-- mases_core/src/Domains/Employee/Routes/api.php
-- mases_core/src/Domains/Employee/Services/EmployeeService.php
-- mases_core/src/Domains/Employee/Tests/Feature/EmployeeControllerTest.php
-- mases_core/src/Domains/Employee/Tests/Feature/EmployeePolicyTest.php
+- arna_core/src/Domains/Employee/Config/employee.php
+- arna_core/src/Domains/Employee/Database/Migrations/2026_10_19_120000_create_employees_table.php
+- arna_core/src/Domains/Employee/Http/Controllers/EmployeeController.php
+- arna_core/src/Domains/Employee/Http/Requests/StoreEmployeeRequest.php
+- arna_core/src/Domains/Employee/Http/Requests/UpdateEmployeeRequest.php
+- arna_core/src/Domains/Employee/Http/Resources/EmployeeResource.php
+- arna_core/src/Domains/Employee/Models/Employee.php
+- arna_core/src/Domains/Employee/Policies/EmployeePolicy.php
+- arna_core/src/Domains/Employee/Providers/EmployeeServiceProvider.php
+- arna_core/src/Domains/Employee/Repositories/EmployeeRepository.php
+- arna_core/src/Domains/Employee/Routes/api.php
+- arna_core/src/Domains/Employee/Services/EmployeeService.php
+- arna_core/src/Domains/Employee/Tests/Feature/EmployeeControllerTest.php
+- arna_core/src/Domains/Employee/Tests/Feature/EmployeePolicyTest.php
 
 **Acceptance gate:** tenant-scoped unique employee number; nullable user linkage handled safely; inactive/unlinked employee identifiers cannot authenticate; policy/controller/service authorization consistency; request validation and resource exposure review; migration/index/soft-delete behavior; provider and route registration; all Employee tests pass on the candidate.
 
@@ -112,12 +112,12 @@ Files:
 **Goal:** add wallet account-number support without breaking wallet accounting, ownership, tenant isolation, audit events, or resource boundaries.
 
 Files:
-- mases_core/src/Domains/Wallet/Database/Migrations/2026_10_19_150000_add_account_number_to_wallets_table.php
-- mases_core/src/Domains/Wallet/Http/Resources/WalletResource.php
-- mases_core/src/Domains/Wallet/Listeners/AuditWalletEvent.php
-- mases_core/src/Domains/Wallet/Models/Wallet.php
-- mases_core/src/Domains/Wallet/Services/WalletService.php
-- mases_core/src/Domains/Wallet/Tests/Unit/WalletServiceTest.php
+- arna_core/src/Domains/Wallet/Database/Migrations/2026_10_19_150000_add_account_number_to_wallets_table.php
+- arna_core/src/Domains/Wallet/Http/Resources/WalletResource.php
+- arna_core/src/Domains/Wallet/Listeners/AuditWalletEvent.php
+- arna_core/src/Domains/Wallet/Models/Wallet.php
+- arna_core/src/Domains/Wallet/Services/WalletService.php
+- arna_core/src/Domains/Wallet/Tests/Unit/WalletServiceTest.php
 
 **Acceptance gate:** tenant-unique and correctly indexed account number; existing-wallet backfill/default behavior reviewed; no unintended identifier reuse or cross-tenant resolution; account-number exposure approved; audit event semantics preserved; migration safety and wallet tests verified. U1 may depend on this unit for the sixth login identifier.
 

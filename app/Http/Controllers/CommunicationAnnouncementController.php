@@ -8,10 +8,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Notifications\Services\NotificationService;
-use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
-use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Notifications\Services\NotificationService;
+use MaaleArna\Arna\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\Arna\Core\Tenancy\Services\TenantContextService;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 final class CommunicationAnnouncementController
@@ -151,7 +151,7 @@ final class CommunicationAnnouncementController
             ]);
             DB::table('communication_announcement_recipients')->where('announcement_id', $id)->update(['delivered_at' => now(), 'updated_at' => now()]);
             $this->notifications->publish(
-                app(\MaaleArna\MASES\Core\Tenancy\Models\Tenant::class)->newQuery()->findOrFail($tenantId),
+                app(\MaaleArna\Arna\Core\Tenancy\Models\Tenant::class)->newQuery()->findOrFail($tenantId),
                 $users->all(),
                 [
                     'event_key' => 'communication.announcement.published', 'category' => 'announcement',

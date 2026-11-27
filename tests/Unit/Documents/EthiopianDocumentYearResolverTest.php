@@ -6,8 +6,8 @@ namespace Tests\Unit\Documents;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use MaaleArna\MASES\Core\Domains\Documents\Services\EthiopianDocumentYearResolver;
-use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
+use MaaleArna\Arna\Core\Domains\Documents\Services\EthiopianDocumentYearResolver;
+use MaaleArna\Arna\Core\Localization\Calendar\EthiopianCalendar;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

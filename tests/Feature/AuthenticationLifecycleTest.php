@@ -10,16 +10,16 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Tenancy\Models\TenantMembership;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
  * AuthenticationLifecycleTest
  *
- * Comprehensive test suite for the complete authentication lifecycle of the MASES API.
+ * Comprehensive test suite for the complete authentication lifecycle of the ARNA API.
  *
  * This suite verifies:
  * - Login with valid/invalid credentials and tenant access
@@ -38,7 +38,7 @@ use Tests\TestCase;
  * -----------------------------------------------------------------------------
  * Envelope contract (Phase 2A CR-003a / CR-021a)
  * -----------------------------------------------------------------------------
- * The `/api/user` endpoint returns the canonical MASES envelope:
+ * The `/api/user` endpoint returns the canonical ARNA envelope:
  *
  *     { "success": true, "data": { "id": …, "name": …, "email": …, … } }
  *
@@ -70,7 +70,7 @@ use Tests\TestCase;
  * -----------------------------------------------------------------------------
  * Covers authentication lifecycle and API response contracts.
  * @package Tests\Feature
- * @author  MASES Development Team
+ * @author  ARNA Development Team
  * @version 1.2.2
  */
 final class AuthenticationLifecycleTest extends TestCase
@@ -193,7 +193,7 @@ final class AuthenticationLifecycleTest extends TestCase
 
         $protectedResponse->assertStatus(200);
 
-        // The `/api/user` endpoint returns the canonical MASES envelope:
+        // The `/api/user` endpoint returns the canonical ARNA envelope:
         // {success: true, data: {email: …}}. Assert on the nested path.
         $protectedResponse->assertJsonPath('data.email', 'test@example.com');
     }
@@ -636,16 +636,16 @@ final class AuthenticationLifecycleTest extends TestCase
      * Test that an unauthenticated user cannot access protected routes.
      *
      * A request to a protected endpoint without a valid token should result
-     * in a 401 Unauthorized response with the canonical MASES error code
+     * in a 401 Unauthorized response with the canonical ARNA error code
      * `AUTH_UNAUTHENTICATED`.
      *
      * Prior to D-15, the middleware threw Laravel's own
      * `Illuminate\Auth\AuthenticationException`, which the canonical
      * renderer mapped to the code `UNAUTHENTICATED`. That string had no
      * `AUTH_` prefix and was the only 401 code in the platform not drawn
-     * from the `MaaleArna\MASES\Core\Exceptions\AuthenticationException`
+     * from the `MaaleArna\Arna\Core\Exceptions\AuthenticationException`
      * taxonomy. D-15 aligned the middleware's exception family with the
-     * rest of MASES, so both this HTTP-layer path and the application-
+     * rest of ARNA, so both this HTTP-layer path and the application-
      * layer paths now produce canonical `AUTH_*` codes. See the class
      * docblock §"Revision history" for the full rationale.
      *

@@ -25,9 +25,9 @@ A1 v1.0 remains **VERIFIED-CLOSED / FROZEN** and A2 remains **VERIFIED-CLOSED**.
 
 ### Files changed
 
-- mases_core/src/Calendar/Services/CalendarService.php
-- mases_core/src/Calendar/Http/Controllers/CalendarController.php
-- mases_core/src/Calendar/Services/CalendarReminderDispatcher.php
+- arna_core/src/Calendar/Services/CalendarService.php
+- arna_core/src/Calendar/Http/Controllers/CalendarController.php
+- arna_core/src/Calendar/Services/CalendarReminderDispatcher.php
 - routes/api.php
 - database/migrations/2026_11_27_000001_create_calendar_appointment_reschedule_proposals_table.php
 - database/migrations/2026_11_27_000002_create_calendar_appointment_notification_outbox_table.php

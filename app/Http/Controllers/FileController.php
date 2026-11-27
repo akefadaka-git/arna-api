@@ -8,11 +8,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
-use MaaleArna\MASES\Core\Audit\Traits\LogsAudit;
-use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
-use MaaleArna\MASES\Core\Exceptions\FileException;
-use MaaleArna\MASES\Core\Domains\FileManagement\Models\File;
-use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService;
+use MaaleArna\Arna\Core\Audit\Traits\LogsAudit;
+use MaaleArna\Arna\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\Arna\Core\Exceptions\FileException;
+use MaaleArna\Arna\Core\Domains\FileManagement\Models\File;
+use MaaleArna\Arna\Core\Domains\FileManagement\Services\FileService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** Handles tenant-scoped file operations and their audit events. */
@@ -33,7 +33,7 @@ final class FileController extends Controller
     public function upload(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'file'          => ['required', 'file', 'max:' . (config('mases.files.max_upload_size', 100) * 1024)],
+            'file'          => ['required', 'file', 'max:' . (config('arna.files.max_upload_size', 100) * 1024)],
             'directory'     => ['sometimes', 'string', 'max:255'],
             'is_public'     => ['sometimes', 'boolean'],
             'metadata'      => ['sometimes', 'array'],
@@ -52,7 +52,7 @@ final class FileController extends Controller
         $this->authorizationService->requirePermission(
             user: $user,
             permissionSlug: 'file.upload',
-            tenantId: mases_tenant_id()
+            tenantId: arna_tenant_id()
         );
 
         $file = $this->fileService->upload(
@@ -62,7 +62,7 @@ final class FileController extends Controller
             isPublic: $validated['is_public'] ?? false,
             metadata: $validated['metadata'] ?? [],
             user: $user,
-            tenantId: mases_tenant_id(),
+            tenantId: arna_tenant_id(),
             parentFileId: $validated['parent_file_id'] ?? null
         );
 
@@ -192,7 +192,7 @@ final class FileController extends Controller
             'status'    => ['sometimes', 'string', 'in:draft,published,archived'],
             'is_public' => ['sometimes', 'boolean'],
             'metadata'  => ['sometimes', 'array'],
-            'file'      => ['sometimes', 'file', 'max:' . (config('mases.files.max_upload_size', 100) * 1024)],
+            'file'      => ['sometimes', 'file', 'max:' . (config('arna.files.max_upload_size', 100) * 1024)],
         ]);
 
         $user = $request->user();
@@ -301,12 +301,12 @@ final class FileController extends Controller
         $this->authorizationService->requirePermission(
             user: $user,
             permissionSlug: 'file.list',
-            tenantId: mases_tenant_id()
+            tenantId: arna_tenant_id()
         );
 
         $filters = $request->only(['status', 'is_public', 'user_id', 'mime_type', 'order_by', 'order_direction', 'limit']);
         $files = $this->fileService->getFilesForTenant(
-            tenantId: mases_tenant_id(),
+            tenantId: arna_tenant_id(),
             filters: $filters
         );
 

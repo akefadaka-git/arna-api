@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Auth\Models\User;
 
 final class PhoneVerificationController extends Controller
 {

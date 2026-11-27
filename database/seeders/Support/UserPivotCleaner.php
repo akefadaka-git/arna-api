@@ -7,7 +7,7 @@ namespace Database\Seeders\Support;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Auth\Models\User;
 
 /**
  * Destructive, transactional seeder reset of users and dependent pivots. Run only through the controlled seed/reset workflow.

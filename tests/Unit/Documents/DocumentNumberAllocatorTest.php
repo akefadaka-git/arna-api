@@ -6,9 +6,9 @@ namespace Tests\Unit\Documents;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentNumberAllocator;
-use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentNumberFormatter;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Domains\Documents\Services\DocumentNumberAllocator;
+use MaaleArna\Arna\Core\Domains\Documents\Services\DocumentNumberFormatter;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Tests\TestCase;

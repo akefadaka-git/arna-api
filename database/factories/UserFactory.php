@@ -9,12 +9,12 @@ namespace Database\Factories;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Auth\Models\User;
 
 /**
  * UserFactory
  *
- * Produces `MaaleArna\MASES\Core\Auth\Models\User` instances whose
+ * Produces `MaaleArna\Arna\Core\Auth\Models\User` instances whose
  * shape matches the actual `users` table schema (six bilingual name
  * columns; no single `name` column).
  *
@@ -26,8 +26,8 @@ class UserFactory extends Factory
      * The model this factory produces.
      *
      * Bound explicitly so that both `App\Models\User::factory()` and
-     * `MaaleArna\MASES\Core\Auth\Models\User::factory()` resolve to
-     * the same instance type — the MASES Core User.
+     * `MaaleArna\Arna\Core\Auth\Models\User::factory()` resolve to
+     * the same instance type — the ARNA Core User.
      *
      * @var class-string<User>
      */

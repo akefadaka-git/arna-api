@@ -6,7 +6,7 @@ namespace Database\Seeders;
 
 use Database\Seeders\Data\ApplicationRegistry;
 use Illuminate\Database\Seeder;
-use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\Arna\Core\Authorization\Models\PlatformApplication;
 
 /**
  * Seeds the registered platform applications and returns their model map.

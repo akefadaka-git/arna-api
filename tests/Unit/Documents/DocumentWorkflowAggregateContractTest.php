@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Documents;
 
-use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
+use MaaleArna\Arna\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;

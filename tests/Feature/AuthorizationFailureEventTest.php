@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use MaaleArna\Arna\Core\Tenancy\Services\RequestTenantResolver;
 use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Security\Models\SecurityEvent;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Security\Models\SecurityEvent;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
 
 /**
@@ -58,10 +58,10 @@ final class AuthorizationFailureEventTest extends TestCase
         parent::setUp();
 
         // Ensure the audit trail is enabled and tenant isolation is on.
-        Config::set('mases.features.audit_enabled', true);
-        Config::set('mases.tenant.isolation_enabled', true);
+        Config::set('arna.features.audit_enabled', true);
+        Config::set('arna.tenant.isolation_enabled', true);
         Config::set(
-            'mases.tenant.context_resolver',
+            'arna.tenant.context_resolver',
             RequestTenantResolver::class
         );
 
@@ -240,14 +240,14 @@ final class AuthorizationFailureEventTest extends TestCase
 
         $this->withHeaders([
             'X-Tenant-ID'  => (string) $this->tenant->id,
-            'User-Agent'   => 'MASES-Test-Agent/1.0',
+            'User-Agent'   => 'ARNA-Test-Agent/1.0',
             'X-Request-ID' => 'req-fixed-001',
         ])->getJson('/_test/permission')->assertStatus(403);
 
         $event = SecurityEvent::where('event_type', self::EVENT_TYPE)->firstOrFail();
 
         $this->assertNotNull($event->ip_address);
-        $this->assertStringContainsString('MASES-Test-Agent', (string) $event->user_agent);
+        $this->assertStringContainsString('ARNA-Test-Agent', (string) $event->user_agent);
         $this->assertSame('req-fixed-001', $event->request_id);
     }
 
@@ -404,7 +404,7 @@ final class AuthorizationFailureEventTest extends TestCase
     #[Test]
     public function denial_is_not_persisted_when_audit_is_disabled(): void
     {
-        Config::set('mases.features.audit_enabled', false);
+        Config::set('arna.features.audit_enabled', false);
 
         $this->registerPermissionRoute('test.disabled');
 

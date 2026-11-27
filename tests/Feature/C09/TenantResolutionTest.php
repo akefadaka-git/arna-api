@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature\C09;
 
-use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\Arna\Core\Authorization\Services\AuthorizationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\Sanctum;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
-use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Domains\Shareholder\Models\Shareholder;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
 
 /**
@@ -24,19 +24,19 @@ use Tests\TestCase;
  * =============================================================================
  *
  * Regression coverage for the C-09 tenant-context correction. Before the
- * fix, `mases_tenant_id()` gave priority to the request body/query
+ * fix, `arna_tenant_id()` gave priority to the request body/query
  * `tenant_id` value over the `X-Tenant-ID` header — even though the
  * middleware pipeline (`TenantContextMiddleware` + `TenantMembershipMiddleware`)
  * had already verified membership against the header-derived tenant.
  *
  * The consequence: an authenticated user who is a member of tenant A
  * could send `?tenant_id=B` (or a body containing `tenant_id: B`) and
- * cause any downstream consumer of `mases_tenant_id()` — including
+ * cause any downstream consumer of `arna_tenant_id()` — including
  * authorization checks, audit writes, security-event writes, and every
  * domain controller's data scoping — to operate against tenant B. That
  * is a cross-tenant data-exposure vulnerability.
  *
- * After the fix, in HTTP context `mases_tenant_id()` reads tenant context
+ * After the fix, in HTTP context `arna_tenant_id()` reads tenant context
  * exclusively from `TenantContextService`, which the middleware pipeline
  * populates. Request body and query `tenant_id` is ordinary input; it is
  * never security tenant context.
@@ -119,9 +119,9 @@ final class TenantResolutionTest extends TestCase
      * shareholder. Request: header = A, query = ?tenant_id=B. Response
      * must reflect A's shareholders, not B's.
      *
-     * Fails on the pre-C-09 codebase: `mases_tenant_id()` returns B, the
+     * Fails on the pre-C-09 codebase: `arna_tenant_id()` returns B, the
      * endpoint's query scopes to B, and the response contains B's row.
-     * Passes on the C-09-corrected codebase: `mases_tenant_id()` returns
+     * Passes on the C-09-corrected codebase: `arna_tenant_id()` returns
      * A, the query scopes to A.
      */
     public function test_body_tenant_id_cannot_override_header(): void
@@ -279,7 +279,7 @@ final class TenantResolutionTest extends TestCase
 
     /**
      * HTTP request with no header and no body. User has a default tenant
-     * A. The C-09 rule: `mases_tenant_id()` must return null in HTTP
+     * A. The C-09 rule: `arna_tenant_id()` must return null in HTTP
      * context when the middleware resolved no tenant. It must NOT fall
      * back to `$user->default_tenant_id`.
      *
@@ -367,7 +367,7 @@ final class TenantResolutionTest extends TestCase
         Sanctum::actingAs($user, ['*']);
 
         // Simulate stale state from a prior request in a long-lived worker.
-        $context = app(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class);
+        $context = app(\MaaleArna\Arna\Core\Tenancy\Services\TenantContextService::class);
         $context->setTenantById($tenant->id);
         $this->assertTrue($context->hasTenant());
 
@@ -518,7 +518,7 @@ final class TenantResolutionTest extends TestCase
      */
     public function test_tenant_lookup_failure_log_does_not_disclose_tenant_inventory(): void
     {
-        $context = app(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class);
+        $context = app(\MaaleArna\Arna\Core\Tenancy\Services\TenantContextService::class);
 
         Log::shouldReceive('warning')
             ->once()
@@ -547,7 +547,7 @@ final class TenantResolutionTest extends TestCase
         $tenantA = $scenario['tenantA'];
         $tenantB = $scenario['tenantB'];
 
-        $context = app(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class);
+        $context = app(\MaaleArna\Arna\Core\Tenancy\Services\TenantContextService::class);
         $context->setTenantById($tenantA->id);
 
         try {

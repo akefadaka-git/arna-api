@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Documents;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Domains\Documents\Services\SodiumDocumentSignatureEvidenceVerifier;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Domains\Documents\Services\SodiumDocumentSignatureEvidenceVerifier;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Tests\TestCase;
 

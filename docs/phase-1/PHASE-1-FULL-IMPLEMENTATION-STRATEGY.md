@@ -80,9 +80,9 @@ Every Phase 1 requirement has a disposition: reuse, amend, create, defer or reje
 This gate makes no application-code or schema changes. Review existing identity, employee, shareholder, wallet, governance, migration, branding and candidate-branch work.
 
 ### Known starting points requiring targeted review
-- API: `app/Models/User.php`, `mases_core/src/Auth/Models/User.php`, `database/migrations/2026_10_22_000001_create_employees_table.php`, shareholder identity models/repositories, wallet account identifier models/services and authentication services.
+- API: `app/Models/User.php`, `arna_core/src/Auth/Models/User.php`, `database/migrations/2026_10_22_000001_create_employees_table.php`, shareholder identity models/repositories, wallet account identifier models/services and authentication services.
 - API migration discovery: `database/migrations/`, domain migration directories, domain service providers, `tests/Feature/LoanRepaymentIdempotencyMigrationDiscoveryTest.php`, and `tests/Feature/ShareholderMigrationDiscoveryTest.php`.
-- Governance: `mases_core/src/Domains/Governance/` and its models, services, policies, routes and tests.
+- Governance: `arna_core/src/Domains/Governance/` and its models, services, policies, routes and tests.
 - App emblem candidate: compare `main` with `fix/arna-public-emblem`, especially `src/layouts/PublicSiteLayout.vue` and `src/public-site/PublicHome.vue`; inspect exact diff and related assets/styles before deciding.
 - Existing integration plan: `docs/ARNA-INTEGRATION-RECONCILIATION-PLAN-001.md`.
 
@@ -102,9 +102,9 @@ Owner reviews the reconciliation report and authorizes a bounded implementation 
 
 ### API files to inspect and amend where justified
 - Existing: `app/Http/Kernel.php` or the actual Laravel 12 middleware configuration location; `bootstrap/app.php`; `bootstrap/providers.php`; `config/auth.php`; `config/cache.php`; `config/queue.php`; `config/logging.php`; `routes/api.php`.
-- Existing tenant middleware and services under `mases_core/src/Tenancy/`.
-- Existing authorization code under `mases_core/src/Authorization/`, policies and permission catalogues.
-- Existing authentication services under `mases_core/src/Auth/` and controllers under `app/Http/Controllers/Auth/`.
+- Existing tenant middleware and services under `arna_core/src/Tenancy/`.
+- Existing authorization code under `arna_core/src/Authorization/`, policies and permission catalogues.
+- Existing authentication services under `arna_core/src/Auth/` and controllers under `app/Http/Controllers/Auth/`.
 - Existing audit/security-event models, listeners and middleware.
 - Existing tests covering tenant resolution, membership, authorization, auth lifecycle, route middleware and cross-tenant isolation.
 
@@ -137,16 +137,16 @@ Provide a coherent person/profile view across employee, shareholder, governance 
 
 ### Candidate API files to create if confirmed missing
 Use the existing domain convention and namespace only after P1.0a confirms it:
-- `mases_core/src/Domains/People/Models/PersonProfile.php`
-- `mases_core/src/Domains/People/Services/PersonProfileService.php`
-- `mases_core/src/Domains/People/Repositories/PersonProfileRepository.php`
-- `mases_core/src/Domains/People/Http/Controllers/PersonProfileController.php`
-- `mases_core/src/Domains/People/Http/Requests/StorePersonProfileRequest.php`
-- `mases_core/src/Domains/People/Http/Requests/UpdatePersonProfileRequest.php`
-- `mases_core/src/Domains/People/Http/Resources/PersonProfileResource.php`
-- `mases_core/src/Domains/People/Policies/PersonProfilePolicy.php`
-- `mases_core/src/Domains/People/Routes/api.php`
-- `mases_core/src/Domains/People/Providers/PeopleServiceProvider.php`
+- `arna_core/src/Domains/People/Models/PersonProfile.php`
+- `arna_core/src/Domains/People/Services/PersonProfileService.php`
+- `arna_core/src/Domains/People/Repositories/PersonProfileRepository.php`
+- `arna_core/src/Domains/People/Http/Controllers/PersonProfileController.php`
+- `arna_core/src/Domains/People/Http/Requests/StorePersonProfileRequest.php`
+- `arna_core/src/Domains/People/Http/Requests/UpdatePersonProfileRequest.php`
+- `arna_core/src/Domains/People/Http/Resources/PersonProfileResource.php`
+- `arna_core/src/Domains/People/Policies/PersonProfilePolicy.php`
+- `arna_core/src/Domains/People/Routes/api.php`
+- `arna_core/src/Domains/People/Providers/PeopleServiceProvider.php`
 - Domain feature tests for tenant isolation, profile lifecycle, linked identities, privacy and authorization.
 - A migration only after schema design and migration registration are approved; filename and directory must follow the verified repository convention.
 
@@ -188,7 +188,7 @@ The API already has a substantial Governance domain. Review its bodies, position
 - Explicit conflict-of-interest declarations and separation-of-duties checks where required by governance policy.
 
 ### Candidate API paths
-Prefer existing `mases_core/src/Domains/Governance/` files when responsibility already belongs there:
+Prefer existing `arna_core/src/Domains/Governance/` files when responsibility already belongs there:
 - Existing models/services/requests/resources/policies for bodies, positions, terms, appointments and memberships.
 - Add bounded services/requests/resources for committee decisions, meetings or authority rules only after confirming those capabilities do not exist.
 - Add tests for one effective primary incumbent where the rule applies, permitted acting appointments, overlapping terms, cross-tenant references, revoked appointments and authority limits.
@@ -230,17 +230,17 @@ Preserve current wallet and loan behavior while establishing a reliable accounti
 ### Candidate API paths, conditional on current architecture
 - Existing Wallet and Loan services/tests: amend only the relevant transaction and invariant logic.
 - If no accounting domain exists after inventory, propose:
-  - `mases_core/src/Domains/Accounting/Models/Account.php`
-  - `mases_core/src/Domains/Accounting/Models/JournalEntry.php`
-  - `mases_core/src/Domains/Accounting/Models/JournalLine.php`
-  - `mases_core/src/Domains/Accounting/Services/JournalPostingService.php`
-  - `mases_core/src/Domains/Accounting/Services/PeriodCloseService.php`
-  - `mases_core/src/Domains/Accounting/Services/LedgerReconciliationService.php`
-  - `mases_core/src/Domains/Accounting/Http/Controllers/AccountController.php`
-  - `mases_core/src/Domains/Accounting/Http/Controllers/JournalController.php`
-  - `mases_core/src/Domains/Accounting/Http/Resources/JournalEntryResource.php`
-  - `mases_core/src/Domains/Accounting/Policies/JournalEntryPolicy.php`
-  - `mases_core/src/Domains/Accounting/Routes/api.php`
+  - `arna_core/src/Domains/Accounting/Models/Account.php`
+  - `arna_core/src/Domains/Accounting/Models/JournalEntry.php`
+  - `arna_core/src/Domains/Accounting/Models/JournalLine.php`
+  - `arna_core/src/Domains/Accounting/Services/JournalPostingService.php`
+  - `arna_core/src/Domains/Accounting/Services/PeriodCloseService.php`
+  - `arna_core/src/Domains/Accounting/Services/LedgerReconciliationService.php`
+  - `arna_core/src/Domains/Accounting/Http/Controllers/AccountController.php`
+  - `arna_core/src/Domains/Accounting/Http/Controllers/JournalController.php`
+  - `arna_core/src/Domains/Accounting/Http/Resources/JournalEntryResource.php`
+  - `arna_core/src/Domains/Accounting/Policies/JournalEntryPolicy.php`
+  - `arna_core/src/Domains/Accounting/Routes/api.php`
   - migrations, provider, permissions and seeders only after explicit schema/registration review.
 - Tests: journal balancing, immutable posting, reversal, period closure, FX rounding, duplicate request replay, concurrent posting and subledger reconciliation.
 
@@ -268,8 +268,8 @@ No financial workflow is called complete without domain tests, database constrai
 - Integration with inventory only if an inventory domain exists or is separately approved; do not invent stock semantics.
 
 ### Candidate API paths if no equivalent exists
-- `mases_core/src/Domains/Procurement/Models/`, `Services/`, `Repositories/`, `Http/Controllers/`, `Http/Requests/`, `Http/Resources/`, `Policies/`, `Routes/api.php`, `Providers/`, `Tests/Feature/`.
-- Equivalent bounded structure under `mases_core/src/Domains/Sales/`.
+- `arna_core/src/Domains/Procurement/Models/`, `Services/`, `Repositories/`, `Http/Controllers/`, `Http/Requests/`, `Http/Resources/`, `Policies/`, `Routes/api.php`, `Providers/`, `Tests/Feature/`.
+- Equivalent bounded structure under `arna_core/src/Domains/Sales/`.
 - Add migrations, permission catalogue entries, audit events, notifications and seeders only as justified.
 - Reuse governance/authority and accounting services; never duplicate their business rules inside order controllers.
 

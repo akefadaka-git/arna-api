@@ -6,11 +6,11 @@ namespace Tests\Feature;
 
 use DomainException;
 use Illuminate\Support\Facades\DB;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Security\Models\SecurityEvent;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
-use MaaleArna\MASES\Core\Tenancy\Services\TenantMembershipService;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Security\Models\SecurityEvent;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\Arna\Core\Tenancy\Services\TenantMembershipService;
 use RuntimeException;
 use Throwable;
 use Tests\TestCase;

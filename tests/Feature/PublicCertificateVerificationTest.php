@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareCertificate;
-use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareClass;
-use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Domains\Shareholder\Models\ShareCertificate;
+use MaaleArna\Arna\Core\Domains\Shareholder\Models\ShareClass;
+use MaaleArna\Arna\Core\Domains\Shareholder\Models\Shareholder;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
 
 final class PublicCertificateVerificationTest extends TestCase

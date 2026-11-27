@@ -10,10 +10,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use MaaleArna\MASES\Core\Audit\Models\AuditLog;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteEntry;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
+use MaaleArna\Arna\Core\Audit\Models\AuditLog;
+use MaaleArna\Arna\Core\Domains\PublicContent\Models\CorporateSiteEntry;
+use MaaleArna\Arna\Core\Domains\PublicContent\Models\CorporateSiteInquiry;
+use MaaleArna\Arna\Core\Domains\PublicContent\Models\CorporateSitePage;
 use App\Services\CorporateSite\CorporateMediaScanner;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 

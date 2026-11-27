@@ -6,15 +6,15 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
-use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
-use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
-use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinancialReportContract;
-use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
-use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\Arna\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\Arna\Core\Domains\Finance\Contracts\FinancialReportContract;
+use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\Arna\Core\Domains\Finance\Models\LedgerAccount;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -333,7 +333,7 @@ final class ExecutiveOverviewA4FreshAuthorizationTest extends TestCase
 
         $this->expectException(\Illuminate\Validation\ValidationException::class);
 
-        app(\MaaleArna\MASES\Core\Domains\Finance\Services\FinanceConsolidationService::class)
+        app(\MaaleArna\Arna\Core\Domains\Finance\Services\FinanceConsolidationService::class)
             ->trialBalance((int) $tenantA->id, [(int) $entityA->id, (int) $foreignEntity->id], now()->toDateString());
     }
 

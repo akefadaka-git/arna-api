@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use MaaleArna\Arna\Core\Tenancy\Services\RequestTenantResolver;
 use RuntimeException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Route;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -18,7 +18,7 @@ use Tests\TestCase;
  * ApiErrorContractTest
  *
  * Priority 4 of Phase 1.5 — verifies that every error path in the API
- * returns the canonical MASES error envelope:
+ * returns the canonical ARNA error envelope:
  *
  *     {
  *       "success": false,
@@ -62,9 +62,9 @@ final class ApiErrorContractTest extends TestCase
     {
         parent::setUp();
 
-        Config::set('mases.tenant.isolation_enabled', true);
+        Config::set('arna.tenant.isolation_enabled', true);
         Config::set(
-            'mases.tenant.context_resolver',
+            'arna.tenant.context_resolver',
             RequestTenantResolver::class
         );
 

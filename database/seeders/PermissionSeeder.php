@@ -6,8 +6,8 @@ namespace Database\Seeders;
 
 use Database\Seeders\Data\PermissionCatalogue;
 use Illuminate\Database\Seeder;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Authorization\Models\PlatformApplication;
 
 /**
  * Seeds platform permissions, including application-scoped access grants.

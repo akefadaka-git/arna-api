@@ -28,12 +28,12 @@ The following six shareholder-domain source files were compared at current main 
 
 | Source | Blob SHA | Contract / disposition |
 |---|---|---|
-| mases_core/src/Domains/Shareholder/Models/Shareholder.php | c2bd05abab1364537ea6531916daa28f3ddb3f0c | Canonical holder identity in the official shareholder register; individual and legal-entity types; direct user vs authorized representative are distinct; soft deletion preserves identity history |
-| mases_core/src/Domains/Shareholder/Models/ShareClass.php | b1ed73163a4122b43489429d0f06049f16d39ee3 | Share-class identity and attributes; no class-specific voting-right or vote-weight fields currently exist |
-| mases_core/src/Domains/Shareholder/Models/ShareHolding.php | f3bb01411824ce95a7c2e25111b84671b8ada9fe | Current-state projection of one shareholder/share-class pair; not the authoritative historical source |
-| mases_core/src/Domains/Shareholder/Models/ShareHoldingEntry.php | 7c30f03dffaf6635128f7d03aed06231b9030f9a | Append-only signed share-quantity ledger; carries before/after balances, entry type, business time, references and reversal link |
-| mases_core/src/Domains/Shareholder/Services/ShareHoldingService.php | 02de3196184f310afc81da219043d61cf057bb80 | Sole supported holding writer; transactions, row locks, append-only entries and reversal operations |
-| mases_core/src/Domains/Shareholder/Database/Migrations/2026_09_11_000004_create_share_holding_entries_table.php | 0a983117b1c0c12c802ef378a500447128f26c90 | Ledger schema has immutable rows, no updated_at, explicit occurred_at DATETIME and reversed_entry_id |
+| arna_core/src/Domains/Shareholder/Models/Shareholder.php | c2bd05abab1364537ea6531916daa28f3ddb3f0c | Canonical holder identity in the official shareholder register; individual and legal-entity types; direct user vs authorized representative are distinct; soft deletion preserves identity history |
+| arna_core/src/Domains/Shareholder/Models/ShareClass.php | b1ed73163a4122b43489429d0f06049f16d39ee3 | Share-class identity and attributes; no class-specific voting-right or vote-weight fields currently exist |
+| arna_core/src/Domains/Shareholder/Models/ShareHolding.php | f3bb01411824ce95a7c2e25111b84671b8ada9fe | Current-state projection of one shareholder/share-class pair; not the authoritative historical source |
+| arna_core/src/Domains/Shareholder/Models/ShareHoldingEntry.php | 7c30f03dffaf6635128f7d03aed06231b9030f9a | Append-only signed share-quantity ledger; carries before/after balances, entry type, business time, references and reversal link |
+| arna_core/src/Domains/Shareholder/Services/ShareHoldingService.php | 02de3196184f310afc81da219043d61cf057bb80 | Sole supported holding writer; transactions, row locks, append-only entries and reversal operations |
+| arna_core/src/Domains/Shareholder/Database/Migrations/2026_09_11_000004_create_share_holding_entries_table.php | 0a983117b1c0c12c802ef378a500447128f26c90 | Ledger schema has immutable rows, no updated_at, explicit occurred_at DATETIME and reversed_entry_id |
 
 Related shareholder migrations currently present:
 
@@ -610,12 +610,12 @@ The following six canonical Shareholder source files were fetched from current `
 
 | Source file | Current-main blob SHA | Comparison result |
 |---|---|---|
-| `mases_core/src/Domains/Shareholder/Models/Shareholder.php` | `c2bd05abab1364537ea6531916daa28f3ddb3f0c` | UNCHANGED |
-| `mases_core/src/Domains/Shareholder/Models/ShareClass.php` | `b1ed73163a4122b43489429d0f06049f16d39ee3` | UNCHANGED |
-| `mases_core/src/Domains/Shareholder/Models/ShareHolding.php` | `f3bb01411824ce95a7c2e25111b84671b8ada9fe` | UNCHANGED |
-| `mases_core/src/Domains/Shareholder/Models/ShareHoldingEntry.php` | `7c30f03dffaf6635128f7d03aed06231b9030f9a` | UNCHANGED |
-| `mases_core/src/Domains/Shareholder/Services/ShareHoldingService.php` | `02de3196184f310afc81da219043d61cf057bb80` | UNCHANGED |
-| `mases_core/src/Domains/Shareholder/Database/Migrations/2026_09_11_000004_create_share_holding_entries_table.php` | `0a983117b1c0c12c802ef378a500447128f26c90` | UNCHANGED |
+| `arna_core/src/Domains/Shareholder/Models/Shareholder.php` | `c2bd05abab1364537ea6531916daa28f3ddb3f0c` | UNCHANGED |
+| `arna_core/src/Domains/Shareholder/Models/ShareClass.php` | `b1ed73163a4122b43489429d0f06049f16d39ee3` | UNCHANGED |
+| `arna_core/src/Domains/Shareholder/Models/ShareHolding.php` | `f3bb01411824ce95a7c2e25111b84671b8ada9fe` | UNCHANGED |
+| `arna_core/src/Domains/Shareholder/Models/ShareHoldingEntry.php` | `7c30f03dffaf6635128f7d03aed06231b9030f9a` | UNCHANGED |
+| `arna_core/src/Domains/Shareholder/Services/ShareHoldingService.php` | `02de3196184f310afc81da219043d61cf057bb80` | UNCHANGED |
+| `arna_core/src/Domains/Shareholder/Database/Migrations/2026_09_11_000004_create_share_holding_entries_table.php` | `0a983117b1c0c12c802ef378a500447128f26c90` | UNCHANGED |
 
 The prior source-contract findings therefore remain applicable on the current-main baseline: the current holding projection is not historical proof; the append-only signed-quantity ledger remains the historical holding source; business-effective `occurred_at` differs from system creation time; current holder/representative fields do not constitute a complete effective-dated legal register; and the public ShareHolding service does not itself establish a paired, legally evidenced transfer aggregate.
 

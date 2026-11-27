@@ -8,9 +8,9 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use MaaleArna\MASES\Core\Audit\Listeners\LogSuccessfulLogin;
-use MaaleArna\MASES\Core\Audit\Listeners\LogFailedLogin;
-use MaaleArna\MASES\Core\Audit\Listeners\LogLogout;
+use MaaleArna\Arna\Core\Audit\Listeners\LogSuccessfulLogin;
+use MaaleArna\Arna\Core\Audit\Listeners\LogFailedLogin;
+use MaaleArna\Arna\Core\Audit\Listeners\LogLogout;
 
 final class EventServiceProvider extends ServiceProvider
 {

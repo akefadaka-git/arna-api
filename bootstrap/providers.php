@@ -6,12 +6,12 @@ declare(strict_types=1);
  * Application provider registry.
  * LocalizationServiceProvider follows CoreServiceProvider and precedes
  * authentication/domain providers. Do not register the legacy
- * MasesCoreServiceProvider: it duplicates bindings and references stale migration paths.
+ * ArnaCoreServiceProvider: it duplicates bindings and references stale migration paths.
  */
 
 /*
  * -----------------------------------------------------------------------------
- * MASES Core Platform — Service Provider Registry
+ * ARNA Core Platform — Service Provider Registry
  * -----------------------------------------------------------------------------
  *
  * This file is the central registry for all service providers that
@@ -26,18 +26,18 @@ declare(strict_types=1);
  * CRITICAL: CoreServiceProvider must be registered here
  * -----------------------------------------------------------------------------
  *
- * The `MaaleArna\MASES\Core\Providers\CoreServiceProvider` is responsible
+ * The `MaaleArna\Arna\Core\Providers\CoreServiceProvider` is responsible
  * for:
  *
- *   1. Loading all Core migrations from `mases_core/src/Migrations/`
+ *   1. Loading all Core migrations from `arna_core/src/Migrations/`
  *      → Without this, the `php artisan migrate` command will not
- *        discover any MASES migration files and will report "Nothing
+ *        discover any ARNA migration files and will report "Nothing
  *        to migrate."
  *
  *   2. Merging the core configuration from
- *      `mases_core/src/Config/mases.php`
+ *      `arna_core/src/Config/arna.php`
  *      → This makes platform settings (tenancy, localization, security,
- *        etc.) available via `config('mases.*')`.
+ *        etc.) available via `config('arna.*')`.
  *
  *   3. Registering core container bindings (singletons and interfaces)
  *      → TenantContextResolverInterface → RequestTenantResolver
@@ -50,7 +50,7 @@ declare(strict_types=1);
  *      → LocalizationService (singleton)
  *
  *   4. Publishing the core configuration for customisation
- *      → `php artisan vendor:publish --tag=mases-config`
+ *      → `php artisan vendor:publish --tag=arna-config`
  *
  * If this provider is missing from this file, the platform will NOT work
  * correctly: migrations will fail, services will not be bound, and
@@ -60,7 +60,7 @@ declare(strict_types=1);
  * LocalizationServiceProvider
  * -----------------------------------------------------------------------------
  *
- * The `MaaleArna\MASES\Core\Providers\LocalizationServiceProvider`
+ * The `MaaleArna\Arna\Core\Providers\LocalizationServiceProvider`
  * registers the localization capability's additional services that
  * CoreServiceProvider does not bind:
  *
@@ -74,16 +74,16 @@ declare(strict_types=1);
  *      composes EthiopianCalendar, EthiopianFormatter, and
  *      LocaleManager into a single injectable service.
  *
- *   4. The `mases.localization` container alias, which the
+ *   4. The `arna.localization` container alias, which the
  *      `LocalizationFacade` (at
- *      `MaaleArna\MASES\Core\Localization\LocalizationFacade`) uses
+ *      `MaaleArna\Arna\Core\Localization\LocalizationFacade`) uses
  *      as its accessor.
  *
  * The provider also re-binds `EthiopianCalendar`. This duplicates
  * `CoreServiceProvider`'s binding. Laravel's container uses the last
  * registration, so the Localization provider's instance wins. The
  * two are functionally equivalent — both read
- * `config('mases.localization.timezone')` with the same default — so
+ * `config('arna.localization.timezone')` with the same default — so
  * the duplicate is inert. A future CR may consolidate the two
  * registrations into one; that is not this delivery's scope.
  *
@@ -96,7 +96,7 @@ declare(strict_types=1);
  * AuthServiceProvider (Phase 1 continuation — global permission gate)
  * -----------------------------------------------------------------------------
  *
- * The `MaaleArna\MASES\Core\Auth\Providers\AuthServiceProvider` is the
+ * The `MaaleArna\Arna\Core\Auth\Providers\AuthServiceProvider` is the
  * integration point for the platform's GLOBAL authorization gate. It
  * registers a `Gate::before` callback that resolves RAW ability strings
  * — abilities dispatched without a model argument, such as
@@ -123,7 +123,7 @@ declare(strict_types=1);
  * PolicyServiceProvider (Phase 2B — CORE.4 / ENH.1a)
  * -----------------------------------------------------------------------------
  *
- * The `MaaleArna\MASES\Core\Policy\Providers\PolicyServiceProvider` is
+ * The `MaaleArna\Arna\Core\Policy\Providers\PolicyServiceProvider` is
  * the integration point for the Core versioned-policy registry — the
  * capability introduced in Phase 2B to satisfy the three architectural
  * mandates that converged on a common primitive:
@@ -136,13 +136,13 @@ declare(strict_types=1);
  *
  * The provider is responsible for:
  *
- *   1. Merging `mases_core/src/Policy/Config/policy.php` into the
+ *   1. Merging `arna_core/src/Policy/Config/policy.php` into the
  *      container under the key `policy`.
  *
  *   2. Binding `VersionedPolicyRegistry` as a singleton.
  *
  *   3. Loading the capability's migrations from
- *      `mases_core/src/Policy/Database/Migrations/` when the capability
+ *      `arna_core/src/Policy/Database/Migrations/` when the capability
  *      is enabled.
  *
  * The provider has NO policies, NO event listeners, and NO routes — the
@@ -152,14 +152,14 @@ declare(strict_types=1);
  * ShareholderServiceProvider (Phase 2A — CR-017 / A14)
  * -----------------------------------------------------------------------------
  *
- * The `MaaleArna\MASES\Core\Domains\Shareholder\Providers\ShareholderServiceProvider`
+ * The `MaaleArna\Arna\Core\Domains\Shareholder\Providers\ShareholderServiceProvider`
  * is the Shareholder domain's integration point. It is responsible for:
  *
- *   1. Merging `mases_core/src/Domains/Shareholder/Config/shareholder.php`
+ *   1. Merging `arna_core/src/Domains/Shareholder/Config/shareholder.php`
  *      into the container under the key `shareholder`.
  *
  *   2. Loading the domain's translations from
- *      `mases_core/src/Domains/Shareholder/Resources/lang/` under the
+ *      `arna_core/src/Domains/Shareholder/Resources/lang/` under the
  *      namespace `shareholder`.
  *
  *   3. Binding the domain's five services and one repository as
@@ -175,24 +175,24 @@ declare(strict_types=1);
  *      `AuditShareholderEvent` listener.
  *
  *   6. Loading the domain's migrations from
- *      `mases_core/src/Domains/Shareholder/Database/Migrations/`.
+ *      `arna_core/src/Domains/Shareholder/Database/Migrations/`.
  *
  *   7. Loading the domain's HTTP routes from
- *      `mases_core/src/Domains/Shareholder/Routes/api.php` when the
+ *      `arna_core/src/Domains/Shareholder/Routes/api.php` when the
  *      domain is enabled and the file exists.
  *
  * -----------------------------------------------------------------------------
  * WalletServiceProvider (Phase 2B — 2B.2 / ENH.1b)
  * -----------------------------------------------------------------------------
  *
- * The `MaaleArna\MASES\Core\Domains\Wallet\Providers\WalletServiceProvider`
+ * The `MaaleArna\Arna\Core\Domains\Wallet\Providers\WalletServiceProvider`
  * is the Wallet domain's integration point. It is registered by ENH.1b
  * — the second half of the split ENH.1 — which is applied only after
  * every class the provider references has been deployed.
  *
  * The provider is responsible for:
  *
- *   1. Merging `mases_core/src/Domains/Wallet/Config/wallet.php` into
+ *   1. Merging `arna_core/src/Domains/Wallet/Config/wallet.php` into
  *      the container under the key `wallet`.
  *
  *   2. Binding the domain's four repositories and five services as
@@ -216,17 +216,17 @@ declare(strict_types=1);
  * LoanServiceProvider (Phase 2C — A.85 / C.2)
  * -----------------------------------------------------------------------------
  *
- * The `MaaleArna\MASES\Core\Domains\Loan\Providers\LoanServiceProvider`
+ * The `MaaleArna\Arna\Core\Domains\Loan\Providers\LoanServiceProvider`
  * is the Loan domain's integration point. It is registered by C.2, the
  * second of the ten modifications in Phase 2C's Block C.
  *
  * The provider is responsible for:
  *
- *   1. Merging `mases_core/src/Domains/Loan/Config/loan.php` into the
+ *   1. Merging `arna_core/src/Domains/Loan/Config/loan.php` into the
  *      container under the key `loan`.
  *
  *   2. Loading the domain's translations from
- *      `mases_core/src/Domains/Loan/Resources/lang/` under the
+ *      `arna_core/src/Domains/Loan/Resources/lang/` under the
  *      namespace `loan`.
  *
  *   3. Binding the domain's five repositories and twelve services as
@@ -249,15 +249,15 @@ declare(strict_types=1);
  * GovernanceServiceProvider (Phase 2E — G1 + G2a + G2b)
  * -----------------------------------------------------------------------------
  *
- * The `MaaleArna\MASES\Core\Domains\Governance\Providers\GovernanceServiceProvider`
+ * The `MaaleArna\Arna\Core\Domains\Governance\Providers\GovernanceServiceProvider`
  * is the Governance domain's integration point. As of G2b it is
  * responsible for:
  *
- *   1. Merging `mases_core/src/Domains/Governance/Config/governance.php`
+ *   1. Merging `arna_core/src/Domains/Governance/Config/governance.php`
  *      into the container under the key `governance`.
  *
  *   2. Loading the domain's translations from
- *      `mases_core/src/Domains/Governance/Resources/lang/` under the
+ *      `arna_core/src/Domains/Governance/Resources/lang/` under the
  *      namespace `governance`.
  *
  *   3. Binding six repositories and services as singletons:
@@ -284,11 +284,11 @@ declare(strict_types=1);
  * chronological registration order.
  *
  * -----------------------------------------------------------------------------
- * Observation — MasesCoreServiceProvider (NOT registered)
+ * Observation — ArnaCoreServiceProvider (NOT registered)
  * -----------------------------------------------------------------------------
  *
  * A second file exists at
- * `mases_core/src/Providers/MasesCoreServiceProvider.php`. It declares
+ * `arna_core/src/Providers/ArnaCoreServiceProvider.php`. It declares
  * an overlapping set of bindings (EthiopianCalendar, EthiopianFormatter,
  * LocaleManager, LocalizationManager), attempts to load migrations from
  * paths that do not exist in the current layout
@@ -313,44 +313,44 @@ declare(strict_types=1);
  *   1. App\Providers\AppServiceProvider
  *      - Standard Laravel entry point. Runs first.
  *
- *   2. MaaleArna\MASES\Core\Providers\CoreServiceProvider
+ *   2. MaaleArna\Arna\Core\Providers\CoreServiceProvider
  *      - Loads Core infrastructure: migrations, configuration,
  *        container bindings, Core event listeners. Must run before any
  *        provider that depends on Core services.
  *
- *   3. MaaleArna\MASES\Core\Providers\LocalizationServiceProvider
+ *   3. MaaleArna\Arna\Core\Providers\LocalizationServiceProvider
  *      - Binds `EthiopianFormatter`, `LocaleManager`,
- *        `LocalizationManager`, and the `mases.localization` alias.
+ *        `LocalizationManager`, and the `arna.localization` alias.
  *        Runs after Core (which binds `EthiopianCalendar` and
  *        `LocalizationService`) and before Auth and the domain
  *        providers, so any domain consumer of `LocalizationManager`
  *        receives the bound instance.
  *
- *   4. MaaleArna\MASES\Core\Auth\Providers\AuthServiceProvider
+ *   4. MaaleArna\Arna\Core\Auth\Providers\AuthServiceProvider
  *      - Installs the platform's global permission gate. Runs after
  *        Core because it depends on the `AuthorizationService` binding.
  *        Runs before every domain provider so the gate is available to
  *        all domain code.
  *
- *   5. MaaleArna\MASES\Core\Domains\Shareholder\Providers\ShareholderServiceProvider
+ *   5. MaaleArna\Arna\Core\Domains\Shareholder\Providers\ShareholderServiceProvider
  *      - Runs after Auth, because its policy resolution and event
  *        registration rely on Core singletons (`AuditService`,
  *        `AuthorizationService`).
  *
- *   6. MaaleArna\MASES\Core\Policy\Providers\PolicyServiceProvider
+ *   6. MaaleArna\Arna\Core\Policy\Providers\PolicyServiceProvider
  *      - Runs after Core. Domains (notably Wallet and Loan) depend on
  *        the versioned-policy registry.
  *
- *   7. MaaleArna\MASES\Core\Domains\Wallet\Providers\WalletServiceProvider
+ *   7. MaaleArna\Arna\Core\Domains\Wallet\Providers\WalletServiceProvider
  *      - Runs after PolicyServiceProvider, because the Wallet domain's
  *        `wallets` table carries three nullable FKs to
  *        `versioned_policies`.
  *
- *   8. MaaleArna\MASES\Core\Domains\Loan\Providers\LoanServiceProvider
+ *   8. MaaleArna\Arna\Core\Domains\Loan\Providers\LoanServiceProvider
  *      - Runs after WalletServiceProvider, because the Loan domain's
  *        services depend on Wallet-domain singletons.
  *
- *   9. MaaleArna\MASES\Core\Domains\Governance\Providers\GovernanceServiceProvider
+ *   9. MaaleArna\Arna\Core\Domains\Governance\Providers\GovernanceServiceProvider
  *      - Runs after LoanServiceProvider. Governance has no dependency
  *        on Wallet or Loan; the placement reflects the chronological
  *        registration order (Core → Localization → Auth → Shareholder
@@ -392,7 +392,7 @@ return [
 
     /*
      * -------------------------------------------------------------------------
-     * 2. MASES Core Platform Foundation Provider
+     * 2. ARNA Core Platform Foundation Provider
      * -------------------------------------------------------------------------
      *
      * Registers the entire Core infrastructure: migrations, configuration,
@@ -400,7 +400,7 @@ return [
      * A6, A7b, A8, A9). Must run before any domain provider or capability
      * provider that depends on Core services.
      */
-    MaaleArna\MASES\Core\Providers\CoreServiceProvider::class,
+    MaaleArna\Arna\Core\Providers\CoreServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
@@ -413,7 +413,7 @@ return [
      *   - `EthiopianFormatter`
      *   - `LocaleManager`
      *   - `LocalizationManager`
-     *   - the `mases.localization` alias (used by LocalizationFacade)
+     *   - the `arna.localization` alias (used by LocalizationFacade)
      *
      * Also re-binds `EthiopianCalendar`; the duplicate binding is
      * functionally equivalent to CoreServiceProvider's and the last
@@ -434,7 +434,7 @@ return [
      * Runs after CoreServiceProvider (which binds `AuthorizationService`)
      * and before every domain provider.
      */
-    MaaleArna\MASES\Core\Auth\Providers\AuthServiceProvider::class,
+    MaaleArna\Arna\Core\Auth\Providers\AuthServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
@@ -444,7 +444,7 @@ return [
      * Registers the Shareholder domain's configuration, container
      * bindings, policies, event listeners, migrations, and HTTP routes.
      */
-    MaaleArna\MASES\Core\Domains\Shareholder\Providers\ShareholderServiceProvider::class,
+    MaaleArna\Arna\Core\Domains\Shareholder\Providers\ShareholderServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
@@ -455,7 +455,7 @@ return [
      * `config('policy.*')`, the `VersionedPolicyRegistry` singleton, and
      * the capability's migration directory.
      */
-    MaaleArna\MASES\Core\Policy\Providers\PolicyServiceProvider::class,
+    MaaleArna\Arna\Core\Policy\Providers\PolicyServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
@@ -465,7 +465,7 @@ return [
      * Registers the Wallet domain's configuration, container bindings,
      * policies, event listeners, migrations, and HTTP routes.
      */
-    MaaleArna\MASES\Core\Domains\Wallet\Providers\WalletServiceProvider::class,
+    MaaleArna\Arna\Core\Domains\Wallet\Providers\WalletServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
@@ -475,7 +475,7 @@ return [
      * Registers the Loan domain's configuration, translations, container
      * bindings, policies, event listeners, migrations, and HTTP routes.
      */
-    MaaleArna\MASES\Core\Domains\Loan\Providers\LoanServiceProvider::class,
+    MaaleArna\Arna\Core\Domains\Loan\Providers\LoanServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
@@ -489,7 +489,7 @@ return [
      * As of G2b, three entities are registered: GovernanceBody,
      * GovernancePosition, GovernanceTerm.
      */
-    MaaleArna\MASES\Core\Domains\Governance\Providers\GovernanceServiceProvider::class,
+    MaaleArna\Arna\Core\Domains\Governance\Providers\GovernanceServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------
@@ -499,7 +499,7 @@ return [
      * Registers Finance services, translations, domain configuration, Finance-owned
      * migrations, and the Finance API routes from the domain directory.
      */
-    MaaleArna\MASES\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
+    MaaleArna\Arna\Core\Domains\Finance\Providers\FinanceServiceProvider::class,
 
     /*
      * -------------------------------------------------------------------------

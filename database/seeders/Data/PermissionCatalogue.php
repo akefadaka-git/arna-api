@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Data;
 
-use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinancePermissionCatalogue;
-use MaaleArna\MASES\Core\Domains\Documents\Database\Seeders\DocumentsPermissionCatalogue;
+use MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinancePermissionCatalogue;
+use MaaleArna\Arna\Core\Domains\Documents\Database\Seeders\DocumentsPermissionCatalogue;
 
 /**
  * Canonical permission vocabulary with platform, tenant and application scopes. Permission slugs are stable authorization identifiers.

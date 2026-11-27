@@ -7,9 +7,9 @@ namespace Database\Seeders;
 use Database\Seeders\Data\RoleCatalogue;
 use Database\Seeders\Data\TenantProfile;
 use Illuminate\Database\Seeder;
-use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use RuntimeException;
 
 /**
@@ -129,7 +129,7 @@ final class RoleSeeder extends Seeder
      *
      * @throws RuntimeException when the default tenant has not been
      *         seeded. Run TenantSeeder first, or invoke the seeder
-     *         through the MasesCoreSeeder orchestrator, which passes
+     *         through the ArnaCoreSeeder orchestrator, which passes
      *         the tenant explicitly.
      */
     public function run(): void
@@ -153,7 +153,7 @@ final class RoleSeeder extends Seeder
                 'RoleSeeder requires the default tenant to exist before '
                 . 'it can seed tenant-bound roles. '
                 . 'Run TenantSeeder first, or invoke the seeder through '
-                . 'the MasesCoreSeeder orchestrator, which passes the '
+                . 'the ArnaCoreSeeder orchestrator, which passes the '
                 . 'tenant explicitly.'
             );
         }
