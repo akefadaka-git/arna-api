@@ -241,6 +241,7 @@ final class GovernanceElectionShareholderSourceService
         $reversalTargets = [];
         $databaseZone = new DateTimeZone($databaseTimezone);
         $previousId = 0;
+        $expectedHoldingId = null;
 
         foreach ($entries as $entry) {
             $id = (int) ($entry->id ?? 0);
@@ -251,7 +252,8 @@ final class GovernanceElectionShareholderSourceService
             $after = (string) ($entry->balance_after ?? '');
             $occurredAtRaw = (string) ($entry->occurred_at ?? '');
 
-            if ($id < 1 || $id <= $previousId || isset($byId[$id]) || $holdingId < 1) {
+            $expectedHoldingId ??= $holdingId;
+            if ($id < 1 || $id <= $previousId || isset($byId[$id]) || $holdingId < 1 || $holdingId !== $expectedHoldingId) {
                 throw ValidationException::withMessages([
                     'share_ledger' => 'Ledger entry identifiers and holding references must be valid and unique.',
                 ]);
