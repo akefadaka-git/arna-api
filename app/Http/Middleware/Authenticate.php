@@ -10,13 +10,13 @@ use Illuminate\Auth\Middleware\Authenticate as Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\PersonalAccessToken;
-use MaaleArna\MASES\Core\Auth\Models\User as CoreUser;
-use MaaleArna\MASES\Core\Auth\Services\DeviceSessionService;
-use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
+use MaaleArna\Arna\Core\Auth\Models\User as CoreUser;
+use MaaleArna\Arna\Core\Auth\Services\DeviceSessionService;
+use MaaleArna\Arna\Core\Exceptions\AuthenticationException;
 
 /**
  * Rejects unauthenticated requests and revoked bearer tokens.
- * MASES exceptions are rendered by the canonical application handler.
+ * ARNA exceptions are rendered by the canonical application handler.
  */
 class Authenticate extends Middleware
 {
@@ -57,7 +57,7 @@ class Authenticate extends Middleware
         return $next($request);
     }
 
-    /** Throws the canonical MASES unauthenticated exception. */
+    /** Throws the canonical ARNA unauthenticated exception. */
     protected function unauthenticated($request, array $guards)
     {
         throw AuthenticationException::unauthenticated();

@@ -7,7 +7,7 @@
 
 ## 1. Executive assessment
 
-ARNA has progressed beyond the original MASES application concept into an integrated, multi-domain enterprise operating-system program. Its intended architecture combines a shared platform foundation, domain-owned business capabilities, a unified experience layer and future intelligence/automation services.
+ARNA has progressed beyond the original ARNA application concept into an integrated, multi-domain enterprise operating-system program. Its intended architecture combines a shared platform foundation, domain-owned business capabilities, a unified experience layer and future intelligence/automation services.
 
 The strongest architectural direction is separation of responsibilities:
 - **Core platform:** identity, tenancy, authorization, audit, notifications and shared services.

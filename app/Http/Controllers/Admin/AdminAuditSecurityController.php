@@ -12,9 +12,9 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Illuminate\Validation\ValidationException;
-use MaaleArna\MASES\Core\Audit\Models\AuditLog;
-use MaaleArna\MASES\Core\Audit\Services\AuditService;
-use MaaleArna\MASES\Core\Security\Models\SecurityEvent;
+use MaaleArna\Arna\Core\Audit\Models\AuditLog;
+use MaaleArna\Arna\Core\Audit\Services\AuditService;
+use MaaleArna\Arna\Core\Security\Models\SecurityEvent;
 
 final class AdminAuditSecurityController extends Controller
 {
@@ -227,7 +227,7 @@ final class AdminAuditSecurityController extends Controller
 
     private function tenantId(): int
     {
-        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         abort_if($tenantId === null, 403, 'A verified tenant context is required.');
 
         return (int) $tenantId;

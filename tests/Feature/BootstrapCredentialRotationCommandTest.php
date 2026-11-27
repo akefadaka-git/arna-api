@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
-use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Auth\Models\User;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

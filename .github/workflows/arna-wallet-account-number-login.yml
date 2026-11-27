@@ -8,7 +8,7 @@ on:
       - codex/arna-wallet-account-number-login
     paths:
       - "database/migrations/**"
-      - "mases_core/src/Auth/Services/LoginIdentifierResolver.php"
+      - "arna_core/src/Auth/Services/LoginIdentifierResolver.php"
       - "tests/Feature/WalletAccountNumberLoginTest.php"
       - "tests/Feature/LoginIdentifierResolverTest.php"
       - "tests/Feature/AuthenticationLifecycleTest.php"
@@ -30,7 +30,7 @@ on:
       - codex/arna-wallet-tenant-integrity-reconciled
     paths:
       - "database/migrations/**"
-      - "mases_core/src/Auth/Services/LoginIdentifierResolver.php"
+      - "arna_core/src/Auth/Services/LoginIdentifierResolver.php"
       - "tests/Feature/WalletAccountNumberLoginTest.php"
       - "tests/Feature/LoginIdentifierResolverTest.php"
       - "tests/Feature/AuthenticationLifecycleTest.php"
@@ -87,7 +87,7 @@ jobs:
           set -euo pipefail
           php -l database/migrations/2026_10_22_000002_add_tenant_wallet_unique_key.php
           php -l database/migrations/2026_10_22_000003_create_wallet_account_identifiers_table.php
-          php -l mases_core/src/Auth/Services/LoginIdentifierResolver.php
+          php -l arna_core/src/Auth/Services/LoginIdentifierResolver.php
           php -l tests/Feature/WalletAccountNumberLoginTest.php
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress

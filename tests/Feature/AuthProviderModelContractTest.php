@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use MaaleArna\MASES\Core\Auth\Models\User as CoreUser;
+use MaaleArna\Arna\Core\Auth\Models\User as CoreUser;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

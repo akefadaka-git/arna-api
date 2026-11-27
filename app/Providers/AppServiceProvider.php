@@ -7,10 +7,10 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
-use MaaleArna\MASES\Core\Domains\People\Models\Person;
-use MaaleArna\MASES\Core\Domains\People\Policies\PersonPolicy;
-use MaaleArna\MASES\Core\Domains\Task\Models\Task;
-use MaaleArna\MASES\Core\Domains\Task\Policies\TaskPolicy;
+use MaaleArna\Arna\Core\Domains\People\Models\Person;
+use MaaleArna\Arna\Core\Domains\People\Policies\PersonPolicy;
+use MaaleArna\Arna\Core\Domains\Task\Models\Task;
+use MaaleArna\Arna\Core\Domains\Task\Policies\TaskPolicy;
 use Illuminate\Support\ServiceProvider;
 
 /** Registers application policies and API rate limiting. */
@@ -30,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Limit by authenticated user, or source IP for guests.
         RateLimiter::for('api', function (Request $request) {
-            $perMinute = (int) config('mases.security.rate_limiting', 60);
+            $perMinute = (int) config('arna.security.rate_limiting', 60);
 
             return Limit::perMinute($perMinute)
                 ->by($request->user()?->id ?: $request->ip());

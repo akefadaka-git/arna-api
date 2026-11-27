@@ -13,13 +13,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
-use MaaleArna\MASES\Core\Auth\Services\AuthenticationService;
-use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
-use MaaleArna\MASES\Core\Auth\Models\User as CoreUser;
-use MaaleArna\MASES\Core\Auth\Services\TotpMfaService;
-use MaaleArna\MASES\Core\Auth\Services\DeviceSessionService;
-use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpService;
-use MaaleArna\MASES\Core\Exceptions\AuthenticationException;
+use MaaleArna\Arna\Core\Auth\Services\AuthenticationService;
+use MaaleArna\Arna\Core\Auth\Services\LoginIdentifierResolver;
+use MaaleArna\Arna\Core\Auth\Models\User as CoreUser;
+use MaaleArna\Arna\Core\Auth\Services\TotpMfaService;
+use MaaleArna\Arna\Core\Auth\Services\DeviceSessionService;
+use MaaleArna\Arna\Core\Auth\Services\AdaptiveStepUpService;
+use MaaleArna\Arna\Core\Exceptions\AuthenticationException;
 
 /**
  * Handles authentication, registration, password reset and token lifecycle.
@@ -66,7 +66,7 @@ final class AuthController extends Controller
         ]);
 
         // Resolve the requested tenant; membership is verified before token issuance.
-        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0
             ? (int) $trustedTenantId
             : null;
@@ -104,7 +104,7 @@ final class AuthController extends Controller
             $requestedTenantId !== null
             && filter_var($normalizedIdentifier, FILTER_VALIDATE_EMAIL) !== false
         ) {
-            $identityCandidates = \MaaleArna\MASES\Core\Auth\Models\User::query()
+            $identityCandidates = \MaaleArna\Arna\Core\Auth\Models\User::query()
                 ->where('is_active', true)
                 ->where(function ($query) use ($normalizedIdentifier, $validated): void {
                     $query->where('email', $normalizedIdentifier)
@@ -219,7 +219,7 @@ final class AuthController extends Controller
             'device_installation_id' => ['required_if:client_type,android', 'string', 'min:16', 'max:128'],
         ]);
 
-        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0 ? (int) $trustedTenantId : null;
         $requestedTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : $trustedTenantId;
         try {
@@ -284,7 +284,7 @@ final class AuthController extends Controller
             'app_version' => ['sometimes', 'string', 'max:40'],
         ]);
 
-        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0 ? (int) $trustedTenantId : null;
         $requestedTenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : $trustedTenantId;
         $resolution = $this->identifierResolver->resolve($validated['identifier'], $requestedTenantId);
@@ -372,7 +372,7 @@ final class AuthController extends Controller
             'tenant_id' => ['sometimes', 'integer', 'exists:tenants,id'],
         ]);
 
-        $trustedTenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $trustedTenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         $trustedTenantId = is_numeric($trustedTenantId) && (int) $trustedTenantId > 0 ? (int) $trustedTenantId : null;
         $tenantId = isset($validated['tenant_id']) ? (int) $validated['tenant_id'] : $trustedTenantId;
         $resolution = $this->identifierResolver->resolve($validated['identifier'], $tenantId);
@@ -458,7 +458,7 @@ final class AuthController extends Controller
             throw AuthenticationException::unauthenticated();
         }
 
-        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
             ? (int) $tenantId
             : (int) ($user->default_tenant_id ?? 0);
@@ -498,7 +498,7 @@ final class AuthController extends Controller
             throw AuthenticationException::unauthenticated();
         }
 
-        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
             ? (int) $tenantId
             : (int) ($user->default_tenant_id ?? 0);
@@ -612,10 +612,10 @@ final class AuthController extends Controller
          * Compose a single-string `name` from the structured fields
          * when the caller did not send the legacy field.
          *
-         * Preference order per component follows the MASES
+         * Preference order per component follows the ARNA
          * Amharic-first policy: use Amharic when present, fall back
          * to English. The order matters — for a user who supplies
-         * both, the Amharic name is what MASES stores as the primary
+         * both, the Amharic name is what ARNA stores as the primary
          * display name, and the English name is a secondary
          * identifier.
          */
@@ -1091,7 +1091,7 @@ final class AuthController extends Controller
             throw AuthenticationException::unauthenticated();
         }
 
-        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
             ? (int) $tenantId
             : (int) ($user->default_tenant_id ?? 0);
@@ -1137,7 +1137,7 @@ final class AuthController extends Controller
             throw AuthenticationException::unauthenticated();
         }
 
-        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
             ? (int) $tenantId
             : (int) ($user->default_tenant_id ?? 0);
@@ -1195,7 +1195,7 @@ final class AuthController extends Controller
             throw AuthenticationException::unauthenticated();
         }
 
-        $tenantId = function_exists('mases_tenant_id') ? mases_tenant_id() : null;
+        $tenantId = function_exists('arna_tenant_id') ? arna_tenant_id() : null;
         $tenantId = is_numeric($tenantId) && (int) $tenantId > 0
             ? (int) $tenantId
             : (int) ($user->default_tenant_id ?? 0);
@@ -1347,7 +1347,7 @@ final class AuthController extends Controller
      */
     public function profile(Request $request): JsonResponse
     {
-        /** @var \MaaleArna\MASES\Core\Auth\Models\User|null $user */
+        /** @var \MaaleArna\Arna\Core\Auth\Models\User|null $user */
         $user = $request->user();
 
         if ($user === null) {
@@ -1427,7 +1427,7 @@ final class AuthController extends Controller
      */
     public function verifyEmail(Request $request, string $id, string $hash): JsonResponse
     {
-        $user = \MaaleArna\MASES\Core\Auth\Models\User::find($id);
+        $user = \MaaleArna\Arna\Core\Auth\Models\User::find($id);
 
         if (!$user) {
             return response()->json([
@@ -1509,7 +1509,7 @@ final class AuthController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'exists:users,email'],
         ]);
 
-        $user = \MaaleArna\MASES\Core\Auth\Models\User::where('email', $validated['email'])->first();
+        $user = \MaaleArna\Arna\Core\Auth\Models\User::where('email', $validated['email'])->first();
 
         /*
          * The `exists:users,email` rule above already guarantees a
@@ -1614,7 +1614,7 @@ final class AuthController extends Controller
             return $normalized;
         }
 
-        $user = \MaaleArna\MASES\Core\Auth\Models\User::query()
+        $user = \MaaleArna\Arna\Core\Auth\Models\User::query()
             ->where('phone', $identifier)
             ->first();
 
@@ -1698,7 +1698,7 @@ final class AuthController extends Controller
      * HttpOnly cookie for explicitly trusted first-party SPA origins.
      *
      * This does not create a Laravel web session. The cookie is converted
-     * back into a bearer header by the MASES auth middleware, so the normal
+     * back into a bearer header by the ARNA auth middleware, so the normal
      * Sanctum token lookup and revoked-token checks remain authoritative.
      */
     private function withSsoTokenCookie(JsonResponse $response, Request $request, string $token): JsonResponse

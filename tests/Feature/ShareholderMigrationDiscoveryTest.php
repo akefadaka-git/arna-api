@@ -21,7 +21,7 @@ final class ShareholderMigrationDiscoveryTest extends TestCase
 
         $defaultPath = database_path('migrations');
         $domainPath = base_path(
-            'mases_core/src/Domains/Shareholder/Database/Migrations'
+            'arna_core/src/Domains/Shareholder/Database/Migrations'
         );
 
         $registeredPaths = array_values(array_filter(array_map(

@@ -11,17 +11,17 @@ on:
       - ".github/workflows/arna-clean-install-mysql.yml"
       - ".github/workflows/arna-a4-synthetic-backup-restore.yml"
       - "bootstrap/app.php"
-      - "mases_core/src/Exceptions/ErrorCodeRegistry.php"
-      - "mases_core/src/Monitoring/ErrorDiagnosticEngine.php"
+      - "arna_core/src/Exceptions/ErrorCodeRegistry.php"
+      - "arna_core/src/Monitoring/ErrorDiagnosticEngine.php"
       - "tests/Unit/ErrorDiagnosticEngineTest.php"
       - "database/migrations/**"
-      - "mases_core/src/**/Database/Migrations/**"
-      - "mases_core/src/**/Providers/**"
-      - "mases_core/src/Domains/Finance/**"
-      - "mases_core/src/Domains/Task/**"
-      - "mases_core/src/Calendar/**"
-      - "mases_core/src/Localization/Calendar/Contracts/**"
-      - "mases_core/src/Migrations/**"
+      - "arna_core/src/**/Database/Migrations/**"
+      - "arna_core/src/**/Providers/**"
+      - "arna_core/src/Domains/Finance/**"
+      - "arna_core/src/Domains/Task/**"
+      - "arna_core/src/Calendar/**"
+      - "arna_core/src/Localization/Calendar/Contracts/**"
+      - "arna_core/src/Migrations/**"
       - "tests/Feature/Calendar*.php"
       - "tests/Feature/D08TaskManagementTest.php"
       - "tests/Feature/CalendarTaskLinkTest.php"
@@ -45,49 +45,49 @@ on:
       - "tests/Feature/GovernanceInvariantsMySqlConcurrencyTest.php"
       - "tests/Feature/OrganizationDomainTest.php"
       - "tests/Feature/OrganizationHierarchyMySqlConcurrencyTest.php"
-      - "mases_core/src/Domains/Organization/**"
+      - "arna_core/src/Domains/Organization/**"
       - "app/Http/Controllers/PersonController.php"
       - "app/Http/Controllers/PublicContentController.php"
-      - "mases_core/src/Domains/PublicContent/**"
+      - "arna_core/src/Domains/PublicContent/**"
       - "tests/Feature/PublicContentModerationTest.php"
       - "routes/console.php"
       - "routes/api.php"
       - "app/Http/Controllers/ExecutiveOverviewController.php"
-      - "mases_core/src/Authorization/ExecutiveOverviewAccessPolicy.php"
-      - "mases_core/src/Domains/Finance/Providers/FinanceServiceProvider.php"
+      - "arna_core/src/Authorization/ExecutiveOverviewAccessPolicy.php"
+      - "arna_core/src/Domains/Finance/Providers/FinanceServiceProvider.php"
       - "tests/Feature/ExecutiveOverview*.php"
       - ".github/workflows/executive-overview-a4-api.yml"
-      - "mases_core/src/Domains/People/**"
-      - "mases_core/src/Auth/Models/User.php"
-      - "mases_core/src/Tenancy/Services/TenantMembershipService.php"
+      - "arna_core/src/Domains/People/**"
+      - "arna_core/src/Auth/Models/User.php"
+      - "arna_core/src/Tenancy/Services/TenantMembershipService.php"
       - "tests/Feature/TenantMembershipLifecycleTest.php"
       - "tests/Feature/TenantMembershipMySqlConcurrencyTest.php"
-      - "mases_core/src/Domains/Shareholder/Models/Shareholder.php"
-      - "mases_core/src/Domains/Governance/Models/GovernanceMembership.php"
-      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCommitteeSecurityController.php"
-      - "mases_core/src/Domains/Governance/Services/GovernanceElectionCommitteeSecurityService.php"
-      - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php"
-      - "mases_core/src/Domains/Governance/Database/Migrations/2026_11_18_100000_create_governance_elections_foundation.php"
-      - "mases_core/src/Domains/FileManagement/Services/FileService.php"
-      - "mases_core/src/Domains/Governance/Database/Seeders/GovernancePermissionsSeeder.php"
-      - "mases_core/src/Domains/Governance/Database/Seeders/GovernanceRolesSeeder.php"
-      - "mases_core/src/Domains/Governance/Models/GovernanceElection.php"
-      - "mases_core/src/Domains/Governance/Models/GovernanceElectionLifecycleTransition.php"
-      - "mases_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php"
-      - "mases_core/src/Domains/Governance/Http/Controllers/GovernanceElectionController.php"
-      - "mases_core/src/Domains/Governance/Events/GovernanceElectionLifecycleChanged.php"
-      - "mases_core/src/Domains/Governance/Listeners/AuditGovernanceElectionLifecycleEvent.php"
-      - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php"
-      - "mases_core/src/Domains/Governance/Routes/api.php"
+      - "arna_core/src/Domains/Shareholder/Models/Shareholder.php"
+      - "arna_core/src/Domains/Governance/Models/GovernanceMembership.php"
+      - "arna_core/src/Domains/Governance/Http/Controllers/GovernanceElectionCommitteeSecurityController.php"
+      - "arna_core/src/Domains/Governance/Services/GovernanceElectionCommitteeSecurityService.php"
+      - "arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php"
+      - "arna_core/src/Domains/Governance/Database/Migrations/2026_11_18_100000_create_governance_elections_foundation.php"
+      - "arna_core/src/Domains/FileManagement/Services/FileService.php"
+      - "arna_core/src/Domains/Governance/Database/Seeders/GovernancePermissionsSeeder.php"
+      - "arna_core/src/Domains/Governance/Database/Seeders/GovernanceRolesSeeder.php"
+      - "arna_core/src/Domains/Governance/Models/GovernanceElection.php"
+      - "arna_core/src/Domains/Governance/Models/GovernanceElectionLifecycleTransition.php"
+      - "arna_core/src/Domains/Governance/Services/GovernanceElectionLifecycleService.php"
+      - "arna_core/src/Domains/Governance/Http/Controllers/GovernanceElectionController.php"
+      - "arna_core/src/Domains/Governance/Events/GovernanceElectionLifecycleChanged.php"
+      - "arna_core/src/Domains/Governance/Listeners/AuditGovernanceElectionLifecycleEvent.php"
+      - "arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php"
+      - "arna_core/src/Domains/Governance/Routes/api.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
-      - "mases_core/src/Domains/Documents/**"
+      - "arna_core/src/Domains/Documents/**"
       - "tests/Feature/DocumentWorkflowAggregateServiceTest.php"
       - "tests/Feature/DocumentWorkflowMySqlConcurrencyTest.php"
       - "docs/documents/**"
-      - "mases_core/src/Domains/Loan/**"
+      - "arna_core/src/Domains/Loan/**"
       - "tests/Feature/LoanRepaymentMySqlConcurrencyTest.php"
-      - "mases_core/src/Notifications/**"
+      - "arna_core/src/Notifications/**"
       - "database/migrations/*create_platform_notifications_table.php"
       - "app/Http/Controllers/NotificationController.php"
       - "tests/Feature/CentralNotificationsTest.php"
@@ -214,7 +214,7 @@ jobs:
         run: php -l bootstrap/app.php
 
       - name: Check formatting of new diagnostics PHP files
-        run: vendor/bin/pint --test mases_core/src/Exceptions/ErrorCodeRegistry.php mases_core/src/Monitoring/ErrorDiagnosticEngine.php tests/Unit/ErrorDiagnosticEngineTest.php
+        run: vendor/bin/pint --test arna_core/src/Exceptions/ErrorCodeRegistry.php arna_core/src/Monitoring/ErrorDiagnosticEngine.php tests/Unit/ErrorDiagnosticEngineTest.php
 
 
 
@@ -233,14 +233,14 @@ jobs:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Unit
+        run: php artisan test --compact arna_core/src/Domains/Loan/Tests/Unit
 
       - name: Run loan repayment HTTP and financial-invariant regression tests
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
           DB_FOREIGN_KEYS: "true"
-        run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php
+        run: php artisan test --compact arna_core/src/Domains/Loan/Tests/Feature/LoanRepaymentTest.php
 
 
       - name: Run Person identity contract regressions
@@ -283,10 +283,10 @@ jobs:
 
       - name: Lint Calendar persistence migrations
         run: |
-          php -l mases_core/src/Migrations/2026_11_01_000001_create_calendar_core_tables.php
-          php -l mases_core/src/Migrations/2026_11_01_000002_create_calendar_lifecycle_tables.php
-          php -l mases_core/src/Migrations/2026_11_11_000003_extend_calendar_reminder_occurrences.php
-          php -l mases_core/src/Migrations/2026_11_12_000004_rekey_calendar_recurring_reminders.php
+          php -l arna_core/src/Migrations/2026_11_01_000001_create_calendar_core_tables.php
+          php -l arna_core/src/Migrations/2026_11_01_000002_create_calendar_lifecycle_tables.php
+          php -l arna_core/src/Migrations/2026_11_11_000003_extend_calendar_reminder_occurrences.php
+          php -l arna_core/src/Migrations/2026_11_12_000004_rekey_calendar_recurring_reminders.php
 
       - name: Lint D08 task persistence migrations
         run: |
@@ -314,7 +314,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
+        run: php artisan test --compact arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
 
       - name: Run election lifecycle API and evidence integration tests on migrated MySQL
         env:
@@ -324,7 +324,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
+        run: php artisan test --compact arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
 
       - name: Run tenant membership lifecycle and audit atomicity tests on MySQL
         env:
@@ -349,20 +349,20 @@ jobs:
 
       - name: Lint Finance A3 persistence migrations
         run: |
-          php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_12_000001_harden_journal_line_amount_signs.php
-          php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_12_000002_create_finance_outbox_messages.php
-          php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_12_000003_create_finance_ai_proposals.php
-          php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_12_000004_create_finance_inbox_events.php
+          php -l arna_core/src/Domains/Finance/Database/Migrations/2026_11_12_000001_harden_journal_line_amount_signs.php
+          php -l arna_core/src/Domains/Finance/Database/Migrations/2026_11_12_000002_create_finance_outbox_messages.php
+          php -l arna_core/src/Domains/Finance/Database/Migrations/2026_11_12_000003_create_finance_ai_proposals.php
+          php -l arna_core/src/Domains/Finance/Database/Migrations/2026_11_12_000004_create_finance_inbox_events.php
 
       - name: Run Finance domain and boundary regressions on migrated MySQL
         run: |
-          php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
-          php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinanceCalendarDateAdapterTest.php
-          php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinanceCurrencyConverterTest.php
-          php artisan test --compact mases_core/src/Domains/Finance/Tests/Unit/FinanceIntelligenceBoundaryTest.php
+          php artisan test --compact arna_core/src/Domains/Finance/Tests/Unit/FinancePermissionCatalogueTest.php
+          php artisan test --compact arna_core/src/Domains/Finance/Tests/Unit/FinanceCalendarDateAdapterTest.php
+          php artisan test --compact arna_core/src/Domains/Finance/Tests/Unit/FinanceCurrencyConverterTest.php
+          php artisan test --compact arna_core/src/Domains/Finance/Tests/Unit/FinanceIntelligenceBoundaryTest.php
 
       - name: Lint Finance Governance settlement migration
-        run: php -l mases_core/src/Domains/Finance/Database/Migrations/2026_11_02_120000_create_governance_settlement_finance_tables.php
+        run: php -l arna_core/src/Domains/Finance/Database/Migrations/2026_11_02_120000_create_governance_settlement_finance_tables.php
 
       - name: Run Finance Governance settlement administration tests on MySQL
         env:
@@ -373,8 +373,8 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: |
-          php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
-          php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAccountingTest.php
+          php artisan test --compact arna_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
+          php artisan test --compact arna_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAccountingTest.php
 
       - name: Run Finance transactional outbox, subledger inbox and AI proposal regressions on MySQL
         env:
@@ -385,10 +385,10 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/FinanceGeneralLedgerTest.php
+        run: php artisan test --compact arna_core/src/Domains/Finance/Tests/Feature/FinanceGeneralLedgerTest.php
 
       - name: Lint Finance settlement authorization tests
-        run: php -l mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAuthorizationTest.php
+        run: php -l arna_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAuthorizationTest.php
 
       - name: Run Finance settlement authorization tests on MySQL
         env:
@@ -398,10 +398,10 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact mases_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAuthorizationTest.php
+        run: php artisan test --compact arna_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementAuthorizationTest.php
 
       - name: Lint Governance attendance review migration
-        run: php -l mases_core/src/Domains/Governance/Database/Migrations/2026_11_02_110000_create_governance_attendance_review_tables.php
+        run: php -l arna_core/src/Domains/Governance/Database/Migrations/2026_11_02_110000_create_governance_attendance_review_tables.php
 
       - name: Run Governance meeting attendance and penalty regressions on migrated MySQL
         env:
@@ -411,7 +411,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
+        run: php artisan test --compact arna_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
 
       - name: Run centralized notification tenant-isolation feature tests on MySQL
         if: ${{ hashFiles('tests/Feature/CentralNotificationsTest.php') != '' }}
@@ -567,7 +567,7 @@ jobs:
         # Explicitly permit demo/bootstrap seed data only inside this disposable CI database.
         # Production environments must never set this flag.
         env:
-          MASES_ENABLE_DEMO_SEEDING: "true"
+          ARNA_ENABLE_DEMO_SEEDING: "true"
         run: php artisan migrate:fresh --seed --force -vvv
 
       - name: Verify Organization tables after fresh migration and seed

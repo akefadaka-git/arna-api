@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 /*
 |--------------------------------------------------------------------------
-| MASES API Routes
+| ARNA API Routes
 |--------------------------------------------------------------------------
 |
-| This file defines every HTTP route served by the MASES central API.
+| This file defines every HTTP route served by the ARNA central API.
 | Routes are grouped into four tiers, each with a distinct trust model:
 |
 |   1. Public routes        – no authentication required.
@@ -16,7 +16,7 @@ declare(strict_types=1);
 |                             (reports the tenant context for debugging).
 |   4. Tenant-scoped routes – require authentication AND tenant membership.
 |
-| Every response follows the MASES standard JSON envelope:
+| Every response follows the ARNA standard JSON envelope:
 |
 |     Success:  { "success": true,  "data": ... }
 |     Failure:  { "success": false, "error": { "code": ..., "message": ... } }
@@ -46,7 +46,7 @@ declare(strict_types=1);
 |     APP_DEBUG=true    — full stack traces in responses and logs
 |     APP_DEBUG=false   — sanitized errors, no stack traces
 |
-| The MASES error renderer (bootstrap/app.php) reads APP_DEBUG and shapes
+| The ARNA error renderer (bootstrap/app.php) reads APP_DEBUG and shapes
 | the error envelope accordingly. The `request_id` and `timestamp` fields
 | are present in both modes; only the stack trace and internal detail
 | differ. In development, keep APP_DEBUG=true so failed requests produce
@@ -86,7 +86,7 @@ use App\Http\Controllers\CorporateSiteEntryController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\LocalePreferenceController;
 use App\Http\Controllers\CommunicationAnnouncementController;
-use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Auth\Models\User;
 
 // =============================================================================
 // 1. Public Routes – No authentication required
@@ -98,7 +98,7 @@ use MaaleArna\MASES\Core\Auth\Models\User;
  * Used by monitoring tools, load balancers, and readiness probes.
  * Deliberately unauthenticated and tenant-independent.
  *
- * Response follows the MASES envelope:
+ * Response follows the ARNA envelope:
  *   { "success": true, "data": { status, timestamp, version, environment } }
  */
 Route::get('/health', static function (): JsonResponse {
@@ -363,7 +363,7 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
      * Lightweight endpoint returning basic identity plus tenant / role /
      * permission slugs. Useful for frontend authorisation heuristics.
      *
-     * Response follows the MASES envelope:
+     * Response follows the ARNA envelope:
      *   {
      *     "success": true,
      *     "data": {
@@ -389,7 +389,7 @@ Route::middleware(['auth:sanctum'])->group(static function (): void {
      *      (`user_has_roles` → `role_has_permissions`, exposed via
      *      `$user->roles[*]->permissions`).
      *
-     * Both paths are needed. In the current MASES deployment, path (1) is
+     * Both paths are needed. In the current ARNA deployment, path (1) is
      * always empty — the platform grants permissions exclusively through
      * roles — but path (1) remains in the merge so that a future direct
      * grant (an executive override, an emergency elevation) is reflected
@@ -747,7 +747,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])
     ->prefix('organization')
     ->name('api.organization.')
     ->group(static function (): void {
-        $controller = \MaaleArna\MASES\Core\Domains\Organization\Http\Controllers\OrganizationController::class;
+        $controller = \MaaleArna\Arna\Core\Domains\Organization\Http\Controllers\OrganizationController::class;
 
         Route::get('/units', [$controller, 'index'])->name('units.index');
         Route::post('/units', [$controller, 'store'])->name('units.store');
@@ -816,7 +816,7 @@ Route::middleware(['auth:sanctum', 'auth.permission:app.admin.access', 'tenant.m
 
 // D08 Task & Work Management — the authoritative task lifecycle owner.
 Route::middleware(['auth:sanctum', 'tenant.membership'])->prefix('/tasks')->name('api.tasks.')->group(static function (): void {
-    $controller = \MaaleArna\MASES\Core\Domains\Task\Http\Controllers\TaskController::class;
+    $controller = \MaaleArna\Arna\Core\Domains\Task\Http\Controllers\TaskController::class;
 
     Route::get('/', [$controller, 'index'])->middleware('auth.permission:task.view')->name('index');
     Route::get('/deadlines', [$controller, 'deadlines'])->middleware('auth.permission:task.view')->name('deadlines');
@@ -834,7 +834,7 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->prefix('/tasks')->name
 Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function (): void {
     // Calendar — tenant membership plus explicit Calendar capability checks.
     Route::prefix('/calendar')->name('api.calendar.')->group(static function (): void {
-        $controller = \MaaleArna\MASES\Core\Calendar\Http\Controllers\CalendarController::class;
+        $controller = \MaaleArna\Arna\Core\Calendar\Http\Controllers\CalendarController::class;
 
         Route::get('/calendars', [$controller, 'calendars'])
             ->middleware('auth.permission:calendar.view')->name('calendars.index');

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use MaaleArna\Arna\Core\Tenancy\Services\RequestTenantResolver;
 use Mockery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Config;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -42,7 +42,7 @@ use Tests\TestCase;
  * -----------------------------------------------------------------------------
  * Envelope contract (Phase 2A CR-003a / CR-021b)
  * -----------------------------------------------------------------------------
- * The `/api/health` endpoint returns the canonical MASES envelope:
+ * The `/api/health` endpoint returns the canonical ARNA envelope:
  *
  *     { "success": true, "data": { "status": "ok", "timestamp": …,
  *                                  "version": …, "environment": … } }
@@ -80,15 +80,15 @@ final class TenantIsolationTest extends TestCase
         parent::setUp();
 
         // Ensure tenant isolation is enabled for these tests.
-        Config::set('mases.tenant.isolation_enabled', true);
+        Config::set('arna.tenant.isolation_enabled', true);
 
         // No default tenant should leak between tests.
-        Config::set('mases.tenant.default_tenant_id', null);
+        Config::set('arna.tenant.default_tenant_id', null);
 
         // Use the standard request resolver so header-based resolution
         // matches production behavior.
         Config::set(
-            'mases.tenant.context_resolver',
+            'arna.tenant.context_resolver',
             RequestTenantResolver::class
         );
     }
@@ -229,7 +229,7 @@ final class TenantIsolationTest extends TestCase
      * The `/api/health` endpoint is intentionally public and must never
      * require tenant context or authentication.
      *
-     * The response is wrapped in the canonical MASES envelope; the health
+     * The response is wrapped in the canonical ARNA envelope; the health
      * payload lives under `data`.
      *
      * @return void
@@ -317,7 +317,7 @@ final class TenantIsolationTest extends TestCase
         $this->app['router']->get('/_test/tenant-required', static function () {
             return response()->json([
                 'success'   => true,
-                'tenant_id' => mases_tenant()?->id,
+                'tenant_id' => arna_tenant()?->id,
             ]);
         })->middleware(['auth:sanctum', 'tenant.membership']);
 

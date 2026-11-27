@@ -9,14 +9,14 @@ use Database\Seeders\Data\RolePermissionGrants;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
-use MaaleArna\MASES\Core\Notifications\Models\PlatformNotification;
-use MaaleArna\MASES\Core\Tenancy\Middleware\TenantMembershipMiddleware;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
-use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Notifications\Models\PlatformNotification;
+use MaaleArna\Arna\Core\Tenancy\Middleware\TenantMembershipMiddleware;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\Arna\Core\Tenancy\Services\RequestTenantResolver;
 use Illuminate\Database\Events\QueryExecuted;
 use RuntimeException;
 use Tests\TestCase;
@@ -29,8 +29,8 @@ final class CommunicationAnnouncementsTest extends TestCase
     {
         parent::setUp();
 
-        Config::set('mases.tenant.context_resolver', RequestTenantResolver::class);
-        Config::set('mases.tenant.isolation_enabled', true);
+        Config::set('arna.tenant.context_resolver', RequestTenantResolver::class);
+        Config::set('arna.tenant.isolation_enabled', true);
         $this->app['router']->aliasMiddleware('tenant.membership', TenantMembershipMiddleware::class);
     }
 

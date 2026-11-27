@@ -47,7 +47,7 @@
         Feature     app-level HTTP and API tests under tests/Feature.
                     Boots the full kernel.
 
-        Domain      every domain-scoped test under mases_core/src/Domains,
+        Domain      every domain-scoped test under arna_core/src/Domains,
                     discovered recursively. Covers both per-domain Unit
                     and Feature subtrees in one sweep, so a domain author
                     can add Tests/Unit or Tests/Feature test files
@@ -66,7 +66,7 @@
         domain) would abort the whole run if any single domain lacked a
         Tests/Unit or Tests/Feature subdirectory.
 
-        A single directory entry pointing at mases_core/src/Domains
+        A single directory entry pointing at arna_core/src/Domains
         avoids that class of failure entirely. PHPUnit validates the
         top-level directory (which exists) and walks its contents at
         discovery time; missing intermediates simply contribute no
@@ -88,7 +88,7 @@
         </testsuite>
 
         <testsuite name="Domain">
-            <directory suffix="Test.php">mases_core/src/Domains</directory>
+            <directory suffix="Test.php">arna_core/src/Domains</directory>
         </testsuite>
     </testsuites>
 
@@ -101,7 +101,7 @@
         coverage reports. Anything outside this list is ignored:
         vendor/, tests/, config/, database/, and so on.
 
-        Both application code (app/) and MASES core (mases_core/src/) are
+        Both application code (app/) and ARNA core (arna_core/src/) are
         included, because a regression in either is a regression in the
         API.
 
@@ -121,13 +121,13 @@
     <source>
         <include>
             <directory suffix=".php">app</directory>
-            <directory suffix=".php">mases_core/src</directory>
+            <directory suffix=".php">arna_core/src</directory>
         </include>
         <exclude>
             <directory>app/Providers</directory>
             <file>app/Console/Kernel.php</file>
             <file>app/Exceptions/Handler.php</file>
-            <file>mases_core/src/Support/Helpers.php</file>
+            <file>arna_core/src/Support/Helpers.php</file>
         </exclude>
     </source>
 
@@ -166,7 +166,7 @@
             ================================================================
 
             AUTH_MODEL binds the auth pipeline (password broker,
-            verification, password reset) to the MASES Core User model.
+            verification, password reset) to the ARNA Core User model.
             Without this, the framework resolves App\Models\User, which
             does not satisfy the type contracts enforced by
             AuthenticationService.
@@ -174,21 +174,21 @@
             This is the change originally recorded as CR-2.
             ================================================================
         -->
-        <env name="AUTH_MODEL"             value="MaaleArna\MASES\Core\Auth\Models\User"/>
+        <env name="AUTH_MODEL"             value="MaaleArna\Arna\Core\Auth\Models\User"/>
 
         <!--
             ================================================================
-            MASES CORE OVERRIDES
+            ARNA CORE OVERRIDES
             ================================================================
 
-            These feed the mases_*() helpers from
-            mases_core/src/Support/Helpers.php
+            These feed the arna_*() helpers from
+            arna_core/src/Support/Helpers.php
             ================================================================
         -->
-        <env name="MASES_ENV"                    value="testing"/>
-        <env name="MASES_TENANT_ISOLATION"       value="false"/>
-        <env name="MASES_DEFAULT_TENANT_ID"      value=""/>
-        <env name="MASES_DEFAULT_LOCALE"         value="am"/>
+        <env name="ARNA_ENV"                    value="testing"/>
+        <env name="ARNA_TENANT_ISOLATION"       value="false"/>
+        <env name="ARNA_DEFAULT_TENANT_ID"      value=""/>
+        <env name="ARNA_DEFAULT_LOCALE"         value="am"/>
 
         <!--
             ================================================================
@@ -235,7 +235,7 @@
         -->
         <env name="MAIL_MAILER"            value="array"/>
         <env name="MAIL_FROM_ADDRESS"      value="testing@maalearna.test"/>
-        <env name="MAIL_FROM_NAME"         value="MASES Test"/>
+        <env name="MAIL_FROM_NAME"         value="ARNA Test"/>
 
         <!--
             ================================================================
@@ -277,7 +277,7 @@
             failure block contains everything needed to diagnose a
             failure.
 
-            Why this matters: many MASES tests deliberately exercise
+            Why this matters: many ARNA tests deliberately exercise
             error paths (tenant rejection, permission denial, invalid
             credentials, and so on). Each such test causes the middleware
             to call Log::error() or Log::warning(). With the stack driver

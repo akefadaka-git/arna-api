@@ -12,10 +12,10 @@ return new class extends Migration
     {
         Schema::create('calendar_appointment_notification_outbox', function (Blueprint $table): void {
             $table->uuid('id')->primary();
-            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
-            $table->foreignUuid('appointment_id')->constrained('calendar_appointments')->cascadeOnDelete();
-            $table->foreignUuid('proposal_id')->constrained('calendar_appointment_reschedule_proposals')->cascadeOnDelete();
-            $table->foreignId('recipient_user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('tenant_id')->constrained('tenants', 'id', 'cap_notice_tenant_fk')->cascadeOnDelete();
+            $table->foreignUuid('appointment_id')->constrained('calendar_appointments', 'id', 'cap_notice_appointment_fk')->cascadeOnDelete();
+            $table->foreignUuid('proposal_id')->constrained('calendar_appointment_reschedule_proposals', 'id', 'cap_notice_proposal_fk')->cascadeOnDelete();
+            $table->foreignId('recipient_user_id')->constrained('users', 'id', 'cap_notice_recipient_fk')->cascadeOnDelete();
             $table->string('action', 20);
             $table->json('payload');
             $table->string('status', 20)->default('pending');

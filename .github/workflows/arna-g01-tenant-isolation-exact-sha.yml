@@ -86,13 +86,13 @@ jobs:
         run: php artisan test --compact tests/Feature/TenantMembershipTest.php
 
       - name: Loan tenant isolation regression tests
-        run: php artisan test --compact mases_core/src/Domains/Loan/Tests/Feature/TenantIsolationTest.php
+        run: php artisan test --compact arna_core/src/Domains/Loan/Tests/Feature/TenantIsolationTest.php
 
       - name: Shareholder tenant isolation regression tests
-        run: php artisan test --compact mases_core/src/Domains/Shareholder/Tests/Feature/TenantIsolationTest.php
+        run: php artisan test --compact arna_core/src/Domains/Shareholder/Tests/Feature/TenantIsolationTest.php
 
       - name: Wallet tenant isolation regression tests
-        run: php artisan test --compact mases_core/src/Domains/Wallet/Tests/Feature/TenantIsolationTest.php
+        run: php artisan test --compact arna_core/src/Domains/Wallet/Tests/Feature/TenantIsolationTest.php
 
       - name: Record exact-SHA audit evidence
         if: always()

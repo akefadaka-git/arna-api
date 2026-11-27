@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
-use MaaleArna\MASES\Core\Tenancy\Middleware\TenantMembershipMiddleware;
+use MaaleArna\Arna\Core\Tenancy\Services\RequestTenantResolver;
+use MaaleArna\Arna\Core\Tenancy\Middleware\TenantMembershipMiddleware;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Config;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Tenancy\Models\TenantMembership;
 use Tests\TestCase;
 
 /**
@@ -42,8 +42,8 @@ final class TenantMembershipTest extends TestCase
     {
         parent::setUp();
 
-        Config::set('mases.tenant.context_resolver', RequestTenantResolver::class);
-        Config::set('mases.tenant.isolation_enabled', true);
+        Config::set('arna.tenant.context_resolver', RequestTenantResolver::class);
+        Config::set('arna.tenant.isolation_enabled', true);
 
         // Register the tenant membership middleware alias for testing.
         // In real app, it's registered in bootstrap/app.php.
@@ -210,11 +210,11 @@ final class TenantMembershipTest extends TestCase
      * Test that unauthenticated users are rejected.
      *
      * A request that reaches `tenant.membership` without an authenticated
-     * user is rejected with the canonical MASES authentication code
+     * user is rejected with the canonical ARNA authentication code
      * `AUTH_UNAUTHENTICATED` and HTTP status 401.
      *
      * Prior to R-18 the middleware produced the ad-hoc code
-     * `AUTH_REQUIRED`; that string was not a constant on any MASES
+     * `AUTH_REQUIRED`; that string was not a constant on any ARNA
      * exception class and duplicated the semantic that
      * `AuthenticationException::ERROR_UNAUTHENTICATED` already
      * represents. See the class docblock §"Revision history" for the

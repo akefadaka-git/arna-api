@@ -9,14 +9,14 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
-use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
-use MaaleArna\MASES\Core\Domains\Documents\Services\SodiumDocumentSignatureEvidenceVerifier;
-use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
-use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
+use MaaleArna\Arna\Core\Domains\Documents\Services\DocumentWorkflowAuthorizationService;
+use MaaleArna\Arna\Core\Domains\Documents\Services\SodiumDocumentSignatureEvidenceVerifier;
+use MaaleArna\Arna\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\Arna\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
 use Mockery;
 use Tests\TestCase;
 
@@ -279,7 +279,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $workflow = $this->workflowReadyToIssue($service, $actor, $tenantId, $entityId, $unitId, $fileId, 'Revoked key');
         $signature = $this->signatureEvidence($actor, $tenantId, $workflow);
 
-        app(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentSigningKeyRevocationService::class)
+        app(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentSigningKeyRevocationService::class)
             ->revoke($actor, $tenantId, 9, 4, $signature['key_id'], 'Signing key custody was compromised.');
 
         try {
@@ -517,7 +517,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
     public function test_aggregate_uses_the_concrete_rbac_and_governance_authorization_adapter(): void
     {
         [$tenantId, $entityId, $unitId] = $this->issuer();
-        $this->app->make(\MaaleArna\MASES\Core\Tenancy\Services\TenantContextService::class)->setTenantById($tenantId);
+        $this->app->make(\MaaleArna\Arna\Core\Tenancy\Services\TenantContextService::class)->setTenantById($tenantId);
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenantId]);
         $this->actingAs($actor);
         \Laravel\Sanctum\Sanctum::actingAs($actor, ['*']);
@@ -575,7 +575,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             self::assertSame(1, (int) $workflow->fresh()->revision);
         }
 
-        $person = \MaaleArna\MASES\Core\Domains\People\Models\Person::query()->create([
+        $person = \MaaleArna\Arna\Core\Domains\People\Models\Person::query()->create([
             'first_name_en' => 'Governance signatory',
         ]);
         DB::table('people')->where('id', $person->getKey())->update(['user_id' => $actor->getKey()]);
@@ -584,7 +584,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'created_by' => $actor->getKey(), 'status' => 'active',
             'created_at' => now(), 'updated_at' => now(),
         ]);
-        $grantor = \MaaleArna\MASES\Core\Domains\People\Models\Person::query()->create([
+        $grantor = \MaaleArna\Arna\Core\Domains\People\Models\Person::query()->create([
             'first_name_en' => 'Independent grantor',
         ]);
         DB::table('person_tenant_accesses')->insert([
@@ -607,9 +607,9 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        self::assertSame($tenantId, (int) \mases_tenant_id());
+        self::assertSame($tenantId, (int) \arna_tenant_id());
         self::assertTrue($authorization->hasPermission($actor, $tenantId, 'documents.review'));
-        self::assertTrue(app(\MaaleArna\MASES\Core\Domains\Governance\Services\GovernanceAuthorityGrantService::class)
+        self::assertTrue(app(\MaaleArna\Arna\Core\Domains\Governance\Services\GovernanceAuthorityGrantService::class)
             ->allows($actor, $tenantId, $bodyId, $positionId, 'documents.review'));
 
         $approved = $service->transition($actor, $tenantId, (int) $workflow->id, 'start_review', 1);
@@ -685,7 +685,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         [$tenantId] = $this->issuer();
         $actor = User::factory()->create(['is_active' => true]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
-        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $lifecycle = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
         $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
 
         DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
@@ -710,12 +710,12 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         [$tenantId] = $this->issuer();
         $actor = User::factory()->create(['is_active' => true]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
-        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $lifecycle = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
         $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
         DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])
             ->update(['captured_at' => now()->subDays(2)]);
 
-        $reconciler = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class);
+        $reconciler = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class);
         $dryRun = $reconciler->run(100, 1440, false);
         self::assertSame(1, $dryRun['eligible']);
         self::assertTrue(Storage::disk('local')->exists($prepared['snapshot']['path']));
@@ -735,7 +735,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         [$tenantId] = $this->issuer();
         $actor = User::factory()->create(['is_active' => true]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
-        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $lifecycle = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
         $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
         $snapshot = $prepared['snapshot'];
 
@@ -753,7 +753,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])
             ->update(['captured_at' => now()->subDays(2)]);
 
-        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+        $result = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
             ->run(100, 1440, true);
         self::assertSame(0, $result['deleted']);
         self::assertSame('linked', DB::table('document_evidence_capture_intents')
@@ -782,9 +782,9 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
 
         // Simulate a process stopping after the immutable write but before
         // the independent CAPTURED state transaction commits.
-        $snapshot = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\ImmutableDocumentBinaryStore::class)
+        $snapshot = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\ImmutableDocumentBinaryStore::class)
             ->capture($tenantId, $fileId, 1, 'local', 'documents/source.pdf');
-        $prepared = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class)
+        $prepared = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class)
             ->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
 
         self::assertSame($intentId, $prepared['intent_id']);
@@ -798,7 +798,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         [$tenantId] = $this->issuer();
         $actor = User::factory()->create(['is_active' => true]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
-        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $lifecycle = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
         $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
 
         DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
@@ -808,7 +808,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'cleanup_lease_until' => now()->subMinutes(10),
         ]);
 
-        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+        $result = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
             ->run(100, 1440, true);
 
         self::assertSame(1, $result['deleted']);
@@ -822,7 +822,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         [$tenantId] = $this->issuer();
         $actor = User::factory()->create(['is_active' => true]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
-        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $lifecycle = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
         $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
 
         DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
@@ -830,7 +830,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'captured_at' => now()->subDays(2),
         ]);
 
-        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+        $result = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
             ->run(100, 1440, true);
 
         self::assertSame(1, $result['quarantined']);
@@ -858,7 +858,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'updated_at' => $now,
         ]);
 
-        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+        $result = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
             ->run(100, 1440, true);
 
         self::assertSame(1, $result['stale_reserved']);
@@ -872,7 +872,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         [$tenantId] = $this->issuer();
         $actor = User::factory()->create(['is_active' => true]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
-        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $lifecycle = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
         $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
 
         DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
@@ -883,7 +883,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         ]);
         Storage::disk('local')->delete($prepared['snapshot']['path']);
 
-        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+        $result = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
             ->run(100, 1440, true);
 
         self::assertSame(1, $result['deleted']);
@@ -897,7 +897,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         [$tenantId] = $this->issuer();
         $actor = User::factory()->create(['is_active' => true]);
         $fileId = $this->file($tenantId, (int) $actor->getKey());
-        $lifecycle = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $lifecycle = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
         $prepared = $lifecycle->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
 
         DB::table('document_evidence_capture_intents')->where('id', $prepared['intent_id'])->update([
@@ -905,7 +905,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'captured_at' => now()->subDays(2),
         ]);
 
-        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+        $result = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
             ->run(100, 1440, true);
 
         self::assertSame(1, $result['quarantined']);
@@ -920,7 +920,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         $legacyPath = 'document-evidence/legacy/untracked.bin';
         Storage::disk('local')->put($legacyPath, 'legacy evidence object without capture intent');
 
-        $result = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
+        $result = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureReconciler::class)
             ->run(100, 1440, true);
 
         self::assertSame(0, $result['scanned']);
@@ -947,7 +947,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
             'updated_at' => $now,
         ]);
 
-        $prepared = $this->app->make(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class)
+        $prepared = $this->app->make(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class)
             ->prepare($tenantId, $fileId, 1, (int) $actor->getKey());
 
         self::assertSame($intentId, $prepared['intent_id']);
@@ -963,7 +963,7 @@ final class DocumentWorkflowAggregateServiceTest extends TestCase
         int $unitId,
         int $fileId,
         string $title,
-    ): \MaaleArna\MASES\Core\Domains\Documents\Models\DocumentWorkflowAggregate {
+    ): \MaaleArna\Arna\Core\Domains\Documents\Models\DocumentWorkflowAggregate {
         $workflow = $service->createDraft($actor, $tenantId, $entityId, $unitId, '01', $title, 9, 4);
         $workflow = $service->transition($actor, $tenantId, (int) $workflow->id, 'submit', 0, null, [
             'submitted_file_id' => $fileId,

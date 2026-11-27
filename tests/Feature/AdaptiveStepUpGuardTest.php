@@ -8,12 +8,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Auth\Services\AdaptiveAuthenticationPolicy;
-use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpContext;
-use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpGuard;
-use MaaleArna\MASES\Core\Auth\Services\AdaptiveStepUpService;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Auth\Services\AdaptiveAuthenticationPolicy;
+use MaaleArna\Arna\Core\Auth\Services\AdaptiveStepUpContext;
+use MaaleArna\Arna\Core\Auth\Services\AdaptiveStepUpGuard;
+use MaaleArna\Arna\Core\Auth\Services\AdaptiveStepUpService;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -77,13 +77,13 @@ final class AdaptiveStepUpGuardTest extends TestCase
         try {
             app(AdaptiveStepUpGuard::class)->assert($changedRequest, 'wallet.payment.record', $tenant->id);
             $this->fail('A grant for a different amount must be rejected.');
-        } catch (\MaaleArna\MASES\Core\Exceptions\AuthenticationException $exception) {
+        } catch (\MaaleArna\Arna\Core\Exceptions\AuthenticationException $exception) {
             $this->assertSame('AUTH_STEP_UP_REQUIRED', $exception->getErrorCode());
         }
 
         app(AdaptiveStepUpGuard::class)->assert($request, 'wallet.payment.record', $tenant->id);
 
-        $this->expectException(\MaaleArna\MASES\Core\Exceptions\AuthenticationException::class);
+        $this->expectException(\MaaleArna\Arna\Core\Exceptions\AuthenticationException::class);
         app(AdaptiveStepUpGuard::class)->assert($request, 'wallet.payment.record', $tenant->id);
     }
 }

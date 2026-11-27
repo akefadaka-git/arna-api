@@ -7,11 +7,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
-use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
-use MaaleArna\MASES\Core\Domains\Finance\Contracts\FinancialReportContract;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Domains\People\Services\WorkforceAggregateProvider;
+use MaaleArna\Arna\Core\Authorization\ExecutiveOverviewAccessPolicy;
+use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\Arna\Core\Domains\Finance\Contracts\FinancialReportContract;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Domains\People\Services\WorkforceAggregateProvider;
 
 final class ExecutiveOverviewController
 {
@@ -24,7 +24,7 @@ final class ExecutiveOverviewController
     public function show(Request $request): JsonResponse
     {
         $user = $request->user();
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
 
         if ($user === null || $tenantId === null) {
             return response()->json([

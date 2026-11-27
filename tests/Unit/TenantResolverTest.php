@@ -6,7 +6,7 @@ namespace Tests\Unit;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
-use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use MaaleArna\Arna\Core\Tenancy\Services\RequestTenantResolver;
 use Tests\TestCase;
 
 /**
@@ -166,7 +166,7 @@ final class TenantResolverTest extends TestCase
      */
     public function test_resolve_uses_configured_reserved_domains(): void
     {
-        Config::set('mases.tenant.reserved_domains', ['custom', 'api']);
+        Config::set('arna.tenant.reserved_domains', ['custom', 'api']);
 
         $request = Request::create('/test', 'GET', [], [], [], [
             'HTTP_HOST' => 'custom.maalearna.com.et',

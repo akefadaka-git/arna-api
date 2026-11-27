@@ -7,7 +7,7 @@ on:
     paths:
       - ".github/workflows/arna-documents-numbering-a4.yml"
       - "database/migrations/**"
-      - "mases_core/src/Domains/Documents/**"
+      - "arna_core/src/Domains/Documents/**"
       - "tests/Unit/Documents/**"
       - "scripts/verify_document_number_concurrency.php"
       - "docs/architecture/documents-registry-taxonomy-numbering-a3-2.md"
@@ -104,7 +104,7 @@ jobs:
       - name: Lint changed Documents PHP sources and tests
         run: |
           php -l database/migrations/2026_11_18_000001_create_documents_registry_and_numbering_tables.php
-          find mases_core/src/Domains/Documents tests/Unit/Documents -name '*.php' -print0 | xargs -0 -n1 php -l
+          find arna_core/src/Domains/Documents tests/Unit/Documents -name '*.php' -print0 | xargs -0 -n1 php -l
           php -l scripts/verify_document_number_concurrency.php
 
       - name: Validate and install locked Composer dependencies
@@ -113,7 +113,7 @@ jobs:
           composer install --prefer-dist --no-interaction --no-progress
 
       - name: Enforce Pint formatting on committed A3.2 sources
-        run: vendor/bin/pint --test database/migrations/2026_11_18_000001_create_documents_registry_and_numbering_tables.php mases_core/src/Domains/Documents/Services/DocumentNumberAllocator.php mases_core/src/Domains/Documents/Services/DocumentNumberFormatter.php tests/Unit/Documents/DocumentNumberAllocatorTest.php tests/Unit/Documents/DocumentNumberAllocatorTransactionGuardTest.php tests/Unit/Documents/DocumentNumberingContractTest.php tests/Unit/Documents/DocumentNumberingSchemaTest.php scripts/verify_document_number_concurrency.php
+        run: vendor/bin/pint --test database/migrations/2026_11_18_000001_create_documents_registry_and_numbering_tables.php arna_core/src/Domains/Documents/Services/DocumentNumberAllocator.php arna_core/src/Domains/Documents/Services/DocumentNumberFormatter.php tests/Unit/Documents/DocumentNumberAllocatorTest.php tests/Unit/Documents/DocumentNumberAllocatorTransactionGuardTest.php tests/Unit/Documents/DocumentNumberingContractTest.php tests/Unit/Documents/DocumentNumberingSchemaTest.php scripts/verify_document_number_concurrency.php
 
       - name: Run all migrations on clean MySQL
         run: php artisan migrate:fresh --force -vvv

@@ -11,7 +11,7 @@ use RuntimeException;
  *
  * These seeders delete the existing user graph and recreate shared
  * bootstrap credentials. They are only permitted in local/testing
- * environments with an explicit MASES_ENABLE_DEMO_SEEDING=true opt-in.
+ * environments with an explicit ARNA_ENABLE_DEMO_SEEDING=true opt-in.
  */
 final class DemoSeederGuard
 {
@@ -26,7 +26,7 @@ final class DemoSeederGuard
         if (! in_array($environment, ['local', 'testing'], true) || ! $enabled) {
             throw new RuntimeException(
                 'Demo/bootstrap seeding is disabled. It requires APP_ENV=local or testing '
-                . 'and MASES_ENABLE_DEMO_SEEDING=true. Never enable this for production data.'
+                . 'and ARNA_ENABLE_DEMO_SEEDING=true. Never enable this for production data.'
             );
         }
     }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Data;
 
-use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRoleCatalogue;
+use MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinanceRoleCatalogue;
 
 /**
  * Canonical platform role definitions. Keep role slugs stable; permission grants are maintained separately.

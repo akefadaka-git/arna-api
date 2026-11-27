@@ -10,9 +10,9 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use RuntimeException;
 
 /**
@@ -143,7 +143,7 @@ final class AdminUserSeeder extends Seeder
                 'AdminUserSeeder requires the default tenant to exist '
                 . 'before it can create the bootstrap admin accounts. '
                 . 'Run TenantSeeder first, or invoke the seeder through '
-                . 'the MasesCoreSeeder orchestrator, which passes the '
+                . 'the ArnaCoreSeeder orchestrator, which passes the '
                 . 'tenant explicitly.'
             );
         }
@@ -163,7 +163,7 @@ final class AdminUserSeeder extends Seeder
                 'AdminUserSeeder requires the role catalogue to exist '
                 . 'before it can attach roles to the bootstrap admins. '
                 . 'Run RoleSeeder first, or invoke the seeder through '
-                . 'the MasesCoreSeeder orchestrator, which passes the '
+                . 'the ArnaCoreSeeder orchestrator, which passes the '
                 . 'roles map explicitly.'
             );
         }

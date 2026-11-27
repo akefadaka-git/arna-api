@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use MaaleArna\Arna\Core\Tenancy\Services\RequestTenantResolver;
 use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use Tests\TestCase;
 
 /**
@@ -62,15 +62,15 @@ final class TenantRequiredRouteTest extends TestCase
 
         // Ensure the resolver is the standard request resolver and
         // tenant isolation is on so the middleware behaves as in production.
-        Config::set('mases.tenant.isolation_enabled', true);
+        Config::set('arna.tenant.isolation_enabled', true);
         Config::set(
-            'mases.tenant.context_resolver',
+            'arna.tenant.context_resolver',
             RequestTenantResolver::class
         );
 
         // Route guarded by tenant.membership with the default (require = true).
         $this->app['router']->get(self::REQUIRED_ROUTE, static function () {
-            $tenant = mases_tenant();
+            $tenant = arna_tenant();
 
             return response()->json([
                 'success'     => true,
@@ -81,7 +81,7 @@ final class TenantRequiredRouteTest extends TestCase
 
         // Route guarded by tenant.membership with the relaxed (require = false).
         $this->app['router']->get(self::OPTIONAL_ROUTE, static function () {
-            $tenant = mases_tenant();
+            $tenant = arna_tenant();
 
             return response()->json([
                 'success'     => true,

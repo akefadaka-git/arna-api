@@ -1,0 +1,297 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MaaleArna\Arna\Core\Domains\Finance\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\Arna\Core\Domains\Finance\Models\AccountingPeriod;
+use MaaleArna\Arna\Core\Domains\Finance\Models\JournalEntry;
+use MaaleArna\Arna\Core\Domains\Finance\Models\LedgerAccount;
+use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\Arna\Core\Domains\Finance\Models\JournalSourceEntityMapping;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Requests\StoreLegalEntityRequest;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Requests\ReverseJournalRequest;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Requests\CancelJournalRequest;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Requests\StoreJournalRequest;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Requests\StoreAccountingPeriodRequest;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Requests\StoreLedgerAccountRequest;
+use MaaleArna\Arna\Core\Domains\Finance\Services\JournalEntryService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\LegalEntityService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\LedgerAccountService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinancialReportService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\SourceLegalEntityMappingService;
+use MaaleArna\Arna\Core\Domains\Finance\Enums\JournalSourceType;
+use MaaleArna\Arna\Core\Domains\Finance\Services\AccountingPeriodService;
+use MaaleArna\Arna\Core\Domains\Finance\Repositories\LegalEntityRepository;
+use MaaleArna\Arna\Core\Domains\Finance\Repositories\JournalEntryRepository;
+use MaaleArna\Arna\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
+use MaaleArna\Arna\Core\Domains\Finance\Repositories\LedgerAccountRepository;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Resources\LegalEntityResource;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Resources\TrialBalanceResource;
+
+use MaaleArna\Arna\Core\Tenancy\Services\TenantContextService;
+
+final class FinanceController extends Controller
+{
+    public function __construct(
+        private readonly TenantContextService $tenantContext,
+        private readonly LegalEntityRepository $entitiesRepository,
+        private readonly LegalEntityService $legalEntities,
+        private readonly LedgerAccountService $ledgerAccountService,
+        private readonly JournalEntryService $journals,
+        private readonly FinancialReportService $financialReports,
+        private readonly LedgerAccountRepository $ledgerAccounts,
+        private readonly AccountingPeriodRepository $accountingPeriods,
+        private readonly AccountingPeriodService $accountingPeriodService,
+        private readonly JournalEntryRepository $journalEntries,
+        private readonly SourceLegalEntityMappingService $sourceMappingService,
+    ) {
+    }
+
+
+    public function sourceMappings(Request $request): JsonResponse
+    {
+        Gate::authorize('viewAny', JournalSourceEntityMapping::class);
+        $data = $request->validate([
+            'status' => ['sometimes', 'string', Rule::in([
+                JournalSourceEntityMapping::STATUS_PENDING,
+                JournalSourceEntityMapping::STATUS_APPROVED,
+                JournalSourceEntityMapping::STATUS_REVOKED,
+            ])],
+        ]);
+
+        $query = JournalSourceEntityMapping::query()
+            ->where('tenant_id', $this->tenantId())
+            ->with('entity:id,tenant_id,code,name_en');
+        if (isset($data['status'])) {
+            $query->where('status', $data['status']);
+        }
+
+        return response()->json(['success' => true, 'data' => $query->orderByDesc('id')->paginate($this->perPage($request))]);
+    }
+
+    public function requestSourceMapping(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'source_type' => ['required', 'string', Rule::in([
+                JournalSourceType::SHAREHOLDER->value,
+                JournalSourceType::WALLET->value,
+                JournalSourceType::LOAN->value,
+                JournalSourceType::GOVERNANCE_PENALTY_SETTLEMENT->value,
+            ])],
+            'source_id' => ['required', 'string', 'max:128'],
+            'legal_entity_id' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ]);
+
+        $mapping = $this->sourceMappingService->request(
+            $this->tenantId(),
+            JournalSourceType::from($data['source_type']),
+            $data['source_id'],
+            (int) $data['legal_entity_id'],
+            $request->user(),
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $mapping], 201);
+    }
+
+    public function approveSourceMapping(Request $request, int $mappingId): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
+        $mapping = $this->sourceMappingService->approve(
+            $mappingId,
+            $request->user(),
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $mapping]);
+    }
+
+    public function revokeSourceMapping(Request $request, int $mappingId): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
+        $mapping = $this->sourceMappingService->revoke(
+            $mappingId,
+            $request->user(),
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $mapping]);
+    }
+
+    public function entities(Request $request): JsonResponse
+    {
+        Gate::authorize('viewAny', LegalEntity::class);
+        return response()->json(['success' => true, 'data' => $this->entitiesRepository
+            ->paginateForTenant($this->tenantId(), $this->perPage($request))]);
+    }
+
+    public function createEntity(StoreLegalEntityRequest $request): JsonResponse
+    {
+        Gate::authorize('create', LegalEntity::class);
+        $entity = $this->legalEntities->create(
+            $this->tenantId(),
+            $request->validated(),
+            (int) $request->user()->getAuthIdentifier(),
+        );
+
+        return response()->json(['success' => true, 'data' => LegalEntityResource::make($entity)->resolve($request)], 201);
+    }
+
+    public function accounts(Request $request): JsonResponse
+    {
+        Gate::authorize('viewAny', LedgerAccount::class);
+        $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+
+        return response()->json(['success' => true, 'data' => $this->ledgerAccounts->paginateForEntity(
+            $this->tenantId(), (int) $entity->id, $this->perPage($request),
+        )]);
+    }
+
+    public function createAccount(StoreLedgerAccountRequest $request): JsonResponse
+    {
+        Gate::authorize('create', LedgerAccount::class);
+        $account = $this->ledgerAccountService->create(
+            $this->tenantId(),
+            (int) $request->user()->getAuthIdentifier(),
+            $request->validated(),
+        );
+
+        return response()->json(['success' => true, 'data' => $account], 201);
+    }
+
+    public function periods(Request $request): JsonResponse
+    {
+        Gate::authorize('viewAny', AccountingPeriod::class);
+        $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+
+        return response()->json(['success' => true, 'data' => $this->accountingPeriods->paginateForEntity(
+            $this->tenantId(), (int) $entity->id, $this->perPage($request),
+        )]);
+    }
+
+    public function createPeriod(StoreAccountingPeriodRequest $request): JsonResponse
+    {
+        Gate::authorize('create', AccountingPeriod::class);
+        $period = $this->accountingPeriodService->create($this->tenantId(), $request->validated(), (int) $request->user()->getAuthIdentifier());
+
+        return response()->json(['success' => true, 'data' => $period], 201);
+    }
+
+    public function closePeriod(Request $request, int $periodId): JsonResponse
+    {
+        $periodForAuthorization = AccountingPeriod::query()->where('tenant_id', $this->tenantId())->findOrFail($periodId);
+        Gate::authorize('close', $periodForAuthorization);
+        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:2000']]);
+        $period = $this->accountingPeriodService->close(
+            $this->tenantId(),
+            (int) $request->user()->getAuthIdentifier(),
+            $periodId,
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $period]);
+    }
+
+    public function journals(Request $request): JsonResponse
+    {
+        Gate::authorize('viewAny', JournalEntry::class);
+        $data = $request->validate(['legal_entity_id' => ['required', 'integer']]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+
+        return response()->json(['success' => true, 'data' => $this->journalEntries->paginateForEntity(
+            $this->tenantId(), (int) $entity->id, $this->perPage($request),
+        )]);
+    }
+
+    public function createJournal(StoreJournalRequest $request): JsonResponse
+    {
+        Gate::authorize('create', JournalEntry::class);
+        $data = $request->validated();
+        $journal = $this->journals->createDraft($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $data, $data['lines']);
+        return response()->json(['success' => true, 'data' => $journal], 201);
+    }
+
+    public function cancelJournal(CancelJournalRequest $request, int $journalId): JsonResponse
+    {
+        $journalForAuthorization = JournalEntry::query()->where('tenant_id', $this->tenantId())->findOrFail($journalId);
+        Gate::authorize('cancel', $journalForAuthorization);
+        $data = $request->validated();
+        $journal = $this->journals->cancelDraft(
+            $this->tenantId(),
+            (int) $request->user()->getAuthIdentifier(),
+            $journalId,
+            $data['reason'],
+        );
+
+        return response()->json(['success' => true, 'data' => $journal]);
+    }
+
+    public function postJournal(Request $request, int $journalId): JsonResponse
+    {
+        $journalForAuthorization = JournalEntry::query()->where('tenant_id', $this->tenantId())->findOrFail($journalId);
+        Gate::authorize('post', $journalForAuthorization);
+        $journal = $this->journals->post($this->tenantId(), (int) $request->user()->getAuthIdentifier(), $journalId);
+        return response()->json(['success' => true, 'data' => $journal]);
+    }
+
+    public function reverseJournal(ReverseJournalRequest $request, int $journalId): JsonResponse
+    {
+        $journalForAuthorization = JournalEntry::query()->where('tenant_id', $this->tenantId())->findOrFail($journalId);
+        Gate::authorize('reverse', $journalForAuthorization);
+        $data = $request->validated();
+        $journal = $this->journals->reverse(
+            $this->tenantId(), (int) $request->user()->getAuthIdentifier(), $journalId,
+            $data['journal_number'], $data['effective_date'], $data['reason'],
+        );
+        return response()->json(['success' => true, 'data' => $journal], 201);
+    }
+
+    public function trialBalance(Request $request): JsonResponse
+    {
+        Gate::authorize('viewReport', JournalEntry::class);
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer'],
+            'as_of' => ['required', 'date'],
+        ]);
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+        $report = $this->financialReports->trialBalance(
+            $this->tenantId(),
+            (int) $entity->id,
+            (string) $data['as_of'],
+        );
+
+        return response()->json(['success' => true, 'data' => [
+            'legal_entity_id' => (int) $entity->id,
+            ...TrialBalanceResource::make($report)->resolve($request),
+        ]]);
+    }
+
+    private function tenantId(): int
+    {
+        $tenantId = $this->tenantContext->getTenantId();
+        abort_if($tenantId === null, 403, 'A resolved tenant context is required.');
+        return (int) $tenantId;
+    }
+
+    private function assertEntityExists(int $entityId): LegalEntity
+    {
+        return $this->entitiesRepository->findForTenant($this->tenantId(), $entityId)
+            ?? abort(404);
+    }
+
+    private function perPage(Request $request): int
+    {
+        return min(max($request->integer('per_page', 25), 1), 100);
+    }
+}

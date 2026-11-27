@@ -8,10 +8,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use MaaleArna\MASES\Core\Audit\Models\AuditLog;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\PublicContent;
+use MaaleArna\Arna\Core\Audit\Models\AuditLog;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Domains\PublicContent\Models\PublicContent;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 

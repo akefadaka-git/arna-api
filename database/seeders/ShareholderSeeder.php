@@ -12,9 +12,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use RuntimeException;
 
 
@@ -202,7 +202,7 @@ final class ShareholderSeeder extends Seeder
                 'ShareholderSeeder requires the default tenant to exist '
                 . 'before it can create the shareholder cohort. '
                 . 'Run TenantSeeder first, or invoke the seeder through '
-                . 'the MasesCoreSeeder orchestrator, which passes the '
+                . 'the ArnaCoreSeeder orchestrator, which passes the '
                 . 'tenant explicitly.'
             );
         }
@@ -221,7 +221,7 @@ final class ShareholderSeeder extends Seeder
                 'ShareholderSeeder requires the role catalogue to exist '
                 . 'before it can attach roles to the shareholder cohort. '
                 . 'Run RoleSeeder first, or invoke the seeder through '
-                . 'the MasesCoreSeeder orchestrator, which passes the '
+                . 'the ArnaCoreSeeder orchestrator, which passes the '
                 . 'roles map explicitly.'
             );
         }
@@ -240,7 +240,7 @@ final class ShareholderSeeder extends Seeder
                 'ShareholderSeeder requires the super administrator to '
                 . 'exist before it can attribute role assignments. '
                 . 'Run AdminUserSeeder first, or invoke the seeder '
-                . 'through the MasesCoreSeeder orchestrator, which '
+                . 'through the ArnaCoreSeeder orchestrator, which '
                 . 'passes the super administrator explicitly.'
             );
         }

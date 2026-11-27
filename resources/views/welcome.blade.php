@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title>ማሌ ዓርና — MASES</title>
+    <title>ማሌ ዓርና — ARNA</title>
     <style>
         :root {
             --color-bg: #fafafa;
@@ -201,7 +201,7 @@
 <body>
     <main class="page">
         <header class="brand">
-            <p class="brand__badge">MASES</p>
+            <p class="brand__badge">ARNA</p>
             <h1 class="brand__name">ማሌ ዓርና</h1>
             <p class="brand__full">Maale Arna Smart System</p>
         </header>
@@ -209,7 +209,7 @@
         <section class="intro" aria-labelledby="intro-heading">
             <h2 id="intro-heading" class="intro__heading">የኤፒአይ አገልግሎት</h2>
             <p class="intro__text">
-                ይህ ገጽ የማሌ ዓርና ስማርት ሲስተም (MASES) ኤፒአይ አገልግሎት መግቢያ ነው።
+                ይህ ገጽ የማሌ ዓርና ስማርት ሲስተም (ARNA) ኤፒአይ አገልግሎት መግቢያ ነው።
             </p>
             <p class="intro__note">
                 ይህ ገጽ የተጠቃሚ ፖርታል ወይም አስተዳደራዊ ዳሽቦርድ አይደለም።

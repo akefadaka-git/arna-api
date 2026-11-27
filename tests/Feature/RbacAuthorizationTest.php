@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
-use MaaleArna\MASES\Core\Exceptions\AuthorizationException;
+use MaaleArna\Arna\Core\Tenancy\Services\RequestTenantResolver;
+use MaaleArna\Arna\Core\Exceptions\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Config;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
-use MaaleArna\MASES\Core\Authorization\Services\AuthorizationService;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\Arna\Core\Authorization\Services\AuthorizationService;
 use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 use Throwable;
@@ -77,9 +77,9 @@ final class RbacAuthorizationTest extends TestCase
         $this->authService = app(AuthorizationService::class);
 
         // Ensure tenant isolation is enabled and the request resolver is set.
-        Config::set('mases.tenant.isolation_enabled', true);
+        Config::set('arna.tenant.isolation_enabled', true);
         Config::set(
-            'mases.tenant.context_resolver',
+            'arna.tenant.context_resolver',
             RequestTenantResolver::class
         );
 
@@ -88,7 +88,7 @@ final class RbacAuthorizationTest extends TestCase
         if (is_dir(storage_path('logs')) && is_writable(storage_path('logs'))) {
             $this->logFile = $storageLog;
         } else {
-            $this->logFile = sys_get_temp_dir() . '/mases_test.log';
+            $this->logFile = sys_get_temp_dir() . '/arna_test.log';
         }
     }
 

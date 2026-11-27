@@ -16,7 +16,7 @@ final class LoanRepaymentIdempotencyMigrationDiscoveryTest extends TestCase
         $migrationName = '2026_10_24_120000_create_loan_repayment_idempotencies_table';
         $flatPath = database_path('migrations/' . $migrationName . '.php');
         $legacyDomainPath = base_path(
-            'mases_core/src/Domains/Loan/Database/Migrations/' . $migrationName . '.php',
+            'arna_core/src/Domains/Loan/Database/Migrations/' . $migrationName . '.php',
         );
 
         $this->assertFileExists($flatPath);

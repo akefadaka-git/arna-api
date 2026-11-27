@@ -221,8 +221,8 @@ A1 produced a functional/technical baseline and proposed directives framework. R
 ## References
 
 - Ethiopian Commercial Code Proclamation No. 1243/2021 — [WIPO Lex](https://www.wipo.int/wipolex/en/legislation/details/21658), [PDF](https://ethiodata.et/wp-content/uploads/2023/01/Commercial-Code-of-Ethiopia-English-Proclamation-No.-1243_2021.pdf), [Refworld](https://www.refworld.org/legal/natleginstr/natlegbod/2021/151093).
-- [ARNA API Governance configuration](https://github.com/akefadaka-git/arna-api/blob/main/mases_core/src/Domains/Governance/Config/governance.php).
-- [ARNA API Governance routes](https://github.com/akefadaka-git/arna-api/blob/main/mases_core/src/Domains/Governance/Routes/api.php).
+- [ARNA API Governance configuration](https://github.com/akefadaka-git/arna-api/blob/main/arna_core/src/Domains/Governance/Config/governance.php).
+- [ARNA API Governance routes](https://github.com/akefadaka-git/arna-api/blob/main/arna_core/src/Domains/Governance/Routes/api.php).
 - [Governance contract and correction plan](https://github.com/akefadaka-git/arna-api/blob/main/docs/governance/P1.3-governance-contract-and-correction-plan.md).
 - [Shareholder charter scaffold — draft, not approved](https://github.com/akefadaka-git/arna-api/blob/main/docs/PHASE_2_SHAREHOLDER_CHARTER.md).
 - [ARNA App workspace routes](https://github.com/akefadaka-git/arna-app/blob/main/src/router/routes-workspace.ts).

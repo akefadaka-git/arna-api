@@ -6,9 +6,9 @@ namespace Tests\Unit;
 
 use ReflectionMethod;
 use ReflectionClassConstant;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Security\Services\SecurityEventService;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Security\Services\SecurityEventService;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -16,7 +16,7 @@ use Tests\TestCase;
  * SecurityEventServiceTest
  *
  * Unit coverage for the sensitive-key filter in
- * `MaaleArna\MASES\Core\Security\Services\SecurityEventService`,
+ * `MaaleArna\Arna\Core\Security\Services\SecurityEventService`,
  * introduced/hardened by D-14 (H-19).
  *
  * The filter is a private method `buildEventData()` invoked by

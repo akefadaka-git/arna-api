@@ -11,7 +11,7 @@ on:
       - "composer.json"
       - "composer.lock"
       - "phpunit.xml"
-      - "mases_core/src/Domains/Shareholder/**"
+      - "arna_core/src/Domains/Shareholder/**"
   push:
     branches: [main, feat/public-certificate-verification]
     paths:
@@ -22,7 +22,7 @@ on:
       - "composer.json"
       - "composer.lock"
       - "phpunit.xml"
-      - "mases_core/src/Domains/Shareholder/**"
+      - "arna_core/src/Domains/Shareholder/**"
 
 permissions:
   contents: read

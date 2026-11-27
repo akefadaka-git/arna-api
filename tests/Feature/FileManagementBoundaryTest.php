@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use MaaleArna\MASES\Core\Domains\FileManagement\Models\File as CanonicalFile;
-use MaaleArna\MASES\Core\Domains\FileManagement\Services\FileService as CanonicalFileService;
-use MaaleArna\MASES\Core\Files\Models\File as LegacyFile;
-use MaaleArna\MASES\Core\Files\Services\FileService as LegacyFileService;
+use MaaleArna\Arna\Core\Domains\FileManagement\Models\File as CanonicalFile;
+use MaaleArna\Arna\Core\Domains\FileManagement\Services\FileService as CanonicalFileService;
+use MaaleArna\Arna\Core\Files\Models\File as LegacyFile;
+use MaaleArna\Arna\Core\Files\Services\FileService as LegacyFileService;
 use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 

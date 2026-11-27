@@ -8,11 +8,11 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
-use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
-use MaaleArna\MASES\Core\Domains\Documents\Services\SodiumDocumentSignatureEvidenceVerifier;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Domains\Documents\Contracts\DocumentWorkflowAuthorizer;
+use MaaleArna\Arna\Core\Domains\Documents\Services\DocumentWorkflowAggregateService;
+use MaaleArna\Arna\Core\Domains\Documents\Services\SodiumDocumentSignatureEvidenceVerifier;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Tests\TestCase;
 
@@ -52,7 +52,7 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
 
         Storage::fake('local');
         Storage::fake('document-concurrency-evidence');
-        config(['mases.documents.evidence_disk' => 'document-concurrency-evidence']);
+        config(['arna.documents.evidence_disk' => 'document-concurrency-evidence']);
         Storage::disk('local')->put('document-concurrency/'.$suffix.'.pdf', 'concurrent immutable bytes');
         $fileId = (int) DB::table('files')->insertGetId([
             'tenant_id' => $tenant->getKey(), 'user_id' => $actor->getKey(),
@@ -253,7 +253,7 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->getKey()]);
         Storage::fake('local');
         Storage::fake('capture-intent-evidence');
-        config(['mases.documents.evidence_disk' => 'capture-intent-evidence']);
+        config(['arna.documents.evidence_disk' => 'capture-intent-evidence']);
         Storage::disk('local')->put('capture-race/'.$suffix.'.pdf', 'durable capture race bytes');
         $fileId = (int) DB::table('files')->insertGetId([
             'tenant_id' => $tenant->getKey(),
@@ -270,7 +270,7 @@ final class DocumentWorkflowMySqlConcurrencyTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $lifecycle = app(\MaaleArna\MASES\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
+        $lifecycle = app(\MaaleArna\Arna\Core\Domains\Documents\Services\DocumentEvidenceCaptureLifecycle::class);
         $prepared = $lifecycle->prepare((int) $tenant->getKey(), $fileId, 1, (int) $actor->getKey());
         $retried = $lifecycle->prepare((int) $tenant->getKey(), $fileId, 1, (int) $actor->getKey());
         $this->assertSame($prepared['intent_id'], $retried['intent_id']);

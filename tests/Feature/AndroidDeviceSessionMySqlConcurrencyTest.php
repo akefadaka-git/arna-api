@@ -6,10 +6,10 @@ namespace Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\PersonalAccessToken;
-use MaaleArna\MASES\Core\Auth\Models\DeviceSession;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Auth\Services\DeviceSessionService;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\DeviceSession;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Auth\Services\DeviceSessionService;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Tests\TestCase;

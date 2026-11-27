@@ -7,13 +7,13 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
-use MaaleArna\MASES\Core\Audit\Models\AuditLog;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Security\Models\SecurityEvent;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Tenancy\Models\TenantMembership;
-use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
+use MaaleArna\Arna\Core\Audit\Models\AuditLog;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Security\Models\SecurityEvent;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Tenancy\Models\TenantMembership;
+use MaaleArna\Arna\Core\Tenancy\Services\RequestTenantResolver;
 use Tests\TestCase;
 
 final class AdminAuditSecurityTest extends TestCase
@@ -26,9 +26,9 @@ final class AdminAuditSecurityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Config::set('mases.tenant.context_resolver', RequestTenantResolver::class);
-        Config::set('mases.tenant.isolation_enabled', true);
-        Config::set('mases.features.audit_enabled', true);
+        Config::set('arna.tenant.context_resolver', RequestTenantResolver::class);
+        Config::set('arna.tenant.isolation_enabled', true);
+        Config::set('arna.features.audit_enabled', true);
         Cache::flush();
 
         $this->tenant = Tenant::factory()->create(['is_active' => true]);

@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
+      - "arna_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
       - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
       - "docs/security/ARNA_UNIFIED_IDENTITY_ADAPTIVE_AUTHENTICATION_POLICY_V1.md"
       - ".github/workflows/arna-adaptive-auth-policy.yml"
@@ -12,7 +12,7 @@ on:
     branches:
       - feat/auth-adaptive-policy-a3
     paths:
-      - "mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
+      - "arna_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
       - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
       - "docs/security/ARNA_UNIFIED_IDENTITY_ADAPTIVE_AUTHENTICATION_POLICY_V1.md"
       - ".github/workflows/arna-adaptive-auth-policy.yml"
@@ -50,7 +50,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Lint policy and tests
         run: |
-          php -l mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php
+          php -l arna_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php
           php -l tests/Unit/AdaptiveAuthenticationPolicyTest.php
       - name: Run policy regression tests
         run: vendor/bin/phpunit tests/Unit/AdaptiveAuthenticationPolicyTest.php

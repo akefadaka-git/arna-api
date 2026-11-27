@@ -1,0 +1,1306 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MaaleArna\Arna\Core\Domains\Finance\Tests\Feature;
+
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Domains\Finance\Models\AccountingPeriod;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceAuditEntry;
+use MaaleArna\Arna\Core\Domains\Finance\Services\AccountingPeriodService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinancialReportService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\LedgerAccountService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\SubledgerIntegrationService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\LegalEntityService;
+use Illuminate\Support\Facades\Gate;
+use MaaleArna\Arna\Core\Domains\Finance\Policies\LegalEntityPolicy;
+use MaaleArna\Arna\Core\Domains\Finance\Policies\LedgerAccountPolicy;
+use MaaleArna\Arna\Core\Domains\Finance\Policies\AccountingPeriodPolicy;
+use MaaleArna\Arna\Core\Domains\Finance\Policies\JournalEntryPolicy;
+use MaaleArna\Arna\Core\Domains\Finance\Enums\JournalEntryType;
+use MaaleArna\Arna\Core\Domains\Finance\Enums\JournalSourceType;
+use MaaleArna\Arna\Core\Domains\Finance\Models\JournalEntry;
+use MaaleArna\Arna\Core\Domains\Finance\Models\LedgerAccount;
+use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\Arna\Core\Domains\Finance\Contracts\JournalSourceReferenceResolver;
+use MaaleArna\Arna\Core\Domains\Finance\Services\JournalEntryService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceAiProposal;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceInboxEvent;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceSubledgerInboxService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceIntelligenceService;
+use MaaleArna\Arna\Core\Domains\Finance\Support\FinanceCalendarDateAdapter;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceOutboxMessage;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceOutboxDispatcher;
+
+final class FinanceGeneralLedgerTest extends TestCase
+{
+    use RefreshDatabase;
+
+    #[Test]
+    public function test_balanced_journal_can_be_posted_and_is_marked_with_actor(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-0001',
+            'effective_date' => '2026-10-01',
+            'description' => 'Verified test journal',
+            'currency' => 'ETB',
+            'idempotency_key' => 'test-journal-0001',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '100.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '100.0000'],
+        ]);
+
+        $this->assertSame(JournalEntry::DRAFT, $draft->status);
+        $this->assertSame(JournalEntryType::STANDARD, $draft->journal_type);
+        $posted = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+
+        $this->assertSame(JournalEntry::POSTED, $posted->status);
+        $this->assertSame((int) $user->id, $posted->posted_by);
+        $this->assertNotNull($posted->posted_at);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.draft_created',
+            'subject_type' => 'journal_entry', 'subject_id' => $draft->id,
+        ]);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.posted',
+            'subject_type' => 'journal_entry', 'subject_id' => $draft->id,
+        ]);
+    }
+
+    #[Test]
+    public function test_identical_idempotency_request_returns_the_persisted_journal(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $header = [
+            'legal_entity_id' => $entity->id, 'journal_number' => 'JV-IDEMPOTENT',
+            'effective_date' => '2026-10-01', 'description' => 'Idempotency test',
+            'currency' => 'ETB', 'idempotency_key' => 'same-request-key',
+        ];
+        $lines = [
+            ['account_id' => $cash->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+        ];
+
+        $first = $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+        $second = $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertDatabaseCount('journal_entries', 1);
+    }
+
+    #[Test]
+    public function test_unbalanced_journal_is_rejected_before_a_draft_is_persisted(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+
+        try {
+            $service->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-UNBALANCED',
+                'effective_date' => '2026-10-01',
+                'description' => 'Unbalanced test journal',
+                'currency' => 'ETB',
+                'idempotency_key' => 'test-journal-unbalanced',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '100.0000', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '99.9999'],
+            ]);
+            $this->fail('An unbalanced journal must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('lines', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'test-journal-unbalanced']);
+    }
+
+    #[Test]
+    public function test_account_from_another_legal_entity_cannot_be_used_in_a_journal(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $otherEntity = LegalEntity::query()->create([
+            'tenant_id' => $tenant->id, 'code' => 'OTHER', 'name_en' => 'Other Entity',
+            'base_currency' => 'ETB', 'status' => 'active',
+        ]);
+        $otherAccount = LedgerAccount::query()->create([
+            'tenant_id' => $tenant->id, 'legal_entity_id' => $otherEntity->id, 'code' => '1000',
+            'name_en' => 'Other Cash', 'account_type' => 'asset', 'normal_balance' => 'debit',
+            'is_posting_allowed' => true, 'status' => 'active',
+        ]);
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id, 'journal_number' => 'JV-CROSS-ENTITY',
+                'effective_date' => '2026-10-01', 'description' => 'Cross-entity rejection',
+                'currency' => 'ETB', 'idempotency_key' => 'test-cross-entity',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $otherAccount->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('A journal must not reference an account from another entity.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('lines.1.account_id', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'test-cross-entity']);
+    }
+
+    #[Test]
+    public function test_reusing_an_idempotency_key_for_a_different_payload_conflicts(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $header = [
+            'legal_entity_id' => $entity->id, 'journal_number' => 'JV-IDEMPOTENCY-CONFLICT',
+            'effective_date' => '2026-10-01', 'description' => 'First payload',
+            'currency' => 'ETB', 'idempotency_key' => 'same-key-different-payload',
+        ];
+        $lines = [
+            ['account_id' => $cash->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+        ];
+        $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+
+        $header['description'] = 'Changed payload';
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\ConflictHttpException::class);
+        $service->createDraft((int) $tenant->id, (int) $user->id, $header, $lines);
+    }
+
+    #[Test]
+    public function test_a_draft_cannot_be_posted_after_its_period_is_closed(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id, 'journal_number' => 'JV-CLOSED-PERIOD',
+            'effective_date' => '2026-10-01', 'description' => 'Closed-period test',
+            'currency' => 'ETB', 'idempotency_key' => 'closed-period-test',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '20', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '20'],
+        ]);
+
+        $period->status = AccountingPeriod::CLOSED;
+        $period->closed_at = now();
+        $period->close_reason = 'Acceptance test closure';
+        $period->save();
+
+        try {
+            $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('Posting into a closed accounting period must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('accounting_period', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+    }
+
+    #[Test]
+    public function test_cancelled_draft_is_audited_and_no_longer_blocks_period_closure(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'CANCEL-001',
+            'effective_date' => '2026-10-15',
+            'currency' => 'ETB',
+            'idempotency_key' => 'cancel-draft-test',
+            'description' => 'Draft to cancel',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '15', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '15'],
+        ]);
+
+        $cancelled = $service->cancelDraft((int) $tenant->id, (int) $user->id, (int) $draft->id, 'Entered in error');
+        $this->assertSame(JournalEntry::CANCELLED, $cancelled->status);
+        $this->assertSame((int) $user->id, (int) $cancelled->cancelled_by);
+        $this->assertNotNull($cancelled->cancelled_at);
+        $this->assertSame('Entered in error', $cancelled->cancellation_reason);
+        $this->assertSame(2, $cancelled->lines->count());
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::CANCELLED]);
+        $this->assertDatabaseMissing('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.cancelled',
+            'subject_type' => 'journal_entry', 'subject_id' => $draft->id,
+        ]);
+        $this->assertSame(0, JournalEntry::query()->where('accounting_period_id', $period->id)
+            ->where('status', JournalEntry::DRAFT)->count());
+    }
+
+    #[Test]
+    public function test_reversal_posts_an_equal_and_opposite_journal_and_preserves_the_original(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id, 'journal_number' => 'JV-REVERSAL-ORIGINAL',
+            'effective_date' => '2026-10-01', 'description' => 'Original journal',
+            'currency' => 'ETB', 'idempotency_key' => 'original-for-reversal',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '125.2500', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '125.2500'],
+        ]);
+        $original = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+
+        $reversal = $service->reverse(
+            (int) $tenant->id,
+            (int) $user->id,
+            (int) $original->id,
+            'JV-REVERSAL-001',
+            '2026-10-02',
+            'Correct the original entry',
+        );
+
+        $this->assertSame(JournalEntry::REVERSED, $original->fresh()->status);
+        $this->assertSame(JournalEntry::POSTED, $reversal->status);
+        $this->assertSame(JournalEntryType::REVERSAL, $reversal->journal_type);
+        $this->assertSame((int) $original->id, (int) $reversal->reversal_of_id);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.journal.reversed',
+            'subject_type' => 'journal_entry', 'subject_id' => $original->id,
+        ]);
+        $this->assertDatabaseCount('journal_entries', 2);
+        $this->assertSame('0.0000', (string) $reversal->lines->where('account_id', $cash->id)->first()->debit_amount);
+        $this->assertSame('125.2500', (string) $reversal->lines->where('account_id', $cash->id)->first()->credit_amount);
+    }
+
+
+    #[Test]
+    public function test_ordinary_draft_workflow_rejects_reversal_journal_type(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-UNAUTHORIZED-REVERSAL',
+                'effective_date' => '2026-10-01',
+                'description' => 'Must use the controlled reversal workflow',
+                'currency' => 'ETB',
+                'journal_type' => JournalEntryType::REVERSAL->value,
+                'idempotency_key' => 'unauthorized-reversal-type',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('Ordinary draft creation must not permit reversal journal types.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('journal_type', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'unauthorized-reversal-type']);
+    }
+
+    #[Test]
+    public function test_cancellation_requires_a_non_empty_reason_and_preserves_draft(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $draft = app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-CANCEL-REASON',
+            'effective_date' => '2026-10-01',
+            'description' => 'Cancellation reason validation',
+            'currency' => 'ETB',
+            'idempotency_key' => 'cancel-reason-required',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ]);
+
+        try {
+            app(JournalEntryService::class)->cancelDraft((int) $tenant->id, (int) $user->id, (int) $draft->id, '   ');
+            $this->fail('Cancellation must require a meaningful reason.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('reason', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+    }
+
+
+    #[Test]
+    public function test_unsupported_source_type_is_rejected(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-INVALID-SOURCE',
+                'effective_date' => '2026-10-01',
+                'description' => 'Unsupported source type',
+                'currency' => 'ETB',
+                'source_type' => 'journal_reversal',
+                'source_id' => '1',
+                'idempotency_key' => 'unsupported-source-type',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('Unsupported source types must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_type', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'unsupported-source-type']);
+    }
+
+    #[Test]
+    public function test_external_source_requires_originating_business_reference(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-SOURCE-REFERENCE',
+                'effective_date' => '2026-10-01',
+                'description' => 'External source without reference',
+                'currency' => 'ETB',
+                'source_type' => JournalSourceType::SHAREHOLDER->value,
+                'idempotency_key' => 'external-source-reference-required',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('External source types must require a source reference.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_id', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'external-source-reference-required']);
+    }
+
+    #[Test]
+    public function test_external_source_is_rejected_when_no_authoritative_resolver_is_registered(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $this->app->instance(
+            JournalSourceReferenceResolverRegistry::class,
+            new JournalSourceReferenceResolverRegistry(),
+        );
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-SOURCE-FAIL-CLOSED',
+                'effective_date' => '2026-10-01',
+                'description' => 'Unknown source must fail closed',
+                'currency' => 'ETB',
+                'source_type' => JournalSourceType::SHAREHOLDER->value,
+                'source_id' => 'shareholder-123',
+                'idempotency_key' => 'source-fail-closed',
+            ], [
+                ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('External source references must be rejected without an authoritative resolver.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_type', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', ['idempotency_key' => 'source-fail-closed']);
+    }
+
+    #[Test]
+    public function test_registered_source_resolver_receives_tenant_and_legal_entity_scope(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+
+        $resolver = new class implements JournalSourceReferenceResolver {
+            public array $calls = [];
+
+            public function supports(JournalSourceType $sourceType): bool
+            {
+                return $sourceType === JournalSourceType::SHAREHOLDER;
+            }
+
+            public function assertValid(
+                JournalSourceType $sourceType,
+                string $sourceId,
+                int $tenantId,
+                int $legalEntityId,
+            ): void {
+                $this->calls[] = [$sourceType, $sourceId, $tenantId, $legalEntityId];
+            }
+        };
+
+        $registry = new JournalSourceReferenceResolverRegistry([$resolver]);
+        $this->app->instance(JournalSourceReferenceResolverRegistry::class, $registry);
+
+        $draft = app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-SOURCE-RESOLVED',
+            'effective_date' => '2026-10-01',
+            'description' => 'Registered resolver integration',
+            'currency' => 'ETB',
+            'source_type' => JournalSourceType::SHAREHOLDER->value,
+            'source_id' => 'shareholder-456',
+            'idempotency_key' => 'source-resolver-integrated',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ]);
+
+        $this->assertSame(JournalEntry::DRAFT, $draft->status);
+        $this->assertSame(1, count($resolver->calls));
+        $this->assertSame(JournalSourceType::SHAREHOLDER, $resolver->calls[0][0]);
+        $this->assertSame('shareholder-456', $resolver->calls[0][1]);
+        $this->assertSame((int) $tenant->id, $resolver->calls[0][2]);
+        $this->assertSame((int) $entity->id, $resolver->calls[0][3]);
+    }
+
+    #[Test]
+    public function test_source_resolver_registry_rejects_ambiguous_resolvers(): void
+    {
+        $resolver = new class implements JournalSourceReferenceResolver {
+            public function supports(JournalSourceType $sourceType): bool
+            {
+                return $sourceType === JournalSourceType::LOAN;
+            }
+
+            public function assertValid(
+                JournalSourceType $sourceType,
+                string $sourceId,
+                int $tenantId,
+                int $legalEntityId,
+            ): void {
+            }
+        };
+
+        $registry = new JournalSourceReferenceResolverRegistry([$resolver, $resolver]);
+
+        try {
+            $registry->assertValid(JournalSourceType::LOAN, 'loan-1', 10, 20);
+            $this->fail('Ambiguous source resolvers must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_type', $exception->errors());
+        }
+    }
+
+    #[Test]
+    public function test_repeating_successful_reversal_returns_the_same_persisted_reversal(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-RETRY-ORIGINAL',
+            'effective_date' => '2026-10-01',
+            'description' => 'Original for retry-safe reversal',
+            'currency' => 'ETB',
+            'idempotency_key' => 'retry-original-journal',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '25', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '25'],
+        ]);
+        $original = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+
+        $first = $service->reverse(
+            (int) $tenant->id,
+            (int) $user->id,
+            (int) $original->id,
+            'JV-RETRY-REVERSAL',
+            '2026-10-02',
+            'Retry idempotency acceptance case',
+        );
+        $second = $service->reverse(
+            (int) $tenant->id,
+            (int) $user->id,
+            (int) $original->id,
+            'JV-RETRY-REVERSAL',
+            '2026-10-02',
+            'Retry idempotency acceptance case',
+        );
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame(JournalEntry::POSTED, $second->status);
+        $this->assertSame(JournalEntryType::REVERSAL, $second->journal_type);
+        $this->assertSame((int) $original->id, (int) $second->reversal_of_id);
+        $this->assertDatabaseCount('journal_entries', 2);
+    }
+
+
+    #[Test]
+    public function test_database_rejects_a_second_reversal_for_the_same_original_journal(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-UNIQUE-REVERSAL-ORIGINAL',
+            'effective_date' => '2026-10-01',
+            'description' => 'Original for unique reversal constraint',
+            'currency' => 'ETB',
+            'idempotency_key' => 'unique-reversal-original',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '12', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '12'],
+        ]);
+        $original = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $reversal = $service->reverse(
+            (int) $tenant->id,
+            (int) $user->id,
+            (int) $original->id,
+            'JV-UNIQUE-REVERSAL-ONE',
+            '2026-10-02',
+            'First reversal'
+        );
+
+        $duplicate = $reversal->getAttributes();
+        unset($duplicate['id'], $duplicate['created_at'], $duplicate['updated_at']);
+        $duplicate['journal_number'] = 'JV-UNIQUE-REVERSAL-TWO';
+        $duplicate['idempotency_key'] = 'unique-reversal-second-attempt';
+        $duplicate['created_at'] = now();
+        $duplicate['updated_at'] = now();
+
+        try {
+            DB::table('journal_entries')->insert($duplicate);
+            $this->fail('The database must reject a second reversal for one original journal.');
+        } catch (QueryException $exception) {
+            $this->assertStringContainsString(
+                'journal_entries_single_reversal_unique',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseCount('journal_entries', 2);
+    }
+
+    #[Test]
+    public function test_reversal_cannot_be_accessed_through_another_tenant_context(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-TENANT-REVERSAL-ORIGINAL',
+            'effective_date' => '2026-10-01',
+            'description' => 'Tenant isolation original',
+            'currency' => 'ETB',
+            'idempotency_key' => 'tenant-isolation-original',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '18', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '18'],
+        ]);
+        $original = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+
+        try {
+            $service->reverse(
+                (int) $otherTenant->id,
+                (int) $user->id,
+                (int) $original->id,
+                'JV-CROSS-TENANT-REVERSAL',
+                '2026-10-02',
+                'Must not cross tenant boundary'
+            );
+            $this->fail('A tenant must not reverse another tenant\'s journal.');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+            // Cross-tenant lookup intentionally fails as not-found to avoid disclosure.
+        }
+
+        $this->assertDatabaseCount('journal_entries', 1);
+        $this->assertDatabaseHas('journal_entries', [
+            'id' => $original->id,
+            'tenant_id' => $tenant->id,
+            'status' => JournalEntry::POSTED,
+        ]);
+    }
+
+
+    #[Test]
+    public function test_a_posted_journal_cannot_be_posted_a_second_time(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-DOUBLE-POST',
+            'effective_date' => '2026-10-01',
+            'description' => 'Double posting guard',
+            'currency' => 'ETB',
+            'idempotency_key' => 'double-post-guard',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '30', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '30'],
+        ]);
+
+        $posted = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $postedAt = $posted->posted_at?->toISOString();
+
+        try {
+            $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('A posted journal must not be posted again.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('status', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('journal_entries', [
+            'id' => $draft->id,
+            'status' => JournalEntry::POSTED,
+            'posted_by' => $user->id,
+        ]);
+        $this->assertSame($postedAt, $posted->fresh()->posted_at?->toISOString());
+        $this->assertDatabaseCount('journal_entries', 1);
+    }
+
+
+    #[Test]
+    public function test_changed_reversal_retry_is_rejected(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-RETRY-ORIGINAL',
+            'effective_date' => '2026-10-01',
+            'description' => 'Original journal',
+            'currency' => 'ETB',
+            'idempotency_key' => 'retry-original',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '40', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '40'],
+        ]);
+        $original = $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $service->reverse((int) $tenant->id, (int) $user->id, (int) $original->id,
+            'JV-RETRY-REVERSAL-1', '2026-10-02', 'Approved reversal');
+
+        try {
+            $service->reverse((int) $tenant->id, (int) $user->id, (int) $original->id,
+                'JV-RETRY-REVERSAL-2', '2026-10-03', 'Changed reversal request');
+            $this->fail('Changed retry input must be rejected.');
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException $exception) {
+            $this->assertNotSame('', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('journal_entries', 2);
+        $this->assertSame(JournalEntry::REVERSED, $original->fresh()->status);
+    }
+
+
+    #[Test]
+    public function test_trial_balance_includes_original_reversed_journal_and_posted_counter_entry(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $journals = app(JournalEntryService::class);
+        $draft = $journals->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-TRIAL-BALANCE-REVERSAL',
+            'effective_date' => '2026-10-01',
+            'description' => 'Trial balance reversal regression',
+            'currency' => 'ETB',
+            'idempotency_key' => 'trial-balance-reversal-original',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '40', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '40'],
+        ]);
+        $original = $journals->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $journals->reverse(
+            (int) $tenant->id,
+            (int) $user->id,
+            (int) $original->id,
+            'JV-TRIAL-BALANCE-REVERSAL-COUNTER',
+            '2026-10-02',
+            'Approved reversal for reporting regression',
+        );
+
+        $rows = app(\MaaleArna\Arna\Core\Domains\Finance\Services\TrialBalanceService::class)
+            ->forEntity((int) $tenant->id, (int) $entity->id, '2026-10-02');
+        $cashRow = $rows->firstWhere('id', $cash->id);
+        $equityRow = $rows->firstWhere('id', $equity->id);
+
+        $this->assertNotNull($cashRow);
+        $this->assertNotNull($equityRow);
+        $this->assertSame('40', $this->normalizeAmount($cashRow->debit_total));
+        $this->assertSame('40', $this->normalizeAmount($cashRow->credit_total));
+        $this->assertSame('40', $this->normalizeAmount($equityRow->debit_total));
+        $this->assertSame('40', $this->normalizeAmount($equityRow->credit_total));
+    }
+
+    private function normalizeAmount(mixed $value): string
+    {
+        $amount = trim((string) $value);
+        if (!preg_match('/^\d+(?:\.\d+)?$/', $amount)) {
+            self::fail('Expected a non-negative decimal database aggregate.');
+        }
+
+        if (str_contains($amount, '.')) {
+            [$whole, $fraction] = explode('.', $amount, 2);
+            $fraction = rtrim($fraction, '0');
+            $amount = $whole.($fraction === '' ? '' : '.'.$fraction);
+        }
+
+        $whole = str_contains($amount, '.') ? explode('.', $amount, 2)[0] : $amount;
+        $whole = ltrim($whole, '0') ?: '0';
+
+        return str_contains($amount, '.') ? $whole.'.'.explode('.', $amount, 2)[1] : $whole;
+    }
+
+
+    #[Test]
+    public function test_trial_balance_report_returns_exact_balanced_summary_and_net_account_balances(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $service = app(JournalEntryService::class);
+        $draft = $service->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id, 'journal_number' => 'JV-REPORT-SUMMARY',
+            'effective_date' => '2026-10-10', 'description' => 'Financial report summary',
+            'currency' => 'ETB', 'idempotency_key' => 'report-summary-key',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '123.4567', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '123.4567'],
+        ]);
+        $service->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+
+        $report = app(FinancialReportService::class)->trialBalance(
+            (int) $tenant->id, (int) $entity->id, '2026-10-10',
+        );
+
+        $this->assertTrue($report['summary']['is_balanced']);
+        $this->assertSame('123.4567', $report['summary']['total_debits']);
+        $this->assertSame('123.4567', $report['summary']['total_credits']);
+        $this->assertSame('0.0000', $report['summary']['difference']);
+        $this->assertSame('123.4567', (string) $report['accounts']->firstWhere('id', $cash->id)->net_debit);
+        $this->assertSame('123.4567', (string) $report['accounts']->firstWhere('id', $equity->id)->net_credit);
+    }
+
+    #[Test]
+    public function test_finance_policies_are_registered_and_period_closure_is_audited(): void
+    {
+        [$tenant, $user, $entity, $period] = $this->ledgerFixture();
+
+        $this->assertInstanceOf(LegalEntityPolicy::class, Gate::getPolicyFor(LegalEntity::class));
+        $this->assertInstanceOf(LedgerAccountPolicy::class, Gate::getPolicyFor(LedgerAccount::class));
+        $this->assertInstanceOf(AccountingPeriodPolicy::class, Gate::getPolicyFor(AccountingPeriod::class));
+        $this->assertInstanceOf(JournalEntryPolicy::class, Gate::getPolicyFor(JournalEntry::class));
+
+        $closed = app(AccountingPeriodService::class)->close(
+            (int) $tenant->id, (int) $user->id, (int) $period->id, 'Approved period close',
+        );
+
+        $this->assertSame(AccountingPeriod::CLOSED, $closed->status);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.period.closed',
+            'subject_type' => 'accounting_period', 'subject_id' => $period->id,
+        ]);
+    }
+
+
+    #[Test]
+    public function test_unconfigured_subledger_integration_fails_closed(): void
+    {
+        [$tenant, $user, $entity] = $this->ledgerFixture();
+
+        try {
+            app(SubledgerIntegrationService::class)->postSource(
+                JournalSourceType::WALLET,
+                (int) $tenant->id,
+                (int) $user->id,
+                (int) $entity->id,
+                'wallet-source-1',
+            );
+            $this->fail('Subledger posting must remain disabled without an authoritative adapter.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('source_type', $exception->errors());
+        }
+    }
+
+    #[Test]
+    public function test_entity_account_and_period_opening_lifecycle_events_are_audited(): void
+    {
+        [$tenant, $user, $entity, $period] = $this->ledgerFixture();
+
+        $createdEntity = app(LegalEntityService::class)->create((int)$tenant->id, [
+            'code' => 'AUDIT-ENTITY', 'name_en' => 'Audited Entity', 'base_currency' => 'ETB',
+        ], (int)$user->id);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.entity.created',
+            'subject_type' => 'legal_entity', 'subject_id' => $createdEntity->id,
+        ]);
+
+        $account = app(LedgerAccountService::class)->create((int)$tenant->id, (int)$user->id, [
+            'legal_entity_id' => $entity->id, 'code' => 'AUDIT-9000',
+            'name_en' => 'Audited Account', 'account_type' => 'asset',
+            'normal_balance' => 'debit', 'is_posting_allowed' => true,
+        ]);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.account.created',
+            'subject_type' => 'ledger_account', 'subject_id' => $account->id,
+        ]);
+
+        $opened = app(AccountingPeriodService::class)->create((int)$tenant->id, [
+            'legal_entity_id' => $entity->id, 'code' => '2027',
+            'starts_on' => '2027-01-01', 'ends_on' => '2027-12-31',
+        ], (int)$user->id);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id, 'event_type' => 'finance.period.opened',
+            'subject_type' => 'accounting_period', 'subject_id' => $opened->id,
+        ]);
+    }
+
+    /** @return array{Tenant, User, LegalEntity, AccountingPeriod, LedgerAccount, LedgerAccount} */
+
+    #[Test]
+    public function test_accounting_period_service_rejects_overlapping_periods_for_the_same_entity(): void
+    {
+        [$tenant, $user, $entity] = $this->ledgerFixture();
+
+        try {
+            app(AccountingPeriodService::class)->create((int) $tenant->id, [
+                'legal_entity_id' => $entity->id,
+                'code' => '2026-Q4',
+                'starts_on' => '2026-10-15',
+                'ends_on' => '2026-12-31',
+            ], (int) $user->id);
+            $this->fail('Overlapping accounting periods must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('starts_on', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('accounting_periods', [
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'code' => '2026-Q4',
+        ]);
+    }
+
+    #[Test]
+    public function test_journal_draft_cannot_cross_tenant_legal_entity_boundary(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $otherEntity = LegalEntity::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'code' => 'OTHER',
+            'name_en' => 'Other Tenant Entity',
+            'base_currency' => 'ETB',
+            'status' => 'active',
+        ]);
+
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $otherEntity->id,
+            'journal_number' => 'JV-CROSS-TENANT-ENTITY',
+            'effective_date' => '2026-10-10',
+            'description' => 'Cross-tenant isolation regression',
+            'currency' => 'ETB',
+            'idempotency_key' => 'cross-tenant-entity-key',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+        ]);
+    }
+
+    #[Test]
+    public function test_journal_draft_cannot_post_an_account_from_another_tenant(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $otherTenant = Tenant::factory()->create(['is_active' => true]);
+        $otherEntity = LegalEntity::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'code' => 'OTHER',
+            'name_en' => 'Other Tenant Entity',
+            'base_currency' => 'ETB',
+            'status' => 'active',
+        ]);
+        $foreignAccount = LedgerAccount::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'legal_entity_id' => $otherEntity->id,
+            'code' => 'FOREIGN-1000',
+            'name_en' => 'Foreign Tenant Cash',
+            'account_type' => 'asset',
+            'normal_balance' => 'debit',
+            'is_posting_allowed' => true,
+            'status' => 'active',
+        ]);
+
+        try {
+            app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+                'legal_entity_id' => $entity->id,
+                'journal_number' => 'JV-CROSS-TENANT-ACCOUNT',
+                'effective_date' => '2026-10-10',
+                'description' => 'Cross-tenant account isolation regression',
+                'currency' => 'ETB',
+                'idempotency_key' => 'cross-tenant-account-key',
+            ], [
+                ['account_id' => $foreignAccount->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+                ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10'],
+            ]);
+            $this->fail('A ledger account belonging to another tenant must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('lines.0.account_id', $exception->errors());
+        }
+
+        $this->assertDatabaseMissing('journal_entries', [
+            'tenant_id' => $tenant->id,
+            'idempotency_key' => 'cross-tenant-account-key',
+        ]);
+    }
+
+    private function ledgerFixture(): array
+    {
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $user = User::factory()->create();
+        $entity = LegalEntity::query()->create([
+            'tenant_id' => $tenant->id, 'code' => 'MAIN', 'name_en' => 'Main Entity',
+            'base_currency' => 'ETB', 'status' => 'active',
+        ]);
+        $period = AccountingPeriod::query()->create([
+            'tenant_id' => $tenant->id, 'legal_entity_id' => $entity->id,
+            'code' => '2026-10', 'starts_on' => '2026-10-01', 'ends_on' => '2026-10-31',
+            'status' => AccountingPeriod::OPEN,
+        ]);
+        $cash = LedgerAccount::query()->create([
+            'tenant_id' => $tenant->id, 'legal_entity_id' => $entity->id, 'code' => '1000',
+            'name_en' => 'Cash', 'account_type' => 'asset', 'normal_balance' => 'debit',
+            'is_posting_allowed' => true, 'status' => 'active',
+        ]);
+        $equity = LedgerAccount::query()->create([
+            'tenant_id' => $tenant->id, 'legal_entity_id' => $entity->id, 'code' => '3000',
+            'name_en' => 'Equity', 'account_type' => 'equity', 'normal_balance' => 'credit',
+            'is_posting_allowed' => true, 'status' => 'active',
+        ]);
+
+        return [$tenant, $user, $entity, $period, $cash, $equity];
+    }
+
+    public function test_posted_journal_event_is_persisted_and_leased_for_delivery(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $journals = app(JournalEntryService::class);
+        $draft = $journals->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-OUTBOX-0001',
+            'effective_date' => '2026-10-01',
+            'description' => 'Transactional outbox test',
+            'currency' => 'ETB',
+            'idempotency_key' => 'outbox-journal-0001',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '25.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '25.0000'],
+        ]);
+
+        $journals->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+        $eventKey = 'finance.journal.posted:'.$tenant->id.':'.$draft->id;
+        $message = FinanceOutboxMessage::query()->where('event_key', $eventKey)->firstOrFail();
+
+        $this->assertSame(FinanceOutboxMessage::PENDING, $message->status);
+        $this->assertSame('finance.journal.posted', $message->event_type);
+        $this->assertSame('25.0000', $message->payload['lines'][0]['debit_amount']);
+
+        $dispatcher = app(FinanceOutboxDispatcher::class);
+        $claimed = $dispatcher->claimNext();
+        $this->assertNotNull($claimed);
+        $this->assertSame($message->id, $claimed->id);
+        $this->assertSame(FinanceOutboxMessage::PROCESSING, $claimed->status);
+        $this->assertSame(1, $claimed->attempts);
+        $this->assertNotEmpty($claimed->claim_token);
+
+        $firstToken = (string) $claimed->claim_token;
+        $dispatcher->releaseForRetry((int) $claimed->id, $firstToken, 'temporary transport failure');
+        $message->refresh();
+        $this->assertSame(FinanceOutboxMessage::PENDING, $message->status);
+        $this->assertSame('temporary transport failure', $message->last_error);
+        $this->assertNull($dispatcher->claimNext());
+
+        $message->available_at = now()->subSecond();
+        $message->save();
+        $retried = $dispatcher->claimNext();
+        $this->assertNotNull($retried);
+        $this->assertSame(2, $retried->attempts);
+        $this->assertNotSame($firstToken, $retried->claim_token);
+
+        $dispatcher->acknowledge((int) $retried->id, (string) $retried->claim_token);
+
+        $this->assertDatabaseHas('finance_outbox_messages', [
+            'id' => $message->id,
+            'status' => FinanceOutboxMessage::DELIVERED,
+            'claim_token' => null,
+        ]);
+    }
+
+    #[Test]
+
+    public function test_journal_post_and_outbox_record_roll_back_atomically(): void
+    {
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $journals = app(JournalEntryService::class);
+        $draft = $journals->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-OUTBOX-ROLLBACK',
+            'effective_date' => '2026-10-01',
+            'description' => 'Outbox atomicity test',
+            'currency' => 'ETB',
+            'idempotency_key' => 'outbox-journal-rollback',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10.0000', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '10.0000'],
+        ]);
+
+        try {
+            DB::transaction(function () use ($journals, $tenant, $user, $draft): void {
+                $journals->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+                throw new \RuntimeException('Force outer transaction rollback.');
+            });
+            $this->fail('The outer transaction should have rolled back.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Force outer transaction rollback.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('journal_entries', [
+            'id' => $draft->id,
+            'status' => JournalEntry::DRAFT,
+        ]);
+        $this->assertDatabaseMissing('finance_outbox_messages', [
+            'event_key' => 'finance.journal.posted:'.$tenant->id.':'.$draft->id,
+        ]);
+    }
+
+    #[Test]
+
+    public function test_mysql_posting_trigger_rejects_negative_line_amounts_even_when_totals_balance(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('This regression verifies the MySQL posting trigger.');
+        }
+
+        [$tenant, $user, $entity, $period, $cash, $equity] = $this->ledgerFixture();
+        $draft = app(JournalEntryService::class)->createDraft((int) $tenant->id, (int) $user->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-NEGATIVE-LINE-DB-GUARD',
+            'effective_date' => '2026-10-10',
+            'description' => 'Database negative amount invariant',
+            'currency' => 'ETB',
+            'idempotency_key' => 'negative-line-db-guard',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '10', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '110', 'credit_amount' => '0'],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '120'],
+        ]);
+
+        $lines = $draft->lines()->orderBy('line_number')->get();
+        DB::table('journal_lines')->where('id', $lines[0]->id)->update(['debit_amount' => '-10.0000', 'credit_amount' => '20.0000']);
+        DB::table('journal_lines')->where('id', $lines[1]->id)->update(['debit_amount' => '130.0000', 'credit_amount' => '0.0000']);
+        DB::table('journal_lines')->where('id', $lines[2]->id)->update(['debit_amount' => '0.0000', 'credit_amount' => '100.0000']);
+
+        try {
+            app(JournalEntryService::class)->post((int) $tenant->id, (int) $user->id, (int) $draft->id);
+            $this->fail('MySQL must reject negative journal-line amounts even when aggregate debits equal credits.');
+        } catch (QueryException $exception) {
+            $this->assertStringContainsString('non-negative positive side', strtolower($exception->getMessage()));
+        }
+
+        $this->assertDatabaseHas('journal_entries', ['id' => $draft->id, 'status' => JournalEntry::DRAFT]);
+    }
+
+    #[Test]
+
+    public function test_finance_intelligence_evidence_is_tenant_scoped_and_exposes_ethiopian_date(): void
+    {
+        [$tenant, $user, $entity] = $this->ledgerFixture();
+        $snapshot = app(FinanceIntelligenceService::class)->evidenceSnapshot(
+            (int) $tenant->id,
+            (int) $entity->id,
+            '2026-10-15',
+        );
+
+        $this->assertSame((int) $tenant->id, $snapshot['scope']['tenant_id']);
+        $this->assertSame((int) $entity->id, $snapshot['scope']['legal_entity_id']);
+        $this->assertSame(
+            app(FinanceCalendarDateAdapter::class)->toEthiopianDate('2026-10-15'),
+            $snapshot['as_of_ec'],
+        );
+        $this->assertSame(64, strlen($snapshot['evidence_sha256']));
+        $this->assertSame($snapshot['evidence_sha256'], $snapshot['evidence_refs'][0]['sha256']);
+    }
+
+    #[Test]
+
+    public function test_finance_ai_proposal_creator_cannot_approve_own_proposal(): void
+    {
+        [$tenant, $user, $entity] = $this->ledgerFixture();
+        $proposal = FinanceAiProposal::query()->create([
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'requested_by' => $user->id,
+            'agent_key' => 'test-agent',
+            'task_type' => 'variance_review',
+            'task_template_version' => 'test-v1',
+            'status' => FinanceAiProposal::PROPOSED,
+            'title' => 'Test proposal',
+            'summary' => 'Evidence-backed test proposal.',
+            'proposal' => ['recommendation' => 'review'],
+            'evidence_refs' => [['type' => 'finance.trial_balance']],
+            'evidence_sha256' => str_repeat('a', 64),
+            'limitations' => ['test-only evidence'],
+        ]);
+
+        try {
+            app(FinanceIntelligenceService::class)->approve(
+                (int) $tenant->id,
+                (int) $proposal->id,
+                (int) $user->id,
+                'Attempted self-approval',
+            );
+            $this->fail('A proposal creator must not approve their own Finance AI proposal.');
+        } catch (\Symfony\Component\HttpKernel\Exception\ConflictHttpException) {
+            $this->assertDatabaseHas('finance_ai_proposals', [
+                'id' => $proposal->id,
+                'status' => FinanceAiProposal::PROPOSED,
+                'reviewed_by' => null,
+            ]);
+        }
+    }
+
+    #[Test]
+
+    public function test_unmapped_subledger_event_is_quarantined_and_idempotent(): void
+    {
+        [$tenant] = $this->ledgerFixture();
+        $inbox = app(FinanceSubledgerInboxService::class);
+
+        $first = $inbox->receive(
+            (int) $tenant->id,
+            JournalSourceType::WALLET->value,
+            'wallet-event-0001',
+            'v1',
+            'wallet.transaction.posted',
+            ['amount' => '10.0000', 'currency' => 'ETB'],
+        );
+        $replay = $inbox->receive(
+            (int) $tenant->id,
+            JournalSourceType::WALLET->value,
+            'wallet-event-0001',
+            'v1',
+            'wallet.transaction.posted',
+            ['currency' => 'ETB', 'amount' => '10.0000'],
+        );
+
+        $this->assertFalse($first['idempotent_replay']);
+        $this->assertTrue($replay['idempotent_replay']);
+        $this->assertSame($first['event']->id, $replay['event']->id);
+        $this->assertSame(FinanceInboxEvent::QUARANTINED, $first['event']->status);
+        $this->assertNull($first['event']->journal_id);
+        $this->assertStringContainsString('No authoritative source adapter', $first['event']->last_error);
+        $this->assertDatabaseCount('journal_entries', 0);
+    }
+
+    #[Test]
+
+    public function test_subledger_event_identity_cannot_be_replayed_with_different_payload(): void
+    {
+        [$tenant] = $this->ledgerFixture();
+        $inbox = app(FinanceSubledgerInboxService::class);
+        $inbox->receive(
+            (int) $tenant->id,
+            JournalSourceType::WALLET->value,
+            'wallet-event-0002',
+            'v1',
+            'wallet.transaction.posted',
+            ['amount' => '10.0000', 'currency' => 'ETB'],
+        );
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\ConflictHttpException::class);
+        $inbox->receive(
+            (int) $tenant->id,
+            JournalSourceType::WALLET->value,
+            'wallet-event-0002',
+            'v1',
+            'wallet.transaction.posted',
+            ['amount' => '11.0000', 'currency' => 'ETB'],
+        );
+    }
+
+    #[Test]
+
+    public function test_finance_ai_proposal_review_is_audited_and_content_is_immutable(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('This regression verifies MySQL Finance AI proposal triggers.');
+        }
+
+        [$tenant, $creator, $entity] = $this->ledgerFixture();
+        $reviewer = User::factory()->create();
+        $proposal = FinanceAiProposal::query()->create([
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'requested_by' => $creator->id,
+            'agent_key' => 'test-agent',
+            'task_type' => 'variance_review',
+            'task_template_version' => 'test-v1',
+            'status' => FinanceAiProposal::PROPOSED,
+            'title' => 'Immutable evidence proposal',
+            'summary' => 'Evidence-backed test proposal.',
+            'proposal' => ['recommendation' => 'review'],
+            'evidence_refs' => [['type' => 'finance.trial_balance']],
+            'evidence_sha256' => str_repeat('b', 64),
+            'limitations' => ['test-only evidence'],
+        ]);
+
+        $approved = app(FinanceIntelligenceService::class)->approve(
+            (int) $tenant->id,
+            (int) $proposal->id,
+            (int) $reviewer->id,
+            'Independent reviewer accepted the proposal for human follow-up.',
+        );
+
+        $this->assertSame(FinanceAiProposal::APPROVED, $approved->status);
+        $this->assertDatabaseHas('finance_audit_entries', [
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
+            'actor_id' => $reviewer->id,
+            'event_type' => 'finance.ai_proposal.approved',
+            'subject_id' => $proposal->id,
+        ]);
+
+        try {
+            DB::table('finance_ai_proposals')->where('id', $proposal->id)->update(['title' => 'tampered']);
+            $this->fail('The database must reject mutation of proposal content after creation.');
+        } catch (QueryException) {
+            $this->assertDatabaseHas('finance_ai_proposals', [
+                'id' => $proposal->id,
+                'title' => 'Immutable evidence proposal',
+                'status' => FinanceAiProposal::APPROVED,
+            ]);
+        }
+    }
+
+    #[Test]
+
+    public function test_integration_health_is_tenant_scoped_and_discloses_unreconciled_sources(): void
+    {
+        [$tenant] = $this->ledgerFixture();
+        app(FinanceSubledgerInboxService::class)->receive(
+            (int) $tenant->id,
+            JournalSourceType::WALLET->value,
+            'wallet-health-event',
+            'v1',
+            'wallet.transaction.posted',
+            ['amount' => '5.0000', 'currency' => 'ETB'],
+        );
+
+        $snapshot = app(\MaaleArna\Arna\Core\Domains\Finance\Services\FinanceIntegrationHealthService::class)
+            ->snapshot((int) $tenant->id);
+
+        $this->assertSame(1, $snapshot['inbox']['counts'][FinanceInboxEvent::QUARANTINED]);
+        $this->assertSame('not_reconciled', $snapshot['reconciliation']['status']);
+        $this->assertFalse($snapshot['reconciliation']['source_control_totals_available']);
+    }
+
+
+}

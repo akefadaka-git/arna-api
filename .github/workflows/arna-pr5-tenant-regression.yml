@@ -70,7 +70,7 @@ jobs:
         run: vendor/bin/phpunit tests/Feature/LoginIdentifierResolverTest.php
 
       - name: Run shareholder numbering fail-closed regression
-        run: vendor/bin/phpunit mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php
+        run: vendor/bin/phpunit arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php
 
       - name: Run shareholder numbering reconciliation migration regression
         run: vendor/bin/phpunit tests/Feature/ShareholderNumberReconciliationTest.php

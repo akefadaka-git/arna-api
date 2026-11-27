@@ -23,12 +23,12 @@ API source snapshot at the time of inspection: `cd2227114fb186077d6aa04a9f99afd8
 
 | Evidence | Source | Finding |
 |---|---|---|
-| Appointment aggregate | `mases_core/src/Calendar/Models/CalendarAppointment.php` | One appointment references one event; stores requester, host, scope, status timestamps and version. No proposal relation or reschedule history. |
+| Appointment aggregate | `arna_core/src/Calendar/Models/CalendarAppointment.php` | One appointment references one event; stores requester, host, scope, status timestamps and version. No proposal relation or reschedule history. |
 | Appointment persistence | `database/migrations/2026_11_25_000003_create_calendar_appointments_table.php` | One-to-one event association and requester/host/status indexes; no proposal table. |
-| Booking and lifecycle service | `mases_core/src/Calendar/Services/CalendarService.php` | Booking, listing, confirmation, decline and cancellation exist. No reschedule-proposal service methods. |
+| Booking and lifecycle service | `arna_core/src/Calendar/Services/CalendarService.php` | Booking, listing, confirmation, decline and cancellation exist. No reschedule-proposal service methods. |
 | Ordinary event update | Same `CalendarService.php`, `updateEvent` | Updates title, description and status only. It does not update `starts_at` or `ends_at`. |
 | Recurrence movement | Same `CalendarService.php`, `moveOccurrence` | Requires an event with a recurrence rule and writes a recurrence exception. APT-01 appointment events are standalone and are not eligible. |
-| Appointment controller | `mases_core/src/Calendar/Http/Controllers/CalendarController.php` | Validates availability, booking and confirm/decline/cancel only. No reschedule proposal or decision actions. |
+| Appointment controller | `arna_core/src/Calendar/Http/Controllers/CalendarController.php` | Validates availability, booking and confirm/decline/cancel only. No reschedule proposal or decision actions. |
 | API routes | `routes/api.php` | Appointment routes are list, availability, book, confirm, decline and cancel. No APT-02 routes. |
 | Booking tests | `tests/Feature/CalendarAppointmentBookingTest.php` | Tests booking, availability conflict, participant membership, host decline, resource overlap and corporate-calendar boundary. No proposal, acceptance, withdrawal, reminder-rebase or reschedule-concurrency tests. |
 
@@ -47,9 +47,9 @@ App source snapshot: `f694eb13ba822440c6842cb135a66f89218bc454`.
 
 | Evidence | Finding |
 |---|---|
-| `mases_core/src/Migrations/2026_11_01_000001_create_calendar_core_tables.php` | Calendar events hold timed UTC timestamps and timezone; attendees are unique per event/user; reservations store resource/event and confirmed interval with version. |
-| `mases_core/src/Migrations/2026_11_01_000002_create_calendar_lifecycle_tables.php` | Recurrence exceptions are keyed by event/original occurrence; reminder outbox has unique idempotency key, status and delivery metadata. |
-| `mases_core/src/Calendar/Services/CalendarReminderDispatcher.php` | Recurrence reminders have stable occurrence identities; existing outbox rows can be re-materialized only under defined idempotency conditions. Appointment rescheduling needs a safe new reminder identity and must preserve delivered history. |
+| `arna_core/src/Migrations/2026_11_01_000001_create_calendar_core_tables.php` | Calendar events hold timed UTC timestamps and timezone; attendees are unique per event/user; reservations store resource/event and confirmed interval with version. |
+| `arna_core/src/Migrations/2026_11_01_000002_create_calendar_lifecycle_tables.php` | Recurrence exceptions are keyed by event/original occurrence; reminder outbox has unique idempotency key, status and delivery metadata. |
+| `arna_core/src/Calendar/Services/CalendarReminderDispatcher.php` | Recurrence reminders have stable occurrence identities; existing outbox rows can be re-materialized only under defined idempotency conditions. Appointment rescheduling needs a safe new reminder identity and must preserve delivered history. |
 | `calendar_audit_entries` | Existing tenant-scoped aggregate/action/change audit is reusable for proposal and accepted schedule transitions. |
 
 ## 3. A1 requirement-to-evidence reconciliation
@@ -134,7 +134,7 @@ Subject to A1 Owner decisions, the evidence supports this target:
 
 ## 8. Read-only integrity statement
 
-The APT-02 A1/A2 work changed documentation only. No API or App runtime source, route, migration, database, test, workflow, branch, PR, deployment or production data was modified by this work. The separate commit `a949194674d6fa693e16b535701a4684d9f88949` (`fix(governance): restore membership service namespace and imports`) modifies `mases_core/src/Domains/Governance/Services/GovernanceMembershipService.php`; it is unrelated to APT-02 and was preserved without modification. Comparing the API source snapshot `cd2227114fb186077d6aa04a9f99afd8b5806126` to the APT-02 documentation head shows only the two APT-02 documentation files plus that independent Governance service file.
+The APT-02 A1/A2 work changed documentation only. No API or App runtime source, route, migration, database, test, workflow, branch, PR, deployment or production data was modified by this work. The separate commit `a949194674d6fa693e16b535701a4684d9f88949` (`fix(governance): restore membership service namespace and imports`) modifies `arna_core/src/Domains/Governance/Services/GovernanceMembershipService.php`; it is unrelated to APT-02 and was preserved without modification. Comparing the API source snapshot `cd2227114fb186077d6aa04a9f99afd8b5806126` to the APT-02 documentation head shows only the two APT-02 documentation files plus that independent Governance service file.
 
 **A2 conclusion:** VERIFIED-COMPLETE as a read-only technical reconciliation. APT-02 is implementation-ready only after the Owner resolves APT02-D01–D09 and the A1 specification is explicitly frozen. Until then, A3 remains blocked.
 

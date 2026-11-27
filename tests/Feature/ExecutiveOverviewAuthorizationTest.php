@@ -6,16 +6,16 @@ namespace Tests\Feature;
 
 use Database\Seeders\Data\PermissionCatalogue;
 use Database\Seeders\Data\RoleCatalogue;
-use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
+use MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
 use Database\Seeders\Data\RolePermissionGrants;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\ExecutiveOverviewAccessPolicy;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
-use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\ExecutiveOverviewAccessPolicy;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

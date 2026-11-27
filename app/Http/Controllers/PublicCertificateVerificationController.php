@@ -7,8 +7,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use MaaleArna\MASES\Core\Domains\Shareholder\Enums\CertificateStatus;
-use MaaleArna\MASES\Core\Domains\Shareholder\Models\ShareCertificate;
+use MaaleArna\Arna\Core\Domains\Shareholder\Enums\CertificateStatus;
+use MaaleArna\Arna\Core\Domains\Shareholder\Models\ShareCertificate;
 
 /**
  * Public, read-only verification of issued share certificates.

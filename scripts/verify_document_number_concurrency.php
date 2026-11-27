@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
-use MaaleArna\MASES\Core\Domains\Documents\Services\DocumentNumberAllocator;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Domains\Documents\Services\DocumentNumberAllocator;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 

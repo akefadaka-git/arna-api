@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use MaaleArna\MASES\Core\Exceptions\ErrorCodeRegistry;
-use MaaleArna\MASES\Core\Monitoring\ErrorDiagnosticEngine;
+use MaaleArna\Arna\Core\Exceptions\ErrorCodeRegistry;
+use MaaleArna\Arna\Core\Monitoring\ErrorDiagnosticEngine;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use MaaleArna\MASES\Core\Domains\Governance\Database\Seeders\GovernanceApplicationSeeder;
-use MaaleArna\MASES\Core\Domains\Governance\Database\Seeders\GovernancePermissionsSeeder;
-use MaaleArna\MASES\Core\Domains\Governance\Database\Seeders\GovernanceRolesSeeder;
+use MaaleArna\Arna\Core\Domains\Governance\Database\Seeders\GovernanceApplicationSeeder;
+use MaaleArna\Arna\Core\Domains\Governance\Database\Seeders\GovernancePermissionsSeeder;
+use MaaleArna\Arna\Core\Domains\Governance\Database\Seeders\GovernanceRolesSeeder;
 
 /** Runs Governance domain seeders in dependency order. */
 final class SeedGovernanceCommand extends Command

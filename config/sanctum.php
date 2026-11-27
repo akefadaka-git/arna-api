@@ -13,7 +13,7 @@ use Laravel\Sanctum\Sanctum;
 | Cookie SPA auth requires statefulApi() in bootstrap/app.php.
 | Token expiration covers personal access tokens; session/device lifecycle
 | is enforced by application services and middleware.
-| @package MASES
+| @package ARNA
 | @version 1.0.0
 */
 
@@ -84,7 +84,7 @@ return [
     | Prefix applied to newly issued tokens. A deliberate prefix enables
     | secret-scanning tools to detect accidentally committed tokens.
     |
-    | Recommended for MASES production: `mases_` (set via
+    | Recommended for ARNA production: `arna_` (set via
     | SANCTUM_TOKEN_PREFIX in .env). This is not a substitute for secure
     | token handling — it is a detection aid only.
     |

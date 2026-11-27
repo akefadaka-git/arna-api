@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
-use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Auth\Models\User;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

@@ -8,11 +8,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Auth\Services\AuthenticationService;
-use MaaleArna\MASES\Core\Auth\Services\LoginIdentifierResolver;
-use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Auth\Services\AuthenticationService;
+use MaaleArna\Arna\Core\Auth\Services\LoginIdentifierResolver;
+use MaaleArna\Arna\Core\Domains\Shareholder\Models\Shareholder;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

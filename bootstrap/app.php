@@ -21,9 +21,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Validation\ValidationException;
-use MaaleArna\MASES\Core\Exceptions\CoreException;
-use MaaleArna\MASES\Core\Exceptions\ErrorCodeRegistry;
-use MaaleArna\MASES\Core\Monitoring\ErrorDiagnosticEngine;
+use MaaleArna\Arna\Core\Exceptions\CoreException;
+use MaaleArna\Arna\Core\Exceptions\ErrorCodeRegistry;
+use MaaleArna\Arna\Core\Monitoring\ErrorDiagnosticEngine;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
@@ -31,7 +31,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /*
 |--------------------------------------------------------------------------
-| MASES Application Bootstrap
+| ARNA Application Bootstrap
 |--------------------------------------------------------------------------
 |
 | Single source of truth for:
@@ -39,7 +39,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 |   1. Routing (web, api, console, health).
 |   2. Global middleware stack, proxy trust, and route aliases.
 |   3. Sanctum stateful SPA middleware.
-|   4. Canonical MASES error envelope rendering.
+|   4. Canonical ARNA error envelope rendering.
 |
 | -----------------------------------------------------------------------------
 | Revision history
@@ -71,7 +71,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 |
 | 1.1.0 — Canonical error envelope enhancement:
 |
-|         · FIXED: `mases_resolve_error()` now correctly distinguishes
+|         · FIXED: `arna_resolve_error()` now correctly distinguishes
 |           `ModelNotFoundException` (→ `RESOURCE_NOT_FOUND`) from a
 |           missing route (→ `ROUTE_NOT_FOUND`). Laravel's
 |           `Handler::prepareException()` wraps the former in
@@ -136,7 +136,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 | API request detection
 | -----------------------------------------------------------------------------
 |
-| The renderer below applies only when `mases_is_api_request()` returns
+| The renderer below applies only when `arna_is_api_request()` returns
 | true. This covers three cases:
 |
 |   1. `Accept: application/json` (or similar) via $request->expectsJson().
@@ -144,7 +144,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 |   3. A request whose host matches APP_URL's host — i.e. requests
 |      arriving on the API subdomain `api.maalearna.com.et`.
 |
-| Case 3 is essential for MASES: the API is exposed on a dedicated
+| Case 3 is essential for ARNA: the API is exposed on a dedicated
 | subdomain, not under a path prefix, so a naive `$request->is('api/*')`
 | check would silently skip envelope rendering for browser requests
 | (which do not set Accept: application/json by default).
@@ -167,11 +167,11 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 | -----------------------------------------------------------------------------
 |
 | The `auth` alias is bound to App\Http\Middleware\Authenticate (the
-| MASES middleware), which performs the revoked-token cache check on
+| ARNA middleware), which performs the revoked-token cache check on
 | every authenticated request. Do not replace this alias with the
 | framework default.
 |
-| @package MASES
+| @package ARNA
 | @version 1.1.0
 */
 
@@ -185,7 +185,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 // reached and would remain undefined when the renderer fires.
 // -----------------------------------------------------------------------------
 
-if (!function_exists('mases_resolve_error')) {
+if (!function_exists('arna_resolve_error')) {
     /**
      * Resolve the canonical (code, message, status) tuple for a throwable.
      *
@@ -194,9 +194,9 @@ if (!function_exists('mases_resolve_error')) {
      *
      * @return array{0: string, 1: string, 2: int}
      */
-    function mases_resolve_error(\Throwable $e): array
+    function arna_resolve_error(\Throwable $e): array
     {
-        // 1. MASES CoreException hierarchy (Authorization, Tenant,
+        // 1. ARNA CoreException hierarchy (Authorization, Tenant,
         //    Authentication, File, …). These carry their own error code,
         //    message, and HTTP status.
         if ($e instanceof CoreException) {
@@ -381,7 +381,7 @@ if (!function_exists('mases_resolve_error')) {
     }
 }
 
-if (!function_exists('mases_resolve_request_id')) {
+if (!function_exists('arna_resolve_request_id')) {
     /**
      * Resolve a request identifier for the current request.
      *
@@ -390,7 +390,7 @@ if (!function_exists('mases_resolve_request_id')) {
      *   2. X-Correlation-ID header (alternative common name).
      *   3. A freshly generated UUID v4.
      */
-    function mases_resolve_request_id(Request $request): string
+    function arna_resolve_request_id(Request $request): string
     {
         foreach (['X-Request-ID', 'X-Correlation-ID'] as $header) {
             $value = $request->header($header);
@@ -412,19 +412,19 @@ if (!function_exists('mases_resolve_request_id')) {
     }
 }
 
-if (!function_exists('mases_is_api_request')) {
+if (!function_exists('arna_is_api_request')) {
     /**
      * Determine whether the request should receive the canonical JSON
      * error envelope.
      *
      * Unlike a naive `$request->is('api/*')` check, this also matches
      * requests arriving on the API subdomain (api.maalearna.com.et),
-     * which is how the MASES deployment exposes its API.
+     * which is how the ARNA deployment exposes its API.
      *
      * @param  Request $request
      * @return bool
      */
-    function mases_is_api_request(Request $request): bool
+    function arna_is_api_request(Request $request): bool
     {
         // 1. Client explicitly asked for JSON.
         if ($request->expectsJson()) {
@@ -481,13 +481,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Tenant context — prepended FIRST so it runs SECOND in the stack.
         // ---------------------------------------------------------------------
         // Runs after HandleCors. For a normal API request (not a preflight),
-        // it resolves the tenant from mases_tenant_id() and shares it with
+        // it resolves the tenant from arna_tenant_id() and shares it with
         // downstream consumers. For an OPTIONS preflight, it is never
         // reached: HandleCors answers and returns before the request
         // reaches this middleware.
         // ---------------------------------------------------------------------
         $middleware->prepend(
-            \MaaleArna\MASES\Core\Tenancy\Middleware\TenantContextMiddleware::class
+            \MaaleArna\Arna\Core\Tenancy\Middleware\TenantContextMiddleware::class
         );
 
         // ---------------------------------------------------------------------
@@ -551,23 +551,23 @@ return Application::configure(basePath: dirname(__DIR__))
         // locale defaults.
         // ---------------------------------------------------------------------
         $middleware->append(
-            \MaaleArna\MASES\Core\Localization\Middleware\LocalizationMiddleware::class
+            \MaaleArna\Arna\Core\Localization\Middleware\LocalizationMiddleware::class
         );
 
         // ---------------------------------------------------------------------
         // Middleware aliases
         // ---------------------------------------------------------------------
         $middleware->alias([
-            // Resolves the MASES Authenticate middleware, which performs
+            // Resolves the ARNA Authenticate middleware, which performs
             // the revoked-token cache check on every authenticated request.
             // Do NOT replace with the framework default.
             'auth'              => \App\Http\Middleware\Authenticate::class,
 
-            // MASES domain aliases (all backed by AuthorizationMiddleware).
-            'auth.permission'   => \MaaleArna\MASES\Core\Authorization\Middleware\AuthorizationMiddleware::class,
-            'auth.role'         => \MaaleArna\MASES\Core\Authorization\Middleware\AuthorizationMiddleware::class,
-            'auth.application'  => \MaaleArna\MASES\Core\Authorization\Middleware\AuthorizationMiddleware::class,
-            'tenant.membership' => \MaaleArna\MASES\Core\Tenancy\Middleware\TenantMembershipMiddleware::class,
+            // ARNA domain aliases (all backed by AuthorizationMiddleware).
+            'auth.permission'   => \MaaleArna\Arna\Core\Authorization\Middleware\AuthorizationMiddleware::class,
+            'auth.role'         => \MaaleArna\Arna\Core\Authorization\Middleware\AuthorizationMiddleware::class,
+            'auth.application'  => \MaaleArna\Arna\Core\Authorization\Middleware\AuthorizationMiddleware::class,
+            'tenant.membership' => \MaaleArna\Arna\Core\Tenancy\Middleware\TenantMembershipMiddleware::class,
             'auth.step_up'       => \App\Http\Middleware\RequireAdaptiveStepUp::class,
         ]);
     })
@@ -576,7 +576,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Server-side diagnostic enrichment is intentionally restricted to
         // server failures. The diagnostic engine is deterministic and read-only.
         $exceptions->reportable(function (\Throwable $e): void {
-            [$code, , $status] = mases_resolve_error($e);
+            [$code, , $status] = arna_resolve_error($e);
             if ($status < 500) {
                 return;
             }
@@ -586,7 +586,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'error_code' => $code,
                 'http_status' => $status,
                 'exception_class' => get_class($e),
-                'request_id' => mases_resolve_request_id(request()),
+                'request_id' => arna_resolve_request_id(request()),
                 'diagnostic' => $diagnostic,
             ]);
         });
@@ -599,12 +599,12 @@ return Application::configure(basePath: dirname(__DIR__))
             // Non-API requests fall through to Laravel's default HTML
             // renderer. This keeps web routes, error pages, and any
             // non-JSON consumer untouched.
-            if (!mases_is_api_request($request)) {
+            if (!arna_is_api_request($request)) {
                 return null;
             }
 
             // Compute the canonical error code, message, and status code.
-            [$code, $message, $status] = mases_resolve_error($e);
+            [$code, $message, $status] = arna_resolve_error($e);
 
             // Resolve governed metadata without changing legacy code/status behavior.
             $errorMetadata = ErrorCodeRegistry::metadata($code);
@@ -618,7 +618,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'message_key' => $errorMetadata['message_key'],
                     'severity'    => $errorMetadata['severity'],
                     'retryable'   => $errorMetadata['retryable'],
-                    'request_id'  => mases_resolve_request_id($request),
+                    'request_id'  => arna_resolve_request_id($request),
                     'timestamp'   => now()->toIso8601String(),
                 ],
             ];
@@ -626,7 +626,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // -------------------------------------------------------------
             // 422 — attach per-field validation messages in two shapes:
             //
-            //   - `error.validation_errors.*` — MASES canonical location.
+            //   - `error.validation_errors.*` — ARNA canonical location.
             //   - `errors.*` at the response root — Laravel's conventional
             //     location, expected by assertJsonValidationErrors() and
             //     many HTTP clients. Emitted ONLY on 422 responses.

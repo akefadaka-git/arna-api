@@ -6,8 +6,8 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use MaaleArna\MASES\Core\Domains\Shareholder\Models\Shareholder;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Domains\Shareholder\Models\Shareholder;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -39,7 +39,7 @@ final class ShareholderNumberReconciliationTest extends TestCase
         ]);
 
         $migration = require base_path(
-            'mases_core/src/Domains/Shareholder/Database/Migrations/2026_10_21_000001_reconcile_existing_shareholder_numbers.php'
+            'arna_core/src/Domains/Shareholder/Database/Migrations/2026_10_21_000001_reconcile_existing_shareholder_numbers.php'
         );
         $migration->up();
 
@@ -92,7 +92,7 @@ final class ShareholderNumberReconciliationTest extends TestCase
         ]);
 
         $migration = require base_path(
-            'mases_core/src/Domains/Shareholder/Database/Migrations/2026_10_21_000001_reconcile_existing_shareholder_numbers.php'
+            'arna_core/src/Domains/Shareholder/Database/Migrations/2026_10_21_000001_reconcile_existing_shareholder_numbers.php'
         );
 
         $this->expectException(RuntimeException::class);

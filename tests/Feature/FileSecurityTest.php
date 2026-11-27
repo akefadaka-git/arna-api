@@ -9,12 +9,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Files\Models\File;
-use MaaleArna\MASES\Core\Files\Services\FileService;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Exceptions\FileException;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Files\Models\File;
+use MaaleArna\Arna\Core\Files\Services\FileService;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Exceptions\FileException;
 use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -30,8 +30,8 @@ final class FileSecurityTest extends TestCase
         parent::setUp();
         $this->fileService = app(FileService::class);
         Storage::fake('local');
-        config()->set('mases.tenant.isolation_enabled', true);
-        config()->set('mases.files.allowed_extensions', ['pdf', 'jpg', 'png']);
+        config()->set('arna.tenant.isolation_enabled', true);
+        config()->set('arna.files.allowed_extensions', ['pdf', 'jpg', 'png']);
     }
 
     /**

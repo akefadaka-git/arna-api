@@ -10,8 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
-use MaaleArna\MASES\Core\Domains\People\Models\Person;
-use MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService;
+use MaaleArna\Arna\Core\Domains\People\Models\Person;
+use MaaleArna\Arna\Core\Domains\People\Services\PersonIdentityService;
 
 final class PersonController extends Controller
 {
@@ -21,7 +21,7 @@ final class PersonController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         Gate::authorize('viewAny', Person::class);
 
@@ -47,7 +47,7 @@ final class PersonController extends Controller
 
     public function store(Request $request, PersonIdentityService $identities): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
 
         $attributes = $request->validate([
@@ -73,7 +73,7 @@ final class PersonController extends Controller
 
     public function update(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
 
         $attributes = $request->validate([
@@ -100,7 +100,7 @@ final class PersonController extends Controller
 
     public function show(string $publicId): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
 
         $person = Person::query()
@@ -125,7 +125,7 @@ final class PersonController extends Controller
      */
     public function linkDomain(Request $request, string $publicId, string $domain, int $recordId, PersonIdentityService $identities): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $attributes = $request->validate([
             'reason' => ['required', 'string', 'min:8', 'max:1000'],
@@ -155,7 +155,7 @@ final class PersonController extends Controller
 
     public function unlinkDomain(Request $request, string $publicId, string $domain, int $recordId, PersonIdentityService $identities): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $attributes = $request->validate([
             'reason' => ['required', 'string', 'min:8', 'max:1000'],
@@ -185,7 +185,7 @@ final class PersonController extends Controller
 
     public function linkAccount(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $attributes = $request->validate([
             'user_id' => ['required', 'integer', 'min:1'],
@@ -204,7 +204,7 @@ final class PersonController extends Controller
 
     public function unlinkAccount(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $attributes = $request->validate([
             'reason' => ['required', 'string', 'min:8', 'max:1000'],
@@ -233,7 +233,7 @@ final class PersonController extends Controller
 
     public function documents(string $publicId, PersonIdentityService $identities): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $person = $this->visiblePerson($publicId, (int) $tenantId);
 
@@ -245,7 +245,7 @@ final class PersonController extends Controller
 
     public function linkDocument(Request $request, string $publicId, PersonIdentityService $identities): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $attributes = $request->validate([
             'file_id' => ['required', 'integer', 'min:1'],
@@ -270,7 +270,7 @@ final class PersonController extends Controller
 
     public function unlinkDocument(Request $request, string $publicId, int $fileId, PersonIdentityService $identities): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         $attributes = $request->validate([
             'reason' => ['required', 'string', 'min:8', 'max:1000'],
@@ -304,7 +304,7 @@ final class PersonController extends Controller
      */
     public function relationshipOptions(Request $request, string $publicId, string $domain): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
         abort_unless(in_array($domain, ['employees', 'shareholders', 'governance-memberships'], true), 404);
 
@@ -396,7 +396,7 @@ final class PersonController extends Controller
 
     public function relationships(string $publicId): JsonResponse
     {
-        $tenantId = mases_tenant_id();
+        $tenantId = arna_tenant_id();
         abort_if($tenantId === null, 400, 'A validated tenant context is required.');
 
         $person = Person::query()

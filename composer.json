@@ -1,6 +1,6 @@
 {
-    "name": "maale-arna/mases-api",
-    "description": "MASES Core Platform Foundation API — Central backend for Maale Arna Smart Enterprise System",
+    "name": "maale-arna/arna-api",
+    "description": "ARNA Core Platform Foundation API — Central backend for Maale Arna Smart Enterprise System",
     "type": "project",
     "keywords": [
         "mas",
@@ -29,13 +29,13 @@
 
     "autoload": {
         "files": [
-            "mases_core/src/Support/Helpers.php"
+            "arna_core/src/Support/Helpers.php"
         ],
         "psr-4": {
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/",
-            "MaaleArna\\MASES\\Core\\": "mases_core/src/"
+            "MaaleArna\\Arna\\Core\\": "arna_core/src/"
         }
     },
 

@@ -10,8 +10,8 @@ on:
       - "database/seeders/Data/PermissionCatalogue.php"
       - "database/seeders/Data/RolePermissionGrants.php"
       - "database/seeders/PermissionSeeder.php"
-      - "mases_core/src/Domains/Task/**"
-      - "mases_core/src/Calendar/**"
+      - "arna_core/src/Domains/Task/**"
+      - "arna_core/src/Calendar/**"
       - "app/Providers/AppServiceProvider.php"
       - "routes/api.php"
       - "tests/Feature/D08TaskManagementTest.php"
@@ -26,7 +26,7 @@ on:
       - "database/seeders/Data/PermissionCatalogue.php"
       - "database/seeders/Data/RolePermissionGrants.php"
       - "database/seeders/PermissionSeeder.php"
-      - "mases_core/src/Domains/Task/**"
+      - "arna_core/src/Domains/Task/**"
       - "routes/api.php"
       - "tests/Feature/D08TaskManagementTest.php"
 
@@ -78,9 +78,9 @@ jobs:
         run: |
           php -l database/migrations/2026_11_25_000001_create_d08_task_management_tables.php
           php -l database/migrations/2026_11_25_000002_create_task_dependencies_table.php
-          php -l mases_core/src/Domains/Task/Http/Controllers/TaskController.php
-          php -l mases_core/src/Domains/Task/Models/Task.php
-          php -l mases_core/src/Domains/Task/Services/TaskService.php
+          php -l arna_core/src/Domains/Task/Http/Controllers/TaskController.php
+          php -l arna_core/src/Domains/Task/Models/Task.php
+          php -l arna_core/src/Domains/Task/Services/TaskService.php
           php -l tests/Feature/D08TaskManagementTest.php
           php -l routes/api.php
 

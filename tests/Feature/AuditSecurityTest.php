@@ -9,17 +9,17 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Audit\Models\AuditLog;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Security\Models\SecurityEvent;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Audit\Models\AuditLog;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Security\Models\SecurityEvent;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
  * ============================================================================
- * MASES — Audit & Security Feature Tests
+ * ARNA — Audit & Security Feature Tests
  * ============================================================================
  *
  * These tests verify that security events and audit logs are correctly created
@@ -27,8 +27,8 @@ use Tests\TestCase;
  * sensitive data is never stored in logs.
  *
  * Dependencies:
- * - AuditLog model at `MaaleArna\MASES\Core\Audit\Models\AuditLog`
- * - SecurityEvent model at `MaaleArna\MASES\Core\Security\Models\SecurityEvent`
+ * - AuditLog model at `MaaleArna\Arna\Core\Audit\Models\AuditLog`
+ * - SecurityEvent model at `MaaleArna\Arna\Core\Security\Models\SecurityEvent`
  * - Both tables must be migrated for the test database.
  * - FileController must use the `LogsAudit` trait and call `logAudit()`.
  * - Delete endpoint requires `file.view` permission internally – grant it.
@@ -51,7 +51,7 @@ final class AuditSecurityTest extends TestCase
         parent::setUp();
 
         // Enable audit functionality for the test suite.
-        config()->set('mases.features.audit_enabled', true);
+        config()->set('arna.features.audit_enabled', true);
 
         // Create an isolated tenant.
         $this->tenant = Tenant::factory()->create(['is_active' => true]);
@@ -79,14 +79,14 @@ final class AuditSecurityTest extends TestCase
         if (! class_exists(AuditLog::class)) {
             $this->fail(
                 'AuditLog model not found. Ensure the class ' .
-                'MaaleArna\MASES\Core\Audit\Models\AuditLog exists.'
+                'MaaleArna\Arna\Core\Audit\Models\AuditLog exists.'
             );
         }
 
         if (! class_exists(SecurityEvent::class)) {
             $this->fail(
                 'SecurityEvent model not found. Ensure the class ' .
-                'MaaleArna\MASES\Core\Security\Models\SecurityEvent exists.'
+                'MaaleArna\Arna\Core\Security\Models\SecurityEvent exists.'
             );
         }
 
@@ -553,7 +553,7 @@ final class AuditSecurityTest extends TestCase
     #[Test]
     public function audit_logging_can_be_disabled_via_config(): void
     {
-        config()->set('mases.features.audit_enabled', false);
+        config()->set('arna.features.audit_enabled', false);
 
         $loginResponse = $this->postJson('/api/login', [
             'email' => self::USER_EMAIL,
@@ -596,7 +596,7 @@ final class AuditSecurityTest extends TestCase
     #[Test]
     public function audit_service_returns_null_request_id_when_no_headers_supplied(): void
     {
-        $service = app(\MaaleArna\MASES\Core\Audit\Services\AuditService::class);
+        $service = app(\MaaleArna\Arna\Core\Audit\Services\AuditService::class);
 
         $row = $service->log(
             action:       'audit.requestid.none',
@@ -613,7 +613,7 @@ final class AuditSecurityTest extends TestCase
     public function audit_service_reads_x_request_id_header(): void
     {
         \Illuminate\Support\Facades\Route::get('/_test/audit/requestid/xreq', function () {
-            $service = app(\MaaleArna\MASES\Core\Audit\Services\AuditService::class);
+            $service = app(\MaaleArna\Arna\Core\Audit\Services\AuditService::class);
             $service->log(
                 action:       'audit.requestid.header.xreq',
                 resourceType: 'RequestIdProbe',
@@ -636,7 +636,7 @@ final class AuditSecurityTest extends TestCase
     public function audit_service_reads_x_correlation_id_header(): void
     {
         \Illuminate\Support\Facades\Route::get('/_test/audit/requestid/xcorr', function () {
-            $service = app(\MaaleArna\MASES\Core\Audit\Services\AuditService::class);
+            $service = app(\MaaleArna\Arna\Core\Audit\Services\AuditService::class);
             $service->log(
                 action:       'audit.requestid.header.xcorr',
                 resourceType: 'RequestIdProbe',
@@ -659,7 +659,7 @@ final class AuditSecurityTest extends TestCase
     public function audit_service_explicit_request_id_wins_over_headers(): void
     {
         \Illuminate\Support\Facades\Route::get('/_test/audit/requestid/explicit', function () {
-            $service = app(\MaaleArna\MASES\Core\Audit\Services\AuditService::class);
+            $service = app(\MaaleArna\Arna\Core\Audit\Services\AuditService::class);
             $service->log(
                 action:       'audit.requestid.explicit',
                 resourceType: 'RequestIdProbe',
@@ -689,7 +689,7 @@ final class AuditSecurityTest extends TestCase
     #[Test]
     public function audit_service_persists_supplied_metadata(): void
     {
-        $service = app(\MaaleArna\MASES\Core\Audit\Services\AuditService::class);
+        $service = app(\MaaleArna\Arna\Core\Audit\Services\AuditService::class);
 
         $payload = [
             'source'   => 'test-suite',
@@ -711,7 +711,7 @@ final class AuditSecurityTest extends TestCase
 
         $this->assertNotNull($row);
 
-        $fresh = \MaaleArna\MASES\Core\Audit\Models\AuditLog::find($row->id);
+        $fresh = \MaaleArna\Arna\Core\Audit\Models\AuditLog::find($row->id);
         $this->assertNotNull($fresh);
 
         $this->assertIsArray($fresh->metadata);

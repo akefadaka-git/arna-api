@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use MaaleArna\MASES\Core\Auth\Services\AdaptiveAuthenticationPolicy;
+use MaaleArna\Arna\Core\Auth\Services\AdaptiveAuthenticationPolicy;
 use PHPUnit\Framework\TestCase;
 
 final class AdaptiveAuthenticationPolicyTest extends TestCase

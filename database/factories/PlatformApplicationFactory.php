@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use MaaleArna\MASES\Core\Authorization\Models\PlatformApplication;
+use MaaleArna\Arna\Core\Authorization\Models\PlatformApplication;
 
 /**
  * PlatformApplicationFactory

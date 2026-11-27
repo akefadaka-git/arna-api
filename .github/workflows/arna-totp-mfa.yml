@@ -8,8 +8,8 @@ on:
     paths:
       - "database/migrations/**"
       - "config/totp-mfa.php"
-      - "mases_core/src/Auth/Services/TotpMfaService.php"
-      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "arna_core/src/Auth/Services/TotpMfaService.php"
+      - "arna_core/src/Auth/Services/AuthenticationService.php"
       - "app/Http/Controllers/Auth/AuthController.php"
       - "routes/api.php"
       - "tests/Feature/TotpMfaTest.php"
@@ -20,8 +20,8 @@ on:
     paths:
       - "database/migrations/**"
       - "config/totp-mfa.php"
-      - "mases_core/src/Auth/Services/TotpMfaService.php"
-      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "arna_core/src/Auth/Services/TotpMfaService.php"
+      - "arna_core/src/Auth/Services/AuthenticationService.php"
       - "app/Http/Controllers/Auth/AuthController.php"
       - "routes/api.php"
       - "tests/Feature/TotpMfaTest.php"
@@ -55,7 +55,7 @@ jobs:
         run: |
           php -l database/migrations/2026_10_22_000005_add_totp_mfa_state.php
           php -l config/totp-mfa.php
-          php -l mases_core/src/Auth/Services/TotpMfaService.php
+          php -l arna_core/src/Auth/Services/TotpMfaService.php
           php -l tests/Feature/TotpMfaTest.php
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist

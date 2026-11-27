@@ -6,7 +6,7 @@ namespace Database\Seeders;
 
 use Database\Seeders\Data\TenantProfile;
 use Illuminate\Database\Seeder;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 
 /**
  * Creates or updates the default tenant.

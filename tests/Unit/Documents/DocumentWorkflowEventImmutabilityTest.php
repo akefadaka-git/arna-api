@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Documents;
 
 use LogicException;
-use MaaleArna\MASES\Core\Domains\Documents\Models\DocumentWorkflowEvent;
+use MaaleArna\Arna\Core\Domains\Documents\Models\DocumentWorkflowEvent;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

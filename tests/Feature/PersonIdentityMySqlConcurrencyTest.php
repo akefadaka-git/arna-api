@@ -7,12 +7,12 @@ namespace Tests\Feature;
 use DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use MaaleArna\MASES\Core\Auth\Models\User;
-use MaaleArna\MASES\Core\Authorization\Models\Permission;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
-use MaaleArna\MASES\Core\Domains\People\Models\Person;
-use MaaleArna\MASES\Core\Domains\People\Services\PersonIdentityService;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Authorization\Models\Permission;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Domains\People\Models\Person;
+use MaaleArna\Arna\Core\Domains\People\Services\PersonIdentityService;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -234,7 +234,7 @@ final class PersonIdentityMySqlConcurrencyTest extends TestCase
         }
 
         $suffix = bin2hex(random_bytes(5));
-        $tenant = \MaaleArna\MASES\Core\Tenancy\Models\Tenant::factory()->create(['is_active' => true]);
+        $tenant = \MaaleArna\Arna\Core\Tenancy\Models\Tenant::factory()->create(['is_active' => true]);
         $actor = User::factory()->create(['is_active' => true, 'default_tenant_id' => $tenant->getKey()]);
         $actor->tenants()->attach($tenant->getKey(), ['joined_at' => now(), 'status' => 'active']);
         $permission = Permission::query()->firstOrCreate(

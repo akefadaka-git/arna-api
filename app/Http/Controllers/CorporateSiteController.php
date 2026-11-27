@@ -9,8 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use App\Services\CorporateSite\CorporateHomeInvariant;
-use MaaleArna\MASES\Core\Audit\Models\AuditLog;
-use MaaleArna\MASES\Core\Domains\PublicContent\Models\CorporateSitePage;
+use MaaleArna\Arna\Core\Audit\Models\AuditLog;
+use MaaleArna\Arna\Core\Domains\PublicContent\Models\CorporateSitePage;
 
 final class CorporateSiteController extends Controller
 {
