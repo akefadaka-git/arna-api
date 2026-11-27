@@ -352,11 +352,14 @@ Open PRs were searched in both repositories. The following are the shareholder, 
 
 | PR | Subject | A2 disposition |
 |---|---|---|
+| [#96](https://github.com/akefadaka-git/arna-api/pull/96) / [#97](https://github.com/akefadaka-git/arna-api/pull/97) | Earlier unified API-App integration plan and A2 closure package | Historical integration/A2 lineage. Treat as prior evidence only; the exact current-main inventories and unresolved gaps in this record supersede stale baselines. |
 | [#94](https://github.com/akefadaka-git/arna-api/pull/94) | Earlier Shareholder A2 baseline, 2026-11-08 | Historical/partial baseline. Its API/App SHAs are stale; this record supersedes its inventory after Owner acceptance. |
 | [#158](https://github.com/akefadaka-git/arna-api/pull/158) | Statutory register identity metadata | Relevant bounded PR-only work. Rebase/reconcile against current main; preserve unknown values as NULL/unverified; no invented legal facts. |
 | [#129](https://github.com/akefadaka-git/arna-api/pull/129) | Shareholding ledger/projection reconciliation for AGE | Stacked on an AGE feature branch, not main; CI/DB validation noted as not run. Do not merge independently. Reconcile its invariant into the canonical ledger/GA design. |
 | [#155](https://github.com/akefadaka-git/arna-api/pull/155) | Earlier self-service ownership tests | Source branch says its current-main port is in #193/#195; do not merge independently. |
 | [#192](https://github.com/akefadaka-git/arna-api/pull/192) | Current-main self-service ownership regression tests | Open overlapping test PR. Compare exact diff with tests already present on main and merged #195 lineage before deciding whether any residual tests remain. |
+| [#154](https://github.com/akefadaka-git/arna-api/pull/154) | Earlier notification atomicity/tenant-isolation test increment | Source lineage consolidated into #193/#195; do not merge independently. Verify current-main notification test coverage. |
+| [#190](https://github.com/akefadaka-git/arna-api/pull/190) | Separate Finance governance-settlement duties | Open Finance security dependency for any future GA penalty/settlement integration; preserve maker/checker/executor separation and do not activate penalty posting without legal approval. |
 | [#191](https://github.com/akefadaka-git/arna-api/pull/191) | Notification recipient atomicity/tenant-isolation tests | Source branch is superseded by the security integration lineage; verify current-main coverage rather than merging stale source. |
 | [#193](https://github.com/akefadaka-git/arna-api/pull/193) | API security and tenant-isolation hardening | Explicitly superseded by merged #195. Do not merge this stale integration branch. |
 | [#81](https://github.com/akefadaka-git/arna-api/pull/81) | Annual shareholder dividend engine | Open base-on-main feature; substantial partial engine, with accounting/payment/test gaps stated in PR. |
