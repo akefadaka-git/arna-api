@@ -966,6 +966,7 @@ final class CalendarService
                 'action' => $action,
                 'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
                 'status' => 'pending',
+                'deliver_at' => now(),
                 'attempts' => 0,
                 'idempotency_key' => $dedupeKey,
                 'created_at' => now(),
