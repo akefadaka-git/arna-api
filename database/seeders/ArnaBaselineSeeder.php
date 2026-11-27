@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Database\\Seeders;
+namespace Database\Seeders;
 
-use Illuminate\\Database\\Seeder;
-use MaaleArna\\Arna\\Core\\Domains\\Governance\\Database\\Seeders\\GovernanceSeeder;
-use MaaleArna\\Arna\\Core\\Domains\\Loan\\Database\\Seeders\\LoanPermissionsSeeder;
-use MaaleArna\\Arna\\Core\\Domains\\Loan\\Database\\Seeders\\LoanRolesSeeder;
-use MaaleArna\\Arna\\Core\\Domains\\Shareholder\\Database\\Seeders\\ShareholderPermissionsSeeder;
-use MaaleArna\\Arna\\Core\\Domains\\Shareholder\\Database\\Seeders\\ShareholderRolesSeeder;
-use MaaleArna\\Arna\\Core\\Domains\\Wallet\\Database\\Seeders\\WalletPermissionsSeeder;
-use MaaleArna\\Arna\\Core\\Domains\\Wallet\\Database\\Seeders\\WalletRolesSeeder;
+use Illuminate\Database\Seeder;
+use MaaleArna\Arna\Core\Domains\Governance\Database\Seeders\GovernanceSeeder;
+use MaaleArna\Arna\Core\Domains\Loan\Database\Seeders\LoanPermissionsSeeder;
+use MaaleArna\Arna\Core\Domains\Loan\Database\Seeders\LoanRolesSeeder;
+use MaaleArna\Arna\Core\Domains\Shareholder\Database\Seeders\ShareholderPermissionsSeeder;
+use MaaleArna\Arna\Core\Domains\Shareholder\Database\Seeders\ShareholderRolesSeeder;
+use MaaleArna\Arna\Core\Domains\Wallet\Database\Seeders\WalletPermissionsSeeder;
+use MaaleArna\Arna\Core\Domains\Wallet\Database\Seeders\WalletRolesSeeder;
 
 /**
  * Non-destructive reference-data baseline. Operational cohorts, identities,
