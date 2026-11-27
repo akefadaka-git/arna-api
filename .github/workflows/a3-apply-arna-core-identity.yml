@@ -179,7 +179,8 @@ jobs:
               "- Active legacy namespace/path/config/helper/env/provider/seeder/command scan: PASS (zero residual lines)",
               "- Historical docs preserved: 10 named records",
               "- Dormant provider remains unregistered; no database schema/data changes.",
-              "- 27 CI workflow path references are intentionally updated in a separate connector-authored branch commit; the Actions token cannot write workflow files.\n              "- Tests/builds not run here; A4 verification remains separate.",
+              "- 27 CI workflow path references are deferred to connector-authored updates; the Actions token cannot modify workflow files.",
+              "- Tests/builds not run here; A4 verification remains separate.",
           ]
           Path("a3-api-migration-summary.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
