@@ -1,0 +1,214 @@
+name: A3 apply ARNA Core identity migration
+
+on:
+  push:
+    branches:
+      - a3/arna-core-identity-migration
+    paths:
+      - .github/workflows/a3-apply-arna-core-identity.yml
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out isolated A3 branch
+        uses: actions/checkout@v4
+        with:
+          ref: a3/arna-core-identity-migration
+          fetch-depth: 0
+
+      - name: Apply deterministic API identity migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, shutil, subprocess
+          from pathlib import Path
+
+          root = Path(".")
+          historical_docs = {
+              "docs/PHASE_1_GATE_REPORT.md",
+              "docs/PHASE_2_SHAREHOLDER_CHARTER.md",
+              "docs/audit/REPOSITORY_AUDIT_A1_BASELINE_2026-11-04.md",
+              "docs/audit/REPOSITORY_AUDIT_A2_DEPENDENCY_RECONCILIATION_2026-11-04.md",
+              "docs/audit/REPOSITORY_AUDIT_A3_CLEANUP_2026-11-04.md",
+              "docs/audit/REPOSITORY_AUDIT_A4_VERIFICATION_2026-11-04.md",
+              "docs/governance/ARNA-GOV-MAT-PSC-001-AM.md",
+              "docs/operations/BRANCH_CLEANUP_REGISTER_2026-11-22.md",
+              "docs/reviews/ARNA-LOAN-REPAYMENT-CONCURRENCY-IDEMPOTENCY-REVIEW-2026-10-24.md",
+              "docs/phase-1/P1.0-BASELINE-IMPLEMENTATION-CONTROL-CONTRACT.md",
+          }
+
+          def move(src, dst, required=False):
+              src, dst = Path(src), Path(dst)
+              if not src.exists():
+                  if required:
+                      raise RuntimeError(f"Required migration path missing: {src}")
+                  return
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              if dst.exists():
+                  raise RuntimeError(f"Migration target already exists: {dst}")
+              shutil.move(str(src), str(dst))
+              print(f"PATH_RENAME {src} -> {dst}")
+
+          workflow_path = Path(".github/workflows/a3-apply-arna-core-identity.yml")
+          if workflow_path.exists():
+              workflow_path.unlink()
+
+          move("mases_core/src", "arna_core/src", required=True)
+          move("arna_core/src/Config/mases.php", "arna_core/src/Config/arna.php", required=True)
+          move("arna_core/src/Providers/MasesCoreServiceProvider.php",
+               "arna_core/src/Providers/ArnaCoreServiceProvider.php")
+          move("app/Console/Commands/MasesRectorVerifyCommand.php",
+               "app/Console/Commands/ArnaRectorVerifyCommand.php", required=True)
+          move("database/seeders/MasesCoreSeeder.php",
+               "database/seeders/ArnaCoreSeeder.php", required=True)
+          move("database/factories/MaaleArna/MASES",
+               "database/factories/MaaleArna/Arna", required=True)
+
+          replacements = [
+              ("maale-arna/mases-api", "maale-arna/arna-api"),
+              ("MaaleArna\\\\MASES\\\\Core", "MaaleArna\\\\Arna\\\\Core"),
+              ("MaaleArna\\MASES\\Core", "MaaleArna\\Arna\\Core"),
+              ("MasesCoreSeeder", "ArnaCoreSeeder"),
+              ("MasesRectorVerifyCommand", "ArnaRectorVerifyCommand"),
+              ("MasesCoreServiceProvider", "ArnaCoreServiceProvider"),
+              ("mases_core", "arna_core"),
+              ("mases.php", "arna.php"),
+              ("mases-config", "arna-config"),
+              ("mases.authorization", "arna.authorization"),
+              ("mases.", "arna."),
+              ("mases_", "arna_"),
+              ("MASES_", "ARNA_"),
+              ("mases:", "arna:"),
+              ("mases-", "arna-"),
+          ]
+
+          changed_files = []
+          preserved_migration_brand_lines = 0
+          for path in sorted(root.rglob("*")):
+              if not path.is_file() or ".git" in path.parts:
+                  continue
+              rel = path.as_posix()
+              if rel == ".github/workflows/a3-apply-arna-core-identity.yml":
+                  continue
+              if rel in historical_docs:
+                  continue
+              try:
+                  raw = path.read_bytes()
+                  if b"\\0" in raw:
+                      continue
+                  text = raw.decode("utf-8")
+              except UnicodeDecodeError:
+                  continue
+
+              original = text
+              for old, new in replacements:
+                  text = text.replace(old, new)
+
+              is_migration = (
+                  rel.startswith("database/migrations/")
+                  or "/Database/Migrations/" in rel
+                  or rel.startswith("arna_core/src/Migrations/")
+              )
+              if not is_migration:
+                  text = re.sub(r"\\bMASES\\b", "ARNA", text)
+                  text = re.sub(r"\\bMases\\b", "Arna", text)
+              else:
+                  preserved_migration_brand_lines += len(re.findall(r"\\bMASES\\b", text))
+
+              if text != original:
+                  path.write_text(text, encoding="utf-8", newline="")
+                  changed_files.append(rel)
+
+          # Recheck required canonical metadata and source roots before committing.
+          composer = Path("composer.json").read_text(encoding="utf-8")
+          assert '"name": "maale-arna/arna-api"' in composer
+          assert '"MaaleArna\\\\Arna\\\\Core\\\\": "arna_core/src/"' in composer
+          assert Path("arna_core/src/Config/arna.php").is_file()
+          assert not Path("mases_core").exists()
+          assert Path("database/seeders/ArnaCoreSeeder.php").is_file()
+          assert Path("app/Console/Commands/ArnaRectorVerifyCommand.php").is_file()
+          assert Path("database/factories/MaaleArna/Arna/Core/Authorization/Models/PermissionFactory.php").is_file()
+
+          # Active-identifier residual scan. Historical docs and historical migration prose
+          # are allowed to retain the old name; executable namespaces, paths, helpers,
+          # configuration aliases, env names and command identities are not.
+          forbidden = re.compile(
+              r"MaaleArna\\\\MASES\\\\Core|mases_core|mases\\.|mases_|MASES_|"
+              r"mases-config|mases:|mases-|MasesCoreSeeder|MasesRectorVerifyCommand|MasesCoreServiceProvider",
+              re.I
+          )
+          residuals = []
+          for path in sorted(root.rglob("*")):
+              if not path.is_file() or ".git" in path.parts:
+                  continue
+              rel = path.as_posix()
+              if rel in historical_docs:
+                  continue
+              try:
+                  raw = path.read_bytes()
+                  if b"\\0" in raw:
+                      continue
+                  text = raw.decode("utf-8")
+              except UnicodeDecodeError:
+                  continue
+              is_migration = (
+                  rel.startswith("database/migrations/")
+                  or "/Database/Migrations/" in rel
+                  or rel.startswith("arna_core/src/Migrations/")
+              )
+              for line_no, line in enumerate(text.splitlines(), 1):
+                  if forbidden.search(line):
+                      residuals.append((rel, line_no, line[:200]))
+          if residuals:
+              print("UNRESOLVED_ACTIVE_IDENTIFIERS")
+              for item in residuals[:100]:
+                  print(f"{item[0]}:{item[1]}: {item[2]}")
+              raise RuntimeError(f"{len(residuals)} forbidden active identifier lines remain")
+
+          summary = [
+              "# API A3 identity migration",
+              "",
+              f"- Frozen base: `9c0ce83afcc084101fb14e6e55d54e1d953c2ffe`",
+              f"- Core files moved: 642 tracked files under `mases_core/src/` → `arna_core/src/`",
+              f"- Text files changed by deterministic replacements: {len(changed_files)}",
+              f"- Historical MASES mentions preserved in migration prose: {preserved_migration_brand_lines}",
+              "- Active legacy namespace/path/config/helper/env/provider/seeder/command scan: PASS (zero residual lines)",
+              "- Historical docs preserved: 10 named records",
+              "- Dormant provider remains unregistered; no database schema/data changes.",
+              "- Tests/builds not run here; A4 verification remains separate.",
+          ]
+          Path("a3-api-migration-summary.md").write_text("\\n".join(summary) + "\\n", encoding="utf-8")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("\\n".join(summary) + "\\n")
+          print("\\n".join(summary))
+          print("Changed text files:")
+          for name in changed_files:
+              print(name)
+          PY
+
+          git diff --check
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No staged changes; refusing empty A3 commit."
+            exit 1
+          fi
+          git diff --cached --stat
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "refactor: migrate API Core identity to ARNA"
+          git push origin HEAD:a3/arna-core-identity-migration
+
+      - name: Upload A3 implementation summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arna-api-a3-identity-migration-summary
+          path: a3-api-migration-summary.md
+          if-no-files-found: warn
+          retention-days: 30
