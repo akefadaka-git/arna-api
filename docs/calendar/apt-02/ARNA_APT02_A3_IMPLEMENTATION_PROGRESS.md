@@ -71,6 +71,7 @@ A1 v1.0 remains **VERIFIED-CLOSED / FROZEN** and A2 remains **VERIFIED-CLOSED**.
 - 50025a3abe6e6b1b85aea24006802375ca0d34cd — notification outbox dispatch feature test.
 - 0c2812e4fe281a2e40fe3572c22a97ce604da052 — notify parties when cancellation closes a pending proposal.
 - 9a7b705e2d9cc55d4b6c1595565eda7c4db7606d — resource movement/conflict and cancellation feature tests.
+- 4665f1b4aed871aedf13c84b69a8f3bb1989909b — normalize stored UTC timestamp assertions.
 
 ## 3. App implementation delivered to main
 
