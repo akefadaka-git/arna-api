@@ -145,3 +145,16 @@ The Owner approved the complete ARNA naming scope: remove MASES from active API 
 **A1 is OWNER-APPROVED / FROZEN.** Canonical names are `arna_core/src/`, `MaaleArna\\Arna\\Core\\`, Composer package `maale-arna/arna-api`, and `arna.*` configuration. Historical records and commit history remain historically accurate; active application identifiers and operational documentation are renamed. Neutral domain names are not gratuitously renamed. Database schema/data changes are outside this authorization.
 
 A1 approval does not close A2. The full content scan, live deployment/runtime consumer assessment and unconnected external consumer review remain A2 closure gates. **A3 NOT STARTED** until A2 is completed and closed. A4 NOT RUN; A5 NOT AUTHORIZED.
+
+
+## 11. A2 reconciliation decision — Owner deployment boundary and closure status (2026-11-27)
+
+The Owner has stated that there is no useful deployed content to preserve and that a fresh deployment will be performed by the Owner through Plesk native GitHub deployment. This is an Owner-provided operational decision, not independent live-environment verification. Accordingly, live Plesk, live `.env`, PHP-FPM/cache/queue/OPcache and deployment inspection are not A2 closure requirements. The Owner retains responsibility for the future fresh deployment; no deployment action is authorized here.
+
+The known in-scope repository consumer is `akefadaka-git/arna-app`. Other private, local or unconnected consumers remain UNKNOWN / NOT ESTABLISHED; absence of public search results is not proof of absence. This uncertainty is bounded by the Owner's fresh-deployment decision and must not be reported as a verified zero-consumer finding.
+
+**Formal A2 decision: NOT CLOSED — PARTIAL / OPEN.** The frozen recursive tree/path inventories and targeted reference findings are recorded, but the deterministic full-content archive/blob scan of both repositories at their frozen SHAs was not completed. Targeted code search is capped/selective and cannot establish exhaustive line-level classification. Closing A2 now would overstate the evidence.
+
+A3 remains NOT STARTED and must not begin until the deterministic content scan is completed and A2 is formally closed. No source, test, CI, database, migration, production or deployment changes were made. A4 remains NOT RUN. A5 remains outside this authorization and is the Owner's deployment responsibility.
+
+The previous sections and approvals are retained as historical records; this addendum supersedes earlier statements that live Plesk/runtime inspection remains a required A2 gate.
