@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\AI\\Services;
+namespace MaaleArna\MASES\Core\AI\Services;
 
 use InvalidArgumentException;
-use MaaleArna\\MASES\\Core\\AI\\Contracts\\DomainEvidenceSourceContract;
-use MaaleArna\\MASES\\Core\\AI\\Contracts\\ToolPermissionContract;
+use MaaleArna\MASES\Core\AI\Contracts\DomainEvidenceSourceContract;
+use MaaleArna\MASES\Core\AI\Contracts\ToolPermissionContract;
 
 final class PermissionAwareRetrievalService
 {
@@ -31,7 +31,7 @@ final class PermissionAwareRetrievalService
             throw new InvalidArgumentException('Tenant and actor scope are required for AI retrieval.');
         }
         if (!$this->permissions->allows($tool, $scope)) {
-            throw new \\Symfony\\Component\\HttpKernel\\Exception\\AccessDeniedHttpException(
+            throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException(
                 'The current actor is not authorized for this ARNA AI retrieval tool.',
             );
         }
