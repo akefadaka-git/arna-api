@@ -36,7 +36,7 @@ final class GovernanceElectionShareholderSourceService
      *
      * @return array<string,mixed>
      */
-    public function previewTenant(int $tenantId, string $recordDateTime): array
+    public function previewTenant(int $tenantId, string $recordDateTime, ?string $databaseTimezoneOverride = null): array
     {
         if ($tenantId < 1) {
             throw ValidationException::withMessages([
@@ -45,7 +45,14 @@ final class GovernanceElectionShareholderSourceService
         }
 
         $cutoff = self::parseRecordDateTime($recordDateTime);
-        $databaseTimezone = (string) config('app.timezone', 'UTC');
+        $databaseTimezone = $databaseTimezoneOverride ?? (string) config('app.timezone', 'UTC');
+        try {
+            new DateTimeZone($databaseTimezone);
+        } catch (\\Throwable) {
+            throw ValidationException::withMessages([
+                'database_timezone' => 'A valid database timezone is required for source reconstruction.',
+            ]);
+        }
 
         return DB::transaction(function () use ($tenantId, $cutoff, $databaseTimezone): array {
             $shareholders = DB::table('shareholders')
@@ -178,7 +185,9 @@ final class GovernanceElectionShareholderSourceService
                 'shareholders' => $holderRows,
                 'source_manifest' => $sourceManifest,
             ];
-            $digest = hash('sha256', json_encode($canonical, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            $digestPayload = $canonical;
+            unset($digestPayload['captured_at_utc']);
+            $digest = hash('sha256', json_encode($digestPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
             return [
                 'status' => 'technical_source_preview_only',
