@@ -490,4 +490,156 @@ final class CalendarAppointmentBookingTest extends TestCase
         $this->assertDatabaseHas('calendar_appointment_reschedule_proposals', ['id' => $proposalId, 'status' => 'pending']);
     }
 
+
+    #[Test]
+    public function accepted_reschedule_preserves_reservation_identity_and_moves_its_interval_atomically(): void
+    {
+        $tenant = $this->tenant();
+        $requester = $this->member($tenant);
+        $host = $this->member($tenant);
+        $calendarId = $this->calendar($tenant, $requester);
+        $this->grant($host, $tenant, 'calendar.view', 'calendar.update');
+
+        Sanctum::actingAs($requester);
+        $resourceId = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/resources', [
+                'name' => 'APT-02 move room',
+                'resource_type' => 'room',
+                'capacity' => 1,
+            ])->assertCreated()->json('data.id');
+        $created = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments', $this->bookingPayload($calendarId, $host, [
+                'resource_ids' => [$resourceId],
+            ]))->assertCreated();
+        $appointmentId = $created->json('data.id');
+        $eventId = $created->json('data.event_id');
+        $reservation = DB::table('calendar_reservations')->where('event_id', $eventId)->first();
+
+        Sanctum::actingAs($host);
+        $confirmed = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/'.$appointmentId.'/confirm')->assertOk();
+        Sanctum::actingAs($requester);
+        $proposal = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/'.$appointmentId.'/reschedule-proposals', [
+                'starts_at' => '2026-11-28T10:00:00+03:00',
+                'ends_at' => '2026-11-28T11:00:00+03:00',
+                'expected_appointment_version' => $confirmed->json('data.version'),
+                'expected_event_version' => $confirmed->json('data.event.version'),
+            ])->assertCreated();
+        $proposalId = $proposal->json('data.id');
+
+        Sanctum::actingAs($host);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/'.$appointmentId.'/reschedule-proposals/'.$proposalId.'/accept')
+            ->assertOk();
+
+        $moved = DB::table('calendar_reservations')->where('event_id', $eventId)->first();
+        $this->assertSame($reservation->id, $moved->id);
+        $this->assertSame('2026-11-28 07:00:00', $moved->starts_at);
+        $this->assertSame('2026-11-28 08:00:00', $moved->ends_at);
+        $this->assertSame(2, (int) $moved->version);
+    }
+
+    #[Test]
+    public function acceptance_rechecks_resource_conflicts_and_preserves_original_schedule_on_conflict(): void
+    {
+        $tenant = $this->tenant();
+        $requesterA = $this->member($tenant);
+        $hostA = $this->member($tenant);
+        $requesterB = $this->member($tenant);
+        $hostB = $this->member($tenant);
+        $calendarId = $this->calendar($tenant, $requesterA);
+        $this->grant($hostA, $tenant, 'calendar.view', 'calendar.update');
+        $this->grant($requesterB, $tenant, 'calendar.view', 'calendar.create', 'calendar.update');
+        $this->grant($hostB, $tenant, 'calendar.view', 'calendar.update');
+
+        Sanctum::actingAs($requesterA);
+        $resourceId = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/resources', [
+                'name' => 'APT-02 contested room',
+                'resource_type' => 'room',
+                'capacity' => 1,
+            ])->assertCreated()->json('data.id');
+        $first = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments', $this->bookingPayload($calendarId, $hostA, [
+                'resource_ids' => [$resourceId],
+            ]))->assertCreated();
+        $appointmentId = $first->json('data.id');
+        $eventId = $first->json('data.event_id');
+
+        Sanctum::actingAs($hostA);
+        $confirmed = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/'.$appointmentId.'/confirm')->assertOk();
+        Sanctum::actingAs($requesterA);
+        $proposal = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/'.$appointmentId.'/reschedule-proposals', [
+                'starts_at' => '2026-11-28T10:00:00+03:00',
+                'ends_at' => '2026-11-28T11:00:00+03:00',
+                'expected_appointment_version' => $confirmed->json('data.version'),
+                'expected_event_version' => $confirmed->json('data.event.version'),
+            ])->assertCreated();
+        $proposalId = $proposal->json('data.id');
+        $originalStart = $confirmed->json('data.event.starts_at');
+        $originalReservation = DB::table('calendar_reservations')->where('event_id', $eventId)->first();
+
+        Sanctum::actingAs($requesterB);
+        $secondPayload = $this->bookingPayload($calendarId, $hostB, [
+            'resource_ids' => [$resourceId],
+            'starts_at' => '2026-11-28T10:00:00+03:00',
+            'ends_at' => '2026-11-28T11:00:00+03:00',
+        ]);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments', $secondPayload)->assertCreated();
+
+        Sanctum::actingAs($hostA);
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/'.$appointmentId.'/reschedule-proposals/'.$proposalId.'/accept')
+            ->assertStatus(409);
+
+        $this->assertDatabaseHas('calendar_events', ['id' => $eventId, 'starts_at' => $originalStart]);
+        $unchangedReservation = DB::table('calendar_reservations')->where('id', $originalReservation->id)->first();
+        $this->assertSame($originalReservation->starts_at, $unchangedReservation->starts_at);
+        $this->assertSame($originalReservation->ends_at, $unchangedReservation->ends_at);
+        $this->assertDatabaseHas('calendar_appointment_reschedule_proposals', ['id' => $proposalId, 'status' => 'pending']);
+    }
+
+    #[Test]
+    public function cancelling_an_appointment_with_a_pending_proposal_withdraws_and_notifies_parties(): void
+    {
+        $tenant = $this->tenant();
+        $requester = $this->member($tenant);
+        $host = $this->member($tenant);
+        $calendarId = $this->calendar($tenant, $requester);
+        $this->grant($host, $tenant, 'calendar.view', 'calendar.update');
+
+        Sanctum::actingAs($requester);
+        $created = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments', $this->bookingPayload($calendarId, $host))
+            ->assertCreated();
+        $appointmentId = $created->json('data.id');
+        Sanctum::actingAs($host);
+        $confirmed = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/'.$appointmentId.'/confirm')->assertOk();
+
+        Sanctum::actingAs($requester);
+        $proposal = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/'.$appointmentId.'/reschedule-proposals', [
+                'starts_at' => '2026-11-28T10:00:00+03:00',
+                'ends_at' => '2026-11-28T11:00:00+03:00',
+                'expected_appointment_version' => $confirmed->json('data.version'),
+                'expected_event_version' => $confirmed->json('data.event.version'),
+            ])->assertCreated();
+        $proposalId = $proposal->json('data.id');
+
+        $this->withHeader('X-Tenant-ID', (string) $tenant->id)
+            ->postJson('/api/calendar/appointments/'.$appointmentId.'/cancel')
+            ->assertOk()->assertJsonPath('data.status', 'cancelled');
+
+        $this->assertDatabaseHas('calendar_appointment_reschedule_proposals', [
+            'id' => $proposalId, 'status' => 'withdrawn', 'responded_by_user_id' => $requester->id,
+        ]);
+        $this->assertSame(2, DB::table('calendar_appointment_notification_outbox')
+            ->where('proposal_id', $proposalId)->where('action', 'withdrawn')->count());
+    }
+
 }
