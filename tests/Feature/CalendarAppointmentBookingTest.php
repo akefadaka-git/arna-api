@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use MaaleArna\MASES\Core\Auth\Models\User;
+use MaaleArna\MASES\Core\Calendar\Services\CalendarReminderDispatcher;
 use MaaleArna\MASES\Core\Authorization\Models\Permission;
 use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Services\RequestTenantResolver;
@@ -375,6 +376,10 @@ final class CalendarAppointmentBookingTest extends TestCase
         ]);
         $this->assertSame(3, DB::table('calendar_appointment_notification_outbox')
             ->where('proposal_id', $proposalId)->where('action', 'accepted')->where('status', 'pending')->count());
+        $dispatch = app(CalendarReminderDispatcher::class)->dispatch(100);
+        $this->assertSame(6, $dispatch['delivered']);
+        $this->assertSame(6, DB::table('calendar_appointment_notification_outbox')
+            ->where('proposal_id', $proposalId)->where('status', 'delivered')->count());
         $this->assertSame(0, DB::table('calendar_reminder_outbox')->where('event_id', $eventId)
             ->where('status', 'pending')->where('idempotency_key', $eventId.':'.$host->id.':event_start_15m')->count());
         $this->assertGreaterThan(0, DB::table('calendar_reminder_outbox')->where('event_id', $eventId)
