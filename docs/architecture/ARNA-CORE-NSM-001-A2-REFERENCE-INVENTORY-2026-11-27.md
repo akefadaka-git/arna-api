@@ -1432,3 +1432,47 @@ Rationale: the Owner's fresh-deployment decision resolves the previously stated 
 ### Remaining A2 action
 
 Complete the archive/blob-level deterministic scan at the exact frozen API and App SHAs, classify every occurrence by path and line as active code/config/test/CI, dormant code, documentation/history, generated/binary or other, and reconcile any previously unseen active references. Then issue a new evidence-backed A2 closure decision. Until then, preserve the A3 gate.
+
+
+## 15. Further frozen-baseline content-search findings — 2026-11-27
+
+A second targeted content-search pass was run against the exact frozen commit links. The GitHub code-search endpoint returned its 100-result maximum for each of these broad queries:
+
+| Repository / query | Results returned | Interpretation |
+|---|---:|---|
+| arna-api / MASES | 100 | At least 100 matching result entries; endpoint cap prevents total count |
+| arna-app / MASES | 100 | At least 100 matching result entries; endpoint cap prevents total count |
+| arna-app / mase_app | 100 | At least 100 matching result entries; endpoint cap prevents total count |
+
+These are result-entry counts, not unique occurrence or total line counts. They must not be added together because queries overlap.
+
+### Newly surfaced App reference classes
+
+The App search results reveal additional legacy content beyond the previously recorded storage keys and CSS variables:
+- Many current component barrel files contain MASES Phase 2 UI headers and mase_app/... source-path comments.
+- Feature and layout files, including authentication forms, shareholder feature components, AppShell components and launcher service, also contain mase_app references.
+- .env.workspace and .env.admin contain legacy path/identity comments or values that require line-level review.
+- A user-visible title string in src/router/pages/VerifyEmailRoute.vue still names MASES.
+- A feature component src/features/loans/LoanRejectForm.vue contains a MASES product header.
+
+These results are not automatically classified as historical/archival. Each must be reviewed in context during the complete scan and either updated as active product identity or explicitly classified as historical documentation/commentary where justified.
+
+### API confirmation
+
+The API broad search independently returned 100 entries, including direct active references such as:
+- mases_core/src/Config/mases.php and the Core config namespace.
+- database/seeders/MasesCoreSeeder.php.
+- app/Console/Commands/MasesRectorVerifyCommand.php.
+- mases_core/src/Providers/MasesCoreServiceProvider.php.
+- mases_core/src/Support/Helpers.php.
+- Namespace declarations/imports throughout Core source.
+- Active locale/session identifiers and environment variables.
+- Workflow and static-analysis path references.
+
+A small direct blob sample was also fetched from the API tree. The first 12 checked blobs contained multiple workflow path filters and PHP lint commands referencing mases_core/; the next 8 checked blobs included further workflow hits. This is a sample only, not a full-repository scan.
+
+### Scan method limitation and A2 disposition
+
+Both frozen recursive trees are complete and non-truncated (API: 1,046 blobs; App: 493 blobs). The GitHub code-search results are capped at 100; the available blob-fetch connector requires one request per blob and its per-execution call ceiling prevents fetching all 1,539 blobs in one scan operation. A complete blob-by-blob line inventory has therefore NOT BEEN COMPLETED.
+
+**A2 remains PARTIAL / OPEN.** No deterministic full-content scan or exhaustive line-level classification is claimed. The additional App results expand the reconciliation scope and must be included in A3 planning only after A2 is closed. No A3 work is authorized by this addendum.
