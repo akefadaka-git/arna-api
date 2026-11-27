@@ -66,6 +66,7 @@ final class FinanceServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../Config/finance.php', 'finance');
+        $this->mergeConfigFrom(base_path('config/arna_ai.php'), 'arna_ai');
 
         // ARNA AI v1 foundation: fail-closed provider, tools and retrieval.
         $this->app->singleton(ModelGatewayContract::class, DisabledModelGateway::class);
@@ -83,6 +84,7 @@ final class FinanceServiceProvider extends ServiceProvider
             new AgentDefinition('calendar_planning_intelligence', 'Calendar and Planning Intelligence', 'Calendar-aware planning and summaries.', [], ['calendar', 'tasks']),
         ]));
         $this->app->singleton(PermissionAwareRetrievalService::class);
+        $this->app->singleton(\\MaaleArna\\MASES\\Core\\AI\\Services\\ModelExecutionPolicy::class);
 
         $this->app->singleton(LegalEntityRepository::class);
         $this->app->singleton(JournalEntryRepository::class);
