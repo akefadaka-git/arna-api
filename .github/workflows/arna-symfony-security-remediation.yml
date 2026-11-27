@@ -16,7 +16,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: arna-symfony-remediation-${{ github.event.inputs.target_sha || github.sha }}
@@ -49,7 +49,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.target.outputs.expected_sha }}
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Assert checked-out SHA and prepare environment
         shell: bash
@@ -83,6 +83,20 @@ jobs:
 
       - name: Enforce Composer security audit
         run: composer audit --locked --format=plain
+
+      - name: Commit audited dependency lockfile update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.lock
+          if git diff --cached --quiet; then
+            echo "No dependency lockfile change to commit."
+          else
+            git commit -m "fix(deps): patch Symfony security advisories"
+            git push origin HEAD:feat/ga-statutory-controls-a3-current-main
+          fi
 
       - name: Record exact-head remediation evidence
         if: always()
