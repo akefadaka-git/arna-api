@@ -438,3 +438,33 @@ Migration evidence requires a follow-up trace of `CoreServiceProvider` migration
 
 **Observed structural variation across API domains:** Documents exposes Contracts, Database/Seeders, Models, Registries and Services; Governance exposes Config, Database, Enums, Events, Http, Listeners, Models, Policies, Providers, Repositories, Resources/lang, Routes, Services and Tests/Feature; Loan and Wallet expose broader domain application structures; People and Organization show narrower visible folder structures. The variation means a single expected folder template cannot be used as a completeness test. Each domain must be assessed against its approved scope and actual artifacts.
 
+
+
+### 14.8 App feature direct-file inspection
+
+Direct child listings were inspected for all 19 `src/features/` folders at App SHA `71bed2158894e3ce9cf507e8bf70492ac1f9dfd4`. Selected concrete surfaces include:
+
+| Feature | Directly observed files/components | P0 implication |
+|---|---|---|
+| appointments | `AppointmentWorkspaceView.vue`, `api.ts`, `labels.ts` | Calendar/appointment capability surface |
+| auth | AuthLayout, login/register/reset/verification forms, `api.ts`, `service.ts` | Identity UI; server authorization remains authoritative |
+| calendar | `CalendarWorkspaceView.vue`, `api.ts` | Calendar workspace surface |
+| communications | `AnnouncementsView.vue`, `CommunicationHubView.vue`, `api.ts` | Communication Hub surface |
+| dashboard | `DashboardView.vue`, `labels.ts` | General dashboard surface |
+| executive-overview | `ExecutiveOverviewView.vue`, `api.ts`, `labels.ts`, `service.ts` | Executive read model; not a full D01 strategy/planning system |
+| files | FileDetailView, FilesListView, `api.ts`, `labels.ts`, `service.ts` | File Management UI surface |
+| governance | Governance attendance/body/overview/finance-settlement/people views plus API/service files | Governance experience is broader than Board meeting records alone |
+| launcher | `service.ts` | Application launcher integration |
+| loans | Application, approval, collateral, disbursement, repayment, restructure, write-off, list/detail/schedule/statement components plus API/service files | Loan lifecycle UI surface; actual role/approval controls require API reconciliation |
+| locale | `api.ts` | Localization integration surface |
+| notifications | `NotificationsCenter.vue`, `api.ts` | Notification UI surface |
+| people | PeopleDirectoryView, PeopleProfileView, `api.ts` | People UI surface |
+| portal | Portal home/layout and shareholder certificate, loan, shareholding and wallet pages | Shareholder portal-specific experience |
+| public-content | `api.ts` | Public content integration surface |
+| public-site | `admin-api.ts`, `api.ts` | Public website and content administration API clients |
+| shareholders | Certificate issue/cancel, holding entry, share class, shareholder detail/form/list components plus API/service files | Shareholder administration UI surface |
+| tasks | `TaskWorkspaceView.vue`, `api.ts`, `labels.ts` | Task workspace surface |
+| wallet | Wallet adjustment/allocation/reversal/detail/list/obligation/open/payment/statement components plus API/service files | Wallet lifecycle UI surface; financial maker-checker evidence still required |
+
+These observations establish visible feature surfaces and direct files only. They do not establish the route coverage in each of the four app builds, API endpoint correctness, successful workflows, authorization enforcement, accessibility or production readiness.
+
