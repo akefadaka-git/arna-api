@@ -89,9 +89,16 @@ final class FinanceChartOfAccountsSeeder extends Seeder
                     } else {
                         $current = $existing->get($code);
                         $hasChanges = false;
+                        $booleanColumns = [
+                            'is_posting_allowed',
+                            'is_control_account',
+                            'is_system_account',
+                        ];
                         foreach ($values as $column => $value) {
                             $currentValue = $current->{$column} ?? null;
-                            if ($currentValue === null || $value === null) {
+                            if (in_array($column, $booleanColumns, true)) {
+                                $hasChanges = (bool) $currentValue !== (bool) $value;
+                            } elseif ($currentValue === null || $value === null) {
                                 $hasChanges = $currentValue !== $value;
                             } else {
                                 $hasChanges = (string) $currentValue !== (string) $value;
