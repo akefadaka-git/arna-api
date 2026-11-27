@@ -342,7 +342,7 @@ final class CalendarAppointmentBookingTest extends TestCase
             ->assertOk()->assertJsonPath('data.status', 'confirmed');
         $appointmentVersion = $confirmed->json('data.version');
         $eventVersion = $confirmed->json('data.event.version');
-        $originalStart = $confirmed->json('data.event.starts_at');
+        $originalStart = DB::table('calendar_events')->where('id', $eventId)->value('starts_at');
 
         Sanctum::actingAs($requester);
         $proposal = $this->withHeader('X-Tenant-ID', (string) $tenant->id)
@@ -473,7 +473,7 @@ final class CalendarAppointmentBookingTest extends TestCase
                 'expected_event_version' => $eventVersion,
             ])->assertCreated();
         $proposalId = $proposal->json('data.id');
-        $oldStart = $confirmed->json('data.event.starts_at');
+        $oldStart = DB::table('calendar_events')->where('id', $eventId)->value('starts_at');
 
         $this->withHeader('X-Tenant-ID', (string) $tenant->id)
             ->patchJson('/api/calendar/events/'.$eventId, [
