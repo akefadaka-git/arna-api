@@ -4,10 +4,10 @@
 - **Assessment date:** 2026-11-27 (EAT)
 - **Stage:** A2 — read-only repository reconciliation
 - **Disposition:** **SOURCE RECONCILIATION COMPLETE; A2 CLOSURE RECOMMENDED WITH OPEN BLOCKERS**
-- **API repository:** \`akefadaka-git/arna-api\`
-- **API main baseline:** \`cd13c555976ed74050920bb69dd5c0d013ec9509\`
-- **App repository:** \`akefadaka-git/arna-app\`
-- **App main baseline:** \`648815b69b6419554b656ff91bf5b53df211aebb\`
+- **API repository:** `akefadaka-git/arna-api`
+- **API main baseline:** `cd13c555976ed74050920bb69dd5c0d013ec9509`
+- **App repository:** `akefadaka-git/arna-app`
+- **App main baseline:** `648815b69b6419554b656ff91bf5b53df211aebb`
 - **Companion App inventory:** [ARNA Shareholder App A2 inventory](https://github.com/akefadaka-git/arna-app/blob/docs/shareholder-a2-reconciliation-2026-11-27/docs/shareholder/ARNA-SHAREHOLDER-APP-A2-INVENTORY-2026-11-27.md)
 - **Change boundary:** Documentation only. No application code, migrations, seeders, workflows, production data, database, main branch, PR merge, or deployment was changed.
 
@@ -46,55 +46,55 @@ This is not a live database inspection, a production-data reconciliation, a lega
 
 Canonical domain root:
 
-\`mases_core/src/Domains/Shareholder/\`
+`mases_core/src/Domains/Shareholder/`
 
 The current API main tree contains:
-- **Models:** \`Shareholder\`, \`ShareClass\`, \`ShareHolding\`, \`ShareHoldingEntry\`, \`ShareCertificate\`, \`ShareholderImportSubmission\`, \`ShareholderImportDecision\`.
-- **Controllers:** \`ShareholderController\`, \`MyShareholderController\`, \`ShareClassController\`, \`ShareHoldingController\`, \`CertificateController\`.
-- **Services:** \`ShareholderService\`, \`ShareholderNumberReconciler\`, \`ShareClassService\`, \`ShareHoldingService\`, \`CertificateService\`, CSV preview/validation and import-review services.
-- **Repository:** \`ShareholderRepository\`.
-- **Policies:** \`ShareholderPolicy\`, \`ShareClassPolicy\`, \`ShareHoldingPolicy\`, \`CertificatePolicy\`.
+- **Models:** `Shareholder`, `ShareClass`, `ShareHolding`, `ShareHoldingEntry`, `ShareCertificate`, `ShareholderImportSubmission`, `ShareholderImportDecision`.
+- **Controllers:** `ShareholderController`, `MyShareholderController`, `ShareClassController`, `ShareHoldingController`, `CertificateController`.
+- **Services:** `ShareholderService`, `ShareholderNumberReconciler`, `ShareClassService`, `ShareHoldingService`, `CertificateService`, CSV preview/validation and import-review services.
+- **Repository:** `ShareholderRepository`.
+- **Policies:** `ShareholderPolicy`, `ShareClassPolicy`, `ShareHoldingPolicy`, `CertificatePolicy`.
 - **Requests/resources:** store/update request classes and shareholder, share-class, holding and certificate resources.
-- **Events/audit:** shareholder registered/updated, holding changed and certificate issued events, wired to \`AuditShareholderEvent\`.
+- **Events/audit:** shareholder registered/updated, holding changed and certificate issued events, wired to `AuditShareholderEvent`.
 - **Configuration/locales:** shareholder configuration plus Amharic and English type/status catalogues.
 - **Seeders:** share classes, shareholder permissions, shareholder roles, and root shareholder register/bootstrap seeders.
 
-The Shareholder provider is registered in \`bootstrap/providers.php\` (provider registry line 447 in the inspected main snapshot). It merges config, loads translations, binds services, registers four policies, connects audit listeners, and loads the domain migrations and routes when enabled. The config defaults \`MASES_SHAREHOLDER_ENABLED\` to true.
+The Shareholder provider is registered in `bootstrap/providers.php` (provider registry line 447 in the inspected main snapshot). It merges config, loads translations, binds services, registers four policies, connects audit listeners, and loads the domain migrations and routes when enabled. The config defaults `MASES_SHAREHOLDER_ENABLED` to true.
 
 **Documentation inconsistency:** the provider's historical deployment-sequencing comment says the provider is not registered, while the current provider registry does register it. Refresh this stale comment during a documentation-maintenance change; do not change provider behavior as part of A2.
 
 ## 4. Complete Shareholder API route inventory on API main
 
-The domain route file is \`mases_core/src/Domains/Shareholder/Routes/api.php\`, loaded under the configured \`/api/shareholders\` prefix and authenticated tenant-membership middleware.
+The domain route file is `mases_core/src/Domains/Shareholder/Routes/api.php`, loaded under the configured `/api/shareholders` prefix and authenticated tenant-membership middleware.
 
 There are **14 route declarations / 15 HTTP method-path combinations**:
 
 | Method | Path | Purpose | Main status |
 |---|---|---|---|
-| GET | \`/api/shareholders/me\` | Resolve caller's own directly linked individual shareholder | PRESENT |
-| GET | \`/api/shareholders/classes\` | List share classes | PRESENT |
-| GET | \`/api/shareholders/classes/{shareClass}\` | View share class | PRESENT |
-| GET | \`/api/shareholders/holdings?shareholder_id={id}\` | List a shareholder's holdings | PRESENT |
-| GET | \`/api/shareholders/holdings/{shareHolding}\` | View one holding | PRESENT |
-| POST | \`/api/shareholders/holdings/entries\` | Append a holding ledger entry | PRESENT |
-| GET | \`/api/shareholders/certificates?shareholder_id={id}\` | List certificates | PRESENT |
-| GET | \`/api/shareholders/certificates/{certificate}\` | View certificate metadata | PRESENT |
-| POST | \`/api/shareholders/certificates\` | Issue certificate | PRESENT |
-| POST | \`/api/shareholders/certificates/{certificate}/cancel\` | Cancel certificate | PRESENT |
-| GET | \`/api/shareholders\` | Paginated/filterable shareholder register | PRESENT |
-| POST | \`/api/shareholders\` | Register shareholder | PRESENT |
-| GET | \`/api/shareholders/{shareholder}\` | View shareholder detail | PRESENT |
-| PATCH, PUT | \`/api/shareholders/{shareholder}\` | Update shareholder | PRESENT |
+| GET | `/api/shareholders/me` | Resolve caller's own directly linked individual shareholder | PRESENT |
+| GET | `/api/shareholders/classes` | List share classes | PRESENT |
+| GET | `/api/shareholders/classes/{shareClass}` | View share class | PRESENT |
+| GET | `/api/shareholders/holdings?shareholder_id={id}` | List a shareholder's holdings | PRESENT |
+| GET | `/api/shareholders/holdings/{shareHolding}` | View one holding | PRESENT |
+| POST | `/api/shareholders/holdings/entries` | Append a holding ledger entry | PRESENT |
+| GET | `/api/shareholders/certificates?shareholder_id={id}` | List certificates | PRESENT |
+| GET | `/api/shareholders/certificates/{certificate}` | View certificate metadata | PRESENT |
+| POST | `/api/shareholders/certificates` | Issue certificate | PRESENT |
+| POST | `/api/shareholders/certificates/{certificate}/cancel` | Cancel certificate | PRESENT |
+| GET | `/api/shareholders` | Paginated/filterable shareholder register | PRESENT |
+| POST | `/api/shareholders` | Register shareholder | PRESENT |
+| GET | `/api/shareholders/{shareholder}` | View shareholder detail | PRESENT |
+| PATCH, PUT | `/api/shareholders/{shareholder}` | Update shareholder | PRESENT |
 
 Important boundaries:
 - Tenant identity is resolved server-side; controllers cross-check tenant ownership and return not-found for cross-tenant resource IDs.
-- \`/me\` resolves by the authenticated user's direct shareholder link and intentionally does not accept a client-supplied shareholder ID. A representative link is not treated as personal ownership.
-- Holdings use an append-only ledger; \`share_holdings.current_quantity\` is a projection. Writes are intended to be transactional and row-locked through \`ShareHoldingService\`.
+- `/me` resolves by the authenticated user's direct shareholder link and intentionally does not accept a client-supplied shareholder ID. A representative link is not treated as personal ownership.
+- Holdings use an append-only ledger; `share_holdings.current_quantity` is a projection. Writes are intended to be transactional and row-locked through `ShareHoldingService`.
 - There is no certificate replacement HTTP route, no shareholder delete route, and no dedicated transfer aggregate/approval route.
 - The certificate service has a replacement method, but the controller explicitly excludes it from the frozen HTTP manifest. Certificate rendering, signing and delivery are not provided by this API surface.
 - No shareholder-import preview/review/approve HTTP routes exist on main.
 
-A separate public endpoint exists: \`POST /api/public/document-verifications/verify\`. It verifies a public share-certificate reference without disclosing shareholder identity or tenant-scoped data and is rate-limited. It is not a substitute for an authenticated shareholder certificate-management API.
+A separate public endpoint exists: `POST /api/public/document-verifications/verify`. It verifies a public share-certificate reference without disclosing shareholder identity or tenant-scoped data and is rate-limited. It is not a substitute for an authenticated shareholder certificate-management API.
 
 ## 5. Database migration inventory
 
@@ -102,14 +102,14 @@ Eight migration files are directly relevant to Shareholder:
 
 | Location | Migration | Purpose |
 |---|---|---|
-| Domain | \`2026_09_11_000001_create_share_classes_table.php\` | Share-class reference data |
-| Domain | \`2026_09_11_000002_create_shareholders_table.php\` | Shareholder register |
-| Domain | \`2026_09_11_000003_create_share_holdings_table.php\` | Current-state holding projection |
-| Domain | \`2026_09_11_000004_create_share_holding_entries_table.php\` | Append-only holding ledger |
-| Domain | \`2026_09_11_000005_create_share_certificates_table.php\` | Certificate records/lifecycle |
-| Domain | \`2026_10_21_000001_reconcile_existing_shareholder_numbers.php\` | Reconcile existing shareholder numbers |
-| Root | \`2026_10_18_000006_add_shareholder_business_number.php\` | Add shareholder business number |
-| Root | \`2026_11_25_000004_create_shareholder_import_review_tables.php\` | Persist import submissions and decisions |
+| Domain | `2026_09_11_000001_create_share_classes_table.php` | Share-class reference data |
+| Domain | `2026_09_11_000002_create_shareholders_table.php` | Shareholder register |
+| Domain | `2026_09_11_000003_create_share_holdings_table.php` | Current-state holding projection |
+| Domain | `2026_09_11_000004_create_share_holding_entries_table.php` | Append-only holding ledger |
+| Domain | `2026_09_11_000005_create_share_certificates_table.php` | Certificate records/lifecycle |
+| Domain | `2026_10_21_000001_reconcile_existing_shareholder_numbers.php` | Reconcile existing shareholder numbers |
+| Root | `2026_10_18_000006_add_shareholder_business_number.php` | Add shareholder business number |
+| Root | `2026_11_25_000004_create_shareholder_import_review_tables.php` | Persist import submissions and decisions |
 
 Migration reconciliation findings:
 - The migration-discovery test asserts that the domain migration path is registered, numbering migrations are discovered once and in timestamp order, and the shareholder-number schema migration is not duplicated under the domain path.
@@ -124,9 +124,9 @@ Migration reconciliation findings:
 ### 6.1 Existing ownership architecture
 
 The intended model is:
-- \`ShareHolding\` = current-state projection for one shareholder/share-class pair.
-- \`ShareHoldingEntry\` = append-only ledger and authoritative history.
-- Every balance mutation must preserve \`balance_before + quantity = balance_after\`.
+- `ShareHolding` = current-state projection for one shareholder/share-class pair.
+- `ShareHoldingEntry` = append-only ledger and authoritative history.
+- Every balance mutation must preserve `balance_before + quantity = balance_after`.
 - A holding is not deleted merely because its balance reaches zero.
 - The service is responsible for transactional updates and row locking.
 
@@ -138,7 +138,7 @@ Current main does not establish a complete statutory register. The source invent
 - registered address distinct from the linked user's profile address;
 - nullable register-entry date;
 - source type/reference;
-- explicit \`unverified\` state and verifier metadata;
+- explicit `unverified` state and verifier metadata;
 - regression protection against self-promoting a record to verified.
 
 PR #158 does not invent unknown dates or addresses and is the correct bounded direction to reconcile. It does not by itself authenticate the original register or prove statutory completeness.
@@ -166,9 +166,9 @@ The current main has CSV preview/validation and a persisted review/approval serv
 4. approval by a third distinct user;
 5. append-only decisions and mandatory audit persistence.
 
-**Critical boundary:** \`approved_for_import\` is an approval state only. It does not create shareholders, allocate shares, post subscriptions/payments or execute imports. The contract explicitly says no routes, controllers, upload storage or import execution are included.
+**Critical boundary:** `approved_for_import` is an approval state only. It does not create shareholders, allocate shares, post subscriptions/payments or execute imports. The contract explicitly says no routes, controllers, upload storage or import execution are included.
 
-The three permissions \`shareholder.import.submit\`, \`shareholder.import.review\`, and \`shareholder.import.approve\` are in the canonical permission catalogue. The contract says no role grants are added; authorized administrators must assign them. Keep the submitter, reviewer and approver distinct.
+The three permissions `shareholder.import.submit`, `shareholder.import.review`, and `shareholder.import.approve` are in the canonical permission catalogue. The contract says no role grants are added; authorized administrators must assign them. Keep the submitter, reviewer and approver distinct.
 
 ## 8. Permission and role reconciliation
 
@@ -178,27 +178,40 @@ The domain permission seeder manages these 13 tenant-scoped slugs:
 
 | Permission | Meaning |
 |---|---|
-| \`shareholder.view_own\` | View own shareholder record |
-| \`shareholder.view\` | View shareholder register/records |
-| \`shareholder.create\` | Create shareholder |
-| \`shareholder.update\` | Update shareholder |
-| \`share_class.view\` | View share classes |
-| \`share_class.manage\` | Manage share classes |
-| \`share_holding.view_own\` | View own holdings |
-| \`share_holding.view\` | View holdings |
-| \`share_holding.entry\` | Record holding ledger entry |
-| \`certificate.view_own\` | View own certificates |
-| \`certificate.view\` | View certificates |
-| \`certificate.issue\` | Issue certificate |
-| \`certificate.cancel\` | Cancel certificate |
+| `shareholder.view_own` | View own shareholder record |
+| `shareholder.view` | View shareholder register/records |
+| `shareholder.create` | Create shareholder |
+| `shareholder.update` | Update shareholder |
+| `share_class.view` | View share classes |
+| `share_class.manage` | Manage share classes |
+| `share_holding.view_own` | View own holdings |
+| `share_holding.view` | View holdings |
+| `share_holding.entry` | Record holding ledger entry |
+| `certificate.view_own` | View own certificates |
+| `certificate.view` | View certificates |
+| `certificate.issue` | Issue certificate |
+| `certificate.cancel` | Cancel certificate |
 
 ### 8.2 Import permissions (3)
 
 | Permission | Current state |
 |---|---|
-| \`shareholder.import.submit\` | Catalogued; no default role grant |
-| \`shareholder.import.review\` | Catalogued; no default role grant |
-| \`shareholder.import.approve\` | Catalogued; no default role grant |
+| `shareholder.import.submit` | Catalogued; no default role grant |
+| `shareholder.import.review` | Catalogued; no default role grant |
+| `shareholder.import.approve` | Catalogued; no default role grant |
+
+### 8.4 Adjacent Governance permissions used by the GA/election integration
+
+These are Governance-owned permissions, not Shareholder permissions. They are present in \`GovernancePermissionsSeeder\` and must remain owned by Governance:
+
+- Meetings: \`governance.meeting.view\`, \`governance.meeting.create\`, \`governance.meeting.manage\`, \`governance.meeting.approve\`.
+- Agendas: \`governance.agenda.view\`, \`governance.agenda.manage\`.
+- Attendance: \`governance.attendance.view\`, \`governance.attendance.manage\`.
+- Minutes: \`governance.minute.view\`, \`governance.minute.manage\`, \`governance.minute.approve\`.
+- Resolutions: \`governance.resolution.view\`, \`governance.resolution.create\`, \`governance.resolution.manage\`, \`governance.resolution.approve\`.
+- Elections: \`governance.election.view\`, \`governance.election.manage\`, \`governance.election.authorize\`, \`governance.election.schedule\`, \`governance.election.suspend\`, \`governance.election.cancel\`, \`governance.election.archive\`.
+
+These 22 adjacent permissions do not by themselves authorize statutory activity. Route-level and policy checks, authenticated legal evidence, independent approvals and the GA fail-closed gates remain mandatory. No new GA-specific permissions are to be invented during UI work without an approved API contract.
 
 ### 8.3 Current role matrix
 
@@ -206,11 +219,11 @@ The ShareholderRolesSeeder documents this matrix:
 
 | Role | Shareholder-domain grants |
 |---|---|
-| \`super_admin\` | All 13 |
-| \`platform_admin\` | All except \`certificate.cancel\` (12) |
-| \`tenant_admin\` | 7 administrative grants: shareholder view/create/update, share-class view, holding view, certificate view/issue |
-| \`manager\` | Three own-record grants |
-| \`shareholder\` | Three own-record grants: shareholder.view_own, share_holding.view_own, certificate.view_own |
+| `super_admin` | All 13 |
+| `platform_admin` | All except `certificate.cancel` (12) |
+| `tenant_admin` | 7 administrative grants: shareholder view/create/update, share-class view, holding view, certificate view/issue |
+| `manager` | Three own-record grants |
+| `shareholder` | Three own-record grants: shareholder.view_own, share_holding.view_own, certificate.view_own |
 
 The seeder uses composite synchronization to preserve grants from other domains. The self-service policies use direct-link checks and tenant scoping; the own-record endpoint itself is intentionally server-resolved.
 
@@ -223,7 +236,7 @@ No dedicated permission currently exists for certificate replacement, statutory-
 The complete route/component inventory is in the companion App A2 record. The main findings are:
 - Workspace has five shareholder routes: list, create, share classes, detail and edit.
 - Shareholder feature components include list, form, detail, share-class list, holding-entry form, certificate-issue form and certificate-cancel dialog.
-- Portal has only two shareholder routes: own holdings and own certificates. Both consume the shared \`GET /api/shareholders/me\` identity state.
+- Portal has only two shareholder routes: own holdings and own certificates. Both consume the shared `GET /api/shareholders/me` identity state.
 - Portal has no shareholder profile-edit, dividend, GA, proxy, voting, resolution-history or consolidated portfolio route on main.
 - Admin route tree has only the admin landing/dashboard and compatibility redirects. It has no shareholder route.
 - Notifications Center is a generic inbox; there is no proven shareholder event-to-delivery integration.
@@ -274,16 +287,16 @@ Therefore:
 ### 12.1 Notifications
 
 API main has a generic tenant/user-scoped inbox:
-- \`GET /api/notifications\`
-- \`GET /api/notifications/unread-count\`
-- \`POST /api/notifications/{id}/read\`
-- \`POST /api/notifications/read-all\`
+- `GET /api/notifications`
+- `GET /api/notifications/unread-count`
+- `POST /api/notifications/{id}/read`
+- `POST /api/notifications/read-all`
 
 App main has a generic Notifications Center and API adapter. This proves inbox read/mark-read integration, not delivery of shareholder lifecycle events. A queued GA portal recipient is not evidence of email/SMS delivery. A3 must define shareholder event mapping, notification templates, channel adapters, outbox/retry/failure evidence and legal-notice delivery semantics.
 
 ### 12.2 Dividends
 
-API main contains a Finance \`ShareholderDividendPayable\` model, but no \`/api/shareholders/me/dividends\` route was found on main. Dividend engine API PRs #81 and #83 are open and stacked. App PRs #33 and #35 are open and stacked. These contain significant dividend calculation, tax, accounting, payment-control and portal-statement work, but they are not delivered on current main.
+API main contains a Finance `ShareholderDividendPayable` model, but no `/api/shareholders/me/dividends` route was found on main. Dividend engine API PRs #81 and #83 are open and stacked. App PRs #33 and #35 are open and stacked. These contain significant dividend calculation, tax, accounting, payment-control and portal-statement work, but they are not delivered on current main.
 
 ### 12.3 Portfolio
 
@@ -294,22 +307,22 @@ Current portal surfaces are own holdings and certificates, with wallet and loan 
 Current API main contains these Shareholder-focused tests:
 
 **Domain feature tests**
-- \`mases_core/src/Domains/Shareholder/Tests/Feature/ShareholderRegistryTest.php\`
-- \`mases_core/src/Domains/Shareholder/Tests/Feature/ShareHoldingTest.php\`
-- \`mases_core/src/Domains/Shareholder/Tests/Feature/CertificateTest.php\`
-- \`mases_core/src/Domains/Shareholder/Tests/Feature/TenantIsolationTest.php\`
+- `mases_core/src/Domains/Shareholder/Tests/Feature/ShareholderRegistryTest.php`
+- `mases_core/src/Domains/Shareholder/Tests/Feature/ShareHoldingTest.php`
+- `mases_core/src/Domains/Shareholder/Tests/Feature/CertificateTest.php`
+- `mases_core/src/Domains/Shareholder/Tests/Feature/TenantIsolationTest.php`
 
 **Domain unit tests**
-- \`mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php\`
-- \`mases_core/src/Domains/Shareholder/Tests/Unit/ShareHoldingServiceTest.php\`
-- \`mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php\`
-- \`mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php\`
+- `mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php`
+- `mases_core/src/Domains/Shareholder/Tests/Unit/ShareHoldingServiceTest.php`
+- `mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php`
+- `mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php`
 
 **Application-level feature tests**
-- \`tests/Feature/ShareholderImportReviewPersistenceTest.php\`
-- \`tests/Feature/ShareholderMigrationDiscoveryTest.php\`
-- \`tests/Feature/ShareholderNumberReconciliationTest.php\`
-- \`tests/Feature/ShareholderSeedNumberInitializationTest.php\`
+- `tests/Feature/ShareholderImportReviewPersistenceTest.php`
+- `tests/Feature/ShareholderMigrationDiscoveryTest.php`
+- `tests/Feature/ShareholderNumberReconciliationTest.php`
+- `tests/Feature/ShareholderSeedNumberInitializationTest.php`
 
 The PHPUnit Domain suite recursively discovers domain tests. Existing coverage establishes useful registry, holdings, certificate, tenant isolation, service, import-review and migration-discovery contracts. Gaps remain for:
 - certificate replacement HTTP flow and artefact lifecycle;
@@ -326,8 +339,8 @@ The PHPUnit Domain suite recursively discovers domain tests. Existing coverage e
 
 | Repository | Exact main SHA | Latest inspected run | Result |
 |---|---|---|---|
-| API | \`cd13c555976ed74050920bb69dd5c0d013ec9509\` | [Run #45955595166](https://github.com/akefadaka-git/arna-api/actions/runs/45955595166) | **FAIL** — fresh disposable MySQL migration step |
-| App | \`648815b69b6419554b656ff91bf5b53df211aebb\` | [Run #45955185107](https://github.com/akefadaka-git/arna-app/actions/runs/45955185107) | **FAIL** — type-check and build all applications |
+| API | `cd13c555976ed74050920bb69dd5c0d013ec9509` | [Run #45955595166](https://github.com/akefadaka-git/arna-api/actions/runs/45955595166) | **FAIL** — fresh disposable MySQL migration step |
+| App | `648815b69b6419554b656ff91bf5b53df211aebb` | [Run #45955185107](https://github.com/akefadaka-git/arna-app/actions/runs/45955185107) | **FAIL** — type-check and build all applications |
 
 The available job metadata identifies the failing steps but does not establish the underlying root cause. Do not attribute either failure to Shareholder without examining the corresponding logs and reproducing against the exact SHA.
 
@@ -356,12 +369,40 @@ Open PRs were searched in both repositories. The following are the shareholder, 
 | [#209](https://github.com/akefadaka-git/arna-api/pull/209) / [#211](https://github.com/akefadaka-git/arna-api/pull/211) | Bootstrap identities and shareholder-data preservation | #211 is stacked on #209. PR #211 itself says the parent 102-identity provisioning conflicts with the Owner-approved reference-only baseline; do not merge either as a shareholder-data shortcut. |
 | [#228](https://github.com/akefadaka-git/arna-api/pull/228) | Non-destructive default seed baseline | Cross-cutting seed safety; reconcile against the authoritative ShareholderRegister/ShareholderSeeder behavior before any bootstrap or A5 operation. |
 
+### Governance / GA / AGE electorate dependencies
+
+The following open Governance PRs materially affect the shareholder register as the source for meeting electorate, record-date holdings, proxy and election eligibility. They are Governance-owned dependencies, not a reason to duplicate the shareholder register inside Governance.
+
+| PR | Subject | A2 disposition |
+|---|---|---|
+| [#52](https://github.com/akefadaka-git/arna-api/pull/52) | Tenant-scoped meeting lifecycle foundation | Open legacy foundation. Current main has only a limited meeting/attendance/proxy/penalty surface; reconcile remaining deltas with #235 before selecting a candidate. |
+| [#77](https://github.com/akefadaka-git/arna-api/pull/77) | Earlier Board Election API foundation | WIP/legacy election lineage; do not merge wholesale. Reconcile current-main election work and the approved AGE scope. |
+| [#126](https://github.com/akefadaka-git/arna-api/pull/126) | AGE A2 source/register baseline | Governance evidence dependency; preserve its source dispositions and reconcile with the current authoritative register evidence. |
+| [#127](https://github.com/akefadaka-git/arna-api/pull/127) | AGE candidate intake eligibility | Election dependency; eligibility rules must not be inferred from incomplete shareholder metadata. |
+| [#128](https://github.com/akefadaka-git/arna-api/pull/128) | Voter-register preparation, reconciliation and freeze | Depends on verified shareholder register/ledger inputs; preserve immutable record-date snapshot semantics. |
+| [#130](https://github.com/akefadaka-git/arna-api/pull/130) | Isolate voter-register management permission | Governance RBAC dependency; reconcile with the current permission catalogue and role grants. |
+| [#131](https://github.com/akefadaka-git/arna-api/pull/131) | Bind voter-register metadata into integrity hash | Integrity dependency for electorate snapshots. |
+| [#132](https://github.com/akefadaka-git/arna-api/pull/132) / [#133](https://github.com/akefadaka-git/arna-api/pull/133) | Server-derived inputs and lifecycle/rollback tests | Governance test dependencies; re-run on the selected current-main candidate. |
+| [#134](https://github.com/akefadaka-git/arna-api/pull/134) / [#135](https://github.com/akefadaka-git/arna-api/pull/135) | Lock voter rows during reconciliation/freeze and approval | Concurrency/integrity dependencies; retain row-lock semantics and verify on disposable MySQL. |
+| [#136](https://github.com/akefadaka-git/arna-api/pull/136) / [#139](https://github.com/akefadaka-git/arna-api/pull/139) | Frozen-register immutability and monotonic lifecycle | Required controls for trustworthy record-date electorate. |
+| [#137](https://github.com/akefadaka-git/arna-api/pull/137) / [#138](https://github.com/akefadaka-git/arna-api/pull/138) | Physical ballot custody gate and witnessed manual count | Election operations, not shareholder CRUD; depend on a frozen, verified register. |
+| [#140](https://github.com/akefadaka-git/arna-api/pull/140) / [#141](https://github.com/akefadaka-git/arna-api/pull/141) / [#142](https://github.com/akefadaka-git/arna-api/pull/142) | Register HTTP authorization, role grants and lifecycle attestation | Governance register access/integrity dependencies; verify role separation and legal source evidence. |
+| [#143](https://github.com/akefadaka-git/arna-api/pull/143) / [#144](https://github.com/akefadaka-git/arna-api/pull/144) / [#145](https://github.com/akefadaka-git/arna-api/pull/145) / [#146](https://github.com/akefadaka-git/arna-api/pull/146) | AGE receipt anti-rollback, integration contracts, adapter and transactional outbox | Receipt/evidence infrastructure; not a substitute for shareholder register source validation. |
+| [#148](https://github.com/akefadaka-git/arna-api/pull/148) | Reconcile Board Election branches with current main | Documentation/branch-lineage dependency; use to avoid duplicate or stale election branch integration. |
+| [#149](https://github.com/akefadaka-git/arna-api/pull/149) / [#151](https://github.com/akefadaka-git/arna-api/pull/151) | Election committee security and election-core integration | Governance-owned election workflow; current-main refresh and independent verification required. |
+| [#152](https://github.com/akefadaka-git/arna-api/pull/152) / [#189](https://github.com/akefadaka-git/arna-api/pull/189) | Independent proxy review / prevent proxy submitter self-review | Security-sensitive proxy separation; reconcile the latest fix with merged security lineage and test no self-review. |
+| [#157](https://github.com/akefadaka-git/arna-api/pull/157) | Evidence-neutral election dispute foundation | Election dispute dependency; do not treat as GA meeting resolution workflow. |
+| [#161](https://github.com/akefadaka-git/arna-api/pull/161) | Election authority foundation | Depends on authenticated authority evidence and approved Governance scope. |
+| [#172](https://github.com/akefadaka-git/arna-api/pull/172) | A5 election lifecycle remediation verification | A5/verification lineage only; not an A3 implementation source or authorization to deploy. |
+
+These PRs are all open at assessment time. Their presence does not mean they are compatible with current main or approved for integration. Select one canonical candidate per capability, reconcile its full diff against current main, and preserve the separate Governance/Shareholder ownership boundary.
+
 ### App repository
 
 | PR | Subject | A2 disposition |
 |---|---|---|
 | [#15](https://github.com/akefadaka-git/arna-app/pull/15) | Sanctum session SSO in Workspace and Portal | Cross-cutting Portal/Workspace authentication dependency; open draft. Verify current-main API pairing with API #65. |
-| [#33](https://github.com/akefadaka-git/arna-app/pull/33) | Annual shareholder dividend statement portal | Open draft, depends on API #81 and adds \`/my/dividends\`; not on main. |
+| [#33](https://github.com/akefadaka-git/arna-app/pull/33) | Annual shareholder dividend statement portal | Open draft, depends on API #81 and adds `/my/dividends`; not on main. |
 | [#35](https://github.com/akefadaka-git/arna-app/pull/35) | Dividend administration and portal integration | Stacked on #33; A4 acceptance and integration evidence explicitly not closed. |
 | [#7](https://github.com/akefadaka-git/arna-app/pull/7) | Original Governance meetings workspace | Stacked on an integration branch; preserve as lineage, not a current-main merge target. |
 | [#113](https://github.com/akefadaka-git/arna-app/pull/113) | Governance meeting/election UI reconciliation | Open draft; older current-main candidate. |
@@ -380,7 +421,7 @@ The backlog below is the recommended sequence after A2 acceptance. Each item req
 | SHD-P0-01 | P0 | Restore green exact-main verification | Diagnose API MySQL migration failure and App type-check/build failure on the exact SHAs; rerun exact-head CI. No domain implementation until baseline is understood. |
 | SHD-P0-02 | P0 | Statutory register completeness and verification | Reconcile PR #158; authenticate original register/Articles/amendments; preserve source provenance, unknown NULLs and unverified state; independent reviewer evidence. |
 | SHD-P0-03 | P0 | Ownership ledger and transfer lifecycle | Define and test transfer request, independent approval, paired ledger entries, idempotency, source evidence, certificate linkage and Finance settlement boundary. |
-| SHD-P0-04 | P0 | Shareholder RBAC and tenant security contract | Verify all 16 permission slugs, role grants, policy paths, route guards, own-record isolation, representative access and segregation of duties. Resolve stale comments and add automated contract tests. |
+| SHD-P0-04 | P0 | Shareholder RBAC and tenant security contract | Verify all 16 Shareholder/import slugs plus the 22 adjacent Governance meeting/election slugs, role grants, policy paths, route guards, own-record isolation, representative access and segregation of duties. Resolve stale comments and add automated contract tests. |
 | SHD-P0-05 | P0 | GA statutory lifecycle integration | Reconcile API #235 with main; authenticate legal evidence; add App meeting/notice/agenda/proxy/attendance/voting/resolution/minutes surfaces; keep all legal gates fail-closed. |
 | SHD-P0-06 | P0 | Domain migration and seed integrity | Resolve clean-install failure; verify all 8 shareholder-related migrations, migration discovery/idempotence, non-destructive seed behavior and tenant isolation on disposable MySQL. |
 | SHD-P1-01 | P1 | Certificate lifecycle completion | Add authorized replacement API/UI, immutable replacement chain, secure PDF/render/sign/download, public verification and cancellation/reissue tests. |
