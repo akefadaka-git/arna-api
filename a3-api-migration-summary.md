@@ -7,5 +7,5 @@
 - Active legacy namespace/path/config/helper/env/provider/seeder/command scan: PASS (zero residual lines)
 - Historical docs preserved: 10 named records
 - Dormant provider remains unregistered; no database schema/data changes.
-- 27 CI workflow path references are deferred to connector-authored updates; the Actions token cannot modify workflow files.
+- 27 affected CI workflow files updated on the isolated branch; old Core paths, seeder/command names and environment identifiers now use ARNA.
 - Tests/builds not run here; A4 verification remains separate.
