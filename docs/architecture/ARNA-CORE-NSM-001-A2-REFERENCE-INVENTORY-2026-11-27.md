@@ -1381,3 +1381,54 @@ The App has no tracked path component containing MASES at its recorded baseline;
 ### A2 and implementation boundary
 
 This Owner decision freezes the intended target and broad rename scope. It does **not** mark A2 complete and does not authorize bypassing A2. A2 remains open until deterministic content-level reconciliation, runtime/deployment consumer assessment, and external consumer disposition are evidence-backed. A3 implementation has not started. No source changes, file moves, test edits, CI edits, deployment changes or database changes have been made by this decision.
+
+
+## 14. A2 reconciliation decision and Owner deployment boundary — 2026-11-27
+
+### Owner-provided operational decision
+
+The Owner has explicitly stated that there is no useful deployed content to preserve and that the Owner will perform a fresh deployment using Plesk's native GitHub deployment feature. This is recorded as an Owner-provided decision, not as independently inspected production evidence.
+
+Consequences for this A2:
+- Live Plesk inspection, live `.env` review, PHP-FPM/cache/queue/OPcache inspection and deployment rehearsal are removed from the A2 closure critical path.
+- The Owner owns the later fresh deployment. No deployment is authorized for this assessment.
+- No production configuration, credentials, database contents or live runtime state were inspected or changed.
+- This decision does not prove that no third-party clients or unconnected consumers exist.
+
+### Repository consumer boundary
+
+- **Known in-scope repository consumer:** `akefadaka-git/arna-app`, which integrates with `akefadaka-git/arna-api`.
+- The App does not import the API's PHP namespace or Composer package. It does use API locale behavior and browser-storage keys, and has CSS token references that are part of the approved rename scope.
+- **Unconnected external consumers:** UNKNOWN / NOT ESTABLISHED. Public repository search and connected-repository review cannot prove absence of private clients, local installations or integrations outside the connected repositories.
+- Given the Owner's fresh-deployment decision, no live deployed legacy consumer is required to be migrated by this A2. The external-consumer uncertainty is bounded and recorded, not silently treated as zero.
+
+### Deterministic content scan status
+
+A full deterministic archive-based content scan of both frozen repositories was **NOT COMPLETED** in this assessment. The previously recorded recursive tree inventories are complete at the stated SHAs, but targeted GitHub code search is capped/selective and does not substitute for a full blob scan. Attempts to retrieve the exact GitHub ZIP archives through the available retrieval path were unsuccessful. Therefore:
+- Exact path inventories and all previously recorded targeted findings remain valid as scoped evidence.
+- Line-level exhaustive counts and complete active-vs-historical classification across every tracked text blob are **MISSING / NOT VERIFIED**.
+- The existing findings identify substantial active references that A3 must cover, but cannot support a claim of zero unclassified active references.
+- No source blobs were modified, and no tests/builds/workflows/migrations were run during A2.
+
+### Formal A2 closure decision
+
+**DECISION: A2 NOT CLOSED — PARTIAL / OPEN.**
+
+Rationale: the Owner's fresh-deployment decision resolves the previously stated live-runtime inspection gate, and the known in-scope repository consumer is identified. However, the required deterministic full-content reconciliation was not completed. Closing A2 as VERIFIED-CLOSED would overstate the evidence.
+
+| Gate | Decision |
+|---|---|
+| Frozen API/App baselines and recursive path trees | VERIFIED |
+| Owner-approved canonical naming scope (A1) | VERIFIED / FROZEN |
+| Known in-scope repository consumer (`arna-app`) | VERIFIED |
+| Unconnected consumers | UNKNOWN; bounded and documented |
+| Live Plesk/runtime reconciliation | NOT REQUIRED by Owner decision |
+| Deterministic full-content scan of both repositories | NOT COMPLETED |
+| A2 closure | **NOT CLOSED** |
+| A3 implementation | **NOT AUTHORIZED TO START until A2 is closed** |
+| A4 verification | NOT RUN |
+| A5 deployment | Owner responsibility; not part of this authorization |
+
+### Remaining A2 action
+
+Complete the archive/blob-level deterministic scan at the exact frozen API and App SHAs, classify every occurrence by path and line as active code/config/test/CI, dormant code, documentation/history, generated/binary or other, and reconcile any previously unseen active references. Then issue a new evidence-backed A2 closure decision. Until then, preserve the A3 gate.
