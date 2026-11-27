@@ -594,6 +594,9 @@ final class CalendarService
             || !in_array((string) $actor->getKey(), [(string) $appointment->requested_by_user_id, (string) $appointment->host_user_id], true)) {
             throw new NotFoundHttpException('Appointment not found.');
         }
+        $this->assertActiveAppointmentParticipants($tenantId, [
+            (int) $appointment->requested_by_user_id, (int) $appointment->host_user_id,
+        ]);
 
         return DB::table('calendar_appointment_reschedule_proposals')
             ->where('tenant_id', $tenantId)->where('appointment_id', $appointmentId)
@@ -894,6 +897,14 @@ final class CalendarService
             if (!$allowed) {
                 throw new NotFoundHttpException('Pending reschedule proposal not found.');
             }
+            $attendeeIds = DB::table('calendar_attendees')->where('tenant_id', $tenantId)
+                ->where('event_id', $appointment->event_id)->pluck('user_id')->map(fn ($id): int => (int) $id)->all();
+            $participantIds = array_values(array_unique(array_map('intval', [
+                $appointment->requested_by_user_id, $appointment->host_user_id, ...$attendeeIds,
+            ])));
+            sort($participantIds);
+            $this->lockAppointmentParticipants($participantIds);
+            $this->assertActiveAppointmentParticipants($tenantId, $participantIds);
 
             DB::table('calendar_appointment_reschedule_proposals')->where('id', $proposalId)
                 ->where('tenant_id', $tenantId)->update([
@@ -903,11 +914,6 @@ final class CalendarService
                     'updated_at' => now(),
                 ]);
             $event = CalendarEvent::query()->where('tenant_id', $tenantId)->whereKey($appointment->event_id)->first();
-            $attendeeIds = DB::table('calendar_attendees')->where('tenant_id', $tenantId)
-                ->where('event_id', $appointment->event_id)->pluck('user_id')->map(fn ($id): int => (int) $id)->all();
-            $participantIds = array_values(array_unique(array_map('intval', [
-                $appointment->requested_by_user_id, $appointment->host_user_id, ...$attendeeIds,
-            ])));
             $this->audit($actor, 'appointment_reschedule_proposal', $proposalId, $status, [
                 'appointment_id' => $appointmentId,
                 'event_id' => $appointment->event_id,
