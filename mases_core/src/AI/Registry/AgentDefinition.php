@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\AI\\Registry;
+namespace MaaleArna\MASES\Core\AI\Registry;
 
 use InvalidArgumentException;
 
