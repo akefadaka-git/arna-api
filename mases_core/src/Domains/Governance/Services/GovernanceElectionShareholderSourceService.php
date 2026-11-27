@@ -48,7 +48,7 @@ final class GovernanceElectionShareholderSourceService
         $databaseTimezone = $databaseTimezoneOverride ?? (string) config('app.timezone', 'UTC');
         try {
             new DateTimeZone($databaseTimezone);
-        } catch (\\Throwable) {
+        } catch (\Throwable) {
             throw ValidationException::withMessages([
                 'database_timezone' => 'A valid database timezone is required for source reconstruction.',
             ]);
