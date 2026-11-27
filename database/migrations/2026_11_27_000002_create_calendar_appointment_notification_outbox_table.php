@@ -19,13 +19,14 @@ return new class extends Migration
             $table->string('action', 20);
             $table->json('payload');
             $table->string('status', 20)->default('pending');
+            $table->timestamp('deliver_at')->useCurrent();
             $table->unsignedInteger('attempts')->default(0);
             $table->string('idempotency_key', 190)->unique();
             $table->timestamp('delivered_at')->nullable();
             $table->text('last_error')->nullable();
             $table->timestamps();
 
-            $table->index(['status', 'created_at'], 'calendar_appt_notice_pending_idx');
+            $table->index(['status', 'deliver_at'], 'calendar_appt_notice_pending_idx');
             $table->index(['tenant_id', 'appointment_id'], 'calendar_appt_notice_tenant_idx');
         });
     }
