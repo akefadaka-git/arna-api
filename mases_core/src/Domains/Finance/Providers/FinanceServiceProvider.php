@@ -8,6 +8,16 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
+use MaaleArna\MASES\Core\AI\Contracts\ModelGatewayContract;
+use MaaleArna\MASES\Core\AI\Contracts\ToolPermissionContract;
+use MaaleArna\MASES\Core\AI\Contracts\DomainEvidenceSourceContract;
+use MaaleArna\MASES\Core\AI\Services\DisabledModelGateway;
+use MaaleArna\MASES\Core\AI\Services\DenyAllToolPermission;
+use MaaleArna\MASES\Core\AI\Services\UnavailableDomainEvidenceSource;
+use MaaleArna\MASES\Core\AI\Services\PermissionAwareRetrievalService;
+use MaaleArna\MASES\Core\AI\Registry\AgentDefinition;
+use MaaleArna\MASES\Core\AI\Registry\AgentRegistry;
+use MaaleArna\MASES\Core\AI\Services\ModelExecutionPolicy;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
@@ -57,6 +67,25 @@ final class FinanceServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../Config/finance.php', 'finance');
+        $this->mergeConfigFrom(base_path('config/arna_ai.php'), 'arna_ai');
+
+        // ARNA AI v1 foundation: fail-closed provider, tools and retrieval.
+        $this->app->singleton(ModelGatewayContract::class, DisabledModelGateway::class);
+        $this->app->singleton(ToolPermissionContract::class, DenyAllToolPermission::class);
+        $this->app->singleton(DomainEvidenceSourceContract::class, UnavailableDomainEvidenceSource::class);
+        $this->app->singleton(AgentRegistry::class, static fn (): AgentRegistry => new AgentRegistry([
+            new AgentDefinition('executive_intelligence', 'Executive Intelligence', 'Governed executive analysis and decision support.', [], ['governance', 'organization', 'finance']),
+            new AgentDefinition('finance_intelligence', 'Finance Intelligence', 'Read-only financial analysis and evidence summaries.', [], ['finance']),
+            new AgentDefinition('governance_intelligence', 'Governance Intelligence', 'Governance records and policy analysis.', [], ['governance', 'documents']),
+            new AgentDefinition('people_intelligence', 'People Intelligence', 'Permission-scoped people and workforce insights.', [], ['people']),
+            new AgentDefinition('document_intelligence', 'Document Intelligence', 'Document understanding with source traceability.', [], ['documents', 'files']),
+            new AgentDefinition('communication_intelligence', 'Communication Intelligence', 'Communication drafting and summarization.', [], ['communication']),
+            new AgentDefinition('operations_intelligence', 'Operations Intelligence', 'Operational analysis and exception summaries.', [], ['operations']),
+            new AgentDefinition('analytics_intelligence', 'Analytics Intelligence', 'Cross-domain analytics from authorized evidence.', [], ['analytics']),
+            new AgentDefinition('calendar_planning_intelligence', 'Calendar and Planning Intelligence', 'Calendar-aware planning and summaries.', [], ['calendar', 'tasks']),
+        ]));
+        $this->app->singleton(PermissionAwareRetrievalService::class);
+        $this->app->singleton(ModelExecutionPolicy::class);
 
         $this->app->singleton(LegalEntityRepository::class);
         $this->app->singleton(JournalEntryRepository::class);
