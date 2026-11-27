@@ -406,7 +406,35 @@ Important migration caution: a historical gate report is not a substitute for cu
 
 ### 14.6 Tooling limitation and confidence
 
-The available GitHub connector operations used in this pass expose repository metadata, commit metadata, file fetches and code-search matches, but did not provide a recursive Git tree listing operation. Search results are selective and cannot prove that unreturned files do not exist. Therefore, this pass is a **targeted source inspection**, not an exhaustive path inventory. Do not assign zero counts or MISSING status solely because code search returned no match.
+The available GitHub connector did not expose a recursive Git tree API. Public GitHub directory pages were therefore used to enumerate selected direct child listings at the pinned SHAs. This improves path evidence but does not constitute a complete recursive inventory of every nested file. Directory traversal remains in progress.
 
 No builds, tests, CI, migrations, database queries, browser execution, runtime inspection or deployment checks were run. No API/App application source was modified.
+
+
+
+### 14.7 Direct directory enumeration at pinned SHAs
+
+**API domain root** `mases_core/src/Domains/` exposes these 11 direct domain directories:
+`Documents`, `FileManagement`, `Finance`, `Governance`, `Loan`, `Organization`, `People`, `PublicContent/Models`, `Shareholder`, `Task`, `Wallet`.
+
+This is a source-folder observation only. It is not a substitute for the frozen D01–D30 catalogue. A domain with no same-named direct folder is not automatically classified MISSING; implementation may be represented through shared Core, another domain, a capability module or not yet implemented. The complete route/schema/contract evidence must decide.
+
+**App feature root** `src/features/` exposes these 19 direct feature directories:
+`appointments`, `auth`, `calendar`, `communications`, `dashboard`, `executive-overview`, `files`, `governance`, `launcher`, `loans`, `locale`, `notifications`, `people`, `portal`, `public-content`, `public-site`, `shareholders`, `tasks`, `wallet`.
+
+The four build entry points remain `workspace-entry/`, `portal-entry/`, `admin-entry/`, and `public-entry/`. Feature directory presence does not establish route exposure in every app or workflow completion.
+
+**Migration directory listing:**
+
+| Location at API SHA 9c0ce83 | Direct PHP migration files | Observation |
+|---|---:|---|
+| `database/migrations/` | 53 | Core/platform and cross-domain migrations, including canonical RBAC, tenant, audit/security, People, Organization, Loan, Wallet, Documents, Public Content, Communications, Tasks, Calendar and Shareholder import areas |
+| `mases_core/src/Migrations/` | 4 | Calendar core/lifecycle and reminder evolution migrations |
+| **Total observed direct migration files** | **57** | File count only; not proof that every file is loaded, ordered correctly, applied to a database or free of collisions |
+
+Migration evidence requires a follow-up trace of `CoreServiceProvider` migration loading, provider-level domain migration registration, Laravel migration discovery, timestamp collisions, duplicate table operations and foreign-key dependencies. The root list contains repeated timestamps with different filenames; these need explicit ordering/dependency review. No migration was run.
+
+**Finance domain structural evidence:** its README documents Config, Contracts, Enums, Events, Listeners, domain-owned Database/Migrations and Database/Seeders, Documentation, Http, Models, Policies, Repositories, Services, Support, Routes/api.php and Feature/Unit tests. It also states that the chart-of-accounts seeder is not automatically invoked and that consolidation remains read-only pending governed rules. These are documented design claims; seeder execution and live behavior remain unverified.
+
+**Observed structural variation across API domains:** Documents exposes Contracts, Database/Seeders, Models, Registries and Services; Governance exposes Config, Database, Enums, Events, Http, Listeners, Models, Policies, Providers, Repositories, Resources/lang, Routes, Services and Tests/Feature; Loan and Wallet expose broader domain application structures; People and Organization show narrower visible folder structures. The variation means a single expected folder template cannot be used as a completeness test. Each domain must be assessed against its approved scope and actual artifacts.
 
