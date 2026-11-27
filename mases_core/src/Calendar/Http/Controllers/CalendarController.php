@@ -261,6 +261,56 @@ final class CalendarController
         ]);
     }
 
+
+    public function rescheduleProposals(Request $request, string $id): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->rescheduleProposals($request->user(), $id),
+        ]);
+    }
+
+    public function createRescheduleProposal(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'timezone' => ['sometimes', 'timezone'],
+            'expected_appointment_version' => ['required', 'integer', 'min:1'],
+            'expected_event_version' => ['required', 'integer', 'min:1'],
+            'reason' => ['sometimes', 'nullable', 'string', 'max:1000'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->createRescheduleProposal($request->user(), $id, $data),
+        ], 201);
+    }
+
+    public function acceptRescheduleProposal(Request $request, string $id, string $proposalId): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->acceptRescheduleProposal($request->user(), $id, $proposalId),
+        ]);
+    }
+
+    public function declineRescheduleProposal(Request $request, string $id, string $proposalId): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->declineRescheduleProposal($request->user(), $id, $proposalId),
+        ]);
+    }
+
+    public function withdrawRescheduleProposal(Request $request, string $id, string $proposalId): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $this->calendar->withdrawRescheduleProposal($request->user(), $id, $proposalId),
+        ]);
+    }
+
     public function resources(): JsonResponse { return response()->json(['success' => true, 'data' => $this->calendar->resources()]); }
 
     public function storeResource(Request $request): JsonResponse
