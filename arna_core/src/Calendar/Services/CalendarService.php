@@ -465,7 +465,8 @@ final class CalendarService
     public function confirmAppointment(User $actor, string $id): CalendarAppointment
     {
         return DB::transaction(function () use ($actor, $id): CalendarAppointment {
-            $appointment = CalendarAppointment::query()->where('tenant_id', $this->tenantId())
+            $tenantId = $this->tenantId();
+            $appointment = CalendarAppointment::query()->where('tenant_id', $tenantId)
                 ->whereKey($id)->lockForUpdate()->first();
             if (!$appointment || (string) $appointment->host_user_id !== (string) $actor->getKey()) {
                 throw new NotFoundHttpException('Appointment not found.');
@@ -485,7 +486,7 @@ final class CalendarService
             $appointment->version++;
             $appointment->save();
 
-            CalendarAttendee::query()->where('tenant_id', $this->tenantId())
+            CalendarAttendee::query()->where('tenant_id', $tenantId)
                 ->where('event_id', $event->id)->where('user_id', $actor->getKey())
                 ->update(['response' => 'accepted', 'responded_at' => now(), 'updated_at' => now()]);
 
