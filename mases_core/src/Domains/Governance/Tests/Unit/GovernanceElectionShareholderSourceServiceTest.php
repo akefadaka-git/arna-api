@@ -103,16 +103,15 @@ final class GovernanceElectionShareholderSourceServiceTest extends TestCase
 
     public function test_record_date_requires_an_explicit_offset_and_valid_calendar_instant(): void
     {
+        try {
+            GovernanceElectionShareholderSourceService::parseRecordDateTime('2026-01-31T23:59:59');
+            self::fail('A record-date timestamp without an explicit UTC offset must be rejected.');
+        } catch (ValidationException) {
+            // Expected: date-only/local timestamps are ambiguous.
+        }
+
         $this->expectException(ValidationException::class);
-        // This static adapter parser is intentionally exercised through a
-        // public API-independent contract test in the companion test below.
-        new DateTimeImmutable('2026-02-31T23:59:59+03:00');
-        GovernanceElectionShareholderSourceService::reconstructLedger(
-            [$this->entry(1, 'subscription', '1.0000', '0.0000', '1.0000', '2026-01-01 09:00:00')],
-            '1.0000',
-            new DateTimeImmutable('2026-01-31T23:59:59+03:00'),
-            'Africa/Addis_Ababa',
-        );
+        GovernanceElectionShareholderSourceService::parseRecordDateTime('2026-02-31T23:59:59+03:00');
     }
 
     private function entry(
