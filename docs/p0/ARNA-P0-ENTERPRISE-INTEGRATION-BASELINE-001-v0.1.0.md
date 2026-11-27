@@ -17,7 +17,7 @@ This is documentation and reconciliation only. It does not authorize A3 implemen
 | Repository | Branch | Commit SHA | Evidence date |
 |---|---|---|---|
 | akefadaka-git/arna-api | main | 9c0ce83afcc084101fb14e6e55d54e1d953c2ffe | 2026-11-27 |
-| akefadaka-git/arna-app | main | 648815b69b6419554b656ff91bf5b53df211aebb | 2026-11-27 |
+| akefadaka-git/arna-app | main | 71bed2158894e3ce9cf507e8bf70492ac1f9dfd4 | 2026-11-27 revalidation |
 
 The API README describes the backend as owner of business rules, persistence and authorization. The App README describes frontend experiences consuming backend services. The four App experience boundaries are Workspace, Shareholder Portal, Admin Console and Public Website; entry-point directories previously identified are workspace-entry/, portal-entry/, admin-entry/ and public-entry/.
 
@@ -341,3 +341,72 @@ Not performed:
 - Independent security review or production operational verification.
 
 This is a structured P0 baseline and backlog. It must be reconciled with a complete current-head inventory before being declared complete.
+
+
+## 14. Technical inventory revalidation — 2026-11-27
+
+### 14.1 Revalidated repository heads
+
+| Repository | Ref | Revalidated commit | Evidence |
+|---|---|---|---|
+| akefadaka-git/arna-api | main | 9c0ce83afcc084101fb14e6e55d54e1d953c2ffe | Commit object fetched; routes, bootstrap, Core provider and phase-gate report inspected |
+| akefadaka-git/arna-app | main | 71bed2158894e3ce9cf507e8bf70492ac1f9dfd4 | Commit object fetched; README, package manifest and router/features searched |
+| akefadaka-git/arna-api | docs/p0-enterprise-integration-baseline-001 | Existing P0 draft branch | Branch exists; PR #239 remains open and draft |
+
+The prior App baseline SHA 648815b69b6419554b656ff91bf5b53df211aebb is superseded by the revalidated main SHA above. API main remains 9c0ce83afcc084101fb14e6e55d54e1d953c2ffe. This correction is documentation-only.
+
+### 14.2 API evidence observed
+
+| Layer | Evidence path | Observation | Status |
+|---|---|---|---|
+| Runtime/bootstrap | `bootstrap/app.php` | Central routing, middleware aliases, Sanctum stateful SPA middleware and canonical error rendering | PRESENT — source inspected |
+| HTTP routes | `routes/api.php` | Declares public, authenticated, diagnostic and tenant-scoped route trust tiers; uses permission, role, application and tenant-membership middleware conventions | PRESENT — full route file fetched; endpoint-to-domain matrix NOT YET COMPLETE |
+| Core registration | `bootstrap/providers.php`; `mases_core/src/Providers/CoreServiceProvider.php` | CoreServiceProvider registered; central bindings, migration registration, policies and event listeners are wired centrally | PRESENT — source inspected |
+| Core authorization | `mases_core/src/Authorization/Models/Role.php`; `mases_core/src/Authorization/Services/AuthorizationService.php` | Role/permission relationships and authorization service evidence surfaced | PARTIAL — full permission matrix and all route guards not reconciled |
+| Domain model sample | `mases_core/src/Domains/People/Models/Person.php`; `.../Wallet/Models/Wallet.php`; `.../Loan/Models/LoanProduct.php`; `.../Task/Models/Task.php` | Domain-namespaced Eloquent models exist in multiple domains | PARTIAL — search samples, not exhaustive model inventory |
+| Domain events sample | `mases_core/src/Domains/Shareholder/Events/ShareHoldingChanged.php`; `.../Wallet/Listeners/AuditWalletEvent.php` | Domain event/listener pattern exists; at least one event is documented as synchronous | PARTIAL — event/listener registry and producer-consumer map not complete |
+| RBAC schema contract | `docs/PHASE_1_GATE_REPORT.md`; route and model search | Five canonical RBAC tables are documented: `roles`, `permissions`, `role_has_permissions`, `user_has_roles`, `user_has_permissions`; report also lists audit/security tables | PARTIAL — current schema and migration ownership still require full reconciliation |
+| Migration locations | `database/migrations/`; `mases_core/src/Migrations/` | Root Laravel migrations and at least one Core migration path are present in repository evidence. Phase 1 Gate Report v2.2.0 says working Phase 1 migrations were flat under `database/migrations/` and corrects earlier documentation that said all migrations were under Core | UNRESOLVED — enumerate every migration, trace provider loading, dependencies and duplicate table definitions before assigning authoritative ownership |
+
+Important migration caution: a historical gate report is not a substitute for current source tracing. Do not run migrations or infer the live `arna` database schema from repository files.
+
+### 14.3 App evidence observed
+
+| Layer | Evidence path | Observation | Status |
+|---|---|---|---|
+| Application topology | `README.md`; `package.json` | Four independent Vite builds: Workspace, Shareholder Portal, Admin Console and Public Website, with separate entry points and output directories | PRESENT — source inspected |
+| Router composition | `src/router/index.ts` | Router factory composes scope-specific route tables | PRESENT — source inspected |
+| Route tables | `src/router/routes-base.ts`, `routes-workspace.ts`, `routes-portal.ts`, `routes-admin.ts` | Search confirms split route-table architecture; portal and admin route files exist | PARTIAL — complete route enumeration and role/permission matrix pending |
+| Executive experience | `src/features/executive-overview/ExecutiveOverviewView.vue`; `api.ts` | Executive Overview view calls `/api/dashboard/v1/overview`; UI gate checks `dashboard.executive.view` and roles `ceo`, `president`, `finance_manager` | PRESENT — one executive surface identified; not proof of D01 Strategy & Planning experience |
+| Feature map | `src/features/` and README | README names People/shareholder, Governance, Documents/File Management, Loans/Wallet, public content and launcher capabilities | PARTIAL — README list is not exhaustive and feature-level workflow completeness is unknown |
+| Build/test definitions | `package.json` | Type-check, four builds, static verification, contract tests and browser tests are defined | PRESENT — commands exist; execution NOT RUN in this inventory |
+
+### 14.4 Cross-domain control observations
+
+1. API route comments define distinct authentication and tenant trust tiers. Every route must be checked against actual middleware, policy and tenant resolution; comments alone are not enforcement evidence.
+2. The App Executive Overview uses a role/permission visibility gate. The API remains the authorization authority; frontend visibility is not an access-control boundary.
+3. The canonical five-table RBAC schema remains the starting point already approved by the Owner. Any additional audit/security tables must be treated as separate concerns, not substitutes for the five-table RBAC baseline.
+4. CoreServiceProvider is a central integration point. Its bindings, event listeners, policy registration and migration loading need a complete dependency inventory to detect hidden cross-domain coupling.
+5. The executive dashboard endpoint is not evidence that D01 strategy, D02 objectives/KPIs, D03 authority and D11 budget workflows are integrated end-to-end.
+
+### 14.5 Remaining exhaustive inventory work
+
+| Inventory item | Current disposition | Required next evidence |
+|---|---|---|
+| Full API directory/tree and all 30 domain file counts | PARTIAL | Recursive repository tree or paginated directory listing at exact SHA |
+| All controllers, route groups and endpoint methods | PARTIAL | Complete route file plus controller-to-domain mapping |
+| All models, services, policies, contracts, resources and repositories | PARTIAL | Full path-level file listing and namespace classification |
+| All migrations and table ownership | UNRESOLVED | Enumerated migration paths, migration registration, create/alter graph and duplicate checks |
+| All seeders/factories and test coverage | MISSING | File listing and mapping to domain/table/workflow |
+| All events/listeners/jobs/commands/schedules | PARTIAL | Full inventory and event producer-consumer registry |
+| App routes/pages/screens and application-scope mapping | PARTIAL | Enumerated route tables and page/component references for all four entry points |
+| App feature-to-API endpoint mapping | MISSING | API client inventory and traceable endpoint contracts |
+| Permissions/roles/authority/maker-checker matrix | PARTIAL | Route-policy-permission-role matrix with authoritative approval evidence |
+| Reporting source lineage and six-frequency output contracts | PARTIAL | D01/D02/D03/D11/D23 approved producer contracts and accountable source owners |
+
+### 14.6 Tooling limitation and confidence
+
+The available GitHub connector operations used in this pass expose repository metadata, commit metadata, file fetches and code-search matches, but did not provide a recursive Git tree listing operation. Search results are selective and cannot prove that unreturned files do not exist. Therefore, this pass is a **targeted source inspection**, not an exhaustive path inventory. Do not assign zero counts or MISSING status solely because code search returned no match.
+
+No builds, tests, CI, migrations, database queries, browser execution, runtime inspection or deployment checks were run. No API/App application source was modified.
+
