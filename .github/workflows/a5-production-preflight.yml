@@ -12,6 +12,10 @@ on:
       - "scripts/production-env-preflight.php"
       - "scripts/a5-php-runtime-diagnostic.php"
       - ".github/workflows/a5-production-preflight.yml"
+      - ".gitignore"
+      - "public/index.php"
+      - "public/.htaccess"
+      - "storage/**"
   push:
     branches:
       - "main"
@@ -40,6 +44,25 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Verify repository deployment structure without server access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f public/index.php
+          test -f public/.htaccess
+          bom="$(head -c 3 public/index.php | od -An -t x1 | tr -d ' \n')"
+          if [ "$bom" = "efbbbf" ]; then
+            echo "public/index.php must not begin with a UTF-8 BOM."
+            exit 1
+          fi
+          for dir in storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache; do
+            test -d "$dir"
+            test -f "$dir/.gitignore"
+          done
+          for file in storage/.gitignore storage/app/.gitignore storage/framework/.gitignore storage/framework/cache/.gitignore; do
+            test -f "$file"
+          done
+          echo "Laravel front controller, Apache rewrite file, BOM-free entry point, and runtime directory placeholders: PASS"
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
