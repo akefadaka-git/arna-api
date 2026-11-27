@@ -44,7 +44,7 @@ final class GovernanceElectionShareholderSourceService
             ]);
         }
 
-        $cutoff = self::parseOffsetDateTime($recordDateTime, 'record_date_time');
+        $cutoff = self::parseRecordDateTime($recordDateTime);
         $databaseTimezone = (string) config('app.timezone', 'UTC');
 
         return DB::transaction(function () use ($tenantId, $cutoff, $databaseTimezone): array {
@@ -280,6 +280,11 @@ final class GovernanceElectionShareholderSourceService
                 ]);
             }
 
+            if ($occurredAtRaw === '') {
+                throw ValidationException::withMessages([
+                    'share_ledger' => "Ledger entry {$id} is missing its business-effective timestamp.",
+                ]);
+            }
             try {
                 $occurredAt = new DateTimeImmutable($occurredAtRaw, $databaseZone);
             } catch (\Throwable) {
@@ -295,6 +300,7 @@ final class GovernanceElectionShareholderSourceService
                         'share_ledger' => "Reversal entry {$id} has missing or duplicate original-entry linkage.",
                     ]);
                 }
+                $reversalTargets[$reversedEntryId] = true;
             } elseif ($reversedEntryId !== null) {
                 throw ValidationException::withMessages([
                     'share_ledger' => "Non-reversal entry {$id} unexpectedly references a reversed entry.",
@@ -380,11 +386,11 @@ final class GovernanceElectionShareholderSourceService
         ];
     }
 
-    private static function parseOffsetDateTime(string $value, string $field): DateTimeImmutable
+    public static function parseRecordDateTime(string $value): DateTimeImmutable
     {
         if (!preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/', $value)) {
             throw ValidationException::withMessages([
-                $field => 'An ISO-8601 timestamp with an explicit UTC offset is required.',
+                record_date_time => 'An ISO-8601 timestamp with an explicit UTC offset is required.',
             ]);
         }
 
@@ -395,7 +401,7 @@ final class GovernanceElectionShareholderSourceService
 
         if ($parsed === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
             throw ValidationException::withMessages([
-                $field => 'The supplied record-date timestamp is not a valid calendar instant.',
+                record_date_time => 'The supplied record-date timestamp is not a valid calendar instant.',
             ]);
         }
 
