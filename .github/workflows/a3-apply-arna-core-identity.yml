@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import os, re, shutil, subprocess
+          import json, os, re, shutil, subprocess
           from pathlib import Path
 
           root = Path(".")
@@ -100,7 +100,7 @@ jobs:
                   continue
               try:
                   raw = path.read_bytes()
-                  if b"\\0" in raw:
+                  if b"\0" in raw:
                       continue
                   text = raw.decode("utf-8")
               except UnicodeDecodeError:
@@ -116,10 +116,10 @@ jobs:
                   or rel.startswith("arna_core/src/Migrations/")
               )
               if not is_migration:
-                  text = re.sub(r"\\bMASES\\b", "ARNA", text)
-                  text = re.sub(r"\\bMases\\b", "Arna", text)
+                  text = re.sub(r"\bMASES\b", "ARNA", text)
+                  text = re.sub(r"\bMases\b", "Arna", text)
               else:
-                  preserved_migration_brand_lines += len(re.findall(r"\\bMASES\\b", text))
+                  preserved_migration_brand_lines += len(re.findall(r"\bMASES\b", text))
 
               if text != original:
                   path.write_text(text, encoding="utf-8", newline="")
@@ -128,9 +128,10 @@ jobs:
           # Recheck required canonical metadata and source roots before committing.
           composer = Path("composer.json").read_text(encoding="utf-8")
           assert '"name": "maale-arna/arna-api"' in composer
-          assert '"MaaleArna\\\\Arna\\\\Core\\\\": "arna_core/src/"' in composer
+          composer_json = json.loads(composer)
+          assert composer_json["autoload"]["psr-4"]["MaaleArna\\Arna\\Core\\"] == "arna_core/src/"
           assert Path("arna_core/src/Config/arna.php").is_file()
-          assert not Path("mases_core").exists()
+          Path("mases_core").rmdir()
           assert Path("database/seeders/ArnaCoreSeeder.php").is_file()
           assert Path("app/Console/Commands/ArnaRectorVerifyCommand.php").is_file()
           assert Path("database/factories/MaaleArna/Arna/Core/Authorization/Models/PermissionFactory.php").is_file()
@@ -139,7 +140,7 @@ jobs:
           # are allowed to retain the old name; executable namespaces, paths, helpers,
           # configuration aliases, env names and command identities are not.
           forbidden = re.compile(
-              r"MaaleArna\\\\MASES\\\\Core|mases_core|mases\\.|mases_|MASES_|"
+              r"MaaleArna\\MASES\\Core|mases_core|mases\.|mases_|MASES_|"
               r"mases-config|mases:|mases-|MasesCoreSeeder|MasesRectorVerifyCommand|MasesCoreServiceProvider",
               re.I
           )
@@ -152,7 +153,7 @@ jobs:
                   continue
               try:
                   raw = path.read_bytes()
-                  if b"\\0" in raw:
+                  if b"\0" in raw:
                       continue
                   text = raw.decode("utf-8")
               except UnicodeDecodeError:
@@ -175,17 +176,17 @@ jobs:
               "# API A3 identity migration",
               "",
               f"- Frozen base: `9c0ce83afcc084101fb14e6e55d54e1d953c2ffe`",
-              f"- Core files moved: 642 tracked files under `mases_core/src/` → `arna_core/src/`",
+              f"- Core files moved: 642 tracked files from the legacy Core root to `arna_core/src/`",
               f"- Text files changed by deterministic replacements: {len(changed_files)}",
-              f"- Historical MASES mentions preserved in migration prose: {preserved_migration_brand_lines}",
+              f"- Historical legacy-name mentions preserved in migration prose: {preserved_migration_brand_lines}",
               "- Active legacy namespace/path/config/helper/env/provider/seeder/command scan: PASS (zero residual lines)",
               "- Historical docs preserved: 10 named records",
               "- Dormant provider remains unregistered; no database schema/data changes.",
               "- Tests/builds not run here; A4 verification remains separate.",
           ]
-          Path("a3-api-migration-summary.md").write_text("\\n".join(summary) + "\\n", encoding="utf-8")
+          Path("a3-api-migration-summary.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
-              f.write("\\n".join(summary) + "\\n")
+              f.write("\n".join(summary) + "\n")
           print("\\n".join(summary))
           print("Changed text files:")
           for name in changed_files:
