@@ -65,7 +65,7 @@ final class CoreServiceProvider extends ServiceProvider
         // Merge the default core configuration with the application's published config.
         $this->mergeConfigFrom(
             $this->getConfigPath('arna.php'),
-            'mases'
+            'arna'
         );
 
         $this->registerCoreBindings();
