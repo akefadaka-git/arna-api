@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  workflows: write
 
 jobs:
   migrate:
@@ -195,6 +196,7 @@ jobs:
 
           git diff --check
           git add -A
+          git add -f arna_core/src/Localization/LocalizationFacade.php
           if git diff --cached --quiet; then
             echo "No staged changes; refusing empty A3 commit."
             exit 1
