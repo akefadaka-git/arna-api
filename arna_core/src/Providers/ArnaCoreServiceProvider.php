@@ -16,7 +16,7 @@ final class ArnaCoreServiceProvider extends ServiceProvider
         // Merge the primary Core configuration file
         $this->mergeConfigFrom(
             __DIR__ . '/../../config/arna.php',
-            'mases'
+            'arna'
         );
 
         // Merge the localization configuration file under its own key
@@ -48,13 +48,13 @@ final class ArnaCoreServiceProvider extends ServiceProvider
         // Load translations (optional – we can publish them later)
         $this->loadTranslationsFrom(
             __DIR__ . '/../../resources/lang',
-            'mases'
+            'arna'
         );
 
         // Load error views (for localized error pages)
         $this->loadViewsFrom(
             __DIR__ . '/../../views/errors',
-            'mases'
+            'arna'
         );
 
         // Publish configuration files
@@ -65,17 +65,17 @@ final class ArnaCoreServiceProvider extends ServiceProvider
 
         // Publish translations
         $this->publishes([
-            __DIR__ . '/../../resources/lang' => resource_path('lang/vendor/mases'),
+            __DIR__ . '/../../resources/lang' => resource_path('lang/vendor/arna'),
         ], 'arna-translations');
 
         // Publish error views
         $this->publishes([
-            __DIR__ . '/../../views/errors' => resource_path('views/vendor/mases'),
+            __DIR__ . '/../../views/errors' => resource_path('views/vendor/arna'),
         ], 'arna-views');
 
         // Publish migrations (if needed for customization, but we keep them central)
         $this->publishes([
-            __DIR__ . '/../Migrations' => database_path('migrations/mases'),
+            __DIR__ . '/../Migrations' => database_path('migrations/arna'),
         ], 'arna-migrations');
     }
 
