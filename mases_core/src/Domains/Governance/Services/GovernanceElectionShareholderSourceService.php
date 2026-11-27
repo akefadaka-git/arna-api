@@ -392,7 +392,7 @@ final class GovernanceElectionShareholderSourceService
     {
         if (!preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/', $value)) {
             throw ValidationException::withMessages([
-                record_date_time => 'An ISO-8601 timestamp with an explicit UTC offset is required.',
+                'record_date_time' => 'An ISO-8601 timestamp with an explicit UTC offset is required.',
             ]);
         }
 
@@ -403,7 +403,7 @@ final class GovernanceElectionShareholderSourceService
 
         if ($parsed === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
             throw ValidationException::withMessages([
-                record_date_time => 'The supplied record-date timestamp is not a valid calendar instant.',
+                'record_date_time' => 'The supplied record-date timestamp is not a valid calendar instant.',
             ]);
         }
 
