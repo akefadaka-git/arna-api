@@ -703,6 +703,7 @@ final class CalendarService
                 'ends_at' => $end->format(DATE_ATOM),
                 'base_appointment_version' => $appointment->version,
                 'base_event_version' => $event->version,
+                'reason' => $data['reason'] ?? null,
             ]);
             $this->notifyAppointmentReschedule($tenantId, $appointment, $event, $proposalId, 'proposed', $participantIds);
 
@@ -786,6 +787,9 @@ final class CalendarService
                 $endOffset = $reservationEnd->getTimestamp() - $oldStart->getTimestamp();
                 $shiftedStart = (new \DateTimeImmutable('@'.($newStart->getTimestamp() + $startOffset)))->setTimezone(new \DateTimeZone('UTC'));
                 $shiftedEnd = (new \DateTimeImmutable('@'.($newStart->getTimestamp() + $endOffset)))->setTimezone(new \DateTimeZone('UTC'));
+                if ($shiftedStart < $newStart || $shiftedEnd > $newEnd || $shiftedEnd <= $shiftedStart) {
+                    throw new ConflictHttpException('The proposed interval is too short to preserve an existing resource reservation.');
+                }
                 DB::table('calendar_reservations')->where('tenant_id', $tenantId)->where('id', $reservation->id)
                     ->update([
                         'starts_at' => $shiftedStart->format('Y-m-d H:i:s'),
