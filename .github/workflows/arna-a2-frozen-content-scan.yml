@@ -1,0 +1,263 @@
+name: ARNA A2 frozen-commit deterministic content scan
+
+on:
+  push:
+    branches:
+      - audit/arna-a2-frozen-content-scan-20261127
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-content-scan:
+    name: Scan exact API and App baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      API_SHA: 9c0ce83afcc084101fb14e6e55d54e1d953c2ffe
+      APP_SHA: 71bed2158894e3ce9cf507e8bf70492ac1f9dfd4
+    steps:
+      - name: Fetch exact frozen Git objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p snapshots
+          git init snapshots/api
+          git -C snapshots/api remote add origin https://github.com/akefadaka-git/arna-api.git
+          git -C snapshots/api fetch --no-tags --depth=1 origin "$API_SHA"
+          git -C snapshots/api checkout --detach FETCH_HEAD
+          git init snapshots/app
+          git -C snapshots/app remote add origin https://github.com/akefadaka-git/arna-app.git
+          git -C snapshots/app fetch --no-tags --depth=1 origin "$APP_SHA"
+          git -C snapshots/app checkout --detach FETCH_HEAD
+          test "$(git -C snapshots/api rev-parse HEAD)" = "$API_SHA"
+          test "$(git -C snapshots/app rev-parse HEAD)" = "$APP_SHA"
+
+      - name: Scan every tracked path and blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import csv, hashlib, io, json, os, re, subprocess
+          from pathlib import Path
+
+          OUT = Path("scan-output")
+          OUT.mkdir(parents=True, exist_ok=True)
+          PATTERN = re.compile(rb"(?i)(MASES|mase_app)")
+          REPOS = [
+              ("arna-api", Path("snapshots/api"), os.environ["API_SHA"], 1046),
+              ("arna-app", Path("snapshots/app"), os.environ["APP_SHA"], 493),
+          ]
+
+          def git(repo, *args, input_data=None):
+              return subprocess.run(
+                  ["git", "-C", str(repo), *args],
+                  input=input_data, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                  check=True
+              ).stdout
+
+          all_summaries = []
+          inventory_rows = []
+          occurrence_rows = []
+
+          for repo_name, repo_path, expected_sha, expected_blobs in REPOS:
+              actual_sha = git(repo_path, "rev-parse", "HEAD").decode().strip()
+              if actual_sha != expected_sha:
+                  raise RuntimeError(f"{repo_name}: HEAD {actual_sha} != frozen SHA {expected_sha}")
+
+              raw_tree = git(repo_path, "ls-tree", "-r", "-z", "--full-tree", "HEAD")
+              entries = []
+              for item in raw_tree.split(b"\0"):
+                  if not item:
+                      continue
+                  meta, raw_path = item.split(b"\t", 1)
+                  mode, obj_type, obj_sha = meta.split()
+                  entries.append((mode.decode(), obj_type.decode(), obj_sha.decode(), raw_path))
+
+              blobs = [e for e in entries if e[1] == "blob"]
+              if len(blobs) != expected_blobs:
+                  raise RuntimeError(
+                      f"{repo_name}: blob count {len(blobs)} != tree inventory {expected_blobs}"
+                  )
+
+              blob_input = b"".join(e[2].encode() + b"\n" for e in blobs)
+              batch = git(repo_path, "cat-file", "--batch", input_data=blob_input)
+              stream = io.BytesIO(batch)
+              repo_occurrences = []
+              path_hit_files = set()
+              content_hit_files = set()
+              text_files = 0
+              non_utf8_files = 0
+              binary_files = 0
+              total_bytes = 0
+
+              for mode, obj_type, obj_sha, raw_path in entries:
+                  path = raw_path.decode("utf-8", "surrogateescape")
+                  path_hits = list(PATTERN.finditer(raw_path))
+                  if path_hits:
+                      path_hit_files.add(path)
+                      for match in path_hits:
+                          occurrence_rows.append({
+                              "repo": repo_name, "path": path, "blob_sha": obj_sha,
+                              "match_type": "path", "line": 0, "column": match.start() + 1,
+                              "token": match.group().decode("ascii", "replace"),
+                              "snippet": path[:220]
+                          })
+
+                  if obj_type != "blob":
+                      inventory_rows.append({
+                          "repo": repo_name, "path": path, "mode": mode,
+                          "object_type": obj_type, "blob_sha": obj_sha,
+                          "byte_size": "", "sha256": "", "encoding": "gitlink-or-tree",
+                          "path_identity_match": bool(path_hits)
+                      })
+                      continue
+
+                  header = stream.readline().strip().split()
+                  if len(header) != 3:
+                      raise RuntimeError(f"{repo_name}: malformed cat-file header for {path}")
+                  returned_sha, returned_type, size_b = header
+                  size = int(size_b)
+                  data = stream.read(size)
+                  if len(data) != size:
+                      raise RuntimeError(f"{repo_name}: truncated blob read for {path}")
+                  stream.read(1)
+                  if returned_sha.decode() != obj_sha or returned_type != b"blob":
+                      raise RuntimeError(f"{repo_name}: blob identity mismatch for {path}")
+
+                  total_bytes += size
+                  has_nul = b"\0" in data
+                  try:
+                      data.decode("utf-8")
+                      valid_utf8 = True
+                  except UnicodeDecodeError:
+                      valid_utf8 = False
+
+                  if has_nul:
+                      encoding = "binary"
+                      binary_files += 1
+                      match_type = "content_binary"
+                  elif valid_utf8:
+                      encoding = "utf-8"
+                      text_files += 1
+                      match_type = "content_text"
+                  else:
+                      encoding = "non-utf8"
+                      non_utf8_files += 1
+                      match_type = "content_non_utf8"
+
+                  blob_hits = 0
+                  for line_no, raw_line in enumerate(data.splitlines(), 1):
+                      for match in PATTERN.finditer(raw_line):
+                          blob_hits += 1
+                          content_hit_files.add(path)
+                          snippet = raw_line.decode("utf-8", "replace").strip()
+                          snippet = re.sub(
+                              r"(?i)\b(password|secret|token|api[_-]?key)\b(\s*[:=]\s*)[^\s,;]+",
+                              r"\1\2[REDACTED]", snippet
+                          )[:220]
+                          row = {
+                              "repo": repo_name, "path": path, "blob_sha": obj_sha,
+                              "match_type": match_type, "line": line_no,
+                              "column": match.start() + 1,
+                              "token": match.group().decode("ascii", "replace"),
+                              "snippet": snippet
+                          }
+                          occurrence_rows.append(row)
+                          repo_occurrences.append(row)
+
+                  inventory_rows.append({
+                      "repo": repo_name, "path": path, "mode": mode,
+                      "object_type": "blob", "blob_sha": obj_sha,
+                      "byte_size": size, "sha256": hashlib.sha256(data).hexdigest(),
+                      "encoding": encoding, "path_identity_match": bool(path_hits),
+                      "content_identity_match": bool(blob_hits)
+                  })
+
+              summary = {
+                  "repository": repo_name,
+                  "frozen_commit": expected_sha,
+                  "actual_head": actual_sha,
+                  "tree_entries": len(entries),
+                  "blob_count": len(blobs),
+                  "expected_blob_count": expected_blobs,
+                  "files_scanned": len(blobs),
+                  "bytes_scanned": total_bytes,
+                  "utf8_text_files": text_files,
+                  "non_utf8_files": non_utf8_files,
+                  "binary_files": binary_files,
+                  "path_hit_files": len(path_hit_files),
+                  "content_hit_files": len(content_hit_files),
+                  "content_occurrences": len(repo_occurrences),
+                  "path_occurrences": sum(1 for x in occurrence_rows if x["repo"] == repo_name and x["match_type"] == "path"),
+                  "path_hit_file_list": sorted(path_hit_files),
+                  "content_hit_file_list": sorted(content_hit_files)
+              }
+              all_summaries.append(summary)
+
+          def write_csv(name, rows, fields):
+              with (OUT / name).open("w", newline="", encoding="utf-8") as f:
+                  writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+                  writer.writeheader()
+                  writer.writerows(rows)
+
+          write_csv("tracked-file-inventory.csv", inventory_rows, [
+              "repo", "path", "mode", "object_type", "blob_sha", "byte_size",
+              "sha256", "encoding", "path_identity_match", "content_identity_match"
+          ])
+          write_csv("identity-occurrences.csv", occurrence_rows, [
+              "repo", "path", "blob_sha", "match_type", "line", "column", "token", "snippet"
+          ])
+
+          report = {
+              "scan_method": "GitHub Actions read-only scan of frozen Git commits using git ls-tree and git cat-file --batch",
+              "pattern": "(?i)(MASES|mase_app)",
+              "repositories": all_summaries,
+              "total_blobs_scanned": sum(x["blob_count"] for x in all_summaries),
+              "total_occurrence_rows": len(occurrence_rows),
+              "complete": all(x["blob_count"] == x["expected_blob_count"] and x["actual_head"] == x["frozen_commit"] for x in all_summaries)
+          }
+          (OUT / "scan-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+          lines = [
+              "# ARNA A2 frozen-commit deterministic content scan",
+              "",
+              f"- Complete: **{report['complete']}**",
+              f"- Total blobs scanned: **{report['total_blobs_scanned']}**",
+              f"- Occurrence rows (path + content): **{report['total_occurrence_rows']}**",
+              "- Pattern: `(?i)(MASES|mase_app)`",
+              "",
+              "| Repository | Frozen SHA | Blobs | Bytes | UTF-8 | Non-UTF8 | Binary | Path-hit files | Content-hit files | Content matches |",
+              "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|"
+          ]
+          for s in all_summaries:
+              lines.append(
+                  f"| {s['repository']} | `{s['frozen_commit']}` | {s['blob_count']} | "
+                  f"{s['bytes_scanned']} | {s['utf8_text_files']} | {s['non_utf8_files']} | "
+                  f"{s['binary_files']} | {s['path_hit_files']} | {s['content_hit_files']} | "
+                  f"{s['content_occurrences']} |"
+              )
+          lines += ["", "## Files containing identity matches", ""]
+          for s in all_summaries:
+              lines += [f"### {s['repository']} — path matches", ""]
+              lines += [f"- `{p}`" for p in s["path_hit_file_list"]] or ["- None"]
+              lines += ["", f"### {s['repository']} — content matches", ""]
+              lines += [f"- `{p}`" for p in s["content_hit_file_list"]] or ["- None"]
+              lines += [""]
+          (OUT / "scan-summary.md").write_text("\n".join(lines), encoding="utf-8")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("\n".join(lines) + "\n")
+
+          if not report["complete"]:
+              raise SystemExit("Frozen commit verification or blob-count validation failed")
+          print(json.dumps(report, indent=2))
+          PY
+
+      - name: Publish complete scan evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arna-a2-frozen-content-scan-20261127
+          path: scan-output/
+          if-no-files-found: warn
+          retention-days: 7
