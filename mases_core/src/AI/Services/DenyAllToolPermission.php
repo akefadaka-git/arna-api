@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\AI\\Services;
+namespace MaaleArna\MASES\Core\AI\Services;
 
-use MaaleArna\\MASES\\Core\\AI\\Contracts\\ToolPermissionContract;
+use MaaleArna\MASES\Core\AI\Contracts\ToolPermissionContract;
 
 /** Safe default until each tool is bound to an owning-domain authorization adapter. */
 final class DenyAllToolPermission implements ToolPermissionContract
