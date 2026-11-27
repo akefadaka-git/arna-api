@@ -6,7 +6,7 @@
 **Branch policy:** Existing main branches only; no new branches  
 **Status:** **A3 IN PROGRESS — IMPLEMENTATION PARTIAL — VERIFICATION NOT RUN**  
 **API main head observed:** 9a7b705e2d9cc55d4b6c1595565eda7c4db7606d  
-**App main head observed:** 648815b69b6419554b656ff91bf5b53df211aebb
+**App main head at last code checkpoint:** 648815b69b6419554b656ff91bf5b53df211aebb
 
 ## 1. Authorization and boundaries
 
