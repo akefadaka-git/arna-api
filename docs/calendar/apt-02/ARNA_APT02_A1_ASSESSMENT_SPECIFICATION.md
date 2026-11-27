@@ -161,3 +161,39 @@ The following are explicit decisions, not silently assumed approvals:
 A1 can be frozen only after the Owner approves or amends the decisions in Section 9 and the final scope/state/API/persistence boundaries are recorded. No A3 work may begin before A1 freeze and A2 closure.
 
 **A1 disposition:** assessment completed; specification proposed; Owner decision and freeze pending.
+
+
+---
+
+## 11. Owner approval and A1 freeze — 2026-11-27
+
+**Decision record:** APT02-OWNER-DECISION-001  
+**Decision authority:** Owner  
+**Decision date:** 2026-11-27  
+**Disposition:** **APPROVED — A1 FROZEN — v1.0**
+
+The Owner explicitly approved APT02-D01 through APT02-D09 exactly as proposed in Section 9. The approved values are:
+
+| Decision | Frozen v1.0 rule | Owner disposition |
+|---|---|---|
+| APT02-D01 — eligible appointment state | Confirmed appointments only; requested appointments use APT-01 cancel/rebook | APPROVED |
+| APT02-D02 — parties who must agree | Requester and host only; the non-proposing party accepts/rejects; additional attendees are notified but have no veto | APPROVED |
+| APT02-D03 — changeable fields | Start/end only; preserve timezone, calendar, title, description, scope, host, requester, attendees and resources | APPROVED |
+| APT02-D04 — pending proposal cardinality | One pending proposal per appointment | APPROVED |
+| APT02-D05 — proposal expiry | No automatic expiry in v1; proposer may withdraw | APPROVED |
+| APT02-D06 — reschedule reason | Optional reason, visible to the other party and audit history | APPROVED |
+| APT02-D07 — repeated rescheduling | Another proposal is permitted after the previous proposal closes; every acceptance increments versions and is audited | APPROVED |
+| APT02-D08 — notification | Notify all existing appointment attendees of proposal and outcome, respecting notification preferences | APPROVED |
+| APT02-D09 — timing limits | Future start and valid positive interval are mandatory; no additional minimum-notice or maximum-horizon limit in v1 | APPROVED |
+
+### Freeze effect
+
+1. This approval freezes the APT-02 v1 product scope, business rules and Owner decisions recorded in this A1 document.
+2. The original proposal and its decision history above are retained; this approval does not rewrite the historical draft as if it had been approved earlier.
+3. The approved A1 baseline supersedes the earlier “Owner freeze pending” status in the document header and Section 10.
+4. The A1 exit criteria are satisfied. A1 is **VERIFIED-CLOSED / FROZEN** as of 2026-11-27.
+5. This approval does not authorize A3 implementation by itself. A3 requires a separate explicit Owner authorization after A2 closure is recorded.
+6. APT-01 remains closed and unchanged. APT-02 remains limited to rescheduling; no APT-01 booking, confirmation or cancellation scope is reopened.
+7. Any material change to this frozen scope requires a separately recorded Owner change decision and impact assessment before implementation.
+
+**Frozen baseline:** ARNA APT-02 A1 v1.0, Owner-approved 2026-11-27.
