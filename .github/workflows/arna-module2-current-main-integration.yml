@@ -6,10 +6,10 @@ on:
       - a3/module-2-current-main-integration
     paths:
       - ".github/workflows/arna-module2-current-main-integration.yml"
-      - "mases_core/src/Domains/Governance/**"
-      - "mases_core/src/Domains/People/**"
-      - "mases_core/src/Domains/Shareholder/**"
-      - "mases_core/src/Files/**"
+      - "arna_core/src/Domains/Governance/**"
+      - "arna_core/src/Domains/People/**"
+      - "arna_core/src/Domains/Shareholder/**"
+      - "arna_core/src/Files/**"
       - "scripts/phase0-authorization-audit.py"
       - "composer.json"
       - "composer.lock"
@@ -19,10 +19,10 @@ on:
       - main
     paths:
       - ".github/workflows/arna-module2-current-main-integration.yml"
-      - "mases_core/src/Domains/Governance/**"
-      - "mases_core/src/Domains/People/**"
-      - "mases_core/src/Domains/Shareholder/**"
-      - "mases_core/src/Files/**"
+      - "arna_core/src/Domains/Governance/**"
+      - "arna_core/src/Domains/People/**"
+      - "arna_core/src/Domains/Shareholder/**"
+      - "arna_core/src/Files/**"
       - "scripts/phase0-authorization-audit.py"
       - "composer.json"
       - "composer.lock"
@@ -129,19 +129,19 @@ jobs:
 
       - name: Run Module 2 candidate intake and eligibility tests on MySQL
         id: module2_tests
-        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCandidateIntakeTest.php
+        run: php artisan test --compact arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCandidateIntakeTest.php
 
       - name: Run true parallel nomination race regression on MySQL
         id: nomination_concurrency
-        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionNominationConcurrencyTest.php
+        run: php artisan test --compact arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionNominationConcurrencyTest.php
 
       - name: Run committee conflict and tenant-security regressions on MySQL
         id: committee_tests
-        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
+        run: php artisan test --compact arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
 
       - name: Run Module 1 election lifecycle regressions on MySQL
         id: module1_tests
-        run: php artisan test --compact mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
+        run: php artisan test --compact arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
 
       - name: Confirm migration idempotence and no pending migrations
         id: migration_idempotence

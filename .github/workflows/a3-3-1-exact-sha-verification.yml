@@ -52,15 +52,15 @@ jobs:
           set -euo pipefail
           php -l database/seeders/Data/PermissionCatalogue.php
           php -l database/seeders/Data/RolePermissionGrants.php
-          php -l database/seeders/MasesCoreSeeder.php
+          php -l database/seeders/ArnaCoreSeeder.php
           php -l database/seeders/PermissionSeeder.php
-          php -l mases_core/src/Domains/Documents/Database/Seeders/DocumentsPermissionCatalogue.php
-          php -l mases_core/src/Domains/Documents/Database/Seeders/DocumentsRolePermissionGrants.php
-          php -l mases_core/src/Domains/Documents/Services/DocumentWorkflowAuthorizationService.php
-          php -l mases_core/src/Domains/Governance/Services/GovernanceActingAssignmentService.php
-          php -l mases_core/src/Domains/Governance/Services/GovernanceAuthorityGrantService.php
-          php -l mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
-          php -l mases_core/src/Providers/CoreServiceProvider.php
+          php -l arna_core/src/Domains/Documents/Database/Seeders/DocumentsPermissionCatalogue.php
+          php -l arna_core/src/Domains/Documents/Database/Seeders/DocumentsRolePermissionGrants.php
+          php -l arna_core/src/Domains/Documents/Services/DocumentWorkflowAuthorizationService.php
+          php -l arna_core/src/Domains/Governance/Services/GovernanceActingAssignmentService.php
+          php -l arna_core/src/Domains/Governance/Services/GovernanceAuthorityGrantService.php
+          php -l arna_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
+          php -l arna_core/src/Providers/CoreServiceProvider.php
           php -l tests/Feature/CommunicationAnnouncementsTest.php
           php -l tests/Feature/DocumentsWorkflowAuthorizationCatalogueTest.php
 
@@ -71,7 +71,7 @@ jobs:
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Run Governance authority feature tests
-        run: vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
+        run: vendor/bin/phpunit arna_core/src/Domains/Governance/Tests/Feature/GovernanceAuthorityGrantTest.php
 
       - name: Run Documents workflow permission catalogue tests
         run: vendor/bin/phpunit tests/Feature/DocumentsWorkflowAuthorizationCatalogueTest.php

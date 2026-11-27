@@ -7,14 +7,14 @@ on:
   push:
     branches: [main]
     paths:
-      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php"
-      - "mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php"
-      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php"
-      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewService.php"
-      - "mases_core/src/Domains/Shareholder/Models/ShareholderImportSubmission.php"
-      - "mases_core/src/Domains/Shareholder/Models/ShareholderImportDecision.php"
-      - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php"
-      - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php"
+      - "arna_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php"
+      - "arna_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php"
+      - "arna_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php"
+      - "arna_core/src/Domains/Shareholder/Services/ShareholderImportReviewService.php"
+      - "arna_core/src/Domains/Shareholder/Models/ShareholderImportSubmission.php"
+      - "arna_core/src/Domains/Shareholder/Models/ShareholderImportDecision.php"
+      - "arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php"
+      - "arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php"
       - "tests/Feature/ShareholderImportReviewPersistenceTest.php"
       - "database/migrations/2026_11_25_000004_create_shareholder_import_review_tables.php"
       - "database/seeders/Data/PermissionCatalogue.php"
@@ -25,14 +25,14 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php"
-      - "mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php"
-      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php"
-      - "mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewService.php"
-      - "mases_core/src/Domains/Shareholder/Models/ShareholderImportSubmission.php"
-      - "mases_core/src/Domains/Shareholder/Models/ShareholderImportDecision.php"
-      - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php"
-      - "mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php"
+      - "arna_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php"
+      - "arna_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php"
+      - "arna_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php"
+      - "arna_core/src/Domains/Shareholder/Services/ShareholderImportReviewService.php"
+      - "arna_core/src/Domains/Shareholder/Models/ShareholderImportSubmission.php"
+      - "arna_core/src/Domains/Shareholder/Models/ShareholderImportDecision.php"
+      - "arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php"
+      - "arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php"
       - "tests/Feature/ShareholderImportReviewPersistenceTest.php"
       - "database/migrations/2026_11_25_000004_create_shareholder_import_review_tables.php"
       - "database/seeders/Data/PermissionCatalogue.php"
@@ -91,16 +91,16 @@ jobs:
 
       - name: Lint import preview and review source/tests
         run: |
-          php -l mases_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php
-          php -l mases_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php
-          php -l mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php
-          php -l mases_core/src/Domains/Shareholder/Services/ShareholderImportReviewService.php
-          php -l mases_core/src/Domains/Shareholder/Models/ShareholderImportSubmission.php
-          php -l mases_core/src/Domains/Shareholder/Models/ShareholderImportDecision.php
+          php -l arna_core/src/Domains/Shareholder/Services/ShareholderImportPreviewValidator.php
+          php -l arna_core/src/Domains/Shareholder/Services/ShareholderCsvPreviewService.php
+          php -l arna_core/src/Domains/Shareholder/Services/ShareholderImportReviewPolicy.php
+          php -l arna_core/src/Domains/Shareholder/Services/ShareholderImportReviewService.php
+          php -l arna_core/src/Domains/Shareholder/Models/ShareholderImportSubmission.php
+          php -l arna_core/src/Domains/Shareholder/Models/ShareholderImportDecision.php
           php -l database/migrations/2026_11_25_000004_create_shareholder_import_review_tables.php
           php -l tests/Feature/ShareholderImportReviewPersistenceTest.php
-          php -l mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
-          php -l mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php
+          php -l arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
+          php -l arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php
 
       - name: Run shareholder import preview, policy and persistence tests
         env:
@@ -111,6 +111,6 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: |
-          php artisan test --compact mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
-          php artisan test --compact mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php
+          php artisan test --compact arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportPreviewServiceTest.php
+          php artisan test --compact arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderImportReviewPolicyTest.php
           php artisan test --compact tests/Feature/ShareholderImportReviewPersistenceTest.php

@@ -7,12 +7,12 @@ on:
     paths:
       - "app/Http/Controllers/TenantContextController.php"
       - "database/migrations/**"
-      - "mases_core/src/Auth/Models/User.php"
-      - "mases_core/src/Auth/Services/AuthenticationService.php"
-      - "mases_core/src/Authorization/Services/AuthorizationService.php"
-      - "mases_core/src/Events/AuthorizationFailureEvent.php"
-      - "mases_core/src/Exceptions/AuthorizationFailureEvent.php"
-      - "mases_core/src/Tenancy/**"
+      - "arna_core/src/Auth/Models/User.php"
+      - "arna_core/src/Auth/Services/AuthenticationService.php"
+      - "arna_core/src/Authorization/Services/AuthorizationService.php"
+      - "arna_core/src/Events/AuthorizationFailureEvent.php"
+      - "arna_core/src/Exceptions/AuthorizationFailureEvent.php"
+      - "arna_core/src/Tenancy/**"
       - "tests/Feature/AuthenticationLifecycleTest.php"
       - "tests/Feature/C09/TenantResolutionTest.php"
       - "tests/Feature/TenantMembershipLifecycleTest.php"
@@ -31,11 +31,11 @@ on:
     paths:
       - "app/Http/Controllers/TenantContextController.php"
       - "database/migrations/**"
-      - "mases_core/src/Auth/Models/User.php"
-      - "mases_core/src/Auth/Services/AuthenticationService.php"
-      - "mases_core/src/Authorization/Services/AuthorizationService.php"
-      - "mases_core/src/Events/AuthorizationFailureEvent.php"
-      - "mases_core/src/Tenancy/**"
+      - "arna_core/src/Auth/Models/User.php"
+      - "arna_core/src/Auth/Services/AuthenticationService.php"
+      - "arna_core/src/Authorization/Services/AuthorizationService.php"
+      - "arna_core/src/Events/AuthorizationFailureEvent.php"
+      - "arna_core/src/Tenancy/**"
       - "tests/Feature/AuthenticationLifecycleTest.php"
       - "tests/Feature/C09/TenantResolutionTest.php"
       - "tests/Feature/TenantMembershipLifecycleTest.php"
@@ -88,12 +88,12 @@ jobs:
       - name: PHP syntax lint
         run: |
           set -euo pipefail
-          php -l mases_core/src/Auth/Models/User.php
-          php -l mases_core/src/Auth/Services/AuthenticationService.php
-          php -l mases_core/src/Authorization/Services/AuthorizationService.php
-          php -l mases_core/src/Tenancy/Middleware/TenantMembershipMiddleware.php
-          php -l mases_core/src/Tenancy/Models/TenantMembership.php
-          php -l mases_core/src/Tenancy/Services/TenantMembershipService.php
+          php -l arna_core/src/Auth/Models/User.php
+          php -l arna_core/src/Auth/Services/AuthenticationService.php
+          php -l arna_core/src/Authorization/Services/AuthorizationService.php
+          php -l arna_core/src/Tenancy/Middleware/TenantMembershipMiddleware.php
+          php -l arna_core/src/Tenancy/Models/TenantMembership.php
+          php -l arna_core/src/Tenancy/Services/TenantMembershipService.php
           php -l database/migrations/2026_10_19_000001_add_status_to_tenant_memberships_table.php
           php -l tests/Feature/AuthenticationLifecycleTest.php
           php -l tests/Feature/C09/TenantResolutionTest.php
@@ -117,7 +117,7 @@ jobs:
             echo "::error::AuthorizationFailureEvent violates PSR-4 autoloading."
             exit 1
           fi
-          php -r 'require "vendor/autoload.php"; exit(class_exists(\MaaleArna\MASES\Core\Events\AuthorizationFailureEvent::class) ? 0 : 1);'
+          php -r 'require "vendor/autoload.php"; exit(class_exists(\MaaleArna\Arna\Core\Events\AuthorizationFailureEvent::class) ? 0 : 1);'
 
       - name: Run tenant resolver regression
         run: vendor/bin/phpunit tests/Unit/TenantResolverTest.php

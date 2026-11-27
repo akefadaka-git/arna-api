@@ -6,28 +6,28 @@ on:
     paths:
       - "app/Http/Controllers/Auth/AuthController.php"
       - "app/Http/Middleware/Authenticate.php"
-      - "mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
-      - "mases_core/src/Auth/Services/AdaptiveStepUpContext.php"
-      - "mases_core/src/Auth/Services/AdaptiveStepUpService.php"
-      - "mases_core/src/Auth/Services/AdaptiveStepUpGuard.php"
-      - "mases_core/src/Domains/Wallet/Http/Controllers/PaymentController.php"
-      - "mases_core/src/Domains/Wallet/Http/Controllers/WalletController.php"
-      - "mases_core/src/Domains/Wallet/Http/Controllers/AllocationController.php"
-      - "mases_core/src/Domains/Loan/Http/Controllers/LoanController.php"
-      - "mases_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php"
+      - "arna_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
+      - "arna_core/src/Auth/Services/AdaptiveStepUpContext.php"
+      - "arna_core/src/Auth/Services/AdaptiveStepUpService.php"
+      - "arna_core/src/Auth/Services/AdaptiveStepUpGuard.php"
+      - "arna_core/src/Domains/Wallet/Http/Controllers/PaymentController.php"
+      - "arna_core/src/Domains/Wallet/Http/Controllers/WalletController.php"
+      - "arna_core/src/Domains/Wallet/Http/Controllers/AllocationController.php"
+      - "arna_core/src/Domains/Loan/Http/Controllers/LoanController.php"
+      - "arna_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php"
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
       - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "tests/Feature/IdentityChangeStepUpTest.php"
       - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
-      - "mases_core/src/Auth/Services/TotpMfaService.php"
-      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "arna_core/src/Auth/Services/TotpMfaService.php"
+      - "arna_core/src/Auth/Services/AuthenticationService.php"
       - "tests/Feature/TotpMfaTest.php"
       - "tests/Feature/AuthenticationLifecycleTest.php"
       - "app/Http/Middleware/RequireAdaptiveStepUp.php"
       - "config/auth-step-up.php"
       - "routes/api.php"
-      - "mases_core/src/Domains/Wallet/Routes/api.php"
-      - "mases_core/src/Domains/Loan/Routes/api.php"
+      - "arna_core/src/Domains/Wallet/Routes/api.php"
+      - "arna_core/src/Domains/Loan/Routes/api.php"
       - "tests/Feature/AdaptiveStepUpServiceTest.php"
       - "tests/Feature/AdaptiveStepUpGuardTest.php"
       - "tests/Feature/AdaptiveStepUpPinFactorTest.php"
@@ -35,8 +35,8 @@ on:
       - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "tests/Feature/IdentityChangeStepUpTest.php"
       - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
-      - "mases_core/src/Auth/Models/DeviceSession.php"
-      - "mases_core/src/Auth/Services/DeviceSessionService.php"
+      - "arna_core/src/Auth/Models/DeviceSession.php"
+      - "arna_core/src/Auth/Services/DeviceSessionService.php"
       - "database/migrations/2026_11_22_00000*.php"
       - "tests/Feature/AndroidDeviceSessionTest.php"
       - ".github/workflows/arna-device-session-pin.yml"
@@ -45,28 +45,28 @@ on:
     paths:
       - "app/Http/Controllers/Auth/AuthController.php"
       - "app/Http/Middleware/Authenticate.php"
-      - "mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
-      - "mases_core/src/Auth/Services/AdaptiveStepUpContext.php"
-      - "mases_core/src/Auth/Services/AdaptiveStepUpService.php"
-      - "mases_core/src/Auth/Services/AdaptiveStepUpGuard.php"
-      - "mases_core/src/Domains/Wallet/Http/Controllers/PaymentController.php"
-      - "mases_core/src/Domains/Wallet/Http/Controllers/WalletController.php"
-      - "mases_core/src/Domains/Wallet/Http/Controllers/AllocationController.php"
-      - "mases_core/src/Domains/Loan/Http/Controllers/LoanController.php"
-      - "mases_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php"
+      - "arna_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php"
+      - "arna_core/src/Auth/Services/AdaptiveStepUpContext.php"
+      - "arna_core/src/Auth/Services/AdaptiveStepUpService.php"
+      - "arna_core/src/Auth/Services/AdaptiveStepUpGuard.php"
+      - "arna_core/src/Domains/Wallet/Http/Controllers/PaymentController.php"
+      - "arna_core/src/Domains/Wallet/Http/Controllers/WalletController.php"
+      - "arna_core/src/Domains/Wallet/Http/Controllers/AllocationController.php"
+      - "arna_core/src/Domains/Loan/Http/Controllers/LoanController.php"
+      - "arna_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php"
       - "tests/Feature/AdaptiveLoginAuthenticatorTest.php"
       - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "tests/Feature/IdentityChangeStepUpTest.php"
       - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
-      - "mases_core/src/Auth/Services/TotpMfaService.php"
-      - "mases_core/src/Auth/Services/AuthenticationService.php"
+      - "arna_core/src/Auth/Services/TotpMfaService.php"
+      - "arna_core/src/Auth/Services/AuthenticationService.php"
       - "tests/Feature/TotpMfaTest.php"
       - "tests/Feature/AuthenticationLifecycleTest.php"
       - "app/Http/Middleware/RequireAdaptiveStepUp.php"
       - "config/auth-step-up.php"
       - "routes/api.php"
-      - "mases_core/src/Domains/Wallet/Routes/api.php"
-      - "mases_core/src/Domains/Loan/Routes/api.php"
+      - "arna_core/src/Domains/Wallet/Routes/api.php"
+      - "arna_core/src/Domains/Loan/Routes/api.php"
       - "tests/Feature/AdaptiveStepUpServiceTest.php"
       - "tests/Feature/AdaptiveStepUpGuardTest.php"
       - "tests/Feature/AdaptiveStepUpPinFactorTest.php"
@@ -74,8 +74,8 @@ on:
       - "tests/Feature/PasswordRecoveryOtpTest.php"
       - "tests/Feature/IdentityChangeStepUpTest.php"
       - "tests/Unit/AdaptiveAuthenticationPolicyTest.php"
-      - "mases_core/src/Auth/Models/DeviceSession.php"
-      - "mases_core/src/Auth/Services/DeviceSessionService.php"
+      - "arna_core/src/Auth/Models/DeviceSession.php"
+      - "arna_core/src/Auth/Services/DeviceSessionService.php"
       - "database/migrations/2026_11_22_00000*.php"
       - "tests/Feature/AndroidDeviceSessionTest.php"
       - ".github/workflows/arna-device-session-pin.yml"
@@ -113,23 +113,23 @@ jobs:
         run: |
           php -l app/Http/Controllers/Auth/AuthController.php
           php -l app/Http/Middleware/Authenticate.php
-          php -l mases_core/src/Auth/Models/DeviceSession.php
-          php -l mases_core/src/Auth/Services/DeviceSessionService.php
+          php -l arna_core/src/Auth/Models/DeviceSession.php
+          php -l arna_core/src/Auth/Services/DeviceSessionService.php
           php -l database/migrations/2026_11_22_000001_create_auth_device_sessions_table.php
           php -l database/migrations/2026_11_22_000002_create_auth_device_login_challenges_table.php
           php -l database/migrations/2026_11_22_000003_create_auth_step_up_tables.php
           php -l tests/Feature/AndroidDeviceSessionTest.php
-          php -l mases_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php
-          php -l mases_core/src/Auth/Services/AdaptiveStepUpContext.php
-          php -l mases_core/src/Auth/Services/AdaptiveStepUpService.php
-          php -l mases_core/src/Auth/Services/AdaptiveStepUpGuard.php
-          php -l mases_core/src/Domains/Wallet/Http/Controllers/PaymentController.php
-          php -l mases_core/src/Domains/Wallet/Http/Controllers/WalletController.php
-          php -l mases_core/src/Domains/Wallet/Http/Controllers/AllocationController.php
-          php -l mases_core/src/Domains/Loan/Http/Controllers/LoanController.php
-          php -l mases_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php
-          php -l mases_core/src/Auth/Services/TotpMfaService.php
-          php -l mases_core/src/Auth/Services/AuthenticationService.php
+          php -l arna_core/src/Auth/Services/AdaptiveAuthenticationPolicy.php
+          php -l arna_core/src/Auth/Services/AdaptiveStepUpContext.php
+          php -l arna_core/src/Auth/Services/AdaptiveStepUpService.php
+          php -l arna_core/src/Auth/Services/AdaptiveStepUpGuard.php
+          php -l arna_core/src/Domains/Wallet/Http/Controllers/PaymentController.php
+          php -l arna_core/src/Domains/Wallet/Http/Controllers/WalletController.php
+          php -l arna_core/src/Domains/Wallet/Http/Controllers/AllocationController.php
+          php -l arna_core/src/Domains/Loan/Http/Controllers/LoanController.php
+          php -l arna_core/src/Domains/Loan/Http/Controllers/LoanRepaymentController.php
+          php -l arna_core/src/Auth/Services/TotpMfaService.php
+          php -l arna_core/src/Auth/Services/AuthenticationService.php
           php -l tests/Feature/TotpMfaTest.php
           php -l tests/Feature/AuthenticationLifecycleTest.php
           php -l app/Http/Middleware/RequireAdaptiveStepUp.php

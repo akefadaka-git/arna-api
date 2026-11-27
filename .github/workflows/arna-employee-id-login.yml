@@ -8,7 +8,7 @@ on:
     paths:
       - "app/Http/Controllers/Auth/AuthController.php"
       - "database/migrations/**"
-      - "mases_core/src/Auth/Services/LoginIdentifierResolver.php"
+      - "arna_core/src/Auth/Services/LoginIdentifierResolver.php"
       - "tests/Feature/LoginIdentifierResolverTest.php"
       - ".github/workflows/arna-employee-id-login.yml"
       - "composer.json"
@@ -20,7 +20,7 @@ on:
     paths:
       - "app/Http/Controllers/Auth/AuthController.php"
       - "database/migrations/**"
-      - "mases_core/src/Auth/Services/LoginIdentifierResolver.php"
+      - "arna_core/src/Auth/Services/LoginIdentifierResolver.php"
       - "tests/Feature/LoginIdentifierResolverTest.php"
       - ".github/workflows/arna-employee-id-login.yml"
       - "composer.json"
@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           php -l database/migrations/2026_10_22_000001_create_employees_table.php
-          php -l mases_core/src/Auth/Services/LoginIdentifierResolver.php
+          php -l arna_core/src/Auth/Services/LoginIdentifierResolver.php
           php -l tests/Feature/LoginIdentifierResolverTest.php
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress

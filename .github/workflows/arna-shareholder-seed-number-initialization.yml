@@ -69,7 +69,7 @@ jobs:
         run: vendor/bin/phpunit tests/Feature/ShareholderNumberReconciliationTest.php
 
       - name: Test shareholder service fail-closed behavior
-        run: vendor/bin/phpunit mases_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php
+        run: vendor/bin/phpunit arna_core/src/Domains/Shareholder/Tests/Unit/ShareholderServiceTest.php
 
       - name: Test authentication lifecycle
         run: vendor/bin/phpunit tests/Feature/AuthenticationLifecycleTest.php

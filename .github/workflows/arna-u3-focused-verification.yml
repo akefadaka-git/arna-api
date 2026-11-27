@@ -6,7 +6,7 @@ on:
       - fix/arna-u3-focused-verification
     paths:
       - ".github/workflows/arna-u3-focused-verification.yml"
-      - "mases_core/src/Authorization/Services/AuthorizationService.php"
+      - "arna_core/src/Authorization/Services/AuthorizationService.php"
       - "tests/Unit/ExplicitTenantContextAuthorizationTest.php"
       - "tests/Feature/AuthenticationLifecycleTest.php"
       - "tests/Feature/C09/TenantResolutionTest.php"
@@ -65,7 +65,7 @@ jobs:
       - name: PHP syntax lint
         run: |
           set -euo pipefail
-          php -l mases_core/src/Authorization/Services/AuthorizationService.php
+          php -l arna_core/src/Authorization/Services/AuthorizationService.php
           php -l tests/Unit/ExplicitTenantContextAuthorizationTest.php
           php -l tests/Feature/AuthenticationLifecycleTest.php
           php -l tests/Feature/C09/TenantResolutionTest.php
