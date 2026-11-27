@@ -82,7 +82,8 @@ jobs:
         run: composer validate --no-check-publish
 
       - name: Enforce locked dependency security audit
-        run: composer audit --format=plain
+        id: audit
+        run: composer audit --locked --format=plain
 
       - name: Record exact-head audit evidence
         if: always()
@@ -92,7 +93,7 @@ jobs:
             echo "expected_sha=${{ steps.target.outputs.expected_sha }}"
             echo "checked_out_sha=$(git rev-parse HEAD)"
             echo "composer_version=$(composer --version --no-ansi 2>/dev/null || echo unavailable)"
-            echo "audit_exit_status=${{ job.status }}"
+            echo "audit_exit_status=${{ steps.audit.outcome }}"
           } > composer-security-exact-head.txt
 
       - name: Upload audit evidence
