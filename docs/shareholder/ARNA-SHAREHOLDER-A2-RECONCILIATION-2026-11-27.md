@@ -200,19 +200,6 @@ The domain permission seeder manages these 13 tenant-scoped slugs:
 | `shareholder.import.review` | Catalogued; no default role grant |
 | `shareholder.import.approve` | Catalogued; no default role grant |
 
-### 8.4 Adjacent Governance permissions used by the GA/election integration
-
-These are Governance-owned permissions, not Shareholder permissions. They are present in \`GovernancePermissionsSeeder\` and must remain owned by Governance:
-
-- Meetings: \`governance.meeting.view\`, \`governance.meeting.create\`, \`governance.meeting.manage\`, \`governance.meeting.approve\`.
-- Agendas: \`governance.agenda.view\`, \`governance.agenda.manage\`.
-- Attendance: \`governance.attendance.view\`, \`governance.attendance.manage\`.
-- Minutes: \`governance.minute.view\`, \`governance.minute.manage\`, \`governance.minute.approve\`.
-- Resolutions: \`governance.resolution.view\`, \`governance.resolution.create\`, \`governance.resolution.manage\`, \`governance.resolution.approve\`.
-- Elections: \`governance.election.view\`, \`governance.election.manage\`, \`governance.election.authorize\`, \`governance.election.schedule\`, \`governance.election.suspend\`, \`governance.election.cancel\`, \`governance.election.archive\`.
-
-These 22 adjacent permissions do not by themselves authorize statutory activity. Route-level and policy checks, authenticated legal evidence, independent approvals and the GA fail-closed gates remain mandatory. No new GA-specific permissions are to be invented during UI work without an approved API contract.
-
 ### 8.3 Current role matrix
 
 The ShareholderRolesSeeder documents this matrix:
@@ -230,6 +217,19 @@ The seeder uses composite synchronization to preserve grants from other domains.
 **Reconciliation note:** some seeder/controller comments still describe own-holding/certificate grants as inert or describe route-level permission middleware that is not present on every corresponding route. The executable policy/controller checks are the operative contract. Update stale comments and add a permission-to-policy-to-route contract test in A3; do not alter grants without a reviewed RBAC matrix.
 
 No dedicated permission currently exists for certificate replacement, statutory-register verification, transfer approval, dividend viewing/management, GA notices, proxy approval or ballot submission. Those must be designed with domain ownership and separation-of-duties controls before implementation.
+
+### 8.4 Adjacent Governance permissions used by the GA/election integration
+
+These are Governance-owned permissions, not Shareholder permissions. They are present in `GovernancePermissionsSeeder` and must remain owned by Governance:
+
+- Meetings: `governance.meeting.view`, `governance.meeting.create`, `governance.meeting.manage`, `governance.meeting.approve`.
+- Agendas: `governance.agenda.view`, `governance.agenda.manage`.
+- Attendance: `governance.attendance.view`, `governance.attendance.manage`.
+- Minutes: `governance.minute.view`, `governance.minute.manage`, `governance.minute.approve`.
+- Resolutions: `governance.resolution.view`, `governance.resolution.create`, `governance.resolution.manage`, `governance.resolution.approve`.
+- Elections: `governance.election.view`, `governance.election.manage`, `governance.election.authorize`, `governance.election.schedule`, `governance.election.suspend`, `governance.election.cancel`, `governance.election.archive`.
+
+These 22 adjacent permissions do not by themselves authorize statutory activity. Route-level and policy checks, authenticated legal evidence, independent approvals and the GA fail-closed gates remain mandatory. No new GA-specific permissions are to be invented during UI work without an approved API contract.
 
 ## 9. Frontend integration summary
 
