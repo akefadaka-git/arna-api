@@ -478,7 +478,7 @@ final class CalendarService
                 throw new BadRequestHttpException('Only requested appointments can be confirmed.');
             }
 
-            $event = CalendarEvent::query()->where('tenant_id', $this->tenantId())
+            $event = CalendarEvent::query()->where('tenant_id', $tenantId)
                 ->whereKey($appointment->event_id)->lockForUpdate()->first();
             if (!$event || $event->status !== 'scheduled') {
                 throw new NotFoundHttpException('Appointment not found.');
@@ -515,7 +515,8 @@ final class CalendarService
     private function closeAppointment(User $actor, string $id, string $status): CalendarAppointment
     {
         return DB::transaction(function () use ($actor, $id, $status): CalendarAppointment {
-            $appointment = CalendarAppointment::query()->where('tenant_id', $this->tenantId())
+            $tenantId = $this->tenantId();
+            $appointment = CalendarAppointment::query()->where('tenant_id', $tenantId)
                 ->whereKey($id)->lockForUpdate()->first();
             if (!$appointment) {
                 throw new NotFoundHttpException('Appointment not found.');
