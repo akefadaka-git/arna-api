@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7c259ebafe8c7dcda015ced71652c69b",
+    "content-hash": "284e8b734f6f50547ec5fa0fb05efb27",
     "packages": [
         {
             "name": "brick/math",
@@ -6926,7 +6926,8 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-09-23T12:23:07+00:00"
+            "time": "2026-09-23T12:23:07+00:00",
+            "published-time": "2026-09-23T12:23:18+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
