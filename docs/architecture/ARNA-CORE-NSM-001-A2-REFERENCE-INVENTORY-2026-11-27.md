@@ -1308,3 +1308,36 @@ Open items before A2 can be marked VERIFIED-CLOSED:
 5. Freeze A1 canonical target and migration policy, including treatment of historical/archival documents and any one-time compatibility migration.
 
 **A3 NOT STARTED. A4 NOT RUN. A5 NOT AUTHORIZED.** No source or runtime changes were made.
+
+## 12. Namespace search coverage by area
+
+Additional repository-scoped namespace searches were run to partition the broad `MaaleArna MASES Core` query. Results below are distinct paths returned by each query; they overlap and must not be summed. A result count of 100 means the connector search cap was reached, not that the namespace occurs in exactly 100 files.
+
+| Namespace area query | Distinct paths returned | Search cap reached? |
+|---|---:|---|
+| Auth | 100 | Yes |
+| Authorization | 100 | Yes |
+| Tenancy | 100 | Yes |
+| Audit | 100 | Yes |
+| Calendar | 86 | No |
+| Localization | 55 | No |
+| Providers | 22 | No |
+| Policy | 100 | Yes |
+| Exceptions | 67 | No |
+| Security | 66 | No |
+| Files | 67 | No |
+| Domains / Finance | 100 | Yes |
+| Domains / Governance | 100 | Yes |
+| Domains / Loan | 100 | Yes |
+| Domains / Shareholder | 100 | Yes |
+| Domains / Wallet | 100 | Yes |
+| Domains / Documents | 62 | No |
+| Domains / People | 48 | No |
+| Domains / Organization | 32 | No |
+| Domains / FileManagement | 14 | No |
+
+This confirms broad namespace fan-out across Core capabilities and domain layers. It does **not** provide a complete line-level inventory because several partitions reached the 100-result cap and code search is not a deterministic full-text scan. The exact 642-path Core source move-set is listed in §1.1; a full-content scan remains an A2 closure gate.
+
+### Active localization contract confirmation
+
+The API's `LocalizationService` defines and reads/writes both `mases_locale` session and cookie keys. `LocalizationMiddleware` injects that service and calls `getCurrentLocale()` / `setLocale()`; `bootstrap/app.php` registers that middleware globally. This is an active API runtime contract, not only a comment or dormant provider artifact. The separate `LocaleManager` / `mases_localization` cluster remains dormant because its provider is not registered.
