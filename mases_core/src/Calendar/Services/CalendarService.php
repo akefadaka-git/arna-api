@@ -17,10 +17,7 @@ use MaaleArna\MASES\Core\Localization\Calendar\Contracts\CalendarInstant;
 use MaaleArna\MASES\Core\Localization\Calendar\Contracts\LocalDate;
 use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
 use MaaleArna\MASES\Core\Localization\Calendar\EthiopianDate;
-use MaaleArna\MASES\Core\Notifications\Services\NotificationService;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
-use Throwable;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -30,7 +27,6 @@ final class CalendarService
     public function __construct(
         private readonly TenantContextService $tenantContext,
         private readonly CalendarDomainResourceAuthorizer $domainResourceAuthorizer,
-        private readonly NotificationService $notifications,
     ) {
     }
 
@@ -934,40 +930,48 @@ final class CalendarService
         string $action,
         array $recipientIds,
     ): void {
-        DB::afterCommit(function () use ($tenantId, $appointment, $event, $proposalId, $action, $recipientIds): void {
-            try {
-                $tenant = Tenant::query()->find($tenantId);
-                if (!$tenant) {
-                    return;
-                }
-                $users = User::query()->whereIn('id', array_values(array_unique($recipientIds)))->get();
-                if ($users->isEmpty()) {
-                    return;
-                }
-                $titles = [
-                    'proposed' => ['am' => 'አዲስ የቀጠሮ ሰዓት ቀርቧል', 'en' => 'Appointment time change proposed'],
-                    'accepted' => ['am' => 'የቀጠሮ ሰዓት ተቀይሯል', 'en' => 'Appointment time changed'],
-                    'declined' => ['am' => 'የቀጠሮ ለውጥ ተቀባይነት አላገኘም', 'en' => 'Appointment time change declined'],
-                    'withdrawn' => ['am' => 'የቀጠሮ ለውጥ ጥያቄ ተመልሷል', 'en' => 'Appointment time change withdrawn'],
-                ];
-                $title = $titles[$action] ?? $titles['proposed'];
-                $this->notifications->publish($tenant, $users->all(), [
-                    'event_key' => 'calendar.appointment.reschedule.'.$action,
-                    'category' => 'calendar',
-                    'priority' => 'normal',
-                    'title' => $title,
-                    'body' => [
-                        'am' => $event->title.' — የቀጠሮ ጊዜ ለውጥ',
-                        'en' => $event->title.' — appointment schedule update',
-                    ],
-                    'action_route_name' => 'appointments',
-                    'resource_ref' => ['type' => 'calendar_appointment', 'id' => (string) $appointment->id, 'proposal_id' => $proposalId],
-                    'dedupe_key' => 'appointment-reschedule:'.$proposalId.':'.$action,
-                ]);
-            } catch (Throwable $error) {
-                report($error);
-            }
-        });
+        $titles = [
+            'proposed' => ['am' => 'አዲስ የቀጠሮ ሰዓት ቀርቧል', 'en' => 'Appointment time change proposed'],
+            'accepted' => ['am' => 'የቀጠሮ ሰዓት ተቀይሯል', 'en' => 'Appointment time changed'],
+            'declined' => ['am' => 'የቀጠሮ ለውጥ ተቀባይነት አላገኘም', 'en' => 'Appointment time change declined'],
+            'withdrawn' => ['am' => 'የቀጠሮ ለውጥ ጥያቄ ተመልሷል', 'en' => 'Appointment time change withdrawn'],
+        ];
+        $title = $titles[$action] ?? $titles['proposed'];
+        $uniqueRecipients = array_values(array_unique(array_map('intval', $recipientIds)));
+        foreach ($uniqueRecipients as $recipientId) {
+            $dedupeKey = 'appointment-reschedule:'.$proposalId.':'.$action.':'.$recipientId;
+            $payload = [
+                'event_key' => 'calendar.appointment.reschedule.'.$action,
+                'category' => 'calendar',
+                'priority' => 'normal',
+                'title' => $title,
+                'body' => [
+                    'am' => $event->title.' — የቀጠሮ ጊዜ ለውጥ',
+                    'en' => $event->title.' — appointment schedule update',
+                ],
+                'action_route_name' => 'appointments',
+                'resource_ref' => [
+                    'type' => 'calendar_appointment',
+                    'id' => (string) $appointment->id,
+                    'proposal_id' => $proposalId,
+                ],
+                'dedupe_key' => $dedupeKey,
+            ];
+            DB::table('calendar_appointment_notification_outbox')->insertOrIgnore([
+                'id' => (string) Str::uuid(),
+                'tenant_id' => $tenantId,
+                'appointment_id' => $appointment->id,
+                'proposal_id' => $proposalId,
+                'recipient_user_id' => $recipientId,
+                'action' => $action,
+                'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
+                'status' => 'pending',
+                'attempts' => 0,
+                'idempotency_key' => $dedupeKey,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     private function appointmentCalendar(User $actor, int|string $tenantId, array $data): Calendar
