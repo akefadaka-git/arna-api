@@ -560,12 +560,30 @@ final class CalendarService
                 ->update(['status' => 'cancelled', 'version' => DB::raw('version + 1'), 'updated_at' => now()]);
 
             if ($status === 'cancelled') {
-                DB::table('calendar_appointment_reschedule_proposals')
+                $pendingProposals = DB::table('calendar_appointment_reschedule_proposals')
                     ->where('tenant_id', $tenantId)->where('appointment_id', $appointment->id)
-                    ->where('status', 'pending')->update([
-                        'status' => 'withdrawn', 'responded_by_user_id' => $actor->getKey(),
-                        'responded_at' => now(), 'updated_at' => now(),
-                    ]);
+                    ->where('status', 'pending')->get(['id']);
+                if ($pendingProposals->isNotEmpty()) {
+                    $attendeeIds = DB::table('calendar_attendees')->where('tenant_id', $tenantId)
+                        ->where('event_id', $event->id)->pluck('user_id')->map(fn ($id): int => (int) $id)->all();
+                    $participantIds = array_values(array_unique(array_map('intval', [
+                        $appointment->requested_by_user_id, $appointment->host_user_id, ...$attendeeIds,
+                    ])));
+                    foreach ($pendingProposals as $pendingProposal) {
+                        DB::table('calendar_appointment_reschedule_proposals')->where('tenant_id', $tenantId)
+                            ->where('id', $pendingProposal->id)->update([
+                                'status' => 'withdrawn', 'responded_by_user_id' => $actor->getKey(),
+                                'responded_at' => now(), 'updated_at' => now(),
+                            ]);
+                        $this->audit($actor, 'appointment_reschedule_proposal', (string) $pendingProposal->id, 'withdrawn', [
+                            'appointment_id' => $appointment->id,
+                            'reason' => 'appointment_cancelled',
+                        ]);
+                        $this->notifyAppointmentReschedule(
+                            $tenantId, $appointment, $event, (string) $pendingProposal->id, 'withdrawn', $participantIds,
+                        );
+                    }
+                }
             }
 
             $this->audit($actor, 'appointment', (string) $appointment->id, $status, [
