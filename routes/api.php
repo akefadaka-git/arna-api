@@ -868,6 +868,16 @@ Route::middleware(['auth:sanctum', 'tenant.membership'])->group(static function 
             ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('appointments.decline');
         Route::post('/appointments/{id}/cancel', [$controller, 'cancelAppointment'])
             ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('appointments.cancel');
+        Route::get('/appointments/{id}/reschedule-proposals', [$controller, 'rescheduleProposals'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.view')->name('appointments.reschedule-proposals.index');
+        Route::post('/appointments/{id}/reschedule-proposals', [$controller, 'createRescheduleProposal'])
+            ->whereUuid('id')->middleware('auth.permission:calendar.update')->name('appointments.reschedule-proposals.store');
+        Route::post('/appointments/{id}/reschedule-proposals/{proposalId}/accept', [$controller, 'acceptRescheduleProposal'])
+            ->whereUuid('id')->whereUuid('proposalId')->middleware('auth.permission:calendar.update')->name('appointments.reschedule-proposals.accept');
+        Route::post('/appointments/{id}/reschedule-proposals/{proposalId}/decline', [$controller, 'declineRescheduleProposal'])
+            ->whereUuid('id')->whereUuid('proposalId')->middleware('auth.permission:calendar.update')->name('appointments.reschedule-proposals.decline');
+        Route::post('/appointments/{id}/reschedule-proposals/{proposalId}/withdraw', [$controller, 'withdrawRescheduleProposal'])
+            ->whereUuid('id')->whereUuid('proposalId')->middleware('auth.permission:calendar.update')->name('appointments.reschedule-proposals.withdraw');
 
         Route::get('/resources', [$controller, 'resources'])
             ->middleware('auth.permission:calendar.view')->name('resources.index');
