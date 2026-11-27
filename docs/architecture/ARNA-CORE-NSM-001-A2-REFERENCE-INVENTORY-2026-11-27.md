@@ -1531,3 +1531,56 @@ Accordingly:
 - **A3:** NOT STARTED. The A1 gate still prohibits implementation until the full scan is completed, reconciled and A2 is formally closed.
 
 No source, test, CI, migration, database, deployment or production changes were made by this supplemental inspection.
+
+
+## 17. Complete deterministic content scan and reconciliation — 2026-11-27
+
+The complete scan is recorded in [ARNA-CORE-NSM-001-A2-DETERMINISTIC-SCAN-RECONCILIATION-2026-11-27.md](ARNA-CORE-NSM-001-A2-DETERMINISTIC-SCAN-RECONCILIATION-2026-11-27.md).
+
+### 17.1 Frozen-SHA integrity
+
+| Repository | Frozen SHA | Expected blobs | Scanned blobs | Text | Binary | Content matches | Path-hit files |
+|---|---|---:|---:|---:|---:|---:|---:|
+| arna-api | `9c0ce83afcc084101fb14e6e55d54e1d953c2ffe` | 1,046 | 1,046 | 1,045 | 1 | 4,842 | 645 |
+| arna-app | `71bed2158894e3ce9cf507e8bf70492ac1f9dfd4` | 493 | 493 | 490 | 3 | 4,407 | 0 |
+| **Total** | — | **1,539** | **1,539** | **1,535** | **4** | **9,249** | **645** |
+
+Both checked-out HEAD values exactly matched the frozen SHAs. All 1,539 tracked blobs were read with `git cat-file --batch`; the recursive tree counts matched exactly. Four binary files were inventoried and none contained a matching token. The scan emitted **9,896 occurrence rows**: 9,249 content matches and 647 path-name matches. There are 645 unique API file paths with identity matches and 214 unique API directory paths containing the identity. The App has no tracked path-name matches.
+
+The API path move-set is 642 files under `mases_core/src/`; the three additional paths are:
+- `app/Console/Commands/MasesRectorVerifyCommand.php`
+- `database/factories/MaaleArna/MASES/Core/Authorization/Models/PermissionFactory.php`
+- `database/seeders/MasesCoreSeeder.php`
+
+### 17.2 Reconciliation
+
+All 9,896 occurrence rows have been assigned one primary reconciliation class in the derived line-level file `reconciled-occurrences.csv`. The full tracked-file inventory, occurrence inventory, file-level rollup and scan summary are available in the GitHub Actions artifact identified below.
+
+API findings are reconciled into Core tree/namespace migration, helpers and environment identifiers, configuration/container aliases, localization session/cookie keys, provider/seeder/command identities, 27 CI workflows, 153 test/test-harness files, developer tooling, current documentation, historical documentation and active comments/user-facing text.
+
+App findings are reconciled into CSS token definitions/consumers, four browser-storage fallback keys, stale `mase_app/` path/provenance comments, component/brand comments, user-visible titles, three test contracts, current documentation and historical/superseded documentation.
+
+Historical reports and dated audit evidence are retained. Current technical/operational documentation and current product identity are to be updated. The separate unregistered provider/localization cluster remains dormant; it must not be activated by this rename.
+
+### 17.3 Database and external-consumer boundary
+
+No MASES-prefixed table or column identifier was observed in the scanned migration content. Matching references in database migration files are comments, PHP namespace references or Core source paths. No schema/data change or migration execution is authorized.
+
+Supplemental public-owner code searches for the legacy PHP namespace, `mases_core`, `mases_locale` and `mase_app` returned only the two in-scope repositories. This is corroborative indexed search, not proof that private/local/unconnected consumers do not exist. Those consumers remain UNKNOWN / NOT ESTABLISHED. The Owner's fresh-deployment decision bounds the operational exposure and remains the deployment responsibility.
+
+### 17.4 Formal A2 closure
+
+**A2: VERIFIED-CLOSED for the defined frozen API/App repository scope.** Closure is supported by exact-SHA verification, full blob coverage, full path/content inventory, 9,896 classified occurrence rows, explicit active-vs-historical reconciliation and recorded residual external-consumer uncertainty.
+
+**A3 is eligible to begin on isolated API and App branches from the frozen SHAs.** No merge, main modification, database migration/schema/data change, production change or deployment is authorized by A2 closure. A4 and A5 remain separate gates.
+
+### 17.5 Reproducible evidence
+
+- Workflow run: https://github.com/akefadaka-git/arna-api/actions/runs/45975141734
+- Scan-only branch: `audit/arna-a2-frozen-content-scan-20261127`
+- Workflow commit: `d0e8eccd944988a596b065d3f4f175ad14ce60dc`
+- Artifact ID: `15187345405`, name `arna-a2-frozen-content-scan-20261127`, 314,364 bytes
+- Artifact SHA-256: `46c7d28c52d9fec755ddb178f8a580e75af14379e6b3cf3d077574f785a693c4`
+- Artifact expiry: 2026-12-04 09:36:48 UTC
+
+Section 16's partial-scan disposition is retained as the historically accurate state before this complete run; this section supersedes that disposition.
