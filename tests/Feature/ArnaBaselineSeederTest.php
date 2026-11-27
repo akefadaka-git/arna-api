@@ -192,8 +192,13 @@ final class ArnaBaselineSeederTest extends TestCase
         $snapshot = [];
 
         foreach (Schema::getTableListing() as $table) {
-            if (in_array($table, $volatile, true)
-                || ($excludeBaselineReferenceTables && in_array($table, $baselineReferences, true))) {
+            // MySQL may return schema-qualified names (database.table).
+            // Normalize only for exclusion matching; retain the original
+            // name for querying and snapshot keys.
+            $unqualifiedTable = substr($table, (strrpos($table, '.') ?: -1) + 1);
+
+            if (in_array($unqualifiedTable, $volatile, true)
+                || ($excludeBaselineReferenceTables && in_array($unqualifiedTable, $baselineReferences, true))) {
                 continue;
             }
 
