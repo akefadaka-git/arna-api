@@ -40,9 +40,13 @@ final class PermissionAwareRetrievalService
         $cited = [];
         foreach ($items as $item) {
             if (!is_array($item)
-                || empty($item['source_ref'])
-                || empty($item['evidence_id'])
-                || !isset($item['content'])) {
+                || !isset($item['tenant_id'])
+                || (int) $item['tenant_id'] !== (int) $scope['tenant_id']
+                || !isset($item['source_ref'], $item['evidence_id'], $item['content'])
+                || !is_string($item['source_ref'])
+                || !is_string($item['evidence_id'])
+                || $item['source_ref'] === ''
+                || $item['evidence_id'] === '') {
                 continue;
             }
             $cited[] = $item;
