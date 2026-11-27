@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\AI\\Services;
+namespace MaaleArna\MASES\Core\AI\Services;
 
-use MaaleArna\\MASES\\Core\\AI\\Contracts\\ModelGatewayContract;
-use Symfony\\Component\\HttpKernel\\Exception\\ServiceUnavailableHttpException;
+use MaaleArna\MASES\Core\AI\Contracts\ModelGatewayContract;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 /**
  * Fail-closed default. No provider, credential, network client or model is
