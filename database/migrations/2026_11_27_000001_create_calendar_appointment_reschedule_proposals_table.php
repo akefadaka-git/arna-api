@@ -12,10 +12,10 @@ return new class extends Migration
     {
         Schema::create('calendar_appointment_reschedule_proposals', function (Blueprint $table): void {
             $table->uuid('id')->primary();
-            $table->foreignId('tenant_id')->constrained('tenants', 'cap_resched_tenant_fk')->cascadeOnDelete();
-            $table->foreignUuid('appointment_id')->constrained('calendar_appointments', 'cap_resched_appointment_fk')->cascadeOnDelete();
-            $table->foreignId('proposer_user_id')->constrained('users', 'cap_resched_proposer_fk')->restrictOnDelete();
-            $table->foreignId('counterparty_user_id')->constrained('users', 'cap_resched_counterparty_fk')->restrictOnDelete();
+            $table->foreignId('tenant_id')->constrained('tenants', 'id', 'cap_resched_tenant_fk')->cascadeOnDelete();
+            $table->foreignUuid('appointment_id')->constrained('calendar_appointments', 'id', 'cap_resched_appointment_fk')->cascadeOnDelete();
+            $table->foreignId('proposer_user_id')->constrained('users', 'id', 'cap_resched_proposer_fk')->restrictOnDelete();
+            $table->foreignId('counterparty_user_id')->constrained('users', 'id', 'cap_resched_counterparty_fk')->restrictOnDelete();
             $table->timestamp('proposed_starts_at');
             $table->timestamp('proposed_ends_at');
             $table->string('timezone', 64);
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->unsignedInteger('base_appointment_version');
             $table->unsignedInteger('base_event_version');
             $table->string('status', 20)->default('pending');
-            $table->foreignId('responded_by_user_id')->nullable()->constrained('users', 'cap_resched_responder_fk')->nullOnDelete();
+            $table->foreignId('responded_by_user_id')->nullable()->constrained('users', 'id', 'cap_resched_responder_fk')->nullOnDelete();
             $table->timestamp('responded_at')->nullable();
             $table->timestamps();
 
