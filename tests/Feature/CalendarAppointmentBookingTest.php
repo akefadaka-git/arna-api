@@ -354,6 +354,8 @@ final class CalendarAppointmentBookingTest extends TestCase
             ])->assertCreated()->assertJsonPath('data.status', 'pending');
         $proposalId = $proposal->json('data.id');
 
+        $this->assertSame(3, DB::table('calendar_appointment_notification_outbox')
+            ->where('proposal_id', $proposalId)->where('action', 'proposed')->where('status', 'pending')->count());
         $this->assertDatabaseHas('calendar_events', ['id' => $eventId, 'starts_at' => $originalStart]);
         $this->assertDatabaseHas('calendar_appointment_reschedule_proposals', [
             'id' => $proposalId, 'appointment_id' => $appointmentId, 'status' => 'pending',
@@ -371,6 +373,8 @@ final class CalendarAppointmentBookingTest extends TestCase
         $this->assertDatabaseHas('calendar_appointment_reschedule_proposals', [
             'id' => $proposalId, 'status' => 'accepted', 'responded_by_user_id' => $host->id,
         ]);
+        $this->assertSame(3, DB::table('calendar_appointment_notification_outbox')
+            ->where('proposal_id', $proposalId)->where('action', 'accepted')->where('status', 'pending')->count());
         $this->assertSame(0, DB::table('calendar_reminder_outbox')->where('event_id', $eventId)
             ->where('status', 'pending')->where('idempotency_key', $eventId.':'.$host->id.':event_start_15m')->count());
         $this->assertGreaterThan(0, DB::table('calendar_reminder_outbox')->where('event_id', $eventId)
