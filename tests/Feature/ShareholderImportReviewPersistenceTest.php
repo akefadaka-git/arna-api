@@ -207,7 +207,7 @@ final class ShareholderImportReviewPersistenceTest extends TestCase
             (int) $tenant->id,
         );
 
-        $this->expectException(\\LogicException::class);
+        $this->expectException(\LogicException::class);
         $submission->payload = ['rows' => []];
         $submission->save();
     }
