@@ -17,6 +17,7 @@ use MaaleArna\MASES\Core\AI\Services\UnavailableDomainEvidenceSource;
 use MaaleArna\MASES\Core\AI\Services\PermissionAwareRetrievalService;
 use MaaleArna\MASES\Core\AI\Registry\AgentDefinition;
 use MaaleArna\MASES\Core\AI\Registry\AgentRegistry;
+use MaaleArna\MASES\Core\AI\Services\ModelExecutionPolicy;
 use MaaleArna\MASES\Core\Domains\Finance\Repositories\LegalEntityRepository;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\MASES\Core\Domains\Finance\Models\LedgerAccount;
@@ -84,7 +85,7 @@ final class FinanceServiceProvider extends ServiceProvider
             new AgentDefinition('calendar_planning_intelligence', 'Calendar and Planning Intelligence', 'Calendar-aware planning and summaries.', [], ['calendar', 'tasks']),
         ]));
         $this->app->singleton(PermissionAwareRetrievalService::class);
-        $this->app->singleton(\\MaaleArna\\MASES\\Core\\AI\\Services\\ModelExecutionPolicy::class);
+        $this->app->singleton(ModelExecutionPolicy::class);
 
         $this->app->singleton(LegalEntityRepository::class);
         $this->app->singleton(JournalEntryRepository::class);
