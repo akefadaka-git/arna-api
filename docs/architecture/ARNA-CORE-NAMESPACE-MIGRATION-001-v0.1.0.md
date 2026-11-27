@@ -1,8 +1,8 @@
 # ARNA Core Namespace and Source-Directory Migration
 **Document ID:** ARNA-CORE-NSM-001  
-**Version:** 0.1.0-draft  
+**Version:** 0.2.0-draft  
 **Date:** 2026-11-27  
-**Status:** A1 DRAFT — OWNER REVIEW REQUIRED; A2 READ-ONLY RECONCILIATION IN PROGRESS; A3 NOT STARTED
+**Status:** A1 DRAFT — OWNER REVIEW REQUIRED; A2 EXPANDED INVENTORY RECORDED / CLOSURE GATES OPEN; A3 NOT STARTED
 
 ## 1. Purpose and decision requested
 
@@ -49,13 +49,13 @@ No database table/column rename is proposed by this document. Any database ident
 | Evidence path / search | Observed fact | Risk / required action |
 |---|---|---|
 | `composer.json` | Package is `maale-arna/mases-api`; description identifies MASES Core; PSR-4 maps `MaaleArna\\MASES\\Core\\` to `mases_core/src/`; helper autoload points to `mases_core/src/Support/Helpers.php` | Package metadata, namespace and helper path all require coordinated update |
-| `bootstrap/providers.php` | Registered Core and Localization providers use legacy namespace/path/config terminology in comments and provider wiring | Update provider imports and all path/config references atomically |
+| `bootstrap/providers.php` | Actual returned provider array registers Core, Auth, Shareholder, Policy, Wallet, Loan, Governance and Finance providers. `LocalizationServiceProvider` is not registered despite stale comments; `MasesCoreServiceProvider` is explicitly not registered. | Update the eight registered provider FQCNs and stale comments; do not activate dormant providers by assumption. |
 | `mases_core/src/Providers/CoreServiceProvider.php` | Declares legacy namespace; loads `mases_core/src/Migrations`; merges `mases.php`; publishes `mases-config`; binds `mases.*` container aliases | Central bootstrap/runtime integration dependency |
 | `mases_core/src/Providers/LocalizationServiceProvider.php` | Legacy namespace and references to `mases.localization`; file/class placement warning exists in source comments | Reconcile actual class path and registration before moving; do not blindly preserve or activate a stale provider |
 | `phpunit.xml` | Test discovery, source coverage, helper bootstrap and AUTH_MODEL use old path/namespace; environment values include `MASES_*` | Test harness must be migrated with source |
 | `rector.php`, `app/Console/Commands/MasesRectorVerifyCommand.php` | Static-analysis and verification paths/command name use MASES identifiers | Update verification tooling and command identity |
 | Code search `mases_tenant_id` | 89 indexed matches across helper, policies, controllers, middleware, services and tests | High fan-out helper rename; complete call-site enumeration required |
-| Code search `config('mases.` | 14 indexed matches across providers, app and Core/domain services | Rename config namespace and every consumer |
+| Code search `config('mases.` | Initial exact search returned 14 matches; broader `config mases.` search returned 47 distinct paths, including source, tests and documentation | Rename active config namespace and consumers; classify documentation/test-only references separately |
 | Code search `mases.localization` | 9 indexed matches | Rename localization alias/config consumers |
 | Code search `MASES_ENV` | 2 indexed matches | Rename test/runtime environment keys |
 | Code search `mases-config` | 3 indexed matches | Rename publish tags and references |
@@ -107,4 +107,32 @@ A3 should be a single isolated refactor branch, sequenced to keep the tree boota
 
 This document is a draft proposal and read-only assessment. It does not freeze A1, close A2, authorize A3 code changes, authorize PR merge, or authorize A5 deployment. The user's requested outcome is captured as the target direction; the exact migration plan and any archival exceptions remain subject to Owner review.
 
-**Current status:** A1 DRAFT / A2 PARTIAL / A3 NOT STARTED / A4 NOT RUN / A5 NOT AUTHORIZED.
+**Current status:** A1 DRAFT / A2 PARTIAL — expanded API/App inventory recorded, closure gates remain open / A3 NOT STARTED / A4 NOT RUN / A5 NOT AUTHORIZED.
+
+
+## 9. Expanded A2 evidence and path inventory — 2026-11-27
+
+The first targeted assessment has been extended with a recursive tree and cross-repository consumer review. The detailed path-by-path record is maintained separately in:
+
+- [ARNA Core A2 reference inventory](ARNA-CORE-NSM-001-A2-REFERENCE-INVENTORY-2026-11-27.md)
+
+Verified baselines:
+- API main: `9c0ce83afcc084101fb14e6e55d54e1d953c2ffe`
+- App main: `71bed2158894e3ce9cf507e8bf70492ac1f9dfd4`
+- API tree: 1,046 tracked files, recursive response not truncated.
+- Core tree: 642 files, including 636 PHP files.
+- Test tree: 156 PHP test files (64 in Core domain tree, 92 under `tests/`).
+- CI: 39 workflows, of which 27 contain old Core path/test/seeder references.
+- Script inventory: two of five tracked scripts contain legacy Core namespace/path references.
+- API code-search results include 89 distinct paths for `mases_tenant_id`, 47 paths for broad `config mases.`, 9 for `mases.localization`, 5 for `mases_localization`, 4 for `mases_locale`, 3 for `mases-config`, and 18 for `MasesCoreSeeder`.
+
+The expanded inspection also found:
+- Sixteen global `mases_*` functions across the Core helper file and `bootstrap/app.php`.
+- Eighteen unique `MASES_*` environment variable names across Core config, app config and PHPUnit.
+- Active Core localization session/cookie key `mases_locale`.
+- A direct external integration consumer, `akefadaka-git/arna-app`. It does not import the PHP namespace or Composer package, but it contains four legacy browser-storage migration keys and an active `--mases-*` CSS token substrate (273 legacy token definitions and 273 ARNA aliases, 242 of which reference the legacy variables).
+- The App's current brand object and build names already use ARNA; historical docs and explicit migration compatibility remain.
+
+A2 is **not marked VERIFIED-CLOSED**. The recursive tree and targeted reference inventories are recorded, but broad namespace code search is capped at 100 results, the live Plesk environment is not accessible, and external consumers outside connected repositories/local installations cannot be verified. The App's CSS-token and browser-state compatibility scope also requires explicit A1 treatment before implementation.
+
+**A1 DRAFT / A2 PARTIAL-OPEN / A3 NOT STARTED / A4 NOT RUN / A5 NOT AUTHORIZED.**
