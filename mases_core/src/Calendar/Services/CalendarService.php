@@ -17,7 +17,10 @@ use MaaleArna\MASES\Core\Localization\Calendar\Contracts\CalendarInstant;
 use MaaleArna\MASES\Core\Localization\Calendar\Contracts\LocalDate;
 use MaaleArna\MASES\Core\Localization\Calendar\EthiopianCalendar;
 use MaaleArna\MASES\Core\Localization\Calendar\EthiopianDate;
+use MaaleArna\MASES\Core\Notifications\Services\NotificationService;
+use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
 use MaaleArna\MASES\Core\Tenancy\Services\TenantContextService;
+use Throwable;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -27,6 +30,7 @@ final class CalendarService
     public function __construct(
         private readonly TenantContextService $tenantContext,
         private readonly CalendarDomainResourceAuthorizer $domainResourceAuthorizer,
+        private readonly NotificationService $notifications,
     ) {
     }
 
@@ -558,6 +562,15 @@ final class CalendarService
                 ->where('event_id', $event->id)->where('status', 'confirmed')
                 ->update(['status' => 'cancelled', 'version' => DB::raw('version + 1'), 'updated_at' => now()]);
 
+            if ($status === 'cancelled') {
+                DB::table('calendar_appointment_reschedule_proposals')
+                    ->where('tenant_id', $tenantId)->where('appointment_id', $appointment->id)
+                    ->where('status', 'pending')->update([
+                        'status' => 'withdrawn', 'responded_by_user_id' => $actor->getKey(),
+                        'responded_at' => now(), 'updated_at' => now(),
+                    ]);
+            }
+
             $this->audit($actor, 'appointment', (string) $appointment->id, $status, [
                 'event_id' => $event->id,
                 'version' => $appointment->version,
@@ -565,6 +578,385 @@ final class CalendarService
 
             return $appointment->fresh()->load(['event.attendees', 'event.links']);
         }, 3);
+    }
+
+
+    /**
+     * Return proposal history to the appointment's requester or host only.
+     */
+    public function rescheduleProposals(User $actor, string $appointmentId): array
+    {
+        $tenantId = $this->tenantId();
+        $appointment = CalendarAppointment::query()->where('tenant_id', $tenantId)
+            ->whereKey($appointmentId)->first();
+        if (!$appointment
+            || !in_array((string) $actor->getKey(), [(string) $appointment->requested_by_user_id, (string) $appointment->host_user_id], true)) {
+            throw new NotFoundHttpException('Appointment not found.');
+        }
+
+        return DB::table('calendar_appointment_reschedule_proposals')
+            ->where('tenant_id', $tenantId)->where('appointment_id', $appointmentId)
+            ->orderByDesc('created_at')->get()->all();
+    }
+
+    public function createRescheduleProposal(User $actor, string $appointmentId, array $data): object
+    {
+        return DB::transaction(function () use ($actor, $appointmentId, $data): object {
+            $tenantId = $this->tenantId();
+            $appointment = CalendarAppointment::query()->where('tenant_id', $tenantId)
+                ->whereKey($appointmentId)->lockForUpdate()->first();
+            if (!$appointment
+                || !in_array((string) $actor->getKey(), [(string) $appointment->requested_by_user_id, (string) $appointment->host_user_id], true)) {
+                throw new NotFoundHttpException('Appointment not found.');
+            }
+            if ($appointment->status !== 'confirmed') {
+                throw new BadRequestHttpException('Only confirmed appointments can be rescheduled.');
+            }
+            if ((int) $data['expected_appointment_version'] !== (int) $appointment->version) {
+                throw new ConflictHttpException('Appointment version conflict; reload before proposing a new time.');
+            }
+
+            $event = CalendarEvent::query()->where('tenant_id', $tenantId)
+                ->whereKey($appointment->event_id)->lockForUpdate()->first();
+            if (!$event || $event->status !== 'scheduled' || $event->all_day || $event->recurrence_rule !== null) {
+                throw new BadRequestHttpException('Only standalone timed appointments can be rescheduled.');
+            }
+            if ((int) $data['expected_event_version'] !== (int) $event->version) {
+                throw new ConflictHttpException('Calendar event version conflict; reload before proposing a new time.');
+            }
+            if (isset($data['timezone']) && $data['timezone'] !== $event->timezone) {
+                throw new BadRequestHttpException('Rescheduling cannot change the appointment timezone.');
+            }
+            $pending = DB::table('calendar_appointment_reschedule_proposals')
+                ->where('tenant_id', $tenantId)->where('appointment_id', $appointmentId)
+                ->where('status', 'pending')->lockForUpdate()->exists();
+            if ($pending) {
+                throw new ConflictHttpException('This appointment already has a pending reschedule proposal.');
+            }
+
+            foreach (['starts_at', 'ends_at'] as $field) {
+                if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', (string) $data[$field])) {
+                    throw new BadRequestHttpException('Proposed appointment instants require Z or an explicit UTC offset.');
+                }
+            }
+            $start = CalendarInstant::fromString($data['starts_at'], $event->timezone)->utc();
+            $end = CalendarInstant::fromString($data['ends_at'], $event->timezone)->utc();
+            if ($end <= $start) {
+                throw new BadRequestHttpException('Proposed appointment end must be after its start.');
+            }
+            if ($start <= now()->toDateTimeImmutable()->setTimezone(new \DateTimeZone('UTC'))) {
+                throw new BadRequestHttpException('The proposed appointment start must be in the future.');
+            }
+
+            $attendeeIds = DB::table('calendar_attendees')->where('tenant_id', $tenantId)
+                ->where('event_id', $event->id)->pluck('user_id')->map(fn ($id): int => (int) $id)->all();
+            $participantIds = array_values(array_unique(array_map('intval', [
+                $appointment->requested_by_user_id, $appointment->host_user_id, ...$attendeeIds,
+            ])));
+            sort($participantIds);
+            $this->lockAppointmentParticipants($participantIds);
+            $this->assertActiveAppointmentParticipants($tenantId, $participantIds);
+
+            $reservations = DB::table('calendar_reservations')->where('tenant_id', $tenantId)
+                ->where('event_id', $event->id)->where('status', 'confirmed')
+                ->orderBy('resource_id')->lockForUpdate()->get();
+            $resourceIds = $reservations->pluck('resource_id')->map(fn ($id): string => (string) $id)->unique()->values()->all();
+            sort($resourceIds);
+            $this->assertActiveAppointmentResources($tenantId, $resourceIds, true);
+            $participantConflicts = $this->appointmentParticipantConflicts(
+                $tenantId, $participantIds, $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'), (string) $event->id,
+            );
+            $resourceConflicts = $this->appointmentResourceConflicts(
+                $tenantId, $resourceIds, $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'), (string) $event->id,
+            );
+            if ($participantConflicts !== [] || $resourceConflicts !== []) {
+                throw new ConflictHttpException('The proposed appointment time is no longer available.');
+            }
+
+            $proposerId = (int) $actor->getKey();
+            $counterpartyId = $proposerId === (int) $appointment->requested_by_user_id
+                ? (int) $appointment->host_user_id : (int) $appointment->requested_by_user_id;
+            $proposalId = (string) Str::uuid();
+            DB::table('calendar_appointment_reschedule_proposals')->insert([
+                'id' => $proposalId,
+                'tenant_id' => $tenantId,
+                'appointment_id' => $appointmentId,
+                'proposer_user_id' => $proposerId,
+                'counterparty_user_id' => $counterpartyId,
+                'proposed_starts_at' => $start->format('Y-m-d H:i:s'),
+                'proposed_ends_at' => $end->format('Y-m-d H:i:s'),
+                'timezone' => $event->timezone,
+                'reason' => $data['reason'] ?? null,
+                'base_appointment_version' => $appointment->version,
+                'base_event_version' => $event->version,
+                'status' => 'pending',
+                'responded_by_user_id' => null,
+                'responded_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->audit($actor, 'appointment_reschedule_proposal', $proposalId, 'proposed', [
+                'appointment_id' => $appointmentId,
+                'event_id' => $event->id,
+                'starts_at' => $start->format(DATE_ATOM),
+                'ends_at' => $end->format(DATE_ATOM),
+                'base_appointment_version' => $appointment->version,
+                'base_event_version' => $event->version,
+            ]);
+            $this->notifyAppointmentReschedule($tenantId, $appointment, $event, $proposalId, 'proposed', $participantIds);
+
+            return DB::table('calendar_appointment_reschedule_proposals')->where('id', $proposalId)->first();
+        }, 3);
+    }
+
+    public function acceptRescheduleProposal(User $actor, string $appointmentId, string $proposalId): CalendarAppointment
+    {
+        return DB::transaction(function () use ($actor, $appointmentId, $proposalId): CalendarAppointment {
+            $tenantId = $this->tenantId();
+            $appointment = CalendarAppointment::query()->where('tenant_id', $tenantId)
+                ->whereKey($appointmentId)->lockForUpdate()->first();
+            if (!$appointment || $appointment->status !== 'confirmed') {
+                throw new NotFoundHttpException('Appointment not found.');
+            }
+            $proposal = DB::table('calendar_appointment_reschedule_proposals')
+                ->where('tenant_id', $tenantId)->where('appointment_id', $appointmentId)
+                ->where('id', $proposalId)->lockForUpdate()->first();
+            if (!$proposal || (int) $proposal->counterparty_user_id !== (int) $actor->getKey()) {
+                throw new NotFoundHttpException('Reschedule proposal not found.');
+            }
+            if ($proposal->status !== 'pending') {
+                throw new ConflictHttpException('This reschedule proposal is no longer pending.');
+            }
+            if ((int) $proposal->base_appointment_version !== (int) $appointment->version) {
+                throw new ConflictHttpException('Appointment changed after this proposal was created; submit a new proposal.');
+            }
+
+            $event = CalendarEvent::query()->where('tenant_id', $tenantId)
+                ->whereKey($appointment->event_id)->lockForUpdate()->first();
+            if (!$event || $event->status !== 'scheduled' || (int) $proposal->base_event_version !== (int) $event->version) {
+                throw new ConflictHttpException('Calendar event changed after this proposal was created; submit a new proposal.');
+            }
+            if ($event->timezone !== $proposal->timezone || $event->all_day || $event->recurrence_rule !== null) {
+                throw new ConflictHttpException('The appointment no longer matches the proposal baseline.');
+            }
+
+            $newStart = new \DateTimeImmutable($proposal->proposed_starts_at, new \DateTimeZone('UTC'));
+            $newEnd = new \DateTimeImmutable($proposal->proposed_ends_at, new \DateTimeZone('UTC'));
+            if ($newStart <= now()->toDateTimeImmutable()->setTimezone(new \DateTimeZone('UTC')) || $newEnd <= $newStart) {
+                throw new ConflictHttpException('The proposed time is no longer valid; submit a new proposal.');
+            }
+
+            $attendeeIds = DB::table('calendar_attendees')->where('tenant_id', $tenantId)
+                ->where('event_id', $event->id)->pluck('user_id')->map(fn ($id): int => (int) $id)->all();
+            $participantIds = array_values(array_unique(array_map('intval', [
+                $appointment->requested_by_user_id, $appointment->host_user_id, ...$attendeeIds,
+            ])));
+            sort($participantIds);
+            $this->lockAppointmentParticipants($participantIds);
+            $this->assertActiveAppointmentParticipants($tenantId, $participantIds);
+
+            $reservations = DB::table('calendar_reservations')->where('tenant_id', $tenantId)
+                ->where('event_id', $event->id)->where('status', 'confirmed')
+                ->orderBy('resource_id')->lockForUpdate()->get();
+            $resourceIds = $reservations->pluck('resource_id')->map(fn ($id): string => (string) $id)->unique()->values()->all();
+            sort($resourceIds);
+            $this->assertActiveAppointmentResources($tenantId, $resourceIds, true);
+            $oldStart = new \DateTimeImmutable($event->starts_at->format('Y-m-d H:i:s'), new \DateTimeZone('UTC'));
+            $oldEnd = new \DateTimeImmutable($event->ends_at->format('Y-m-d H:i:s'), new \DateTimeZone('UTC'));
+            $participantConflicts = $this->appointmentParticipantConflicts(
+                $tenantId, $participantIds, $newStart->format('Y-m-d H:i:s'), $newEnd->format('Y-m-d H:i:s'), (string) $event->id,
+            );
+            $resourceConflicts = $this->appointmentResourceConflicts(
+                $tenantId, $resourceIds, $newStart->format('Y-m-d H:i:s'), $newEnd->format('Y-m-d H:i:s'), (string) $event->id,
+            );
+            if ($participantConflicts !== [] || $resourceConflicts !== []) {
+                throw new ConflictHttpException('The proposed appointment time is no longer available; the current booking is unchanged.');
+            }
+
+            $event->starts_at = $newStart->format('Y-m-d H:i:s');
+            $event->ends_at = $newEnd->format('Y-m-d H:i:s');
+            $event->version++;
+            $event->save();
+
+            foreach ($reservations as $reservation) {
+                $reservationStart = new \DateTimeImmutable($reservation->starts_at, new \DateTimeZone('UTC'));
+                $reservationEnd = new \DateTimeImmutable($reservation->ends_at, new \DateTimeZone('UTC'));
+                $startOffset = $reservationStart->getTimestamp() - $oldStart->getTimestamp();
+                $endOffset = $reservationEnd->getTimestamp() - $oldStart->getTimestamp();
+                $shiftedStart = (new \DateTimeImmutable('@'.($newStart->getTimestamp() + $startOffset)))->setTimezone(new \DateTimeZone('UTC'));
+                $shiftedEnd = (new \DateTimeImmutable('@'.($newStart->getTimestamp() + $endOffset)))->setTimezone(new \DateTimeZone('UTC'));
+                DB::table('calendar_reservations')->where('tenant_id', $tenantId)->where('id', $reservation->id)
+                    ->update([
+                        'starts_at' => $shiftedStart->format('Y-m-d H:i:s'),
+                        'ends_at' => $shiftedEnd->format('Y-m-d H:i:s'),
+                        'version' => DB::raw('version + 1'),
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            $oldPending = DB::table('calendar_reminder_outbox')->where('tenant_id', $tenantId)
+                ->where('event_id', $event->id)->where('status', 'pending');
+            $reminderTemplates = DB::table('calendar_reminder_outbox')->where('tenant_id', $tenantId)
+                ->where('event_id', $event->id)->get(['recipient_user_id', 'reminder_type']);
+            $oldPending->update([
+                'status' => 'skipped',
+                'last_error' => 'Superseded by an accepted appointment reschedule.',
+                'updated_at' => now(),
+            ]);
+            $reminderStart = $newStart;
+            foreach ($reminderTemplates->unique(fn ($row) => $row->recipient_user_id.':'.$row->reminder_type) as $template) {
+                if (!preg_match('/^event_start_([0-9]+)m$/', (string) $template->reminder_type, $matches)) {
+                    continue;
+                }
+                $minutes = (int) $matches[1];
+                $deliverAt = $reminderStart->modify('-'.$minutes.' minutes');
+                if ($deliverAt <= now()->toDateTimeImmutable()) {
+                    $deliverAt = now()->toDateTimeImmutable();
+                }
+                $key = $event->id.':'.$template->recipient_user_id.':'.$template->reminder_type.':reschedule:v'.$event->version;
+                DB::table('calendar_reminder_outbox')->insertOrIgnore([
+                    'id' => (string) Str::uuid(),
+                    'tenant_id' => $tenantId,
+                    'event_id' => $event->id,
+                    'recipient_user_id' => $template->recipient_user_id,
+                    'reminder_type' => $template->reminder_type,
+                    'deliver_at' => $deliverAt->format('Y-m-d H:i:s'),
+                    'status' => 'pending',
+                    'attempts' => 0,
+                    'idempotency_key' => $key,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $appointment->version++;
+            $appointment->save();
+            DB::table('calendar_appointment_reschedule_proposals')->where('id', $proposalId)
+                ->where('tenant_id', $tenantId)->update([
+                    'status' => 'accepted',
+                    'responded_by_user_id' => $actor->getKey(),
+                    'responded_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            $this->audit($actor, 'appointment', (string) $appointment->id, 'rescheduled', [
+                'event_id' => $event->id,
+                'old_starts_at' => $oldStart->format(DATE_ATOM),
+                'old_ends_at' => $oldEnd->format(DATE_ATOM),
+                'new_starts_at' => $newStart->format(DATE_ATOM),
+                'new_ends_at' => $newEnd->format(DATE_ATOM),
+                'appointment_version' => $appointment->version,
+                'event_version' => $event->version,
+                'proposal_id' => $proposalId,
+            ]);
+            $this->audit($actor, 'appointment_reschedule_proposal', $proposalId, 'accepted', [
+                'appointment_id' => $appointmentId,
+                'event_id' => $event->id,
+            ]);
+            $this->notifyAppointmentReschedule($tenantId, $appointment, $event, $proposalId, 'accepted', $participantIds);
+
+            return $appointment->fresh()->load(['event.attendees', 'event.links']);
+        }, 3);
+    }
+
+    public function declineRescheduleProposal(User $actor, string $appointmentId, string $proposalId): object
+    {
+        return $this->closeRescheduleProposal($actor, $appointmentId, $proposalId, 'declined');
+    }
+
+    public function withdrawRescheduleProposal(User $actor, string $appointmentId, string $proposalId): object
+    {
+        return $this->closeRescheduleProposal($actor, $appointmentId, $proposalId, 'withdrawn');
+    }
+
+    private function closeRescheduleProposal(User $actor, string $appointmentId, string $proposalId, string $status): object
+    {
+        return DB::transaction(function () use ($actor, $appointmentId, $proposalId, $status): object {
+            $tenantId = $this->tenantId();
+            $appointment = CalendarAppointment::query()->where('tenant_id', $tenantId)
+                ->whereKey($appointmentId)->lockForUpdate()->first();
+            if (!$appointment || $appointment->status !== 'confirmed') {
+                throw new NotFoundHttpException('Appointment not found.');
+            }
+            $proposal = DB::table('calendar_appointment_reschedule_proposals')
+                ->where('tenant_id', $tenantId)->where('appointment_id', $appointmentId)
+                ->where('id', $proposalId)->lockForUpdate()->first();
+            if (!$proposal || $proposal->status !== 'pending') {
+                throw new NotFoundHttpException('Pending reschedule proposal not found.');
+            }
+            $allowed = $status === 'declined'
+                ? (int) $proposal->counterparty_user_id === (int) $actor->getKey()
+                : (int) $proposal->proposer_user_id === (int) $actor->getKey();
+            if (!$allowed) {
+                throw new NotFoundHttpException('Pending reschedule proposal not found.');
+            }
+
+            DB::table('calendar_appointment_reschedule_proposals')->where('id', $proposalId)
+                ->where('tenant_id', $tenantId)->update([
+                    'status' => $status,
+                    'responded_by_user_id' => $actor->getKey(),
+                    'responded_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            $event = CalendarEvent::query()->where('tenant_id', $tenantId)->whereKey($appointment->event_id)->first();
+            $attendeeIds = DB::table('calendar_attendees')->where('tenant_id', $tenantId)
+                ->where('event_id', $appointment->event_id)->pluck('user_id')->map(fn ($id): int => (int) $id)->all();
+            $participantIds = array_values(array_unique(array_map('intval', [
+                $appointment->requested_by_user_id, $appointment->host_user_id, ...$attendeeIds,
+            ])));
+            $this->audit($actor, 'appointment_reschedule_proposal', $proposalId, $status, [
+                'appointment_id' => $appointmentId,
+                'event_id' => $appointment->event_id,
+            ]);
+            if ($event) {
+                $this->notifyAppointmentReschedule($tenantId, $appointment, $event, $proposalId, $status, $participantIds);
+            }
+
+            return DB::table('calendar_appointment_reschedule_proposals')->where('id', $proposalId)->first();
+        }, 3);
+    }
+
+    private function notifyAppointmentReschedule(
+        int|string $tenantId,
+        CalendarAppointment $appointment,
+        CalendarEvent $event,
+        string $proposalId,
+        string $action,
+        array $recipientIds,
+    ): void {
+        DB::afterCommit(function () use ($tenantId, $appointment, $event, $proposalId, $action, $recipientIds): void {
+            try {
+                $tenant = Tenant::query()->find($tenantId);
+                if (!$tenant) {
+                    return;
+                }
+                $users = User::query()->whereIn('id', array_values(array_unique($recipientIds)))->get();
+                if ($users->isEmpty()) {
+                    return;
+                }
+                $titles = [
+                    'proposed' => ['am' => 'አዲስ የቀጠሮ ሰዓት ቀርቧል', 'en' => 'Appointment time change proposed'],
+                    'accepted' => ['am' => 'የቀጠሮ ሰዓት ተቀይሯል', 'en' => 'Appointment time changed'],
+                    'declined' => ['am' => 'የቀጠሮ ለውጥ ተቀባይነት አላገኘም', 'en' => 'Appointment time change declined'],
+                    'withdrawn' => ['am' => 'የቀጠሮ ለውጥ ጥያቄ ተመልሷል', 'en' => 'Appointment time change withdrawn'],
+                ];
+                $title = $titles[$action] ?? $titles['proposed'];
+                $this->notifications->publish($tenant, $users->all(), [
+                    'event_key' => 'calendar.appointment.reschedule.'.$action,
+                    'category' => 'calendar',
+                    'priority' => 'normal',
+                    'title' => $title,
+                    'body' => [
+                        'am' => $event->title.' — የቀጠሮ ጊዜ ለውጥ',
+                        'en' => $event->title.' — appointment schedule update',
+                    ],
+                    'action_route_name' => 'appointments',
+                    'resource_ref' => ['type' => 'calendar_appointment', 'id' => (string) $appointment->id, 'proposal_id' => $proposalId],
+                    'dedupe_key' => 'appointment-reschedule:'.$proposalId.':'.$action,
+                ]);
+            } catch (Throwable $error) {
+                report($error);
+            }
+        });
     }
 
     private function appointmentCalendar(User $actor, int|string $tenantId, array $data): Calendar
@@ -643,7 +1035,7 @@ final class CalendarService
         }
     }
 
-    private function appointmentParticipantConflicts(int|string $tenantId, array $participantIds, string $startUtc, string $endUtc): array
+    private function appointmentParticipantConflicts(int|string $tenantId, array $participantIds, string $startUtc, string $endUtc, ?string $excludeEventId = null): array
     {
         $participantFilter = function ($query) use ($participantIds): void {
             $query->whereIn('event.created_by', $participantIds)
@@ -661,6 +1053,7 @@ final class CalendarService
         $timedConflicts = DB::table('calendar_events as event')
             ->leftJoin('calendar_attendees as attendee', $joinAttendees)
             ->where('event.tenant_id', $tenantId)
+            ->when($excludeEventId !== null, fn ($query) => $query->where('event.id', '!=', $excludeEventId))
             ->where('event.status', 'scheduled')
             ->where('event.all_day', false)
             ->whereNotNull('event.starts_at')
@@ -674,6 +1067,7 @@ final class CalendarService
         $allDayEvents = DB::table('calendar_events as event')
             ->leftJoin('calendar_attendees as attendee', $joinAttendees)
             ->where('event.tenant_id', $tenantId)
+            ->when($excludeEventId !== null, fn ($query) => $query->where('event.id', '!=', $excludeEventId))
             ->where('event.status', 'scheduled')
             ->where('event.all_day', true)
             ->where($participantFilter)
@@ -696,7 +1090,7 @@ final class CalendarService
         return array_values(array_unique([...$timedConflicts, ...$allDayConflicts]));
     }
 
-    private function appointmentResourceConflicts(int|string $tenantId, array $resourceIds, string $startUtc, string $endUtc): array
+    private function appointmentResourceConflicts(int|string $tenantId, array $resourceIds, string $startUtc, string $endUtc, ?string $excludeEventId = null): array
     {
         if ($resourceIds === []) {
             return [];
@@ -704,6 +1098,7 @@ final class CalendarService
 
         return DB::table('calendar_reservations')->where('tenant_id', $tenantId)
             ->whereIn('resource_id', $resourceIds)->where('status', 'confirmed')
+            ->when($excludeEventId !== null, fn ($query) => $query->where('event_id', '!=', $excludeEventId))
             ->where('starts_at', '<', $endUtc)->where('ends_at', '>', $startUtc)
             ->distinct()->pluck('resource_id')->map(fn ($id): string => (string) $id)->all();
     }
