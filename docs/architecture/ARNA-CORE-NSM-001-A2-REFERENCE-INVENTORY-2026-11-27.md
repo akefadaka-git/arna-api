@@ -1476,3 +1476,58 @@ A small direct blob sample was also fetched from the API tree. The first 12 chec
 Both frozen recursive trees are complete and non-truncated (API: 1,046 blobs; App: 493 blobs). The GitHub code-search results are capped at 100; the available blob-fetch connector requires one request per blob and its per-execution call ceiling prevents fetching all 1,539 blobs in one scan operation. A complete blob-by-blob line inventory has therefore NOT BEEN COMPLETED.
 
 **A2 remains PARTIAL / OPEN.** No deterministic full-content scan or exhaustive line-level classification is claimed. The additional App results expand the reconciliation scope and must be included in A3 planning only after A2 is closed. No A3 work is authorized by this addendum.
+
+
+## 16. Supplemental exact-frozen-SHA blob inspection — 2026-11-27
+
+A further controlled retrieval pass fetched and inspected **39 individual Git blobs** by blob SHA from the two frozen recursive trees: **26 API blobs** at `9c0ce83afcc084101fb14e6e55d54e1d953c2ffe` and **13 App blobs** at `71bed2158894e3ce9cf507e8bf70492ac1f9dfd4`. The repository tree counts remain API 1,046 blobs and App 493 blobs, both with `truncated=false`.
+
+### API findings confirmed directly at the frozen SHA
+
+| File | Directly observed references | Reconciliation classification |
+|---|---|---|
+| `composer.json` | Package `maale-arna/mases-api`; MASES product description; Composer helper autoload path under `mases_core/src`; PSR-4 namespace `MaaleArna\\MASES\\Core\\` | Active package/autoload identifiers; rename required |
+| `bootstrap/app.php` | Legacy Core imports, MASES bootstrap comments, and global `mases_*` helper declarations | Active bootstrap symbols plus comments; rename active symbols and current-product comments |
+| `bootstrap/providers.php` | Legacy provider namespace/path/config/publish-tag documentation; comments identify LocalizationServiceProvider and MasesCoreServiceProvider as not registered | Registry comments require reconciliation; do not activate dormant providers |
+| `mases_core/src/Providers/CoreServiceProvider.php` | Legacy namespace/imports and Core provider integration | Active provider and integration path; rename required |
+| `mases_core/src/Config/mases.php` | `MASES_APP_NAME`, `MASES_RATE_LIMIT`, `MASES_DEFAULT_LOCALE`, other MASES environment names; `mases.*` configuration model; MASES application labels | Active config/environment identifiers; rename required |
+| `mases_core/src/Support/Helpers.php` | Global `mases_*` helpers, old namespace imports, `config('mases.*')` references | Active helper/config contract; rename required |
+| `database/seeders/MasesCoreSeeder.php` | Class name, old namespace imports, MASES messages | Active seeder identity; rename required with call sites |
+| `config/auth.php` | Old Core User model namespace | Active model binding; rename required |
+| `phpunit.xml` | Old Core source/test/coverage/helper paths, old AUTH_MODEL, MASES environment keys | Active test-harness configuration; rename required |
+| `rector.php`, `app/Console/Commands/MasesRectorVerifyCommand.php`, `scripts/phase0-authorization-audit.py` | Old Core paths, namespace, command identity and audit-tool references | Active developer/verification tooling; rename required |
+| `mases_core/src/Localization/Services/LocalizationService.php` | `mases_locale` session and cookie names; `mases.localization.timezone`; old namespace | Active runtime localization contract; rename required |
+| `mases_core/src/Providers/LocalizationServiceProvider.php`, `mases_core/src/Localization/LocaleManager.php` | Old namespace, `mases.localization`, `mases_locale`, and separate `mases_localization` config | Legacy/dormant cluster; retain distinction from the active LocalizationService runtime and verify all references before retirement |
+| `app/Http/Controllers/LocalePreferenceController.php` | Old Core User model import | Active controller dependency; rename required |
+| `config/app.php` | `MASES_ENABLE_DEMO_SEEDING` | Active environment key; rename required |
+
+### App findings confirmed directly at the frozen SHA
+
+| File | Directly observed references | Reconciliation classification |
+|---|---|---|
+| `.env.admin`, `.env.workspace` | `mase_app/...` file-path comments | Non-runtime comments; update current repository/path identity where these are current operational templates |
+| `src/styles/tokens.css` | MASES Phase 2 identity and `mase_app/...` header comments; legacy `--mases-*` token definitions and ARNA aliases | Active CSS token substrate plus stale provenance comments; remove old token definitions/aliases and update active consumers per frozen A1 |
+| `src/router/pages/VerifyEmailRoute.vue` | User-visible document title includes MASES; MASES app-name/title comments; `--mases-*` token references | Active product title and styling references; rename required |
+| `src/features/loans/LoanRejectForm.vue` | MASES component header/provenance and active `--mases-*` CSS variable references | Active component styling; update tokens and current-product metadata |
+| `tests/brand-identity-contract.test.mjs` | Explicit expectations for legacy `mases.locale`, `mases.tenant_id`, `mases.auth_token`, remembered-identifier fallbacks and ARNA-to-MASES CSS aliases | Tests currently preserve behavior contrary to frozen A1; rewrite assertions for no active compatibility fallback |
+| `tests/design-system-theme-contract.test.mjs` | Legacy `--mases-*` token inventory | Test contract must be migrated to canonical ARNA tokens |
+| `src/core/api/client.ts` | MASES-era deployment/protocol commentary and `mases_locale` references in explanatory text | Documentation/commentary within source; verify against actual runtime behavior before classifying as an active client cookie dependency |
+| `src/stores/locale.ts` | `LEGACY_STORAGE_KEY = 'mases.locale'`; explanatory migration-fallback comments | Active legacy browser-storage fallback; remove under frozen A1 |
+| `src/stores/tenant.ts` | `LEGACY_KEY = 'mases.tenant_id'`; explanatory migration-fallback comments | Active legacy browser-storage fallback; remove under frozen A1 |
+| `src/stores/auth.ts`, `src/features/auth/api.ts`, `src/features/auth/service.ts` | MASES-era component/path/provenance comments; no active MASES storage key was found in the inspected matching lines of these files | Update current-product/path comments; do not infer active behavior from comments alone |
+| `src/features/locale/api.ts` | No MASES/mase_app match in the fetched blob | No matching occurrence in this file |
+
+### Retrieval method limitation and closure decision
+
+The 39 blob inspections above are direct evidence from exact frozen commit blob SHAs, but they are a targeted sample selected from high-risk files—not a scan of all 1,539 blobs. The recursive tree endpoint supplies paths and blob SHAs, while the connected GitHub blob action retrieves one blob per call. The available connector does not expose a bulk repository archive download into the analysis runtime. GitHub code search is not an acceptable substitute for the frozen-SHA scan: its search endpoint is not commit-pinned by the attempted `ref:<SHA>` qualifier, and its indexed result counts changed during pagination. Those moving search results are excluded from frozen-baseline occurrence counts.
+
+Accordingly:
+- **Direct blob coverage:** 39 / 1,539 blobs (2.53%) — targeted, not random or exhaustive.
+- **API:** 26 / 1,046 blobs inspected.
+- **App:** 13 / 493 blobs inspected.
+- **Full deterministic content scan:** NOT COMPLETED.
+- **Line-level classification of all matching and non-matching text blobs:** NOT COMPLETED.
+- **A2:** remains **PARTIAL / OPEN — NOT VERIFIED-CLOSED**.
+- **A3:** NOT STARTED. The A1 gate still prohibits implementation until the full scan is completed, reconciled and A2 is formally closed.
+
+No source, test, CI, migration, database, deployment or production changes were made by this supplemental inspection.
