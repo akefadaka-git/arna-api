@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\AI\\Services;
+namespace MaaleArna\MASES\Core\AI\Services;
 
-use MaaleArna\\MASES\\Core\\AI\\Contracts\\DomainEvidenceSourceContract;
-use Symfony\\Component\\HttpKernel\\Exception\\ServiceUnavailableHttpException;
+use MaaleArna\MASES\Core\AI\Contracts\DomainEvidenceSourceContract;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 /** No cross-domain evidence is exposed until an owning-domain adapter is installed. */
 final class UnavailableDomainEvidenceSource implements DomainEvidenceSourceContract
