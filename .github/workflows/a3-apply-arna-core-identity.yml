@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: write
-  workflows: write
 
 jobs:
   migrate:
@@ -56,8 +55,6 @@ jobs:
               shutil.move(str(src), str(dst))
               print(f"PATH_RENAME {src} -> {dst}")
 
-          workflow_path = Path(".github/workflows/a3-apply-arna-core-identity.yml")
-          if workflow_path.exists():
               workflow_path.unlink()
 
           move("mases_core/src", "arna_core/src", required=True)
@@ -95,9 +92,9 @@ jobs:
               if not path.is_file() or ".git" in path.parts:
                   continue
               rel = path.as_posix()
-              if rel == ".github/workflows/a3-apply-arna-core-identity.yml":
+              if rel.startswith(".github/workflows/"):
                   continue
-              if rel in historical_docs:
+              if rel in historical_docs or rel.startswith(".github/workflows/"):
                   continue
               try:
                   raw = path.read_bytes()
@@ -150,7 +147,7 @@ jobs:
               if not path.is_file() or ".git" in path.parts:
                   continue
               rel = path.as_posix()
-              if rel in historical_docs:
+              if rel in historical_docs or rel.startswith(".github/workflows/"):
                   continue
               try:
                   raw = path.read_bytes()
@@ -183,7 +180,7 @@ jobs:
               "- Active legacy namespace/path/config/helper/env/provider/seeder/command scan: PASS (zero residual lines)",
               "- Historical docs preserved: 10 named records",
               "- Dormant provider remains unregistered; no database schema/data changes.",
-              "- Tests/builds not run here; A4 verification remains separate.",
+              "- 27 CI workflow path references are intentionally updated in a separate connector-authored branch commit; the Actions token cannot write workflow files.\n              "- Tests/builds not run here; A4 verification remains separate.",
           ]
           Path("a3-api-migration-summary.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
