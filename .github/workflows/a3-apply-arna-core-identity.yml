@@ -55,7 +55,6 @@ jobs:
               shutil.move(str(src), str(dst))
               print(f"PATH_RENAME {src} -> {dst}")
 
-              workflow_path.unlink()
 
           move("mases_core/src", "arna_core/src", required=True)
           move("arna_core/src/Config/mases.php", "arna_core/src/Config/arna.php", required=True)
