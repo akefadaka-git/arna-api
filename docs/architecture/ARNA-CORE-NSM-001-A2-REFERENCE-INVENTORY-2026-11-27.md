@@ -1341,3 +1341,43 @@ This confirms broad namespace fan-out across Core capabilities and domain layers
 ### Active localization contract confirmation
 
 The API's `LocalizationService` defines and reads/writes both `mases_locale` session and cookie keys. `LocalizationMiddleware` injects that service and calls `getCurrentLocale()` / `setLocale()`; `bootstrap/app.php` registers that middleware globally. This is an active API runtime contract, not only a comment or dormant provider artifact. The separate `LocaleManager` / `mases_localization` cluster remains dormant because its provider is not registered.
+
+
+## 13. Owner scope decision — 2026-11-27
+
+The Owner confirmed that the no-MASES requirement applies across the integrated ARNA product, including the App's active CSS token namespace and browser-storage compatibility fallbacks. The Owner further directed that all applicable folder names, file names, namespaces, and necessary functions be renamed.
+
+### Frozen naming and scope decision (A1)
+
+- Core source root: `arna_core/src/`
+- PHP namespace root: `MaaleArna\\Arna\\Core\\`
+- Composer package: `maale-arna/arna-api`
+- Composer PSR-4: `"MaaleArna\\\\Arna\\\\Core\\\\": "arna_core/src/"`
+- Core config file/key: `arna_core/src/Config/arna.php` / `arna.*`
+- All active Core provider class names and registrations use the canonical namespace.
+- All active helper functions, global aliases, service-container aliases, publish tags, environment variables, seeder/command/factory names, test names/references, scripts and CI path references must be renamed to ARNA-prefixed or otherwise neutral names.
+- All API/App browser storage keys, locale session/cookie keys and CSS custom properties using the MASES prefix must be renamed to ARNA equivalents; update readers, writers, migration fallbacks and contract tests so the final active product has no MASES compatibility fallback.
+- Rename all tracked folder and file path components that carry the MASES name. Preserve neutral domain/file names that do not carry MASES; do not gratuitously rename unrelated business-domain names.
+- Historical decision records, commit history and archival evidence are not rewritten or falsified. Active documentation and operational instructions must use ARNA naming; historical records may retain MASES only where required to accurately describe the past.
+- Preserve database schema/table/column names unless separate evidence and explicit approval establish that a database identifier itself is a MASES-branded application identifier. No database migration or data rewrite is authorized by this naming decision.
+
+**A1 naming/scope decision: OWNER-APPROVED / FROZEN.**
+
+### Exact path-name inventory
+
+A fresh recursive Git tree check at the frozen baselines returned `truncated=false`:
+
+| Repository | Tracked files | Tracked file paths containing MASES | Directory paths containing MASES |
+|---|---:|---:|---:|
+| `akefadaka-git/arna-api` | 1,046 | 645 | 214 |
+| `akefadaka-git/arna-app` | 493 | 0 | 0 |
+
+The 645 API file paths comprise:
+- 642 files below `mases_core/src/` (the complete Core source move-set).
+- Three additional files outside that root: `app/Console/Commands/MasesRectorVerifyCommand.php`, `database/factories/MaaleArna/MASES/Core/Authorization/Models/PermissionFactory.php`, and `database/seeders/MasesCoreSeeder.php`.
+
+The App has no tracked path component containing MASES at its recorded baseline; its remaining work is content-level identifiers, tokens, keys and documentation, not path renames.
+
+### A2 and implementation boundary
+
+This Owner decision freezes the intended target and broad rename scope. It does **not** mark A2 complete and does not authorize bypassing A2. A2 remains open until deterministic content-level reconciliation, runtime/deployment consumer assessment, and external consumer disposition are evidence-backed. A3 implementation has not started. No source changes, file moves, test edits, CI edits, deployment changes or database changes have been made by this decision.
