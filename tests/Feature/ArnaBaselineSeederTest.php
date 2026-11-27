@@ -8,11 +8,11 @@ use Database\Seeders\ArnaCoreSeeder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use MaaleArna\MASES\Core\Domains\Finance\Database\Seeders\FinanceChartOfAccountsSeeder;
-use MaaleArna\MASES\Core\Domains\Loan\Database\Seeders\LoanProductRulesPolicySeeder;
-use MaaleArna\MASES\Core\Domains\Loan\Database\Seeders\LoanProductsSeeder;
-use MaaleArna\MASES\Core\Tenancy\Models\Tenant;
-use MaaleArna\MASES\Core\Authorization\Models\Role;
+use MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinanceChartOfAccountsSeeder;
+use MaaleArna\Arna\Core\Domains\Loan\Database\Seeders\LoanProductRulesPolicySeeder;
+use MaaleArna\Arna\Core\Domains\Loan\Database\Seeders\LoanProductsSeeder;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use MaaleArna\Arna\Core\Authorization\Models\Role;
 use Tests\TestCase;
 
 final class ArnaBaselineSeederTest extends TestCase
