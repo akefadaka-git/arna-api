@@ -172,9 +172,9 @@ final class ShareholderImportReviewPersistenceTest extends TestCase
         $submitter = $this->tenantActor($tenant, 'shareholder.import.submit');
         $failAudit = true;
 
-        DB::listen(static function (\\Illuminate\\Database\\Events\\QueryExecuted $query) use (&$failAudit): void {
+        DB::listen(static function (\Illuminate\Database\Events\QueryExecuted $query) use (&$failAudit): void {
             if ($failAudit && str_starts_with(strtolower(ltrim($query->sql)), 'insert into "audit_logs"')) {
-                throw new \\RuntimeException('Synthetic mandatory audit persistence failure.');
+                throw new \RuntimeException('Synthetic mandatory audit persistence failure.');
             }
         });
 
@@ -185,7 +185,7 @@ final class ShareholderImportReviewPersistenceTest extends TestCase
                 (int) $tenant->id,
             );
             self::fail('Submission must fail when its mandatory audit write fails.');
-        } catch (\\RuntimeException $exception) {
+        } catch (\RuntimeException $exception) {
             self::assertStringContainsString('mandatory audit persistence failure', $exception->getMessage());
         } finally {
             $failAudit = false;
