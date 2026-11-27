@@ -99,14 +99,20 @@ final class ArnaBaselineSeederTest extends TestCase
         $this->assertSame($coaSnapshot, $this->tableSnapshot('ledger_accounts'));
 
         $this->runSeeder(LoanProductsSeeder::class);
-        $productSnapshot = $this->tableSnapshot('loan_products');
         $this->assertSame(3, DB::table('loan_products')->count());
 
+        // The first policy-seeder run intentionally attaches the active
+        // policy version to products that do not yet have one. Capture the
+        // stable product baseline only after that expected initialization.
         $this->runSeeder(LoanProductRulesPolicySeeder::class);
+        $this->assertSame(0, DB::table('loan_products')->whereNull('product_rules_policy_version_id')->count());
+        $productSnapshot = $this->tableSnapshot('loan_products');
         $policySnapshot = $this->tableSnapshot('versioned_policies');
         $this->assertSame(1, DB::table('versioned_policies')
             ->where('policy_type', 'loan_product_rules')->count());
 
+        // Subsequent runs must be idempotent: neither seeder may mutate
+        // already-created products or the existing policy version.
         $this->runSeeder(LoanProductsSeeder::class);
         $this->runSeeder(LoanProductRulesPolicySeeder::class);
         $this->assertSame($productSnapshot, $this->tableSnapshot('loan_products'));
