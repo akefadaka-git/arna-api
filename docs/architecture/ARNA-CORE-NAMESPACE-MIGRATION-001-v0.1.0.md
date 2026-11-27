@@ -1,0 +1,110 @@
+# ARNA Core Namespace and Source-Directory Migration
+**Document ID:** ARNA-CORE-NSM-001  
+**Version:** 0.1.0-draft  
+**Date:** 2026-11-27  
+**Status:** A1 DRAFT — OWNER REVIEW REQUIRED; A2 READ-ONLY RECONCILIATION IN PROGRESS; A3 NOT STARTED
+
+## 1. Purpose and decision requested
+
+Remove the legacy MASES product identifier from the active ARNA API Core source architecture. Replace the current source root `mases_core/src/` and PHP namespace `MaaleArna\\MASES\\Core\\` with the canonical ARNA Core identity.
+
+## 2. Recommended canonical convention
+
+| Concern | Current legacy convention | Proposed canonical convention |
+|---|---|---|
+| Core source root | `mases_core/src/` | `arna_core/src/` |
+| PSR-4 namespace | `MaaleArna\\MASES\\Core\\` | `MaaleArna\\Arna\\Core\\` |
+| Composer mapping | `"MaaleArna\\\\MASES\\\\Core\\\\": "mases_core/src/"` | `"MaaleArna\\\\Arna\\\\Core\\\\": "arna_core/src/"` |
+| Composer package | `maale-arna/mases-api` | `maale-arna/arna-api` (proposed) |
+| Core config file | `mases.php` | `arna.php` |
+| Config namespace | `mases.*` | `arna.*` |
+| Core publish tag | `mases-config` | `arna-config` |
+| Core container aliases | `mases.*` | `arna.*` |
+| Tenant helper | `mases_tenant_id()` | `arna_tenant_id()` |
+| Environment identifiers | `MASES_*` | `ARNA_*` |
+| Core test path | `mases_core/src` | `arna_core/src` |
+
+**Rationale:** `MaaleArna\\Arna\\Core\\` keeps the organization/vendor namespace, makes ARNA the explicit product/platform namespace, avoids the overly generic `MaaleArna\\Core\\`, and matches the new `arna_core/src/` filesystem root. The package name `maale-arna/arna-api` aligns with the repository identity and proposed canonical branding.
+
+## 3. Scope of the requested complete rename
+
+The target is not a directory-only move. The migration must cover, at minimum:
+
+1. Every PHP declaration, import, fully-qualified class string, reflection reference, policy registration and service-container binding using `MaaleArna\\MASES\\Core\\`.
+2. Composer PSR-4 and files autoload entries; lockfile metadata only if Composer determines it must change.
+3. Core and domain service-provider class references, provider registry and migration/config/lang/resource loading paths.
+4. All source paths, test suites, PHPUnit XML, Rector configuration, static-analysis configuration, scripts and CI workflows.
+5. Config filename and key prefixes, publish tags, container aliases, helper function names, environment variable names and test fixtures that currently contain MASES branding.
+6. API package metadata and active project descriptions.
+7. App/API integration documentation and active architecture documents that describe current paths or namespaces.
+8. Deployment and hosting instructions, release packaging, Composer optimized autoload generation and OPcache/restart requirements.
+9. Full-text scan of active source/config/scripts/tests/workflows to establish zero active MASES identifiers after migration.
+
+No database table/column rename is proposed by this document. Any database identifier containing MASES must be inventoried and separately assessed for compatibility before deciding whether it is in scope.
+
+## 4. Read-only A2 evidence collected at API main
+
+**API main inspected:** `9c0ce83afcc084101fb14e6e55d54e1d953c2ffe` (2026-11-27 revalidation).
+
+| Evidence path / search | Observed fact | Risk / required action |
+|---|---|---|
+| `composer.json` | Package is `maale-arna/mases-api`; description identifies MASES Core; PSR-4 maps `MaaleArna\\MASES\\Core\\` to `mases_core/src/`; helper autoload points to `mases_core/src/Support/Helpers.php` | Package metadata, namespace and helper path all require coordinated update |
+| `bootstrap/providers.php` | Registered Core and Localization providers use legacy namespace/path/config terminology in comments and provider wiring | Update provider imports and all path/config references atomically |
+| `mases_core/src/Providers/CoreServiceProvider.php` | Declares legacy namespace; loads `mases_core/src/Migrations`; merges `mases.php`; publishes `mases-config`; binds `mases.*` container aliases | Central bootstrap/runtime integration dependency |
+| `mases_core/src/Providers/LocalizationServiceProvider.php` | Legacy namespace and references to `mases.localization`; file/class placement warning exists in source comments | Reconcile actual class path and registration before moving; do not blindly preserve or activate a stale provider |
+| `phpunit.xml` | Test discovery, source coverage, helper bootstrap and AUTH_MODEL use old path/namespace; environment values include `MASES_*` | Test harness must be migrated with source |
+| `rector.php`, `app/Console/Commands/MasesRectorVerifyCommand.php` | Static-analysis and verification paths/command name use MASES identifiers | Update verification tooling and command identity |
+| Code search `mases_tenant_id` | 89 indexed matches across helper, policies, controllers, middleware, services and tests | High fan-out helper rename; complete call-site enumeration required |
+| Code search `config('mases.` | 14 indexed matches across providers, app and Core/domain services | Rename config namespace and every consumer |
+| Code search `mases.localization` | 9 indexed matches | Rename localization alias/config consumers |
+| Code search `MASES_ENV` | 2 indexed matches | Rename test/runtime environment keys |
+| Code search `mases-config` | 3 indexed matches | Rename publish tags and references |
+| Code search for namespace | Matches found in Composer, Core/domain source, tests and docs | Search output is indexed/selective, not a full recursive count |
+
+Additional observed references include `mases_core/src/Config/mases.php`, old `MasesCoreServiceProvider` legacy provider artifacts, `mases_*` helper conventions, source comments, and active docs. The old `MasesCoreServiceProvider` is explicitly described in provider registry documentation as legacy/unregistered due to duplicate bindings and stale migration paths; it must be assessed for references before retirement, not registered as part of the rename.
+
+## 5. Compatibility and migration risks
+
+- **Autoload breakage:** changing namespace and path without updating every class reference causes class-not-found failures, especially during Laravel provider boot.
+- **Provider registration:** all registered providers and any dynamically referenced provider class strings must resolve under the new namespace.
+- **Helper bootstrap:** Composer `autoload.files` loads the helper file; changing its path/function names requires every call site and test fixture to move together.
+- **Config/container compatibility:** config keys, publish tags, facade aliases and service aliases can be consumed indirectly; all consumers must be searched.
+- **Migration discovery:** Core migration path loading and any domain provider migration paths must be updated. This is a code-path rename only; do not rerun or rewrite historical migrations as part of namespace refactoring.
+- **Test tooling:** PHPUnit, Rector, static-analysis, custom audit scripts and CI path filters can silently omit coverage if paths are not updated.
+- **Deployment:** optimized Composer autoload files, cached Laravel config/routes/services, OPcache and long-running workers can retain old references. Deployment requires a separately approved, documented cache/worker refresh sequence.
+- **External consumers:** any other repository, deployment script, package consumer or local installation importing the old PHP namespace needs a migration plan. No public compatibility alias is desired in the final architecture, but external impact must be identified before removal.
+
+## 6. Proposed implementation sequence (not authorized)
+
+A3 should be a single isolated refactor branch, sequenced to keep the tree bootable at each commit:
+
+1. Freeze the exact source baseline and produce complete reference/path inventory.
+2. Move `mases_core/` to `arna_core/` preserving file contents and history where possible.
+3. Change Composer PSR-4 and helper autoload paths.
+4. Rename namespace declarations/imports/class strings and provider registry references.
+5. Rename Core config, container aliases, publish tags, helpers and environment variables, updating every consumer.
+6. Update PHPUnit, Rector, scripts, static analysis, workflows and active docs.
+7. Reconcile obsolete/unregistered legacy provider artifacts and stale references; delete only when evidence proves unused and tests cover the replacement.
+8. Run full text scans proving zero active references to `mases_core`, `MaaleArna\\MASES\\Core`, `MASES_*`, `mases.*`, `mases_*` and other active legacy identifiers.
+9. Run Composer validation/autoload dump, PHP syntax, Laravel bootstrap/provider resolution, PHPUnit suites, static analysis, route/config cache checks and relevant clean-install migration tests in a non-production environment.
+10. Record exact test evidence and a rollback plan. Merge and deployment remain separately authorized stages.
+
+## 7. Acceptance criteria
+
+- [ ] All Core source files reside under `arna_core/src/`; no active source file remains under `mases_core/src/`.
+- [ ] All Core PHP symbols use `MaaleArna\\Arna\\Core\\`; no active PHP symbol retains the old namespace.
+- [ ] Composer PSR-4 and helper autoload resolve from the new root.
+- [ ] Laravel provider registration, boot, config, localization, policies, events, migrations and routes resolve.
+- [ ] All old MASES-specific active config keys, aliases, publish tags, helper names, env keys and scripts have ARNA replacements and zero active consumers.
+- [ ] PHPUnit, Rector, static-analysis, CI and custom verification cover the new paths.
+- [ ] Full repository scan classifies every remaining MASES occurrence as either removed or explicitly approved archival/historical evidence; no unexplained active occurrence remains.
+- [ ] All required automated checks pass on the exact implementation SHA.
+- [ ] External consumers and deployment requirements are documented.
+- [ ] No database migration/schema/production data change is made as part of this code refactor.
+- [ ] A4 verification is completed and reported separately; A5 deployment is separately approved.
+
+## 8. Governance and status
+
+This document is a draft proposal and read-only assessment. It does not freeze A1, close A2, authorize A3 code changes, authorize PR merge, or authorize A5 deployment. The user's requested outcome is captured as the target direction; the exact migration plan and any archival exceptions remain subject to Owner review.
+
+**Current status:** A1 DRAFT / A2 PARTIAL / A3 NOT STARTED / A4 NOT RUN / A5 NOT AUTHORIZED.
