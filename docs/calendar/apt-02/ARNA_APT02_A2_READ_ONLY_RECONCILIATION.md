@@ -137,3 +137,55 @@ Subject to A1 Owner decisions, the evidence supports this target:
 The APT-02 A1/A2 work changed documentation only. No API or App runtime source, route, migration, database, test, workflow, branch, PR, deployment or production data was modified by this work. The separate commit `a949194674d6fa693e16b535701a4684d9f88949` (`fix(governance): restore membership service namespace and imports`) modifies `mases_core/src/Domains/Governance/Services/GovernanceMembershipService.php`; it is unrelated to APT-02 and was preserved without modification. Comparing the API source snapshot `cd2227114fb186077d6aa04a9f99afd8b5806126` to the APT-02 documentation head shows only the two APT-02 documentation files plus that independent Governance service file.
 
 **A2 conclusion:** VERIFIED-COMPLETE as a read-only technical reconciliation. APT-02 is implementation-ready only after the Owner resolves APT02-D01–D09 and the A1 specification is explicitly frozen. Until then, A3 remains blocked.
+
+
+---
+
+## 9. Owner approval, A1 freeze and A2 closure — 2026-11-27
+
+**Decision record:** APT02-OWNER-DECISION-001  
+**Owner disposition:** APT02-D01 through APT02-D09 approved exactly as proposed in the A1 record.  
+**A1 disposition:** **VERIFIED-CLOSED / FROZEN — v1.0 — 2026-11-27**  
+**A2 disposition:** **VERIFIED-CLOSED — READ-ONLY RECONCILIATION — 2026-11-27**
+
+### 9.1 Approved decision baseline
+
+The Owner-approved decisions are binding for the APT-02 v1 implementation specification:
+
+- Confirmed appointments only; requested appointments use APT-01 cancel/rebook.
+- Requester and host are the only decision parties; the non-proposing party accepts or declines. Other existing attendees are notified but do not hold a veto.
+- Only start/end time may change. Existing timezone, calendar, title, description, scope, host, requester, attendees and resources are preserved.
+- One pending proposal per appointment.
+- No automatic proposal expiry in v1; proposer may withdraw.
+- Optional reason is visible to the other party and audit history.
+- A further proposal is permitted after the previous proposal closes; each accepted change increments versions and is audited.
+- Notify all existing attendees of proposal and outcome, respecting notification preferences.
+- Proposed start must be in the future and end must be later than start; no additional minimum-notice or maximum-horizon limit applies in v1.
+
+The full decision record and approval effect are preserved in ARNA_APT02_A1_ASSESSMENT_SPECIFICATION.md, Section 11.
+
+### 9.2 A2 closure determination
+
+The read-only technical reconciliation recorded in Sections 1–8 is accepted as the APT-02 implementation baseline. It identifies the missing proposal aggregate/API/UI/test coverage and the required exclusion-aware conflict checks, transactional event/resource update, version checks, reminder rebase and notification semantics.
+
+These findings are **implementation work items**, not unresolved A2 discovery questions. Their presence does not prevent A2 closure: A2's purpose was to establish the source contracts, identify gaps and define the implementation target without changing runtime code. The Owner-approved A1 baseline now resolves the outstanding product-policy blocker APT02-G09.
+
+The remaining gaps G01–G08 are carried forward as explicit A3 implementation requirements and A4 verification obligations. They are not represented as already implemented or verified.
+
+### 9.3 Closed stage-gate disposition
+
+| Stage | Final status | Basis |
+|---|---|---|
+| A1 — assessment/specification | **VERIFIED-CLOSED / FROZEN** | Owner approved D01–D09 on 2026-11-27; A1 v1.0 baseline frozen |
+| A2 — read-only reconciliation | **VERIFIED-CLOSED** | API/App source contracts reconciled; target design, blockers and implementation evidence requirements recorded; no runtime changes |
+| A3 — implementation | **NOT STARTED — REQUIRES SEPARATE OWNER AUTHORIZATION** | No implementation authorization is implied by A1 approval or A2 closure |
+| A4 — verification | **NOT STARTED** | APT-02 runtime implementation does not yet exist |
+| A5 — deployment | **NOT AUTHORIZED** | Production migration/deployment requires separate approval |
+
+### 9.4 Integrity and scope preservation
+
+This closure records documentation and stage-gate decisions only. It does not alter API/App runtime source, routes, migrations, database state, tests, workflows, production data or deployment. The independent Governance change identified in Section 8 remains outside APT-02 and must remain preserved.
+
+APT-01 remains **VERIFIED-CLOSED** and is not reopened. Governance formal appointment records remain separate from generic APT-02 appointment rescheduling.
+
+**A2 closure statement:** The Owner-approved APT-02 v1 requirements have been reconciled against the existing API and App contracts. A1 and A2 are now closed. A3 may be considered only after the Owner issues a separate, explicit implementation authorization defining its permitted scope. No A3 work has been performed under this closure.
