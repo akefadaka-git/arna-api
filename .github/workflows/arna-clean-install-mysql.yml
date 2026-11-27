@@ -78,6 +78,8 @@ on:
       - "mases_core/src/Domains/Governance/Events/GovernanceElectionLifecycleChanged.php"
       - "mases_core/src/Domains/Governance/Listeners/AuditGovernanceElectionLifecycleEvent.php"
       - "mases_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php"
+      - "mases_core/src/Domains/Governance/Services/GovernanceElectionShareholderSourceService.php"
+      - "mases_core/src/Domains/Governance/Tests/Unit/GovernanceElectionShareholderSourceServiceTest.php"
       - "mases_core/src/Domains/Governance/Routes/api.php"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
@@ -207,6 +209,13 @@ jobs:
 
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run shareholder election source adapter unit tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: vendor/bin/phpunit mases_core/src/Domains/Governance/Tests/Unit/GovernanceElectionShareholderSourceServiceTest.php
       - name: Run centralized error diagnostics unit tests
         run: php artisan test --compact tests/Unit/ErrorDiagnosticEngineTest.php
 
