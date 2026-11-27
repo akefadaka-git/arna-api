@@ -372,8 +372,8 @@ final class CalendarReminderDispatcher
         // but use their own transactional outbox and idempotency namespace.
         for ($processed = 0; $processed < $limit; $processed++) {
             $candidate = DB::table('calendar_appointment_notification_outbox')
-                ->where('status', 'pending')
-                ->orderBy('created_at')
+                ->where('status', 'pending')->where('deliver_at', '<=', now())
+                ->orderBy('deliver_at')
                 ->orderBy('id')
                 ->value('id');
             if ($candidate === null) {
@@ -437,7 +437,8 @@ final class CalendarReminderDispatcher
                         'attempts' => $attempt,
                         'status' => $terminal ? 'failed' : 'pending',
                         'last_error' => Str::limit($error->getMessage(), 2000),
-                        'updated_at' => now()->addMinutes($terminal ? 0 : $delayMinutes),
+                        'deliver_at' => $terminal ? now() : now()->addMinutes($delayMinutes),
+                        'updated_at' => now(),
                     ]);
                 $result[$terminal ? 'failed' : 'retried']++;
                 report($error);
