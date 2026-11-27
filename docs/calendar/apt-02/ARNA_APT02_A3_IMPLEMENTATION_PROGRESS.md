@@ -5,7 +5,7 @@
 **Target repositories:** akefadaka-git/arna-api and akefadaka-git/arna-app  
 **Branch policy:** Existing main branches only; no new branches  
 **Status:** **A3 IN PROGRESS — IMPLEMENTATION PARTIAL — VERIFICATION NOT RUN**  
-**API main head observed:** 50025a3abe6e6b1b85aea24006802375ca0d34cd  
+**API main head observed:** 9a7b705e2d9cc55d4b6c1595565eda7c4db7606d  
 **App main head observed:** 648815b69b6419554b656ff91bf5b53df211aebb
 
 ## 1. Authorization and boundaries
@@ -69,6 +69,8 @@ A1 v1.0 remains **VERIFIED-CLOSED / FROZEN** and A2 remains **VERIFIED-CLOSED**.
 - 78fd9d78a33c36a71aa38d32d74fbc97ec5c46f0 — retry backoff correction.
 - 7dc638be5dbbc6779a05cbc735dbaf9306d523f7 — notification outbox assertions.
 - 50025a3abe6e6b1b85aea24006802375ca0d34cd — notification outbox dispatch feature test.
+- 0c2812e4fe281a2e40fe3572c22a97ce604da052 — notify parties when cancellation closes a pending proposal.
+- 9a7b705e2d9cc55d4b6c1595565eda7c4db7606d — resource movement/conflict and cancellation feature tests.
 
 ## 3. App implementation delivered to main
 
@@ -126,7 +128,7 @@ A1 v1.0 remains **VERIFIED-CLOSED / FROZEN** and A2 remains **VERIFIED-CLOSED**.
 | Production migrations | NOT RUN — NOT AUTHORIZED | Migration files committed only |
 | Deployment | NOT RUN — NOT AUTHORIZED | A5 remains separately gated |
 
-The combined GitHub commit-status queries for the observed API and App main heads returned no status checks. This is **not** evidence of passing tests. No PHP, frontend, browser or database test execution is claimed in this record.
+The combined GitHub commit-status queries for the observed API and App main heads returned no status checks. This is **not** evidence of passing tests. No PHP, frontend, browser or database test execution is claimed in this record. The API feature suite now also includes resource reservation movement, acceptance-time resource conflict rollback, and cancellation of a pending proposal with attendee notification-outbox coverage.
 
 ## 5. Stage-gate disposition
 
