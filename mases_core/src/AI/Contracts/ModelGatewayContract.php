@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\MASES\\Core\\AI\\Contracts;
+namespace MaaleArna\MASES\Core\AI\Contracts;
 
 interface ModelGatewayContract
 {
