@@ -31,7 +31,7 @@ return new class extends Migration
             $table->unsignedTinyInteger('fiscal_year_start_day_ec')->nullable();
             $table->string('tax_profile_status', 24)->default('unconfigured');
             $table->string('accounting_policy_status', 32)->default('owner_review_required');
-            $table->string('document_numbering_policy_version', 32)->default('ARNA-DOC-STD-001');
+            $table->string('document_numbering_policy_version', 32)->nullable();
             $table->timestamps();
 
             $table->unique(['tenant_id', 'legal_entity_id'], 'finance_entity_profiles_entity_unique');
@@ -54,7 +54,7 @@ return new class extends Migration
                     'fiscal_year_start_day_ec' => null,
                     'tax_profile_status' => 'unconfigured',
                     'accounting_policy_status' => 'owner_review_required',
-                    'document_numbering_policy_version' => 'ARNA-DOC-STD-001',
+                    'document_numbering_policy_version' => null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
