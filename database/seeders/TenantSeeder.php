@@ -32,6 +32,13 @@ final class TenantSeeder extends Seeder
          */
         $row = TenantProfile::ROW;
 
+        // MySQL normalizes JSON object key order when persisting settings.
+        // Canonicalize the catalogue array before comparing it with the
+        // model's decoded JSON cast, otherwise isDirty() reports a false
+        // change on every rerun and updates the tenant timestamp repeatedly.
+        $settings = $row['settings'];
+        ksort($settings);
+
         /*
          * Upsert by slug.
          *
@@ -47,7 +54,7 @@ final class TenantSeeder extends Seeder
             'name_am' => $row['name_am'],
             'name_en' => $row['name_en'],
             'domain' => $row['domain'],
-            'settings' => $row['settings'],
+            'settings' => $settings,
             'is_active' => $row['is_active'],
         ]);
 
