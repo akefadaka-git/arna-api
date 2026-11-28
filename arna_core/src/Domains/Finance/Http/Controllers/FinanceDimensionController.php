@@ -37,7 +37,7 @@ final class FinanceDimensionController extends Controller
             'legal_entity_id' => ['required', 'integer', 'min:1'],
             'code' => ['required', 'string', 'max:48'],
             'dimension_type' => ['required', 'string', 'max:32'],
-            'name_en' => ['required', 'string', 'max:180'],
+            'name_en' => ['required', 'string', 'max:160'],
             'name_am' => ['nullable', 'string', 'max:160'],
             'is_required_for_post' => ['sometimes', 'boolean'],
         ]);
