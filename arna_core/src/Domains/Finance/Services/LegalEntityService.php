@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\Arna\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\Arna\Core\Domains\Finance\Services;
 
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Events\\LegalEntityCreated;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\FinanceEntityProfile;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\LegalEntity;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\Arna\Core\Domains\Finance\Events\LegalEntityCreated;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceEntityProfile;
+use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
 
 /**
  * Owns legal-entity write invariants for the Finance domain.
