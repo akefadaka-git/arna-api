@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\Arna\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\Arna\Core\Domains\Finance\Services;
 
 use InvalidArgumentException;
 use LogicException;
