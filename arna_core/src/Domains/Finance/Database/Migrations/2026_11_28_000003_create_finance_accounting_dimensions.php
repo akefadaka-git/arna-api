@@ -23,7 +23,6 @@ return new class extends Migration
             $table->string('dimension_type', 32);
             $table->string('name_am', 160)->nullable();
             $table->string('name_en', 160);
-            $table->boolean('is_required')->default(false);
             $table->string('status', 16)->default('active');
             $table->foreignId('created_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->restrictOnDelete();
