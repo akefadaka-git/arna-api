@@ -40,10 +40,20 @@ return new class extends Migration
             $table->index(['tenant_id', 'legal_entity_id', 'source_domain', 'source_type', 'source_id'], 'finance_document_links_source_idx');
             $table->index(['tenant_id', 'legal_entity_id', 'purpose', 'linked_at'], 'finance_document_links_purpose_idx');
         });
+
+        if (DB::getDriverName() === 'mysql') {
+            DB::unprepared("CREATE TRIGGER finance_document_links_no_update BEFORE UPDATE ON finance_document_links FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Finance document links are append-only'");
+            DB::unprepared("CREATE TRIGGER finance_document_links_no_delete BEFORE DELETE ON finance_document_links FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Finance document links are append-only'");
+        }
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'mysql') {
+            DB::unprepared('DROP TRIGGER IF EXISTS finance_document_links_no_delete');
+            DB::unprepared('DROP TRIGGER IF EXISTS finance_document_links_no_update');
+        }
+
         Schema::dropIfExists('finance_document_links');
     }
 };
