@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\Arna\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\Arna\Core\Domains\Finance\Services;
 
-use Illuminate\\Validation\\ValidationException;
+use Illuminate\Validation\ValidationException;
 
 final class FinanceOpeningBalancePolicy
 {
