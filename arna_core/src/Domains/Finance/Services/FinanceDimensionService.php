@@ -45,7 +45,6 @@ final class FinanceDimensionService
                 'dimension_type' => $type,
                 'name_am' => isset($data['name_am']) ? trim((string) $data['name_am']) : null,
                 'name_en' => $nameEn,
-                'is_required' => (bool) ($data['is_required'] ?? false),
                 'status' => 'active',
                 'created_by' => $actorId,
                 'updated_by' => $actorId,
