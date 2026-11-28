@@ -19,6 +19,7 @@ final class FinanceDimensionResource extends JsonResource
             'name_am' => $this->name_am,
             'name_en' => $this->name_en,
             'status' => $this->status,
+            'is_required_for_post' => (bool) $this->is_required_for_post,
             'values_count' => $this->whenCounted('values'),
         ];
     }
