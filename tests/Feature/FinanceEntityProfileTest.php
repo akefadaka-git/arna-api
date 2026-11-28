@@ -53,6 +53,36 @@ final class FinanceEntityProfileTest extends TestCase
     }
 
     #[Test]
+    public function fiscal_year_start_rejects_impossible_ethiopian_month_thirteen_days(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('The production fiscal-date CHECK constraint is verified on MySQL.');
+        }
+
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create([
+            'is_active' => true,
+            'default_tenant_id' => $tenant->id,
+        ]);
+        $entity = app(LegalEntityService::class)->create((int) $tenant->id, [
+            'code' => 'EC-FISCAL-BOUNDARY',
+            'name_en' => 'Ethiopian Fiscal Boundary Entity',
+            'base_currency' => 'ETB',
+        ], (int) $actor->id);
+
+        DB::table('finance_entity_profiles')->where('legal_entity_id', $entity->id)->update([
+            'fiscal_year_start_month_ec' => 13,
+            'fiscal_year_start_day_ec' => 6,
+        ]);
+
+        $this->expectException(QueryException::class);
+        DB::table('finance_entity_profiles')->where('legal_entity_id', $entity->id)->update([
+            'fiscal_year_start_month_ec' => 13,
+            'fiscal_year_start_day_ec' => 7,
+        ]);
+    }
+
+    #[Test]
     public function profile_is_unique_for_each_tenant_legal_entity_pair(): void
     {
         $tenant = Tenant::factory()->create(['is_active' => true]);
