@@ -50,6 +50,7 @@ final class FinanceDocumentLinkService
         if ($tenantId < 1 || $legalEntityId < 1 || $documentId < 1
             || ! isset($registry['domains'][$sourceDomain])
             || $sourceType === '' || mb_strlen($sourceType) > 64
+            || ! in_array($sourceType, $registry['domains'][$sourceDomain]['document_uses'] ?? [], true)
             || $sourceId === '' || mb_strlen($sourceId) > 128
             || ! in_array($purpose, self::PURPOSES, true)) {
             throw ValidationException::withMessages([
