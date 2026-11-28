@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\Arna\\Core\\Domains\\Finance\\Http\\Resources;
+namespace MaaleArna\Arna\Core\Domains\Finance\Http\Resources;
 
-use Illuminate\\Http\\Request;
-use Illuminate\\Http\\Resources\\Json\\JsonResource;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 final class FinanceDimensionValueResource extends JsonResource
 {
