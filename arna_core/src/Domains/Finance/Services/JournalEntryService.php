@@ -18,6 +18,9 @@ use MaaleArna\Arna\Core\Domains\Finance\Events\JournalReversed;
 use MaaleArna\Arna\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\Arna\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\Arna\Core\Domains\Finance\Models\JournalLine;
+use MaaleArna\Arna\Core\Domains\Finance\Models\JournalLineDimension;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDimension;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDimensionValue;
 use MaaleArna\Arna\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
 use MaaleArna\Arna\Core\Domains\Finance\Services\JournalSourceReferenceResolverRegistry;
@@ -168,10 +171,56 @@ final class JournalEntryService
                         'debit_amount' => $debit,
                         'credit_amount' => $credit,
                     ]);
+
+                    $assignments = $line['dimensions'] ?? [];
+                    if (! is_array($assignments)) {
+                        throw ValidationException::withMessages(["lines.{$index}.dimensions" => 'Dimension assignments must be an array.']);
+                    }
+                    $seenDimensionIds = [];
+                    foreach ($assignments as $assignmentIndex => $assignment) {
+                        $dimensionId = (int) ($assignment['dimension_id'] ?? 0);
+                        $valueId = (int) ($assignment['dimension_value_id'] ?? 0);
+                        if ($dimensionId < 1 || $valueId < 1 || isset($seenDimensionIds[$dimensionId])) {
+                            throw ValidationException::withMessages(["lines.{$index}.dimensions.{$assignmentIndex}" => 'Each dimension may be assigned once per journal line and must include a valid value.']);
+                        }
+                        $seenDimensionIds[$dimensionId] = true;
+
+                        $dimension = FinanceDimension::query()
+                            ->where('tenant_id', $tenantId)
+                            ->where('legal_entity_id', $entity->id)
+                            ->where('status', 'active')
+                            ->find($dimensionId);
+                        $value = FinanceDimensionValue::query()
+                            ->where('tenant_id', $tenantId)
+                            ->where('legal_entity_id', $entity->id)
+                            ->where('dimension_id', $dimensionId)
+                            ->where('status', 'active')
+                            ->whereKey($valueId)
+                            ->where(function ($query) use ($date): void {
+                                $query->whereNull('effective_from')->orWhere('effective_from', '<=', $date);
+                            })
+                            ->where(function ($query) use ($date): void {
+                                $query->whereNull('effective_to')->orWhere('effective_to', '>=', $date);
+                            })
+                            ->first();
+
+                        if ($dimension === null || $value === null) {
+                            throw ValidationException::withMessages(["lines.{$index}.dimensions.{$assignmentIndex}" => 'The dimension and value must be active, effective on the journal date, and belong to this tenant and legal entity.']);
+                        }
+
+                        JournalLineDimension::query()->create([
+                            'tenant_id' => $tenantId,
+                            'legal_entity_id' => $entity->id,
+                            'journal_entry_id' => $entry->id,
+                            'line_number' => $index + 1,
+                            'dimension_id' => $dimensionId,
+                            'dimension_value_id' => $valueId,
+                        ]);
+                    }
                 }
 
                 $this->assertBalanced($entry);
-                $entry = $entry->load('lines');
+                $entry = $entry->load('lines.dimensions');
                 event(new JournalDraftCreated($entry, $actorId));
 
                 return $entry;
@@ -275,11 +324,12 @@ final class JournalEntryService
             }
 
             $this->assertBalanced($entry);
+            $this->assertRequiredDimensionsAssigned($entry);
             $entry->status = JournalEntry::POSTED;
             $entry->posted_by = $actorId;
             $entry->posted_at = now();
             $entry->save();
-            $entry = $entry->load('lines');
+            $entry = $entry->load('lines.dimensions');
             event(new JournalPosted($entry, $actorId));
 
             return $entry;
@@ -299,7 +349,7 @@ final class JournalEntryService
                 throw ValidationException::withMessages(['journal' => 'A reversal journal cannot itself be reversed.']);
             }
 
-            $originalLines = $original->lines()->orderBy('line_number')->get();
+            $originalLines = $original->lines()->with('dimensions')->orderBy('line_number')->get();
             $reversalHeader = [
                 'legal_entity_id' => $original->legal_entity_id,
                 'journal_number' => trim($reversalNumber),
@@ -317,6 +367,10 @@ final class JournalEntryService
                 'debit_amount' => $line->credit_amount,
                 'credit_amount' => $line->debit_amount,
                 'description' => $line->description,
+                'dimensions' => $line->dimensions->map(fn (JournalLineDimension $dimension): array => [
+                    'dimension_id' => $dimension->dimension_id,
+                    'dimension_value_id' => $dimension->dimension_value_id,
+                ])->all(),
             ])->all();
 
             // A retried request after a successful reversal returns the already
@@ -376,6 +430,45 @@ final class JournalEntryService
         }
 
         return $value;
+    }
+
+    private function assertRequiredDimensionsAssigned(JournalEntry $entry): void
+    {
+        $requiredDimensionIds = FinanceDimension::query()
+            ->where('tenant_id', $entry->tenant_id)
+            ->where('legal_entity_id', $entry->legal_entity_id)
+            ->where('status', 'active')
+            ->where('is_required_for_post', true)
+            ->orderBy('id')
+            ->pluck('id');
+
+        if ($requiredDimensionIds->isEmpty()) {
+            return;
+        }
+
+        $lineNumbers = JournalLine::query()
+            ->where('tenant_id', $entry->tenant_id)
+            ->where('legal_entity_id', $entry->legal_entity_id)
+            ->where('journal_entry_id', $entry->id)
+            ->orderBy('line_number')
+            ->pluck('line_number');
+
+        foreach ($lineNumbers as $lineNumber) {
+            $assigned = JournalLineDimension::query()
+                ->where('tenant_id', $entry->tenant_id)
+                ->where('legal_entity_id', $entry->legal_entity_id)
+                ->where('journal_entry_id', $entry->id)
+                ->where('line_number', $lineNumber)
+                ->whereIn('dimension_id', $requiredDimensionIds)
+                ->pluck('dimension_id')
+                ->all();
+
+            if ($requiredDimensionIds->diff($assigned)->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    "lines.{$lineNumber}.dimensions" => 'Every journal line must include all dimensions required by the legal entity before posting.',
+                ]);
+            }
+        }
     }
 
     private function assertBalanced(JournalEntry $entry): void
