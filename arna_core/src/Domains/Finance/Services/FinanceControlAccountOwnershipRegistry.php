@@ -66,6 +66,8 @@ final class FinanceControlAccountOwnershipRegistry
             throw new LogicException('Control-account ownership policy must cover exactly the canonical control accounts.');
         }
 
+        $integrationRegistry = require dirname(__DIR__) . '/Config/phase01_domain_integrations.php';
+
         foreach ($this->policies as $code => $policy) {
             foreach (['accountable_role', 'independent_reviewer_role', 'frequency'] as $required) {
                 if (trim((string) ($policy[$required] ?? '')) === '') {
@@ -75,6 +77,12 @@ final class FinanceControlAccountOwnershipRegistry
 
             if (empty($policy['required_evidence']) || empty($policy['contributing_domains'])) {
                 throw new LogicException("Control account {$code} must define evidence and contributing domains.");
+            }
+
+            foreach ($policy['contributing_domains'] as $domain) {
+                if (! isset($integrationRegistry['domains'][$domain])) {
+                    throw new LogicException("Control account {$code} references an unregistered contributing domain.");
+                }
             }
 
             if (($policy['designation_status'] ?? null) !== 'PENDING_OWNER_DESIGNATION'
