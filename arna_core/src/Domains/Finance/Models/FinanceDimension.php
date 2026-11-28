@@ -14,7 +14,7 @@ final class FinanceDimension extends Model
 
     protected $fillable = [
         'tenant_id', 'legal_entity_id', 'code', 'dimension_type',
-        'name_am', 'name_en', 'status', 'created_by', 'updated_by',
+        'name_am', 'name_en', 'status', 'is_required_for_post', 'created_by', 'updated_by',
     ];
 
     protected $casts = [
@@ -22,6 +22,7 @@ final class FinanceDimension extends Model
         'legal_entity_id' => 'integer',
         'created_by' => 'integer',
         'updated_by' => 'integer',
+        'is_required_for_post' => 'boolean',
     ];
 
     public function entity(): BelongsTo
