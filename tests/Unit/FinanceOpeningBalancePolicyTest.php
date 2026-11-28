@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Services\\FinanceOpeningBalancePolicy;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceOpeningBalancePolicy;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class FinanceOpeningBalancePolicyTest extends TestCase
 {
