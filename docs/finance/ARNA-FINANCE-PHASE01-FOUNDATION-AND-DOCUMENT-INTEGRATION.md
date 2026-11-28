@@ -69,7 +69,13 @@ Document codes already in the Documents registry are reused: INV/04, PUR/12, EXP
 
 A receipt is not considered financially complete merely because a PDF exists. It must reference a real cash/bank/customer/supplier transaction and its allocation/reconciliation status.
 
-## 5. Domain integration ownership
+## 5. Finance document-reference API
+
+The API exposes `GET /api/finance/documents` under `finance.document.view`. It is tenant-context scoped, requires a legal entity, supports source-domain/type/ID and purpose filters, and returns only canonical issued-document references linked to that entity. Document metadata is a summary; binary access, file versions and lifecycle actions remain on the existing Files/Documents APIs.
+
+Finance-specific linking is performed through `FinanceDocumentLinkService`, not by accepting arbitrary client-supplied document metadata. The service validates the active tenant/entity, requires an issued non-voided/non-revoked document from the same tenant and legal entity, validates the registered source domain and purpose, and uses a unique identity key to make repeat linking idempotent. Finance managers receive the read permission; cashier and Board roles do not receive broad Finance document visibility by default.
+
+## 6. Domain integration ownership
 
 | Domain | Record owner | Finance responsibility | Activation |
 |---|---|---|---|
@@ -84,13 +90,13 @@ A receipt is not considered financially complete merely because a PDF exists. It
 | Sales | Sales | Revenue recognition and receivables | Adapter inactive |
 | Tax | Tax/Finance | Tax determination, liabilities and returns | Requires current Ethiopian tax validation |
 
-## 6. Source-event integration contract
+## 7. Source-event integration contract
 
 Every source event must include event ID/version, tenant, legal entity, source domain/type/ID, effective date, currency, idempotency key and occurrence timestamp. Evidence references include document IDs, file-version IDs, content hashes and approval references.
 
 Finance must resolve tenant context server-side, validate active entity/source mappings, verify document ownership and entity consistency, enforce idempotency, and quarantine unknown, stale, revoked or unmapped events. Source domains cannot directly mutate posted journal entries.
 
-## 7. Security and segregation
+## 8. Security and segregation
 
 - Tenant context is server-resolved; client-supplied tenant IDs are not authoritative.
 - Entity and document references must match the same tenant and legal entity.
@@ -100,7 +106,7 @@ Finance must resolve tenant context server-side, validate active entity/source m
 - No implicit direct user grants are introduced.
 - No AI agent may post, pay, issue shares or alter issued documents.
 
-## 8. Phase 01 acceptance gates
+## 9. Phase 01 acceptance gates
 
 1. Clean MySQL migration creates profile and document-reference structures without changing existing ledger/document rows.
 2. Every existing legal entity receives a profile through a deterministic, idempotent backfill only after the migration is explicitly approved for that environment; migration itself must not invent fiscal-year or tax settings.
@@ -112,6 +118,6 @@ Finance must resolve tenant context server-side, validate active entity/source m
 8. App API types and views display configuration state and document references without exposing secrets or allowing unsupported policy activation.
 9. API PHP tests, MySQL clean-install tests, App type-check and relevant UI contract tests pass on exact candidate SHAs.
 
-## 9. Deferred work
+## 10. Deferred work
 
 Opening-balance import, tax determination, FX posting/revaluation, operational invoice/receipt subledgers, cash/bank, inventory, assets, procurement, payroll posting, and source adapters remain in their later frozen phases. No production deployment is part of Phase 01.
