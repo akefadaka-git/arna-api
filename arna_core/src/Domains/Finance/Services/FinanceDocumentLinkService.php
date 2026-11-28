@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\Arna\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\Arna\Core\Domains\Finance\Services;
 
-use Illuminate\\Database\\Eloquent\\ModelNotFoundException;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\FinanceDocumentLink;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDocumentLink;
 
 /**
  * Links an issued canonical Documents record to a Finance source record.
