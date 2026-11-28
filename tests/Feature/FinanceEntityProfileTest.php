@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\\Feature;
 
+use Illuminate\\Database\\QueryException;
 use Illuminate\\Foundation\\Testing\\RefreshDatabase;
+use Illuminate\\Support\\Facades\\DB;
 use MaaleArna\\Arna\\Core\\Auth\\Models\\User;
 use MaaleArna\\Arna\\Core\\Domains\\Finance\\Services\\LegalEntityService;
 use MaaleArna\\Arna\\Core\\Tenancy\\Models\\Tenant;
@@ -52,10 +54,31 @@ final class FinanceEntityProfileTest extends TestCase
     #[Test]
     public function profile_is_unique_for_each_tenant_legal_entity_pair(): void
     {
-        $this->assertDatabaseHas('finance_entity_profiles', [
+        $tenant = Tenant::factory()->create(['is_active' => true]);
+        $actor = User::factory()->create([
+            'is_active' => true,
+            'default_tenant_id' => $tenant->id,
+        ]);
+        $entity = app(LegalEntityService::class)->create((int) $tenant->id, [
+            'code' => 'UNIQUE-PROFILE',
+            'name_en' => 'Unique Profile Entity',
+            'base_currency' => 'ETB',
+        ], (int) $actor->id);
+
+        $this->expectException(QueryException::class);
+        DB::table('finance_entity_profiles')->insert([
+            'tenant_id' => $tenant->id,
+            'legal_entity_id' => $entity->id,
             'functional_currency' => 'ETB',
             'reporting_currency' => 'ETB',
             'transaction_currency_mode' => 'base_only',
+            'display_calendar' => 'EC',
+            'timezone' => 'Africa/Addis_Ababa',
+            'tax_profile_status' => 'unconfigured',
+            'accounting_policy_status' => 'owner_review_required',
+            'document_numbering_policy_version' => 'ARNA-DOC-STD-001',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 }
