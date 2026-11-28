@@ -65,7 +65,7 @@ final class LegalEntityService
                     'fiscal_year_start_day_ec' => null,
                     'tax_profile_status' => 'unconfigured',
                     'accounting_policy_status' => 'owner_review_required',
-                    'document_numbering_policy_version' => 'ARNA-DOC-STD-001',
+                    'document_numbering_policy_version' => null,
                 ]);
 
                 event(new LegalEntityCreated($entity, $actorId));
