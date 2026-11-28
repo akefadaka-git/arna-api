@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use MaaleArna\Arna\Core\Domains\Documents\Registries\DocumentTypeRegistry;
+use MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinancePermissionCatalogue;
+use MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 final class FinancePhase01DomainIntegrationContractTest extends TestCase
 {
@@ -26,8 +29,8 @@ final class FinancePhase01DomainIntegrationContractTest extends TestCase
     #[Test]
     public function finance_document_evidence_is_visible_only_to_the_finance_manager_role(): void
     {
-        $permissions = \MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinancePermissionCatalogue::ROWS;
-        $grants = \MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants::MAP;
+        $permissions = FinancePermissionCatalogue::ROWS;
+        $grants = FinanceRolePermissionGrants::MAP;
 
         self::assertContains('finance.document.view', array_column($permissions, 'slug'));
         self::assertContains('finance.document.view', $grants['finance_manager']);
