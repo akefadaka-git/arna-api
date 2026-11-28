@@ -220,7 +220,7 @@ final class JournalEntryService
                 }
 
                 $this->assertBalanced($entry);
-                $entry = $entry->load('lines.dimensions');
+                $entry = $entry->load('lines');
                 event(new JournalDraftCreated($entry, $actorId));
 
                 return $entry;
@@ -349,7 +349,7 @@ final class JournalEntryService
                 throw ValidationException::withMessages(['journal' => 'A reversal journal cannot itself be reversed.']);
             }
 
-            $originalLines = $original->lines()->with('dimensions')->orderBy('line_number')->get();
+            $originalLines = $original->lines()->orderBy('line_number')->get();
             $reversalHeader = [
                 'legal_entity_id' => $original->legal_entity_id,
                 'journal_number' => trim($reversalNumber),
@@ -362,16 +362,25 @@ final class JournalEntryService
                 'source_id' => (string) $original->id,
                 'idempotency_key' => 'reversal:'.$original->id,
             ];
-            $reversalLines = $originalLines->map(fn (JournalLine $line): array => [
-                'account_id' => $line->account_id,
-                'debit_amount' => $line->credit_amount,
-                'credit_amount' => $line->debit_amount,
-                'description' => $line->description,
-                'dimensions' => $line->dimensions->map(fn (JournalLineDimension $dimension): array => [
-                    'dimension_id' => $dimension->dimension_id,
-                    'dimension_value_id' => $dimension->dimension_value_id,
-                ])->all(),
-            ])->all();
+            $reversalLines = $originalLines->map(function (JournalLine $line) use ($original): array {
+                $dimensions = JournalLineDimension::query()
+                    ->where('tenant_id', $original->tenant_id)
+                    ->where('legal_entity_id', $original->legal_entity_id)
+                    ->where('journal_entry_id', $original->id)
+                    ->where('line_number', $line->line_number)
+                    ->get();
+
+                return [
+                    'account_id' => $line->account_id,
+                    'debit_amount' => $line->credit_amount,
+                    'credit_amount' => $line->debit_amount,
+                    'description' => $line->description,
+                    'dimensions' => $dimensions->map(fn (JournalLineDimension $dimension): array => [
+                        'dimension_id' => $dimension->dimension_id,
+                        'dimension_value_id' => $dimension->dimension_value_id,
+                    ])->all(),
+                ];
+            })->all();
 
             // A retried request after a successful reversal returns the already
             // persisted reversal only when the full request fingerprint matches.
