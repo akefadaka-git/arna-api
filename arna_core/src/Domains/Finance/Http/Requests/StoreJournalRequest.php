@@ -63,6 +63,9 @@ final class StoreJournalRequest extends FormRequest
             'lines.*.debit_amount' => ['required', 'string', 'regex:/^\d{1,16}(?:\.\d{1,4})?$/'],
             'lines.*.credit_amount' => ['required', 'string', 'regex:/^\d{1,16}(?:\.\d{1,4})?$/'],
             'lines.*.description' => ['nullable', 'string', 'max:500'],
+            'lines.*.dimensions' => ['sometimes', 'array', 'max:16'],
+            'lines.*.dimensions.*.dimension_id' => ['required', 'integer', 'min:1'],
+            'lines.*.dimensions.*.dimension_value_id' => ['required', 'integer', 'min:1'],
         ];
     }
 }

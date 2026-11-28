@@ -8,25 +8,16 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\Arna\Core\Domains\Finance\Events\LegalEntityCreated;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceEntityProfile;
 use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
 
 /**
  * Owns legal-entity write invariants for the Finance domain.
- *
- * HTTP requests validate payload shape; this service normalizes values,
- * applies tenant scope, and persists changes transactionally. Database
- * constraints remain authoritative for concurrent uniqueness checks.
- *
- * Authorization is intentionally outside this service and must be enforced
- * by the route/controller policy boundary before calling it.
+ * Entity and its conservative accounting profile are created atomically.
  */
 final class LegalEntityService
 {
-    /**
-     * Create a legal entity for an already-resolved tenant.
-     *
-     * @param array<string, mixed> $data Validated request data.
-     */
+    /** @param array<string, mixed> $data Validated data. */
     public function create(int $tenantId, array $data, int $actorId): LegalEntity
     {
         if ($tenantId < 1) {
@@ -61,12 +52,27 @@ final class LegalEntityService
                     'base_currency' => $currency,
                     'status' => 'active',
                 ]);
+
+                FinanceEntityProfile::query()->create([
+                    'tenant_id' => $tenantId,
+                    'legal_entity_id' => $entity->id,
+                    'functional_currency' => 'ETB',
+                    'reporting_currency' => 'ETB',
+                    'transaction_currency_mode' => 'base_only',
+                    'display_calendar' => 'EC',
+                    'timezone' => 'Africa/Addis_Ababa',
+                    'fiscal_year_start_month_ec' => null,
+                    'fiscal_year_start_day_ec' => null,
+                    'tax_profile_status' => 'unconfigured',
+                    'accounting_policy_status' => 'owner_review_required',
+                    'document_numbering_policy_version' => null,
+                ]);
+
                 event(new LegalEntityCreated($entity, $actorId));
-                return $entity;
+
+                return $entity->load('profile');
             });
         } catch (QueryException $exception) {
-            // The tenant/code unique index is the race-safe authority. Convert
-            // duplicate-key failures into the same field-level API contract.
             $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
             $driverCode = (int) ($exception->errorInfo[1] ?? 0);
             $message = strtolower($exception->getMessage());
