@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDocumentLink;
+use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
 
 /**
  * Links an issued canonical Documents record to a Finance source record.
