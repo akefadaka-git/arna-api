@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\Arna\Core\Domains\Finance\Models;
+namespace MaaleArna\\Arna\\Core\\Domains\\Finance\\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\\Database\\Eloquent\\Model;
+use Illuminate\\Database\\Eloquent\\Relations\\HasMany;
+use Illuminate\\Database\\Eloquent\\Relations\\HasOne;
 
 final class LegalEntity extends Model
 {
@@ -16,6 +17,16 @@ final class LegalEntity extends Model
     ];
 
     protected $casts = ['tenant_id' => 'integer'];
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(FinanceEntityProfile::class, 'legal_entity_id');
+    }
+
+    public function documentLinks(): HasMany
+    {
+        return $this->hasMany(FinanceDocumentLink::class, 'legal_entity_id');
+    }
 
     public function accounts(): HasMany
     {
