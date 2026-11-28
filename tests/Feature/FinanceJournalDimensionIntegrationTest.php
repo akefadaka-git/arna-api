@@ -73,7 +73,7 @@ final class FinanceJournalDimensionIntegrationTest extends TestCase
     public function it_carries_dimension_assignments_into_system_generated_reversal_journals(): void
     {
         [$tenant, $actor, $entity, $cash, $equity] = $this->fixture();
-        [$dimension, $value] = $this->requiredDepartment($tenant, $actor, $entity);
+        [$dimension, $value] = $this->requiredDepartment($tenant, $actor, $entity, '2026-10-10');
         $service = app(JournalEntryService::class);
 
         $original = $service->createDraft((int) $tenant->id, (int) $actor->id, [
@@ -98,7 +98,7 @@ final class FinanceJournalDimensionIntegrationTest extends TestCase
             (int) $actor->id,
             (int) $original->id,
             'JV-DIM-REV-002',
-            '2026-10-01',
+            '2026-10-11',
             'Verified dimension-preserving reversal',
         );
 
@@ -188,7 +188,7 @@ final class FinanceJournalDimensionIntegrationTest extends TestCase
         }
     }
 
-    private function requiredDepartment(Tenant $tenant, User $actor, LegalEntity $entity): array
+    private function requiredDepartment(Tenant $tenant, User $actor, LegalEntity $entity, ?string $effectiveTo = null): array
     {
         $service = app(FinanceDimensionService::class);
         $dimension = $service->createDimension((int) $tenant->id, (int) $entity->id, [
@@ -200,6 +200,8 @@ final class FinanceJournalDimensionIntegrationTest extends TestCase
         $value = $service->createValue((int) $tenant->id, (int) $entity->id, (int) $dimension->id, [
             'code' => 'FIN',
             'name_en' => 'Finance',
+            'effective_from' => '2026-10-01',
+            'effective_to' => $effectiveTo,
         ], (int) $actor->id);
 
         return [$dimension, $value];
