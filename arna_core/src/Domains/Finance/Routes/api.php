@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Controllers\FinanceDimensionController;
 
 $controller = \MaaleArna\Arna\Core\Domains\Finance\Http\Controllers\FinanceController::class;
 
