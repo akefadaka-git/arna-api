@@ -44,6 +44,7 @@ use MaaleArna\Arna\Core\Domains\Finance\Services\FinancialReportService;
 use MaaleArna\Arna\Core\Domains\Finance\Repositories\JournalEntryRepository;
 use MaaleArna\Arna\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
 use MaaleArna\Arna\Core\Domains\Finance\Repositories\LedgerAccountRepository;
+use MaaleArna\Arna\Core\Domains\Finance\Repositories\FinanceDocumentLinkRepository;
 use MaaleArna\Arna\Core\Domains\Finance\Services\LegalEntityService;
 use MaaleArna\Arna\Core\Domains\Finance\Services\AccountingPeriodService;
 use MaaleArna\Arna\Core\Domains\Finance\Services\TrialBalanceService;
@@ -51,6 +52,8 @@ use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceConsolidationService;
 use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceConsolidationMappingService;
 use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceExchangeRateService;
 use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceCurrencyConverter;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceDocumentLinkService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceControlAccountOwnershipRegistry;
 
 final class FinanceServiceProvider extends ServiceProvider
 {
@@ -62,7 +65,10 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(JournalEntryRepository::class);
         $this->app->singleton(AccountingPeriodRepository::class);
         $this->app->singleton(LedgerAccountRepository::class);
+        $this->app->singleton(FinanceDocumentLinkRepository::class);
         $this->app->singleton(LegalEntityService::class);
+        $this->app->singleton(FinanceDocumentLinkService::class);
+        $this->app->singleton(FinanceControlAccountOwnershipRegistry::class);
         $this->app->singleton(LedgerAccountService::class);
         $this->app->singleton(AccountingPeriodService::class);
         $this->app->singleton(TrialBalanceService::class);
