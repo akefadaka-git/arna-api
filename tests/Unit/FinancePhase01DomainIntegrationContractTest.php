@@ -24,6 +24,12 @@ final class FinancePhase01DomainIntegrationContractTest extends TestCase
         foreach ($registry['documents']['uses'] as $types) {
             self::assertNotEmpty($types);
         }
+        $canonicalUses = array_merge(...array_values($registry['documents']['uses']));
+        foreach ($registry['domains'] as $domain => $definition) {
+            foreach ($definition['document_uses'] as $use) {
+                self::assertContains($use, $canonicalUses, "Unmapped document use [{$use}] for domain [{$domain}].");
+            }
+        }
         self::assertSame('Documents', $registry['documents']['owner']);
         self::assertSame('Files', $registry['documents']['binary_owner']);
         self::assertContains('sales_invoice', $registry['documents']['uses']['INV']);
