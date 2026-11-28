@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\Arna\\Core\\Domains\\Finance\\Repositories;
+namespace MaaleArna\Arna\Core\Domains\Finance\Repositories;
 
-use Illuminate\\Contracts\\Pagination\\LengthAwarePaginator;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\FinanceDimension;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\FinanceDimensionValue;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDimension;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDimensionValue;
 
 final class FinanceDimensionRepository
 {
