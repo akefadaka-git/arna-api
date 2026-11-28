@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
-use PHPUnit\\Framework\\Attributes\\Test;
-use PHPUnit\\Framework\\TestCase;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
 
 final class FinancePhase01DomainIntegrationContractTest extends TestCase
 {
