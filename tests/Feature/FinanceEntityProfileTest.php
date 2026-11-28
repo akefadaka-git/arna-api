@@ -45,6 +45,7 @@ final class FinanceEntityProfileTest extends TestCase
             'fiscal_year_start_day_ec' => null,
             'tax_profile_status' => 'unconfigured',
             'accounting_policy_status' => 'owner_review_required',
+            'document_numbering_policy_version' => null,
         ]);
 
         $this->assertSame('ETB', $entity->profile->functional_currency);
@@ -76,7 +77,7 @@ final class FinanceEntityProfileTest extends TestCase
             'timezone' => 'Africa/Addis_Ababa',
             'tax_profile_status' => 'unconfigured',
             'accounting_policy_status' => 'owner_review_required',
-            'document_numbering_policy_version' => 'ARNA-DOC-STD-001',
+            'document_numbering_policy_version' => null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
