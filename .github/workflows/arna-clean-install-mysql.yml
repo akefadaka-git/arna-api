@@ -79,6 +79,16 @@ on:
       - "arna_core/src/Domains/Governance/Listeners/AuditGovernanceElectionLifecycleEvent.php"
       - "arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php"
       - "arna_core/src/Domains/Governance/Routes/api.php"
+      - "arna_core/src/Domains/Governance/Services/GovernanceElectionShareholderSourceService.php"
+      - "arna_core/src/Domains/Governance/Services/GovernanceElectionSourceSnapshotService.php"
+      - "arna_core/src/Domains/Governance/Http/Controllers/GovernanceElectionSourceSnapshotController.php"
+      - "arna_core/src/Domains/Governance/Models/GovernanceElectionSourceSnapshot*.php"
+      - "arna_core/src/Domains/Governance/Database/Migrations/2026_11_27_000001_create_governance_election_source_snapshots.php"
+      - "arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionSourceSnapshotTest.php"
+      - "arna_core/src/Domains/Governance/Tests/Unit/GovernanceElectionShareholderSourceServiceTest.php"
+      - "arna_core/src/Domains/Governance/Database/Seeders/GovernancePermissionsSeeder.php"
+      - "docs/governance/board-election/A3.3-SHAREHOLDER-SOURCE-SNAPSHOT-IMPLEMENTATION.md"
+      - ".github/workflows/arna-election-source-snapshot-mysql.yml"
       # Any Loan production code, migration, route, policy, service, or test
       # change must run this financial-integrity gate.
       - "arna_core/src/Domains/Documents/**"
@@ -315,6 +325,16 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: root
         run: php artisan test --compact arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
+
+      - name: Run election shareholder source snapshot API and immutability tests on migrated MySQL
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: arna_migration_test
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --compact arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionSourceSnapshotTest.php
 
       - name: Run election lifecycle API and evidence integration tests on migrated MySQL
         env:

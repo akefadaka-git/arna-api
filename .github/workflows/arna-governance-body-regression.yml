@@ -149,6 +149,17 @@ jobs:
           php -l arna_core/src/Domains/Governance/Listeners/AuditGovernanceElectionLifecycleEvent.php
           php -l arna_core/src/Domains/Governance/Database/Migrations/2026_11_18_100000_create_governance_elections_foundation.php
           php -l arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
+          php -l arna_core/src/Domains/Governance/Services/GovernanceElectionShareholderSourceService.php
+          php -l arna_core/src/Domains/Governance/Services/GovernanceElectionSourceSnapshotService.php
+          php -l arna_core/src/Domains/Governance/Http/Controllers/GovernanceElectionSourceSnapshotController.php
+          php -l arna_core/src/Domains/Governance/Models/GovernanceElectionSourceSnapshot.php
+          php -l arna_core/src/Domains/Governance/Models/GovernanceElectionSourceSnapshotHolder.php
+          php -l arna_core/src/Domains/Governance/Models/GovernanceElectionSourceSnapshotHolding.php
+          php -l arna_core/src/Domains/Governance/Models/GovernanceElectionSourceSnapshotEntry.php
+          php -l arna_core/src/Domains/Governance/Models/GovernanceElectionSourceSnapshotReconciliation.php
+          php -l arna_core/src/Domains/Governance/Database/Migrations/2026_11_27_000001_create_governance_election_source_snapshots.php
+          php -l arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionSourceSnapshotTest.php
+          php -l arna_core/src/Domains/Governance/Tests/Unit/GovernanceElectionShareholderSourceServiceTest.php
           php -l arna_core/src/Domains/Governance/Models/GovernanceElectionAuthorityEvidence.php
           php -l arna_core/src/Domains/Governance/Models/GovernanceElectionCommitteeMember.php
           php -l arna_core/src/Domains/Governance/Services/GovernanceElectionAuthorityService.php
@@ -177,6 +188,8 @@ jobs:
           vendor/bin/phpunit arna_core/src/Domains/Governance/Tests/Feature/GovernanceMeetingAttendanceTest.php
           vendor/bin/phpunit arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionCommitteeSecurityTest.php
           vendor/bin/phpunit arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionLifecycleTest.php
+          vendor/bin/phpunit arna_core/src/Domains/Governance/Tests/Unit/GovernanceElectionShareholderSourceServiceTest.php
+          vendor/bin/phpunit arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionSourceSnapshotTest.php
           vendor/bin/phpunit tests/Feature/Governance/GovernanceElectionAuthorityCommitteeIntegrationTest.php
           vendor/bin/phpunit arna_core/src/Domains/Finance/Tests/Feature/FinanceSourceEntityMappingResolverTest.php
           vendor/bin/phpunit arna_core/src/Domains/Finance/Tests/Feature/GovernancePenaltySettlementServiceTest.php
