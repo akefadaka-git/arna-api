@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\Arna\\Core\\Domains\\Finance\\Repositories;
+namespace MaaleArna\Arna\Core\Domains\Finance\Repositories;
 
-use Illuminate\\Contracts\\Pagination\\LengthAwarePaginator;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\FinanceDocumentLink;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDocumentLink;
 
 final class FinanceDocumentLinkRepository
 {
