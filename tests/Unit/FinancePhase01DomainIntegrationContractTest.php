@@ -23,6 +23,18 @@ final class FinancePhase01DomainIntegrationContractTest extends TestCase
     }
 
     #[Test]
+    public function finance_document_evidence_is_visible_only_to_the_finance_manager_role(): void
+    {
+        $permissions = \MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinancePermissionCatalogue::ROWS;
+        $grants = \MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants::MAP;
+
+        self::assertContains('finance.document.view', array_column($permissions, 'slug'));
+        self::assertContains('finance.document.view', $grants['finance_manager']);
+        self::assertNotContains('finance.document.view', $grants['cashier']);
+        self::assertNotContains('finance.document.view', $grants['board']);
+    }
+
+    #[Test]
     public function every_source_domain_adapter_is_inactive_until_mapping_and_controls_are_approved(): void
     {
         $registry = require base_path('arna_core/src/Domains/Finance/Config/phase01_domain_integrations.php');
