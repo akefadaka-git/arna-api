@@ -69,7 +69,7 @@ final class FinanceDocumentLinkService
 
             if ($entity === null) {
                 throw (new ModelNotFoundException())->setModel(
-                    \\MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\LegalEntity::class,
+                    LegalEntity::class,
                     [$legalEntityId],
                 );
             }
