@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\Arna\\Core\\Auth\\Models\\User;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Services\\FinanceDimensionService;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Services\\LegalEntityService;
-use MaaleArna\\Arna\\Core\\Tenancy\\Models\\Tenant;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\Arna\Core\Auth\Models\User;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceDimensionService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\LegalEntityService;
+use MaaleArna\Arna\Core\Tenancy\Models\Tenant;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class FinanceDimensionServiceTest extends TestCase
 {
