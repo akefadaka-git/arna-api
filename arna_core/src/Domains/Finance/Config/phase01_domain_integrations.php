@@ -79,6 +79,13 @@ return [
             'source_events' => ['asset.acquired', 'asset.assigned', 'asset.depreciated', 'asset.impaired', 'asset.disposed'],
             'posting_adapter' => 'inactive',
         ],
+        'loans' => [
+            'record_owner' => 'Loans',
+            'finance_role' => 'loan_principal_interest_and_credit_loss_accounting',
+            'document_uses' => ['loan_agreement', 'loan_disbursement', 'repayment_schedule', 'interest_schedule', 'collateral_evidence', 'credit_loss_assessment'],
+            'source_events' => ['loan.disbursed', 'loan.repayment.received', 'loan.interest.accrued', 'loan.impairment.approved'],
+            'posting_adapter' => 'inactive',
+        ],
         'people_payroll' => [
             'record_owner' => 'People/Payroll',
             'finance_role' => 'payroll_journal_and_statutory_deduction_recognition',
