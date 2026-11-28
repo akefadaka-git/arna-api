@@ -42,16 +42,21 @@ final class TenantSeeder extends Seeder
          * The slug itself is not in the update array — it is the
          * lookup key, and Tenant::updateOrCreate() will not touch it.
          */
-        return Tenant::updateOrCreate(
-            ['slug' => $row['slug']],
-            [
-                'name_am'   => $row['name_am'],
-                'name_en'   => $row['name_en'],
-                'domain'    => $row['domain'],
-                'settings'  => $row['settings'],
-                'is_active' => $row['is_active'],
-            ]
-        );
+        $tenant = Tenant::query()->firstOrNew(['slug' => $row['slug']]);
+        $tenant->fill([
+            'name_am' => $row['name_am'],
+            'name_en' => $row['name_en'],
+            'domain' => $row['domain'],
+            'settings' => $row['settings'],
+            'is_active' => $row['is_active'],
+        ]);
+
+        // Avoid timestamp and model-event writes on a true no-op rerun.
+        if ($tenant->isDirty()) {
+            $tenant->save();
+        }
+
+        return $tenant;
     }
 
     /**

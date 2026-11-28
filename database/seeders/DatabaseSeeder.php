@@ -14,6 +14,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(ArnaCoreSeeder::class);
+        $this->call(ArnaBaselineSeeder::class);
     }
 }

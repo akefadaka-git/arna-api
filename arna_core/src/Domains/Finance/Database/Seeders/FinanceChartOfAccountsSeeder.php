@@ -81,17 +81,44 @@ final class FinanceChartOfAccountsSeeder extends Seeder
                         'default_tax_category' => $tax,
                         'coa_version' => self::VERSION,
                         'is_system_account' => true,
-                        'updated_at' => now(),
                     ];
                     if ($ids[$code] === null) {
                         $values['created_at'] = now();
+                        $values['updated_at'] = $values['created_at'];
                         $ids[$code] = DB::table('ledger_accounts')->insertGetId($values);
                     } else {
-                        DB::table('ledger_accounts')->where('id', $ids[$code])
-                            ->where('tenant_id', $entity->tenant_id)
-                            ->where('legal_entity_id', $entity->id)
-                            ->where('is_system_account', true)
-                            ->update($values);
+                        $current = $existing->get($code);
+                        $hasChanges = false;
+                        $booleanColumns = [
+                            'is_posting_allowed',
+                            'is_control_account',
+                            'is_system_account',
+                        ];
+                        foreach ($values as $column => $value) {
+                            $currentValue = $current->{$column} ?? null;
+                            if (in_array($column, $booleanColumns, true)) {
+                                $hasChanges = (bool) $currentValue !== (bool) $value;
+                            } elseif ($currentValue === null || $value === null) {
+                                $hasChanges = $currentValue !== $value;
+                            } else {
+                                $hasChanges = (string) $currentValue !== (string) $value;
+                            }
+
+                            if ($hasChanges) {
+                                break;
+                            }
+                        }
+
+                        // Preserve updated_at when the canonical account is already
+                        // correct; snapshot-based repeatability depends on true no-op reruns.
+                        if ($hasChanges) {
+                            $values['updated_at'] = now();
+                            DB::table('ledger_accounts')->where('id', $ids[$code])
+                                ->where('tenant_id', $entity->tenant_id)
+                                ->where('legal_entity_id', $entity->id)
+                                ->where('is_system_account', true)
+                                ->update($values);
+                        }
                     }
                 }
             });
