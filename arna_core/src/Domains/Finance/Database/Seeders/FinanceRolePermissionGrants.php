@@ -28,6 +28,7 @@ final class FinanceRolePermissionGrants
             'finance.journal.cancel',
             'finance.journal.post', 'finance.journal.reverse',
             'finance.report.view',
+            'finance.document.view',
             'finance.ai.view', 'finance.ai.propose', 'finance.ai.approve',
             'finance.subledger.view', 'finance.subledger.ingest', 'finance.integration.view',
             'finance.governance_settlement.configure',
