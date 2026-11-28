@@ -412,7 +412,7 @@ final class JournalEntryService
                 throw ValidationException::withMessages(['journal' => 'Only a posted, non-reversal journal can be reversed.']);
             }
 
-            $reversal = $this->createDraft($tenantId, $actorId, $reversalHeader, $reversalLines);
+            $reversal = $this->createDraft($tenantId, $actorId, $reversalHeader, $reversalLines, true);
 
             // Only this controlled reversal path may assign REVERSAL and its reference.
             $reversal->journal_type = JournalEntryType::REVERSAL;
