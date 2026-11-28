@@ -35,6 +35,8 @@ The canonical 79-account CoA remains sourced from `chart_of_accounts_v1.php`. Th
 
 Before any CoA activation, validate all 79 codes, hierarchy, account type, normal balance, posting eligibility, control-account designation, source-domain ownership and tax-category default. Control accounts require an accountable role, reconciliation cadence, required evidence and approved source mappings. No named person or posting adapter is inferred.
 
+The Phase 01 `FinanceControlAccountOwnershipRegistry` now defines role-level responsibility, internal segregation role, reconciliation frequency, evidence requirements and contributing domains for all 36 canonical control accounts. Every policy remains `PENDING_OWNER_DESIGNATION`; named persons remain null; every posting adapter remains blocked until the Owner designates responsibility and approves the reconciliation procedure. The registry validates exact one-to-one coverage against the canonical chart and rejects unregistered contributing domains. These are internal financial-control responsibilities, not an external software-review gate.
+
 ## 4. Document lifecycle and uses
 
 Finance references the canonical Documents registry; it does not create a second document-numbering system or duplicate files.
@@ -116,7 +118,8 @@ Finance must resolve tenant context server-side, validate active entity/source m
 6. Document links enforce tenant/entity scope, reject mismatched document entity, preserve immutable document identity and do not duplicate files.
 7. Document type registry and canonical numbering remain Documents-owned.
 8. App API types and views display configuration state and document references without exposing secrets or allowing unsupported policy activation.
-9. API PHP tests, MySQL clean-install tests, App type-check and relevant UI contract tests pass on exact candidate SHAs.
+9. All 36 control-account policies validate against the canonical 79-account CoA; no owner or adapter is activated implicitly.
+10. API PHP tests, MySQL clean-install tests, App type-check and relevant UI contract tests pass on exact candidate SHAs.
 
 ## 10. Deferred work
 
