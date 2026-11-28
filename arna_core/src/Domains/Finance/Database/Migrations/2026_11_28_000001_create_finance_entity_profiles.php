@@ -40,6 +40,27 @@ return new class extends Migration
             $table->index(['tenant_id', 'transaction_currency_mode'], 'finance_entity_profiles_currency_mode_idx');
         });
 
+        DB::table('legal_entities')->orderBy('id')->chunkById(500, function ($entities): void {
+            foreach ($entities as $entity) {
+                DB::table('finance_entity_profiles')->insertOrIgnore([
+                    'tenant_id' => $entity->tenant_id,
+                    'legal_entity_id' => $entity->id,
+                    'functional_currency' => 'ETB',
+                    'reporting_currency' => 'ETB',
+                    'transaction_currency_mode' => 'base_only',
+                    'display_calendar' => 'EC',
+                    'timezone' => 'Africa/Addis_Ababa',
+                    'fiscal_year_start_month_ec' => null,
+                    'fiscal_year_start_day_ec' => null,
+                    'tax_profile_status' => 'unconfigured',
+                    'accounting_policy_status' => 'owner_review_required',
+                    'document_numbering_policy_version' => 'ARNA-DOC-STD-001',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        });
+
         if (DB::getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE finance_entity_profiles ADD CONSTRAINT finance_entity_profiles_currency_mode_chk CHECK (transaction_currency_mode IN ('base_only', 'pending_approval', 'multi_currency_enabled'))");
             DB::statement("ALTER TABLE finance_entity_profiles ADD CONSTRAINT finance_entity_profiles_calendar_chk CHECK (display_calendar IN ('EC', 'GC'))");
