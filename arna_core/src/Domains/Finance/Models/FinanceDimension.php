@@ -14,13 +14,12 @@ final class FinanceDimension extends Model
 
     protected $fillable = [
         'tenant_id', 'legal_entity_id', 'code', 'dimension_type',
-        'name_am', 'name_en', 'is_required', 'status', 'created_by', 'updated_by',
+        'name_am', 'name_en', 'status', 'created_by', 'updated_by',
     ];
 
     protected $casts = [
         'tenant_id' => 'integer',
         'legal_entity_id' => 'integer',
-        'is_required' => 'boolean',
         'created_by' => 'integer',
         'updated_by' => 'integer',
     ];
