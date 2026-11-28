@@ -61,6 +61,22 @@ final class FinancePhase01DomainIntegrationContractTest extends TestCase
     }
 
     #[Test]
+    public function finance_document_link_service_rejects_a_document_use_owned_by_another_domain(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        app(FinanceDocumentLinkService::class)->linkIssuedDocument(
+            1,
+            1,
+            1,
+            'finance',
+            'sales_invoice',
+            'source-1',
+            'source_evidence',
+        );
+    }
+
+    #[Test]
     public function every_source_domain_adapter_is_inactive_until_mapping_and_controls_are_approved(): void
     {
         $registry = require base_path('arna_core/src/Domains/Finance/Config/phase01_domain_integrations.php');
