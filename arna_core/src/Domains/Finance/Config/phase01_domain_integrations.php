@@ -13,6 +13,7 @@ return [
     'documents' => [
         'owner' => 'Documents',
         'binary_owner' => 'Files',
+        'supported_document_codes' => ['LET', 'MEM', 'LEG', 'INV', 'CER', 'RES', 'CIR', 'RPT', 'CON', 'NOT', 'POL', 'PUR', 'EXP', 'INC', 'RCT'],
         'finance_reference_table' => 'finance_document_links',
         'numbering_owner' => 'Documents',
         'required_invariants' => [
@@ -24,10 +25,10 @@ return [
         ],
         'uses' => [
             'INV' => ['sales_invoice', 'supplier_invoice', 'tax_invoice', 'credit_note', 'debit_note', 'proforma_invoice', 'service_invoice'],
-            'PUR' => ['purchase_order', 'purchase_requisition', 'contract_award'],
-            'EXP' => ['expense_claim', 'expense_approval', 'reimbursement', 'cash_advance'],
+            'PUR' => ['purchase_order', 'purchase_requisition', 'contract_award', 'rfq', 'tender', 'bid_comparison', 'goods_receipt_note', 'inspection_report', 'delivery_note'],
+            'EXP' => ['expense_claim', 'expense_approval', 'reimbursement', 'cash_advance', 'cash_payment_voucher', 'bank_payment_voucher', 'petty_cash_voucher', 'cash_transfer_voucher', 'advance_settlement_voucher', 'reimbursement_voucher', 'supplier_payment_voucher'],
             'INC' => ['income_order', 'sales_order', 'revenue_authorization'],
-            'RCT' => ['cash_receipt', 'bank_receipt', 'customer_receipt', 'supplier_refund', 'advance_receipt', 'payment_receipt'],
+            'RCT' => ['cash_receipt', 'bank_receipt', 'customer_receipt', 'supplier_refund', 'advance_receipt', 'payment_receipt', 'cashier_receipt', 'bank_deposit_receipt', 'wallet_settlement_receipt'],
             'CON' => ['supplier_contract', 'customer_contract', 'lease_agreement', 'loan_agreement', 'insurance_policy'],
             'CER' => ['share_certificate', 'asset_certificate', 'tax_registration_certificate'],
             'RES' => ['board_budget_resolution', 'share_capital_resolution', 'dividend_resolution', 'investment_resolution'],
