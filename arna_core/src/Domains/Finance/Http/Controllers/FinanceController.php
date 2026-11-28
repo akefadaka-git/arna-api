@@ -130,8 +130,13 @@ final class FinanceController extends Controller
     public function entities(Request $request): JsonResponse
     {
         Gate::authorize('viewAny', LegalEntity::class);
-        return response()->json(['success' => true, 'data' => $this->entitiesRepository
-            ->paginateForTenant($this->tenantId(), $this->perPage($request))]);
+        $entities = $this->entitiesRepository
+            ->paginateForTenant($this->tenantId(), $this->perPage($request));
+
+        return response()->json([
+            'success' => true,
+            'data' => LegalEntityResource::collection($entities),
+        ]);
     }
 
     public function createEntity(StoreLegalEntityRequest $request): JsonResponse
