@@ -94,6 +94,12 @@ final class JournalEntryService
                     (int) $entity->id,
                 );
 
+                if ($allowHistoricalDimensionValues && $sourceType !== JournalSourceType::SYSTEM) {
+                    throw ValidationException::withMessages([
+                        'dimensions' => 'Historical dimension references are reserved for system-generated journal reversals.',
+                    ]);
+                }
+
                 $date = (string) ($header['effective_date'] ?? '');
                 $currency = strtoupper((string) ($header['currency'] ?? $entity->base_currency));
                 if ($currency !== $entity->base_currency) {
