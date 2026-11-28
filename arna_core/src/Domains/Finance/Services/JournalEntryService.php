@@ -329,7 +329,7 @@ final class JournalEntryService
             $entry->posted_by = $actorId;
             $entry->posted_at = now();
             $entry->save();
-            $entry = $entry->load('lines.dimensions');
+            $entry = $entry->load('lines');
             event(new JournalPosted($entry, $actorId));
 
             return $entry;
