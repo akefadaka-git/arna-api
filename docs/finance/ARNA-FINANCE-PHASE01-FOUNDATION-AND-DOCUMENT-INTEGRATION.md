@@ -45,6 +45,8 @@ Product, customer and supplier masters remain owned by their respective domains;
 
 The `journal_line_dimensions` relation is prepared to associate dimension values with journal lines. MySQL guards allow assignment changes only while the journal is draft and prevent changes to dimension definitions/values once referenced by posted or reversed journals. Required-dimension enforcement and journal posting integration are completed in the dependent Phase 02 workstream; Phase 01 does not expose a misleading required flag.
 
+The API exposes `GET/POST /api/finance/dimensions` and `GET/POST /api/finance/dimensions/{dimensionId}/values`. Read and manage actions use separate `finance.dimension.view` and `finance.dimension.manage` permissions; only the Finance Manager role receives the management grants in this baseline. Dimension creation/value creation is audited in the append-only Finance audit ledger.
+
 ## 5. Document lifecycle and uses
 
 Finance references the canonical Documents registry; it does not create a second document-numbering system or duplicate files.
