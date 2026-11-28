@@ -29,6 +29,10 @@ Route::post('/journals/{journalId}/reverse', [$controller, 'reverseJournal'])->w
 
 Route::get('/trial-balance', [$controller, 'trialBalance'])->middleware('auth.permission:finance.report.view')->name('reports.trial-balance');
 Route::get('/documents', [$controller, 'documentLinks'])->middleware('auth.permission:finance.document.view')->name('documents.index');
+Route::get('/dimensions', [FinanceDimensionController::class, 'index'])->middleware('auth.permission:finance.dimension.view')->name('dimensions.index');
+Route::post('/dimensions', [FinanceDimensionController::class, 'store'])->middleware('auth.permission:finance.dimension.manage')->name('dimensions.store');
+Route::get('/dimensions/{dimensionId}/values', [FinanceDimensionController::class, 'values'])->middleware('auth.permission:finance.dimension.view')->name('dimensions.values.index');
+Route::post('/dimensions/{dimensionId}/values', [FinanceDimensionController::class, 'storeValue'])->middleware('auth.permission:finance.dimension.manage')->name('dimensions.values.store');
 
 
 $settlementController = \MaaleArna\Arna\Core\Domains\Finance\Http\Controllers\GovernancePenaltySettlementController::class;
