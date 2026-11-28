@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use MaaleArna\Arna\Core\Domains\Finance\Events\JournalPosted;
 use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceOutboxMessage;
 use MaaleArna\Arna\Core\Domains\Finance\Models\JournalEntry;
+use MaaleArna\Arna\Core\Domains\Finance\Models\JournalLineDimension;
 
 final class PersistFinanceJournalPostedOutbox
 {
@@ -23,9 +24,18 @@ final class PersistFinanceJournalPostedOutbox
             ->with(['lines' => static fn ($query) => $query->orderBy('line_number')])
             ->findOrFail($event->subjectId);
 
+        $dimensionAssignments = JournalLineDimension::query()
+            ->with(['dimension', 'value'])
+            ->where('tenant_id', $event->tenantId)
+            ->where('legal_entity_id', $event->legalEntityId)
+            ->where('journal_entry_id', $journal->id)
+            ->orderBy('line_number')
+            ->get()
+            ->groupBy('line_number');
+
         $eventKey = 'finance.journal.posted:'.$event->tenantId.':'.$journal->id;
         $payload = [
-            'schema_version' => 1,
+            'schema_version' => 2,
             'event_id' => (string) Str::uuid(),
             'event_type' => 'finance.journal.posted',
             'occurred_at' => optional($journal->posted_at)->toISOString(),
@@ -49,6 +59,14 @@ final class PersistFinanceJournalPostedOutbox
                 'debit_amount' => (string) $line->debit_amount,
                 'credit_amount' => (string) $line->credit_amount,
                 'description' => $line->description,
+                'dimensions' => ($dimensionAssignments->get((int) $line->line_number, collect()))
+                    ->map(static fn (JournalLineDimension $assignment): array => [
+                        'dimension_id' => (int) $assignment->dimension_id,
+                        'dimension_code' => (string) $assignment->dimension->code,
+                        'dimension_type' => (string) $assignment->dimension->dimension_type,
+                        'dimension_value_id' => (int) $assignment->dimension_value_id,
+                        'value_code' => (string) $assignment->value->code,
+                    ])->values()->all(),
             ])->values()->all(),
         ];
 
