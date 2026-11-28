@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
 use InvalidArgumentException;
 use LogicException;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Services\\FinanceControlAccountOwnershipRegistry;
-use PHPUnit\\Framework\\Attributes\\Test;
-use Tests\\TestCase;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceControlAccountOwnershipRegistry;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 final class FinanceControlAccountOwnershipRegistryTest extends TestCase
 {
