@@ -37,6 +37,13 @@ return [
         ],
     ],
     'domains' => [
+        'finance' => [
+            'record_owner' => 'Finance',
+            'finance_role' => 'general_ledger_and_accounting_policy',
+            'document_uses' => ['journal_memo', 'adjustment_memo', 'period_close_memo', 'trial_balance', 'financial_statement', 'bank_reconciliation'],
+            'source_events' => ['finance.journal.posted', 'finance.journal.reversed', 'finance.period.closed'],
+            'posting_adapter' => 'inactive',
+        ],
         'shareholder' => [
             'record_owner' => 'Shareholder',
             'finance_role' => 'capital_and_distribution_subledger',
