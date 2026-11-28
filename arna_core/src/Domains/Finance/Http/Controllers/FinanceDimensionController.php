@@ -39,7 +39,6 @@ final class FinanceDimensionController extends Controller
             'dimension_type' => ['required', 'string', 'max:32'],
             'name_en' => ['required', 'string', 'max:180'],
             'name_am' => ['nullable', 'string', 'max:160'],
-            'is_required' => ['sometimes', 'boolean'],
         ]);
         $dimension = $this->service->createDimension(
             $this->tenantId(),
