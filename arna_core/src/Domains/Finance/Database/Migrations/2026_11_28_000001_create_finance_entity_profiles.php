@@ -64,7 +64,7 @@ return new class extends Migration
         if (DB::getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE finance_entity_profiles ADD CONSTRAINT finance_entity_profiles_currency_mode_chk CHECK (transaction_currency_mode = 'base_only')");
             DB::statement("ALTER TABLE finance_entity_profiles ADD CONSTRAINT finance_entity_profiles_calendar_chk CHECK (display_calendar IN ('EC', 'GC'))");
-            DB::statement("ALTER TABLE finance_entity_profiles ADD CONSTRAINT finance_entity_profiles_fiscal_start_pair_chk CHECK ((fiscal_year_start_month_ec IS NULL AND fiscal_year_start_day_ec IS NULL) OR (fiscal_year_start_month_ec BETWEEN 1 AND 13 AND fiscal_year_start_day_ec BETWEEN 1 AND 30))");
+            DB::statement("ALTER TABLE finance_entity_profiles ADD CONSTRAINT finance_entity_profiles_fiscal_start_pair_chk CHECK ((fiscal_year_start_month_ec IS NULL AND fiscal_year_start_day_ec IS NULL) OR (fiscal_year_start_month_ec BETWEEN 1 AND 12 AND fiscal_year_start_day_ec BETWEEN 1 AND 30) OR (fiscal_year_start_month_ec = 13 AND fiscal_year_start_day_ec BETWEEN 1 AND 6))");
             DB::statement("ALTER TABLE finance_entity_profiles ADD CONSTRAINT finance_entity_profiles_currency_etb_chk CHECK (functional_currency = 'ETB' AND reporting_currency = 'ETB')");
         }
     }
