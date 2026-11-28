@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\Arna\Core\Auth\Models\User;
 use MaaleArna\Arna\Core\Domains\Finance\Models\AccountingPeriod;
 use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDimension;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceOutboxMessage;
 use MaaleArna\Arna\Core\Domains\Finance\Models\JournalEntry;
 use MaaleArna\Arna\Core\Domains\Finance\Models\LedgerAccount;
 use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
@@ -55,6 +57,52 @@ final class FinanceJournalDimensionIntegrationTest extends TestCase
 
         $posted = app(JournalEntryService::class)->post((int) $tenant->id, (int) $actor->id, (int) $journal->id);
         self::assertSame(JournalEntry::POSTED, $posted->status);
+
+        $outbox = FinanceOutboxMessage::query()
+            ->where('event_key', 'finance.journal.posted:'.$tenant->id.':'.$journal->id)
+            ->firstOrFail();
+        self::assertSame(2, $outbox->payload['schema_version']);
+        self::assertSame('DEPT', $outbox->payload['lines'][0]['dimensions'][0]['dimension_code']);
+        self::assertSame('FIN', $outbox->payload['lines'][0]['dimensions'][0]['value_code']);
+    }
+
+    #[Test]
+    public function it_carries_dimension_assignments_into_system_generated_reversal_journals(): void
+    {
+        [$tenant, $actor, $entity, $cash, $equity] = $this->fixture();
+        [$dimension, $value] = $this->requiredDepartment($tenant, $actor, $entity);
+        $service = app(JournalEntryService::class);
+
+        $original = $service->createDraft((int) $tenant->id, (int) $actor->id, [
+            'legal_entity_id' => $entity->id,
+            'journal_number' => 'JV-DIM-REV-001',
+            'effective_date' => '2026-10-01',
+            'description' => 'Dimension reversal source',
+            'currency' => 'ETB',
+            'idempotency_key' => 'journal-dimension-reversal-source',
+        ], [
+            ['account_id' => $cash->id, 'debit_amount' => '15.0000', 'credit_amount' => '0', 'dimensions' => [
+                ['dimension_id' => $dimension->id, 'dimension_value_id' => $value->id],
+            ]],
+            ['account_id' => $equity->id, 'debit_amount' => '0', 'credit_amount' => '15.0000', 'dimensions' => [
+                ['dimension_id' => $dimension->id, 'dimension_value_id' => $value->id],
+            ]],
+        ]);
+        $service->post((int) $tenant->id, (int) $actor->id, (int) $original->id);
+
+        $reversal = $service->reverse(
+            (int) $tenant->id,
+            (int) $actor->id,
+            (int) $original->id,
+            'JV-DIM-REV-002',
+            '2026-10-01',
+            'Verified dimension-preserving reversal',
+        );
+
+        self::assertSame(JournalEntry::POSTED, $reversal->status);
+        self::assertSame(2, DB::table('journal_line_dimensions')
+            ->where('journal_entry_id', $reversal->id)
+            ->count());
     }
 
     #[Test]
