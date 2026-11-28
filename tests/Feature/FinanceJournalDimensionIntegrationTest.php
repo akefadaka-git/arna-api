@@ -46,6 +46,9 @@ final class FinanceJournalDimensionIntegrationTest extends TestCase
             ]],
         ]);
 
+        self::assertCount(1, $journal->lines[0]->dimensions);
+        self::assertSame((int) $value->id, (int) $journal->lines[0]->dimensions[0]->dimension_value_id);
+
         $this->assertDatabaseHas('journal_line_dimensions', [
             'tenant_id' => $tenant->id,
             'legal_entity_id' => $entity->id,
