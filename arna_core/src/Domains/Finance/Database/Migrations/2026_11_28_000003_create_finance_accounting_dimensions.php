@@ -83,7 +83,7 @@ return new class extends Migration
         });
 
         if (DB::getDriverName() === 'mysql') {
-            DB::statement("ALTER TABLE finance_dimensions ADD CONSTRAINT finance_dimensions_type_chk CHECK (dimension_type IN ('department', 'branch', 'project', 'cost_center', 'product', 'contract', 'customer', 'supplier', 'fund', 'region'))");
+            DB::statement("ALTER TABLE finance_dimensions ADD CONSTRAINT finance_dimensions_type_chk CHECK (dimension_type IN ('department', 'branch', 'project', 'cost_center', 'contract', 'fund', 'region'))");
             DB::statement("ALTER TABLE finance_dimension_values ADD CONSTRAINT finance_dimension_values_effective_dates_chk CHECK (effective_from IS NULL OR effective_to IS NULL OR effective_to >= effective_from)");
 
             DB::unprepared("CREATE TRIGGER journal_line_dimensions_insert_draft_only BEFORE INSERT ON journal_line_dimensions FOR EACH ROW BEGIN IF NOT EXISTS (SELECT 1 FROM journal_entries WHERE id = NEW.journal_entry_id AND tenant_id = NEW.tenant_id AND legal_entity_id = NEW.legal_entity_id AND status = 'draft') THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Dimensions may only be assigned to draft journal lines'; END IF; END");
