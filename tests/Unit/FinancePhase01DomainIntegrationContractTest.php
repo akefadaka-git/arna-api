@@ -7,6 +7,8 @@ namespace Tests\Unit;
 use MaaleArna\Arna\Core\Domains\Documents\Registries\DocumentTypeRegistry;
 use MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinancePermissionCatalogue;
 use MaaleArna\Arna\Core\Domains\Finance\Database\Seeders\FinanceRolePermissionGrants;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceDocumentLinkService;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -40,6 +42,22 @@ final class FinancePhase01DomainIntegrationContractTest extends TestCase
         self::assertContains('finance.document.view', $grants['finance_manager']);
         self::assertNotContains('finance.document.view', $grants['cashier']);
         self::assertNotContains('finance.document.view', $grants['board']);
+    }
+
+    #[Test]
+    public function finance_document_link_service_rejects_unregistered_source_domains(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        app(FinanceDocumentLinkService::class)->linkIssuedDocument(
+            1,
+            1,
+            1,
+            'unregistered_domain',
+            'sales_invoice',
+            'source-1',
+            'source_evidence',
+        );
     }
 
     #[Test]
