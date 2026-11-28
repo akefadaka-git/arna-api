@@ -43,7 +43,7 @@ final class FinanceDocumentLinkService
     ): FinanceDocumentLink {
         $registry = require dirname(__DIR__) . '/Config/phase01_domain_integrations.php';
         $sourceDomain = strtolower(trim($sourceDomain));
-        $sourceType = trim($sourceType);
+        $sourceType = strtolower(trim($sourceType));
         $sourceId = trim($sourceId);
         $purpose = strtolower(trim($purpose));
 
@@ -88,6 +88,14 @@ final class FinanceDocumentLinkService
             if ($document === null) {
                 throw ValidationException::withMessages([
                     'document_id' => 'The document must be issued, active and belong to the same tenant and legal entity.',
+                ]);
+            }
+
+            $documentTypeCode = strtoupper((string) $document->document_type_code);
+            $allowedUses = $registry['documents']['uses'][$documentTypeCode] ?? [];
+            if (! in_array($sourceType, $allowedUses, true)) {
+                throw ValidationException::withMessages([
+                    'source_type' => 'The source type is not registered for this canonical document type.',
                 ]);
             }
 
