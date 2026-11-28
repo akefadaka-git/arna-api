@@ -18,6 +18,10 @@ final class FinancePhase01DomainIntegrationContractTest extends TestCase
         $registry = require base_path('arna_core/src/Domains/Finance/Config/phase01_domain_integrations.php');
 
         self::assertSame(DocumentTypeRegistry::CODES, $registry['documents']['supported_document_codes']);
+        self::assertSame([], array_values(array_diff(array_keys($registry['documents']['uses']), DocumentTypeRegistry::CODES)));
+        foreach ($registry['documents']['uses'] as $types) {
+            self::assertNotEmpty($types);
+        }
         self::assertSame('Documents', $registry['documents']['owner']);
         self::assertSame('Files', $registry['documents']['binary_owner']);
         self::assertContains('sales_invoice', $registry['documents']['uses']['INV']);
