@@ -60,7 +60,7 @@ final class FinanceControlAccountOwnershipRegistryTest extends TestCase
     {
         $registry = new FinanceControlAccountOwnershipRegistry();
         $chart = require base_path('arna_core/src/Domains/Finance/Config/chart_of_accounts_v1.php');
-        $chart[] = $chart[0];
+        $chart[] = $chart[2];
 
         $this->expectException(LogicException::class);
         $registry->validateAgainstChart($chart);
