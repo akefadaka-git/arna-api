@@ -33,8 +33,10 @@ use MaaleArna\Arna\Core\Domains\Finance\Repositories\LegalEntityRepository;
 use MaaleArna\Arna\Core\Domains\Finance\Repositories\JournalEntryRepository;
 use MaaleArna\Arna\Core\Domains\Finance\Repositories\AccountingPeriodRepository;
 use MaaleArna\Arna\Core\Domains\Finance\Repositories\LedgerAccountRepository;
+use MaaleArna\Arna\Core\Domains\Finance\Repositories\FinanceDocumentLinkRepository;
 use MaaleArna\Arna\Core\Domains\Finance\Http\Resources\LegalEntityResource;
 use MaaleArna\Arna\Core\Domains\Finance\Http\Resources\TrialBalanceResource;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Resources\FinanceDocumentLinkResource;
 
 use MaaleArna\Arna\Core\Tenancy\Services\TenantContextService;
 
@@ -52,6 +54,7 @@ final class FinanceController extends Controller
         private readonly AccountingPeriodService $accountingPeriodService,
         private readonly JournalEntryRepository $journalEntries,
         private readonly SourceLegalEntityMappingService $sourceMappingService,
+        private readonly FinanceDocumentLinkRepository $financeDocumentLinks,
     ) {
     }
 
@@ -260,6 +263,30 @@ final class FinanceController extends Controller
             $data['journal_number'], $data['effective_date'], $data['reason'],
         );
         return response()->json(['success' => true, 'data' => $journal], 201);
+    }
+
+    public function documentLinks(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'legal_entity_id' => ['required', 'integer', 'min:1'],
+            'source_domain' => ['sometimes', 'string', 'max:48'],
+            'source_type' => ['sometimes', 'string', 'max:64'],
+            'source_id' => ['sometimes', 'string', 'max:128'],
+            'purpose' => ['sometimes', 'string', 'max:40'],
+        ]);
+
+        $entity = $this->assertEntityExists((int) $data['legal_entity_id']);
+        $links = $this->financeDocumentLinks->paginateForEntity(
+            $this->tenantId(),
+            (int) $entity->id,
+            $data,
+            $this->perPage($request),
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => FinanceDocumentLinkResource::collection($links),
+        ]);
     }
 
     public function trialBalance(Request $request): JsonResponse
