@@ -79,7 +79,7 @@ Required document uses include:
 | Governance and budget | board minutes, resolution, approved budget, delegated authority, investment/dividend approval |
 | Financial reporting | trial balance, financial statements, bank reconciliation, cash close, inventory valuation, asset register, audit and regulatory reports |
 
-Document codes already in the Documents registry are reused: INV/04, PUR/12, EXP/13, INC/14, RCT/15, CON/09, CER/05, RES/06, RPT/08, LEG/03 and MEM/02. Document type codes are immutable; a document code does not itself represent an accounting transaction.
+All 15 canonical Documents codes are reused: LET/01, MEM/02, LEG/03, INV/04, CER/05, RES/06, CIR/07, RPT/08, CON/09, NOT/10, POL/11, PUR/12, EXP/13, INC/14 and RCT/15. The subtype register maps each finance/domain document use to one of these codes; it does not create new numbering classes. Document type codes are immutable; a document code does not itself represent an accounting transaction.
 
 A receipt is not considered financially complete merely because a PDF exists. It must reference a real cash/bank/customer/supplier transaction and its allocation/reconciliation status.
 
@@ -87,7 +87,7 @@ A receipt is not considered financially complete merely because a PDF exists. It
 
 The API exposes `GET /api/finance/documents` under `finance.document.view`. It is tenant-context scoped, requires a legal entity, supports source-domain/type/ID and purpose filters, and returns only canonical issued-document references linked to that entity. Document metadata is a summary; binary access, file versions and lifecycle actions remain on the existing Files/Documents APIs.
 
-Finance-specific linking is performed through `FinanceDocumentLinkService`, not by accepting arbitrary client-supplied document metadata. The service validates the active tenant/entity, requires an issued non-voided/non-revoked document from the same tenant and legal entity, validates the registered source domain and purpose, and uses a unique identity key to make repeat linking idempotent. Finance managers receive the read permission; cashier and Board roles do not receive broad Finance document visibility by default.
+Finance-specific linking is performed through `FinanceDocumentLinkService`, not by accepting arbitrary client-supplied document metadata. The service validates the active tenant/entity, requires an issued non-voided/non-revoked document from the same tenant and legal entity, validates the registered source domain, domain-owned document subtype, canonical document type and purpose, and uses a unique identity key to make repeat linking idempotent. Finance managers receive the read permission; cashier and Board roles do not receive broad Finance document visibility by default.
 
 ## 7. Domain integration ownership
 
@@ -103,6 +103,7 @@ Finance-specific linking is performed through `FinanceDocumentLinkService`, not 
 | Banking / Wallet | Banking / Wallet | Cash movement and settlement reconciliation | Adapter inactive |
 | Sales | Sales | Revenue recognition and receivables | Adapter inactive |
 | Tax | Tax/Finance | Tax determination, liabilities and returns | Requires current Ethiopian tax validation |
+| Loans | Loans | Principal, interest, impairment and credit-loss accounting | Adapter inactive |
 
 ## 8. Source-event integration contract
 
