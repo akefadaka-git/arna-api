@@ -45,9 +45,9 @@ Phase 01 introduces entity-scoped dimension definitions and values for departmen
 
 Product, customer and supplier masters remain owned by their respective domains; Finance will reference their canonical identifiers through later source adapters rather than create duplicate master records.
 
-The `journal_line_dimensions` relation is prepared to associate dimension values with journal lines. MySQL guards allow assignment changes only while the journal is draft and prevent changes to dimension definitions/values once referenced by posted or reversed journals. Required-dimension enforcement and journal posting integration are completed in the dependent Phase 02 workstream; Phase 01 does not expose a misleading required flag.
+The `journal_line_dimensions` relation stores tenant/entity-scoped dimension values against individual journal lines. Draft creation validates that each dimension and value is active, belongs to the same tenant and legal entity, is effective on the journal date, and is not assigned twice to one line. A dimension can be marked `is_required_for_post`; if enabled, every journal line must carry a valid value for that dimension before posting. MySQL guards allow assignment changes only while the journal is draft and prevent changes to dimension definitions/values once referenced by posted or reversed journals. System-generated reversals preserve the original line allocations. The journal-posted outbox contract is schema version 2 and includes dimension IDs, codes, types and value codes for downstream reconciliation.
 
-The API exposes `GET/POST /api/finance/dimensions` and `GET/POST /api/finance/dimensions/{dimensionId}/values`. Read and manage actions use separate `finance.dimension.view` and `finance.dimension.manage` permissions; only the Finance Manager role receives the management grants in this baseline. Dimension creation/value creation is audited in the append-only Finance audit ledger.
+The API exposes `GET/POST /api/finance/dimensions` and `GET/POST /api/finance/dimensions/{dimensionId}/values`. Read and manage actions use separate `finance.dimension.view` and `finance.dimension.manage` permissions; the Finance Manager role receives the management grant in this baseline. Dimension creation/value creation is audited in the append-only Finance audit ledger. The App provides permission-aware dimension/value creation and journal allocation is enforced at the API boundary.
 
 ## 5. Document lifecycle and uses
 
@@ -132,7 +132,7 @@ Finance must resolve tenant context server-side, validate active entity/source m
 7. Document type registry and canonical numbering remain Documents-owned.
 8. App API types and views display configuration state and document references without exposing secrets or allowing unsupported policy activation.
 9. All 36 control-account policies validate against the canonical 79-account CoA; no owner or adapter is activated implicitly.
-10. Entity-scoped dimensions and values enforce tenant/entity/dimension ownership, hierarchy and effective dates; posted-journal dimension references are immutable.
+10. Entity-scoped dimensions and values enforce tenant/entity/dimension ownership, hierarchy and effective dates; required dimensions block incomplete journal posting, reversals preserve allocations, and outbox events carry dimension references.
 11. API PHP tests, MySQL clean-install tests, App type-check and relevant UI contract tests pass on exact candidate SHAs.
 
 ## 11. Deferred work
