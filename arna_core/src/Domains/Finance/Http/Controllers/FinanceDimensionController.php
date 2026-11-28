@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\Arna\\Core\\Domains\\Finance\\Http\\Controllers;
+namespace MaaleArna\Arna\Core\Domains\Finance\Http\Controllers;
 
-use App\\Http\\Controllers\\Controller;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Http\\Resources\\FinanceDimensionResource;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Http\\Resources\\FinanceDimensionValueResource;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\FinanceDimension;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Repositories\\FinanceDimensionRepository;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Services\\FinanceDimensionService;
-use MaaleArna\\Arna\\Core\\Tenancy\\Services\\TenantContextService;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Resources\FinanceDimensionResource;
+use MaaleArna\Arna\Core\Domains\Finance\Http\Resources\FinanceDimensionValueResource;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDimension;
+use MaaleArna\Arna\Core\Domains\Finance\Repositories\FinanceDimensionRepository;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceDimensionService;
+use MaaleArna\Arna\Core\Tenancy\Services\TenantContextService;
 
 final class FinanceDimensionController extends Controller
 {
