@@ -40,7 +40,7 @@ final class JournalEntryService
      * @param array<string, mixed> $header
      * @param list<array<string, mixed>> $lines
      */
-    public function createDraft(int $tenantId, int $actorId, array $header, array $lines): JournalEntry
+    public function createDraft(int $tenantId, int $actorId, array $header, array $lines, bool $allowHistoricalDimensionValues = false): JournalEntry
     {
         $typeValue = (string) ($header['journal_type'] ?? JournalEntryType::STANDARD->value);
         $journalType = JournalEntryType::tryFrom($typeValue);
@@ -72,7 +72,7 @@ final class JournalEntryService
         $header['source_id'] = $sourceId === '' ? null : $sourceId;
 
         try {
-            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType): JournalEntry {
+            return DB::transaction(function () use ($tenantId, $actorId, $header, $lines, $journalType, $sourceType, $allowHistoricalDimensionValues): JournalEntry {
                 if (count($lines) < 2) {
                     throw ValidationException::withMessages(['lines' => 'A journal must contain at least two lines.']);
                 }
@@ -185,24 +185,29 @@ final class JournalEntryService
                         }
                         $seenDimensionIds[$dimensionId] = true;
 
-                        $dimension = FinanceDimension::query()
+                        $dimensionQuery = FinanceDimension::query()
                             ->where('tenant_id', $tenantId)
-                            ->where('legal_entity_id', $entity->id)
-                            ->where('status', 'active')
-                            ->find($dimensionId);
-                        $value = FinanceDimensionValue::query()
+                            ->where('legal_entity_id', $entity->id);
+                        if (! $allowHistoricalDimensionValues) {
+                            $dimensionQuery->where('status', 'active');
+                        }
+                        $dimension = $dimensionQuery->find($dimensionId);
+
+                        $valueQuery = FinanceDimensionValue::query()
                             ->where('tenant_id', $tenantId)
                             ->where('legal_entity_id', $entity->id)
                             ->where('dimension_id', $dimensionId)
-                            ->where('status', 'active')
-                            ->whereKey($valueId)
-                            ->where(function ($query) use ($date): void {
-                                $query->whereNull('effective_from')->orWhere('effective_from', '<=', $date);
-                            })
-                            ->where(function ($query) use ($date): void {
-                                $query->whereNull('effective_to')->orWhere('effective_to', '>=', $date);
-                            })
-                            ->first();
+                            ->whereKey($valueId);
+                        if (! $allowHistoricalDimensionValues) {
+                            $valueQuery->where('status', 'active')
+                                ->where(function ($query) use ($date): void {
+                                    $query->whereNull('effective_from')->orWhere('effective_from', '<=', $date);
+                                })
+                                ->where(function ($query) use ($date): void {
+                                    $query->whereNull('effective_to')->orWhere('effective_to', '>=', $date);
+                                });
+                        }
+                        $value = $valueQuery->first();
 
                         if ($dimension === null || $value === null) {
                             throw ValidationException::withMessages(["lines.{$index}.dimensions.{$assignmentIndex}" => 'The dimension and value must be active, effective on the journal date, and belong to this tenant and legal entity.']);
@@ -393,7 +398,7 @@ final class JournalEntryService
                     throw new ConflictHttpException('Original journal is marked reversed but its reversal record is missing.');
                 }
 
-                $sameRequest = $this->createDraft($tenantId, $actorId, $reversalHeader, $reversalLines);
+                $sameRequest = $this->createDraft($tenantId, $actorId, $reversalHeader, $reversalLines, true);
                 if ((int) $sameRequest->id !== (int) $existing->id
                     || $existing->status !== JournalEntry::POSTED
                     || (int) $existing->reversal_of_id !== (int) $original->id) {
