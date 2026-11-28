@@ -56,6 +56,7 @@ use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceCurrencyConverter;
 use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceDocumentLinkService;
 use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceControlAccountOwnershipRegistry;
 use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceDimensionService;
+use MaaleArna\Arna\Core\Domains\Finance\Services\FinanceOpeningBalancePolicy;
 
 final class FinanceServiceProvider extends ServiceProvider
 {
@@ -73,6 +74,7 @@ final class FinanceServiceProvider extends ServiceProvider
         $this->app->singleton(FinanceDocumentLinkService::class);
         $this->app->singleton(FinanceControlAccountOwnershipRegistry::class);
         $this->app->singleton(FinanceDimensionService::class);
+        $this->app->singleton(FinanceOpeningBalancePolicy::class);
         $this->app->singleton(LedgerAccountService::class);
         $this->app->singleton(AccountingPeriodService::class);
         $this->app->singleton(TrialBalanceService::class);
