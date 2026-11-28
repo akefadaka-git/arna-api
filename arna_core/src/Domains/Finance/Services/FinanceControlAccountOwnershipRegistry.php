@@ -58,7 +58,7 @@ final class FinanceControlAccountOwnershipRegistry
             throw new LogicException('The canonical chart contains duplicate control-account codes.');
         }
 
-        $configuredCodes = array_keys($this->policies);
+        $configuredCodes = array_map('strval', array_keys($this->policies));
         sort($controlCodes);
         sort($configuredCodes);
 
