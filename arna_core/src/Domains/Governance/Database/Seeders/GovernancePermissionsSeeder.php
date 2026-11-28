@@ -33,7 +33,7 @@ declare(strict_types=1);
  *
  *   What the seeder writes:
  *
- *     · 41 tenant-scoped permissions with the `governance.` prefix.
+ *     · 44 tenant-scoped permissions with the `governance.` prefix.
  *       Each carries `scope = 'tenant'`, `tenant_id = null`,
  *       `application_id = null`, `is_active = true`,
  *       `is_system = true`.
@@ -46,7 +46,7 @@ declare(strict_types=1);
  *       other six `app.*.access` rows, all of which are
  *       `is_system = 0` except `app.admin.access`.
  *
- *   Total: 42 permission rows.
+ *   Total: 45 permission rows.
  *
  *   What the seeder deliberately does NOT do:
  *
@@ -88,7 +88,7 @@ declare(strict_types=1);
  * seeder writes.
  *
  * =============================================================================
- * The 41-slug inventory (by group)
+ * The 44-slug inventory (by group)
  * =============================================================================
  * Grouped by the resource noun the slug addresses. Counts:
  *
@@ -104,16 +104,17 @@ declare(strict_types=1);
  *     governance.delegation    2  (view, manage)
  *     governance.declaration   2  (view, manage)
  *     governance.election      7  (view, manage, authorize, schedule, suspend, cancel, archive)
+     governance.election.register 3 (view, prepare, reconcile)
  *     governance.document      3  (view, upload, download)
  *     governance.report        2  (view, generate)
  *                              ──
- *                              41
+ *                              44
  *
  * Plus:
  *
  *     app.governance.access    1  (application-scoped launcher gate)
  *                              ──
- *                              42 total
+ *                              45 total
  *
  * The `verify` verb on the action group is the only verb in the
  * inventory that is not one of the four standard verbs (view,
@@ -338,7 +339,7 @@ use RuntimeException;
 final class GovernancePermissionsSeeder extends Seeder
 {
     /**
-     * The 41 tenant-scoped permissions this seeder manages.
+     * The 44 tenant-scoped permissions this seeder manages.
      *
      * Each entry carries a slug, an Amharic label, an English label,
      * and a category. The `scope` is uniform across the set
@@ -621,6 +622,24 @@ final class GovernancePermissionsSeeder extends Seeder
             'name_en'  => 'Archive elections',
             'category' => 'governance',
         ],
+        [
+            'slug'     => 'governance.election.register.view',
+            'name_am'  => 'የምርጫ የባለአክሲዮን ምንጭ ማህደር ማየት',
+            'name_en'  => 'View election shareholder source snapshots',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.register.prepare',
+            'name_am'  => 'የምርጫ የባለአክሲዮን ምንጭ ቅጽ ማዘጋጀት',
+            'name_en'  => 'Prepare election shareholder source snapshots',
+            'category' => 'governance',
+        ],
+        [
+            'slug'     => 'governance.election.register.reconcile',
+            'name_am'  => 'የምርጫ የባለአክሲዮን ምንጭ ማስታረቅ',
+            'name_en'  => 'Reconcile election shareholder source snapshots',
+            'category' => 'governance',
+        ],
 
         // ---------------------------------------------------------------------
         // Documents
@@ -676,7 +695,7 @@ final class GovernancePermissionsSeeder extends Seeder
     /**
      * Run the database seeds.
      *
-     * Writes the 41 tenant-scoped permissions, then resolves the
+     * Writes the 44 tenant-scoped permissions, then resolves the
      * Governance platform application and writes the
      * application-scoped permission. Fails loudly if the
      * application row is missing.

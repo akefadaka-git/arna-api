@@ -1,0 +1,85 @@
+name: ARNA election shareholder source snapshot MySQL integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/arna-election-source-snapshot-mysql.yml"
+      - "arna_core/src/Domains/Governance/Database/Migrations/2026_11_27_000001_create_governance_election_source_snapshots.php"
+      - "arna_core/src/Domains/Governance/Models/GovernanceElectionSourceSnapshot*.php"
+      - "arna_core/src/Domains/Governance/Services/GovernanceElectionShareholderSourceService.php"
+      - "arna_core/src/Domains/Governance/Services/GovernanceElectionSourceSnapshotService.php"
+      - "arna_core/src/Domains/Governance/Http/Controllers/GovernanceElectionSourceSnapshotController.php"
+      - "arna_core/src/Domains/Governance/Routes/api.php"
+      - "arna_core/src/Domains/Governance/Database/Seeders/GovernancePermissionsSeeder.php"
+      - "arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionSourceSnapshotTest.php"
+      - "arna_core/src/Domains/Governance/Tests/Unit/GovernanceElectionShareholderSourceServiceTest.php"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arna-election-source-snapshot-mysql-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  mysql-source-snapshot:
+    name: Full MySQL migration and snapshot integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: arna_snapshot_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: arna_snapshot_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, curl, dom, fileinfo, intl, mbstring, openssl, pdo_mysql, pdo_sqlite, tokenizer, xml, zip
+          coverage: none
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Initialize application configuration
+        run: php artisan config:clear
+      - name: Verify disposable MySQL connection
+        run: mysql -h 127.0.0.1 -P 3306 -uroot -proot arna_snapshot_test -e "SELECT VERSION();"
+      - name: Run every registered migration on an empty MySQL database
+        run: php artisan migrate --force -vvv
+      - name: Confirm the source snapshot migration was applied
+        run: php artisan migrate:status --no-ansi | grep -F "2026_11_27_000001_create_governance_election_source_snapshots"
+      - name: Run MySQL source snapshot, tenant and append-only integration tests
+        run: vendor/bin/phpunit arna_core/src/Domains/Governance/Tests/Feature/GovernanceElectionSourceSnapshotTest.php
+      - name: Run shareholder source adapter unit tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          DB_FOREIGN_KEYS: "true"
+        run: vendor/bin/phpunit arna_core/src/Domains/Governance/Tests/Unit/GovernanceElectionShareholderSourceServiceTest.php

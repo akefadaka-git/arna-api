@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 
 use Illuminate\Support\Facades\Route;
+use MaaleArna\Arna\Core\Domains\Governance\Http\Controllers\GovernanceElectionSourceSnapshotController;
 use MaaleArna\Arna\Core\Domains\Governance\Http\Controllers\GovernanceAppointmentController;
 use MaaleArna\Arna\Core\Domains\Governance\Http\Controllers\GovernanceAuthorityGrantController;
 use MaaleArna\Arna\Core\Domains\Governance\Http\Controllers\GovernanceBodyController;
@@ -481,6 +482,27 @@ Route::name('api.governance.')->group(static function (): void {
         ->whereNumber('election')
         ->middleware('auth.permission:governance.election.manage')
         ->name('elections.transitions.store');
+
+
+    Route::get('/elections/{election}/shareholder-source-snapshots', [GovernanceElectionSourceSnapshotController::class, 'index'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.register.view')
+        ->name('elections.shareholder-source-snapshots.index');
+    Route::post('/elections/{election}/shareholder-source-snapshots', [GovernanceElectionSourceSnapshotController::class, 'store'])
+        ->whereNumber('election')
+        ->middleware('auth.permission:governance.election.register.prepare')
+        ->name('elections.shareholder-source-snapshots.store');
+    Route::get('/elections/{election}/shareholder-source-snapshots/{snapshot}', [GovernanceElectionSourceSnapshotController::class, 'show'])
+        ->whereNumber('election')
+        ->whereNumber('snapshot')
+        ->middleware('auth.permission:governance.election.register.view')
+        ->name('elections.shareholder-source-snapshots.show');
+    Route::post('/elections/{election}/shareholder-source-snapshots/{snapshot}/reconcile', [GovernanceElectionSourceSnapshotController::class, 'reconcile'])
+        ->whereNumber('election')
+        ->whereNumber('snapshot')
+        ->middleware('auth.permission:governance.election.register.reconcile')
+        ->name('elections.shareholder-source-snapshots.reconcile');
+
 
 
     // Module 2 — candidate intake, nomination, consent and human eligibility decisions.
