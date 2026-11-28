@@ -60,14 +60,18 @@ final class FinanceDocumentLinkService
             $tenantId, $legalEntityId, $documentId, $sourceDomain,
             $sourceType, $sourceId, $purpose, $actorId, $metadata,
         ): FinanceDocumentLink {
-            $entityExists = DB::table('legal_entities')
+            $entity = DB::table('legal_entities')
                 ->where('tenant_id', $tenantId)
                 ->where('id', $legalEntityId)
                 ->where('status', 'active')
-                ->exists();
+                ->lockForUpdate()
+                ->first();
 
-            if (! $entityExists) {
-                throw (new ModelNotFoundException())->setModel('FinanceLegalEntity');
+            if ($entity === null) {
+                throw (new ModelNotFoundException())->setModel(
+                    \\MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\LegalEntity::class,
+                    [$legalEntityId],
+                );
             }
 
             $document = DB::table('documents')
