@@ -38,7 +38,7 @@ final class CommunicationAnnouncementsTest extends TestCase
     {
         $catalogue = collect(PermissionCatalogue::ROWS)->keyBy('slug');
 
-        // Merged catalogue includes the tenant-scoped Finance document evidence capability.
+        // Merged catalogue includes shareholder import and Finance document evidence capabilities.
         $this->assertCount(97, PermissionCatalogue::ROWS);
 
         foreach (['announcement.view', 'announcement.manage', 'announcement.approve', 'announcement.publish'] as $slug) {
