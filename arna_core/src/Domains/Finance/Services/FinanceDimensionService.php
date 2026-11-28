@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace MaaleArna\\Arna\\Core\\Domains\\Finance\\Services;
+namespace MaaleArna\Arna\Core\Domains\Finance\Services;
 
-use Illuminate\\Database\\Eloquent\\ModelNotFoundException;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\FinanceDimension;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\FinanceDimensionValue;
-use MaaleArna\\Arna\\Core\\Domains\\Finance\\Models\\LegalEntity;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDimension;
+use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDimensionValue;
+use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
 
 final class FinanceDimensionService
 {
