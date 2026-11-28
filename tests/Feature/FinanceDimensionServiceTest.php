@@ -30,7 +30,6 @@ final class FinanceDimensionServiceTest extends TestCase
                 'dimension_type' => 'department',
                 'name_en' => 'Department',
                 'name_am' => 'ክፍል',
-                'is_required' => true,
             ],
             (int) $actor->id,
         );
@@ -48,7 +47,6 @@ final class FinanceDimensionServiceTest extends TestCase
             'legal_entity_id' => $entity->id,
             'code' => 'DEPT',
             'dimension_type' => 'department',
-            'is_required' => true,
         ]);
         $this->assertDatabaseHas('finance_dimension_values', [
             'tenant_id' => $tenant->id,
