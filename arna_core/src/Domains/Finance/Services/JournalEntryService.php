@@ -110,7 +110,7 @@ final class JournalEntryService
                     ->where('legal_entity_id', $entity->id)->where('idempotency_key', $key)->first();
                 if ($existing) {
                     if (hash_equals((string) $existing->request_hash, $requestHash)) {
-                        return $existing->load('lines');
+                        return $this->loadLinesWithDimensions($existing);
                     }
                     throw new ConflictHttpException('Idempotency key was already used for a different journal payload.');
                 }
@@ -220,7 +220,7 @@ final class JournalEntryService
                 }
 
                 $this->assertBalanced($entry);
-                $entry = $entry->load('lines');
+                $entry = $this->loadLinesWithDimensions($entry);
                 event(new JournalDraftCreated($entry, $actorId));
 
                 return $entry;
@@ -239,7 +239,7 @@ final class JournalEntryService
                         JSON_THROW_ON_ERROR
                     ));
                     if (hash_equals((string) $existing->request_hash, $requestHash)) {
-                        return $existing->load('lines');
+                        return $this->loadLinesWithDimensions($existing);
                     }
                     throw new ConflictHttpException('Idempotency key was already used for a different journal payload.', 0, $exception);
                 }
@@ -273,7 +273,7 @@ final class JournalEntryService
             $entry->cancelled_at = now();
             $entry->cancellation_reason = trim($reason);
             $entry->save();
-            $entry = $entry->load('lines');
+            $entry = $this->loadLinesWithDimensions($entry);
             event(new JournalCancelled($entry, $actorId, trim($reason)));
 
             return $entry;
@@ -329,7 +329,7 @@ final class JournalEntryService
             $entry->posted_by = $actorId;
             $entry->posted_at = now();
             $entry->save();
-            $entry = $entry->load('lines');
+            $entry = $this->loadLinesWithDimensions($entry);
             event(new JournalPosted($entry, $actorId));
 
             return $entry;
@@ -400,7 +400,7 @@ final class JournalEntryService
                     throw new ConflictHttpException('The persisted reversal does not match the original journal state.');
                 }
 
-                return $existing->load('lines');
+                return $this->loadLinesWithDimensions($existing);
             }
 
             if ($original->status !== JournalEntry::POSTED) {
@@ -439,6 +439,25 @@ final class JournalEntryService
         }
 
         return $value;
+    }
+
+    private function loadLinesWithDimensions(JournalEntry $entry): JournalEntry
+    {
+        $entry->load('lines');
+        $assignments = JournalLineDimension::query()
+            ->with(['dimension', 'value'])
+            ->where('tenant_id', $entry->tenant_id)
+            ->where('legal_entity_id', $entry->legal_entity_id)
+            ->where('journal_entry_id', $entry->id)
+            ->orderBy('line_number')
+            ->get()
+            ->groupBy('line_number');
+
+        foreach ($entry->lines as $line) {
+            $line->setRelation('dimensions', $assignments->get((int) $line->line_number, collect()));
+        }
+
+        return $entry;
     }
 
     private function assertRequiredDimensionsAssigned(JournalEntry $entry): void
