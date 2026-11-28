@@ -28,6 +28,7 @@ Route::post('/journals/{journalId}/post', [$controller, 'postJournal'])->whereNu
 Route::post('/journals/{journalId}/reverse', [$controller, 'reverseJournal'])->whereNumber('journalId')->middleware('auth.permission:finance.journal.reverse')->name('journals.reverse');
 
 Route::get('/trial-balance', [$controller, 'trialBalance'])->middleware('auth.permission:finance.report.view')->name('reports.trial-balance');
+Route::get('/documents', [$controller, 'documentLinks'])->middleware('auth.permission:finance.document.view')->name('documents.index');
 
 
 $settlementController = \MaaleArna\Arna\Core\Domains\Finance\Http\Controllers\GovernancePenaltySettlementController::class;
