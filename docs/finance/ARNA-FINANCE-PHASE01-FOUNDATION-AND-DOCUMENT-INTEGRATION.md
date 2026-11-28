@@ -119,7 +119,8 @@ Finance must resolve tenant context server-side, validate active entity/source m
 7. Document type registry and canonical numbering remain Documents-owned.
 8. App API types and views display configuration state and document references without exposing secrets or allowing unsupported policy activation.
 9. All 36 control-account policies validate against the canonical 79-account CoA; no owner or adapter is activated implicitly.
-10. API PHP tests, MySQL clean-install tests, App type-check and relevant UI contract tests pass on exact candidate SHAs.
+10. Entity-scoped dimensions and values enforce tenant/entity/dimension ownership, hierarchy and effective dates; posted-journal dimension references are immutable.
+11. API PHP tests, MySQL clean-install tests, App type-check and relevant UI contract tests pass on exact candidate SHAs.
 
 ## 10. Deferred work
 
