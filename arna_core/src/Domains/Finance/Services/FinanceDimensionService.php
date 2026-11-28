@@ -46,6 +46,7 @@ final class FinanceDimensionService
                 'name_am' => isset($data['name_am']) ? trim((string) $data['name_am']) : null,
                 'name_en' => $nameEn,
                 'status' => 'active',
+                'is_required_for_post' => (bool) ($data['is_required_for_post'] ?? false),
                 'created_by' => $actorId,
                 'updated_by' => $actorId,
             ]);
