@@ -23,7 +23,7 @@ Each tenant/legal-entity pair has one profile:
 - fiscal-year start month/day in EC: unset until the company's approved fiscal-year policy is recorded;
 - tax profile: unconfigured until registration and current tax evidence are reconciled;
 - accounting policy: owner review required;
-- document numbering policy: reference to the canonical Documents standard.
+- document numbering policy: Documents remains the numbering authority; the version reference stays null until the authoritative version is verified.
 
 Gregorian DATE remains the persisted accounting date. Ethiopian dates are translated at the Finance boundary through the platform calendar adapter. Fiscal periods are explicit date ranges; no fiscal year start is inferred from the calendar display preference.
 
