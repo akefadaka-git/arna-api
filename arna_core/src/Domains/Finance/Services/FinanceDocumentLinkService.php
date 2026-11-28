@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use MaaleArna\Arna\Core\Domains\Finance\Models\FinanceDocumentLink;
 use MaaleArna\Arna\Core\Domains\Finance\Models\LegalEntity;
+use MaaleArna\Arna\Core\Domains\Documents\Registries\DocumentTypeRegistry;
 
 /**
  * Links an issued canonical Documents record to a Finance source record.
@@ -92,7 +93,7 @@ final class FinanceDocumentLinkService
                 ]);
             }
 
-            $documentTypeCode = strtoupper((string) $document->document_type_code);
+            $documentTypeCode = DocumentTypeRegistry::legacyCode((string) $document->document_type_number);
             $allowedUses = $registry['documents']['uses'][$documentTypeCode] ?? [];
             if (! in_array($sourceType, $allowedUses, true)) {
                 throw ValidationException::withMessages([
