@@ -405,7 +405,7 @@ jobs:
           DB_PORT: "3306"
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan test --compact arna_core/src/Domains/Finance/Tests/Feature/FinanceGeneralLedgerTest.php tests/Feature/FinanceJournalDimensionIntegrationTest.php
+        run: php artisan test --compact arna_core/src/Domains/Finance/Tests/Feature/FinanceGeneralLedgerTest.php tests/Feature/FinanceJournalDimensionIntegrationTest.php tests/Feature/FinanceEntityProfileTest.php tests/Feature/FinanceDimensionServiceTest.php tests/Unit/FinanceControlAccountOwnershipRegistryTest.php tests/Unit/FinanceOpeningBalancePolicyTest.php tests/Unit/FinancePhase01DomainIntegrationContractTest.php
 
       - name: Lint Finance journal dimension integration tests
         run: php -l tests/Feature/FinanceJournalDimensionIntegrationTest.php
