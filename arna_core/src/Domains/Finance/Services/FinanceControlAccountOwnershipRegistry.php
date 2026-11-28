@@ -86,7 +86,8 @@ final class FinanceControlAccountOwnershipRegistry
             }
 
             if (($policy['designation_status'] ?? null) !== 'PENDING_OWNER_DESIGNATION'
-                || ($policy['named_accountable_person'] ?? 'not-null') !== null
+                || ! array_key_exists('named_accountable_person', $policy)
+                || $policy['named_accountable_person'] !== null
                 || ($policy['adapter_activation'] ?? null) !== 'BLOCKED_UNTIL_OWNER_AND_RECONCILIATION_PROCEDURE_APPROVED') {
                 throw new LogicException("Control account {$code} must remain fail-closed until Owner designation.");
             }
